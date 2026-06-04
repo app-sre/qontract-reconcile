@@ -1069,7 +1069,7 @@ def _process_omm_group(
         clear_omm_group(dry_run, gl, lead=lead)
         return 0
 
-    lead_sha = lead.squash_commit_sha or lead.merge_commit_sha
+    lead_sha = lead.merge_commit_sha or lead.squash_commit_sha
     if not lead_sha:
         logging.warning([
             "omm-group",

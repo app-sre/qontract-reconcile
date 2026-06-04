@@ -2117,8 +2117,8 @@ def _make_omm_gl(*, head_sha: str = "abc123") -> Mock:
 )
 def test_omm_group_merge_rejected_applies_merge_error(
     mocker: MockerFixture,
-    merge_sha,
-    squash_sha,
+    merge_sha: str | None,
+    squash_sha: str | None,
 ) -> None:
     """When a pending MR's merge raises GitlabMRClosedError during OMM
     group processing, merge-error is applied and omm-pending is removed."""
@@ -2167,8 +2167,8 @@ def test_omm_group_merge_rejected_applies_merge_error(
 )
 def test_omm_group_head_drift_invalidates_group(
     mocker: MockerFixture,
-    merge_sha,
-    squash_sha,
+    merge_sha: str | None,
+    squash_sha: str | None,
 ) -> None:
     """When target branch HEAD differs from the lead's resolved SHA the
     group is invalidated immediately."""
@@ -2234,8 +2234,8 @@ def test_omm_group_lead_missing_merge_commit_sha(
 )
 def test_omm_group_head_advanced_but_reachable_continues(
     mocker: MockerFixture,
-    merge_sha,
-    squash_sha,
+    merge_sha: str | None,
+    squash_sha: str | None,
 ) -> None:
     """When HEAD advanced because a pending member merged (lead commit
     still reachable), the group stays valid and processing continues."""
@@ -2285,8 +2285,8 @@ def test_omm_group_head_advanced_but_reachable_continues(
 )
 def test_omm_group_skip_ci_rebase_on_success_not_rebased(
     mocker: MockerFixture,
-    merge_sha,
-    squash_sha,
+    merge_sha: str | None,
+    squash_sha: str | None,
 ) -> None:
     """A pending MR with SUCCESS pipeline that is not rebased (HEAD moved)
     gets a skip_ci rebase and keeps the group active."""
@@ -2334,8 +2334,8 @@ def test_omm_group_skip_ci_rebase_on_success_not_rebased(
 )
 def test_omm_group_skip_ci_rebase_failure_ejects_member(
     mocker: MockerFixture,
-    merge_sha,
-    squash_sha,
+    merge_sha: str | None,
+    squash_sha: str | None,
 ) -> None:
     """When skip_ci rebase fails during group processing, the MR is
     ejected (omm-pending removed) and counted as a rejection."""
@@ -2383,8 +2383,8 @@ def test_omm_group_skip_ci_rebase_failure_ejects_member(
 )
 def test_omm_group_merge_limit_enforced(
     mocker: MockerFixture,
-    merge_sha,
-    squash_sha,
+    merge_sha: str | None,
+    squash_sha: str | None,
 ) -> None:
     """When merge_limit is reached during OMM group processing the group
     is cleared and processing stops."""
