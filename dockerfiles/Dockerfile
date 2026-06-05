@@ -1,7 +1,7 @@
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:1.5.1-1@sha256:b376ee1b22f804ee7a13a5f6e0cf2fe67e897827c2be6d73fd5b89bfbe1931e1 AS build-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:2.0.0-1@sha256:4d8e90ea3ac900956ad453c4406df1927df0de0ae5469a8d2b43cfa5ea865769 AS build-image
 COPY --from=ghcr.io/astral-sh/uv:0.11.13@sha256:841c8e6fe30a8b07b4478d12d0c608cba6de66102d29d65d1cc423af86051563 /uv /bin/uv
 
 WORKDIR /work
