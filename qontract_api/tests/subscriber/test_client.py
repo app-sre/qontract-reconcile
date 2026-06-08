@@ -8,6 +8,14 @@ from qontract_api_client.schemas import ChatRequest, Secret
 _MOD = "qontract_api.subscriber._client"
 
 
+@pytest.fixture(autouse=True)
+def _reset_client_configured() -> None:
+    """Reset the module-level _client_configured flag between tests."""
+    import qontract_api.subscriber._client as mod
+
+    mod._client_configured = False
+
+
 def _configure_settings(mock: MagicMock) -> None:
     """Set up mock settings with subscriber and secrets config."""
     mock.subscriber.slack_workspace = "test-workspace"

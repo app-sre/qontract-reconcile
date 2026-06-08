@@ -10,6 +10,8 @@ from qontract_api.logger import get_logger
 
 logger = get_logger(__name__)
 
+_client_configured = False
+
 
 def _setup_client() -> None:
     """Configure the qontract-api client with the server URL and token from the config.
@@ -17,6 +19,9 @@ def _setup_client() -> None:
     Raises:
         RuntimeError: If subscriber settings not configured or token not set
     """
+    global _client_configured  # noqa: PLW0603
+    if _client_configured:
+        return
     if not settings.subscriber.qontract_api_token:
         raise RuntimeError("settings.SubscriberSettings.qontract_api_token not set.")
     qontract_api_client.configure(
@@ -28,6 +33,7 @@ def _setup_client() -> None:
             timeout=30,
         )
     )
+    _client_configured = True
 
 
 def _build_chat_request(

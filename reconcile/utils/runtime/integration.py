@@ -1,3 +1,4 @@
+import functools
 import os
 from abc import (
     ABC,
@@ -14,7 +15,6 @@ from typing import (
 )
 from urllib.parse import urlparse
 
-import httpxyz
 from pydantic import BaseModel
 from qontract_api_client.client import (
     client as qontract_api_client,
@@ -245,6 +245,28 @@ class QontractReconcileIntegration[RunParamsTypeVar: RunParams](ABC):
         )
 
 
+@functools.cache
+def _setup_qontract_api_client() -> None:
+    """Configure the Qontract API client with the server URL and token from the config."""
+    config = get_config()
+
+    environment_headers = {}
+    if token := config.get("qontract-api", {}).get("token"):
+        environment_headers["Authorization"] = f"Bearer {token}"
+    if "BUILD_URL" in os.environ:
+        environment_headers["X-Build-Url"] = os.environ["BUILD_URL"]
+    if "gitlabMergeRequestIid" in os.environ:
+        environment_headers["X-GitLab-MR-ID"] = os.environ["gitlabMergeRequestIid"]  # noqa: SIM112
+
+    qontract_api_client.configure(
+        config=QontractApiClientConfig(
+            base_url=urlparse(config["qontract-api"]["server"]).geturl(),
+            headers=environment_headers,
+            timeout=None,
+        )
+    )
+
+
 class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
     """
     The base class for all integrations using the Qontract API.
@@ -253,41 +275,10 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
     def __init__(self, params: RunParamsTypeVar) -> None:
         self.params: RunParamsTypeVar = params
         self._secret_reader: SecretReaderBase | None = None
-        self._setup_qontract_api_client()
 
     @property
     @abstractmethod
     def name(self) -> str: ...
-
-    @staticmethod
-    async def _raise_on_4xx_5xx(response: httpxyz.Response) -> None:
-        if response.status_code != 409:
-            response.raise_for_status()
-
-    def _setup_qontract_api_client(self) -> None:
-        """Configure the Qontract API client with the server URL and token from the config."""
-        config = get_config()
-
-        # send some envirionment specific information via headers
-        environment_headers = {}
-        if token := config.get("qontract-api", {}).get("token"):
-            environment_headers["Authorization"] = f"Bearer {token}"
-        if "BUILD_URL" in os.environ:
-            # e.g. https://ci.int.devshift.net/job/service-app-interface-gl-pr-check/643806/
-            environment_headers["X-Build-Url"] = os.environ["BUILD_URL"]
-        if "gitlabMergeRequestIid" in os.environ:
-            # e.g. "643806"
-            environment_headers["X-GitLab-MR-ID"] = os.environ["gitlabMergeRequestIid"]  # noqa: SIM112
-
-        qontract_api_client.configure(
-            config=QontractApiClientConfig(
-                base_url=urlparse(
-                    config.get("qontract-api", {}).get("server", "")
-                ).geturl(),
-                headers=environment_headers,
-                timeout=None,
-            )
-        )
 
     @property
     def secret_manager_url(self) -> str:
