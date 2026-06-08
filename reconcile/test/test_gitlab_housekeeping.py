@@ -2110,8 +2110,15 @@ def _make_omm_gl(*, head_sha: str = "abc123") -> Mock:
     return mocked_gl
 
 
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
 def test_omm_group_merge_rejected_applies_merge_error(
     mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
 ) -> None:
     """When a pending MR's merge raises GitlabMRClosedError during OMM
     group processing, merge-error is applied and omm-pending is removed."""
@@ -2125,7 +2132,8 @@ def test_omm_group_merge_rejected_applies_merge_error(
     )
 
     lead = create_autospec(ProjectMergeRequest)
-    lead.merge_commit_sha = "abc123"
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
@@ -2152,10 +2160,17 @@ def test_omm_group_merge_rejected_applies_merge_error(
     mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
 
 
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
 def test_omm_group_head_drift_invalidates_group(
     mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
 ) -> None:
-    """When target branch HEAD differs from lead's merge_commit_sha the
+    """When target branch HEAD differs from the lead's resolved SHA the
     group is invalidated immediately."""
     _setup_omm_group_mocks(mocker)
     clear_mock = mocker.patch(
@@ -2163,7 +2178,8 @@ def test_omm_group_head_drift_invalidates_group(
     )
 
     lead = create_autospec(ProjectMergeRequest)
-    lead.merge_commit_sha = "abc123"
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
 
     mocked_gl = _make_omm_gl(head_sha="different-sha")
@@ -2180,8 +2196,46 @@ def test_omm_group_head_drift_invalidates_group(
     clear_mock.assert_called_once_with(False, mocked_gl, lead=lead)
 
 
+def test_omm_group_lead_missing_merge_commit_sha(
+    mocker: MockerFixture,
+) -> None:
+    """When both merge_commit_sha and squash_commit_sha are None,
+    return 0 without crashing and leave the group intact for the next loop."""
+    _setup_omm_group_mocks(mocker)
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = None
+    lead.squash_commit_sha = None
+    lead.target_branch = "master"
+    lead.iid = 99999
+
+    mocked_gl = _make_omm_gl(head_sha="some-sha")
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    clear_mock.assert_not_called()
+    mocked_gl.project.branches.get.assert_not_called()
+    mocked_gl.project.repository_compare.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
 def test_omm_group_head_advanced_but_reachable_continues(
     mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
 ) -> None:
     """When HEAD advanced because a pending member merged (lead commit
     still reachable), the group stays valid and processing continues."""
@@ -2195,7 +2249,8 @@ def test_omm_group_head_advanced_but_reachable_continues(
     )
 
     lead = create_autospec(ProjectMergeRequest)
-    lead.merge_commit_sha = "abc123"
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
@@ -2223,8 +2278,15 @@ def test_omm_group_head_advanced_but_reachable_continues(
     )
 
 
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
 def test_omm_group_skip_ci_rebase_on_success_not_rebased(
     mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
 ) -> None:
     """A pending MR with SUCCESS pipeline that is not rebased (HEAD moved)
     gets a skip_ci rebase and keeps the group active."""
@@ -2238,7 +2300,8 @@ def test_omm_group_skip_ci_rebase_on_success_not_rebased(
     )
 
     lead = create_autospec(ProjectMergeRequest)
-    lead.merge_commit_sha = "abc123"
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
@@ -2264,8 +2327,15 @@ def test_omm_group_skip_ci_rebase_on_success_not_rebased(
     clear_mock.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
 def test_omm_group_skip_ci_rebase_failure_ejects_member(
     mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
 ) -> None:
     """When skip_ci rebase fails during group processing, the MR is
     ejected (omm-pending removed) and counted as a rejection."""
@@ -2279,7 +2349,8 @@ def test_omm_group_skip_ci_rebase_failure_ejects_member(
     )
 
     lead = create_autospec(ProjectMergeRequest)
-    lead.merge_commit_sha = "abc123"
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
@@ -2305,8 +2376,15 @@ def test_omm_group_skip_ci_rebase_failure_ejects_member(
     mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
 
 
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
 def test_omm_group_merge_limit_enforced(
     mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
 ) -> None:
     """When merge_limit is reached during OMM group processing the group
     is cleared and processing stops."""
@@ -2320,7 +2398,8 @@ def test_omm_group_merge_limit_enforced(
     )
 
     lead = create_autospec(ProjectMergeRequest)
-    lead.merge_commit_sha = "abc123"
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
 
     mr1 = _make_merge_mr(10, ["approved", "tenant-foo", "omm-pending"])

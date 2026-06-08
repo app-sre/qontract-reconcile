@@ -1069,15 +1069,26 @@ def _process_omm_group(
         clear_omm_group(dry_run, gl, lead=lead)
         return 0
 
+    lead_sha = lead.merge_commit_sha or lead.squash_commit_sha
+    if not lead_sha:
+        logging.warning([
+            "omm-group",
+            "lead-missing-sha",
+            gl.project.name,
+            lead.iid,
+            "will retry next loop",
+        ])
+        return 0
+
     current_head = gl.project.branches.get(lead.target_branch).commit["id"]
-    if current_head != lead.merge_commit_sha:
+    if current_head != lead_sha:
         # Head moved since the lead merged.  This is expected when pending
         # members merge (each advances the target).  Only invalidate if
         # the lead's commit is no longer reachable — meaning the branch
         # diverged (force push / external reset).
         result = cast(
             "dict",
-            gl.project.repository_compare(current_head, lead.merge_commit_sha),
+            gl.project.repository_compare(current_head, lead_sha),
         )
         if len(result["commits"]) > 0:
             logging.warning([
