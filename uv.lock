@@ -479,7 +479,7 @@ wheels = [
 
 [[package]]
 name = "clientele"
-version = "2.1.0"
+version = "2.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx2" },
@@ -487,9 +487,9 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "stamina" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/0a/c9c63b33fa7247778da523728b911347fa1d8eb453865a073362548748e8/clientele-2.1.0.tar.gz", hash = "sha256:7134cf3c9dbb2a0d2197f329179a6d64820d9d7e12370a543b1132d7c50a9f62", size = 1331933, upload-time = "2026-05-22T20:01:37.599Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bf/91/d742ddfe6404a72528411d17a0322e71a19c93332ad1a972aed4f00eaa95/clientele-2.2.1.tar.gz", hash = "sha256:3ab6be9c08019f0c6cf6d4ed94b4d14d24455ce1c9e4daf2a47be479b935fdfc", size = 1337781, upload-time = "2026-06-08T08:38:13.51Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/37/d8/520a0ddaf769fdb250fc8c2f6b658346fce3394f5866c92ee9bf4b1a84f6/clientele-2.1.0-py3-none-any.whl", hash = "sha256:c79fdf8d4bd939b180292ec3045539ca0ac8267789c7c7ee3764fa33be85af8f", size = 77937, upload-time = "2026-05-22T20:01:35.284Z" },
+    { url = "https://files.pythonhosted.org/packages/94/e8/084c876fcade807649e0e8219a0e8e3dcbedb2b3fcba7ac4a932eb097339/clientele-2.2.1-py3-none-any.whl", hash = "sha256:8f979c2326809a1849f92ee734778fd22a0021093b0f4cb3b3213c7e47a67206", size = 79195, upload-time = "2026-06-08T08:38:15.046Z" },
 ]
 
 [package.optional-dependencies]
@@ -2113,11 +2113,11 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "clientele", extras = ["core"], specifier = ">=2.1.0" }]
+requires-dist = [{ name = "clientele", extras = ["core"], specifier = "==2.2.1" }]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "clientele", extras = ["cli"], specifier = "==2.1.0" },
+    { name = "clientele", extras = ["cli"], specifier = "==2.2.1" },
     { name = "mypy", specifier = "==2.1.0" },
     { name = "pytest", specifier = "==9.0.3" },
     { name = "pytest-cov", specifier = "==7.1.0" },

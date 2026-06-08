@@ -5,6 +5,7 @@ import inspect
 import typing
 
 import pydantic
+from clientele.schemas import ListResponse  # noqa
 
 
 class ChatRequest(pydantic.BaseModel):
