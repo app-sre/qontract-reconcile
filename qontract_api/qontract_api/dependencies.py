@@ -70,9 +70,11 @@ async def _authorize(request: Request, user: User) -> None:
     )
 
 
-async def get_current_user(request: Request) -> User:
+async def get_current_user(
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+) -> User:
     """Authenticate and authorize the current user (authN + authZ)."""
-    credentials = await security(request)
     user = _authenticate(credentials)
     await _authorize(request, user)
     return user
