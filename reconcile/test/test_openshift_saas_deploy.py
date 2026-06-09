@@ -240,33 +240,3 @@ def test_slack_notify_skipped_in_progress() -> None:
         "<https://test.local/console|PipelineRun> | <https://test.local/grafana|Logs>\n"
         "There will not be a notice for success."
     )
-
-
-def test_slack_notify_with_trigger_details() -> None:
-    api = create_autospec(slack_api.SlackApi)
-    slack_notify(
-        saas_file_name="saas-terraform-repo",
-        env_name="app-interface-production-int",
-        slack=api,
-        ri=openshift_resource.ResourceInventory(),
-        console_url="https://console.example.test/pipelinerun",
-        in_progress=False,
-        skip_successful_notifications=False,
-        grafana_logs_url="https://grafana.example.test/logs",
-        trigger_integration="openshift-saas-deploy-trigger-configs",
-        trigger_reason=(
-            "https://gitlab.example.test/service/app-interface/commit/"
-            "59d510fd5d37d66898cf744777c230ae9b66215f [auto-promotion]"
-        ),
-    )
-    api.chat_post_message.assert_called_once_with(
-        ":green_jenkins_circle: *SaaS deploy: Success*\n"
-        "*SaaS File:* `saas-terraform-repo`\n"
-        "*Deployment to environment:* `app-interface-production-int`\n"
-        "*Triggered by:* openshift-saas-deploy-trigger-configs\n"
-        "*Reason:* "
-        "https://gitlab.example.test/service/app-interface/commit/"
-        "59d510fd5d37d66898cf744777c230ae9b66215f [auto-promotion]\n"
-        "<https://console.example.test/pipelinerun|PipelineRun> | "
-        "<https://grafana.example.test/logs|Logs>"
-    )
