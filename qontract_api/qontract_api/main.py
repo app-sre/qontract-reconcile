@@ -81,7 +81,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         _app.state.opa_client = None
         log.info("OPA authorization disabled")
 
-    yield  # noqa: RUF075
+    yield
 
     # Cleanup OPA client on shutdown
     if opa_client := getattr(_app.state, "opa_client", None):
