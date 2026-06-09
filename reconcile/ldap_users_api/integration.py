@@ -11,19 +11,20 @@ import logging
 from functools import partial
 from typing import TYPE_CHECKING
 
-import httpxyz
 from pydantic import Field
-from qontract_api_client.api.external.ldap_users_check import (
-    asyncio as check_ldap_users,
+from qontract_api_client.client import ldap_users_check as check_ldap_users
+from qontract_api_client.client import (
+    vcs_file_sync,
+    vcs_get_file,
 )
-from qontract_api_client.api.external.vcs_file_sync import asyncio as vcs_file_sync
-from qontract_api_client.api.external.vcs_get_file import asyncio as vcs_get_file
-from qontract_api_client.errors import UnexpectedStatus
-from qontract_api_client.models.file_sync_request import FileSyncRequest
-from qontract_api_client.models.file_sync_status import FileSyncStatus
-from qontract_api_client.models.ldap_direct_secret import LdapDirectSecret
-from qontract_api_client.models.ldap_users_check_request import LdapUsersCheckRequest
-from qontract_api_client.models.secret import Secret
+from qontract_api_client.exceptions import HTTPStatusError
+from qontract_api_client.schemas import (
+    FileSyncRequest,
+    FileSyncStatus,
+    LdapDirectSecret,
+    LdapUsersCheckRequest,
+    Secret,
+)
 
 from reconcile.ldap_users_api.models import PathSpec, PathType, UserPaths
 from reconcile.ldap_users_api.mr_builder import (
@@ -128,7 +129,6 @@ class LdapUsersApiIntegration(
         """
         try:
             response = await vcs_get_file(
-                client=self.qontract_api_client,
                 secret_manager_url=vcs_secret.secret_manager_url,
                 path=vcs_secret.path,
                 field=vcs_secret.field,
@@ -137,12 +137,8 @@ class LdapUsersApiIntegration(
                 file_path=path,
                 ref=ref,
             )
-        except httpxyz.HTTPStatusError as e:
+        except HTTPStatusError as e:
             if e.response.status_code == 404:
-                return None
-            raise
-        except UnexpectedStatus as e:
-            if e.status_code == 404:
                 return None
             raise
         return response.content
@@ -164,8 +160,7 @@ class LdapUsersApiIntegration(
             return
 
         ldap_response = await check_ldap_users(
-            client=self.qontract_api_client,
-            body=LdapUsersCheckRequest(
+            LdapUsersCheckRequest(
                 usernames=usernames,
                 secret=LdapDirectSecret(
                     secret_manager_url=self.secret_manager_url,
@@ -250,8 +245,7 @@ class LdapUsersApiIntegration(
             if not dry_run:
                 sync_calls.append(
                     vcs_file_sync(
-                        client=self.qontract_api_client,
-                        body=FileSyncRequest(
+                        FileSyncRequest(
                             repo_url=self.params.app_interface_repo_url,
                             token=vcs_secret,
                             title=title,
@@ -316,8 +310,7 @@ class LdapUsersApiIntegration(
 
         if not dry_run:
             response = await vcs_file_sync(
-                client=self.qontract_api_client,
-                body=FileSyncRequest(
+                FileSyncRequest(
                     repo_url=self.params.infra_repo_url,
                     token=vcs_secret,
                     title=title,

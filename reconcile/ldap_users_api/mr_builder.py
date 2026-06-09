@@ -9,9 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from qontract_api_client.models.file_sync_create import FileSyncCreate
-from qontract_api_client.models.file_sync_delete import FileSyncDelete
-from qontract_api_client.models.file_sync_update import FileSyncUpdate
+from qontract_api_client.schemas import FileSyncCreate, FileSyncDelete, FileSyncUpdate
 from qontract_utils.ruamel import create_ruamel_instance, dump_yaml
 
 from reconcile.ldap_users_api.models import PathType, UserPaths

@@ -20,47 +20,30 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
-from qontract_api_client.api.external.pagerduty_escalation_policy_users import (
+from qontract_api_client.client import (
+    pagerduty_escalation_policy_users,
+    pagerduty_schedule_users,
+    slack_usergroups,
+    vcs_repo_owners,
+)
+from qontract_api_client.schemas import (
     EscalationPolicyUsersResponse,
-)
-from qontract_api_client.api.external.pagerduty_escalation_policy_users import (
-    asyncio as get_pagerduty_escalation_policy_users,
-)
-from qontract_api_client.api.external.pagerduty_schedule_users import (
+    NotificationAddUser,
+    NotificationRemoveUser,
     ScheduleUsersResponse,
-)
-from qontract_api_client.api.external.pagerduty_schedule_users import (
-    asyncio as get_pagerduty_schedule_users,
-)
-from qontract_api_client.api.external.vcs_repo_owners import (
-    RepoOwnersResponse,
-)
-from qontract_api_client.api.external.vcs_repo_owners import (
-    asyncio as get_repo_owners,
-)
-from qontract_api_client.api.integrations.slack_usergroups import (
-    SlackUsergroupsReconcileRequest,
-    SlackUsergroupsTaskResponse,
-)
-from qontract_api_client.api.integrations.slack_usergroups import (
-    asyncio as reconcile_slack_usergroups,
-)
-from qontract_api_client.models import (
+    Secret,
+    SlackUsergroup,
     SlackUsergroupActionCreate,
     SlackUsergroupActionUpdateMetadata,
     SlackUsergroupActionUpdateUsers,
+    SlackUsergroupConfig,
+    SlackUsergroupsReconcileRequest,
+    SlackUsergroupsTaskResponse,
     SlackUsergroupsTaskResult,
+    TaskStatus,
+    VCSProvider,
 )
-from qontract_api_client.models.notification_add_user import NotificationAddUser
-from qontract_api_client.models.notification_remove_user import NotificationRemoveUser
-from qontract_api_client.models.secret import Secret
-from qontract_api_client.models.slack_usergroup import SlackUsergroup
-from qontract_api_client.models.slack_usergroup_config import SlackUsergroupConfig
-from qontract_api_client.models.slack_workspace import (
-    SlackWorkspace as SlackWorkspaceRequest,
-)
-from qontract_api_client.models.task_status import TaskStatus
-from qontract_api_client.models.vcs_provider import VCSProvider
+from qontract_api_client.schemas import SlackWorkspace as SlackWorkspaceRequest
 from qontract_utils.vcs import VCSProviderRegistry, get_default_registry
 
 from reconcile.gql_definitions.slack_usergroups_api.clusters import ClusterV1
@@ -253,8 +236,7 @@ class SlackUsergroupsIntegration(
         if url.count(":") == 2:
             url, ref = url.rsplit(":", 1)
 
-        response = await get_repo_owners(
-            client=self.qontract_api_client,
+        response = await vcs_repo_owners(
             repo_url=url,
             ref=ref,
             secret_manager_url=self.secret_manager_url,
@@ -262,8 +244,6 @@ class SlackUsergroupsIntegration(
             field=token.field,
             version=token.version,
         )
-        assert isinstance(response, RepoOwnersResponse)
-
         # Process owners inline
         result = []
         owners = (response.approvers or []) + (response.reviewers or [])
@@ -343,8 +323,7 @@ class SlackUsergroupsIntegration(
         for pagerduty in pagerduties:
             if pagerduty.schedule_id:
                 tasks.append(
-                    get_pagerduty_schedule_users(
-                        client=self.qontract_api_client,
+                    pagerduty_schedule_users(
                         schedule_id=pagerduty.schedule_id,
                         secret_manager_url=self.secret_manager_url,
                         path=pagerduty.instance.token.path,
@@ -354,8 +333,7 @@ class SlackUsergroupsIntegration(
                 )
             if pagerduty.escalation_policy_id:
                 tasks.append(
-                    get_pagerduty_escalation_policy_users(
-                        client=self.qontract_api_client,
+                    pagerduty_escalation_policy_users(
                         policy_id=pagerduty.escalation_policy_id,
                         secret_manager_url=self.secret_manager_url,
                         path=pagerduty.instance.token.path,
@@ -635,9 +613,7 @@ class SlackUsergroupsIntegration(
             ],
             dry_run=dry_run,
         )
-        response = await reconcile_slack_usergroups(
-            client=self.qontract_api_client, body=request_data
-        )
+        response = await slack_usergroups(request_data)
         # Always log the request id! It won't be forwarded to #reconcile channel via fluentd filter!
         logging.info(f"request_id: {response.id}")
         return response

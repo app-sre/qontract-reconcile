@@ -40,7 +40,7 @@ class SlackUsergroupConfig(BaseModel, frozen=True):
         description="List of channel names (e.g., #general, team-channel)",
     )
     notifications: list[UsergroupNotification] = Field(
-        default_factory=list,
+        [],
         description="Notification actions triggered on membership changes",
     )
 

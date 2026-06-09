@@ -1,23 +1,27 @@
+import functools
 import os
 from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import ModuleType
 from typing import (
     Any,
     Optional,
-    Protocol,
     Self,
     TypeVar,
 )
 from urllib.parse import urlparse
 
-import httpxyz
 from pydantic import BaseModel
-from qontract_api_client.client import AuthenticatedClient
+from qontract_api_client.client import (
+    client as qontract_api_client,
+)
+from qontract_api_client.config import (
+    Config as QontractApiClientConfig,
+)
 
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -241,11 +245,30 @@ class QontractReconcileIntegration[RunParamsTypeVar: RunParams](ABC):
         )
 
 
-class FromDict(Protocol):
-    """Protocol for generated API client models with from_dict classmethod."""
+@functools.cache
+def setup_qontract_api_client() -> None:
+    """Configure the Qontract API client with the server URL and token from the config.
 
-    @classmethod
-    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self: ...
+    Cached for the process lifetime — call `setup_qontract_api_client.cache_clear()` in
+    test teardown when a fresh configuration is needed.
+    """
+    config = get_config()
+
+    environment_headers = {}
+    if token := config.get("qontract-api", {}).get("token"):
+        environment_headers["Authorization"] = f"Bearer {token}"
+    if "BUILD_URL" in os.environ:
+        environment_headers["X-Build-Url"] = os.environ["BUILD_URL"]
+    if "gitlabMergeRequestIid" in os.environ:
+        environment_headers["X-GitLab-MR-ID"] = os.environ["gitlabMergeRequestIid"]  # noqa: SIM112
+
+    qontract_api_client.configure(
+        config=QontractApiClientConfig(
+            base_url=urlparse(config["qontract-api"]["server"]).geturl(),
+            headers=environment_headers,
+            timeout=None,
+        )
+    )
 
 
 class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
@@ -260,36 +283,6 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
     @property
     @abstractmethod
     def name(self) -> str: ...
-
-    @staticmethod
-    async def _raise_on_4xx_5xx(response: httpxyz.Response) -> None:
-        if response.status_code != 409:
-            response.raise_for_status()
-
-    @property
-    def qontract_api_client(self) -> AuthenticatedClient:
-        """
-        Returns the qontract-api client.
-        """
-        config = get_config()
-
-        # send some envirionment specific information via headers
-        environment_headers = {}
-        if "BUILD_URL" in os.environ:
-            # e.g. https://ci.int.devshift.net/job/service-app-interface-gl-pr-check/643806/
-            environment_headers["X-Build-Url"] = os.environ["BUILD_URL"]
-        if "gitlabMergeRequestIid" in os.environ:
-            # e.g. "643806"
-            environment_headers["X-GitLab-MR-ID"] = os.environ["gitlabMergeRequestIid"]  # noqa: SIM112
-
-        return AuthenticatedClient(
-            base_url=urlparse(config["qontract-api"]["server"]).geturl(),
-            token=config["qontract-api"].get("token", ""),
-            httpx_args={
-                "event_hooks": {"response": [self._raise_on_4xx_5xx]},
-            },
-            headers=environment_headers,
-        )
 
     @property
     def secret_manager_url(self) -> str:
@@ -309,7 +302,7 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
             self._secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         return self._secret_reader
 
-    async def poll_task_status[T: FromDict](
+    async def poll_task_status[T: BaseModel](
         self,
         status_url: str,
         result_type: type[T],
@@ -321,12 +314,12 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
         Uses the status_url returned by POST endpoints to retrieve task results
         without requiring the caller to know about task IDs or URL construction.
         """
-        response = await self.qontract_api_client.get_async_httpx_client().request(
+        return await qontract_api_client.arequest(
             method="get",
-            url=status_url,
-            params={"timeout": timeout},
+            path=urlparse(status_url).path,
+            response_map={200: result_type},
+            query={"timeout": timeout},
         )
-        return result_type.from_dict(response.json())
 
     @abstractmethod
     async def async_run(self, dry_run: bool) -> None:

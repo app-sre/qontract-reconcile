@@ -3,8 +3,7 @@
 import asyncio
 
 import pytest
-from qontract_api_client.models.gi_organization import GIOrganization
-from qontract_api_client.models.glitchtip_user import GlitchtipUser
+from qontract_api_client.schemas import GIOrganization, GlitchtipUser
 from qontract_utils.glitchtip_api import slugify
 
 from reconcile.glitchtip_api.integration import (
