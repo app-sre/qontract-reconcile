@@ -1768,6 +1768,7 @@ APPS_QUERY = """
           }
         }
         must_pass
+        multi_merge
       }
       jira {
         serverUrl

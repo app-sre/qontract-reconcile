@@ -1496,7 +1496,6 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
     repos = [r for r in repos if is_in_shard(r["url"])]
     app_sre_usernames: set[str] = set()
     rebase_strategy = get_rebase_strategy()
-    multi_merge = rebase_strategy == RebaseStrategy.ACTIVE_CAP_MULTI_MERGE
     state = init_state(QONTRACT_INTEGRATION)
 
     for repo in repos:
@@ -1510,7 +1509,10 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
             hk.get("consecutive_failure_limit") or default_consecutive_failure_limit
         )
         pipeline_timeout = hk.get("pipeline_timeout")
-
+        multi_merge = (
+            rebase_strategy == RebaseStrategy.ACTIVE_CAP_MULTI_MERGE
+            and hk.get("multi_merge", False)
+        )
         labels_allowed = hk.get("labels_allowed")
         users_allowed_to_label = (
             None
