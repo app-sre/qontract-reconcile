@@ -115,9 +115,9 @@ def get_health_status(
     if all(s == "healthy" for s in component_statuses):
         overall_status = "healthy"
     elif any(s == "unhealthy" for s in component_statuses):
-        overall_status = "degraded"
-    else:
         overall_status = "unhealthy"
+    else:
+        overall_status = "degraded"
 
     return HealthResponse(
         status=overall_status,

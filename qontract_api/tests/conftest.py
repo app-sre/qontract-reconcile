@@ -23,7 +23,7 @@ def pytest_configure() -> None:
         "QAPI_SECRETS__PROVIDERS", '[{"url": "https://vault.example.org"}]'
     )
     # Disable OPA authorization for tests (no OPA sidecar available)
-    os.environ.setdefault("QAPI_OPA__ENABLED", "false")
+    os.environ["QAPI_OPA__ENABLED"] = "false"
 
 
 @pytest.fixture

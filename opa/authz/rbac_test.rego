@@ -288,3 +288,69 @@ test_scoped_token_wrong_endpoint_denied if {
 		with data.users as mock_data.users
 		with data.roles as mock_data.roles
 }
+
+# ── valid_params edge cases ──────────────────────────────────────
+
+test_null_param_must_not_be_present if {
+	mock_roles_with_null := {"null-role": [{
+		"obj": "test-op",
+		"params": {"forbidden_key": null},
+	}]}
+	mock_users_with_null := {"null-user": ["null-role"]}
+
+	# authorized when forbidden_key is absent
+	authz.authorized with input as {
+		"username": "null-user",
+		"obj": "test-op",
+		"params": {"other_key": "value"},
+	}
+		with data.users as mock_users_with_null
+		with data.roles as mock_roles_with_null
+}
+
+test_null_param_present_denied if {
+	mock_roles_with_null := {"null-role": [{
+		"obj": "test-op",
+		"params": {"forbidden_key": null},
+	}]}
+	mock_users_with_null := {"null-user": ["null-role"]}
+
+	# denied when forbidden_key IS present
+	not authz.authorized with input as {
+		"username": "null-user",
+		"obj": "test-op",
+		"params": {"forbidden_key": "any-value"},
+	}
+		with data.users as mock_users_with_null
+		with data.roles as mock_roles_with_null
+}
+
+test_empty_params_authorized if {
+	mock_roles_empty := {"empty-role": [{
+		"obj": "test-op",
+		"params": {},
+	}]}
+	mock_users_empty := {"empty-user": ["empty-role"]}
+
+	authz.authorized with input as {
+		"username": "empty-user",
+		"obj": "test-op",
+		"params": {"anything": "goes"},
+	}
+		with data.users as mock_users_empty
+		with data.roles as mock_roles_empty
+}
+
+test_missing_required_param_denied if {
+	# role requires secret.path but input doesn't provide it
+	not authz.authorized with input as {
+		"username": "ldap-users-api",
+		"obj": "ldap-users-check",
+		"params": {
+			"secret.server_url": "ldap://freeipa.example.com",
+			"secret.secret_manager_url": "https://vault.example.com",
+		},
+	}
+		with data.users as mock_data.users
+		with data.roles as mock_data.roles
+}

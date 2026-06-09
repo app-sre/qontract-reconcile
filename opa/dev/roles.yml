@@ -63,7 +63,7 @@ roles:
     - obj: ldap-users-check
       params:
         secret.server_url: "^ldaps?://freeipa\\.example\\.com$"
-        secret.path: "^app-sre/creds/ldap"
+        secret.path: "^app-sre/creds/ldap(/.*)?$"
         secret.secret_manager_url: "^https://vault\\.example\\.com$"
 
   # ── SSRF prevention: VCS ───────────────────────────────────────
@@ -73,41 +73,41 @@ roles:
     - obj: vcs-repo-owners
       params:
         repo_url: "^https://(github\\.com|gitlab\\.cee\\.redhat\\.com)/"
-        path: "^app-sre/creds/"
+        path: "^app-sre/creds/[^/]+$"
     - obj: vcs-get-file
       params:
         repo_url: "^https://(github\\.com|gitlab\\.cee\\.redhat\\.com)/"
-        path: "^app-sre/creds/"
+        path: "^app-sre/creds/[^/]+$"
     - obj: vcs-file-sync
       params:
-        token.path: "^app-sre/creds/"
+        token.path: "^app-sre/creds/[^/]+$"
         repo_url: "^https://(github\\.com|gitlab\\.cee\\.redhat\\.com)/"
 
   # ── Secret-read prevention: PagerDuty ──────────────────────────
   slack-pd-role:
     - obj: pagerduty-schedule-users
       params:
-        path: "^app-sre/creds/pagerduty"
+        path: "^app-sre/creds/pagerduty(/.*)?$"
     - obj: pagerduty-escalation-policy-users
       params:
-        path: "^app-sre/creds/pagerduty"
+        path: "^app-sre/creds/pagerduty(/.*)?$"
 
   # ── Secret-read prevention: Slack ──────────────────────────────
   slack-chat-role:
     - obj: slack-chat-post-message
       params:
-        secret.path: "^app-sre/creds/slack"
+        secret.path: "^app-sre/creds/slack(/.*)?$"
 
   # ── SSRF prevention: Slack + VCS combo ─────────────────────────
   slack-vcs-role:
     - obj: vcs-repo-owners
       params:
         repo_url: "^https://(github\\.com|gitlab\\.cee\\.redhat\\.com)/"
-        path: "^app-sre/creds/"
+        path: "^app-sre/creds/[^/]+$"
     - obj: vcs-get-file
       params:
         repo_url: "^https://(github\\.com|gitlab\\.cee\\.redhat\\.com)/"
-        path: "^app-sre/creds/"
+        path: "^app-sre/creds/[^/]+$"
 
   # ── Glitchtip integration ──────────────────────────────────────
   glitchtip-role:
