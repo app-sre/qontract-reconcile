@@ -73,6 +73,7 @@ class Publisher:
                 sha=self.commit_sha,
                 channel=channel,
                 target_uid=self.uid,
+                pre_check_sha_exists=False,
             )
             if not (
                 promotion_data

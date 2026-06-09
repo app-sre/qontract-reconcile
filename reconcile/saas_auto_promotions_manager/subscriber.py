@@ -17,6 +17,7 @@ from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.slo_document_manager import SLODocumentManager
 
 CONTENT_HASH_LENGTH = 32
+SOAK_DAYS_BUFFER = timedelta(hours=6)
 
 
 @dataclass
@@ -112,21 +113,49 @@ class Subscriber:
     def _passed_accumulated_soak_days(self) -> bool:
         """
         We accumulate the time a ref is running on all publishers for this subscriber.
-        We compare that accumulated time with the soak_days setting of the subscriber.
+        We compare that accumulated time with the soak_days setting of the subscriber
+        plus a buffer to account for state changes between SAPM evaluation and pipeline
+        validation (APPSRE-14585).
         """
         now = utc_now()
         delta = timedelta(days=0)
+        publisher_details: list[str] = []
         for channel in self.channels:
             for publisher in channel.publishers:
                 deploy_info = publisher.deployment_info_by_channel.get(channel.name)
                 if not deploy_info:
-                    # At this stage we always expect a deploy_info to be present
+                    logging.info(
+                        "[%s] publisher uid=%s has no deploy_info - blocking soak check",
+                        channel.name,
+                        publisher.uid,
+                    )
                     return False
                 deployed_at = deploy_info.check_in
                 if not deployed_at:
+                    publisher_details.append(
+                        f"{publisher.uid}@{channel.name}: no check_in"
+                    )
                     continue
-                delta += now - deployed_at
-        return delta >= timedelta(days=self.soak_days)
+                publisher_delta = now - deployed_at
+                delta += publisher_delta
+                publisher_details.append(
+                    f"{publisher.uid}@{channel.name}: check_in={deployed_at.isoformat()}, delta={publisher_delta}"
+                )
+        required = timedelta(days=self.soak_days)
+        if self.soak_days > 0:
+            required += SOAK_DAYS_BUFFER
+        if delta < required:
+            logging.info(
+                "Subscriber at %s soak not met: accumulated=%s, required=%s (soak_days=%d + buffer=%s). Publishers: [%s]",
+                self.target_file_path,
+                delta,
+                required,
+                self.soak_days,
+                SOAK_DAYS_BUFFER,
+                ", ".join(publisher_details),
+            )
+            return False
+        return True
 
     def _is_valid_deployment_window(self) -> bool:
         # Ideally we would catch that at schema validation time
