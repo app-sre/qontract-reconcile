@@ -7,6 +7,7 @@ from typing import (
     TypeVar,
 )
 
+from qontract_api_client.client import client as qontract_api_client
 from sretoolbox.utils import threaded as sretoolbox_threaded
 
 from reconcile.status import ExitCodes
@@ -167,6 +168,22 @@ def run_integration_cfg(run_cfg: IntegrationRunConfiguration) -> None:
         _integration_wet_run(run_cfg.integration)
 
 
+async def _run_api_integration(
+    integration: QontractReconcileApiIntegration[Any],
+    dry_run: bool,
+) -> None:
+    """Run an API integration and close the HTTP client before the event loop shuts down.
+
+    httpx2's AsyncClient holds TCP connections bound to the current event loop.
+    If those connections survive past asyncio.run(), cleanup triggers
+    RuntimeError('Event loop is closed'). Closing here avoids that.
+    """
+    try:
+        await integration.async_run(dry_run)
+    finally:
+        await qontract_api_client.aclose()
+
+
 def _integration_wet_run[RunParamsTypeVar: RunParams](
     integration: QontractReconcileIntegration[RunParamsTypeVar]
     | QontractReconcileApiIntegration[RunParamsTypeVar],
@@ -178,7 +195,7 @@ def _integration_wet_run[RunParamsTypeVar: RunParams](
         integration.run(False)
     else:
         setup_qontract_api_client()
-        asyncio.run(integration.async_run(False))
+        asyncio.run(_run_api_integration(integration, dry_run=False))
 
 
 def _integration_dry_run[RunParamsTypeVar: RunParams](
@@ -244,7 +261,7 @@ def _integration_dry_run[RunParamsTypeVar: RunParams](
         integration.run(True)
     else:
         setup_qontract_api_client()
-        asyncio.run(integration.async_run(True))
+        asyncio.run(_run_api_integration(integration, dry_run=True))
 
 
 def _is_task_result_an_error(result: Any) -> bool:
