@@ -246,8 +246,12 @@ class QontractReconcileIntegration[RunParamsTypeVar: RunParams](ABC):
 
 
 @functools.cache
-def _setup_qontract_api_client() -> None:
-    """Configure the Qontract API client with the server URL and token from the config."""
+def setup_qontract_api_client() -> None:
+    """Configure the Qontract API client with the server URL and token from the config.
+
+    Cached for the process lifetime — call `setup_qontract_api_client.cache_clear()` in
+    test teardown when a fresh configuration is needed.
+    """
     config = get_config()
 
     environment_headers = {}
