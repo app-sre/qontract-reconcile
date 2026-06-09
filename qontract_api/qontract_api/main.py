@@ -13,6 +13,7 @@ from fastapi.responses import RedirectResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from qontract_api.config import settings
+from qontract_api.dependencies import UserDep
 from qontract_api.exceptions import (
     APIError,
     api_error_handler,
@@ -174,3 +175,15 @@ def liveness() -> dict[str, str]:
 def readiness(health_status: HealthResponseDep) -> HealthResponse:
     """Readiness probe - returns 200 if service is ready to accept requests."""
     return health_status
+
+
+@app.get("/api/protected", include_in_schema=False)
+def protected_endpoint(current_user: UserDep) -> dict[str, str]:
+    """Protected endpoint - requires valid JWT token.
+
+    Keep it to have a dedicated endpoint for testing auth.
+    """
+    return {
+        "message": "Access granted",
+        "username": current_user.username,
+    }
