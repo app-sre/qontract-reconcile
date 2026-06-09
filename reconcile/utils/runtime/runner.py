@@ -19,6 +19,7 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileApiIntegration,
     QontractReconcileIntegration,
     RunParams,
+    setup_qontract_api_client,
 )
 
 RunParamsTypeVar = TypeVar("RunParamsTypeVar", bound=RunParams)
@@ -176,6 +177,7 @@ def _integration_wet_run[RunParamsTypeVar: RunParams](
     if isinstance(integration, QontractReconcileIntegration):
         integration.run(False)
     else:
+        setup_qontract_api_client()
         asyncio.run(integration.async_run(False))
 
 
@@ -241,6 +243,7 @@ def _integration_dry_run[RunParamsTypeVar: RunParams](
         # if not, we run the integration in full
         integration.run(True)
     else:
+        setup_qontract_api_client()
         asyncio.run(integration.async_run(True))
 
 

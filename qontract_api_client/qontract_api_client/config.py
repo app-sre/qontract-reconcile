@@ -1,0 +1,36 @@
+"""
+This file will never be updated on subsequent clientele runs.
+Use it as a space to store configuration and constants.
+"""
+
+from clientele import api as clientele_api
+from pydantic import Field
+
+
+class Config(clientele_api.BaseConfig):
+    """
+    Configuration object for your API client.
+
+    Values can be set via:
+    1. Environment variables (see https://docs.pydantic.dev/latest/concepts/pydantic_settings/#usage)
+    2. Direct instantiation with keyword arguments
+    3. .env file (if python-dotenv is installed)
+
+    Example:
+        # From environment variables
+        export BASE_URL="https://api.example.com"
+        config = Config()
+
+        # Direct instantiation
+        config = Config(
+            base_url="https://api.example.com",
+            timeout=10.0
+        )
+    """
+
+    base_url: str = "http://localhost"
+    headers: dict[str, str] = Field(default_factory=dict)
+    timeout: float | None = 5.0
+    follow_redirects: bool = False
+    verify: bool | str = True
+    http2: bool = False

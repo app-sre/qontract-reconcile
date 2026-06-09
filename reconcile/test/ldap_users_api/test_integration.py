@@ -9,12 +9,12 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
 import pytest
-from qontract_api_client.models.file_sync_delete import FileSyncDelete
-from qontract_api_client.models.file_sync_response import FileSyncResponse
-from qontract_api_client.models.file_sync_status import FileSyncStatus
-from qontract_api_client.models.ldap_user_status import LdapUserStatus
-from qontract_api_client.models.ldap_users_check_response import (
+from qontract_api_client.schemas import (
+    FileSyncDelete,
+    FileSyncResponse,
+    FileSyncStatus,
     LdapUsersCheckResponse,
+    LdapUserStatus,
 )
 from qontract_utils.vcs import Provider
 
@@ -243,17 +243,10 @@ def integration() -> Generator[LdapUsersApiIntegration, None, None]:
             labels=["ldap-users"],
         )
     )
-    with (
-        patch.object(
-            type(inst),
-            "qontract_api_client",
-            new_callable=lambda: property(lambda self: MagicMock()),
-        ),
-        patch.object(
-            type(inst),
-            "secret_manager_url",
-            new_callable=lambda: property(lambda self: "https://vault.example.com"),
-        ),
+    with patch.object(
+        type(inst),
+        "secret_manager_url",
+        new_callable=lambda: property(lambda self: "https://vault.example.com"),
     ):
         yield inst
 
@@ -385,10 +378,10 @@ async def test_async_run_calls_file_sync_for_deleted_user(
     await integration.async_run(dry_run=False)
 
     mock_file_sync.assert_called_once()
-    call_body = mock_file_sync.call_args.kwargs["body"]
-    assert call_body.repo_url == _APP_REPO
-    assert call_body.title == "[create_delete_user_mr] delete user alice"
-    assert len(call_body.file_operations) == 1
+    call_request = mock_file_sync.call_args.args[0]
+    assert call_request.repo_url == _APP_REPO
+    assert call_request.title == "[create_delete_user_mr] delete user alice"
+    assert len(call_request.file_operations) == 1
 
 
 @pytest.mark.asyncio

@@ -22,21 +22,15 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable
 
-from qontract_api_client.api.integrations.github_owners import (
-    GithubOwnersTaskResponse,
-)
-from qontract_api_client.api.integrations.github_owners import (
-    asyncio as reconcile_github_owners,
-)
-from qontract_api_client.models import GithubOwnersTaskResult
-from qontract_api_client.models.github_org_desired_state import (
+from qontract_api_client.client import github_owners as reconcile_github_owners
+from qontract_api_client.schemas import (
     GithubOrgDesiredState,
-)
-from qontract_api_client.models.github_owners_reconcile_request import (
     GithubOwnersReconcileRequest,
+    GithubOwnersTaskResponse,
+    GithubOwnersTaskResult,
+    Secret,
+    TaskStatus,
 )
-from qontract_api_client.models.secret import Secret
-from qontract_api_client.models.task_status import TaskStatus
 from qontract_utils.exceptions import IntegrationError
 
 from reconcile.gql_definitions.common.github_orgs import GithubOrgV1
@@ -170,9 +164,7 @@ class GithubOwnersIntegration(
             organizations=organizations,
             dry_run=dry_run,
         )
-        response = await reconcile_github_owners(
-            client=self.qontract_api_client, body=request
-        )
+        response = await reconcile_github_owners(request)
         logging.info(f"request_id: {response.id}")
         return response
 

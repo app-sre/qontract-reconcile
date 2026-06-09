@@ -1,282 +1,408 @@
-import ssl
-from typing import Any
+from __future__ import annotations
 
-import httpxyz as httpx
-from attrs import define, evolve, field
+from clientele import api as clientele_api
 
+from . import config, schemas
 
-@define
-class Client:
-    """A class for keeping track of data related to the API
-
-    The following are accepted as keyword arguments and will be used to construct httpx Clients internally:
-
-        ``base_url``: The base URL for the API, all requests are made to a relative path to this URL
-
-        ``cookies``: A dictionary of cookies to be sent with every request
-
-        ``headers``: A dictionary of headers to be sent with every request
-
-        ``timeout``: The maximum amount of a time a request can take. API functions will raise
-        httpx.TimeoutException if this is exceeded.
-
-        ``verify_ssl``: Whether or not to verify the SSL certificate of the API server. This should be True in production,
-        but can be set to False for testing purposes.
-
-        ``follow_redirects``: Whether or not to follow redirects. Default value is False.
-
-        ``httpx_args``: A dictionary of additional arguments to be passed to the ``httpx.Client`` and ``httpx.AsyncClient`` constructor.
+client = clientele_api.APIClient(config=config.Config())
 
 
-    Attributes:
-        raise_on_unexpected_status: Whether or not to raise an errors.UnexpectedStatus if the API returns a
-            status code that was not documented in the source OpenAPI document. Can also be provided as a keyword
-            argument to the constructor.
+@client.post("/api/v1/external/ldap/users/check")
+async def ldap_users_check(
+    result: schemas.LdapUsersCheckResponse, data: schemas.LdapUsersCheckRequest
+) -> schemas.LdapUsersCheckResponse:
+    """Check Users Exist
+
+        Check which usernames exist in LDAP (cached, FreeIPA-authenticated).
+
+    Queries LDAP directly using FreeIPA service account credentials
+    resolved from Vault. Results are cached for performance.
+
+    Args:
+        request: Request with usernames to check and Vault secret reference
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapUsersCheckResponse with existence status per username
     """
-
-    raise_on_unexpected_status: bool = field(default=False, kw_only=True)
-    _base_url: str = field(alias="base_url")
-    _cookies: dict[str, str] = field(factory=dict, kw_only=True, alias="cookies")
-    _headers: dict[str, str] = field(factory=dict, kw_only=True, alias="headers")
-    _timeout: httpx.Timeout | None = field(default=None, kw_only=True, alias="timeout")
-    _verify_ssl: str | bool | ssl.SSLContext = field(
-        default=True, kw_only=True, alias="verify_ssl"
-    )
-    _follow_redirects: bool = field(
-        default=False, kw_only=True, alias="follow_redirects"
-    )
-    _httpx_args: dict[str, Any] = field(factory=dict, kw_only=True, alias="httpx_args")
-    _client: httpx.Client | None = field(default=None, init=False)
-    _async_client: httpx.AsyncClient | None = field(default=None, init=False)
-
-    def with_headers(self, headers: dict[str, str]) -> "Client":
-        """Get a new client matching this one with additional headers"""
-        if self._client is not None:
-            self._client.headers.update(headers)
-        if self._async_client is not None:
-            self._async_client.headers.update(headers)
-        return evolve(self, headers={**self._headers, **headers})
-
-    def with_cookies(self, cookies: dict[str, str]) -> "Client":
-        """Get a new client matching this one with additional cookies"""
-        if self._client is not None:
-            self._client.cookies.update(cookies)
-        if self._async_client is not None:
-            self._async_client.cookies.update(cookies)
-        return evolve(self, cookies={**self._cookies, **cookies})
-
-    def with_timeout(self, timeout: httpx.Timeout) -> "Client":
-        """Get a new client matching this one with a new timeout configuration"""
-        if self._client is not None:
-            self._client.timeout = timeout
-        if self._async_client is not None:
-            self._async_client.timeout = timeout
-        return evolve(self, timeout=timeout)
-
-    def set_httpx_client(self, client: httpx.Client) -> "Client":
-        """Manually set the underlying httpx.Client
-
-        **NOTE**: This will override any other settings on the client, including cookies, headers, and timeout.
-        """
-        self._client = client
-        return self
-
-    def get_httpx_client(self) -> httpx.Client:
-        """Get the underlying httpx.Client, constructing a new one if not previously set"""
-        if self._client is None:
-            self._client = httpx.Client(
-                base_url=self._base_url,
-                cookies=self._cookies,
-                headers=self._headers,
-                timeout=self._timeout,
-                verify=self._verify_ssl,
-                follow_redirects=self._follow_redirects,
-                **self._httpx_args,
-            )
-        return self._client
-
-    def __enter__(self) -> "Client":
-        """Enter a context manager for self.client—you cannot enter twice (see httpx docs)"""
-        self.get_httpx_client().__enter__()
-        return self
-
-    def __exit__(self, *args: Any, **kwargs: Any) -> None:
-        """Exit a context manager for internal httpx.Client (see httpx docs)"""
-        self.get_httpx_client().__exit__(*args, **kwargs)
-
-    def set_async_httpx_client(self, async_client: httpx.AsyncClient) -> "Client":
-        """Manually set the underlying httpx.AsyncClient
-
-        **NOTE**: This will override any other settings on the client, including cookies, headers, and timeout.
-        """
-        self._async_client = async_client
-        return self
-
-    def get_async_httpx_client(self) -> httpx.AsyncClient:
-        """Get the underlying httpx.AsyncClient, constructing a new one if not previously set"""
-        if self._async_client is None:
-            self._async_client = httpx.AsyncClient(
-                base_url=self._base_url,
-                cookies=self._cookies,
-                headers=self._headers,
-                timeout=self._timeout,
-                verify=self._verify_ssl,
-                follow_redirects=self._follow_redirects,
-                **self._httpx_args,
-            )
-        return self._async_client
-
-    async def __aenter__(self) -> "Client":
-        """Enter a context manager for underlying httpx.AsyncClient—you cannot enter twice (see httpx docs)"""
-        await self.get_async_httpx_client().__aenter__()
-        return self
-
-    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
-        """Exit a context manager for underlying httpx.AsyncClient (see httpx docs)"""
-        await self.get_async_httpx_client().__aexit__(*args, **kwargs)
+    return result
 
 
-@define
-class AuthenticatedClient:
-    """A Client which has been authenticated for use on secured endpoints
+@client.get("/api/v1/external/pagerduty/escalation-policies/{policy_id}/users")
+async def pagerduty_escalation_policy_users(
+    result: schemas.EscalationPolicyUsersResponse,
+    policy_id: str,
+    secret_manager_url: str,
+    path: str,
+    field: str | None = None,
+    version: int | None = None,
+) -> schemas.EscalationPolicyUsersResponse:
+    """Get Escalation Policy Users
 
-    The following are accepted as keyword arguments and will be used to construct httpx Clients internally:
+        Get users in a PagerDuty escalation policy.
 
-        ``base_url``: The base URL for the API, all requests are made to a relative path to this URL
+    Fetches all users across all escalation rules in the policy.
+    Results are cached for performance (TTL configured in settings).
 
-        ``cookies``: A dictionary of cookies to be sent with every request
+    Args:
+        policy_id: PagerDuty escalation policy ID
+        instance: PagerDuty instance name
 
-        ``headers``: A dictionary of headers to be sent with every request
+    Returns:
+        EscalationPolicyUsersResponse with list of users
 
-        ``timeout``: The maximum amount of a time a request can take. API functions will raise
-        httpx.TimeoutException if this is exceeded.
+    Raises:
+        HTTPException:
+            - 500 Internal Server Error: If PagerDuty API call fails
 
-        ``verify_ssl``: Whether or not to verify the SSL certificate of the API server. This should be True in production,
-        but can be set to False for testing purposes.
-
-        ``follow_redirects``: Whether or not to follow redirects. Default value is False.
-
-        ``httpx_args``: A dictionary of additional arguments to be passed to the ``httpx.Client`` and ``httpx.AsyncClient`` constructor.
-
-
-    Attributes:
-        raise_on_unexpected_status: Whether or not to raise an errors.UnexpectedStatus if the API returns a
-            status code that was not documented in the source OpenAPI document. Can also be provided as a keyword
-            argument to the constructor.
-        token: The token to use for authentication
-        prefix: The prefix to use for the Authorization header
-        auth_header_name: The name of the Authorization header
+    Example:
+        GET /api/v1/external/pagerduty/escalation-policies/XYZ789/users?instance=app-sre
+        Response:
+        {
+            "users": [
+                {"username": "jsmith"},
+                {"username": "mdoe"}
+            ]
+        }
     """
+    return result
 
-    raise_on_unexpected_status: bool = field(default=False, kw_only=True)
-    _base_url: str = field(alias="base_url")
-    _cookies: dict[str, str] = field(factory=dict, kw_only=True, alias="cookies")
-    _headers: dict[str, str] = field(factory=dict, kw_only=True, alias="headers")
-    _timeout: httpx.Timeout | None = field(default=None, kw_only=True, alias="timeout")
-    _verify_ssl: str | bool | ssl.SSLContext = field(
-        default=True, kw_only=True, alias="verify_ssl"
-    )
-    _follow_redirects: bool = field(
-        default=False, kw_only=True, alias="follow_redirects"
-    )
-    _httpx_args: dict[str, Any] = field(factory=dict, kw_only=True, alias="httpx_args")
-    _client: httpx.Client | None = field(default=None, init=False)
-    _async_client: httpx.AsyncClient | None = field(default=None, init=False)
 
-    token: str
-    prefix: str = "Bearer"
-    auth_header_name: str = "Authorization"
+@client.get("/api/v1/external/pagerduty/schedules/{schedule_id}/users")
+async def pagerduty_schedule_users(
+    result: schemas.ScheduleUsersResponse,
+    schedule_id: str,
+    secret_manager_url: str,
+    path: str,
+    field: str | None = None,
+    version: int | None = None,
+) -> schemas.ScheduleUsersResponse:
+    """Get Schedule Users
 
-    def with_headers(self, headers: dict[str, str]) -> "AuthenticatedClient":
-        """Get a new client matching this one with additional headers"""
-        if self._client is not None:
-            self._client.headers.update(headers)
-        if self._async_client is not None:
-            self._async_client.headers.update(headers)
-        return evolve(self, headers={**self._headers, **headers})
+        Get users currently on-call in a PagerDuty schedule.
 
-    def with_cookies(self, cookies: dict[str, str]) -> "AuthenticatedClient":
-        """Get a new client matching this one with additional cookies"""
-        if self._client is not None:
-            self._client.cookies.update(cookies)
-        if self._async_client is not None:
-            self._async_client.cookies.update(cookies)
-        return evolve(self, cookies={**self._cookies, **cookies})
+    Fetches users from the specified schedule using a time window of now + 60 seconds.
+    Results are cached for performance (TTL configured in settings).
 
-    def with_timeout(self, timeout: httpx.Timeout) -> "AuthenticatedClient":
-        """Get a new client matching this one with a new timeout configuration"""
-        if self._client is not None:
-            self._client.timeout = timeout
-        if self._async_client is not None:
-            self._async_client.timeout = timeout
-        return evolve(self, timeout=timeout)
+    Args:
+        schedule_id: PagerDuty schedule ID
+        instance: PagerDuty instance name
 
-    def set_httpx_client(self, client: httpx.Client) -> "AuthenticatedClient":
-        """Manually set the underlying httpx.Client
+    Returns:
+        ScheduleUsersResponse with list of users
 
-        **NOTE**: This will override any other settings on the client, including cookies, headers, and timeout.
-        """
-        self._client = client
-        return self
+    Raises:
+        HTTPException:
+            - 500 Internal Server Error: If PagerDuty API call fails
 
-    def get_httpx_client(self) -> httpx.Client:
-        """Get the underlying httpx.Client, constructing a new one if not previously set"""
-        if self._client is None:
-            self._headers[self.auth_header_name] = (
-                f"{self.prefix} {self.token}" if self.prefix else self.token
-            )
-            self._client = httpx.Client(
-                base_url=self._base_url,
-                cookies=self._cookies,
-                headers=self._headers,
-                timeout=self._timeout,
-                verify=self._verify_ssl,
-                follow_redirects=self._follow_redirects,
-                **self._httpx_args,
-            )
-        return self._client
+    Example:
+        GET /api/v1/external/pagerduty/schedules/ABC123/users?instance=app-sre
+        Response:
+        {
+            "users": [
+                {"username": "jsmith"},
+                {"username": "mdoe"}
+            ]
+        }
+    """
+    return result
 
-    def __enter__(self) -> "AuthenticatedClient":
-        """Enter a context manager for self.client—you cannot enter twice (see httpx docs)"""
-        self.get_httpx_client().__enter__()
-        return self
 
-    def __exit__(self, *args: Any, **kwargs: Any) -> None:
-        """Exit a context manager for internal httpx.Client (see httpx docs)"""
-        self.get_httpx_client().__exit__(*args, **kwargs)
+@client.post("/api/v1/external/slack/chat")
+async def slack_chat_post_message(
+    result: schemas.ChatResponse, data: schemas.ChatRequest
+) -> schemas.ChatResponse:
+    """Post Chat
 
-    def set_async_httpx_client(
-        self, async_client: httpx.AsyncClient
-    ) -> "AuthenticatedClient":
-        """Manually set the underlying httpx.AsyncClient
+        Post a message to a Slack channel or send a DM to a user.
 
-        **NOTE**: This will override any other settings on the client, including cookies, headers, and timeout.
-        """
-        self._async_client = async_client
-        return self
+    Exactly one of `channel` or `user` must be set in the request:
+    - `channel`: post to a Slack channel by name
+    - `user`: send a DM to a user by org_username
 
-    def get_async_httpx_client(self) -> httpx.AsyncClient:
-        """Get the underlying httpx.AsyncClient, constructing a new one if not previously set"""
-        if self._async_client is None:
-            self._headers[self.auth_header_name] = (
-                f"{self.prefix} {self.token}" if self.prefix else self.token
-            )
-            self._async_client = httpx.AsyncClient(
-                base_url=self._base_url,
-                cookies=self._cookies,
-                headers=self._headers,
-                timeout=self._timeout,
-                verify=self._verify_ssl,
-                follow_redirects=self._follow_redirects,
-                **self._httpx_args,
-            )
-        return self._async_client
+    Args:
+        request: Chat request with channel/user, text, and credentials
 
-    async def __aenter__(self) -> "AuthenticatedClient":
-        """Enter a context manager for underlying httpx.AsyncClient—you cannot enter twice (see httpx docs)"""
-        await self.get_async_httpx_client().__aenter__()
-        return self
+    Returns:
+        ChatResponse with ts, channel, and optional thread_ts
 
-    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
-        """Exit a context manager for underlying httpx.AsyncClient (see httpx docs)"""
-        await self.get_async_httpx_client().__aexit__(*args, **kwargs)
+    Raises:
+        HTTPException:
+            - 404 Not Found: Channel or user not found
+            - 502 Bad Gateway: If Slack API call fails
+    """
+    return result
+
+
+@client.post("/api/v1/external/vcs/file-sync")
+async def vcs_file_sync(
+    result: schemas.FileSyncResponse, data: schemas.FileSyncRequest
+) -> schemas.FileSyncResponse:
+    """File Sync
+
+        Reconcile file states in a VCS repository.
+
+    Creates a merge request with the given file operations,
+    deduplicating by MR title. Does not read current file state —
+    relies on GitLab/GitHub for validation.
+    """
+    return result
+
+
+@client.get("/api/v1/external/vcs/repos/file")
+async def vcs_get_file(
+    result: schemas.GetFileResponse,
+    secret_manager_url: str,
+    path: str,
+    repo_url: str,
+    file_path: str,
+    ref: str,
+    field: str | None = None,
+    version: int | None = None,
+) -> schemas.GetFileResponse:
+    """Get File
+
+    Read a file from a VCS repository.
+    """
+    return result
+
+
+@client.get("/api/v1/external/vcs/repos/owners")
+async def vcs_repo_owners(
+    result: schemas.RepoOwnersResponse,
+    secret_manager_url: str,
+    path: str,
+    repo_url: str,
+    ref: str,
+    field: str | None = None,
+    version: int | None = None,
+    owners_file: str | None = None,
+) -> schemas.RepoOwnersResponse:
+    """Get Repo Owners
+
+        Get OWNERS file data from a Git repository.
+
+    Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
+    Results are cached for performance (TTL configured in settings).
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/github-owners/reconcile")
+async def github_owners(
+    result: schemas.GithubOwnersTaskResponse, data: schemas.GithubOwnersReconcileRequest
+) -> schemas.GithubOwnersTaskResponse:
+    """Github Owners
+
+        Queue a GitHub owners reconciliation task.
+
+    This endpoint always queues a background task and returns immediately
+    with a task_id. Use GET /reconcile/{task_id} to retrieve the result.
+
+    Args:
+        reconcile_request: Reconciliation request with desired owner state
+        current_user: Authenticated user (from JWT token)
+        request: FastAPI Request object (used to generate status_url)
+
+    Returns:
+        GithubOwnersTaskResponse with task_id and status_url
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/github-owners/reconcile/{task_id}")
+async def github_owners_task_status(
+    result: schemas.GithubOwnersTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.GithubOwnersTaskResult:
+    """Github Owners Task Status
+
+        Retrieve the reconciliation result (blocking or non-blocking).
+
+    **Non-blocking mode (default):** Returns immediate status (pending/success/failed)
+    **Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        current_user: Authenticated user (from JWT token)
+        timeout: Maximum seconds to wait (default: None = non-blocking)
+
+    Returns:
+        GithubOwnersTaskResult with status, actions, applied_count, and errors
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Task ID not found
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/glitchtip-project-alerts/reconcile")
+async def glitchtip_project_alerts(
+    result: schemas.GlitchtipProjectAlertsTaskResponse,
+    data: schemas.GlitchtipProjectAlertsReconcileRequest,
+) -> schemas.GlitchtipProjectAlertsTaskResponse:
+    """Glitchtip Project Alerts
+
+        Queue Glitchtip project alerts reconciliation task.
+
+    This endpoint always queues a background task and returns immediately
+    with a task_id. Use GET /reconcile/{task_id} to retrieve the result.
+
+    Args:
+        reconcile_request: Reconciliation request with desired state
+        current_user: Authenticated user (from JWT token)
+        request: FastAPI Request object (used to generate status_url)
+
+    Returns:
+        GlitchtipProjectAlertsTaskResponse with task_id and status_url
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/glitchtip-project-alerts/reconcile/{task_id}")
+async def glitchtip_project_alerts_task_status(
+    result: schemas.GlitchtipProjectAlertsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.GlitchtipProjectAlertsTaskResult:
+    """Glitchtip Project Alerts Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    **Non-blocking mode (default):** Returns immediate status (pending/success/failed)
+    **Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        current_user: Authenticated user (from JWT token)
+        timeout: Maximum seconds to wait (default: None = non-blocking)
+
+    Returns:
+        GlitchtipProjectAlertsTaskResult with status, actions, applied_count, and errors
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Task ID not found
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/glitchtip/reconcile")
+async def glitchtip(
+    result: schemas.GlitchtipTaskResponse, data: schemas.GlitchtipReconcileRequest
+) -> schemas.GlitchtipTaskResponse:
+    """Glitchtip Reconcile
+
+        Queue Glitchtip reconciliation task.
+
+    This endpoint always queues a background task and returns immediately
+    with a task_id. Use GET /reconcile/{task_id} to retrieve the result.
+
+    Args:
+        reconcile_request: Reconciliation request with desired state
+        current_user: Authenticated user (from JWT token)
+        request: FastAPI Request object (used to generate status_url)
+
+    Returns:
+        GlitchtipTaskResponse with task_id and status_url
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/glitchtip/reconcile/{task_id}")
+async def glitchtip_task_status(
+    result: schemas.GlitchtipTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.GlitchtipTaskResult:
+    """Glitchtip Reconcile Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    **Non-blocking mode (default):** Returns immediate status
+    **Blocking mode (with timeout):** Waits up to timeout seconds
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        current_user: Authenticated user (from JWT token)
+        timeout: Maximum seconds to wait (default: None = non-blocking)
+
+    Returns:
+        GlitchtipTaskResult with status, actions, applied_count, and errors
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/slack-usergroups/reconcile")
+async def slack_usergroups(
+    result: schemas.SlackUsergroupsTaskResponse,
+    data: schemas.SlackUsergroupsReconcileRequest,
+) -> schemas.SlackUsergroupsTaskResponse:
+    """Slack Usergroups
+
+        Queue Slack usergroups reconciliation task.
+
+    This endpoint always queues a background task and returns immediately
+    with a task_id. Use GET /reconcile/{task_id} to retrieve the result.
+
+    Args:
+        reconcile_request: Reconciliation request with desired state
+        current_user: Authenticated user (from JWT token)
+        request: FastAPI Request object (used to generate status_url)
+
+    Returns:
+        SlackUsergroupsTaskResponse with task_id and status_url
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/slack-usergroups/reconcile/{task_id}")
+async def slack_usergroups_task_status(
+    result: schemas.SlackUsergroupsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.SlackUsergroupsTaskResult:
+    """Slack Usergroups Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    **Non-blocking mode (default):** Returns immediate status (pending/success/failed)
+    **Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        current_user: Authenticated user (from JWT token)
+        timeout: Maximum seconds to wait (default: None = non-blocking)
+
+    Returns:
+        SlackUsergroupsTaskResult with status, actions, applied_count, and errors
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Task ID not found
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
+@client.get("/health/live")
+async def liveness(result: schemas.ResponseLiveness) -> schemas.ResponseLiveness:
+    """Liveness
+
+    Liveness probe - returns 200 if service is running.
+    """
+    return result
+
+
+@client.get("/health/ready")
+async def readiness(result: schemas.HealthResponse) -> schemas.HealthResponse:
+    """Readiness
+
+    Readiness probe - returns 200 if service is ready to accept requests.
+    """
+    return result

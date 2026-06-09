@@ -6,20 +6,18 @@ import sys
 from collections import defaultdict
 from collections.abc import Callable
 
-from qontract_api_client.api.integrations.glitchtip import (
-    asyncio as reconcile_glitchtip,
-)
-from qontract_api_client.models import GlitchtipTaskResult
-from qontract_api_client.models.gi_instance import GIInstance
-from qontract_api_client.models.gi_organization import GIOrganization
-from qontract_api_client.models.gi_project import GIProject
-from qontract_api_client.models.glitchtip_reconcile_request import (
+from qontract_api_client.client import glitchtip as reconcile_glitchtip
+from qontract_api_client.schemas import (
+    GIInstance,
+    GIOrganization,
+    GIProject,
     GlitchtipReconcileRequest,
+    GlitchtipTaskResult,
+    GlitchtipTeam,
+    GlitchtipUser,
+    Secret,
+    TaskStatus,
 )
-from qontract_api_client.models.glitchtip_team import GlitchtipTeam
-from qontract_api_client.models.glitchtip_user import GlitchtipUser
-from qontract_api_client.models.secret import Secret
-from qontract_api_client.models.task_status import TaskStatus
 from qontract_utils.glitchtip_api import slugify
 
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
@@ -135,18 +133,9 @@ class GlitchtipApiIntegration(
                         else:
                             # User in multiple teams — keep the highest-privilege role
                             # to avoid non-deterministic first-team-wins assignment.
-                            # Treat Unset (missing) role as DEFAULT_MEMBER_ROLE.
                             existing = org_users[org_name][email]
-                            new_role = (
-                                user.role
-                                if isinstance(user.role, str)
-                                else DEFAULT_MEMBER_ROLE
-                            )
-                            cur_role = (
-                                existing.role
-                                if isinstance(existing.role, str)
-                                else DEFAULT_MEMBER_ROLE
-                            )
+                            new_role = user.role
+                            cur_role = existing.role
                             best_role = _highest_role(new_role, cur_role)
                             if best_role != cur_role:
                                 org_users[org_name][email] = GlitchtipUser(
@@ -237,8 +226,7 @@ class GlitchtipApiIntegration(
             return
 
         task = await reconcile_glitchtip(
-            client=self.qontract_api_client,
-            body=GlitchtipReconcileRequest(instances=instances, dry_run=dry_run),
+            GlitchtipReconcileRequest(instances=instances, dry_run=dry_run),
         )
         logging.info(f"request_id: {task.id}")
 
@@ -255,7 +243,7 @@ class GlitchtipApiIntegration(
             sys.exit(1)
 
         for action in task_result.actions or []:
-            logging.info(action.to_dict())
+            logging.info(action.model_dump())
 
         if task_result.errors:
             logging.error(f"Errors encountered: {len(task_result.errors)}")

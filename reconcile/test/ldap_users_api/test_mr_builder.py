@@ -3,8 +3,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from qontract_api_client.models.file_sync_delete import FileSyncDelete
-from qontract_api_client.models.file_sync_update import FileSyncUpdate
+from qontract_api_client.schemas import FileSyncDelete, FileSyncUpdate
 
 from reconcile.ldap_users_api.models import PathSpec, PathType, UserPaths
 from reconcile.ldap_users_api.mr_builder import (
