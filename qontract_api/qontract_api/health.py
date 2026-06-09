@@ -2,11 +2,13 @@
 
 from typing import Annotated
 
+import httpxyz as httpx
 from fastapi import Depends, Request
 from pydantic import BaseModel, Field
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import settings
+from qontract_api.opa import OPAClient
 
 
 class HealthStatus(BaseModel):
@@ -36,8 +38,14 @@ def get_cache_from_request(request: Request) -> CacheBackend | None:
     return getattr(request.app.state, "cache", None)
 
 
-# Type alias for dependency injection
+def get_opa_client_from_request(request: Request) -> OPAClient | None:
+    """Get OPA client from app state, return None if disabled."""
+    return getattr(request.app.state, "opa_client", None)
+
+
+# Type aliases for dependency injection
 CacheOptionalDep = Annotated[CacheBackend | None, Depends(get_cache_from_request)]
+OPAClientOptionalDep = Annotated[OPAClient | None, Depends(get_opa_client_from_request)]
 
 
 def check_cache_health(cache: CacheBackend | None) -> HealthStatus:
@@ -60,11 +68,36 @@ def check_cache_health(cache: CacheBackend | None) -> HealthStatus:
         return HealthStatus(status="unhealthy", message=f"Cache check failed: {e}")
 
 
-def get_health_status(cache: CacheOptionalDep) -> HealthResponse:
+def check_opa_health(opa_client: OPAClient | None) -> HealthStatus:
+    """Check OPA sidecar health."""
+    if opa_client is None:
+        return HealthStatus(status="healthy", message="OPA authorization disabled")
+
+    opa_health_url = opa_client.opa_url.rsplit("/v1/", maxsplit=1)[0] + "/health"
+    try:
+        response = httpx.get(opa_health_url, timeout=2)
+        if httpx.codes.is_success(response.status_code):
+            return HealthStatus(status="healthy", message="OPA sidecar reachable")
+        return HealthStatus(
+            status="unhealthy",
+            message=f"OPA returned {response.status_code}",
+        )
+    except OSError as e:
+        return HealthStatus(
+            status="unhealthy",
+            message=f"OPA health check failed: {e}",
+        )
+
+
+def get_health_status(
+    cache: CacheOptionalDep,
+    opa_client: OPAClientOptionalDep,
+) -> HealthResponse:
     """Get overall health status including all components.
 
     Args:
         cache: Cache backend from dependency injection
+        opa_client: OPA client from dependency injection
 
     Returns:
         HealthResponse with overall and component health
@@ -73,6 +106,9 @@ def get_health_status(cache: CacheOptionalDep) -> HealthResponse:
 
     # Check cache
     components["cache"] = check_cache_health(cache)
+
+    # Check OPA
+    components["opa"] = check_opa_health(opa_client)
 
     # Determine overall status
     component_statuses = [c.status for c in components.values()]

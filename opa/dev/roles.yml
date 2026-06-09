@@ -1,0 +1,128 @@
+# qontract-api OPA authorization policy data (dev)
+#
+# Structure:
+#   users:  maps JWT subject → list of role names
+#   roles:  maps role name → list of permissions (obj + params regex)
+#
+# HOW THIS PREVENTS SSRF AND SECRET EXFILTRATION
+# ===============================================
+#
+# Without OPA, a compromised JWT can call e.g. POST /external/ldap/users/check
+# with an attacker-controlled server_url and an arbitrary Vault path.
+# qontract-api resolves the Vault secret and sends the credential to the
+# attacker's LDAP server -> credential exfiltration via SSRF.
+#
+# With OPA, the "ldap-role" below restricts:
+#   - secret.server_url MUST match ^ldaps?://freeipa\.example\.com$
+#   - secret.path MUST match ^app-sre/creds/ldap
+# An attacker providing server_url: "ldap://evil.com" or
+# path: "other-team/creds/aws" gets HTTP 403.
+#
+# Similarly, "vcs-role" restricts repo_url to known Git hosts,
+# preventing VCS tokens from being sent to attacker-controlled repos.
+#
+# PARAMETER MATCHING
+# ==================
+#
+# - All param values are case-insensitive regex patterns
+# - Parameters not listed in a role permission are not checked
+#   (extra params in the request are allowed)
+# - A param set to null means it must NOT be present in the request
+
+users:
+  # ── Integration service accounts (realistic examples) ──────────
+  "ldap-users-api":
+    - ldap-role
+  "slack-usergroups-api":
+    - slack-vcs-role
+    - slack-pd-role
+    - slack-chat-role
+  "glitchtip-api":
+    - glitchtip-role
+  "vcs-api":
+    - vcs-role
+
+  # ── Scoped user token (route-level access only) ────────────────
+  "ci-bot":
+    - slack-chat-role
+
+  # ── Blocked subject (empty role list = denied everywhere) ──────
+  "leaked-token-subject": []
+
+  # ── Dev wildcard (REMOVE IN PRODUCTION) ────────────────────────
+  "dev":
+    - dev-all-access
+  # "*":
+  #   - dev-all-access
+
+roles:
+  # ── SSRF prevention: LDAP ──────────────────────────────────────
+  # Restricts which LDAP servers and Vault paths can be used.
+  # Prevents: attacker provides ldap://evil.com + arbitrary Vault path
+  ldap-role:
+    - obj: ldap-users-check
+      params:
+        secret.server_url: "^ldaps?://freeipa\\.example\\.com$"
+        secret.path: "^app-sre/creds/ldap"
+        secret.secret_manager_url: "^https://vault\\.example\\.com$"
+
+  # ── SSRF prevention: VCS ───────────────────────────────────────
+  # Restricts which Git hosts and Vault paths can be used.
+  # Prevents: attacker provides repo_url: https://evil.com/repo
+  vcs-role:
+    - obj: vcs-repo-owners
+      params:
+        repo_url: "^https://(github\\.com|gitlab\\.cee\\.redhat\\.com)/"
+        path: "^app-sre/creds/"
+    - obj: vcs-get-file
+      params:
+        repo_url: "^https://(github\\.com|gitlab\\.cee\\.redhat\\.com)/"
+        path: "^app-sre/creds/"
+    - obj: vcs-file-sync
+      params:
+        token.path: "^app-sre/creds/"
+        repo_url: "^https://(github\\.com|gitlab\\.cee\\.redhat\\.com)/"
+
+  # ── Secret-read prevention: PagerDuty ──────────────────────────
+  slack-pd-role:
+    - obj: pagerduty-schedule-users
+      params:
+        path: "^app-sre/creds/pagerduty"
+    - obj: pagerduty-escalation-policy-users
+      params:
+        path: "^app-sre/creds/pagerduty"
+
+  # ── Secret-read prevention: Slack ──────────────────────────────
+  slack-chat-role:
+    - obj: slack-chat-post-message
+      params:
+        secret.path: "^app-sre/creds/slack"
+
+  # ── SSRF prevention: Slack + VCS combo ─────────────────────────
+  slack-vcs-role:
+    - obj: vcs-repo-owners
+      params:
+        repo_url: "^https://(github\\.com|gitlab\\.cee\\.redhat\\.com)/"
+        path: "^app-sre/creds/"
+    - obj: vcs-get-file
+      params:
+        repo_url: "^https://(github\\.com|gitlab\\.cee\\.redhat\\.com)/"
+        path: "^app-sre/creds/"
+
+  # ── Glitchtip integration ──────────────────────────────────────
+  glitchtip-role:
+    - obj: glitchtip
+      params:
+        dry_run: ".*"
+    - obj: glitchtip-task-status
+      params: {}
+    - obj: glitchtip-project-alerts
+      params:
+        dry_run: ".*"
+    - obj: glitchtip-project-alerts-task-status
+      params: {}
+
+  # ── Dev wildcard (REMOVE IN PRODUCTION) ────────────────────────
+  dev-all-access:
+    - obj: "*"
+      params: {}

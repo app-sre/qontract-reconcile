@@ -1,9 +1,11 @@
 """qontract-api main FastAPI application."""
 
+import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
+import httpxyz as httpx
 from fastapi import FastAPI, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.utils import get_openapi
@@ -11,7 +13,6 @@ from fastapi.responses import RedirectResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from qontract_api.config import settings
-from qontract_api.dependencies import UserDep
 from qontract_api.exceptions import (
     APIError,
     api_error_handler,
@@ -26,6 +27,7 @@ from qontract_api.middleware import (
     RequestIDMiddleware,
     RequestLoggingMiddleware,
 )
+from qontract_api.opa import OPAClient
 from qontract_api.routers.api_v1 import api_v1_router
 
 log = setup_logging()
@@ -62,7 +64,28 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup: Initialize event manager (None if events are disabled)
     _app.state.event_manager = get_event_manager()
 
-    yield
+    # Startup: Initialize OPA client if enabled
+    if settings.opa.enabled:
+        opa_http_client = httpx.AsyncClient(
+            timeout=settings.opa.timeout,
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+        )
+        opa_url = f"{settings.opa.host.rstrip('/')}/v1/data/{settings.opa.package_name.replace('.', '/')}"
+        _app.state.opa_client = OPAClient(
+            opa_url=opa_url,
+            skip_endpoints=[re.compile(p) for p in settings.opa.skip_endpoints],
+            client=opa_http_client,
+        )
+        log.info("OPA authorization enabled", opa_url=opa_url)
+    else:
+        _app.state.opa_client = None
+        log.info("OPA authorization disabled")
+
+    yield  # noqa: RUF075
+
+    # Cleanup OPA client on shutdown
+    if opa_client := getattr(_app.state, "opa_client", None):
+        await opa_client.client.aclose()
 
     # Cleanup secret backend on shutdown
     if hasattr(_app.state, "secret_manager") and _app.state.secret_manager is not None:
@@ -151,12 +174,3 @@ def liveness() -> dict[str, str]:
 def readiness(health_status: HealthResponseDep) -> HealthResponse:
     """Readiness probe - returns 200 if service is ready to accept requests."""
     return health_status
-
-
-@app.get("/api/protected", include_in_schema=False)
-def protected_endpoint(current_user: UserDep) -> dict[str, str]:
-    """Protected endpoint - requires valid JWT token."""
-    return {
-        "message": "Access granted",
-        "username": current_user.username,
-    }

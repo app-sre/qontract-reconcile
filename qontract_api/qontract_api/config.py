@@ -29,6 +29,36 @@ class Secret(BaseModel):
     )
 
 
+class OPASettings(BaseModel):
+    """OPA sidecar authorization configuration."""
+
+    enabled: bool = Field(
+        default=True,
+        description="Enable OPA authorization. Set to False for local development without OPA sidecar.",
+    )
+    host: str = Field(
+        default="http://localhost:8181",
+        description="OPA sidecar host URL",
+    )
+    package_name: str = Field(
+        default="authz",
+        description="OPA policy package name",
+    )
+    timeout: int = Field(
+        default=5,
+        description="OPA HTTP request timeout in seconds",
+    )
+    skip_endpoints: list[str] = Field(
+        default_factory=lambda: [
+            r"^/health/.*",
+            r"^/docs.*",
+            r"^/metrics$",
+            r"^/$",
+        ],
+        description="Regex patterns for endpoints to skip OPA authorization",
+    )
+
+
 class SlackSettings(BaseModel):
     """Slack API and integration configuration."""
 
@@ -406,6 +436,12 @@ class Settings(BaseSettings):
     worker_metrics_port: int = Field(
         default=8000,
         description="Port for worker metrics HTTP server",
+    )
+
+    # OPA Authorization (nested)
+    opa: OPASettings = Field(
+        default_factory=OPASettings,
+        description="OPA sidecar authorization configuration",
     )
 
     # JWT Authentication
