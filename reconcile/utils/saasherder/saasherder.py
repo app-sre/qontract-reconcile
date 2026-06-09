@@ -955,11 +955,13 @@ class SaasHerder:
             if need_repo_digest or need_image_digest:
                 try:
                     logging.debug("Generating REPO_DIGEST.")
-                    registry_image = consolidated_parameters["REGISTRY_IMG"]
+                    registry_image = consolidated_parameters.get(
+                        "REGISTRY_IMG"
+                    ) or consolidated_parameters["IMAGE"]
                 except KeyError as e:
                     logging.error(
                         f"{error_prefix} error generating REPO_DIGEST. "
-                        + "Is REGISTRY_IMG missing? "
+                        + "Is REGISTRY_IMG or IMAGE missing? "
                         + f"{e!s}"
                     )
                     raise
