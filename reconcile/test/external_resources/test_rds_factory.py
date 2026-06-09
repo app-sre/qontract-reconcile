@@ -117,6 +117,42 @@ def test_validate_timeouts_nok(timeouts: Any, expected_value_error: str) -> None
         factory.validate(resource, module_conf)
 
 
+def test_resolve_old_parameter_group(
+    factory: AWSRdsFactory,
+    mocker: MockerFixture,
+) -> None:
+    rvr = mocker.patch(
+        "reconcile.external_resources.aws.ResourceValueResolver", autospec=True
+    )
+    rvr.return_value.resolve.return_value = {
+        "identifier": "test-rds",
+        "parameter_group": "/path/to/parameter_group",
+        "old_parameter_group": "/path/to/old_parameter_group",
+    }
+    rvr.return_value._get_values.side_effect = [
+        {"name": "new-pg", "family": "postgres16"},
+        {"name": "old-pg", "family": "postgres14"},
+    ]
+    spec = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": "test"},
+        resource={
+            "identifier": "test-rds",
+            "provider": "rds",
+            "parameter_group": "/path/to/parameter_group",
+            "old_parameter_group": "/path/to/old_parameter_group",
+        },
+        namespace={},
+    )
+    module_conf = ExternalResourceModuleConfiguration()
+
+    result = factory.resolve(spec, module_conf)
+
+    assert result["parameter_group"] == {"name": "new-pg", "family": "postgres16"}
+    assert result["old_parameter_group"] == {"name": "old-pg", "family": "postgres14"}
+    assert rvr.return_value._get_values.call_count == 2
+
+
 def test_resolve_blue_green_deployment_parameter_group(
     factory: AWSRdsFactory,
     mocker: MockerFixture,
