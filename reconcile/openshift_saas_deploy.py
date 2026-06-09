@@ -79,6 +79,7 @@ def compose_grafana_logs_url(
     *,
     pipeline_name: str,
     grafana_saas_deploy_url: str,
+    pipelinerun_name: str | None = None,
 ) -> str:
     if not isinstance(saas_file.pipelines_provider, PipelinesProviderTektonV1):
         raise TypeError(
@@ -86,12 +87,14 @@ def compose_grafana_logs_url(
         )
     pipelines_provider = saas_file.pipelines_provider
     grafana_base_url = grafana_saas_deploy_url.rstrip("/")
-    params = urlencode({
+    params = {
         "var-cluster": pipelines_provider.namespace.cluster.name,
         "var-namespace": pipelines_provider.namespace.name,
         "var-pipeline": pipeline_name,
-    })
-    return f"{grafana_base_url}?{params}"
+    }
+    if pipelinerun_name:
+        params["var-pipelinerun"] = pipelinerun_name
+    return f"{grafana_base_url}?{urlencode(params)}"
 
 
 def slack_notify(
@@ -126,20 +129,22 @@ def slack_notify(
     else:
         icon = ":red_jenkins_circle:"
         description = "Failure"
-    message = (
-        f"{icon} SaaS file *{saas_file_name}* "
-        + f"deployment to environment *{env_name}*: "
-        + f"{description} - (<{console_url}|PipelineRuns>)"
-    )
-    if grafana_logs_url:
-        message += f" (<{grafana_logs_url}|Logs>)"
-    if trigger_reason:
-        message += f". Reason: {trigger_reason}"
+    lines = [
+        f"{icon} *SaaS deploy: {description}*",
+        f"*SaaS File:* `{saas_file_name}`",
+        f"*Deployment to environment:* `{env_name}`",
+    ]
     if trigger_integration:
-        message += f" triggered by _{trigger_integration}_"
+        lines.append(f"*Triggered by:* {trigger_integration}")
+    if trigger_reason:
+        lines.append(f"*Reason:* {trigger_reason}")
+    links = f"<{console_url}|PipelineRun>"
+    if grafana_logs_url:
+        links += f" | <{grafana_logs_url}|Logs>"
+    lines.append(links)
     if in_progress and skip_successful_notifications:
-        message += ". There will not be a notice for success."
-    slack.chat_post_message(message)
+        lines.append("There will not be a notice for success.")
+    slack.chat_post_message("\n".join(lines))
 
 
 @defer
@@ -154,6 +159,7 @@ def run(
     trigger_reason: str | None = None,
     saas_file_list: SaasFileList | None = None,
     grafana_saas_deploy_url: str | None = None,
+    pipelinerun_name: str | None = None,
     defer: Callable | None = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
@@ -202,6 +208,7 @@ def run(
                     saas_file,
                     pipeline_name=pipeline_name,
                     grafana_saas_deploy_url=grafana_url,
+                    pipelinerun_name=pipelinerun_name,
                 )
                 if grafana_url
                 else None
