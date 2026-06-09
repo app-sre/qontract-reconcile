@@ -74,6 +74,25 @@ def test_compose_grafana_logs_url(
     )
 
 
+def test_compose_grafana_logs_url_with_pipelinerun(
+    saas_file_builder: Callable[..., SaasFile],
+) -> None:
+    saas_file = saas_file_builder("saas_name")
+    pipeline_name = _saas_file_tekton_pipeline_name(saas_file)
+    pipelinerun_name = "test-pipelinerun-name-abcde"
+    url = compose_grafana_logs_url(
+        saas_file,
+        pipeline_name=pipeline_name,
+        grafana_saas_deploy_url=TEST_GRAFANA_SAAS_DEPLOY_URL,
+        pipelinerun_name=pipelinerun_name,
+    )
+    assert (
+        url == f"{TEST_GRAFANA_SAAS_DEPLOY_URL.rstrip('/')}?var-cluster=cluster_name&"
+        "var-namespace=namespace_name&var-pipeline=o-saas-deploy-saas_name&"
+        f"var-pipelinerun={pipelinerun_name}"
+    )
+
+
 def test_compose_console_url(
     saas_file_builder: Callable[..., SaasFile],
 ) -> None:
@@ -150,10 +169,10 @@ def test_slack_notify_unskipped_success() -> None:
         grafana_logs_url="https://test.local/grafana",
     )
     api.chat_post_message.assert_called_once_with(
-        ":green_jenkins_circle: SaaS file *test-slack_notify--unskipped-success.yaml* "
-        "deployment to environment *test*: Success "
-        "- (<https://test.local/console|PipelineRuns>) "
-        "(<https://test.local/grafana|Logs>)"
+        ":green_jenkins_circle: *SaaS deploy: Success*\n"
+        "*SaaS File:* `test-slack_notify--unskipped-success.yaml`\n"
+        "*Deployment to environment:* `test`\n"
+        "<https://test.local/console|PipelineRun> | <https://test.local/grafana|Logs>"
     )
 
 
@@ -172,10 +191,10 @@ def test_slack_notify_unskipped_failure() -> None:
         grafana_logs_url="https://test.local/grafana",
     )
     api.chat_post_message.assert_called_once_with(
-        ":red_jenkins_circle: SaaS file *test-saas-file-name.yaml* "
-        "deployment to environment *test*: Failure "
-        "- (<https://test.local/console|PipelineRuns>) "
-        "(<https://test.local/grafana|Logs>)"
+        ":red_jenkins_circle: *SaaS deploy: Failure*\n"
+        "*SaaS File:* `test-saas-file-name.yaml`\n"
+        "*Deployment to environment:* `test`\n"
+        "<https://test.local/console|PipelineRun> | <https://test.local/grafana|Logs>"
     )
 
 
@@ -194,10 +213,10 @@ def test_slack_notify_skipped_failure() -> None:
         grafana_logs_url="https://test.local/grafana",
     )
     api.chat_post_message.assert_called_once_with(
-        ":red_jenkins_circle: SaaS file *test-saas-file-name.yaml* "
-        "deployment to environment *test*: Failure "
-        "- (<https://test.local/console|PipelineRuns>) "
-        "(<https://test.local/grafana|Logs>)"
+        ":red_jenkins_circle: *SaaS deploy: Failure*\n"
+        "*SaaS File:* `test-saas-file-name.yaml`\n"
+        "*Deployment to environment:* `test`\n"
+        "<https://test.local/console|PipelineRun> | <https://test.local/grafana|Logs>"
     )
 
 
@@ -215,8 +234,9 @@ def test_slack_notify_skipped_in_progress() -> None:
         grafana_logs_url="https://test.local/grafana",
     )
     api.chat_post_message.assert_called_once_with(
-        ":yellow_jenkins_circle: SaaS file *test-saas-file-name.yaml* "
-        "deployment to environment *test*: In Progress "
-        "- (<https://test.local/console|PipelineRuns>) "
-        "(<https://test.local/grafana|Logs>). There will not be a notice for success."
+        ":yellow_jenkins_circle: *SaaS deploy: In Progress*\n"
+        "*SaaS File:* `test-saas-file-name.yaml`\n"
+        "*Deployment to environment:* `test`\n"
+        "<https://test.local/console|PipelineRun> | <https://test.local/grafana|Logs>\n"
+        "There will not be a notice for success."
     )

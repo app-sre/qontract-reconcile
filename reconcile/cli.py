@@ -1388,6 +1388,11 @@ def openshift_resources(
     metavar="URL",
     help=("Grafana dashboard URL"),
 )
+@click.option(
+    "--pipelinerun-name",
+    default=None,
+    help="Tekton PipelineRun name for Grafana log links.",
+)
 @trigger_integration
 @trigger_reason
 @click.pass_context
@@ -1399,6 +1404,7 @@ def openshift_saas_deploy(
     saas_file_name: str | None,
     env_name: str | None,
     grafana_saas_deploy_url: str | None,
+    pipelinerun_name: str | None,
     trigger_integration: str | None,
     trigger_reason: str | None,
 ) -> None:
@@ -1413,6 +1419,7 @@ def openshift_saas_deploy(
         saas_file_name=saas_file_name,
         env_name=env_name,
         grafana_saas_deploy_url=grafana_saas_deploy_url,
+        pipelinerun_name=pipelinerun_name,
         trigger_integration=trigger_integration,
         trigger_reason=trigger_reason,
     )
