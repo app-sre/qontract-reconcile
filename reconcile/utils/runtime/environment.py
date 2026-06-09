@@ -66,6 +66,7 @@ def init_env(
     if logging.getLogger().level == logging.INFO:
         # hide logging.info "HTTP GET/POST ..." logs from httpxyz
         logging.getLogger("httpxyz").setLevel(logging.WARNING)
+        logging.getLogger("httpx2").setLevel(logging.WARNING)
 
     # init basic config
     config_file = os.environ.get(QONTRACT_CONFIG)
