@@ -7,6 +7,7 @@ from typing import (
     TypeVar,
 )
 
+from clientele.http.httpx_backend import HttpxHTTPBackend
 from qontract_api_client.client import client as qontract_api_client
 from sretoolbox.utils import threaded as sretoolbox_threaded
 
@@ -172,16 +173,23 @@ async def _run_api_integration(
     integration: QontractReconcileApiIntegration[Any],
     dry_run: bool,
 ) -> None:
-    """Run an API integration and close the HTTP client before the event loop shuts down.
+    """Run an API integration and reset the HTTP client before the event loop shuts down.
 
     httpx2's AsyncClient holds TCP connections bound to the current event loop.
-    If those connections survive past asyncio.run(), cleanup triggers
-    RuntimeError('Event loop is closed'). Closing here avoids that.
+    If those connections survive past asyncio.run(), the next reconcile loop
+    iteration hits RuntimeError('Event loop is closed') when httpcore2 tries
+    to clean up stale connections during a new request.
+
+    We close the client (proper cleanup while the loop is alive) and reset the
+    backend's reference so build_async_client() creates a fresh client for the
+    next event loop.
     """
     try:
         await integration.async_run(dry_run)
     finally:
         await qontract_api_client.aclose()
+        if isinstance(qontract_api_client.config.http_backend, HttpxHTTPBackend):
+            qontract_api_client.config.http_backend._async_client = None
 
 
 def _integration_wet_run[RunParamsTypeVar: RunParams](
