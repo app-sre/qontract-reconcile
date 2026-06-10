@@ -405,6 +405,8 @@ class VaultClient:
                 mount_point=mount_point, path=secret_path
             )
             return response
+        except InvalidPath:
+            return {}
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing path '{path}'"
             raise PathAccessForbiddenError(msg) from None

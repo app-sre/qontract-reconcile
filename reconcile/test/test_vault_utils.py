@@ -6,6 +6,7 @@ from unittest.mock import (
     patch,
 )
 
+import hvac.exceptions
 import pytest
 
 from reconcile.utils import vault
@@ -63,3 +64,41 @@ class TestVaultUtils:
             client._read_all_v2.assert_called_once_with(
                 "test/secret", vault.SECRET_VERSION_LATEST
             )
+
+
+def test_list_kv2_empty_engine_returns_empty_dict() -> None:
+    """An empty KV v2 engine raises InvalidPath — _list_kv2 should return {}."""
+    with patch("reconcile.utils.vault.VaultClient.__init__", return_value=None):
+        client = vault.VaultClient()
+        client._client = MagicMock()
+        client._client.secrets.kv.v2.list_secrets.side_effect = (
+            hvac.exceptions.InvalidPath()
+        )
+
+    assert client._list_kv2("engine/some/path") == {}
+
+
+def test_list_empty_kv2_engine_returns_empty_list() -> None:
+    """list() on an empty KV v2 engine should return []."""
+    with patch("reconcile.utils.vault.VaultClient.__init__", return_value=None):
+        client = vault.VaultClient()
+        client._client = MagicMock()
+        client._client.secrets.kv.v2.list_secrets.side_effect = (
+            hvac.exceptions.InvalidPath()
+        )
+
+    with patch.object(client, "_get_mount_version_by_secret_path", return_value=2):
+        assert client.list("engine/some/path") == []
+
+
+def test_list_all_empty_kv2_engine_returns_empty_list() -> None:
+    """list_all() on an empty KV v2 engine should return []."""
+    with patch("reconcile.utils.vault.VaultClient.__init__", return_value=None):
+        client = vault.VaultClient()
+        client._client = MagicMock()
+        client._client.secrets.kv.v2.list_secrets.side_effect = (
+            hvac.exceptions.InvalidPath()
+        )
+
+    with patch.object(client, "_get_mount_version_by_secret_path", return_value=2):
+        assert client.list_all("engine/some/path") == []
