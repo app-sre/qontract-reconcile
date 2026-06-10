@@ -52,7 +52,7 @@ async def _authorize(request: Request, user: User) -> None:
     params.update({k: str(v) for k, v in request.path_params.items()})
     params.update({k: str(v) for k, v in request.query_params.items()})
 
-    with contextlib.suppress(Exception):
+    with contextlib.suppress(ValueError, UnicodeDecodeError):
         body = await request.json()
         if isinstance(body, dict):
             params.update(flatten_params(body))

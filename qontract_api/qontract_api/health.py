@@ -73,9 +73,8 @@ def check_opa_health(opa_client: OPAClient | None) -> HealthStatus:
     if opa_client is None:
         return HealthStatus(status="healthy", message="OPA authorization disabled")
 
-    opa_health_url = opa_client.opa_url.rsplit("/v1/", maxsplit=1)[0] + "/health"
     try:
-        response = httpx.get(opa_health_url, timeout=2)
+        response = httpx.get(opa_client.health_url, timeout=2)
         if httpx.codes.is_success(response.status_code):
             return HealthStatus(status="healthy", message="OPA sidecar reachable")
         return HealthStatus(

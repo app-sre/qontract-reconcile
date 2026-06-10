@@ -71,13 +71,13 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             timeout=settings.opa.timeout,
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
         )
-        opa_url = f"{settings.opa.host.rstrip('/')}/v1/data/{settings.opa.package_name.replace('.', '/')}"
         _app.state.opa_client = OPAClient(
-            opa_url=opa_url,
+            host=settings.opa.host,
+            package_name=settings.opa.package_name,
             skip_endpoints=[re.compile(p) for p in settings.opa.skip_endpoints],
             client=opa_http_client,
         )
-        log.info("OPA authorization enabled", opa_url=opa_url)
+        log.info("OPA authorization enabled", opa_url=_app.state.opa_client.opa_url)
     else:
         _app.state.opa_client = None
         log.info("OPA authorization disabled")

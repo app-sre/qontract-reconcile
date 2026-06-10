@@ -53,13 +53,20 @@ class OPAClient:
     def __init__(
         self,
         *,
-        opa_url: str,
+        host: str,
+        package_name: str,
         skip_endpoints: list[re.Pattern[str]],
         client: httpx.AsyncClient,
     ) -> None:
-        self.opa_url = opa_url
+        self.host = host.rstrip("/")
+        self.opa_url = f"{self.host}/v1/data/{package_name.replace('.', '/')}"
         self.skip_endpoints = skip_endpoints
         self.client = client
+
+    @property
+    def health_url(self) -> str:
+        """OPA health endpoint URL."""
+        return f"{self.host}/health"
 
     def should_skip(self, path: str) -> bool:
         """Check if the endpoint should skip OPA authorization."""

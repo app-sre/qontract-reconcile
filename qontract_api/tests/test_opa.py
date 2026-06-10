@@ -95,13 +95,59 @@ def test_flatten_params(data: dict[str, Any], expected: dict[str, str]) -> None:
     assert flatten_params(data) == expected
 
 
+# ── OPAClient URL construction ──────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("host", "package_name", "expected_opa_url", "expected_health_url"),
+    [
+        pytest.param(
+            "http://opa:8181",
+            "authz",
+            "http://opa:8181/v1/data/authz",
+            "http://opa:8181/health",
+            id="simple",
+        ),
+        pytest.param(
+            "http://opa:8181/",
+            "authz",
+            "http://opa:8181/v1/data/authz",
+            "http://opa:8181/health",
+            id="trailing-slash",
+        ),
+        pytest.param(
+            "http://opa:8181",
+            "authz.rbac",
+            "http://opa:8181/v1/data/authz/rbac",
+            "http://opa:8181/health",
+            id="dotted-package",
+        ),
+    ],
+)
+def test_opa_client_urls(
+    host: str,
+    package_name: str,
+    expected_opa_url: str,
+    expected_health_url: str,
+) -> None:
+    client = OPAClient(
+        host=host,
+        package_name=package_name,
+        skip_endpoints=[],
+        client=httpx.AsyncClient(),
+    )
+    assert client.opa_url == expected_opa_url
+    assert client.health_url == expected_health_url
+
+
 # ── OPAClient.should_skip ────────────────────────────────────────
 
 
 @pytest.fixture
 def opa_client() -> OPAClient:
     return OPAClient(
-        opa_url="http://opa:8181/v1/data/authz",
+        host="http://opa:8181",
+        package_name="authz",
         skip_endpoints=[re.compile(r"^/health/.*"), re.compile(r"^/docs.*")],
         client=httpx.AsyncClient(),
     )
@@ -133,7 +179,8 @@ def _mock_response(*, status_code: int = 200, json_data: dict | None = None) -> 
 
 def _make_client(mock: AsyncMock) -> OPAClient:
     return OPAClient(
-        opa_url="http://opa:8181/v1/data/authz",
+        host="http://opa:8181",
+        package_name="authz",
         skip_endpoints=[],
         client=mock,
     )
