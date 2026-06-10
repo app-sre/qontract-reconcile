@@ -6,7 +6,13 @@ from gitlab.const import PipelineStatus
 from pytest_mock import MockerFixture
 
 from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheStatus
-from reconcile.utils.mr.labels import HOLD, LGTM, PIPELINE_ERROR
+from reconcile.utils.mr.labels import (
+    HOLD,
+    LGTM,
+    PIPELINE_ERROR,
+    SAAS_FILE_UPDATE,
+    SELF_SERVICEABLE,
+)
 from tools import qontract_cli
 
 
@@ -496,7 +502,6 @@ def test_review_queue_excludes_pipeline_error_without_approval(
     assert "MR 3" not in result.output
 
 
-
 def test_review_queue_excludes_bot_hold(
     mock_review_queue_gl: Mock,
 ) -> None:
@@ -510,3 +515,86 @@ def test_review_queue_excludes_bot_hold(
     )
     assert result.exit_code == 0
     assert "MR 4" not in result.output
+
+
+def test_review_queue_includes_self_serviceable_mr_with_pipeline_error(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(4, [LGTM, PIPELINE_ERROR, SELF_SERVICEABLE])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.FAILED)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 4" in result.output
+
+
+def test_review_queue_includes_saas_file_update_mr_with_pipeline_error(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(5, [LGTM, PIPELINE_ERROR, SAAS_FILE_UPDATE])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.FAILED)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 5" in result.output
+
+
+def test_review_queue_excludes_self_serviceable_mr_without_error(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(6, [SELF_SERVICEABLE])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.SUCCESS)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 6" not in result.output
+
+
+def test_review_queue_includes_bot_authored_self_serviceable_mr_with_pipeline_error(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mr = _mock_mr(7, [LGTM, PIPELINE_ERROR, SELF_SERVICEABLE])
+    mr.author = {"username": "app-sre-bot"}
+    mock_review_queue_gl.get_merge_requests.return_value = [mr]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.FAILED)
+    ]
+    mock_review_queue_gl.get_app_sre_group_users.return_value = [
+        Mock(username="app-sre-bot")
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 7" in result.output
