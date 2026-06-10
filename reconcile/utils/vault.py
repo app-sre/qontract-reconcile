@@ -417,6 +417,8 @@ class VaultClient:
             if response is None or not isinstance(response, dict):
                 return {}
             return response
+        except InvalidPath:
+            return {}
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing path '{path}'"
             raise PathAccessForbiddenError(msg) from None
