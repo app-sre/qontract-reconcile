@@ -496,6 +496,7 @@ def test_review_queue_excludes_pipeline_error_without_approval(
     assert "MR 3" not in result.output
 
 
+
 def test_review_queue_excludes_bot_hold(
     mock_review_queue_gl: Mock,
 ) -> None:
