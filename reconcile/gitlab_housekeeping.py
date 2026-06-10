@@ -1160,9 +1160,10 @@ def _process_omm_group(
 
         if is_rebased(mr, gl):
             if latest_status != PipelineStatus.SUCCESS:
-                if latest_status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
-                    any_active = True
-                else:
+                if latest_status not in {
+                    PipelineStatus.RUNNING,
+                    PipelineStatus.PENDING,
+                }:
                     logging.info([
                         "omm-group",
                         "unhandled-status-rebased",
@@ -1170,7 +1171,7 @@ def _process_omm_group(
                         mr.iid,
                         latest_status,
                     ])
-                    any_active = True
+                any_active = True
                 continue
 
             if merges >= merge_limit:
