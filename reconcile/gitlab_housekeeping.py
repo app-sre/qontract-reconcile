@@ -1130,7 +1130,7 @@ def _process_omm_group(
 
         # skip_ci=True rebase causes GitLab to create a "skipped" pipeline;
         # filter these out so the real (pre-rebase) pipeline drives decisions.
-        pipelines = [p for p in pipelines if p.status != "skipped"]
+        pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
 
         if not pipelines:
             if is_rebased(mr, gl):
@@ -1248,7 +1248,13 @@ def _process_omm_group(
             any_active = True
             continue
 
-        logging.info(["omm-group", "unhandled-status-not-rebased", gl.project.name, mr.iid, latest_status])
+        logging.info([
+            "omm-group",
+            "unhandled-status-not-rebased",
+            gl.project.name,
+            mr.iid,
+            latest_status,
+        ])
 
     if not any_active:
         logging.info(["omm-group", "adaptive-close", gl.project.name])
