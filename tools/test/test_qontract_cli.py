@@ -2,9 +2,11 @@ from unittest.mock import Mock
 
 import pytest
 from click.testing import CliRunner
+from gitlab.const import PipelineStatus
 from pytest_mock import MockerFixture
 
 from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheStatus
+from reconcile.utils.mr.labels import LGTM, PIPELINE_ERROR
 from tools import qontract_cli
 
 
@@ -384,3 +386,111 @@ def test_cidr_blocks_within_invalid_cidr(mock_cidr_deps: Mock) -> None:
     )
     assert result.exit_code != 0
     assert "Invalid CIDR" in result.output
+
+
+@pytest.fixture
+def mock_review_queue_gl(mocker: MockerFixture) -> Mock:
+    mocker.patch(
+        "tools.qontract_cli.queries.get_app_interface_settings",
+        autospec=True,
+        return_value={},
+    )
+    mocker.patch(
+        "tools.qontract_cli.queries.get_gitlab_instance",
+        autospec=True,
+        return_value={},
+    )
+    mocker.patch("tools.qontract_cli.SecretReader", autospec=True)
+    mocker.patch("tools.qontract_cli.init_jjb", autospec=True)
+    mocker.patch("tools.qontract_cli.slackapi_from_queries", autospec=True)
+
+    mock_gl = mocker.patch("tools.qontract_cli.GitLabApi", autospec=True)
+    gl_instance = mock_gl.return_value
+    gl_instance.get_app_sre_group_users.return_value = []
+    gl_instance.is_assigned_by_team.return_value = False
+    gl_instance.is_last_action_by_team.return_value = True
+
+    mocker.patch(
+        "tools.qontract_cli.queries.get_review_repos",
+        autospec=True,
+        return_value=[
+            {
+                "name": "app-interface",
+                "url": "https://gitlab.example.com/service/app-interface",
+            }
+        ],
+    )
+
+    return gl_instance
+
+
+def _mock_mr(iid: int, labels: list[str]) -> Mock:
+    mr = Mock()
+    mr.iid = iid
+    mr.draft = False
+    mr.title = f"MR {iid}"
+    mr.web_url = f"https://gitlab.example.com/mr/{iid}"
+    mr.updated_at = "2026-06-10T00:00:00Z"
+    mr.merge_status = "can_be_merged"
+    mr.author = {"username": "tenant-user"}
+    mr.attributes = {"labels": labels}
+    mr.commits.return_value = [Mock()]
+    return mr
+
+
+def test_review_queue_includes_approved_mr_with_pipeline_error(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(1, [LGTM, PIPELINE_ERROR])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.FAILED)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 1" in result.output
+
+
+def test_review_queue_excludes_approved_mr_without_error(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [_mock_mr(2, [LGTM])]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.SUCCESS)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 2" not in result.output
+
+
+def test_review_queue_excludes_pipeline_error_without_approval(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(3, [PIPELINE_ERROR])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.FAILED)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 3" not in result.output
