@@ -2422,7 +2422,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 mr, app_sre_team_members, glhk.HOLD_LABELS
             )
 
-            if is_last_action_by_app_sre:
+            if is_last_action_by_app_sre and not (good_to_merge and has_error_label):
                 last_comment = gl.last_comment(mr, exclude_bot=True)
                 # skip only if the last comment isn't a trigger phrase
                 if (
