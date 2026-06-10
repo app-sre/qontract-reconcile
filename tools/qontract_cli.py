@@ -2380,7 +2380,9 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 continue
 
             labels = mr.attributes.get("labels") or []
-            if glhk.is_good_to_merge(labels):
+            good_to_merge = glhk.is_good_to_merge(labels)
+            has_error_label = any(l in glhk.ERROR_LABELS for l in labels)
+            if good_to_merge and not has_error_label:
                 continue
             if "stale" in labels:
                 continue
@@ -2402,7 +2404,9 @@ def app_interface_review_queue(ctx: click.Context) -> None:
             if running_pipelines:
                 continue
             last_pipeline_result = pipelines[0].status
-            if last_pipeline_result != PipelineStatus.SUCCESS:
+            if last_pipeline_result != PipelineStatus.SUCCESS and not (
+                good_to_merge and has_error_label
+            ):
                 continue
 
             author = mr.author["username"]
@@ -2418,7 +2422,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 mr, app_sre_team_members, glhk.HOLD_LABELS
             )
 
-            if is_last_action_by_app_sre:
+            if is_last_action_by_app_sre and not (good_to_merge and has_error_label):
                 last_comment = gl.last_comment(mr, exclude_bot=True)
                 # skip only if the last comment isn't a trigger phrase
                 if (
