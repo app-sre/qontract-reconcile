@@ -1128,7 +1128,19 @@ def _process_omm_group(
                     pipelines=timed_out,
                 )
 
+        # skip_ci=True rebase causes GitLab to create a "skipped" pipeline;
+        # filter these out so the real (pre-rebase) pipeline drives decisions.
+        pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
+
         if not pipelines:
+            if is_rebased(mr, gl):
+                logging.info([
+                    "omm-group",
+                    "no-pipelines-rebased",
+                    gl.project.name,
+                    mr.iid,
+                ])
+                any_active = True
             continue
 
         latest_status = pipelines[0].status
@@ -1148,8 +1160,18 @@ def _process_omm_group(
 
         if is_rebased(mr, gl):
             if latest_status != PipelineStatus.SUCCESS:
-                if latest_status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
-                    any_active = True
+                if latest_status not in {
+                    PipelineStatus.RUNNING,
+                    PipelineStatus.PENDING,
+                }:
+                    logging.info([
+                        "omm-group",
+                        "unhandled-status-rebased",
+                        gl.project.name,
+                        mr.iid,
+                        latest_status,
+                    ])
+                any_active = True
                 continue
 
             if merges >= merge_limit:
@@ -1226,6 +1248,14 @@ def _process_omm_group(
         if latest_status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
             any_active = True
             continue
+
+        logging.info([
+            "omm-group",
+            "unhandled-status-not-rebased",
+            gl.project.name,
+            mr.iid,
+            latest_status,
+        ])
 
     if not any_active:
         logging.info(["omm-group", "adaptive-close", gl.project.name])
