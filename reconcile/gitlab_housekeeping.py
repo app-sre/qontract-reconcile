@@ -1477,12 +1477,11 @@ def run_error_healthcheck(
 
             if merge_error_added_at:
                 latest_notes = mr.notes.list(
-                    order_by="created_at", sort="desc", per_page=1
+                    order_by="created_at", sort="desc", per_page=5
                 )
                 if any(
                     from_utc_iso_format(note.created_at)
                     > from_utc_iso_format(merge_error_added_at)
-                    and not note.system
                     and note.author["username"] != gl.user.username
                     for note in latest_notes
                 ):

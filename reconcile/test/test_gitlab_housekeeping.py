@@ -1717,6 +1717,7 @@ class TestMergeErrorCycleEndToEnd:
         system_note.created_at = "2025-06-01T11:00:01.0Z"
         system_note.system = True
         system_note.body = "added ~merge-error label"
+        system_note.author = {"username": gl.user.username}
         mr.notes.list.return_value = [system_note]
 
         gl_h.run_error_healthcheck(
@@ -1760,6 +1761,44 @@ def test_bot_note_does_not_clear_merge_error(project: Project) -> None:
         consecutive_failure_limit=3,
     )
     mocked_gl.remove_label.assert_not_called()
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_human_system_note_clears_merge_error(project: Project) -> None:
+    """A human-authored system note (e.g. rebase, force push) posted after
+    the merge-error label should trigger label removal."""
+    mr = _make_healthcheck_mr(labels=["lgtm", "merge-error"])
+    label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
+    label_event.action = "add"
+    label_event.label = {"name": "merge-error"}
+    label_event.created_at = "2025-06-01T12:00:00.0Z"
+
+    system_note = Mock()
+    system_note.created_at = "2025-06-01T13:00:00.0Z"
+    system_note.system = True
+    system_note.body = "added 4 commits"
+    system_note.author = {"username": "human-user"}
+    mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+    mr.notes.list.return_value = [system_note]
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.user = Mock(username="bot-user")
+    mocked_gl.get_merge_request_label_events.return_value = [label_event]
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "success",
+        "success",
+        "success",
+    ])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        consecutive_failure_limit=3,
+    )
+
+    mocked_gl.remove_label.assert_called_once_with(mr, "merge-error")
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
