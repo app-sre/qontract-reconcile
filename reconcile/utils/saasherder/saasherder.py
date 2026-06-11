@@ -2237,11 +2237,16 @@ class SaasHerder:
                 for channel in promotion.publish:
                     # make sure we keep some attributes on re-deployments of same ref
                     has_succeeded_once = success
+                    # pre_check_sha_exists=False: _commits_by_channel is never
+                    # populated in the saasherder flow (only SAPM calls
+                    # cache_commit_shas_from_s3), so the default True would
+                    # always short-circuit to None and lose the old check_in.
                     current_state = self._promotion_state.get_promotion_data(
                         sha=promotion.commit_sha,
                         channel=channel,
                         target_uid=promotion.saas_target_uid,
                         use_cache=True,
+                        pre_check_sha_exists=False,
                     )
                     if current_state and current_state.has_succeeded_once:
                         has_succeeded_once = True
