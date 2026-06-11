@@ -6,7 +6,7 @@ from gitlab.const import PipelineStatus
 from pytest_mock import MockerFixture
 
 from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheStatus
-from reconcile.utils.mr.labels import LGTM, PIPELINE_ERROR
+from reconcile.utils.mr.labels import HOLD, LGTM, PIPELINE_ERROR
 from tools import qontract_cli
 
 
@@ -494,3 +494,18 @@ def test_review_queue_excludes_pipeline_error_without_approval(
     )
     assert result.exit_code == 0
     assert "MR 3" not in result.output
+
+
+def test_review_queue_excludes_bot_hold(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [_mock_mr(4, [HOLD])]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 4" not in result.output
