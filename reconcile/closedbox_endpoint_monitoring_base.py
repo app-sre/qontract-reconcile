@@ -111,25 +111,25 @@ def get_endpoints(provider: str) -> dict[EndpointMonitoringProvider, list[Endpoi
 
 
 def fill_desired_state(
-    provider: EndpointMonitoringProvider,
+    namespace: dict[str, Any],
     probe: OpenshiftResource,
     ri: ResourceInventory,
 ) -> None:
-    if provider.namespace:
-        ri.add_desired(
-            cluster=provider.namespace["cluster"]["name"],
-            namespace=provider.namespace["name"],
-            resource_type=probe.kind_and_group,
-            name=probe.name,
-            value=probe,
-        )
+    ri.add_desired(
+        cluster=namespace["cluster"]["name"],
+        namespace=namespace["name"],
+        resource_type=probe.kind_and_group,
+        name=probe.name,
+        value=probe,
+    )
 
 
 @defer
 def run_for_provider(
     provider: str,
     probe_builder: Callable[
-        [EndpointMonitoringProvider, list[Endpoint]], OpenshiftResource | None
+        [EndpointMonitoringProvider, list[Endpoint]],
+        list[tuple[OpenshiftResource, dict[str, Any]]],
     ],
     integration: str,
     integration_version: str,
@@ -137,11 +137,25 @@ def run_for_provider(
     thread_pool_size: int,
     internal: bool,
     use_jump_host: bool,
+    managed_types: list[str] | None = None,
     defer: Callable | None = None,
 ) -> None:
-    # prepare
     desired_endpoints = get_endpoints(provider)
-    namespaces = [p.namespace for p in desired_endpoints if p.namespace]
+
+    # Build all probes upfront to collect their target namespaces
+    provider_probes = {
+        ep_mon_provider: probe_builder(ep_mon_provider, endpoints)
+        for ep_mon_provider, endpoints in desired_endpoints.items()
+    }
+
+    # Deduplicate target namespaces by (cluster, namespace-name)
+    ns_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    for probes in provider_probes.values():
+        for _, ns in probes:
+            if ns:
+                ns_by_key[ns["cluster"]["name"], ns["name"]] = ns
+
+    namespaces = list(ns_by_key.values())
 
     if namespaces:
         ri, oc_map = ob.fetch_current_state(
@@ -151,16 +165,15 @@ def run_for_provider(
             use_jump_host=use_jump_host,
             integration=integration,
             integration_version=integration_version,
-            override_managed_types=["Probe.monitoring.coreos.com"],
+            override_managed_types=managed_types or ["Probe.monitoring.coreos.com"],
         )
         if defer:
             defer(oc_map.cleanup)
 
-        # reconcile
-        for ep_mon_provider, endpoints in desired_endpoints.items():
-            probe = probe_builder(ep_mon_provider, endpoints)
-            if probe:
-                fill_desired_state(ep_mon_provider, probe, ri)
+        for probes in provider_probes.values():
+            for probe, ns in probes:
+                if ns:
+                    fill_desired_state(ns, probe, ri)
         ob.publish_metrics(ri, integration)
         ob.realize_data(dry_run, oc_map, ri, thread_pool_size, recycle_pods=False)
 

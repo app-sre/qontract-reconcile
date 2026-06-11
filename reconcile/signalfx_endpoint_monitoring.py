@@ -40,10 +40,10 @@ def run(
 
 def build_probe(
     provider: EndpointMonitoringProvider, endpoints: list[Endpoint]
-) -> OpenshiftResource | None:
+) -> list[tuple[OpenshiftResource, dict[str, Any]]]:
     signalfx = provider.signalFx
     if not signalfx:
-        return None
+        return []
     prober_url = parse_prober_url(signalfx.exporterUrl)
     prober_url["path"] += "/" + signalfx.targetFilterLabel
 
@@ -87,4 +87,9 @@ def build_probe(
     }
     if provider.timeout:
         body["spec"]["scrapeTimeout"] = provider.timeout
-    return OpenshiftResource(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
+    return [
+        (
+            OpenshiftResource(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION),
+            signalfx.namespace,
+        )
+    ]
