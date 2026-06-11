@@ -152,6 +152,7 @@ from reconcile.utils.keycloak import (
 )
 from reconcile.utils.mr.labels import (
     AVS,
+    HOLD,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
     SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
@@ -2387,6 +2388,8 @@ def app_interface_review_queue(ctx: click.Context) -> None:
             if "stale" in labels:
                 continue
             if SAAS_FILE_UPDATE in labels:
+                continue
+            if HOLD in labels:
                 continue
             if (
                 SELF_SERVICEABLE in labels
