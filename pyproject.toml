@@ -99,6 +99,7 @@ dev = [
     "types-requests-oauthlib",
     "types-requests",
     "types-tabulate",
+    "pytest-xdist>=3.8.0",
 ]
 
 # required for qontract_utils
