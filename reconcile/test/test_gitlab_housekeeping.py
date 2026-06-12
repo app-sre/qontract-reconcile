@@ -1947,7 +1947,7 @@ def test_multi_merge_two_non_overlapping_tenants(
 
     mr1.merge.assert_called_once()
     mr2.merge.assert_not_called()
-    mr2.rebase.assert_called_once_with(skip_ci=False)
+    mr2.rebase.assert_called_once_with(skip_ci=True)
 
 
 def test_multi_merge_overlapping_tenants_serialized(

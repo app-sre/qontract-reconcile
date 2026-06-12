@@ -746,7 +746,7 @@ def apply_omm_pending(
         if not dry_run:
             gl.add_label_to_merge_request(mr, OMM_PENDING)
             try:
-                mr.rebase(skip_ci=False)
+                mr.rebase(skip_ci=True)
             except gitlab.exceptions.GitlabMRRebaseError:
                 logging.warning([
                     "omm-group",
