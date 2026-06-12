@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from typing import Any
 from unittest.mock import ANY, MagicMock
 
@@ -17,13 +17,16 @@ from reconcile.utils.unleash.client import (
 )
 
 
-@pytest.fixture
-def reset_client() -> None:
+@pytest.fixture(autouse=True)
+def reset_client() -> Generator:
+    yield
+    if (c := reconcile.utils.unleash.client.client) is not None:
+        c.destroy()
     reconcile.utils.unleash.client.client = None
 
 
 @pytest.fixture
-def mock_unleash_client(mocker: MockerFixture, reset_client: Any) -> MagicMock:
+def mock_unleash_client(mocker: MockerFixture) -> MagicMock:
     return mocker.patch("reconcile.utils.unleash.client.UnleashClient", autospec=True)
 
 
@@ -167,7 +170,6 @@ def test_get_feature_toggle_state(
 
 
 def test_get_feature_toggle_state_with_strategy(
-    reset_client: Any,
     setup_unleash_disable_cluster_strategy: Callable,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -181,7 +183,6 @@ def test_get_feature_toggle_state_with_strategy(
 
 
 def test_get_feature_toggle_state_disabled_with_strategy(
-    reset_client: None,
     setup_unleash_disable_cluster_strategy: Callable,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -194,7 +195,6 @@ def test_get_feature_toggle_state_disabled_with_strategy(
 
 
 def test_get_feature_toggle_state_with_enable_cluster_strategy(
-    reset_client: None,
     setup_unleash_enable_cluster_strategy: Callable,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

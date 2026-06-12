@@ -4086,6 +4086,10 @@ class TerrascriptClient:
         if kinesis_values["encryption_type"] == "KMS":
             kinesis_values["kms_key_id"] = common_values.get("kms_key_id")
 
+        shard_level_metrics = common_values.get("shard_level_metrics")
+        if shard_level_metrics is not None:
+            kinesis_values["shard_level_metrics"] = shard_level_metrics
+
         # get region and set provider if required
         region = common_values.get("region") or self.default_regions.get(account)
         assert region  # make mypy happy
