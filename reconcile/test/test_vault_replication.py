@@ -567,6 +567,13 @@ def test_get_policy_secret_list(mocker: MockerFixture) -> None:
     }
 
 
+def test_get_policy_secret_list_empty_engine(mocker: MockerFixture) -> None:
+    vault_client = mocker.patch("reconcile.utils.vault.VaultClient", autospec=True)
+    vault_client.list_all.return_value = []
+
+    assert integ.get_policy_secret_list(vault_client, ["policy/path/1/*"]) == []
+
+
 @pytest.mark.parametrize(
     "paths",
     [

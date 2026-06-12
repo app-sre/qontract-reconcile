@@ -6,6 +6,7 @@ from unittest.mock import (
     patch,
 )
 
+import hvac.exceptions
 import pytest
 
 from reconcile.utils import vault
@@ -63,3 +64,35 @@ class TestVaultUtils:
             client._read_all_v2.assert_called_once_with(
                 "test/secret", vault.SECRET_VERSION_LATEST
             )
+
+
+@pytest.fixture
+def kv2_client_invalid_path() -> vault.VaultClient:
+    """VaultClient with KV v2 list raising InvalidPath (empty engine)."""
+    with patch("reconcile.utils.vault.VaultClient.__init__", return_value=None):
+        client = vault.VaultClient()
+        client._client = MagicMock()
+        client._client.secrets.kv.v2.list_secrets.side_effect = (
+            hvac.exceptions.InvalidPath()
+        )
+    return client
+
+
+@pytest.mark.parametrize(
+    "method_name, expected",
+    [
+        ("_list_kv2", {}),
+        ("list", []),
+        ("list_all", []),
+    ],
+)
+def test_empty_kv2_engine(
+    kv2_client_invalid_path: vault.VaultClient,
+    method_name: str,
+    expected: dict | list[str],
+) -> None:
+    with patch.object(
+        kv2_client_invalid_path, "_get_mount_version_by_secret_path", return_value=2
+    ):
+        result = getattr(kv2_client_invalid_path, method_name)("engine/some/path")
+        assert result == expected
