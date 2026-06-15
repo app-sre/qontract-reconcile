@@ -95,6 +95,10 @@ objects:
                   value: api
                 - name: QAPI_APP_PORT
                   value: "${QAPI_APP_PORT}"
+                - name: QAPI_OPA__ENABLED
+                  value: "${QAPI_OPA_ENABLED}"
+                - name: QAPI_OPA__HOST
+                  value: "http://localhost:8181"
                 - name: QAPI_SENTRY_DSN
                   valueFrom:
                     secretKeyRef:
@@ -142,6 +146,61 @@ objects:
                   memory: ${{QAPI_API_MEMORY_REQUESTS}}
                 limits:
                   memory: ${{QAPI_API_MEMORY_LIMITS}}
+            # OPA sidecar for parameter-level authorization
+            - name: opa
+              image: "${OPA_IMAGE}:${OPA_IMAGE_TAG}"
+              args:
+                - run
+                - --ignore=.*
+                - --server
+                - --log-level=info
+                - --disable-telemetry
+                - --addr=0.0.0.0:8181
+                - --watch
+                - /authz
+                - /policies
+              ports:
+                - name: opa
+                  containerPort: 8181
+              lifecycle:
+                preStop:
+                  exec:
+                    command:
+                      - sh
+                      - "-c"
+                      - sleep 2
+              livenessProbe:
+                httpGet:
+                  path: /health
+                  port: 8181
+                initialDelaySeconds: 5
+                periodSeconds: 60
+              readinessProbe:
+                httpGet:
+                  path: /health?bundle=true
+                  port: 8181
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              startupProbe:
+                tcpSocket:
+                  port: 8181
+                initialDelaySeconds: 1
+                periodSeconds: 5
+                timeoutSeconds: 5
+              resources:
+                requests:
+                  cpu: ${{QAPI_OPA_CPU_REQUESTS}}
+                  memory: ${{QAPI_OPA_MEMORY_REQUESTS}}
+                limits:
+                  memory: ${{QAPI_OPA_MEMORY_LIMITS}}
+              volumeMounts:
+                - name: opa-policies
+                  mountPath: /policies
+                  readOnly: true
+          volumes:
+            - name: opa-policies
+              configMap:
+                name: qontract-api-opa-policy
 
   # ---------- API SERVICE -----------
   - apiVersion: v1
@@ -546,4 +605,36 @@ parameters:
   - name: QAPI_WORKER_CPU_REQUESTS
     description: Worker cpu requests
     value: "100m"
+    required: true
+
+  # OPA sidecar
+  - name: QAPI_OPA_ENABLED
+    description: Enable OPA authorization (set to false to disable without removing the sidecar)
+    value: "true"
+    required: true
+
+  - name: OPA_IMAGE
+    description: OPA sidecar image
+    # yamllint disable-line rule:line-length
+    value: "quay.io/redhat-services-prod/app-sre-tenant/qontract-reconcile-master/opa-master"
+    required: true
+
+  - name: OPA_IMAGE_TAG
+    description: OPA sidecar image tag
+    value: "latest"
+    required: true
+
+  - name: QAPI_OPA_CPU_REQUESTS
+    description: OPA sidecar cpu requests
+    value: "50m"
+    required: true
+
+  - name: QAPI_OPA_MEMORY_REQUESTS
+    description: OPA sidecar memory requests
+    value: "64Mi"
+    required: true
+
+  - name: QAPI_OPA_MEMORY_LIMITS
+    description: OPA sidecar memory limits
+    value: "128Mi"
     required: true

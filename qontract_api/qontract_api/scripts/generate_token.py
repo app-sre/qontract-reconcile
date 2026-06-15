@@ -7,7 +7,7 @@ This script will be replace by a proper management CLI in the future.
 
 import argparse
 import os
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from rich import print as rich_print
 from rich.panel import Panel
@@ -26,8 +26,7 @@ def setup() -> None:
 
 
 def main() -> None:
-    """Generate JWT token."""
-    # import locally to have all environment setup done before importing qontract_api modules
+    """Generate JWT token with date-stamped subject for OPA authorization."""
     from qontract_api.auth import create_access_token
     from qontract_api.models import TokenData
 
@@ -37,7 +36,7 @@ def main() -> None:
     parser.add_argument(
         "--subject",
         required=True,
-        help="Token subject (e.g., 'admin', 'service-account-name')",
+        help="Token subject base name (e.g., 'qontract-api-prod'). Today's date is appended automatically.",
     )
     parser.add_argument(
         "--expires-days",
@@ -48,12 +47,15 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    token_data = TokenData(sub=args.subject)
+    today = datetime.now(tz=UTC).strftime("%Y-%m-%d")
+    subject = f"{args.subject}-{today}"
+
+    token_data = TokenData(sub=subject)
     expires_delta = timedelta(days=args.expires_days)
     token = create_access_token(data=token_data, expires_delta=expires_delta)
 
     grid = Table(title="JWT", show_header=False, show_lines=True)
-    grid.add_row("Subject", args.subject)
+    grid.add_row("Subject", subject)
     grid.add_row("Expires", f"{args.expires_days} days")
     grid.add_row("Token", f"[green]{token}")
     rich_print(grid)
