@@ -69,7 +69,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     if settings.opa.enabled:
         opa_http_client = httpx.AsyncClient(
             timeout=settings.opa.timeout,
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
         )
         _app.state.opa_client = OPAClient(
             host=settings.opa.host,
