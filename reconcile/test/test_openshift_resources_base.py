@@ -111,7 +111,6 @@ def test_prometheus_rule(
     _, override = canonicalize_namespaces(namespaces, ["prometheus-rule"])
     assert override == [
         "PrometheusRule.monitoring.coreos.com",
-        "PrometheusRule.monitoring.rhobs.io",
         "PrometheusRule.monitoring.rhobs",
     ]
 
