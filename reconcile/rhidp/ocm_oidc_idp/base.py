@@ -54,7 +54,6 @@ def run(
     ocm_api: OCMBaseClient,
     vault_input_path: str,
     dry_run: bool,
-    managed_idps: list[str] | None = None,
 ) -> None:
     with metrics.transactional_metrics(ocm_environment) as metrics_container:
         # metrics
@@ -73,7 +72,6 @@ def run(
                 ocm_api,
                 current_state,
                 desired_state,
-                managed_idps=managed_idps or [],
             )
             metrics_container.inc_counter(
                 RhIdpOCMOidcIdpReconcileCounter(
@@ -165,7 +163,6 @@ def act(
     ocm_api: OCMBaseClient,
     current_state: Sequence[IDPState],
     desired_state: Sequence[IDPState],
-    managed_idps: list[str],
 ) -> None:
     """Compare current and desired OIDC identity providers and add, remove, or update them."""
     diff_result = diff_iterables(
@@ -182,11 +179,10 @@ def act(
 
     for idp_state in diff_result.delete.values():
         if (
-            managed_idps
-            and idp_state.idp.name not in managed_idps
+            idp_state.idp.name != idp_state.cluster.auth.name
             and not idp_state.cluster.auth.enforced
         ):
-            logging.debug(f"Skipping removal of unmanged '{idp_state.idp.name}' IDP.")
+            logging.debug(f"Skipping removal of unmanaged '{idp_state.idp.name}' IDP.")
             continue
         logging.info(["remove_oidc_idp", idp_state.cluster.name, idp_state.idp.name])
         if not dry_run:

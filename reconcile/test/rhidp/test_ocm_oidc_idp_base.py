@@ -120,7 +120,6 @@ def test_ocm_oidc_idp_act(
     clusters: Sequence[Cluster],
     dry_run: bool,
 ) -> None:
-    managed_oidc_name = "oidc-auth"
     cluster_auth_enabled = clusters[0]
     cluster_auth_disabled = clusters[1]
     cluster_auth_disabled.auth.status = StatusValue.DISABLED.value
@@ -128,7 +127,7 @@ def test_ocm_oidc_idp_act(
     cluster_auth_enforced.auth.status = StatusValue.ENFORCED.value
 
     idp = OCMOIdentityProviderOidc(
-        name=managed_oidc_name,
+        name="oidc-auth",
         open_id=OCMOIdentityProviderOidcOpenId(
             client_id="client_id",
             client_secret="client_secret",
@@ -171,7 +170,6 @@ def test_ocm_oidc_idp_act(
         ocm_api=ocm_base_client,
         current_state=current_state,
         desired_state=desired_state,
-        managed_idps=[managed_oidc_name],
     )
     if dry_run:
         add_identity_provider_mock.assert_not_called()
@@ -194,3 +192,35 @@ def test_ocm_oidc_idp_act(
     update_identity_provider_mock.assert_called_once_with(
         ocm_base_client, idp_to_be_changed.idp
     )
+
+
+def test_ocm_oidc_idp_act_custom_auth_name_disabled(
+    mocker: MockerFixture,
+    ocm_base_client: OCMBaseClient,
+    clusters: Sequence[Cluster],
+) -> None:
+    """IDP with custom auth name must be removed when cluster is disabled."""
+    cluster = clusters[0]
+    cluster.auth.name = "redhat-app-sre-auth"
+    cluster.auth.status = StatusValue.DISABLED.value
+
+    idp = OCMOIdentityProviderOidc(
+        name="redhat-app-sre-auth",
+        open_id=OCMOIdentityProviderOidcOpenId(
+            client_id="client_id",
+            client_secret="client_secret",
+            issuer="https://issuer.com",
+        ),
+    )
+
+    delete_mock = mocker.patch(
+        "reconcile.rhidp.ocm_oidc_idp.base.delete_identity_provider",
+        autospec=True,
+    )
+    act(
+        dry_run=False,
+        ocm_api=ocm_base_client,
+        current_state=[IDPState(cluster=cluster, idp=idp)],
+        desired_state=[],
+    )
+    delete_mock.assert_called_once_with(ocm_base_client, idp)

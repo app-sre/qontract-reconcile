@@ -52,5 +52,4 @@ class OCMOidcIdp(QontractReconcileIntegration[OCMOidcIdpParams]):
                 ocm_api=ocm_api,
                 vault_input_path=f"{self.params.vault_input_path}/{ocm_env.name}",
                 dry_run=dry_run,
-                managed_idps=[self.params.default_auth_name],
             )
