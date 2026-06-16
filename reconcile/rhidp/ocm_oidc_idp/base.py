@@ -24,6 +24,7 @@ from reconcile.utils.ocm.base import (
     OCMOIdentityProviderGithub,
     OCMOIdentityProviderOidc,
     OCMOIdentityProviderOidcOpenId,
+    OCMOIdentityProviderOidcOpenIdClaims,
 )
 from reconcile.utils.ocm.identity_providers import (
     add_identity_provider,
@@ -136,6 +137,11 @@ def fetch_desired_state(
                 f"{cluster.auth.issuer}. Skipping OIDC config for cluster {cluster.name}"
             )
             continue
+        claims = OCMOIdentityProviderOidcOpenIdClaims(
+            groups=["filtered_groups"]
+            if sso_client.attributes.get("group-filter-regex")
+            else [],
+        )
         desired_state.append(
             IDPState(
                 cluster=cluster,
@@ -145,6 +151,7 @@ def fetch_desired_state(
                         client_id=sso_client.client_id,
                         client_secret=sso_client.client_secret,
                         issuer=cluster.auth.issuer,
+                        claims=claims,
                     ),
                 ),
             )

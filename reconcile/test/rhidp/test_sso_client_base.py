@@ -69,6 +69,7 @@ def test_sso_client_fetch_desired_state(clusters: Sequence[Cluster]) -> None:
     assert fetch_desired_state(clusters) == {
         "cluster-1-org-id-1-oidc-auth-issuer.com": clusters[0],
         "cluster-2-org-id-2-oidc-auth-issuer.com": clusters[1],
+        "cluster-groups-org-id-2-oidc-auth-issuer.com": clusters[2],
     }
 
 
@@ -143,19 +144,12 @@ def test_sso_client_create_sso_client(
     )
     sso_client = SSOClient(
         client_id="uid-1",
-        client_id_issued_at=0,
         client_name=sso_client_id,
         client_secret="secret-1",
-        client_secret_expires_at=0,
-        grant_types=["foobar"],
         redirect_uris=redirect_uris,
         request_uris=request_uris,
         registration_access_token="foobar-tken",
         registration_client_uri="https://client-uri.com",
-        response_types=["foobar"],
-        subject_type="foobar",
-        tls_client_certificate_bound_access_tokens=False,
-        token_endpoint_auth_method="foobar",
         issuer=cluster.auth.issuer,
     )
     keycloak_map_mock = mocker.create_autospec(KeycloakMap)
@@ -179,6 +173,7 @@ def test_sso_client_create_sso_client(
         initiate_login_uri=cluster.console_url,
         request_uris=request_uris,
         contacts=contacts,
+        group_filter_regex=cluster.auth.group_filter_regex,
     )
 
     secret_reader.vault_client.write.assert_called_once_with(
@@ -205,19 +200,12 @@ def test_sso_client_delete_sso_client(
     )
     sso_client_data = {
         "client_id": "",
-        "client_id_issued_at": 0,
         "client_name": sso_client_id,
         "client_secret": "",
-        "client_secret_expires_at": 0,
-        "grant_types": [],
         "redirect_uris": [],
         "request_uris": [],
         "registration_access_token": "foobar-tken",
         "registration_client_uri": "https://client-uri.com",
-        "response_types": [],
-        "subject_type": "",
-        "tls_client_certificate_bound_access_tokens": False,
-        "token_endpoint_auth_method": "",
         "issuer": issuer,
     }
 

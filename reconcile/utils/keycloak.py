@@ -1,28 +1,24 @@
+import logging
 from collections.abc import Iterable, Sequence
 from typing import Any
 
 import requests
 from pydantic import BaseModel
 
+logger = logging.getLogger(__name__)
+
 
 class SSOClient(BaseModel):
-    # these attributes come from the Keycloak API
     client_id: str
-    client_id_issued_at: int
     client_name: str
     client_secret: str
-    client_secret_expires_at: int
-    grant_types: list[str]
     redirect_uris: list[str]
     registration_access_token: str
     registration_client_uri: str
     request_uris: list[str]
-    response_types: list[str]
-    subject_type: str
-    tls_client_certificate_bound_access_tokens: bool
-    token_endpoint_auth_method: str
     # attribute added by the reconcile code and not part of the SSO client data
     issuer: str
+    attributes: dict[str, Any] = {}
 
 
 class KeycloakInstance(BaseModel):
@@ -40,15 +36,6 @@ class KeycloakAPI:
         self.url = url
         self.initial_access_token = initial_access_token
         self.timeout = timeout
-        self._openid_configuration = self._init_openid_configuration()
-
-    def _init_openid_configuration(self) -> dict[str, Any] | None:
-        if not self.url:
-            return None
-        return requests.get(
-            f"{self.url}/.well-known/openid-configuration",
-            timeout=self.timeout,
-        ).json()
 
     def register_client(
         self,
@@ -57,30 +44,54 @@ class KeycloakAPI:
         initiate_login_uri: str,
         request_uris: Sequence[str],
         contacts: Sequence[str],
+        group_filter_regex: str | None = None,
     ) -> SSOClient:
-        """Create a new SSO client."""
+        """Create a new SSO client via Keycloak's native registration endpoint."""
         if not self.initial_access_token:
             raise ValueError("initial_access_token is required")
-        if not self._openid_configuration:
-            raise ValueError("openid_configuration is required")
+        if not self.url:
+            raise ValueError("url is required")
+
+        # /clients-registrations/default accepts Keycloak ClientRepresentation
+        # format and supports defaultClientScopes + attributes (needed for
+        # regex-filtered-groups). The OIDC endpoint (/openid-connect) does not.
+        registration_url = f"{self.url}/clients-registrations/default"
+
+        payload: dict[str, Any] = {
+            "clientId": client_name,
+            "redirectUris": list(redirect_uris),
+            "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email"],
+        }
+        if group_filter_regex:
+            payload["defaultClientScopes"].append("regex-filtered-groups")
+            payload["attributes"] = {"group-filter-regex": group_filter_regex}
 
         response = requests.post(
-            self._openid_configuration["registration_endpoint"],
-            json={
-                "client_name": client_name,
-                "redirect_uris": redirect_uris,
-                "response_types": ["code"],
-                "grant_types": ["authorization_code"],
-                "application_type": "web",
-                "contacts": contacts,
-                "initiate_login_uri": initiate_login_uri,
-                "request_uris": request_uris,
-            },
+            registration_url,
+            json=payload,
             headers={"Authorization": f"Bearer {self.initial_access_token}"},
             timeout=self.timeout,
         )
-        response.raise_for_status()
-        return SSOClient(**response.json(), issuer=self.url)
+        try:
+            response.raise_for_status()
+        except requests.HTTPError:
+            logger.error(
+                f"Failed to register client with Keycloak at {self.url}: {response.text}"
+            )
+            raise
+        data = response.json()
+
+        return SSOClient(
+            client_id=data["clientId"],
+            client_name=client_name,
+            client_secret=data["secret"],
+            redirect_uris=data["redirectUris"],
+            registration_access_token=data["registrationAccessToken"],
+            registration_client_uri=f"{registration_url}/{data['clientId']}",
+            request_uris=data["webOrigins"],
+            issuer=self.url,
+            attributes=data.get("attributes", {}),
+        )
 
     def delete_client(
         self, registration_client_uri: str, registration_access_token: str

@@ -230,6 +230,7 @@ def create_sso_client(
         initiate_login_uri=cluster.console_url,
         request_uris=[cluster.console_url],
         contacts=contacts,
+        group_filter_regex=cluster.auth.group_filter_regex,
     )
     secret = cluster_vault_secret(
         vault_input_path=vault_input_path,
