@@ -45,9 +45,6 @@ def test_keycloak_register_client(
     sso_client = keycloak_api.register_client(
         client_name="test-client",
         redirect_uris=["redirect_uris"],
-        initiate_login_uri="initiate_login_uri",
-        request_uris=["request_uris"],
-        contacts=["contact"],
     )
     assert sso_client.client_id == "test-client"
     assert sso_client.client_secret == "test-secret"
@@ -85,9 +82,6 @@ def test_keycloak_register_client_with_group_filter_regex(
     sso_client = keycloak_api.register_client(
         client_name="test-client",
         redirect_uris=["redirect_uris"],
-        initiate_login_uri="initiate_login_uri",
-        request_uris=["request_uris"],
-        contacts=["contact"],
         group_filter_regex="^ai-.*",
     )
     assert sso_client.client_id == "test-client"

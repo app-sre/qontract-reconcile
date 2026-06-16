@@ -21,7 +21,6 @@ class SSOClientParams(PydanticRunParams):
     ocm_environment: str | None = None
     default_auth_name: str
     default_auth_issuer_url: str
-    contacts: list[str]
 
 
 class SSOClient(QontractReconcileIntegration[SSOClientParams]):
@@ -55,6 +54,5 @@ class SSOClient(QontractReconcileIntegration[SSOClientParams]):
                 # put secrets in a subpath per OCM environment to avoid deleting
                 # clusters from other environments
                 vault_input_path=f"{self.params.vault_input_path}/{ocm_env.name}",
-                contacts=self.params.contacts,
                 dry_run=dry_run,
             )

@@ -4343,9 +4343,6 @@ def create(
     sso_client = keycloak_api.register_client(
         client_name=client_name,
         redirect_uris=redirect_uri,
-        initiate_login_uri=request_uri[0],
-        request_uris=request_uri,
-        contacts=[contact_email],
     )
     click.secho(
         "SSO client created successfully. Please save the following JSON in Vault!",

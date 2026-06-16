@@ -3,7 +3,7 @@ from collections.abc import Iterable, Sequence
 from typing import Any
 
 import requests
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class SSOClient(BaseModel):
     request_uris: list[str]
     # attribute added by the reconcile code and not part of the SSO client data
     issuer: str
-    attributes: dict[str, Any] = {}
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
 
 class KeycloakInstance(BaseModel):
@@ -41,9 +41,6 @@ class KeycloakAPI:
         self,
         client_name: str,
         redirect_uris: Sequence[str],
-        initiate_login_uri: str,
-        request_uris: Sequence[str],
-        contacts: Sequence[str],
         group_filter_regex: str | None = None,
     ) -> SSOClient:
         """Create a new SSO client via Keycloak's native registration endpoint."""
