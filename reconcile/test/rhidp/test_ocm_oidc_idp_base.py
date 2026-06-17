@@ -19,6 +19,7 @@ from reconcile.utils.ocm.base import (
     OCMOIdentityProviderGithub,
     OCMOIdentityProviderOidc,
     OCMOIdentityProviderOidcOpenId,
+    OCMOIdentityProviderOidcOpenIdClaims,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -63,6 +64,25 @@ def test_ocm_oidc_idp_fetch_current_state(
 def test_ocm_oidc_idp_fetch_desired_state(
     secret_reader: Mock, clusters: Sequence[Cluster]
 ) -> None:
+    base_secret = {
+        "client_id": "client_id",
+        "client_name": "client_name",
+        "client_secret": "client_secret",
+        "redirect_uris": ["just-garbage"],
+        "registration_access_token": "just-garbage",
+        "registration_client_uri": "just-garbage",
+        "issuer": "https://issuer.com",
+    }
+    secret_with_groups = {
+        **base_secret,
+        "attributes": {"group-filter-regex": "^ai-.*"},
+    }
+    secret_reader.read_all_secret.side_effect = [
+        base_secret,
+        base_secret,
+        secret_with_groups,
+    ]
+
     idp = OCMOIdentityProviderOidc(
         name="oidc-auth",
         open_id=OCMOIdentityProviderOidcOpenId(
@@ -71,35 +91,24 @@ def test_ocm_oidc_idp_fetch_desired_state(
             issuer="https://issuer.com",
         ),
     )
-    secret_reader.read_all_secret.return_value = {
-        "client_id": "client_id",
-        "client_id_issued_at": 0,
-        "client_name": "client_name",
-        "client_secret": "client_secret",
-        "client_secret_expires_at": 0,
-        "grant_types": ["just-garbage"],
-        "redirect_uris": ["just-garbage"],
-        "registration_access_token": "just-garbage",
-        "registration_client_uri": "just-garbage",
-        "request_uris": ["just-garbage"],
-        "response_types": ["just-garbage"],
-        "subject_type": "just-garbage",
-        "tls_client_certificate_bound_access_tokens": False,
-        "token_endpoint_auth_method": "just-garbage",
-        "issuer": "https://issuer.com",
-    }
+    idp_with_groups = OCMOIdentityProviderOidc(
+        name="oidc-auth",
+        open_id=OCMOIdentityProviderOidcOpenId(
+            client_id="client_id",
+            client_secret="client_secret",
+            issuer="https://issuer.com",
+            claims=OCMOIdentityProviderOidcOpenIdClaims(
+                groups=["filtered_groups"],
+            ),
+        ),
+    )
     desired_state = fetch_desired_state(
         secret_reader, clusters, vault_input_path="foo/bar"
     )
     assert desired_state == [
-        IDPState(
-            cluster=clusters[0],
-            idp=idp,
-        ),
-        IDPState(
-            cluster=clusters[1],
-            idp=idp,
-        ),
+        IDPState(cluster=clusters[0], idp=idp),
+        IDPState(cluster=clusters[1], idp=idp),
+        IDPState(cluster=clusters[2], idp=idp_with_groups),
     ]
 
 
@@ -110,7 +119,6 @@ def test_ocm_oidc_idp_act(
     clusters: Sequence[Cluster],
     dry_run: bool,
 ) -> None:
-    managed_oidc_name = "oidc-auth"
     cluster_auth_enabled = clusters[0]
     cluster_auth_disabled = clusters[1]
     cluster_auth_disabled.auth.status = StatusValue.DISABLED.value
@@ -118,7 +126,7 @@ def test_ocm_oidc_idp_act(
     cluster_auth_enforced.auth.status = StatusValue.ENFORCED.value
 
     idp = OCMOIdentityProviderOidc(
-        name=managed_oidc_name,
+        name="oidc-auth",
         open_id=OCMOIdentityProviderOidcOpenId(
             client_id="client_id",
             client_secret="client_secret",
@@ -161,7 +169,6 @@ def test_ocm_oidc_idp_act(
         ocm_api=ocm_base_client,
         current_state=current_state,
         desired_state=desired_state,
-        managed_idps=[managed_oidc_name],
     )
     if dry_run:
         add_identity_provider_mock.assert_not_called()
@@ -184,3 +191,35 @@ def test_ocm_oidc_idp_act(
     update_identity_provider_mock.assert_called_once_with(
         ocm_base_client, idp_to_be_changed.idp
     )
+
+
+def test_ocm_oidc_idp_act_custom_auth_name_disabled(
+    mocker: MockerFixture,
+    ocm_base_client: OCMBaseClient,
+    clusters: Sequence[Cluster],
+) -> None:
+    """IDP with custom auth name must be removed when cluster is disabled."""
+    cluster = clusters[0]
+    cluster.auth.name = "redhat-app-sre-auth"
+    cluster.auth.status = StatusValue.DISABLED.value
+
+    idp = OCMOIdentityProviderOidc(
+        name="redhat-app-sre-auth",
+        open_id=OCMOIdentityProviderOidcOpenId(
+            client_id="client_id",
+            client_secret="client_secret",
+            issuer="https://issuer.com",
+        ),
+    )
+
+    delete_mock = mocker.patch(
+        "reconcile.rhidp.ocm_oidc_idp.base.delete_identity_provider",
+        autospec=True,
+    )
+    act(
+        dry_run=False,
+        ocm_api=ocm_base_client,
+        current_state=[IDPState(cluster=cluster, idp=idp)],
+        desired_state=[],
+    )
+    delete_mock.assert_called_once_with(ocm_base_client, idp)

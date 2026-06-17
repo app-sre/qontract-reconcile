@@ -571,9 +571,9 @@ class OCMOIdentityProviderGithub(OCMOIdentityProvider):
 
 
 class OCMOIdentityProviderOidcOpenIdClaims(BaseModel, frozen=True):
-    email: list[str]
-    name: list[str] = []
-    preferred_username: list[str]
+    email: list[str] = ["email"]
+    name: list[str] = ["name"]
+    preferred_username: list[str] = ["preferred_username"]
     groups: list[str] = []
 
 
@@ -581,11 +581,8 @@ class OCMOIdentityProviderOidcOpenId(BaseModel):
     client_id: str
     client_secret: str | None = None
     issuer: str
-    claims: OCMOIdentityProviderOidcOpenIdClaims = OCMOIdentityProviderOidcOpenIdClaims(
-        email=["email"],
-        name=["name"],
-        preferred_username=["preferred_username"],
-        groups=[],
+    claims: OCMOIdentityProviderOidcOpenIdClaims = (
+        OCMOIdentityProviderOidcOpenIdClaims()
     )
 
     def __eq__(self, other: object) -> bool:

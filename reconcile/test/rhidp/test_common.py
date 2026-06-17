@@ -11,6 +11,7 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.rhidp import common
 from reconcile.rhidp.common import (
     AUTH_NAME_LABEL_KEY,
+    GROUP_FILTER_REGEX_LABEL_KEY,
     ISSUER_LABEL_KEY,
     STATUS_LABEL_KEY,
     Cluster,
@@ -133,6 +134,21 @@ def test_rhidp_common_clusterauth_object(
     assert auth.rhidp_enabled == expected_rhidp_enabled
     assert auth.oidc_enabled == expected_oidc_enabled
     assert auth.enforced == expected_enforced
+
+
+def test_rhidp_common_clusterauth_group_filter_regex() -> None:
+    auth = ClusterAuth(
+        name="foobar",
+        issuer=IURL,
+        status=StatusValue.ENABLED.value,
+        group_filter_regex="^ai-.*",
+    )
+    assert auth.group_filter_regex == "^ai-.*"
+
+
+def test_rhidp_common_clusterauth_group_filter_regex_default() -> None:
+    auth = ClusterAuth(name="foobar", issuer=IURL, status=StatusValue.ENABLED.value)
+    assert auth.group_filter_regex is None
 
 
 def test_rhidp_common_discover_clusters(discover_clusters_by_labels_mock: Mock) -> None:
@@ -282,6 +298,26 @@ def test_rhidp_common_build_cluster_objects() -> None:
         organization_id=ORG,
     )
 
+    # with group filter regex
+    cluster_group_filter = build_cluster_details(
+        cluster_name="group-filter",
+        subscription_labels=build_label_container([
+            build_label(STATUS_LABEL_KEY, "enabled"),
+            build_label(GROUP_FILTER_REGEX_LABEL_KEY, "^ai-.*"),
+        ]),
+        org_id=ORG,
+    )
+    cluster_group_filter_expected = Cluster(
+        ocm_cluster=cluster_group_filter.ocm_cluster,
+        auth=ClusterAuth(
+            name=AN,
+            issuer=IURL,
+            status=StatusValue.ENABLED.value,
+            group_filter_regex="^ai-.*",
+        ),
+        organization_id=ORG,
+    )
+
     #
     # excluded clusters
     #
@@ -311,6 +347,7 @@ def test_rhidp_common_build_cluster_objects() -> None:
             cluster_auth_name,
             cluster_issuer_url,
             cluster_external_auth_disabled,
+            cluster_group_filter,
             # excluded cluster
             cluster_no_console,
             cluster_external_auth,
@@ -327,6 +364,7 @@ def test_rhidp_common_build_cluster_objects() -> None:
         cluster_auth_name_expected,
         cluster_issuer_url_expected,
         cluster_external_auth_disabled_expected,
+        cluster_group_filter_expected,
     ]
 
 
@@ -437,6 +475,6 @@ def test_rhidp_common_expose_base_metrics(
                 ocm_environment="stage",
                 org_id=ORG_ID_2,
             ),
-            value=2,
+            value=3,
         ),
     ])
