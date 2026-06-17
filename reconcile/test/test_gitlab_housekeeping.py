@@ -895,38 +895,11 @@ def test_rebase_stale_success_pipeline_does_not_block_rebase(
     assert merge_requests[1].rebase.call_count == 1
 
 
-# --- rebase_merge_requests top-K strategy tests ---
-
-
-def test_top_k_only_considers_first_k_mrs(
-    mocker: MockerFixture, gitlab_api: Mock, state: Mock
-) -> None:
-    """Top-K slices the queue to first K MRs; MRs beyond K are never rebased."""
-    merge_requests = [_make_rebase_mr(i) for i in range(1, 6)]
-
-    _call_rebase(
-        mocker,
-        gitlab_api,
-        state,
-        merge_requests,
-        rebase_limit=2,
-        strategy=RebaseStrategy.TOP_K,
-    )
-
-    assert merge_requests[0].rebase.call_count == 1
-    assert merge_requests[1].rebase.call_count == 1
-    assert merge_requests[2].rebase.call_count == 0
-    assert merge_requests[3].rebase.call_count == 0
-    assert merge_requests[4].rebase.call_count == 0
-
-
 @pytest.mark.parametrize(
     ("error_label", "strategy"),
     [
         ("merge-error", RebaseStrategy.ACTIVE_CAP),
         ("pipeline-error", RebaseStrategy.ACTIVE_CAP),
-        ("merge-error", RebaseStrategy.TOP_K),
-        ("pipeline-error", RebaseStrategy.TOP_K),
         ("merge-error", RebaseStrategy.OLD_BURST),
         ("pipeline-error", RebaseStrategy.OLD_BURST),
     ],
@@ -1002,7 +975,6 @@ def test_get_rebase_strategy_toggle_enabled_unknown_variant(
     ("variant_value", "expected_strategy"),
     [
         ("active-cap", RebaseStrategy.ACTIVE_CAP),
-        ("top-k", RebaseStrategy.TOP_K),
         ("old-burst", RebaseStrategy.OLD_BURST),
     ],
 )

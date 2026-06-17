@@ -147,7 +147,6 @@ merge_batch_size_histogram = Histogram(
 class RebaseStrategy(StrEnum):
     ACTIVE_CAP = "active-cap"
     ACTIVE_CAP_MULTI_MERGE = "active-cap-multi-merge"
-    TOP_K = "top-k"
     OLD_BURST = "old-burst"
 
 
@@ -631,7 +630,6 @@ def rebase_merge_requests(
     dispatch = {
         RebaseStrategy.ACTIVE_CAP: _rebase_merge_requests_active_cap,
         RebaseStrategy.ACTIVE_CAP_MULTI_MERGE: _rebase_merge_requests_active_cap,
-        RebaseStrategy.TOP_K: _rebase_merge_requests_top_k,
         RebaseStrategy.OLD_BURST: _rebase_merge_requests_old_burst,
     }
 
@@ -879,43 +877,6 @@ def _check_post_merge_ci(gl: GitLabApi, lead: ProjectMergeRequest) -> bool:
             break
         return pipeline.status != PipelineStatus.FAILED
     return True
-
-
-def _rebase_merge_requests_top_k(
-    dry_run: bool,
-    gl: GitLabApi,
-    rebase_limit: int,
-    state: State,
-    pipeline_timeout: int | None = None,
-    wait_for_pipeline: bool = False,
-    users_allowed_to_label: Iterable[str] | None = None,
-) -> None:
-    """Top-k strategy: only evaluate the first rebase_limit MRs in priority
-    order.  The queue is already sorted by priority, so slicing to K
-    guarantees at most K MRs are rebased across all runs.
-    Error MRs are filtered before slicing so they don't consume slots."""
-    merge_requests = [
-        item["mr"]
-        for item in get_merge_requests(
-            dry_run=dry_run,
-            gl=gl,
-            state=state,
-            users_allowed_to_label=users_allowed_to_label,
-        )
-        if not item["error"]
-    ][:rebase_limit]
-
-    for mr in merge_requests:
-        if is_rebased(mr, gl):
-            continue
-
-        pipelines = gl.get_merge_request_pipelines(mr)
-        _cancel_timed_out_pipelines(dry_run, gl, mr, pipelines, pipeline_timeout)
-
-        if _should_skip_for_running_pipeline(pipelines, wait_for_pipeline):
-            continue
-
-        _try_rebase(dry_run, gl, mr)
 
 
 def _rebase_merge_requests_active_cap(
