@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_CLIENT_SCOPES = ["web-origins", "acr", "profile", "roles", "email"]
+
 
 class SSOClient(BaseModel):
     client_id: str
@@ -15,7 +17,6 @@ class SSOClient(BaseModel):
     redirect_uris: list[str]
     registration_access_token: str
     registration_client_uri: str
-    request_uris: list[str]
     # attribute added by the reconcile code and not part of the SSO client data
     issuer: str
     attributes: dict[str, Any] = Field(default_factory=dict)
@@ -54,13 +55,16 @@ class KeycloakAPI:
         # regex-filtered-groups). The OIDC endpoint (/openid-connect) does not.
         registration_url = f"{self.url}/clients-registrations/default"
 
+        scopes = list(DEFAULT_CLIENT_SCOPES)
+        if group_filter_regex:
+            scopes.append("regex-filtered-groups")
+
         payload: dict[str, Any] = {
             "clientId": client_name,
             "redirectUris": list(redirect_uris),
-            "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email"],
+            "defaultClientScopes": scopes,
         }
         if group_filter_regex:
-            payload["defaultClientScopes"].append("regex-filtered-groups")
             payload["attributes"] = {"group-filter-regex": group_filter_regex}
 
         response = requests.post(
@@ -85,7 +89,6 @@ class KeycloakAPI:
             redirect_uris=data["redirectUris"],
             registration_access_token=data["registrationAccessToken"],
             registration_client_uri=f"{registration_url}/{data['clientId']}",
-            request_uris=data["webOrigins"],
             issuer=self.url,
             attributes=data.get("attributes", {}),
         )

@@ -69,7 +69,6 @@ def test_ocm_oidc_idp_fetch_desired_state(
         "client_name": "client_name",
         "client_secret": "client_secret",
         "redirect_uris": ["just-garbage"],
-        "request_uris": ["just-garbage"],
         "registration_access_token": "just-garbage",
         "registration_client_uri": "just-garbage",
         "issuer": "https://issuer.com",

@@ -4295,25 +4295,11 @@ def sso_client(ctx: click.Context) -> None:
 @sso_client.command()
 @click.argument("client-name", required=True)
 @click.option(
-    "--contact-email",
-    default="sd-app-sre+auth@redhat.com",
-    help="Specify the contact email address",
-    required=True,
-    show_default=True,
-)
-@click.option(
     "--keycloak-instance-vault-path",
     help="Path to the keycloak secret in vault",
     default="app-sre/creds/rhidp/auth.redhat.com",
     required=True,
     show_default=True,
-)
-@click.option(
-    "--request-uri",
-    help="Specify an allowed request URL; first one will be used as the initial one URL. Can be specified multiple times",
-    multiple=True,
-    required=True,
-    prompt=True,
 )
 @click.option(
     "--redirect-uri",
@@ -4326,9 +4312,7 @@ def sso_client(ctx: click.Context) -> None:
 def create(
     ctx: click.Context,
     client_name: str,
-    contact_email: str,
     keycloak_instance_vault_path: str,
-    request_uri: tuple[str],
     redirect_uri: tuple[str],
 ) -> None:
     """Create a new SSO client"""

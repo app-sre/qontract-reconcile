@@ -50,7 +50,6 @@ def test_keycloak_register_client(
     assert sso_client.client_secret == "test-secret"
     assert sso_client.registration_access_token == "test-rat"
     assert sso_client.redirect_uris == ["redirect_uris"]
-    assert sso_client.request_uris == ["https://example.com"]
     assert sso_client.issuer == keycloak_api.url
     assert sso_client.attributes == {}
 
