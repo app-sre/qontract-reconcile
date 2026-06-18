@@ -1371,11 +1371,11 @@ class TerrascriptClient:
                 "endpoints": {
                     "s3": {
                         "service": "s3",
-                        "service_type": "Gateway",
-                        "route_table_ids": f"${{{vpc_module.private_route_table_ids}}}",
+                        "serivce_type": "Gateway",
                         "tags": {
                             "managed_by_integration": self.integration,
                             "Name": f"{request.identifier}--vpce-s3",
+                            "route_table_ids": vpc_module.vpc.private_route_table_ids,
                         },
                     }
                 },
