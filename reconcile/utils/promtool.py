@@ -10,7 +10,7 @@ import yaml
 from reconcile.utils.defer import defer
 from reconcile.utils.structs import CommandExecutionResult
 
-PROMTOOL_VERSION = ["2.55.1", "3.2.1"]
+PROMTOOL_VERSION = ["2.55.1", "3.9.1"]
 PROMTOOL_VERSION_REGEX = r"^promtool,\sversion\s([\d]+\.[\d]+\.[\d]+).+$"
 
 
