@@ -1,7 +1,8 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
 import reconcile.vault_replication as integ
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
@@ -23,6 +24,9 @@ from reconcile.utils.vault import (
     SecretNotFoundError,
     SecretVersionNotFoundError,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 fxt = Fixtures("vault_replication")
 

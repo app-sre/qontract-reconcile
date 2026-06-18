@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import time
 from datetime import datetime
@@ -32,7 +34,7 @@ def build_job_controller(
     namespace: str,
     secret_reader: SecretReaderBase,
     dry_run: bool,
-) -> "K8sJobController":
+) -> K8sJobController:
     """
     Builds a job controller that will act on the given cluster and namespace.
     The integration name and integration_version are used to annotate the jobs

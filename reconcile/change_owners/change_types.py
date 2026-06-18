@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import (
     ABC,
     abstractmethod,
@@ -16,15 +18,14 @@ from dataclasses import (
 )
 from enum import Enum
 from typing import (
+    TYPE_CHECKING,
     Any,
-    Optional,
 )
 
 import jinja2
 import jinja2.meta
 import jsonpath_ng
 import networkx
-from pydantic import Json
 
 from reconcile.change_owners.approver import (
     Approver,
@@ -47,6 +48,9 @@ from reconcile.utils.jsonpath import (
     remove_prefix_from_path,
     sortable_jsonpath_string_repr,
 )
+
+if TYPE_CHECKING:
+    from pydantic import Json
 
 
 class ChangeTypePriority(Enum):
@@ -73,17 +77,17 @@ def parent_of_jsonpath(path: jsonpath_ng.JSONPath) -> jsonpath_ng.JSONPath | Non
 @dataclass
 class DiffCoverage:
     diff: Diff
-    coverage: list["ChangeTypeContext"]
+    coverage: list[ChangeTypeContext]
 
     # if a diff is split into smaller diffs, they are stored here
     # please notice that the splits are DiffCoverages objects themselves which
     # can have splits on their own. DiffCoverage objects form a tree-like structure
-    _split_into: list["DiffCoverage"] = field(default_factory=list)
+    _split_into: list[DiffCoverage] = field(default_factory=list)
 
-    parent: Optional["DiffCoverage"] = None
+    parent: DiffCoverage | None = None
 
     @property
-    def diff_fragments(self) -> Sequence["DiffCoverage"]:
+    def diff_fragments(self) -> Sequence[DiffCoverage]:
         return self._split_into
 
     @property
@@ -160,8 +164,8 @@ class DiffCoverage:
         ) and str(path) != str(self.diff.path)
 
     def split(
-        self, path: jsonpath_ng.JSONPath, ctx: "ChangeTypeContext"
-    ) -> Optional["DiffCoverage"]:
+        self, path: jsonpath_ng.JSONPath, ctx: ChangeTypeContext
+    ) -> DiffCoverage | None:
         """
         create a new DiffCoverage object that coveres the given path
         this function also manages the split tree structure in _split_into
@@ -202,12 +206,12 @@ class DiffCoverage:
 
         return None
 
-    def add_covering_context(self, ctx: "ChangeTypeContext") -> None:
+    def add_covering_context(self, ctx: ChangeTypeContext) -> None:
         self.coverage.append(ctx)
         for s in self._split_into:
             s.add_covering_context(ctx)
 
-    def fine_grained_diff_coverages(self) -> dict[str, "DiffCoverage"]:
+    def fine_grained_diff_coverages(self) -> dict[str, DiffCoverage]:
         coverages = {}
         for s in self._split_into:
             coverages.update(s.fine_grained_diff_coverages())
@@ -251,7 +255,7 @@ class PathExpression:
         else:
             self.parsed_jsonpath = parse_jsonpath(jsonpath_expression)
 
-    def jsonpath_for_context(self, ctx: "ChangeTypeContext") -> jsonpath_ng.JSONPath:
+    def jsonpath_for_context(self, ctx: ChangeTypeContext) -> jsonpath_ng.JSONPath:
         if self.parsed_jsonpath:
             return self.parsed_jsonpath
 
@@ -366,14 +370,14 @@ class ContextExpansion:
     """
 
     context: OwnershipContext
-    change_type: "ChangeTypeProcessor"
+    change_type: ChangeTypeProcessor
     file_diff_resolver: FileDiffResolver
 
     def expand_from_file_ref(
         self,
         file_ref: FileRef,
         expansion_trail: AbstractSet[tuple[str, FileRef]],
-    ) -> list["ResolvedContext"]:
+    ) -> list[ResolvedContext]:
         old_data, new_data = self.file_diff_resolver.lookup_file_diff(file_ref)
         return self.expand(
             FileChange(
@@ -388,7 +392,7 @@ class ContextExpansion:
         self,
         change: FileChange,
         expansion_trail: AbstractSet[tuple[str, FileRef]],
-    ) -> list["ResolvedContext"]:
+    ) -> list[ResolvedContext]:
         """
         Find context based on the `self.context`, lookup the file diff for
         that new context and expose everything as a new `ResolvedContext` with
@@ -423,7 +427,7 @@ class ResolvedContext:
 
     owned_file_ref: FileRef
     context_file_ref: FileRef
-    change_type: "ChangeTypeProcessor"
+    change_type: ChangeTypeProcessor
 
 
 @dataclass
@@ -620,7 +624,7 @@ class ChangeTypeProcessor:
         return contexts
 
     def allowed_changed_paths(
-        self, file_ref: FileRef, file_content: Any, ctx: "ChangeTypeContext"
+        self, file_ref: FileRef, file_content: Any, ctx: ChangeTypeContext
     ) -> list[jsonpath_ng.JSONPath]:
         """
         find all paths within the provide file_content, that are covered by this
@@ -644,7 +648,7 @@ class ChangeTypeProcessor:
         file_type: BundleFileType,
         file_schema: str | None,
         file_content: Any,
-        ctx: "ChangeTypeContext",
+        ctx: ChangeTypeContext,
     ) -> list[jsonpath_ng.JSONPath]:
         paths = []
         if (
@@ -683,7 +687,7 @@ class ChangeTypeProcessor:
     def add_context_expansion(self, context_expansion: ContextExpansion) -> None:
         self._context_expansions.append(context_expansion)
 
-    def inherit_from(self, other: "ChangeTypeProcessor") -> None:
+    def inherit_from(self, other: ChangeTypeProcessor) -> None:
         for detector in other.change_detectors:
             self.add_change_detector(detector)
         other._heritage = self.lineage.union(other._heritage)

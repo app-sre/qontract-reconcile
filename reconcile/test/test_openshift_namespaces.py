@@ -1,16 +1,21 @@
+from __future__ import annotations
+
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 from unittest.mock import (
     MagicMock,
     create_autospec,
 )
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile import openshift_namespaces
 from reconcile.gql_definitions.common.namespaces_minimal import NamespaceV1
 from reconcile.utils.oc import OCCli
 from reconcile.utils.oc_map import OCMap
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

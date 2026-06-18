@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 import pytest
 import yaml
-from pytest_mock import MockFixture
 
 import reconcile.sql_query as intg
 from reconcile.gql_definitions.common.smtp_client_settings import SmtpSettingsV1
@@ -12,6 +14,9 @@ from reconcile.test.fixtures import Fixtures
 from reconcile.utils.oc import OCCli
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.state import State
+
+if TYPE_CHECKING:
+    from pytest_mock import MockFixture
 
 
 @pytest.mark.parametrize(

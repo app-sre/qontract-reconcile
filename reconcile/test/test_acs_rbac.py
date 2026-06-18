@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import copy
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.acs_rbac import (
     AcsAccessScope,
@@ -20,6 +22,9 @@ from reconcile.gql_definitions.acs.acs_rbac import (
     UserV1,
 )
 from reconcile.utils.acs import rbac
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 AUTH_PROVIDER_ID = "6a41743c-792b-11ee-b962-0242ac120002"
 

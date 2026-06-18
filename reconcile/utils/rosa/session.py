@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import tempfile
 
@@ -25,7 +27,7 @@ class RosaSessionBuilder(BaseModel, arbitrary_types_allowed=True):
 
     def build(
         self, ocm_api: OCMBaseClient, aws_account_id: str, region: str, ocm_org_id: str
-    ) -> "RosaSession":
+    ) -> RosaSession:
         return RosaSession(
             aws_account_id=aws_account_id,
             aws_region=region,

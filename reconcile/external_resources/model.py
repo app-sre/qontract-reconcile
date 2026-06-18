@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 from collections.abc import ItemsView, Iterable, Iterator, MutableMapping
 from enum import StrEnum
@@ -44,7 +46,7 @@ from reconcile.utils.json import json_dumps
 
 
 class ExternalResourceOrphanedResourcesError(Exception):
-    def __init__(self, orphans: Iterable["ExternalResourceKey"]) -> None:
+    def __init__(self, orphans: Iterable[ExternalResourceKey]) -> None:
         msg = [
             "There are orphaned resources in the configuration. ",
             "To delete ERv2 managed external resources, set the 'delete: true' attribute.\n",
@@ -83,7 +85,7 @@ class ExternalResourceKey(BaseModel, frozen=True):
     identifier: str
 
     @staticmethod
-    def from_spec(spec: ExternalResourceSpec) -> "ExternalResourceKey":
+    def from_spec(spec: ExternalResourceSpec) -> ExternalResourceKey:
         return ExternalResourceKey(
             provision_provider=spec.provision_provider,
             provisioner_name=spec.provisioner_name,
@@ -257,7 +259,7 @@ class Resources(BaseModel, frozen=True):
     limits: ResourcesSpec = ResourcesSpec()
 
     @staticmethod
-    def from_deploy_resources_fields(fields: DeployResourcesFields) -> "Resources":
+    def from_deploy_resources_fields(fields: DeployResourcesFields) -> Resources:
         """Create Resource obect from GQL DeployResourcesFields.
 
         DeployResourceFields can not be used directly as it not hashable."""
@@ -296,7 +298,7 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
         module: ExternalResourcesModuleV1,
         spec: ExternalResourceSpec,
         settings: ExternalResourcesSettingsV1,
-    ) -> "ExternalResourceModuleConfiguration":
+    ) -> ExternalResourceModuleConfiguration:
         """Resolve the module configuration for a given ExternalResourceSpec.
         Priority:
         1.- Module_overrides from the spec

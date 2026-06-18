@@ -1,6 +1,7 @@
-from collections.abc import Callable
+from __future__ import annotations
 
-from werkzeug import Request
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm.base import (
@@ -18,6 +19,9 @@ from reconcile.utils.ocm.cluster_groups import (
     get_cluster_groups,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from werkzeug import Request
 
 
 def build_ocm_cluster_group(

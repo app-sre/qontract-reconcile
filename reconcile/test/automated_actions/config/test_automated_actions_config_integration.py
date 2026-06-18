@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.automated_actions.config.integration import (
     AutomatedActionRoles,
@@ -20,6 +22,9 @@ from reconcile.gql_definitions.automated_actions.instance import (
 )
 from reconcile.utils.oc import OCCli
 from reconcile.utils.openshift_resource import ResourceInventory
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_automated_actions_config_get_early_exit_desired_state(

@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.rhidp.common import Cluster
@@ -19,6 +21,9 @@ from reconcile.utils.keycloak import (
     KeycloakMap,
     SSOClient,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.mark.parametrize(

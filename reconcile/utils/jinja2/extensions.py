@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import base64
 import textwrap
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from jinja2 import nodes
 from jinja2.exceptions import TemplateRuntimeError
 from jinja2.ext import Extension
-from jinja2.parser import Parser
+
+if TYPE_CHECKING:
+    from jinja2.parser import Parser
 
 
 class B64EncodeExtension(Extension):

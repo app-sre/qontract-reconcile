@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 from collections.abc import (
     Callable,
     Iterable,
 )
+from typing import TYPE_CHECKING
 from unittest.mock import (
     ANY,
     MagicMock,
@@ -10,7 +13,6 @@ from unittest.mock import (
 
 import pytest
 from gitlab.v4.objects import ProjectMergeRequest
-from pytest_mock import MockerFixture
 
 from reconcile.aws_version_sync.merge_request_manager.merge_request import (
     AVS_LABEL,
@@ -29,6 +31,9 @@ from reconcile.utils.merge_request_manager.parser import (
 )
 from reconcile.utils.mr.labels import AUTO_MERGE
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_avsmr(mocker: MockerFixture) -> None:

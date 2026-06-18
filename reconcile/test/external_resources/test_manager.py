@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from datetime import UTC, datetime
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock
 
 import pytest
 from pytest import fixture
-from pytest_mock import MockerFixture
 
 from reconcile.external_resources.manager import (
     ExternalResourceDryRunsValidator,
@@ -28,6 +29,9 @@ from reconcile.external_resources.state import (
 from reconcile.gql_definitions.external_resources.external_resources_settings import (
     ExternalResourcesSettingsV1,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @fixture

@@ -1,12 +1,12 @@
+from __future__ import annotations
+
 import logging
 import os
 from collections.abc import Callable, Iterable, KeysView
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from github import Github
 from github.GithubObject import NotSet  # type: ignore
-from github.Organization import Organization
-from github.Team import Team
 from sretoolbox.utils import retry
 
 from reconcile import (
@@ -23,6 +23,10 @@ from reconcile.utils.aggregated_list import (
 )
 from reconcile.utils.raw_github_api import RawGithubApi
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from github.Organization import Organization
+    from github.Team import Team
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 

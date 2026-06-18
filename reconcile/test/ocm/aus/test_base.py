@@ -1,14 +1,15 @@
+from __future__ import annotations
+
 from collections.abc import Callable
 from datetime import (
     UTC,
     datetime,
     timedelta,
 )
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, create_autospec
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.aus import base
 from reconcile.aus.base import (
@@ -50,6 +51,9 @@ from reconcile.utils.ocm.base import (
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import (
     ABC,
     abstractmethod,
@@ -10,7 +12,6 @@ from datetime import (
 from enum import Enum
 from typing import (
     Any,
-    Optional,
 )
 
 import dateparser
@@ -34,7 +35,7 @@ class FilterCondition:
         """
 
     @abstractmethod
-    def copy_and_merge(self, other: "FilterCondition") -> "FilterCondition":
+    def copy_and_merge(self, other: FilterCondition) -> FilterCondition:
         """
         Creates a copy of this condition and merges the other
         condition into it if possible. If merging with the other
@@ -52,7 +53,7 @@ class ListCondition(ABC, FilterCondition):
 
     values: list[Any]
 
-    def copy_and_merge(self, other: "FilterCondition") -> "FilterCondition":
+    def copy_and_merge(self, other: FilterCondition) -> FilterCondition:
         if not isinstance(other, ListCondition) or not isinstance(self, type(other)):
             raise InvalidFilterError(f"Cannot merge {self} with {other}")
         return type(self)(
@@ -105,9 +106,9 @@ class FilterObjectCondition(FilterCondition):
     AND and OR conditions within the Filter object itself.
     """
 
-    filter: "Filter"
+    filter: Filter
 
-    def copy_and_merge(self, other: "FilterCondition") -> "FilterCondition":
+    def copy_and_merge(self, other: FilterCondition) -> FilterCondition:
         raise InvalidFilterError("daterange merge not supported")
 
     def render(self) -> str:
@@ -127,7 +128,7 @@ class DateRangeCondition(FilterCondition):
     start: datetime | str | None
     end: datetime | str | None
 
-    def copy_and_merge(self, other: "FilterCondition") -> "FilterCondition":
+    def copy_and_merge(self, other: FilterCondition) -> FilterCondition:
         raise InvalidFilterError("daterange merge not supported")
 
     def render(self) -> str:
@@ -214,14 +215,14 @@ class Filter:
         """
         return next((c for c in self.conditions if c.key == key), None)
 
-    def copy(self) -> "Filter":
+    def copy(self) -> Filter:
         """
         Create an identical copy of the filter.
         """
         conditions_copy = self.conditions.copy()
         return Filter(conditions_copy, mode=self.mode)
 
-    def copy_and_override(self, condition: FilterCondition) -> "Filter":
+    def copy_and_override(self, condition: FilterCondition) -> Filter:
         """
         Creates a copy of the filter and add the condition to the copy. If the
         condition already exists, it is overridden.
@@ -232,7 +233,7 @@ class Filter:
         ]
         return copied
 
-    def add_condition(self, condition: FilterCondition) -> "Filter":
+    def add_condition(self, condition: FilterCondition) -> Filter:
         """
         Adds a condition to the filter. If the condition already exists, it is
         merged with the existing condition, if possible. If merging is not possible,
@@ -250,7 +251,7 @@ class Filter:
         merged_condition = existing_condition.copy_and_merge(condition)
         return self.copy_and_override(merged_condition)
 
-    def eq(self, key: str, value: str | None) -> "Filter":
+    def eq(self, key: str, value: str | None) -> Filter:
         """
         Copies the filter and adds a condition to the copy, that requires
         the given key to be equal to the given value. If the value is None,
@@ -260,7 +261,7 @@ class Filter:
             return self.is_in(key, [value])
         return self
 
-    def like(self, key: str, value: str | None) -> "Filter":
+    def like(self, key: str, value: str | None) -> Filter:
         """
         Copies the filter and adds a condition to the copy, that requires
         the given key to be similar to the given value based on the % wildcard.
@@ -270,7 +271,7 @@ class Filter:
             return self.add_condition(LikeCondition(key, [value]))
         return self
 
-    def is_in(self, key: str, values: Iterable[Any] | None) -> "Filter":
+    def is_in(self, key: str, values: Iterable[Any] | None) -> Filter:
         """
         Copies the filter and adds a condition to the copy, that requires
         the given key to be equal to one of the given values. If the values
@@ -282,7 +283,7 @@ class Filter:
             return self.add_condition(EqCondition(key, value_list))
         return self
 
-    def before(self, key: str, date: datetime | str | None) -> "Filter":
+    def before(self, key: str, date: datetime | str | None) -> Filter:
         """
         Copies the filter and adds a condition to the copy, that requires
         the given key to be before the given date. If the date is None,
@@ -292,7 +293,7 @@ class Filter:
             return self.add_condition(DateRangeCondition(key, None, date))
         return self
 
-    def after(self, key: str, date: datetime | str | None) -> "Filter":
+    def after(self, key: str, date: datetime | str | None) -> Filter:
         """
         Copies the filter and adds a condition to the copy, that requires
         the given key to be after the given date. If the date is None,
@@ -307,7 +308,7 @@ class Filter:
         key: str,
         start: datetime | str | None,
         end: datetime | str | None,
-    ) -> "Filter":
+    ) -> Filter:
         """
         Copies the filter and adds a condition to the copy, that requires
         the given key to be between the given dates. If the dates are None,
@@ -317,7 +318,7 @@ class Filter:
 
     def chunk_by(
         self, key: str, chunk_size: int, ignore_missing: bool = False
-    ) -> list["Filter"]:
+    ) -> list[Filter]:
         """
         Returns a list of filters, each with a subset of the values of the
         given key. Each subnet has at most chunk_size values. If the key is
@@ -365,7 +366,7 @@ class Filter:
             return " and ".join(rendered_conditions)
         raise InvalidFilterError(f"invalid filter mode: {self.mode}")
 
-    def __and__(self, other: Optional["Filter"]) -> "Filter":
+    def __and__(self, other: Filter | None) -> Filter:
         """
         Returns a new filter that is the logical AND of the current filter
         and the given filter.
@@ -388,7 +389,7 @@ class Filter:
             return and_filter
         return self
 
-    def __or__(self, other: Optional["Filter"]) -> "Filter":
+    def __or__(self, other: Filter | None) -> Filter:
         """
         Returns a new filter that is the logical OR of the current filter
         and the given filter.

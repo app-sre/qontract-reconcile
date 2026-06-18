@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import sys
 from abc import (
@@ -11,6 +13,7 @@ from datetime import (
     timedelta,
 )
 from typing import (
+    TYPE_CHECKING,
     Protocol,
     cast,
 )
@@ -18,7 +21,6 @@ from typing import (
 from croniter import croniter
 from pydantic import BaseModel
 from requests.exceptions import HTTPError
-from semver import VersionInfo
 
 from reconcile.aus.aus_sts_gate_handler import (
     AUS_VERSION_GATE_APPROVALS_LABEL,
@@ -116,6 +118,9 @@ from reconcile.utils.semver_helper import (
     sort_versions,
 )
 from reconcile.utils.state import init_state
+
+if TYPE_CHECKING:
+    from semver import VersionInfo
 
 MIN_DELTA_MINUTES = 6
 
@@ -233,8 +238,8 @@ class AdvancedUpgradeSchedulerBaseIntegration(
         self,
         org_upgrade_spec: OrganizationUpgradeSpec,
         version_data: VersionData,
-        current_state: Sequence["AbstractUpgradePolicy"],
-        metrics_builder: "RemainingSoakDayMetricsBuilder",
+        current_state: Sequence[AbstractUpgradePolicy],
+        metrics_builder: RemainingSoakDayMetricsBuilder,
     ) -> None:
         current_cluster_upgrade_policies = {
             p.cluster.external_id: p for p in current_state

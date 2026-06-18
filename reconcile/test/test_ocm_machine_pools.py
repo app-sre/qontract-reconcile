@@ -1,15 +1,17 @@
+from __future__ import annotations
+
 from collections.abc import (
     Callable,
     Iterable,
     Mapping,
 )
+from typing import TYPE_CHECKING
 from unittest.mock import (
     Mock,
     create_autospec,
 )
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
@@ -30,6 +32,9 @@ from reconcile.ocm_machine_pools import (
     run,
 )
 from reconcile.utils.ocm import OCM
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 class PoolStub(AbstractPool):

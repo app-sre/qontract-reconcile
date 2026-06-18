@@ -1,10 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
-import smtpdfix
 
 from reconcile.utils.smtp_client import (
     SmtpClient,
     SmtpServerConnectionInfo,
 )
+
+if TYPE_CHECKING:
+    import smtpdfix
 
 
 @pytest.fixture

@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import copy
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import (
     ANY,
     MagicMock,
@@ -7,11 +9,13 @@ from unittest.mock import (
 )
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.skupper_network import reconciler
 from reconcile.skupper_network.models import SkupperSite
 from reconcile.utils.oc_map import OCMap
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.mark.parametrize("dry_run", [True, False])

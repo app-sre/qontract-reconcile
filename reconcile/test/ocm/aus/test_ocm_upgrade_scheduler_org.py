@@ -1,6 +1,6 @@
-from typing import Any
+from __future__ import annotations
 
-from pytest_mock import MockerFixture
+from typing import TYPE_CHECKING, Any
 
 from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
 from reconcile.aus.healthchecks import AUSClusterHealth
@@ -27,6 +27,9 @@ from reconcile.test.ocm.aus.fixtures import (
 )
 from reconcile.test.ocm.fixtures import build_cluster_details
 from reconcile.utils.ocm.base import ClusterDetails
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 ORG_ID = "org-id"
 

@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 from http import HTTPStatus
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import requests
-from pytest_mock import MockerFixture
 
 import reconcile.checkpoint as sut
 from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 from collections.abc import (
     Callable,
     Mapping,
 )
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import create_autospec
-
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.fragments.saas_slo_document import (
     SLODocumentSLOSLOParametersV1,
@@ -15,6 +15,9 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     Subscriber,
 )
 from reconcile.utils.slo_document_manager import SLODetails, SLODocumentManager
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_slo_gatekeeping_no_slos_breached(

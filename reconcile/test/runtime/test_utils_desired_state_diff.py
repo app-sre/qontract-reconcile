@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 from time import sleep
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jsonpath_ng
 import pytest
-from pytest_mock.plugin import MockerFixture
 
 from reconcile.change_owners.diff import (
     IDENTIFIER_FIELD_NAME,
@@ -22,6 +23,9 @@ from reconcile.utils.runtime.desired_state_diff import (
     extract_diffs_with_timeout,
 )
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
+
+if TYPE_CHECKING:
+    from pytest_mock.plugin import MockerFixture
 
 #
 # build desired state diff

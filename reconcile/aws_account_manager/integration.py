@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jinja2
 from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
-from qontract_utils.aws_api_typed.iam import AWSAccessKey
 
 from reconcile.aws_account_manager.merge_request_manager import MergeRequestManager
 from reconcile.aws_account_manager.metrics import (
@@ -36,6 +37,9 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from qontract_utils.aws_api_typed.iam import AWSAccessKey
 
 QONTRACT_INTEGRATION = "aws-account-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)

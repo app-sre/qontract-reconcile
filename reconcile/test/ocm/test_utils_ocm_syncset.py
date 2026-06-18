@@ -1,8 +1,7 @@
-from collections.abc import Callable
-from typing import Any
+from __future__ import annotations
 
-from pytest_mock import MockerFixture
-from werkzeug import Request
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm import syncsets
@@ -11,6 +10,10 @@ from reconcile.utils.ocm.syncsets import (
     patch_syncset,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+    from werkzeug import Request
 
 
 def build_syncset(cluster_id: str, syncset_id: str) -> dict[str, Any]:

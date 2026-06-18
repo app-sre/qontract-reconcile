@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Performs an SRE checkpoint.
 
 The checks are defined in
@@ -18,15 +20,17 @@ from functools import (
 )
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
 from jinja2 import Template
-from jira import Issue
 
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.jira_client import JiraClient
 from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from jira import Issue
 
 DEFAULT_CHECKPOINT_LABELS = ("sre-checkpoint",)
 

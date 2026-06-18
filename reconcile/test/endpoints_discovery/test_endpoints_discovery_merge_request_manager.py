@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Iterable
 from random import shuffle
+from typing import TYPE_CHECKING
 from unittest.mock import ANY, MagicMock, create_autospec
 
 import pytest
 from gitlab.exceptions import GitlabGetError
 from gitlab.v4.objects import ProjectMergeRequest
-from pytest_mock import MockerFixture
 
 from reconcile.endpoints_discovery.merge_request import (
     LABEL,
@@ -22,6 +24,9 @@ from reconcile.endpoints_discovery.merge_request_manager import (
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import AUTO_MERGE
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture()

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from abc import (
     ABC,
@@ -50,7 +52,7 @@ class OcmUrl(BaseModel):
     method: str = "POST"
     responses: list[Any] = Field(default_factory=list)
 
-    def add_list_response(self, items: list[Any], kind: str | None = None) -> "OcmUrl":
+    def add_list_response(self, items: list[Any], kind: str | None = None) -> OcmUrl:
         self.responses.append({
             "kind": f"{kind}List" if kind else "List",
             "items": items,
@@ -65,7 +67,7 @@ class OcmUrl(BaseModel):
         id: str,
         resources: list[Any],
         kind: str | None = None,
-    ) -> "OcmUrl":
+    ) -> OcmUrl:
         self.responses.append({
             "kind": f"{kind}",
             "id": f"{id}",
@@ -75,7 +77,7 @@ class OcmUrl(BaseModel):
 
     def add_paginated_get_response(
         self, page: int, size: int, total: int, items: Iterable[Mapping], kind: str
-    ) -> "OcmUrl":
+    ) -> OcmUrl:
         self.responses.append({
             "kind": kind,
             "page": page,

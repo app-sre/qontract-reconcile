@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import os
 import tempfile
 from subprocess import CompletedProcess
-
-from pytest_mock import MockerFixture
+from typing import TYPE_CHECKING
 
 from reconcile.utils import lean_terraform_client
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_init(mocker: MockerFixture) -> None:

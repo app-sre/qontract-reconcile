@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Generator
 from typing import Any
 
@@ -15,7 +17,7 @@ fxt = Fixtures("openshift_resource")
 
 
 @pytest.fixture
-def deployment() -> Generator[dict[str, Any], None, None]:
+def deployment() -> Generator[dict[str, Any]]:
     yield fxt.get_anymarkup("deployment.yml")
 
 

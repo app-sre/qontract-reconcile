@@ -1,9 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
-from pytest_mock import MockerFixture
 from qontract_utils.ldap_api import LdapApi
 from qontract_utils.ldap_api.models import LdapGroup, LdapUser
 
 from reconcile.oum.providers import LdapGroupMemberProvider
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

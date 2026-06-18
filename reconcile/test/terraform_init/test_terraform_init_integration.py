@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 import datetime
 from collections.abc import Callable
 from textwrap import dedent
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, create_autospec
-
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.terraform_init.aws_accounts import AWSAccountV1
 from reconcile.terraform_init import integration
 from reconcile.terraform_init.integration import TerraformInitIntegration
 from reconcile.terraform_init.merge_request_manager import MrData
 from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_terraform_init_integration_early_exit(

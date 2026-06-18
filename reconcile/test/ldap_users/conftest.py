@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture, MockType
 
 from reconcile import ldap_users, mr_client_gateway
 from reconcile.gql_definitions.common.ldap_settings import LdapSettingsV1
 from reconcile.gql_definitions.common.users_with_paths import UserV1
 from reconcile.test.fixtures import Fixtures
 from reconcile.typed_queries.users_with_paths import get_users_with_paths
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture, MockType
 
 
 @pytest.fixture

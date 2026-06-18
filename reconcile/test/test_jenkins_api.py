@@ -1,10 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import call, create_autospec
 
 import pytest
-from pytest_mock import MockerFixture
 from requests import Response
 
 from reconcile.utils.jenkins_api import JenkinsApi
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import sys
 from collections.abc import (
@@ -87,7 +89,7 @@ class LabelInventory:
         """Checks if any cluster / namespace has any error registered"""
         return any(e[2] for e in self.iter_errors())
 
-    def iter_errors(self) -> Generator[tuple[str, str, list[str]], None, None]:
+    def iter_errors(self) -> Generator[tuple[str, str, list[str]]]:
         """yields (cluster, namespace, errors) items"""
         for cluster, namespaces in self._errors.items():
             for namespace, errors in namespaces.items():
@@ -126,7 +128,7 @@ class LabelInventory:
         with self._lock:
             self._inv.get(cluster, {}).pop(namespace, None)
 
-    def __iter__(self) -> Generator[tuple[str, str, Types], None, None]:
+    def __iter__(self) -> Generator[tuple[str, str, Types]]:
         """Makes the inventory iterable by yielding (cluster, namespace, types)
         items. Types here is a Dict of {type: labelsOrKeys}"""
         for cluster, namespaces in self._inv.items():

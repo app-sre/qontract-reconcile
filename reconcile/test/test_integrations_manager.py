@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import json
 import os
@@ -5,10 +7,9 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
 import reconcile.integrations_manager as intop
 from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
@@ -45,6 +46,9 @@ from reconcile.utils.runtime.sharding import (
     StaticShardingStrategy,
     StaticShardingV1,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 AWS_INTEGRATION = "aws_integration"
 OPENSHIFT_INTEGRATION = "openshift_integration"

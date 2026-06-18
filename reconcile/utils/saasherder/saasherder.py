@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import hashlib
 import itertools
@@ -204,11 +206,7 @@ class SaasHerder:
 
     def __iter__(
         self,
-    ) -> Generator[
-        tuple[SaasFile, SaasResourceTemplate, SaasResourceTemplateTarget],
-        None,
-        None,
-    ]:
+    ) -> Generator[tuple[SaasFile, SaasResourceTemplate, SaasResourceTemplateTarget]]:
         for saas_file in self.saas_files:
             for resource_template in saas_file.resource_templates:
                 for target in resource_template.targets:

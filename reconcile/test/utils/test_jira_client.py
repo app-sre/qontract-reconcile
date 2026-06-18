@@ -1,7 +1,12 @@
-from pytest_mock import MockerFixture
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.common.jira_settings import JiraWatcherSettingsV1
 from reconcile.utils.jira_client import JiraClient
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_create_with_jira_watcher_settings(

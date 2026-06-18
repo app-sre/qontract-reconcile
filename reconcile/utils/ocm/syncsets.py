@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Generator, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -15,7 +17,7 @@ class SyncSet:
 
 def get_syncsets(
     ocm_client: OCMBaseClient, cluster_id: str
-) -> Generator[dict[str, Any], None, None]:
+) -> Generator[dict[str, Any]]:
     syncset = SyncSet(cluster_id)
     return ocm_client.get_paginated(api_path=syncset.href)
 

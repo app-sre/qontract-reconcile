@@ -1,7 +1,9 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
-from pytest_mock import MockerFixture
 
 import reconcile.utils.secret_reader
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
@@ -13,6 +15,9 @@ from reconcile.utils.secret_reader import (
     VaultSecretReader,
 )
 from reconcile.utils.vault import VaultClient
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 VAULT_READ_EXPECTED = {"key": "value"}
 VAULT_READ_ALL_EXPECTED = {"key2": "value2"}

@@ -1,7 +1,8 @@
-from typing import cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.bundle import BundleFileType, FileRef
@@ -15,6 +16,9 @@ from reconcile.gql_definitions.change_owners.queries.change_types import ChangeT
 from reconcile.test.change_owners.fixtures import (
     change_type_to_processor,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

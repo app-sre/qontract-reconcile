@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import logging
 import os
@@ -11,6 +13,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from operator import attrgetter
 from typing import (
+    TYPE_CHECKING,
     Any,
     Self,
     cast,
@@ -47,12 +50,14 @@ from gitlab.v4.objects import (
     ProjectMergeRequestResourceLabelEvent,
     User,
 )
-from requests import Session
 from sretoolbox.utils import retry
 
 from reconcile.utils.instrumented_wrappers import InstrumentedSession
 from reconcile.utils.metrics import gitlab_request
 from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
+
+if TYPE_CHECKING:
+    from requests import Session
 
 # The following line will suppress
 # `InsecureRequestWarning: Unverified HTTPS request is being made`

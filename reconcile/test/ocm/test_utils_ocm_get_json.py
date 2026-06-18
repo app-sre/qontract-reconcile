@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from werkzeug import Request
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm import OCM
+
+if TYPE_CHECKING:
+    from werkzeug import Request
 
 
 def buid_ocm_item_page(page: int, items: list[Any], total: int) -> dict[str, Any]:

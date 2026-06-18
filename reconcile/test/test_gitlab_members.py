@@ -1,4 +1,6 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from unittest.mock import create_autospec
 
 import pytest
@@ -6,7 +8,6 @@ from gitlab.v4.objects import (
     Group,
     GroupMember,
 )
-from pytest_mock import MockerFixture
 
 from reconcile import gitlab_members
 from reconcile.gitlab_members import (
@@ -27,6 +28,9 @@ from reconcile.gql_definitions.gitlab_members.permissions import (
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture()

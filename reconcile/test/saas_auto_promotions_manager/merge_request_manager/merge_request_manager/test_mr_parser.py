@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from collections.abc import (
     Callable,
     Mapping,
 )
+from typing import TYPE_CHECKING
 from unittest.mock import call
-
-from gitlab.v4.objects import ProjectMergeRequest
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager_v2 import (
     SAPM_LABEL,
@@ -32,6 +33,9 @@ from .data_keys import (
     LABELS,
     OPEN_MERGE_REQUESTS,
 )
+
+if TYPE_CHECKING:
+    from gitlab.v4.objects import ProjectMergeRequest
 
 
 def test_valid_parsing(

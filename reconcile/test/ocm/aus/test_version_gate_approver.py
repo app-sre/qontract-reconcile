@@ -1,7 +1,9 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.aus import version_gate_approver
 from reconcile.aus.advanced_upgrade_service import aus_label_key
@@ -28,6 +30,9 @@ from reconcile.utils.ocm.base import (
     build_label_container,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

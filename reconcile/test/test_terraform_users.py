@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
 import reconcile.terraform_users as integ
 from reconcile.gql_definitions.common.pgp_reencryption_settings import (
@@ -13,6 +14,9 @@ from reconcile.terraform_users import (
     write_user_to_vault,
 )
 from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 # account, console_url, user_name, encrypted_password
 FakeUser = tuple[str, str, str, str]

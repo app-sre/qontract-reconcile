@@ -1,10 +1,14 @@
-from unittest.mock import call
+from __future__ import annotations
 
-from pytest_mock import MockType
+from typing import TYPE_CHECKING
+from unittest.mock import call
 
 from reconcile import ldap_users
 from reconcile.gql_definitions.common.users_with_paths import UserV1
 from reconcile.utils.mr.user_maintenance import PathSpec, PathTypes
+
+if TYPE_CHECKING:
+    from pytest_mock import MockType
 
 
 def test_transform_users_paths(users_with_paths: list[UserV1]) -> None:

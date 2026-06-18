@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.rhidp.common import (
     Cluster,
@@ -22,6 +24,9 @@ from reconcile.utils.ocm.base import (
     OCMOIdentityProviderOidcOpenIdClaims,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 IDP_OIDC = OCMOIdentityProviderOidc(
     name="oidc-auth",

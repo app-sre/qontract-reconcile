@@ -1,18 +1,22 @@
+from __future__ import annotations
+
 import base64
 from collections.abc import Callable
 from subprocess import CalledProcessError
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 from urllib.error import URLError
 
 import pytest
-from pytest_mock import MockerFixture
 
 import reconcile.openshift_cluster_bots as ocb
 from reconcile.gql_definitions.openshift_cluster_bots.clusters import (
     ClusterV1,
     VaultSecret,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def vault_secret_dict(path: str, field: str) -> dict[str, str | None]:

@@ -1,10 +1,10 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Generator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, MagicMock
 
 import pytest
-from pytest_httpserver import HTTPServer
-from pytest_mock import MockerFixture
 
 import reconcile.utils.unleash.client
 from reconcile.utils.unleash.client import (
@@ -15,6 +15,10 @@ from reconcile.utils.unleash.client import (
     get_feature_toggle_state,
     get_feature_variant,
 )
+
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture(autouse=True)

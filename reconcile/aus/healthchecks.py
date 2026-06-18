@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
@@ -39,7 +41,7 @@ class AUSClusterHealthCheckProvider:
 
     def add_provider(
         self, name: str, provider: ClusterHealthProvider, enforce: bool
-    ) -> "AUSClusterHealthCheckProvider":
+    ) -> AUSClusterHealthCheckProvider:
         self.providers[name] = (provider, enforce)
         return self
 

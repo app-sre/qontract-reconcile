@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from datetime import (
     UTC,
     datetime,
     timedelta,
 )
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import (
     MagicMock,
     Mock,
@@ -27,7 +29,6 @@ from gitlab.v4.objects import (
     ProjectMergeRequestPipeline,
     ProjectMergeRequestResourceLabelEvent,
 )
-from pytest_mock import MockerFixture
 from UnleashClient import UnleashClient
 
 import reconcile.gitlab_housekeeping as gl_h
@@ -36,6 +37,9 @@ from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 

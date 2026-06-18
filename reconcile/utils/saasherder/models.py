@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 import base64
 import json
 import logging
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
-from github import Github
 from pydantic import BaseModel, Field, model_validator
 
 from reconcile.gql_definitions.fragments.saas_slo_document import (
@@ -27,6 +28,9 @@ from reconcile.utils.saasherder.interfaces import (
     SaasResourceTemplateTarget,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from github import Github
 
 
 class Providers(Enum):

@@ -1,9 +1,13 @@
-from collections.abc import Callable
+from __future__ import annotations
 
-from pytest_httpserver import HTTPServer
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from reconcile.aws_saml_idp.integration import AwsSamlIdpIntegration, SamlIdpConfig
 from reconcile.gql_definitions.aws_saml_idp.aws_accounts import AWSAccountV1
+
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
 
 
 def test_aws_saml_idp_get_early_exit_desired_state(

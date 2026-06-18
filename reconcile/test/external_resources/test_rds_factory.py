@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock, create_autospec
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.external_resources.aws import AWSRdsFactory
 from reconcile.external_resources.model import (
@@ -15,6 +16,9 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
 )
 from reconcile.utils.external_resources import ResourceValueResolver
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

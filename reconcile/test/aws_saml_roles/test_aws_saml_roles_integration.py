@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.aws_saml_roles.integration import (
     AwsRole,
@@ -9,6 +11,9 @@ from reconcile.aws_saml_roles.integration import (
 )
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import AWSAccountV1
 from reconcile.utils.terrascript_aws_client import TerrascriptClient
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_aws_saml_roles_get_early_exit_desired_state(

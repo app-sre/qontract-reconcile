@@ -1,11 +1,12 @@
+from __future__ import annotations
+
 import datetime
 from collections.abc import Callable, Mapping
 from textwrap import dedent
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
 from qontract_utils.aws_api_typed.iam import AWSAccessKey
 
 from reconcile.aws_account_manager import integration
@@ -19,6 +20,9 @@ from reconcile.gql_definitions.fragments.aws_account_managed import (
     AWSContactV1,
     AWSQuotaV1,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_aws_account_manager_utils_integration_early_exit(

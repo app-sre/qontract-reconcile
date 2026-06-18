@@ -1,13 +1,14 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
 import yaml
 from kubernetes.dynamic import Resource
 from pydantic import BaseModel
-from pytest_mock import MockerFixture
 from qontract_utils.differ import (
     DiffPair,
     DiffResult,
@@ -19,6 +20,9 @@ import reconcile.utils.openshift_resource as resource
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 fxt = Fixtures("namespaces")
 

@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import tempfile
 from collections.abc import Generator
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 from urllib.parse import urlparse
 
 import pytest
-from pytest_httpserver import HTTPServer
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils.jobcontroller.controller import K8sJobController
@@ -13,6 +15,9 @@ from reconcile.utils.ocm_base_client import OCMAPIClientConfiguration, OCMBaseCl
 from reconcile.utils.rosa.rosa_cli import LogHandle, RosaJob
 from reconcile.utils.rosa.session import RosaSession
 from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
 
 
 @pytest.fixture
@@ -111,7 +116,7 @@ def rosa_session(
 
 
 @pytest.fixture
-def log_file() -> Generator[str, None, None]:
+def log_file() -> Generator[str]:
     with tempfile.NamedTemporaryFile(delete=False) as f:
         f.write(b"line1\nline2\nline3\nline4\nline5\n")
         f.flush()

@@ -1,14 +1,15 @@
+from __future__ import annotations
+
 import base64
 import tempfile
 from collections.abc import Callable
 from logging import DEBUG
 from operator import itemgetter
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
 from botocore.errorfactory import ClientError
-from pytest_mock import MockerFixture
 
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.external_resource_spec import (
@@ -21,6 +22,9 @@ from reconcile.utils.terraform_client import (
     TerraformClient,
     TerraformSpec,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 MockAWSApi = MagicMock
 

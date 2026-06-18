@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from collections.abc import (
     Callable,
     Iterable,
     MutableMapping,
 )
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest import TestCase
 from unittest.mock import (
     MagicMock,
@@ -17,7 +19,6 @@ from github import (
     Github,
     GithubException,
 )
-from pydantic import BaseModel
 
 from reconcile.gql_definitions.common.saas_files import (
     SaasResourceTemplateTargetImageV1,
@@ -50,6 +51,9 @@ from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.slo_document_manager import SLODetails
 
 from .fixtures import Fixtures
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
 
 
 class MockJJB:

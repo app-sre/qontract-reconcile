@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
 import pytest
 from jira import JIRAError
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.jira_permissions_validator.jira_boards_for_permissions_validator import (
     JiraBoardV1,
@@ -24,6 +25,9 @@ from reconcile.utils.jira_client import (
     IssueType,
     JiraClient,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

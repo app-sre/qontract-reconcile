@@ -1,7 +1,10 @@
-import operator
-from typing import Any
+from __future__ import annotations
 
-from terrascript.resource import aws_db_instance
+import operator
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from terrascript.resource import aws_db_instance
 
 delete_automated_backups = "delete_automated_backups"
 skip_final_snapshot = "skip_final_snapshot"

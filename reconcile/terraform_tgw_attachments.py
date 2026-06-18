@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import (
     Callable,
@@ -154,7 +156,7 @@ def _build_desired_state_items(
     awsapi: AWSApi,
     tgw_account_names: list[str],
     account_name: str | None = None,
-) -> Generator[DesiredStateItem | None, Any, None]:
+) -> Generator[DesiredStateItem | None, Any]:
     for cluster_info in clusters:
         ocm = ocm_map.get(cluster_info.name) if ocm_map and cluster_info.ocm else None
         for peer_connection in cluster_info.peering.connections:  # type: ignore[union-attr]
@@ -176,7 +178,7 @@ def _build_desired_state_tgw_connection(
     cluster_info: ClusterV1,
     ocm: OCM | None,
     awsapi: AWSApi,
-) -> Generator[DesiredStateItem | None, Any, None]:
+) -> Generator[DesiredStateItem | None, Any]:
     cluster_name = cluster_info.name
     cluster_region = cluster_info.spec.region if cluster_info.spec is not None else ""
     cluster_cidr_block = (

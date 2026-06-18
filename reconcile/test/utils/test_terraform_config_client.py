@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import (
     MagicMock,
     call,
@@ -8,7 +11,6 @@ from unittest.mock import (
 )
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
@@ -18,6 +20,9 @@ from reconcile.utils.terraform.config_client import (
     TerraformConfigClient,
     TerraformConfigClientCollection,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

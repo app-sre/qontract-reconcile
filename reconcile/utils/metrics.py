@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import re
 import threading
@@ -225,11 +227,11 @@ class MetricsContainer:
         current_value = self._counters[counter.__class__].get(label_values) or 0
         self._counters[counter.__class__][label_values] = current_value + by
 
-    def _aggregate_scopes(self) -> "MetricsContainer":
+    def _aggregate_scopes(self) -> MetricsContainer:
         containers = [self] + [sub._aggregate_scopes() for sub in self._scopes.values()]
         return join_metric_containers(containers)
 
-    def collect(self) -> Generator[Metric, None, None]:
+    def collect(self) -> Generator[Metric]:
         """
         Collects all metrics from this container and all its scopes.
         """
@@ -291,7 +293,7 @@ class MetricsContainer:
             if match_labels_predicate(metric, **kwargs)
         ]
 
-    def _collect_local(self) -> Generator[Metric, None, None]:
+    def _collect_local(self) -> Generator[Metric]:
         """
         Collects only the metrics present in this container, ignoring
         any scopes.
@@ -320,7 +322,7 @@ class MetricsContainer:
             for label in raw_labels
         ]
 
-    def clone(self, keep_gauges: bool, keep_counters: bool) -> "MetricsContainer":
+    def clone(self, keep_gauges: bool, keep_counters: bool) -> MetricsContainer:
         """
         Clones this container.
         """
@@ -332,7 +334,7 @@ class MetricsContainer:
         return cloned_container
 
     def absorb(
-        self, other: "MetricsContainer", aggregate_counters: bool = True
+        self, other: MetricsContainer, aggregate_counters: bool = True
     ) -> None:
         """
         Absorbs the gauges and counter from the given container into this one.
@@ -359,8 +361,8 @@ class MetricsContainer:
 
 
 def join_metric_containers(
-    metric_containers: Iterable["MetricsContainer"], aggregate_counters: bool = True
-) -> "MetricsContainer":
+    metric_containers: Iterable[MetricsContainer], aggregate_counters: bool = True
+) -> MetricsContainer:
     """
     Join all given metric containers into a single one.
     If gauge duplicates are found, the last one wins.
@@ -462,7 +464,7 @@ class MetricCollector(Collector):
         self.metric_container = metric_container
         super().__init__()
 
-    def collect(self) -> Generator[Metric, None, None]:
+    def collect(self) -> Generator[Metric]:
         return self.metric_container.collect()
 
 

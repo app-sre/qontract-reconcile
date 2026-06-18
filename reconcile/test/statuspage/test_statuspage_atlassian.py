@@ -1,9 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
 from reconcile.statuspage.page import StatusComponent
 from reconcile.statuspage.status import ManualStatusProvider
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 """
 About the `atlassian_page` fixture:

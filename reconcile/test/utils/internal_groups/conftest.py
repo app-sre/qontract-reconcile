@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import pytest
 import requests
-from pytest_httpserver import HTTPServer
 
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.internal_groups.client import (
     InternalGroupsApi,
     InternalGroupsClient,
 )
+
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
 
 
 @pytest.fixture

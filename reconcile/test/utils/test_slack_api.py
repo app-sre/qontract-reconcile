@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from collections import namedtuple
 from collections.abc import Mapping
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 from unittest.mock import (
     MagicMock,
     call,
@@ -8,8 +10,6 @@ from unittest.mock import (
 )
 
 import pytest
-from pytest_httpserver import HTTPServer
-from pytest_mock import MockerFixture
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web import SlackResponse
@@ -23,6 +23,10 @@ from reconcile.utils.slack_api import (
     SlackApiConfig,
     UserNotFoundError,
 )
+
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
+    from pytest_mock import MockerFixture
 
 SlackApiMock = namedtuple("SlackApiMock", "client mock_slack_client")
 

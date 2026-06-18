@@ -1,7 +1,9 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.templating.lib.merge_request_manager import (
     MergeRequestManager,
@@ -15,6 +17,9 @@ from reconcile.templating.lib.model import TemplateOutput, TemplateResult
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.merge_request_manager.merge_request_manager import OpenMergeRequest
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

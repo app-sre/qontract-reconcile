@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 from collections.abc import (
     Callable,
     Iterable,
     Mapping,
 )
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 import pytest
-from pytest_mock import MockerFixture
 
 import reconcile.terraform_tgw_attachments as integ
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
@@ -29,6 +31,9 @@ from reconcile.terraform_tgw_attachments import Accepter, DesiredStateItem, Requ
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.runtime.integration import ShardedRunProposal
 from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"
 

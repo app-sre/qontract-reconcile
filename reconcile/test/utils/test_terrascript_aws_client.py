@@ -1,11 +1,12 @@
+from __future__ import annotations
+
 import contextlib
 import json
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
 from terrascript.resource import (
     aws_lb,
     aws_s3_bucket,
@@ -32,6 +33,9 @@ from reconcile.utils.terrascript_aws_client import (
     TerrascriptClient,
     aws_kinesis_resource_policy,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

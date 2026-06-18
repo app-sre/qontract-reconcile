@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import logging
 from collections.abc import Iterable
@@ -271,7 +273,7 @@ class Subscriber:
                 )
 
     @staticmethod
-    def combined_content_hash(subscribers: Iterable["Subscriber"]) -> str:
+    def combined_content_hash(subscribers: Iterable[Subscriber]) -> str:
         """
         Get a deterministic content hash for the attributes of a collection
         of subscribers. The order of subscribers must not matter for the hash.

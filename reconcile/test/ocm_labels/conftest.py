@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 from collections.abc import (
     Callable,
     Mapping,
     Sequence,
 )
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.ocm_labels.clusters import ClusterV1
@@ -31,6 +32,9 @@ from reconcile.utils.ocm.label_sources import (
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

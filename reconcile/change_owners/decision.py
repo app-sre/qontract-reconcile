@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -82,12 +84,12 @@ class ChangeDecision:
 
     def apply_decision(
         self, ctx: ChangeTypeContext, decision_cmd: DecisionCommand
-    ) -> "ChangeDecision":
+    ) -> ChangeDecision:
         return self.apply_context_decision(ctx.context, decision_cmd)
 
     def apply_context_decision(
         self, context: str, decision_cmd: DecisionCommand
-    ) -> "ChangeDecision":
+    ) -> ChangeDecision:
         if decision_cmd == DecisionCommand.APPROVED:
             self.approve[context] = True
         elif decision_cmd == DecisionCommand.CANCEL_APPROVED:

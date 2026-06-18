@@ -1,5 +1,8 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
-from pytest_httpserver import HTTPServer
 
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.internal_groups.client import (
@@ -8,6 +11,9 @@ from reconcile.utils.internal_groups.client import (
     NotFoundError,
 )
 from reconcile.utils.internal_groups.models import Group
+
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
 
 
 def test_internal_groups_api_create_group(

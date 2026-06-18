@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 import sys
 import traceback
-
-from gitlab.v4.objects import ProjectMergeRequest
+from typing import TYPE_CHECKING
 
 from reconcile import queries
 from reconcile.change_owners.approver import GqlApproverResolver
@@ -48,6 +49,9 @@ from reconcile.utils.mr.labels import (
 )
 from reconcile.utils.output import format_table
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from gitlab.v4.objects import ProjectMergeRequest
 
 QONTRACT_INTEGRATION = "change-owners"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

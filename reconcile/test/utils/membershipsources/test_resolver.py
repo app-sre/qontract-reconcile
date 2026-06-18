@@ -1,4 +1,6 @@
-from pytest_mock import MockerFixture
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.fragments.membership_source import (
     AppInterfaceMembershipProviderSourceV1,
@@ -18,6 +20,9 @@ from reconcile.utils.membershipsources.resolver import (
     build_resolver_jobs,
     resolve_groups,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_build_resolver_jobs_grouping(

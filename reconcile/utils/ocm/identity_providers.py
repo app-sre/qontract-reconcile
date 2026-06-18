@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Generator
 
 from reconcile.utils.ocm.base import (
@@ -11,11 +13,7 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 
 def get_identity_providers(
     ocm_api: OCMBaseClient, ocm_cluster: OCMCluster
-) -> Generator[
-    OCMOIdentityProvider | OCMOIdentityProviderOidc | OCMOIdentityProviderGithub,
-    None,
-    None,
-]:
+) -> Generator[OCMOIdentityProvider | OCMOIdentityProviderOidc | OCMOIdentityProviderGithub]:
     """Get all identity providers."""
     if ocm_cluster.identity_providers.href:
         for idp_dict in ocm_api.get_paginated(

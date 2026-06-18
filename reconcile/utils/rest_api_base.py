@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 import logging
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 from urllib.parse import urljoin
 
 import requests
-from urllib3 import Retry
 
 from reconcile.utils.oauth2_backend_application_session import (
     OAuth2BackendApplicationSession,
 )
+
+if TYPE_CHECKING:
+    from urllib3 import Retry
 
 
 def get_next_url(links: dict[str, dict[str, str]]) -> str | None:

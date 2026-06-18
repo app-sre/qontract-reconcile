@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Iterable
 from typing import Self
@@ -76,7 +78,7 @@ class LdapClient:
     @classmethod
     def from_params(
         cls, server_url: str, user: str | None, password: str | None, base_dn: str
-    ) -> "LdapClient":
+    ) -> LdapClient:
         connection = Connection(
             Server(server_url, get_info=ALL),
             user,

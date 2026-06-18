@@ -1,8 +1,9 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.blackbox_exporter_endpoint_monitoring import (
     PROVIDER as BLACKBOX_EXPORTER_PROVIDER,
@@ -21,6 +22,9 @@ from reconcile.signalfx_endpoint_monitoring import build_probe as signalfx_probe
 from reconcile.utils.openshift_resource import ResourceInventory
 
 from .fixtures import Fixtures
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 fxt = Fixtures("closedbox_exporter_endpoint_monitoring")
 

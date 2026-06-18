@@ -1,6 +1,7 @@
-from collections.abc import Callable
+from __future__ import annotations
 
-from werkzeug import Request
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from reconcile.test.ocm.fixtures import (
     OcmUrl,
@@ -19,6 +20,9 @@ from reconcile.utils.ocm.identity_providers import (
     update_identity_provider,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from werkzeug import Request
 
 IDP_OIDC = OCMOIdentityProviderOidc(
     href="/api/foobar/1",

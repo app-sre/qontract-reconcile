@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import (
     Generator,
@@ -84,7 +86,7 @@ class OCMBaseClient:
         params: dict[str, Any] | None = None,
         max_page_size: int = 100,
         max_pages: int | None = None,
-    ) -> Generator[dict[str, Any], None, None]:
+    ) -> Generator[dict[str, Any]]:
         """
         Note, that pagination is currently broken.
         Each call will return a random order, meaning pages are not consistent.

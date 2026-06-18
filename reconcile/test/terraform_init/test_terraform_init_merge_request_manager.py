@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING
 from unittest.mock import ANY, MagicMock, create_autospec
 
 import pytest
 from gitlab.exceptions import GitlabGetError
 from gitlab.v4.objects import ProjectMergeRequest
-from pytest_mock import MockerFixture
 
 from reconcile.terraform_init.merge_request import LABEL, Renderer
 from reconcile.terraform_init.merge_request_manager import (
@@ -15,6 +17,9 @@ from reconcile.terraform_init.merge_request_manager import (
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.merge_request_manager.parser import Parser
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_terrafom_init_mr(mocker: MockerFixture) -> None:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import (
     Callable,
@@ -89,7 +91,7 @@ class AutomatedActionsConfigIntegration(
 
     def get_automated_actions_instances(
         self, query_func: Callable
-    ) -> Generator[AutomatedActionsInstanceV1, None, None]:
+    ) -> Generator[AutomatedActionsInstanceV1]:
         """Return all automated actions."""
         data = instance_query(query_func, variables={})
         for instance in data.automated_actions_instances_v1 or []:
@@ -109,7 +111,7 @@ class AutomatedActionsConfigIntegration(
 
     def filter_actions(
         self, actions: Iterable[AutomatedActionV1]
-    ) -> Generator[AutomatedActionV1, None, None]:
+    ) -> Generator[AutomatedActionV1]:
         """Filter out expired roles and arguments (cluster.namespace) with disabled integrations."""
         for action in actions:
             match action:

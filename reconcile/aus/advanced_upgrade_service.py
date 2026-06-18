@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
 from datetime import timedelta
-from typing import Annotated, Optional
+from typing import Annotated
 
 from pydantic import (
     BaseModel,
@@ -115,7 +117,7 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
                 )
         return envs_org_upgrade_specs
 
-    def init_version_data_network(self) -> dict["OrgRef", "VersionDataInheritance"]:
+    def init_version_data_network(self) -> dict[OrgRef, VersionDataInheritance]:
         # collect all version data labels from all OCM environments ...
         org_to_env: dict[str, OCMEnvironment] = {}
         labels_by_org: dict[str, list[OCMOrganizationLabel]] = defaultdict(list)
@@ -139,7 +141,7 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
     def _build_ocm_env_upgrade_specs(
         self,
         ocm_env: OCMEnvironment,
-        inheritance_network: dict["OrgRef", "VersionDataInheritance"],
+        inheritance_network: dict[OrgRef, VersionDataInheritance],
     ) -> dict[str, OrganizationUpgradeSpec]:
         organizations = {
             org.org_id: org for org in self.get_orgs_for_environment(ocm_env)
@@ -250,7 +252,7 @@ def _build_org_upgrade_specs_for_ocm_env(
     orgs: dict[str, AUSOCMOrganization],
     clusters_by_org: dict[str, list[ClusterDetails]],
     labels_by_org: dict[str, LabelContainer],
-    inheritance_network: dict[str, "VersionDataInheritance"],
+    inheritance_network: dict[str, VersionDataInheritance],
     cluster_health_providers: dict[str, ClusterHealthProvider],
     node_pool_specs_by_org_cluster: dict[str, dict[str, list[NodePoolSpec]]],
 ) -> dict[str, OrganizationUpgradeSpec]:
@@ -333,7 +335,7 @@ def _build_org_upgrade_spec(
     org: AUSOCMOrganization,
     clusters: list[ClusterDetails],
     org_labels: LabelContainer,
-    version_data_inheritance: Optional["VersionDataInheritance"],
+    version_data_inheritance: VersionDataInheritance | None,
     cluster_health_provider: AUSClusterHealthCheckProvider,
     node_pool_specs_by_cluster_id: dict[str, list[NodePoolSpec]],
 ) -> OrganizationUpgradeSpec:

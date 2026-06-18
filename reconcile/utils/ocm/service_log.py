@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Generator
 from datetime import timedelta
 
@@ -15,7 +17,7 @@ CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT = "/api/service_logs/v1/cluster_logs"
 
 def get_service_logs_for_cluster_uuid(
     ocm_api: OCMBaseClient, cluster_uuid: str, filter: Filter | None = None
-) -> Generator[OCMClusterServiceLog, None, None]:
+) -> Generator[OCMClusterServiceLog]:
     """
     Returns a list of service logs for a cluster, matching the optional filter.
     """

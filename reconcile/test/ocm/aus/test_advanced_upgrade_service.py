@@ -1,8 +1,9 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from pydantic import ValidationError
-from pytest_mock import MockerFixture
 
 from reconcile.aus import advanced_upgrade_service
 from reconcile.aus.advanced_upgrade_service import (
@@ -54,6 +55,9 @@ from reconcile.utils.ocm.labels import subscription_label_filter
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.sre_capability_labels import build_labelset
 from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 ORG_ID = "org-id"
 

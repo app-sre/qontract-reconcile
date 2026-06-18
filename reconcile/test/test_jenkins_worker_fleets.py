@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.jenkins_worker_fleets import (
     act,
@@ -11,6 +13,9 @@ from reconcile.jenkins_worker_fleets import (
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 fixture = Fixtures("jenkins_worker_fleets")
 

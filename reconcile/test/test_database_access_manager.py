@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.database_access_manager import (
     DatabaseConnectionParameters,
@@ -29,6 +30,9 @@ from reconcile.gql_definitions.terraform_resources.database_access_manager impor
 )
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.openshift_resource import OpenshiftResource
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

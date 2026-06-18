@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import call, create_autospec
 
 import pytest
 from deepdiff import DeepHash
-from pytest_mock import MockerFixture
 
 from reconcile.utils.early_exit_cache import (
     CacheHeadResult,
@@ -15,6 +16,9 @@ from reconcile.utils.early_exit_cache import (
     EarlyExitCache,
 )
 from reconcile.utils.state import State
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 INTEGRATION_NAME = "some-integration"
 INTEGRATION_VERSION = "some-integration-version"
