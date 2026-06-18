@@ -17,7 +17,9 @@ if TYPE_CHECKING:
 
 def get_identity_providers(
     ocm_api: OCMBaseClient, ocm_cluster: OCMCluster
-) -> Generator[OCMOIdentityProvider | OCMOIdentityProviderOidc | OCMOIdentityProviderGithub]:
+) -> Generator[
+    OCMOIdentityProvider | OCMOIdentityProviderOidc | OCMOIdentityProviderGithub
+]:
     """Get all identity providers."""
     if ocm_cluster.identity_providers.href:
         for idp_dict in ocm_api.get_paginated(

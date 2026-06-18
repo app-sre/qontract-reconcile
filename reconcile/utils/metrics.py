@@ -336,9 +336,7 @@ class MetricsContainer:
             cloned_container._counters = copy.deepcopy(self._counters)
         return cloned_container
 
-    def absorb(
-        self, other: MetricsContainer, aggregate_counters: bool = True
-    ) -> None:
+    def absorb(self, other: MetricsContainer, aggregate_counters: bool = True) -> None:
         """
         Absorbs the gauges and counter from the given container into this one.
         """

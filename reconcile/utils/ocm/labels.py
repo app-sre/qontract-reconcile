@@ -123,9 +123,7 @@ def organization_label_filter() -> Filter:
     return Filter().eq("type", "Organization")
 
 
-def get_labels(
-    ocm_api: OCMBaseClient, filter: Filter
-) -> Generator[OCMLabel]:
+def get_labels(ocm_api: OCMBaseClient, filter: Filter) -> Generator[OCMLabel]:
     """
     Finds all labels that match the given filter.
     """
