@@ -272,17 +272,17 @@ parameters:
 - name: BUSYBOX_IMAGE
   value: registry.access.redhat.com/ubi8/ubi-minimal
 - name: BUSYBOX_IMAGE_TAG
-  value: latest
+  value: 8.10-1781701121
 - name: BUSYBOX_IMAGE_DIGEST
-  value: ''
+  value: 'sha256:5d76d0cedabd7d7893b28bec684d7a3412dd8d95d186e7d4b6eeed4ea28c327b'
 - name: BUSYBOX_IMAGE_PULL_POLICY
   value: Always
 - name: FLUENTD_IMAGE
   value: quay.io/redhat-services-prod/app-sre-tenant/fluentd-master/fluentd-master
 - name: FLUENTD_IMAGE_TAG
-  value: latest
+  value: d0d1812
 - name: FLUENTD_IMAGE_DIGEST
-  value: ''
+  value: 'sha256:4868ac49b42f14ff0878216cd2c618413209f634a5c9a6c004e353e1b0805e60'
 - name: FLUENTD_IMAGE_PULL_POLICY
   value: Always
 - name: ENVIRONMENT_NAME
