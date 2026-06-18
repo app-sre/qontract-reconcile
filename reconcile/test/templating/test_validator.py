@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import pytest
@@ -9,6 +8,8 @@ from reconcile.gql_definitions.templating.templates import TemplateTestV1, Templ
 from reconcile.templating.validator import TemplateValidatorIntegration
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from qontract_utils.ruamel import yaml
 
 

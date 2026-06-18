@@ -27,16 +27,11 @@ import jinja2.meta
 import jsonpath_ng
 import networkx
 
-from reconcile.change_owners.approver import (
-    Approver,
-    ApproverReachability,
-)
 from reconcile.change_owners.bundle import (
     BundleFileType,
     FileDiffResolver,
     FileRef,
 )
-from reconcile.change_owners.diff import Diff
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorChangeTypeProviderV1,
     ChangeTypeChangeDetectorJsonPathProviderV1,
@@ -51,6 +46,12 @@ from reconcile.utils.jsonpath import (
 
 if TYPE_CHECKING:
     from pydantic import Json
+
+    from reconcile.change_owners.approver import (
+        Approver,
+        ApproverReachability,
+    )
+    from reconcile.change_owners.diff import Diff
 
 
 class ChangeTypePriority(Enum):

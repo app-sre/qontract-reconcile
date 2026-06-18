@@ -29,10 +29,11 @@ from reconcile.utils.ocm.base import (
     OCMVersionGate,
     build_label_container,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 @pytest.fixture

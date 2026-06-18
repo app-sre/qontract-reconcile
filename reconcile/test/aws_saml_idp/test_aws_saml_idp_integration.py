@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from reconcile.aws_saml_idp.integration import AwsSamlIdpIntegration, SamlIdpConfig
 from reconcile.gql_definitions.aws_saml_idp.aws_accounts import AWSAccountV1
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_httpserver import HTTPServer
 
 

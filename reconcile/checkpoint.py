@@ -9,17 +9,11 @@ https://gitlab.cee.redhat.com/app-sre/contract/-/blob/master/content/process/sre
 
 import logging
 import re
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
 from functools import (
     lru_cache,
     partial,
 )
 from http import HTTPStatus
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import requests
@@ -27,10 +21,18 @@ from jinja2 import Template
 
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.jira_client import JiraClient
-from reconcile.utils.secret_reader import SecretReaderBase
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
+    from pathlib import Path
+
     from jira import Issue
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 DEFAULT_CHECKPOINT_LABELS = ("sre-checkpoint",)
 

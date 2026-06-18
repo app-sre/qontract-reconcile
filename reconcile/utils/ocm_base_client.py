@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import (
-    Generator,
-    Mapping,
-)
-from types import TracebackType
 from typing import (
+    TYPE_CHECKING,
     Any,
     Protocol,
     Self,
@@ -19,12 +15,20 @@ from requests import (
 )
 from sretoolbox.utils import retry
 
-from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.utils.metrics import ocm_request
 from reconcile.utils.secret_reader import (
     HasSecret,
     SecretReaderBase,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Generator,
+        Mapping,
+    )
+    from types import TracebackType
+
+    from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 
 REQUEST_TIMEOUT_SEC = 60
 

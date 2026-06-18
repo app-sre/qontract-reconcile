@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 # ruff: noqa: SIM117
-from collections.abc import Generator
 from typing import TYPE_CHECKING, Any
 from unittest.mock import (
     Mock,
@@ -44,6 +43,8 @@ from reconcile.utils.ocm.products import (
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from pytest_mock import MockerFixture
 
 fxt = Fixtures("clusters")

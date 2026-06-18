@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
@@ -12,11 +11,14 @@ from reconcile.endpoints_discovery.integration import (
 )
 from reconcile.gql_definitions.endpoints_discovery.apps import AppV1
 from reconcile.test.fixtures import Fixtures
-from reconcile.utils.oc import OCNative
-from reconcile.utils.oc_map import OCMap
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
     from pytest_mock import MockerFixture
+
+    from reconcile.utils.oc import OCNative
+    from reconcile.utils.oc_map import OCMap
 
 
 @pytest.fixture

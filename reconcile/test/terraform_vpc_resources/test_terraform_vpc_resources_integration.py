@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import random
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, call
 
@@ -24,6 +23,8 @@ from reconcile.terraform_vpc_resources.integration import (
 from reconcile.utils.secret_reader import SecretReaderBase
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_mock import MockerFixture
 
 

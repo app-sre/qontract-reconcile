@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import os
 from pathlib import Path
-from types import TracebackType
 from typing import TYPE_CHECKING, Self
 from urllib.parse import urlparse
 
@@ -11,6 +10,8 @@ from github import Commit, Github, GithubException, UnknownObjectException
 from sretoolbox.utils import retry
 
 if TYPE_CHECKING:
+    from types import TracebackType
+
     from github.Repository import Repository
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, create_autospec
 
@@ -24,6 +23,8 @@ from reconcile.utils.merge_request_manager.parser import Parser
 from reconcile.utils.vcs import VCS
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
     from pytest_mock import MockerFixture
 
 

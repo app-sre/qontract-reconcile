@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-from collections.abc import Mapping, Sequence
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -29,6 +28,8 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
     from pytest_mock import MockerFixture
 
 fxt = Fixtures("namespaces")

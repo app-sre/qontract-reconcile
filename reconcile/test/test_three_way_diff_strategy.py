@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Generator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -12,6 +11,9 @@ from reconcile.utils.three_way_diff_strategy import (
 )
 
 from .fixtures import Fixtures
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 fxt = Fixtures("openshift_resource")
 

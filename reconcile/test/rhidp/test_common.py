@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from unittest.mock import (
     Mock,
@@ -30,6 +29,8 @@ from reconcile.utils.metrics import MetricsContainer
 from reconcile.utils.ocm.base import build_label_container
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from pytest_mock import MockerFixture
 
 VI = "vault-input-path"

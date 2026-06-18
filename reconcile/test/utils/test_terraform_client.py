@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import tempfile
-from collections.abc import Callable
 from logging import DEBUG
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any
@@ -24,6 +23,8 @@ from reconcile.utils.terraform_client import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_mock import MockerFixture
 
 MockAWSApi = MagicMock

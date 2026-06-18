@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
 from dataclasses import asdict, is_dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -11,6 +10,8 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pydantic.main import IncEx
 
 JSON_COMPACT_SEPARATORS = (",", ":")

@@ -3,6 +3,8 @@ import pytest
 from reconcile.external_resources.model import (
     ExternalResourceModuleConfiguration,
     ExternalResourceModuleConfigurationError,
+)
+from reconcile.gql_definitions.external_resources.external_resources_settings import (
     ExternalResourcesSettingsV1,
 )
 from reconcile.gql_definitions.external_resources.external_resources_modules import (

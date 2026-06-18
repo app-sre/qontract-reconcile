@@ -5,8 +5,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import (
     BaseModel,
@@ -32,6 +31,9 @@ from reconcile.utils.ocm.labels import (
     OCMLabel,
     OCMOrganizationLabel,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 
 class OcmResponse(BaseModel, ABC):

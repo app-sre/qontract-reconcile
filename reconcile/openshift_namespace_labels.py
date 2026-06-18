@@ -2,19 +2,13 @@ from __future__ import annotations
 
 import logging
 import sys
-from collections.abc import (
-    Callable,
-    Generator,
-    Sequence,
-)
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from kubernetes.client.exceptions import ApiException
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
-from reconcile.gql_definitions.common.namespaces import NamespaceV1
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -36,6 +30,15 @@ from reconcile.utils.state import (
     State,
     init_state,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Generator,
+        Sequence,
+    )
+
+    from reconcile.gql_definitions.common.namespaces import NamespaceV1
 
 _LOG = logging.getLogger(__name__)
 

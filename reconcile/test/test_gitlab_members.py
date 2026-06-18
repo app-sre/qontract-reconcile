@@ -20,17 +20,18 @@ from reconcile.gitlab_members import (
     get_permissions,
 )
 from reconcile.gql_definitions.fragments.user import User
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.gitlab_members.gitlab_instances import GitlabInstanceV1
-from reconcile.gql_definitions.gitlab_members.permissions import (
-    PermissionGitlabGroupMembershipV1,
-)
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
+    from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+    from reconcile.gql_definitions.gitlab_members.permissions import (
+        PermissionGitlabGroupMembershipV1,
+    )
 
 
 @pytest.fixture()

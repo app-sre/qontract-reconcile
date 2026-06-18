@@ -7,10 +7,11 @@ import pytest
 import requests
 
 import reconcile.checkpoint as sut
-from reconcile.utils.secret_reader import SecretReaderBase
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.fixture

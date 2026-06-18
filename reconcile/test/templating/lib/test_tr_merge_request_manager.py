@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import pytest
 
@@ -19,6 +18,8 @@ from reconcile.utils.merge_request_manager.merge_request_manager import OpenMerg
 from reconcile.utils.vcs import VCS
 
 if TYPE_CHECKING:
+    from unittest.mock import Mock
+
     from pytest_mock import MockerFixture
 
 

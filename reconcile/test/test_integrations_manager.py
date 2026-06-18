@@ -3,10 +3,6 @@ from __future__ import annotations
 import copy
 import json
 import os
-from collections.abc import (
-    Callable,
-    Iterable,
-)
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -48,6 +44,11 @@ from reconcile.utils.runtime.sharding import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+    )
+
     from pytest_mock import MockerFixture
 
 AWS_INTEGRATION = "aws_integration"

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
 from unittest.mock import call, create_autospec
 
@@ -23,6 +22,8 @@ from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.vault import VaultClient
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
     from pytest_mock import MockerFixture
 
 

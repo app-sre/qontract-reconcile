@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, create_autospec
 
@@ -14,10 +9,17 @@ import reconcile.terraform_resources as integ
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceV1,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
+
     from pytest_mock import MockerFixture
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 def test_cannot_use_exclude_accounts_if_not_dry_run() -> None:

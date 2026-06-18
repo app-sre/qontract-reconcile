@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Generator
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, create_autospec
 
@@ -24,6 +23,8 @@ from reconcile.gql_definitions.gcp.gcp_docker_repos import (
 from reconcile.utils.gql import GqlApi
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from pytest_mock import MockerFixture, MockFixture
 
 TEST_PROJECT_NAME = "foo"

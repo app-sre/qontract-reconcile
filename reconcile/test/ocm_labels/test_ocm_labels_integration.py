@@ -1,31 +1,33 @@
 from __future__ import annotations
 
-from collections.abc import (
-    Callable,
-    Iterable,
-    Sequence,
-)
 from typing import TYPE_CHECKING, Any
 from unittest.mock import call
 
 import pytest
 
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.ocm_labels.clusters import ClusterV1
 from reconcile.ocm_labels.integration import (
     ClusterSubscriptionLabelSource,
     OcmLabelsIntegration,
     init_cluster_subscription_label_source,
 )
-from reconcile.utils.ocm.base import ClusterDetails
 from reconcile.utils.ocm.label_sources import (
     LabelSource,
     LabelState,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Sequence,
+    )
+
     from pytest_mock import MockerFixture
+
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+    from reconcile.utils.ocm.base import ClusterDetails
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 class StaticLabelSource(LabelSource):

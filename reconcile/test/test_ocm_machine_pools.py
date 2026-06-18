@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
 from typing import TYPE_CHECKING
 from unittest.mock import (
     Mock,
@@ -34,6 +29,12 @@ from reconcile.ocm_machine_pools import (
 from reconcile.utils.ocm import OCM
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
+
     from pytest_mock import MockerFixture
 
 

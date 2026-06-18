@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import (
-    Callable,
-    Iterable,
-    MutableMapping,
-)
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from unittest import TestCase
@@ -38,7 +33,6 @@ from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.promotion_state import PromotionData
 from reconcile.utils.saasherder import SaasHerder
-from reconcile.utils.saasherder.interfaces import SaasFile as SaasFileInterface
 from reconcile.utils.saasherder.models import (
     Channel,
     Promotion,
@@ -53,7 +47,15 @@ from reconcile.utils.slo_document_manager import SLODetails
 from .fixtures import Fixtures
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        MutableMapping,
+    )
+
     from pydantic import BaseModel
+
+    from reconcile.utils.saasherder.interfaces import SaasFile as SaasFileInterface
 
 
 class MockJJB:

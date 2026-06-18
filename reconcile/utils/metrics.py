@@ -5,14 +5,8 @@ import re
 import threading
 from abc import ABC
 from collections import defaultdict
-from collections.abc import (
-    Generator,
-    Hashable,
-    Iterable,
-    Sequence,
-)
-from types import TracebackType
 from typing import (
+    TYPE_CHECKING,
     Any,
     Self,
     TypeVar,
@@ -32,6 +26,15 @@ from prometheus_client.registry import (
     CollectorRegistry,
 )
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Generator,
+        Hashable,
+        Iterable,
+        Sequence,
+    )
+    from types import TracebackType
 
 pushgateway_registry = CollectorRegistry()
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Generator
 from typing import TYPE_CHECKING
 
 import pytest
@@ -9,6 +8,8 @@ from requests import HTTPError
 from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth, get_next_url
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from pytest_httpserver import HTTPServer
 
 

@@ -1,13 +1,8 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import (
-    Callable,
-    Generator,
-    Iterable,
-    Mapping,
-)
 from typing import (
+    TYPE_CHECKING,
     Any,
     TypedDict,
     cast,
@@ -15,9 +10,6 @@ from typing import (
 
 from pydantic import BaseModel
 
-from reconcile.gql_definitions.common.app_interface_vault_settings import (
-    AppInterfaceSettingsV1,
-)
 from reconcile.gql_definitions.common.clusters_with_peering import (
     ClusterPeeringConnectionAccountTGWV1,
     ClusterPeeringConnectionAccountV1,
@@ -57,6 +49,18 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 from reconcile.utils.unleash import get_feature_toggle_state
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Generator,
+        Iterable,
+        Mapping,
+    )
+
+    from reconcile.gql_definitions.common.app_interface_vault_settings import (
+        AppInterfaceSettingsV1,
+    )
 
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

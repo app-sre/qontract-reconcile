@@ -1,20 +1,23 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from operator import attrgetter
+from typing import TYPE_CHECKING
 
-from reconcile.change_owners.approver import (
-    Approver,
-    ApproverReachability,
-)
-from reconcile.change_owners.bundle import FileRef
-from reconcile.change_owners.change_types import ChangeTypeContext, DiffCoverage
-from reconcile.change_owners.changes import BundleFileChange
-from reconcile.change_owners.diff import Diff
-from reconcile.utils.gitlab_api import Comment
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.change_owners.approver import (
+        Approver,
+        ApproverReachability,
+    )
+    from reconcile.change_owners.bundle import FileRef
+    from reconcile.change_owners.change_types import ChangeTypeContext, DiffCoverage
+    from reconcile.change_owners.changes import BundleFileChange
+    from reconcile.change_owners.diff import Diff
+    from reconcile.utils.gitlab_api import Comment
 
 
 class DecisionCommand(Enum):

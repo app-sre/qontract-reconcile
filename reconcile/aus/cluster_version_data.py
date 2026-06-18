@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import datetime
 from typing import (
+    TYPE_CHECKING,
     Any,
     Optional,
 )
@@ -12,9 +12,13 @@ from pydantic import (
     Field,
 )
 
-from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.utils.semver_helper import parse_semver
-from reconcile.utils.state import State
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.aus.models import OrganizationUpgradeSpec
+    from reconcile.utils.state import State
 
 
 class WorkloadHistory(BaseModel):

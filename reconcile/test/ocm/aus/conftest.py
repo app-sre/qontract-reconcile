@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
-from unittest.mock import Mock
 
 import pytest
 
@@ -12,6 +11,8 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils.ocm.base import OCMVersionGate
 
 if TYPE_CHECKING:
+    from unittest.mock import Mock
+
     from pytest_mock import MockerFixture
 
 

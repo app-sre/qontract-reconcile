@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime
-from typing import Protocol, TextIO
+from typing import TYPE_CHECKING, Protocol, TextIO
 
 from kubernetes.client import (
     ApiClient,
@@ -21,10 +21,12 @@ from reconcile.utils.jobcontroller.models import (
     JobValidationError,
     K8sJob,
 )
-from reconcile.utils.oc import OCCli
 from reconcile.utils.oc_map import init_oc_map_from_clusters
 from reconcile.utils.openshift_resource import OpenshiftResource
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from reconcile.utils.oc import OCCli
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 def build_job_controller(

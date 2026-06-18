@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -32,6 +30,9 @@ from reconcile.test.fixtures import Fixtures
 from reconcile.utils.openshift_resource import OpenshiftResource
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from unittest.mock import MagicMock
+
     from pytest_mock import MockerFixture
 
 

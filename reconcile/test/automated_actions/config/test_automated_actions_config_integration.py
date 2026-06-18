@@ -1,15 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import pytest
 
-from reconcile.automated_actions.config.integration import (
-    AutomatedActionRoles,
-    AutomatedActionsConfigIntegration,
-    AutomatedActionsUser,
-)
 from reconcile.gql_definitions.automated_actions.instance import (
     AutomatedActionOpenshiftWorkloadRestartArgumentV1,
     AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1,
@@ -24,7 +18,15 @@ from reconcile.utils.oc import OCCli
 from reconcile.utils.openshift_resource import ResourceInventory
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_mock import MockerFixture
+
+    from reconcile.automated_actions.config.integration import (
+        AutomatedActionRoles,
+        AutomatedActionsConfigIntegration,
+        AutomatedActionsUser,
+    )
 
 
 def test_automated_actions_config_get_early_exit_desired_state(

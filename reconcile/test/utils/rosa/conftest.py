@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import tempfile
-from collections.abc import Generator
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 from urllib.parse import urlparse
@@ -17,6 +16,8 @@ from reconcile.utils.rosa.session import RosaSession
 from reconcile.utils.secret_reader import SecretReaderBase
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from pytest_httpserver import HTTPServer
 
 

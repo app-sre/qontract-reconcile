@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
@@ -18,6 +17,8 @@ from reconcile.utils.aggregated_list import AggregatedList
 from .fixtures import Fixtures
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
     from pytest_mock import MockerFixture
 
 fxt = Fixtures("github_org")

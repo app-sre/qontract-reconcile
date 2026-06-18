@@ -1,12 +1,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import (
-    Iterable,
-)
-from collections.abc import (
-    Set as AbstractSet,
-)
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import (
@@ -59,6 +53,13 @@ from reconcile.utils.state import State, init_state
 from reconcile.utils.unleash import get_feature_variant
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+    )
+    from collections.abc import (
+        Set as AbstractSet,
+    )
+
     from gitlab.v4.objects import (
         ProjectCommit,
         ProjectIssue,

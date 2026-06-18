@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import timedelta
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from pydantic import (
     BaseModel,
@@ -39,13 +39,11 @@ from reconcile.gql_definitions.fragments.aus_organization import (
 from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
     MinimalOCMOrganization,
 )
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.upgrade_policy import (
     ClusterUpgradePolicyConditionsV1,
     ClusterUpgradePolicyV1,
 )
 from reconcile.utils import metrics
-from reconcile.utils.clusterhealth.providerbase import ClusterHealthProvider
 from reconcile.utils.models import (
     CSV,
     cron_validator,
@@ -78,6 +76,10 @@ from reconcile.utils.ocm_base_client import (
     init_ocm_base_client,
 )
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+    from reconcile.utils.clusterhealth.providerbase import ClusterHealthProvider
 
 QONTRACT_INTEGRATION = "advanced-upgrade-scheduler"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

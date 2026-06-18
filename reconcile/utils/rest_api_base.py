@@ -6,12 +6,12 @@ from urllib.parse import urljoin
 
 import requests
 
-from reconcile.utils.oauth2_backend_application_session import (
-    OAuth2BackendApplicationSession,
-)
-
 if TYPE_CHECKING:
     from urllib3 import Retry
+
+    from reconcile.utils.oauth2_backend_application_session import (
+        OAuth2BackendApplicationSession,
+    )
 
 
 def get_next_url(links: dict[str, dict[str, str]]) -> str | None:

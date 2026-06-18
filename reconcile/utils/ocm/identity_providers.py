@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from typing import TYPE_CHECKING
 
 from reconcile.utils.ocm.base import (
     OCMCluster,
@@ -8,7 +8,11 @@ from reconcile.utils.ocm.base import (
     OCMOIdentityProviderGithub,
     OCMOIdentityProviderOidc,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def get_identity_providers(

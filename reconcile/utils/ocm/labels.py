@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Generator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile.utils.ocm.base import (
     LabelContainer,
@@ -14,7 +13,11 @@ from reconcile.utils.ocm.base import (
     build_label_container,
 )
 from reconcile.utils.ocm.search_filters import Filter
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def get_subscription_labels(

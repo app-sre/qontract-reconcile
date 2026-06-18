@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 from unittest.mock import (
     MagicMock,
@@ -15,6 +14,8 @@ from reconcile.utils.oc import OCCli
 from reconcile.utils.oc_map import OCMap
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_mock import MockerFixture
 
 

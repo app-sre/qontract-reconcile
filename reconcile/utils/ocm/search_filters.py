@@ -4,19 +4,22 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import (
     datetime,
 )
 from enum import Enum
 from typing import (
+    TYPE_CHECKING,
     Any,
 )
 
 import dateparser
 
 from reconcile.utils.datetime_util import utc_now
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 @dataclass

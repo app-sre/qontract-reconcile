@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -10,6 +9,8 @@ from reconcile.test.fixtures import Fixtures
 from reconcile.utils.unleash.server import UnleashServer
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_httpserver import HTTPServer
 
 

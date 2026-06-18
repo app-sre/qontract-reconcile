@@ -11,10 +11,6 @@ from reconcile.change_owners.diff import (
     Diff,
     DiffType,
 )
-from reconcile.test.runtime.fixtures import (
-    ShardableTestIntegration,
-    SimpleTestIntegration,
-)
 from reconcile.utils.runtime import desired_state_diff
 from reconcile.utils.runtime.desired_state_diff import (
     DiffDetectionFailureError,
@@ -26,6 +22,11 @@ from reconcile.utils.runtime.integration import DesiredStateShardConfig
 
 if TYPE_CHECKING:
     from pytest_mock.plugin import MockerFixture
+
+    from reconcile.test.runtime.fixtures import (
+        ShardableTestIntegration,
+        SimpleTestIntegration,
+    )
 
 #
 # build desired state diff

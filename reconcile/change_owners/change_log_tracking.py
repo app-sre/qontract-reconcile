@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 from collections import defaultdict
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -34,6 +33,8 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.state import init_state
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from gitlab.v4.objects import (
         ProjectCommit,
     )

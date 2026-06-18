@@ -4,14 +4,15 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import WithJsonSchema
 
-from reconcile.utils.ocm.base import (
-    LabelContainer,
-    LabelSetTypeVar,
-)
 from reconcile.utils.ocm.labels import build_container_for_prefix
 
 if TYPE_CHECKING:
     from pydantic.fields import FieldInfo
+
+    from reconcile.utils.ocm.base import (
+        LabelContainer,
+        LabelSetTypeVar,
+    )
 
 
 def sre_capability_label_key(

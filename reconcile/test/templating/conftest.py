@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -8,10 +7,13 @@ from qontract_utils.ruamel import create_ruamel_instance, yaml
 
 from reconcile.gql_definitions.templating.templates import TemplateV1
 from reconcile.test.fixtures import Fixtures
-from reconcile.utils.secret_reader import SecretReader
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_mock import MockerFixture
+
+    from reconcile.utils.secret_reader import SecretReader
 
 
 @pytest.fixture

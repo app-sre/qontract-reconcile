@@ -10,10 +10,6 @@ from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from pydantic import BaseModel, Field, model_validator
 
-from reconcile.gql_definitions.fragments.saas_slo_document import (
-    SLODocument,
-)
-from reconcile.utils.jenkins_api import JobBuildState
 from reconcile.utils.json import json_dumps
 from reconcile.utils.oc_connection_parameters import Cluster
 from reconcile.utils.saasherder.interfaces import (
@@ -27,10 +23,15 @@ from reconcile.utils.saasherder.interfaces import (
     SaasResourceTemplate,
     SaasResourceTemplateTarget,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 
 if TYPE_CHECKING:
     from github import Github
+
+    from reconcile.gql_definitions.fragments.saas_slo_document import (
+        SLODocument,
+    )
+    from reconcile.utils.jenkins_api import JobBuildState
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class Providers(Enum):

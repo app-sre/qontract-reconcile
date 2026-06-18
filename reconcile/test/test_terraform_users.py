@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -13,10 +12,13 @@ from reconcile.terraform_users import (
     send_email_invites,
     write_user_to_vault,
 )
-from reconcile.utils.gql import GqlApi
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
     from pytest_mock import MockerFixture
+
+    from reconcile.utils.gql import GqlApi
 
 # account, console_url, user_name, encrypted_password
 FakeUser = tuple[str, str, str, str]

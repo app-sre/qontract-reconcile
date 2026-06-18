@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import base64
-from collections.abc import Callable
 from subprocess import CalledProcessError
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
 from urllib.error import URLError
 
 import pytest
@@ -16,6 +14,9 @@ from reconcile.gql_definitions.openshift_cluster_bots.clusters import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from unittest.mock import MagicMock
+
     from pytest_mock import MockerFixture
 
 

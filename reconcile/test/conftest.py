@@ -16,7 +16,6 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.models import data_default_none
 from reconcile.utils.state import State
@@ -24,6 +23,8 @@ from reconcile.utils.state import State
 if TYPE_CHECKING:
     from pytest_httpserver import HTTPServer
     from pytest_mock import MockerFixture
+
+    from reconcile.test.fixtures import Fixtures
 
 
 @pytest.fixture

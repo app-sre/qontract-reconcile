@@ -6,7 +6,6 @@ from datetime import (
     timedelta,
 )
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -16,6 +15,8 @@ from reconcile.test.fixtures import Fixtures
 from reconcile.utils.models import data_default_none
 
 if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
     from pytest_mock import MockerFixture
 
 fxt = Fixtures("openshift_upgrade_watcher")

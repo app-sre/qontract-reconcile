@@ -6,10 +6,9 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Callable
 from dataclasses import dataclass
-from types import ModuleType
 from typing import (
+    TYPE_CHECKING,
     Any,
     Self,
     TypeVar,
@@ -32,6 +31,10 @@ from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from types import ModuleType
 
 
 @dataclass

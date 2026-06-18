@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Generator, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from reconcile.utils.ocm_base_client import OCMBaseClient
+if TYPE_CHECKING:
+    from collections.abc import Generator, Mapping
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 @dataclass

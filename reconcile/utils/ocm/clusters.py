@@ -1,11 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import (
-    Generator,
-    Iterable,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile.utils.ocm.base import (
     ACTIVE_SUBSCRIPTION_STATES,
@@ -29,7 +25,14 @@ from reconcile.utils.ocm.subscriptions import (
     build_subscription_filter,
     get_subscriptions,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Generator,
+        Iterable,
+    )
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 NODE_POOL_DESIRED_KEYS = {
     "id",

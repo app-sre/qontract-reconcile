@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
@@ -27,6 +26,8 @@ from reconcile.utils.jira_client import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
     from pytest_mock import MockerFixture
 
 

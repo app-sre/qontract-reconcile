@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import namedtuple
-from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypedDict
 from unittest.mock import (
     MagicMock,
@@ -25,6 +24,8 @@ from reconcile.utils.slack_api import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from pytest_httpserver import HTTPServer
     from pytest_mock import MockerFixture
 

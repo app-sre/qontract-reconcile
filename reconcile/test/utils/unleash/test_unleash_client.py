@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Generator
 from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, MagicMock
 
@@ -17,6 +16,8 @@ from reconcile.utils.unleash.client import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
     from pytest_httpserver import HTTPServer
     from pytest_mock import MockerFixture
 

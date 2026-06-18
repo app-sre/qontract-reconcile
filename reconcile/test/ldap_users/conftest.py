@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -12,6 +11,8 @@ from reconcile.test.fixtures import Fixtures
 from reconcile.typed_queries.users_with_paths import get_users_with_paths
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
     from pytest_mock import MockerFixture, MockType
 
 

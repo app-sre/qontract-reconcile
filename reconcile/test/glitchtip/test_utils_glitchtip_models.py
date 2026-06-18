@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -13,6 +13,9 @@ from reconcile.utils.glitchtip.models import (
     ProjectAlert,
     slugify,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @pytest.mark.parametrize(

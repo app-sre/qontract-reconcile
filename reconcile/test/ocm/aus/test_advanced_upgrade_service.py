@@ -31,8 +31,6 @@ from reconcile.aus.models import (
 )
 from reconcile.gql_definitions.common.ocm_env_telemeter import OCMEnvTelemeterQueryData
 from reconcile.gql_definitions.common.ocm_environments import OCMEnvironmentsQueryData
-from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.upgrade_policy import (
     ClusterUpgradePolicyConditionsV1,
     ClusterUpgradePolicyV1,
@@ -54,10 +52,13 @@ from reconcile.utils.ocm.base import (
 from reconcile.utils.ocm.labels import subscription_label_filter
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.sre_capability_labels import build_labelset
-from reconcile.utils.ocm_base_client import OCMBaseClient
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
+    from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 ORG_ID = "org-id"
 

@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -16,6 +12,11 @@ from reconcile.aws_version_sync.utils import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Mapping,
+    )
+
     from pytest_httpserver import HTTPServer
 
 

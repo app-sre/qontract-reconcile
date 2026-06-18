@@ -11,11 +11,12 @@ from unittest.mock import (
 import pytest
 
 from reconcile.skupper_network import reconciler
-from reconcile.skupper_network.models import SkupperSite
-from reconcile.utils.oc_map import OCMap
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
+    from reconcile.skupper_network.models import SkupperSite
+    from reconcile.utils.oc_map import OCMap
 
 
 @pytest.mark.parametrize("dry_run", [True, False])

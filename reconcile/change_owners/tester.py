@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -27,11 +26,16 @@ from reconcile.change_owners.self_service_roles import (
     change_type_contexts_for_self_service_roles,
 )
 from reconcile.gql_definitions.change_owners.queries import self_service_roles
-from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
 from reconcile.utils import gql
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     import jsonpath_ng
+
+    from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
+        RoleV1,
+    )
 
 
 def test_change_type_in_context(

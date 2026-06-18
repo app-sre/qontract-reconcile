@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
 from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
@@ -33,6 +28,12 @@ from reconcile.utils.runtime.integration import ShardedRunProposal
 from reconcile.utils.secret_reader import SecretReaderBase
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
+
     from pytest_mock import MockerFixture
 
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"

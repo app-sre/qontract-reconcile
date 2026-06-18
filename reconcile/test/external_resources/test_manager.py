@@ -26,12 +26,13 @@ from reconcile.external_resources.state import (
     ExternalResourcesStateDynamoDB,
     ExternalResourceState,
 )
-from reconcile.gql_definitions.external_resources.external_resources_settings import (
-    ExternalResourcesSettingsV1,
-)
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
+    from reconcile.gql_definitions.external_resources.external_resources_settings import (
+        ExternalResourcesSettingsV1,
+    )
 
 
 @fixture

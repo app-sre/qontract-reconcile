@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 from ldap3 import (
     ALL,
@@ -10,6 +9,9 @@ from ldap3 import (
     Connection,
     Server,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class LdapClientError(Exception):

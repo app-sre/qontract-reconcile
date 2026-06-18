@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock, create_autospec
 
@@ -18,6 +17,8 @@ from reconcile.utils.external_resource_spec import (
 from reconcile.utils.external_resources import ResourceValueResolver
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from pytest_mock import MockerFixture
 
 

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import pytest
 
@@ -23,10 +21,14 @@ from reconcile.utils.ocm.base import (
     OCMOIdentityProviderOidcOpenId,
     OCMOIdentityProviderOidcOpenIdClaims,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from unittest.mock import Mock
+
     from pytest_mock import MockerFixture
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 IDP_OIDC = OCMOIdentityProviderOidc(
     name="oidc-auth",

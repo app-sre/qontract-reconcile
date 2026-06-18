@@ -22,10 +22,11 @@ from reconcile.utils.ocm.base import (
 from reconcile.utils.ocm.cluster_groups import OCMClusterGroupId
 from reconcile.utils.ocm.labels import build_container_for_prefix
 from reconcile.utils.ocm.search_filters import Filter
-from reconcile.utils.ocm_base_client import OCMBaseClient
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 #
 # test labelset

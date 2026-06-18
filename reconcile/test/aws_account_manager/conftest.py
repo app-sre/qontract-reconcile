@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
 
 import pytest
 from qontract_utils.aws_api_typed.api import AWSApi
@@ -17,12 +15,18 @@ from reconcile.gql_definitions.aws_account_manager.aws_accounts import (
     AWSAccountRequestV1,
     AWSAccountV1,
 )
-from reconcile.gql_definitions.fragments.aws_account_managed import AWSAccountManaged
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.state import State
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+    from unittest.mock import MagicMock
+
     from pytest_mock import MockerFixture
+
+    from reconcile.gql_definitions.fragments.aws_account_managed import (
+        AWSAccountManaged,
+    )
 
 
 @pytest.fixture

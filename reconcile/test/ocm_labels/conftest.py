@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import (
-    Callable,
-    Mapping,
-    Sequence,
-)
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -31,10 +26,17 @@ from reconcile.utils.ocm.label_sources import (
     LabelState,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
-from reconcile.utils.secret_reader import SecretReader
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+        Sequence,
+    )
+
     from pytest_mock import MockerFixture
+
+    from reconcile.utils.secret_reader import SecretReader
 
 
 @pytest.fixture

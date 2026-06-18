@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -15,6 +14,8 @@ from reconcile.aws_account_manager.utils import state_key
 from reconcile.utils.state import AbortStateTransactionError, State
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from qontract_utils.aws_api_typed.api import AWSApi
     from qontract_utils.aws_api_typed.iam import (
         AWSAccessKey,

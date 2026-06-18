@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -13,6 +12,8 @@ from reconcile.utils.disabled_integrations import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from pytest_mock import MockerFixture
 
 

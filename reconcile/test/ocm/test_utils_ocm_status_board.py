@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -21,6 +20,8 @@ from reconcile.utils.ocm.status_board import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_mock import MockFixture
 
 

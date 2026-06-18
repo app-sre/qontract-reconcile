@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
 
 import pytest
 import yaml
@@ -22,6 +20,9 @@ from reconcile.utils import oc
 from reconcile.utils.semver_helper import make_semver
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+    from unittest.mock import MagicMock
+
     from pytest_mock import MockerFixture
 
 fxt = Fixtures("namespaces")

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import pytest
@@ -13,6 +12,8 @@ from reconcile.gql_definitions.aws_saml_roles.aws_accounts import AWSAccountV1
 from reconcile.utils.terrascript_aws_client import TerrascriptClient
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_mock import MockerFixture
 
 

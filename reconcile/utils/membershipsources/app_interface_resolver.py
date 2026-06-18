@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import base64
-from collections.abc import Generator
 from contextlib import contextmanager
+from typing import TYPE_CHECKING
 
 from reconcile import queries
-from reconcile.gql_definitions.fragments.membership_source import (
-    AppInterfaceMembershipProviderSourceV1,
-)
 from reconcile.gql_definitions.membershipsources.roles import RoleV1
 from reconcile.gql_definitions.membershipsources.roles import (
     query as mebershipsource_query,
@@ -20,6 +17,13 @@ from reconcile.utils.membershipsources.models import (
     RoleUser,
 )
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from reconcile.gql_definitions.fragments.membership_source import (
+        AppInterfaceMembershipProviderSourceV1,
+    )
 
 
 @contextmanager

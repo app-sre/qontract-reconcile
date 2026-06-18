@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from datetime import (
     UTC,
     datetime,
@@ -48,12 +47,15 @@ from reconcile.utils.ocm.base import (
     OCMClusterAWSSettings,
     build_label_container,
 )
-from reconcile.utils.ocm.clusters import OCMCluster
-from reconcile.utils.ocm_base_client import OCMBaseClient
-from reconcile.utils.secret_reader import SecretReaderBase
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_mock import MockerFixture
+
+    from reconcile.utils.ocm.clusters import OCMCluster
+    from reconcile.utils.ocm_base_client import OCMBaseClient
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.fixture

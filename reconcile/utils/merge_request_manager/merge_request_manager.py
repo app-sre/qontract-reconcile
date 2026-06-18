@@ -12,10 +12,11 @@ from reconcile.utils.merge_request_manager.parser import (
     ParserError,
     ParserVersionError,
 )
-from reconcile.utils.vcs import VCS
 
 if TYPE_CHECKING:
     from gitlab.v4.objects import ProjectMergeRequest
+
+    from reconcile.utils.vcs import VCS
 
 
 @dataclass

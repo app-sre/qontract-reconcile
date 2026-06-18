@@ -2,21 +2,24 @@ from __future__ import annotations
 
 import logging
 import tempfile
+from typing import TYPE_CHECKING
 
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel
 
-from reconcile.ocm.types import OCMSpec
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.jobcontroller.controller import K8sJobController
 from reconcile.utils.jobcontroller.models import JobConcurrencyPolicy, JobStatus
-from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.rosa.rosa_cli import (
     LogHandle,
     RosaCliError,
     RosaCliResult,
     RosaJob,
 )
+
+if TYPE_CHECKING:
+    from reconcile.ocm.types import OCMSpec
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 class RosaSessionBuilder(BaseModel, arbitrary_types_allowed=True):

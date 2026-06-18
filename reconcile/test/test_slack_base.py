@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -12,6 +11,8 @@ from reconcile.slack_base import (
 from reconcile.utils.secret_reader import SecretReader
 
 if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
     from pytest_mock import MockerFixture
 
 

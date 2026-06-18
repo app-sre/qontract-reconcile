@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel
 
-from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
-from reconcile.utils.clusterhealth.providerbase import ClusterHealthProvider
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+    from reconcile.utils.clusterhealth.providerbase import ClusterHealthProvider
 
 
 class AUSHealthError(BaseModel):

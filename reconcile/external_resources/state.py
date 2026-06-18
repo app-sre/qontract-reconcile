@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Mapping
 from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256
@@ -23,6 +22,8 @@ from reconcile.utils.datetime_util import to_utc_microseconds_iso_format, utc_no
 from reconcile.utils.json import json_dumps
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from qontract_utils.aws_api_typed.api import AWSApi
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%SZ"

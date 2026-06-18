@@ -20,10 +20,11 @@ from reconcile.utils.extended_early_exit import (
     ExtendedEarlyExitRunnerResult,
     extended_early_exit_run,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 INTEGRATION = "some_integration"
 EXPECTED_INTEGRATION = "some-integration"

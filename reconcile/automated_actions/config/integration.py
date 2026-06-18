@@ -1,12 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import (
-    Callable,
-    Generator,
-    Iterable,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from kubernetes.client import (
@@ -34,7 +29,6 @@ from reconcile.gql_definitions.automated_actions.instance import query as instan
 from reconcile.utils import expiration, gql
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
-from reconcile.utils.oc import OCCli
 from reconcile.utils.oc_map import init_oc_map_from_namespaces
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
 from reconcile.utils.runtime.integration import (
@@ -42,6 +36,15 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Generator,
+        Iterable,
+    )
+
+    from reconcile.utils.oc import OCCli
 
 QONTRACT_INTEGRATION = "automated-actions-config"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 1)

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import time
-from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, MagicMock, call
 
@@ -29,6 +28,8 @@ from reconcile.utils.rhcsv2_certs import (
 from reconcile.utils.vault import SecretNotFoundError
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
     from pytest_mock import MockerFixture
 
 

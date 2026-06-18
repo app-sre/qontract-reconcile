@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 from unittest.mock import call
 
@@ -17,12 +16,15 @@ from reconcile.status_board import (
     StatusBoardExporterIntegration,
     StatusBoardHandler,
 )
-from reconcile.utils.ocm.status_board import BaseOCMSpec, ServiceMetadataSpec
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.runtime.integration import PydanticRunParams
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_mock import MockerFixture
+
+    from reconcile.utils.ocm.status_board import BaseOCMSpec, ServiceMetadataSpec
 
 
 class StatusBoardStub(AbstractStatusBoard):

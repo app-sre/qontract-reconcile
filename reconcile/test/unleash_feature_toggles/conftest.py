@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -23,6 +21,9 @@ from reconcile.utils.unleash.server import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+    from unittest.mock import MagicMock
+
     from pytest_mock import MockerFixture
 
 

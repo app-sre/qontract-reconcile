@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
 from typing import TYPE_CHECKING, Any
-from unittest.mock import Mock
 
 import pytest
 
@@ -24,6 +18,13 @@ from reconcile.utils.internal_groups.models import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
+    from unittest.mock import Mock
+
     from pytest_mock import MockerFixture
 
 

@@ -7,7 +7,6 @@ from abc import (
     abstractmethod,
 )
 from collections import defaultdict
-from collections.abc import Callable, Sequence
 from datetime import (
     datetime,
     timedelta,
@@ -63,15 +62,9 @@ from reconcile.gql_definitions.common.ocm_env_telemeter import (
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
-from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
 from reconcile.utils import (
     gql,
     metrics,
-)
-from reconcile.utils.clusterhealth.providerbase import (
-    ClusterHealthProvider,
 )
 from reconcile.utils.clusterhealth.telemeter import (
     TELEMETER_SOURCE,
@@ -103,7 +96,6 @@ from reconcile.utils.ocm.upgrades import (
     get_version_agreement,
     get_version_gates,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.prometheus import (
     init_prometheus_http_querier_from_prometheus_instance,
 )
@@ -111,7 +103,6 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.semver_helper import (
     get_version_prefix,
     parse_semver,
@@ -120,7 +111,20 @@ from reconcile.utils.semver_helper import (
 from reconcile.utils.state import init_state
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from semver import VersionInfo
+
+    from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+    from reconcile.gql_definitions.fragments.upgrade_policy import (
+        ClusterUpgradePolicyV1,
+    )
+    from reconcile.utils.clusterhealth.providerbase import (
+        ClusterHealthProvider,
+    )
+    from reconcile.utils.ocm_base_client import OCMBaseClient
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 MIN_DELTA_MINUTES = 6
 

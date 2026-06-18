@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import ItemsView, Iterable, Iterator, MutableMapping
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 
@@ -11,9 +11,6 @@ from reconcile.external_resources.meta import (
     FLAG_DELETE_RESOURCE,
     FLAG_RESOURCE_MANAGED_BY_ERV2,
     MODULE_OVERRIDES,
-)
-from reconcile.gql_definitions.external_resources.external_resources_modules import (
-    ExternalResourcesModuleV1,
 )
 from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
     NamespaceTerraformProviderResourceAWSV1,
@@ -31,18 +28,25 @@ from reconcile.gql_definitions.external_resources.external_resources_namespaces 
     NamespaceTerraformResourceVpcEndpointV1,
     NamespaceV1,
 )
-from reconcile.gql_definitions.external_resources.external_resources_settings import (
-    ExternalResourcesSettingsV1,
-)
 from reconcile.gql_definitions.external_resources.fragments.external_resources_module_overrides import (
     ExternalResourcesModuleOverrides,
 )
-from reconcile.gql_definitions.fragments.deploy_resources import DeployResourcesFields
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
 )
 from reconcile.utils.json import json_dumps
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.external_resources.external_resources_modules import (
+        ExternalResourcesModuleV1,
+    )
+    from reconcile.gql_definitions.external_resources.external_resources_settings import (
+        ExternalResourcesSettingsV1,
+    )
+    from reconcile.gql_definitions.fragments.deploy_resources import (
+        DeployResourcesFields,
+    )
 
 
 class ExternalResourceOrphanedResourcesError(Exception):

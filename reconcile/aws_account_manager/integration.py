@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
 import jinja2
@@ -39,6 +38,8 @@ from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vcs import VCS
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
     from qontract_utils.aws_api_typed.iam import AWSAccessKey
 
 QONTRACT_INTEGRATION = "aws-account-manager"
