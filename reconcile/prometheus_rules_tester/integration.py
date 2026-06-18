@@ -45,7 +45,7 @@ NAMESPACE_NAMES = frozenset([
     "openshift-customer-monitoring",
     "app-sre-observability-per-cluster",
 ])
-DEFAULT_PROMTOOL_VERSION = "3.2.1"
+DEFAULT_PROMTOOL_VERSION = "3.9.1"
 
 
 class TestContent(BaseModel):
