@@ -25,7 +25,7 @@ objects:
             serviceAccountName: qontract-reconcile
             containers:
             - name: int
-              image: ${IMAGE}:${IMAGE_TAG}
+              image: ${IMAGE}:${IMAGE_TAG}@${IMAGE_DIGEST}
               env:
               - name: RUN_ONCE
                 value: 'true'
@@ -93,16 +93,22 @@ parameters:
   value: quay.io/app-sre/qontract-reconcile
 - name: IMAGE_TAG
   value: latest
+- name: IMAGE_DIGEST
+  value: ''
 - name: BUSYBOX_IMAGE
   value: registry.access.redhat.com/ubi8/ubi-minimal
 - name: BUSYBOX_IMAGE_TAG
   value: latest
+- name: BUSYBOX_IMAGE_DIGEST
+  value: ''
 - name: BUSYBOX_IMAGE_PULL_POLICY
   value: Always
 - name: FLUENTD_IMAGE
   value: quay.io/redhat-services-prod/app-sre-tenant/fluentd-master/fluentd-master
 - name: FLUENTD_IMAGE_TAG
   value: latest
+- name: FLUENTD_IMAGE_DIGEST
+  value: ''
 - name: FLUENTD_IMAGE_PULL_POLICY
   value: Always
 - name: ENVIRONMENT_NAME
