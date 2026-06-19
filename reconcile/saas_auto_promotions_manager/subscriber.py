@@ -8,6 +8,9 @@ from typing import TYPE_CHECKING
 
 from croniter import croniter
 
+from reconcile.saas_auto_promotions_manager.publisher import (
+    Publisher,
+)
 from reconcile.utils.datetime_util import utc_now
 
 if TYPE_CHECKING:
@@ -18,7 +21,6 @@ if TYPE_CHECKING:
     )
     from reconcile.saas_auto_promotions_manager.publisher import (
         DeploymentInfo,
-        Publisher,
     )
     from reconcile.utils.slo_document_manager import SLODocumentManager
 

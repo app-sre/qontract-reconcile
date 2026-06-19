@@ -3,11 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from reconcile.utils.secret_reader import HasSecret
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from reconcile.typed_queries.saas_files import SaasFile
-    from reconcile.utils.secret_reader import HasSecret
 
 
 @dataclass

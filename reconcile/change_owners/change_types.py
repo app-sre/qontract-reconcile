@@ -18,7 +18,6 @@ from dataclasses import (
 )
 from enum import Enum
 from typing import (
-    TYPE_CHECKING,
     Any,
 )
 
@@ -26,12 +25,18 @@ import jinja2
 import jinja2.meta
 import jsonpath_ng
 import networkx
+from pydantic import Json
 
+from reconcile.change_owners.approver import (
+    Approver,
+    ApproverReachability,
+)
 from reconcile.change_owners.bundle import (
     BundleFileType,
     FileDiffResolver,
     FileRef,
 )
+from reconcile.change_owners.diff import Diff
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorChangeTypeProviderV1,
     ChangeTypeChangeDetectorJsonPathProviderV1,
@@ -43,15 +48,6 @@ from reconcile.utils.jsonpath import (
     remove_prefix_from_path,
     sortable_jsonpath_string_repr,
 )
-
-if TYPE_CHECKING:
-    from pydantic import Json
-
-    from reconcile.change_owners.approver import (
-        Approver,
-        ApproverReachability,
-    )
-    from reconcile.change_owners.diff import Diff
 
 
 class ChangeTypePriority(Enum):

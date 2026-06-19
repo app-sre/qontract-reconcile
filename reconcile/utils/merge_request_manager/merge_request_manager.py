@@ -5,6 +5,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from gitlab.v4.objects import ProjectMergeRequest
 from pydantic import BaseModel
 
 from reconcile.utils.merge_request_manager.parser import (
@@ -14,8 +15,6 @@ from reconcile.utils.merge_request_manager.parser import (
 )
 
 if TYPE_CHECKING:
-    from gitlab.v4.objects import ProjectMergeRequest
-
     from reconcile.utils.vcs import VCS
 
 

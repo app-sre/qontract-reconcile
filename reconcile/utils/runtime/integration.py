@@ -6,6 +6,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -33,7 +34,6 @@ from reconcile.utils.secret_reader import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from types import ModuleType
 
 

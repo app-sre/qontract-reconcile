@@ -6,17 +6,19 @@ from enum import Enum
 from operator import attrgetter
 from typing import TYPE_CHECKING
 
+from reconcile.change_owners.approver import (
+    Approver,
+    ApproverReachability,
+)
+from reconcile.change_owners.bundle import FileRef
+from reconcile.change_owners.change_types import ChangeTypeContext
+from reconcile.change_owners.diff import Diff
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from reconcile.change_owners.approver import (
-        Approver,
-        ApproverReachability,
-    )
-    from reconcile.change_owners.bundle import FileRef
-    from reconcile.change_owners.change_types import ChangeTypeContext, DiffCoverage
+    from reconcile.change_owners.change_types import DiffCoverage
     from reconcile.change_owners.changes import BundleFileChange
-    from reconcile.change_owners.diff import Diff
     from reconcile.utils.gitlab_api import Comment
 
 
