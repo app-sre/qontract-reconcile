@@ -1,7 +1,8 @@
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Self
+from typing import Self
 from urllib.parse import urljoin, urlparse
 
+from requests import Response
 from urllib3.util import Retry
 
 from reconcile.utils.oauth2_backend_application_session import (
@@ -13,9 +14,6 @@ from tools.cli_commands.cost_report.response import (
     OpenShiftCostOptimizationReportResponse,
     OpenShiftReportCostResponse,
 )
-
-if TYPE_CHECKING:
-    from requests import Response
 
 REQUEST_TIMEOUT = 60
 PAGE_LIMIT = 100

@@ -9,13 +9,14 @@ Similar to CacheBackend pattern:
 - Abstract interface for concrete implementations
 """
 
+from __future__ import annotations
+
 import threading
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 
-from qontract_utils.hooks import Hooks
-
 if TYPE_CHECKING:
+    from qontract_utils.hooks import Hooks
     from qontract_utils.secret_reader.providers.vault import VaultSecretBackendSettings
 
 

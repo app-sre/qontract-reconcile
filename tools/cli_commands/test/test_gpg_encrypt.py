@@ -1,5 +1,4 @@
 import json
-from typing import TYPE_CHECKING
 from unittest.mock import (
     MagicMock,
     mock_open,
@@ -7,6 +6,7 @@ from unittest.mock import (
 )
 
 import pytest
+from pytest_mock import MockerFixture
 
 from reconcile.queries import UserFilter
 from reconcile.utils.secret_reader import SecretReader
@@ -16,9 +16,6 @@ from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommandData,
     UserError,
 )
-
-if TYPE_CHECKING:
-    from pytest_mock import MockerFixture
 
 SECRET = {"x": "y"}
 

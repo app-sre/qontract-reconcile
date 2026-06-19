@@ -3,15 +3,13 @@
 import gzip
 import json
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+
+import pytest
+from fastapi.testclient import TestClient
 
 from qontract_api.auth import create_access_token
 from qontract_api.constants import REQUEST_ID_HEADER
 from qontract_api.models import TokenData
-
-if TYPE_CHECKING:
-    import pytest
-    from fastapi.testclient import TestClient
 
 
 def test_request_id_middleware(client: TestClient) -> None:

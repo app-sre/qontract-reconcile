@@ -14,18 +14,18 @@ Singleton Pattern:
 - Ensures in-memory cache is shared across all users in the same process
 """
 
+from __future__ import annotations
+
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
+from typing import Any, ClassVar, TypeVar
 
 from cachetools import TTLCache
 from pydantic import BaseModel
 from qontract_utils.json_utils import json_dumps, json_loads
-
-if TYPE_CHECKING:
-    from redis import Redis
+from redis import Redis
 
 from qontract_api.logger import get_logger
 

@@ -1,14 +1,11 @@
 """Tests for subscriber handler."""
 
-from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from qontract_utils.events import Event
 
 from qontract_api.subscriber._subscriptions import event_handler
-
-if TYPE_CHECKING:
-    from qontract_utils.events import Event
 
 
 @pytest.mark.asyncio

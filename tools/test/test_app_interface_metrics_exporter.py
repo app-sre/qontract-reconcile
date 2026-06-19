@@ -1,16 +1,13 @@
 from collections import Counter
-from typing import TYPE_CHECKING
 
 import pytest
 from click.testing import CliRunner
+from pytest_mock import MockerFixture
 
 from tools.app_interface_metrics_exporter import (
     OverviewOnboardingStatus,
     main,
 )
-
-if TYPE_CHECKING:
-    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

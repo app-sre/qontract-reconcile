@@ -1,11 +1,9 @@
 import asyncio
 from collections.abc import Coroutine
-from typing import TYPE_CHECKING, Any, Self
+from typing import Any, Self
 
 from faststream.redis import RedisBroker as FastRedisBroker
-
-if TYPE_CHECKING:
-    from faststream.types import SendableMessage
+from faststream.types import SendableMessage
 
 
 class RedisBroker:

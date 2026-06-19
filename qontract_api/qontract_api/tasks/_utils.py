@@ -4,8 +4,9 @@
 import asyncio
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar, runtime_checkable
+from typing import Any, Protocol, TypeVar, runtime_checkable
 
+from billiard.einfo import ExceptionInfo
 from celery import Task, states
 from celery.result import AsyncResult
 from fastapi import HTTPException, status
@@ -14,9 +15,6 @@ from hvac.exceptions import VaultError
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskResult as TaskResultModel
 from qontract_api.models import TaskStatus
-
-if TYPE_CHECKING:
-    from billiard.einfo import ExceptionInfo
 
 logger = get_logger(__name__)
 

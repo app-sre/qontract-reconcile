@@ -2,9 +2,9 @@
 
 import platform
 import time
-from typing import TYPE_CHECKING
 
 from faststream.redis import StreamSub
+from qontract_utils.events import Event
 
 from qontract_api.config import settings
 from qontract_api.logger import get_logger
@@ -18,9 +18,6 @@ from ._metrics import (
     events_posted,
     events_received,
 )
-
-if TYPE_CHECKING:
-    from qontract_utils.events import Event
 
 logger = get_logger(__name__)
 

@@ -1,8 +1,10 @@
 # ruff: noqa: RUF029
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import structlog
+from faststream._internal.basic_types import AsyncFuncAny
 from faststream.asgi import AsgiFastStream, AsgiResponse, get, make_ping_asgi
+from faststream.message import StreamMessage
 from faststream.middlewares import BaseMiddleware
 from faststream.redis import RedisBroker
 from faststream.redis.prometheus import RedisPrometheusMiddleware
@@ -11,10 +13,6 @@ from prometheus_client import CollectorRegistry, make_asgi_app
 
 from qontract_api.config import settings
 from qontract_api.logger import setup_logging
-
-if TYPE_CHECKING:
-    from faststream._internal.basic_types import AsyncFuncAny
-    from faststream.message import StreamMessage
 
 if settings.cache_backend != "redis":
     raise RuntimeError(

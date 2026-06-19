@@ -1,7 +1,5 @@
-
-from typing import TYPE_CHECKING
-
 import pytest
+from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.namespaces import NamespaceV1
 from reconcile.test.fixtures import Fixtures
@@ -10,9 +8,6 @@ from reconcile.utils.oc_map import OCMap
 from tools.cli_commands.container_images_report import (
     fetch_pods_images_from_namespaces,
 )
-
-if TYPE_CHECKING:
-    from pytest_mock import MockerFixture
 
 fxt = Fixtures("container_images_report")
 

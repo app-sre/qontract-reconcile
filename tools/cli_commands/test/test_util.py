@@ -1,7 +1,8 @@
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from unittest.mock import create_autospec
 
 import pytest
+from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
@@ -13,9 +14,6 @@ from tools.cli_commands.cost_report.util import fetch_cost_report_secret
 from tools.cli_commands.test.conftest import (
     COST_REPORT_SECRET,
 )
-
-if TYPE_CHECKING:
-    from pytest_mock import MockerFixture
 
 VAULT_SETTINGS = AppInterfaceSettingsV1(vault=True)
 COST_REPORT_SETTINGS = CostReportSettingsV1(
