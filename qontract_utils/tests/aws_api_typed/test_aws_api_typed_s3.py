@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.s3 import AWSApiS3
 from qontract_utils.hooks import Hooks
 
 if TYPE_CHECKING:
+    from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
     from unittest.mock import MagicMock
 
     from mypy_boto3_s3 import S3Client

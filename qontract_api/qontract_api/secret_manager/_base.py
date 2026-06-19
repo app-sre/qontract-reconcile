@@ -1,9 +1,11 @@
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-from qontract_utils.secret_reader import Secret, SecretBackend
 
 from qontract_api.cache import CacheBackend
+
+if TYPE_CHECKING:
+    from qontract_utils.secret_reader import Secret, SecretBackend
 
 
 class SecretManager:

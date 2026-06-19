@@ -4,10 +4,12 @@ from dataclasses import asdict, is_dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, TYPE_CHECKING
 
 from pydantic import BaseModel
-from pydantic.main import IncEx
+
+if TYPE_CHECKING:
+    from pydantic.main import IncEx
 
 JSON_COMPACT_SEPARATORS = (",", ":")
 

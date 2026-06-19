@@ -3,7 +3,6 @@ from unittest.mock import Mock
 import pytest
 from click.testing import CliRunner
 from gitlab.const import PipelineStatus
-from pytest_mock import MockerFixture
 
 from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheStatus
 from reconcile.utils.mr.labels import (
@@ -14,6 +13,10 @@ from reconcile.utils.mr.labels import (
     SELF_SERVICEABLE,
 )
 from tools import qontract_cli
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def _make_cluster(name: str, vpc_cidr: str, account_name: str = "acc") -> dict:

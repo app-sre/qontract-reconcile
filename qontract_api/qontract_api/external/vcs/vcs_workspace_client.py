@@ -2,11 +2,14 @@
 
 from qontract_utils.vcs.models import RepoOwners
 from qontract_utils.vcs.owners_parser import OwnersParser
-from qontract_utils.vcs.provider_protocol import CreateMergeRequestInput
 
 from qontract_api.cache import CacheBackend
 from qontract_api.config import Settings
 from qontract_api.external.vcs.provider_factory import VCSProviderFactory
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from qontract_utils.vcs.provider_protocol import CreateMergeRequestInput
 
 
 class VCSWorkspaceClient:

@@ -35,7 +35,7 @@ def chat_request() -> dict[str, object]:
 
 
 @pytest.fixture
-def api_client() -> Generator[TestClient, None, None]:
+def api_client() -> Generator[TestClient]:
     """Create test client with mocked cache and secret_manager in app.state."""
     from qontract_api.main import app
 

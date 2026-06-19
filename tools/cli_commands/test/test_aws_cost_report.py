@@ -1,9 +1,8 @@
 from collections.abc import Callable
 from decimal import Decimal
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.typed_queries.cost_report.app_names import App
 from tools.cli_commands.cost_report.aws import AwsCostReportCommand
@@ -12,6 +11,9 @@ from tools.cli_commands.cost_report.response import AwsReportCostResponse
 from tools.cli_commands.test.conftest import (
     COST_REPORT_SECRET,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 COST_MANAGEMENT_CONSOLE_BASE_URL = (
     "https://console.redhat.com/openshift/cost-management"

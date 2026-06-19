@@ -2,7 +2,10 @@
 
 from http import HTTPStatus
 
-from fastapi.testclient import TestClient
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
 
 
 def test_root_endpoint(client: TestClient) -> None:

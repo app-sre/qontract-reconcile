@@ -4,7 +4,6 @@ from http import HTTPStatus
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
 
 from qontract_api.auth import create_access_token
 from qontract_api.constants import REQUEST_ID_HEADER
@@ -17,6 +16,10 @@ from qontract_api.integrations.glitchtip_project_alerts.schemas import (
     GlitchtipProjectAlertsTaskResult,
 )
 from qontract_api.models import Secret, TaskStatus, TokenData
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
 
 
 @pytest.fixture

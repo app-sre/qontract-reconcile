@@ -1,6 +1,5 @@
 import pytest
 from boto3 import Session
-from pytest_mock import MockerFixture
 from qontract_utils.aws_api_typed.account import AWSApiAccount
 from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 from qontract_utils.aws_api_typed.cloudformation import AWSApiCloudFormation
@@ -12,6 +11,10 @@ from qontract_utils.aws_api_typed.s3 import AWSApiS3
 from qontract_utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
 from qontract_utils.aws_api_typed.sts import AWSApiSts, AWSCredentials
 from qontract_utils.aws_api_typed.support import AWSApiSupport
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

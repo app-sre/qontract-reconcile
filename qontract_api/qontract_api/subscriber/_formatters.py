@@ -1,9 +1,11 @@
 """Event formatter registry for converting events to human-readable Slack messages."""
 
 import json
-from typing import ClassVar, Protocol
+from typing import ClassVar, Protocol, TYPE_CHECKING
 
-from qontract_utils.events._models import Event
+
+if TYPE_CHECKING:
+    from qontract_utils.events._models import Event
 
 
 class EventFormatter(Protocol):

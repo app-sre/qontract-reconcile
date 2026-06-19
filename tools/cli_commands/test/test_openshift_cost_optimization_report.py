@@ -1,8 +1,7 @@
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.typed_queries.cost_report.app_names import App
 from reconcile.typed_queries.cost_report.cost_namespaces import (
@@ -21,6 +20,9 @@ from tools.cli_commands.test.conftest import (
     OPENSHIFT_COST_OPTIMIZATION_RESPONSE,
     OPENSHIFT_COST_OPTIMIZATION_WITH_FUZZY_MATCH_RESPONSE,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

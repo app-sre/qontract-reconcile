@@ -80,7 +80,7 @@ class SecretBackend(ABC):
     """
 
     # Singleton instances per backend type
-    _instances: ClassVar[dict[str, "SecretBackend"]] = {}
+    _instances: ClassVar[dict[str, SecretBackend]] = {}
     _lock: ClassVar[threading.Lock] = threading.Lock()
 
     @property
@@ -95,9 +95,9 @@ class SecretBackend(ABC):
     def get_instance(
         cls,
         backend_type: str,
-        backend_settings: "VaultSecretBackendSettings",
+        backend_settings: VaultSecretBackendSettings,
         hooks: Hooks | None = None,
-    ) -> "SecretBackend":
+    ) -> SecretBackend:
         """Get singleton secret backend instance (thread-safe factory).
 
         Uses double-checked locking for thread safety. Each backend type

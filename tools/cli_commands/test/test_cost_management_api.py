@@ -1,11 +1,9 @@
 from collections.abc import Callable
 from decimal import Decimal
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import pytest
 import requests
-from pytest_httpserver import HTTPServer
-from pytest_mock import MockerFixture
 from requests import HTTPError
 
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
@@ -29,6 +27,10 @@ from tools.cli_commands.test.conftest import (
     COST_REPORT_SECRET,
     OPENSHIFT_COST_OPTIMIZATION_RESPONSE,
 )
+
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

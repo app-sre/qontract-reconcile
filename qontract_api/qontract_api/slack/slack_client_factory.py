@@ -4,13 +4,16 @@ Follows the PagerDuty factory pattern: function-based factory with Secret resolu
 """
 
 from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks
-from qontract_utils.secret_reader import Secret
 from qontract_utils.slack_api import SlackApi
 
 from qontract_api.cache import CacheBackend
 from qontract_api.config import Settings
 from qontract_api.secret_manager import SecretManager
 from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from qontract_utils.secret_reader import Secret
 
 
 def create_slack_workspace_client(

@@ -3,7 +3,6 @@
 from collections.abc import Iterable
 
 from qontract_utils.differ import diff_iterables
-from qontract_utils.secret_reader import Secret
 
 from qontract_api.cache import CacheBackend
 from qontract_api.config import Settings
@@ -20,6 +19,10 @@ from qontract_api.secret_manager import SecretManager
 from qontract_api.slack.domain import SlackUsergroup, SlackWorkspace
 from qontract_api.slack.slack_client_factory import create_slack_workspace_client
 from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from qontract_utils.secret_reader import Secret
 
 logger = get_logger(__name__)
 

@@ -3,14 +3,16 @@
 Covers RetryConfig, retry hooks, retry lifecycle, and retry_config override.
 """
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import pytest
 import structlog
 
 # ruff: noqa: ARG001
 from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, RetryConfig, invoke_with_hooks
-from structlog.typing import EventDict
+
+if TYPE_CHECKING:
+    from structlog.typing import EventDict
 
 
 def test_retry_config_defaults() -> None:

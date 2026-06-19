@@ -1,11 +1,14 @@
 """Custom exceptions and error handlers for qontract-api."""
 
 from fastapi import HTTPException, Request, status
-from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from qontract_api.logger import get_logger
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fastapi.exceptions import RequestValidationError
 
 log = get_logger(__name__)
 

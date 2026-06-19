@@ -35,7 +35,7 @@ log = setup_logging()
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown.
 
     Note: FastAPI requires async lifespan, but our code is sync.

@@ -6,7 +6,6 @@ from unittest.mock import (
 )
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.queries import UserFilter
 from reconcile.utils.secret_reader import SecretReader
@@ -16,6 +15,10 @@ from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommandData,
     UserError,
 )
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 SECRET = {"x": "y"}
 

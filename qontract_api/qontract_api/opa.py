@@ -2,13 +2,15 @@
 
 import re
 import time
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-import httpxyz as httpx
 from fastapi import HTTPException, status
 from prometheus_client import Counter, Histogram
 
 from qontract_api.logger import get_logger
+
+if TYPE_CHECKING:
+    import httpxyz as httpx
 
 logger = get_logger(__name__)
 
