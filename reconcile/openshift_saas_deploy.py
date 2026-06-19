@@ -284,14 +284,10 @@ def run(
         sys.exit(ExitCodes.SUCCESS)
 
     # check enable_init_projects flag status
-    # enable_init_projects = get_feature_toggle_state(
-    #     "enable_init_projects",
-    #     default=False,
-    # )
-    enable_init_projects = False
-    print("*******enable_init_projects*****")
-    print(enable_init_projects)
-    print("*******enable_init_projects*****")
+    enable_init_projects = get_feature_toggle_state(
+        "enable_init_projects",
+        default=False,
+    )
     ri, oc_map = ob.fetch_current_state(
         namespaces=[ns.model_dump(by_alias=True) for ns in saasherder.namespaces],
         thread_pool_size=thread_pool_size,
