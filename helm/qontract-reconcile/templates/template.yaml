@@ -155,6 +155,23 @@ objects:
               fieldRef:
                 fieldPath: metadata.name
           {{- end }}
+          {{- if $logs.splunk }}
+          - name: SPLUNK_HEC_HOST
+            valueFrom:
+              secretKeyRef:
+                name: ${SPLUNK_SECRET}
+                key: splunk.hec.host
+          - name: SPLUNK_HEC_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${SPLUNK_SECRET}
+                key: splunk.hec.token
+          - name: SPLUNK_INDEX
+            valueFrom:
+              secretKeyRef:
+                name: ${SPLUNK_SECRET}
+                key: splunk.index
+          {{- end }}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -234,6 +251,29 @@ objects:
                 log_stream_name {{ $integration.name }}
                 auto_create_stream true
               </store>
+              {{- if $logs.splunk }}
+              <store>
+                @type splunk_hec
+                protocol http
+                hec_host ${SPLUNK_HEC_HOST}
+                hec_token ${SPLUNK_HEC_TOKEN}
+                index ${SPLUNK_INDEX}
+                source {{ $integration.name }}
+                <buffer time>
+                  @type file
+                  path /fluentd/buffer/splunk
+                  timekey 1800
+                  timekey_wait 5m
+                  chunk_limit_size 32m
+                  flush_mode interval
+                  flush_interval 10s
+                  overflow_action block
+                </buffer>
+                <format>
+                  @type json
+                </format>
+              </store>
+              {{- end }}
               {{- if $logs.googleChat }}
               # only ship errors to Google Chat
               <store>
@@ -600,11 +640,7 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
-          {{- if $logs.googleChat }}
-          - name: buffer
-            mountPath: /fluentd/buffer
-          {{- end }}
-          {{- if eq $.Values.gov_slack "true" }}
+          {{- if or $logs.googleChat $logs.splunk (eq $.Values.gov_slack "true") }}
           - name: buffer
             mountPath: /fluentd/buffer
           {{- end }}
@@ -638,11 +674,7 @@ objects:
           emptyDir: {}
         - name: tmp-dir
           emptyDir: { }
-        {{- if $logs.googleChat }}
-        - name: buffer
-          emptyDir: {}
-        {{- end }}
-        {{- if eq $.Values.gov_slack "true" }}
+        {{- if or $logs.googleChat $logs.splunk (eq $.Values.gov_slack "true") }}
         - name: buffer
           emptyDir: {}
         {{- end }}
@@ -863,6 +895,8 @@ parameters:
   value: 'http://github-mirror.github-mirror-stage.svc.cluster.local'
 - name: CLOUDWATCH_SECRET
   value: app-interface-cloudwatch
+- name: SPLUNK_SECRET
+  value: log-forwarder-splunk-secret
 - name: SENTRY_DSN
   value: ""
 - name: SLOW_OC_RECONCILE_THRESHOLD
