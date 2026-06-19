@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
@@ -5,7 +6,6 @@ from botocore.exceptions import ClientError
 from mypy_boto3_logs import CloudWatchLogsClient, DescribeLogGroupsPaginator
 from qontract_utils.aws_api_typed.logs import AWSApiLogs
 from qontract_utils.hooks import Hooks
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from qontract_utils.aws_api_typed._hooks import AWSApiCallContext

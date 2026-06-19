@@ -1,7 +1,7 @@
 """Tests for exception handling."""
 
 from http import HTTPStatus
-
+from typing import TYPE_CHECKING
 
 from qontract_api.exceptions import (
     APIError,
@@ -9,7 +9,6 @@ from qontract_api.exceptions import (
     UnauthorizedError,
     ValidationError,
 )
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient

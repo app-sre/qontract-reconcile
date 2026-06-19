@@ -7,11 +7,11 @@ from qontract_utils.aws_api_typed.support import AWSApiSupport, SupportPlan
 from qontract_utils.hooks import Hooks
 
 if TYPE_CHECKING:
-    from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
     from unittest.mock import MagicMock
 
     from mypy_boto3_support import SupportClient
     from pytest_mock import MockerFixture
+    from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 
 
 @pytest.fixture

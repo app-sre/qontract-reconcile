@@ -1,6 +1,7 @@
 """Unit tests for github-owners router endpoints."""
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,7 +14,6 @@ from qontract_api.integrations.github_owners.schemas import (
     GithubOwnersTaskResult,
 )
 from qontract_api.models import Secret, TaskStatus, TokenData
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient

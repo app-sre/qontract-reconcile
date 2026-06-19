@@ -1,6 +1,7 @@
 """Unit tests for Glitchtip project alerts router endpoints."""
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,7 +17,6 @@ from qontract_api.integrations.glitchtip_project_alerts.schemas import (
     GlitchtipProjectAlertsTaskResult,
 )
 from qontract_api.models import Secret, TaskStatus, TokenData
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient

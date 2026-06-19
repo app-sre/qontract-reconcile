@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import Coroutine
-from typing import Any, Self, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Self
 
 from faststream.redis import RedisBroker as FastRedisBroker
 

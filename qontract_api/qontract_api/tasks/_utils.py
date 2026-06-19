@@ -4,7 +4,7 @@
 import asyncio
 import time
 from collections.abc import Callable
-from typing import Any, Protocol, TypeVar, runtime_checkable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, runtime_checkable
 
 from celery import Task, states
 from celery.result import AsyncResult

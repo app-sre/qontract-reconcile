@@ -1,5 +1,6 @@
 """Tests for _publish_dm_notifications in slack usergroups tasks."""
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,7 +13,6 @@ from qontract_api.integrations.slack_usergroups.tasks import (
     _publish_dm_notifications,
 )
 from qontract_api.slack.domain import NotificationAddUser, NotificationRemoveUser
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from qontract_utils.events import Event

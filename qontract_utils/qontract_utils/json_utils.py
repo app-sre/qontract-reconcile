@@ -4,7 +4,7 @@ from dataclasses import asdict, is_dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel
 

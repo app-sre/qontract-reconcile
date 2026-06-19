@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from decimal import Decimal
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 

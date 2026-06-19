@@ -13,6 +13,7 @@ from qontract_api.logger import get_logger
 
 if TYPE_CHECKING:
     from qontract_utils.ldap_api import LdapApi
+
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
 

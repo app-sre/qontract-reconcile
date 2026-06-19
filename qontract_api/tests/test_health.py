@@ -1,7 +1,6 @@
 """Tests for health check endpoints."""
 
 from http import HTTPStatus
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

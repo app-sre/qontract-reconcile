@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import botocore
@@ -6,11 +7,10 @@ from mypy_boto3_iam import IAMClient
 from mypy_boto3_iam.type_defs import ListAccountAliasesResponseTypeDef
 from qontract_utils.aws_api_typed.iam import AWSApiIam
 from qontract_utils.hooks import Hooks
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
     from pytest_mock import MockerFixture
+    from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 
 
 @pytest.fixture

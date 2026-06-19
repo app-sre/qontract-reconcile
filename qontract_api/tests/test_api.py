@@ -1,12 +1,11 @@
 """Tests for API endpoints."""
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 from unittest.mock import patch
-
 
 from qontract_api.auth import create_access_token
 from qontract_api.models import TokenData
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient

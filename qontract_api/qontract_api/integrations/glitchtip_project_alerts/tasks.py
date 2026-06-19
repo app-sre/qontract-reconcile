@@ -4,7 +4,7 @@ This module defines background tasks for reconciling Glitchtip project alerts.
 Tasks run in Celery workers, separate from the FastAPI application.
 """
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from qontract_utils.events import Event
 

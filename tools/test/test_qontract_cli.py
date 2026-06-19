@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
@@ -13,7 +14,6 @@ from reconcile.utils.mr.labels import (
     SELF_SERVICEABLE,
 )
 from tools import qontract_cli
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture

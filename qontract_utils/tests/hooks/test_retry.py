@@ -3,7 +3,7 @@
 Covers RetryConfig, retry hooks, retry lifecycle, and retry_config override.
 """
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import structlog

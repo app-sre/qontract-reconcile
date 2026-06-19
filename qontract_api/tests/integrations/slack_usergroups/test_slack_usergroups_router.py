@@ -1,6 +1,7 @@
 """Unit tests for Slack usergroups router endpoints."""
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,7 +19,6 @@ from qontract_api.slack.domain import (
     SlackUsergroupConfig,
     SlackWorkspace,
 )
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient

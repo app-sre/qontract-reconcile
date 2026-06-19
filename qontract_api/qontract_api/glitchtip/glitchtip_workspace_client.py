@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         Team,
         User,
     )
+
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
 

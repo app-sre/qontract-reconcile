@@ -1,6 +1,6 @@
 """Celery tasks for Glitchtip reconciliation."""
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from qontract_utils.events import Event
 

@@ -3,13 +3,13 @@
 import json
 import logging
 from io import StringIO
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 import structlog
 
 from qontract_api.logger import get_logger, setup_logging
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from structlog.typing import Processor

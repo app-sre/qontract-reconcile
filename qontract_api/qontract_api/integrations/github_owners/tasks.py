@@ -4,7 +4,7 @@ This module defines background tasks for reconciling GitHub organization
 owner membership. Tasks run in Celery workers, separate from the FastAPI app.
 """
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from qontract_utils.events import Event
 

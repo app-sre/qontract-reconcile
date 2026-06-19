@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Self, TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 from urllib.parse import urljoin, urlparse
 
 from urllib3.util import Retry

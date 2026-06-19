@@ -1,5 +1,5 @@
 # ruff: noqa: RUF029
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from faststream.asgi import AsgiFastStream, AsgiResponse, get, make_ping_asgi
@@ -13,8 +13,8 @@ from qontract_api.config import settings
 from qontract_api.logger import setup_logging
 
 if TYPE_CHECKING:
-    from faststream.message import StreamMessage
     from faststream._internal.basic_types import AsyncFuncAny
+    from faststream.message import StreamMessage
 
 if settings.cache_backend != "redis":
     raise RuntimeError(

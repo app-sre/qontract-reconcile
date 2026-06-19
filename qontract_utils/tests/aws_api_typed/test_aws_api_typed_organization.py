@@ -12,9 +12,9 @@ from qontract_utils.aws_api_typed.organization import (
 from qontract_utils.hooks import Hooks
 
 if TYPE_CHECKING:
-    from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
     from mypy_boto3_organizations import OrganizationsClient
     from pytest_mock import MockerFixture
+    from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 
 
 @pytest.fixture

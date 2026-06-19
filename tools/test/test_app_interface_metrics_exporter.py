@@ -1,4 +1,5 @@
 from collections import Counter
+from typing import TYPE_CHECKING
 
 import pytest
 from click.testing import CliRunner
@@ -7,7 +8,6 @@ from tools.app_interface_metrics_exporter import (
     OverviewOnboardingStatus,
     main,
 )
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture

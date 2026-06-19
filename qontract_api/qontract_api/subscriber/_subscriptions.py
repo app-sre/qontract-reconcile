@@ -2,6 +2,7 @@
 
 import platform
 import time
+from typing import TYPE_CHECKING
 
 from faststream.redis import StreamSub
 
@@ -17,7 +18,6 @@ from ._metrics import (
     events_posted,
     events_received,
 )
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from qontract_utils.events import Event
