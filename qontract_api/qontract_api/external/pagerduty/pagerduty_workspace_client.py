@@ -11,11 +11,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
+from qontract_utils.pagerduty_api import PagerDutyUser
 
 from qontract_api.logger import get_logger
 
 if TYPE_CHECKING:
-    from qontract_utils.pagerduty_api import PagerDutyApi, PagerDutyUser
+    from qontract_utils.pagerduty_api import PagerDutyApi
 
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
