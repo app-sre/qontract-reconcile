@@ -123,6 +123,14 @@ ignore = [
     "S106",    # Possible hardcoded password (test fixtures use hardcoded values)
     "SLF001",  # Private member access (testing internal state)
 ]
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+runtime-evaluated-decorators = [
+    "dataclasses.dataclass",
+    "pydantic.dataclasses.dataclass",
+    "pydantic.validate_call",
+]
+
 [tool.ruff.lint.isort]
 known-first-party = ["qontract_api"]
 
