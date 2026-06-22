@@ -3,12 +3,14 @@
 Implements async-only pattern with blocking GET (see ADR-003).
 """
 
+from __future__ import annotations
+
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, status
 
 from qontract_api.config import settings
-from qontract_api.dependencies import UserDep
+from qontract_api.dependencies import UserDep  # noqa: TC001
 from qontract_api.integrations.glitchtip.schemas import (
     GlitchtipReconcileRequest,
     GlitchtipTaskResponse,

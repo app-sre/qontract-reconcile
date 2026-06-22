@@ -1,5 +1,7 @@
 """qontract-api main FastAPI application."""
 
+from __future__ import annotations
+
 import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -13,7 +15,7 @@ from fastapi.responses import RedirectResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from qontract_api.config import settings
-from qontract_api.dependencies import UserDep
+from qontract_api.dependencies import UserDep  # noqa: TC001
 from qontract_api.exceptions import (
     APIError,
     api_error_handler,
@@ -21,7 +23,7 @@ from qontract_api.exceptions import (
     not_implemented_handler,
     validation_exception_handler,
 )
-from qontract_api.health import HealthResponse, HealthResponseDep
+from qontract_api.health import HealthResponse, HealthResponseDep  # noqa: TC001
 from qontract_api.logger import setup_logging
 from qontract_api.middleware import (
     GzipRequestMiddleware,

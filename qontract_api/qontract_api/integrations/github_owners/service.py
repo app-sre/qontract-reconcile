@@ -8,18 +8,24 @@ generated. This preserves the behavior of the original github-owners reconcile
 integration, where removing org admins requires explicit manual review.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from qontract_utils.differ import diff_iterables
 
-from qontract_api.config import Settings
-from qontract_api.github import GithubOrgClientFactory, GithubOrgWorkspaceClient
-from qontract_api.integrations.github_owners.domain import GithubOrgDesiredState
 from qontract_api.integrations.github_owners.schemas import (
     GithubOwnerActionAddOwner,
     GithubOwnersTaskResult,
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
-from qontract_api.secret_manager import SecretManager
+
+if TYPE_CHECKING:
+    from qontract_api.config import Settings
+    from qontract_api.github import GithubOrgClientFactory, GithubOrgWorkspaceClient
+    from qontract_api.integrations.github_owners.domain import GithubOrgDesiredState
+    from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
 

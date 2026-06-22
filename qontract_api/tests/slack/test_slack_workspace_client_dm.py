@@ -1,5 +1,7 @@
 """Tests for SlackWorkspaceClient.send_dm and _resolve_user_id."""
+from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,11 +12,13 @@ from qontract_utils.slack_api import (
     UserNotFoundError,
 )
 
-from qontract_api.config import Settings
 from qontract_api.slack.slack_workspace_client import (
     CachedUsers,
     SlackWorkspaceClient,
 )
+
+if TYPE_CHECKING:
+    from qontract_api.config import Settings
 
 
 @pytest.fixture

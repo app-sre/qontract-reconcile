@@ -4,6 +4,8 @@ Provides cached access to repository OWNERS files from GitHub/GitLab,
 file reading, and file sync reconciliation.
 """
 
+from __future__ import annotations
+
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -11,7 +13,7 @@ from pydantic import Field
 from qontract_utils.events import Event
 
 from qontract_api.config import settings
-from qontract_api.dependencies import (
+from qontract_api.dependencies import (  # noqa: TC001
     CacheDep,
     EventManagerDep,
     SecretManagerDep,
