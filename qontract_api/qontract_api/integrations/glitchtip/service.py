@@ -1,16 +1,12 @@
 """Glitchtip reconciliation service."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from qontract_utils.glitchtip_api.models import Team as ApiTeam
 from qontract_utils.glitchtip_api.models import User as ApiUser
 
-from qontract_api.config import Settings
-from qontract_api.glitchtip import GlitchtipClientFactory, GlitchtipWorkspaceClient
-from qontract_api.integrations.glitchtip.domain import (
-    GIInstance,
-    GIOrganization,
-    GIProject,
-    GlitchtipTeam,
-)
 from qontract_api.integrations.glitchtip.schemas import (
     GlitchtipActionAddProjectToTeam,
     GlitchtipActionAddUserToTeam,
@@ -30,7 +26,17 @@ from qontract_api.integrations.glitchtip.schemas import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
-from qontract_api.secret_manager import SecretManager
+
+if TYPE_CHECKING:
+    from qontract_api.config import Settings
+    from qontract_api.glitchtip import GlitchtipClientFactory, GlitchtipWorkspaceClient
+    from qontract_api.integrations.glitchtip.domain import (
+        GIInstance,
+        GIOrganization,
+        GIProject,
+        GlitchtipTeam,
+    )
+    from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
 

@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
 from datetime import datetime
 from typing import (
+    TYPE_CHECKING,
     Any,
     Optional,
 )
@@ -10,9 +12,13 @@ from pydantic import (
     Field,
 )
 
-from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.utils.semver_helper import parse_semver
-from reconcile.utils.state import State
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.aus.models import OrganizationUpgradeSpec
+    from reconcile.utils.state import State
 
 
 class WorkloadHistory(BaseModel):
@@ -50,7 +56,7 @@ class Stats(BaseModel):
     min_version_per_workload: dict[str, str] = Field(default_factory=dict)
     inherited: Optional["Stats"] = None
 
-    def inherit(self, added: "Stats") -> None:
+    def inherit(self, added: Stats) -> None:
         """adds the provided stats to our inherited data
         If we already have inherited data, we will merge the stats data:
         compute new minimums and add missing data
@@ -145,7 +151,7 @@ class VersionData(BaseModel):
                 min_version_per_workload=min_version_per_workload,
             )
 
-    def aggregate(self, added: "VersionData", added_scope: str) -> None:
+    def aggregate(self, added: VersionData, added_scope: str) -> None:
         """aggregate an other version data with this one.
         this adds new value and merges the ones we we already have
         """

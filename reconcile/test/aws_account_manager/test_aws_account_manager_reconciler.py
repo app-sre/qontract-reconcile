@@ -51,7 +51,7 @@ from reconcile.utils.state import State
 
 
 @pytest.fixture
-def s3_client(monkeypatch: pytest.MonkeyPatch) -> Generator[S3Client, None, None]:
+def s3_client(monkeypatch: pytest.MonkeyPatch) -> Generator[S3Client]:
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
     monkeypatch.setenv("AWS_SECURITY_TOKEN", "testing")

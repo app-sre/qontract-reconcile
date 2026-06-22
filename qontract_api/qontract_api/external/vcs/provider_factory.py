@@ -1,5 +1,9 @@
 """Factory for creating VCS API clients with rate limiting and provider management."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks
 from qontract_utils.vcs import (
     GitHubProviderSettings,
@@ -10,10 +14,12 @@ from qontract_utils.vcs import (
 )
 from qontract_utils.vcs.models import Provider
 
-from qontract_api.cache import CacheBackend
 from qontract_api.config import GitHubProviderSettings as GitHubProviderConfig
 from qontract_api.config import GitLabProviderSettings as GitLabProviderConfig
 from qontract_api.config import Settings
+
+if TYPE_CHECKING:
+    from qontract_api.cache import CacheBackend
 
 
 class VCSProviderFactory:

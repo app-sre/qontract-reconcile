@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from collections import defaultdict
-from collections.abc import Generator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile.utils.ocm.base import (
     LabelContainer,
@@ -12,12 +13,16 @@ from reconcile.utils.ocm.base import (
     build_label_container,
 )
 from reconcile.utils.ocm.search_filters import Filter
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def get_subscription_labels(
     ocm_api: OCMBaseClient, filter: Filter
-) -> Generator[OCMSubscriptionLabel, None, None]:
+) -> Generator[OCMSubscriptionLabel]:
     """
     Finds all subscription labels that match the given filter.
     """
@@ -100,7 +105,7 @@ def subscription_label_filter() -> Filter:
 
 def get_organization_labels(
     ocm_api: OCMBaseClient, filter: Filter
-) -> Generator[OCMOrganizationLabel, None, None]:
+) -> Generator[OCMOrganizationLabel]:
     """
     Finds all organization labels that match the given filter.
     """
@@ -118,9 +123,7 @@ def organization_label_filter() -> Filter:
     return Filter().eq("type", "Organization")
 
 
-def get_labels(
-    ocm_api: OCMBaseClient, filter: Filter
-) -> Generator[OCMLabel, None, None]:
+def get_labels(ocm_api: OCMBaseClient, filter: Filter) -> Generator[OCMLabel]:
     """
     Finds all labels that match the given filter.
     """
@@ -147,7 +150,7 @@ def build_label_from_dict(label_dict: dict[str, Any]) -> OCMLabel:
 
 def build_container_for_prefix(
     container: LabelContainer, key_prefix: str, strip_key_prefix: bool = False
-) -> "LabelContainer":
+) -> LabelContainer:
     """
     Builds a new label container with all labels that have the given prefix.
     """

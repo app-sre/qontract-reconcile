@@ -1,7 +1,8 @@
-import os
-from typing import Any
+from __future__ import annotations
 
-from prometheus_client.core import Counter
+import os
+from typing import TYPE_CHECKING, Any
+
 from requests import (
     Response,
     Session,
@@ -12,6 +13,9 @@ from sretoolbox.container import (
 )
 
 from reconcile.utils import metrics
+
+if TYPE_CHECKING:
+    from prometheus_client.core import Counter
 
 # TODO: move these to a shared, constants module
 

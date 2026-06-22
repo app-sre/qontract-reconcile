@@ -1,8 +1,9 @@
-from typing import cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
 
 import pytest
 import testslide
-from pytest_mock import MockerFixture
 
 import reconcile.terraform_vpc_peerings as sut
 from reconcile.test.test_terraform_vpc_peerings import (
@@ -16,6 +17,9 @@ from reconcile.utils import (
     aws_api,
     ocm,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_c2c_all_clusters() -> None:

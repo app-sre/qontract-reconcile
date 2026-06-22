@@ -1,20 +1,28 @@
+from __future__ import annotations
+
 import hashlib
 import logging
-from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 from croniter import croniter
 
-from reconcile.gql_definitions.fragments.saas_target_namespace import (
-    SaasTargetNamespace,
-)
 from reconcile.saas_auto_promotions_manager.publisher import (
-    DeploymentInfo,
     Publisher,
 )
 from reconcile.utils.datetime_util import utc_now
-from reconcile.utils.slo_document_manager import SLODocumentManager
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.gql_definitions.fragments.saas_target_namespace import (
+        SaasTargetNamespace,
+    )
+    from reconcile.saas_auto_promotions_manager.publisher import (
+        DeploymentInfo,
+    )
+    from reconcile.utils.slo_document_manager import SLODocumentManager
 
 CONTENT_HASH_LENGTH = 32
 
@@ -271,7 +279,7 @@ class Subscriber:
                 )
 
     @staticmethod
-    def combined_content_hash(subscribers: Iterable["Subscriber"]) -> str:
+    def combined_content_hash(subscribers: Iterable[Subscriber]) -> str:
         """
         Get a deterministic content hash for the attributes of a collection
         of subscribers. The order of subscribers must not matter for the hash.

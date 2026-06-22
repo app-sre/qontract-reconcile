@@ -1,11 +1,10 @@
-from collections.abc import Sequence
-from unittest.mock import Mock
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.rhidp.common import Cluster
 from reconcile.rhidp.sso_client.base import (
     act,
     console_url_to_oauth_url,
@@ -19,6 +18,14 @@ from reconcile.utils.keycloak import (
     KeycloakMap,
     SSOClient,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from unittest.mock import Mock
+
+    from pytest_mock import MockerFixture
+
+    from reconcile.rhidp.common import Cluster
 
 
 @pytest.mark.parametrize(
@@ -69,6 +76,7 @@ def test_sso_client_fetch_desired_state(clusters: Sequence[Cluster]) -> None:
     assert fetch_desired_state(clusters) == {
         "cluster-1-org-id-1-oidc-auth-issuer.com": clusters[0],
         "cluster-2-org-id-2-oidc-auth-issuer.com": clusters[1],
+        "cluster-groups-org-id-2-oidc-auth-issuer.com": clusters[2],
     }
 
 
@@ -84,7 +92,6 @@ def test_sso_client_act(mocker: MockerFixture, clusters: Sequence[Cluster]) -> N
         "to-be-kept": clusters[0],
         "new-one": clusters[1],
     }
-    contacts = ["contact-1", "contact-2"]
 
     # dry-run
     act(
@@ -93,7 +100,6 @@ def test_sso_client_act(mocker: MockerFixture, clusters: Sequence[Cluster]) -> N
         vault_input_path="vault-input-path",
         existing_sso_client_ids=existing_sso_client_ids,
         desired_sso_clients=desired_sso_clients,
-        contacts=contacts,
         dry_run=True,
     )
     create_sso_client_mock.assert_not_called()
@@ -106,7 +112,6 @@ def test_sso_client_act(mocker: MockerFixture, clusters: Sequence[Cluster]) -> N
         vault_input_path="vault-input-path",
         existing_sso_client_ids=existing_sso_client_ids,
         desired_sso_clients=desired_sso_clients,
-        contacts=contacts,
         dry_run=False,
     )
     delete_sso_client_mock.assert_called_once_with(
@@ -119,21 +124,29 @@ def test_sso_client_act(mocker: MockerFixture, clusters: Sequence[Cluster]) -> N
         keycloak_map=None,
         sso_client_id="new-one",
         cluster=clusters[1],
-        contacts=contacts,
         secret_reader=None,
         vault_input_path="vault-input-path",
     )
 
 
+@pytest.mark.parametrize(
+    "cluster_index, expected_group_filter_regex",
+    [
+        (0, None),
+        (2, "^ai-.*"),
+    ],
+)
 def test_sso_client_create_sso_client(
-    mocker: MockerFixture, secret_reader: Mock, clusters: Sequence[Cluster]
+    mocker: MockerFixture,
+    secret_reader: Mock,
+    clusters: Sequence[Cluster],
+    cluster_index: int,
+    expected_group_filter_regex: str | None,
 ) -> None:
-    cluster = clusters[0]
+    cluster = clusters[cluster_index]
 
     sso_client_id = "new-one-foo-bar-org-id-what-ever"
     redirect_uris = ["https://console.foobar.com/oauth2callback/oidc-auth"]
-    request_uris = [cluster.console_url]
-    contacts = ["contact-1", "contact-2"]
     vault_input_path = "vault-input-path"
     secret = VaultSecret(
         path=f"{vault_input_path}/{sso_client_id}",
@@ -143,19 +156,11 @@ def test_sso_client_create_sso_client(
     )
     sso_client = SSOClient(
         client_id="uid-1",
-        client_id_issued_at=0,
         client_name=sso_client_id,
         client_secret="secret-1",
-        client_secret_expires_at=0,
-        grant_types=["foobar"],
         redirect_uris=redirect_uris,
-        request_uris=request_uris,
         registration_access_token="foobar-tken",
         registration_client_uri="https://client-uri.com",
-        response_types=["foobar"],
-        subject_type="foobar",
-        tls_client_certificate_bound_access_tokens=False,
-        token_endpoint_auth_method="foobar",
         issuer=cluster.auth.issuer,
     )
     keycloak_map_mock = mocker.create_autospec(KeycloakMap)
@@ -167,7 +172,6 @@ def test_sso_client_create_sso_client(
         keycloak_map=keycloak_map_mock,
         sso_client_id=sso_client_id,
         cluster=cluster,
-        contacts=contacts,
         secret_reader=secret_reader,
         vault_input_path=vault_input_path,
     )
@@ -176,9 +180,7 @@ def test_sso_client_create_sso_client(
     keycloak_api_mock.register_client.assert_called_once_with(
         client_name=sso_client_id,
         redirect_uris=redirect_uris,
-        initiate_login_uri=cluster.console_url,
-        request_uris=request_uris,
-        contacts=contacts,
+        group_filter_regex=expected_group_filter_regex,
     )
 
     secret_reader.vault_client.write.assert_called_once_with(
@@ -205,19 +207,11 @@ def test_sso_client_delete_sso_client(
     )
     sso_client_data = {
         "client_id": "",
-        "client_id_issued_at": 0,
         "client_name": sso_client_id,
         "client_secret": "",
-        "client_secret_expires_at": 0,
-        "grant_types": [],
         "redirect_uris": [],
-        "request_uris": [],
         "registration_access_token": "foobar-tken",
         "registration_client_uri": "https://client-uri.com",
-        "response_types": [],
-        "subject_type": "",
-        "tls_client_certificate_bound_access_tokens": False,
-        "token_endpoint_auth_method": "",
         "issuer": issuer,
     }
 

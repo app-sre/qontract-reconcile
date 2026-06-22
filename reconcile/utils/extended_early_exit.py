@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable, Generator, Mapping
 from contextlib import contextmanager
 from io import StringIO
 from logging import Logger
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
@@ -19,7 +21,11 @@ from reconcile.utils.metrics import (
     normalize_integration_name,
     set_gauge,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Mapping
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class ExtendedEarlyExitRunnerResult(BaseModel):
@@ -93,7 +99,7 @@ def _ttl_seconds(
 @contextmanager
 def log_stream_handler(
     logger: Logger,
-) -> Generator[StringIO, None, None]:
+) -> Generator[StringIO]:
     """
     Add a stream handler to the logger, and return the stream generator, automatically remove the handler when done.
 

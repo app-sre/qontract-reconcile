@@ -14,7 +14,7 @@ from qontract_utils.vcs.providers.github_client import (
 
 
 @pytest.fixture
-def mock_github_client() -> Generator[MagicMock, None, None]:
+def mock_github_client() -> Generator[MagicMock]:
     """Mock GitHub client."""
     with patch("qontract_utils.vcs.providers.github_client.Github") as mock_client:
         yield mock_client

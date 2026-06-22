@@ -16,7 +16,7 @@ def deactivate_retries() -> None:
 
 
 @pytest.fixture
-def enable_retry() -> Generator[None, None, None]:
+def enable_retry() -> Generator[None]:
     """Enable stamina retry for specific tests.
 
     Use this fixture in tests that verify retry behavior.

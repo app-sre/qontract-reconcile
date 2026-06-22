@@ -1,8 +1,12 @@
-from collections.abc import Generator, Mapping
-from dataclasses import dataclass
-from typing import Any
+from __future__ import annotations
 
-from reconcile.utils.ocm_base_client import OCMBaseClient
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Mapping
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 @dataclass
@@ -15,7 +19,7 @@ class SyncSet:
 
 def get_syncsets(
     ocm_client: OCMBaseClient, cluster_id: str
-) -> Generator[dict[str, Any], None, None]:
+) -> Generator[dict[str, Any]]:
     syncset = SyncSet(cluster_id)
     return ocm_client.get_paginated(api_path=syncset.href)
 

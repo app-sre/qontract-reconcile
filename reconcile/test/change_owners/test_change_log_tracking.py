@@ -1,5 +1,6 @@
-from collections.abc import Callable
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from unittest.mock import call, create_autospec
 
 import pytest
@@ -8,7 +9,6 @@ from gitlab.v4.objects import (
     ProjectCommit,
     ProjectCommitManager,
 )
-from pytest_mock import MockerFixture
 
 from reconcile.change_owners.change_log_tracking import (
     BUNDLE_DIFFS_OBJ,
@@ -21,8 +21,14 @@ from reconcile.change_owners.change_log_tracking import (
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypesQueryData,
 )
-from reconcile.gql_definitions.common.apps import AppV1
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytest_mock import MockerFixture
+
+    from reconcile.gql_definitions.common.apps import AppV1
+    from reconcile.utils.gql import GqlApi
 
 APP_PATH = "/services/a/app.yml"
 MERGED_AT = "2024-01-01T00:00:00Z"

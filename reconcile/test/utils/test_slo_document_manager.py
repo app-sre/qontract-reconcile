@@ -1,7 +1,8 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_httpserver import HTTPServer
 from requests.exceptions import ConnectionError
 
 from reconcile.gql_definitions.fragments.saas_slo_document import (
@@ -15,8 +16,14 @@ from reconcile.gql_definitions.fragments.saas_slo_document import (
 )
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.test.fixtures import Fixtures
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.slo_document_manager import SLODetails, SLODocumentManager
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytest_httpserver import HTTPServer
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.fixture

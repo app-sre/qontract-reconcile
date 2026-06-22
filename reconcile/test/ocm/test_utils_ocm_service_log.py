@@ -1,13 +1,13 @@
-from collections.abc import Callable
+from __future__ import annotations
+
 from datetime import (
     UTC,
     datetime,
     timedelta,
 )
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
-from werkzeug import Request
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm import service_log
@@ -26,7 +26,14 @@ from reconcile.utils.ocm.service_log import (
     create_service_log,
     get_service_logs_for_cluster_uuid,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytest_mock import MockerFixture
+    from werkzeug import Request
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def build_service_log(

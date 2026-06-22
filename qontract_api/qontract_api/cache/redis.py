@@ -118,7 +118,7 @@ class RedisCacheBackend(CacheBackend):
         return self._client
 
     @contextmanager
-    def lock(self, key: str, timeout: float = 300) -> Generator[None, None, None]:
+    def lock(self, key: str, timeout: float = 300) -> Generator[None]:
         """Distributed lock using Valkey's native lock (Lua scripts + watch-dog).
 
         Uses valkey.lock() which provides:

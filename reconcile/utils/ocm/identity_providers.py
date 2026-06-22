@@ -1,4 +1,6 @@
-from collections.abc import Generator
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.utils.ocm.base import (
     OCMCluster,
@@ -6,15 +8,17 @@ from reconcile.utils.ocm.base import (
     OCMOIdentityProviderGithub,
     OCMOIdentityProviderOidc,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def get_identity_providers(
     ocm_api: OCMBaseClient, ocm_cluster: OCMCluster
 ) -> Generator[
-    OCMOIdentityProvider | OCMOIdentityProviderOidc | OCMOIdentityProviderGithub,
-    None,
-    None,
+    OCMOIdentityProvider | OCMOIdentityProviderOidc | OCMOIdentityProviderGithub
 ]:
     """Get all identity providers."""
     if ocm_cluster.identity_providers.href:

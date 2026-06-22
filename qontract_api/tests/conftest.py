@@ -27,7 +27,7 @@ def pytest_configure() -> None:
 
 
 @pytest.fixture
-def client() -> Generator[TestClient, None, None]:
+def client() -> Generator[TestClient]:
     """Create test client WITHOUT cache initialization.
 
     This fixture does not initialize cache, useful for testing error scenarios.
@@ -49,7 +49,7 @@ def client() -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture
-def client_with_cache() -> Generator[TestClient, None, None]:
+def client_with_cache() -> Generator[TestClient]:
     """Create test client with mocked cache in app.state.
 
     This fixture sets up a mock cache backend for tests that require cache.
@@ -72,7 +72,7 @@ def client_with_cache() -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture
-def mock_cache() -> Generator[Mock, None, None]:
+def mock_cache() -> Generator[Mock]:
     """Mock cache backend for testing (sync).
 
     Returns the mock object so tests can configure it.

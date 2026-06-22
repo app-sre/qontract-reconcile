@@ -1,9 +1,9 @@
-from collections.abc import Callable, Mapping
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from unittest.mock import call, create_autospec
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.openshift_serviceaccount_tokens.tokens import NamespaceV1
 from reconcile.openshift_serviceaccount_tokens import (
@@ -20,6 +20,11 @@ from reconcile.test.fixtures import Fixtures
 from reconcile.utils.oc import OC_Map, OCCli
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.vault import VaultClient
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

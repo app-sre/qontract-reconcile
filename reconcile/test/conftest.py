@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import time
 from collections.abc import (
     Callable,
@@ -7,23 +9,26 @@ from collections.abc import (
     MutableMapping,
 )
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
 from pydantic import BaseModel, ValidationError
-from pytest_httpserver import HTTPServer
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.models import data_default_none
 from reconcile.utils.state import State
 
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
+    from pytest_mock import MockerFixture
+
+    from reconcile.test.fixtures import Fixtures
+
 
 @pytest.fixture
-def patch_sleep(mocker: MockerFixture) -> Generator[MagicMock, None, None]:
+def patch_sleep(mocker: MockerFixture) -> Generator[MagicMock]:
     yield mocker.patch.object(time, "sleep")
 
 

@@ -46,7 +46,7 @@ def accounts() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def ec2_client() -> Generator[EC2Client, None, None]:
+def ec2_client() -> Generator[EC2Client]:
     with mock_aws():
         yield boto3.client("ec2", region_name="us-east-1")
 

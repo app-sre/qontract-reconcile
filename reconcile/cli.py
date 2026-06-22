@@ -3083,12 +3083,6 @@ def ocm_oidc_idp(
     required=True,
 )
 @click.option(
-    "--contact-emails",
-    default="sd-app-sre+auth@redhat.com",
-    help="A comma seperated list of contact email addresses.",
-    required=True,
-)
-@click.option(
     "--vault-input-path",
     help="path in Vault to find input resources.",
     required=True,
@@ -3117,7 +3111,6 @@ def ocm_oidc_idp(
 def rhidp_sso_client(
     ctx: click.Context,
     keycloak_instance_vault_paths: str,
-    contact_emails: str,
     vault_input_path: str,
     ocm_env: str | None,
     default_auth_name: str,
@@ -3138,7 +3131,6 @@ def rhidp_sso_client(
                 ocm_environment=ocm_env,
                 default_auth_name=default_auth_name,
                 default_auth_issuer_url=default_auth_issuer_url,
-                contacts=list(set(contact_emails.split(","))),
             )
         ),
         ctx=ctx,

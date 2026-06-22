@@ -1,6 +1,8 @@
 """Unit tests for SlackWorkspaceClient.chat_post_message method."""
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,7 +17,6 @@ from qontract_utils.slack_api import (
     SlackUserProfile,
 )
 
-from qontract_api.config import Settings
 from qontract_api.slack.slack_workspace_client import (
     CachedChannels,
     CachedUsergroups,
@@ -23,6 +24,9 @@ from qontract_api.slack.slack_workspace_client import (
     SlackUsergroupNotFoundError,
     SlackWorkspaceClient,
 )
+
+if TYPE_CHECKING:
+    from qontract_api.config import Settings
 
 
 @pytest.fixture

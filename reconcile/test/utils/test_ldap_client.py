@@ -1,10 +1,14 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import ldap3
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.utils.ldap_client import LdapClient, LdapClientError
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

@@ -1,10 +1,7 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import (
-    Callable,
-    Generator,
-    Iterable,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from kubernetes.client import (
@@ -32,7 +29,6 @@ from reconcile.gql_definitions.automated_actions.instance import query as instan
 from reconcile.utils import expiration, gql
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
-from reconcile.utils.oc import OCCli
 from reconcile.utils.oc_map import init_oc_map_from_namespaces
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
 from reconcile.utils.runtime.integration import (
@@ -40,6 +36,15 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Generator,
+        Iterable,
+    )
+
+    from reconcile.utils.oc import OCCli
 
 QONTRACT_INTEGRATION = "automated-actions-config"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 1)
@@ -89,7 +94,7 @@ class AutomatedActionsConfigIntegration(
 
     def get_automated_actions_instances(
         self, query_func: Callable
-    ) -> Generator[AutomatedActionsInstanceV1, None, None]:
+    ) -> Generator[AutomatedActionsInstanceV1]:
         """Return all automated actions."""
         data = instance_query(query_func, variables={})
         for instance in data.automated_actions_instances_v1 or []:
@@ -109,7 +114,7 @@ class AutomatedActionsConfigIntegration(
 
     def filter_actions(
         self, actions: Iterable[AutomatedActionV1]
-    ) -> Generator[AutomatedActionV1, None, None]:
+    ) -> Generator[AutomatedActionV1]:
         """Filter out expired roles and arguments (cluster.namespace) with disabled integrations."""
         for action in actions:
             match action:

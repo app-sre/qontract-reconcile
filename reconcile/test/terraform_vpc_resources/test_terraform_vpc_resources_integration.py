@@ -1,12 +1,12 @@
+from __future__ import annotations
+
 import json
 import logging
 import random
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, call
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
@@ -21,6 +21,11 @@ from reconcile.terraform_vpc_resources.integration import (
     TerraformVpcResourcesParams,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytest_mock import MockerFixture
 
 
 def account_dict(name: str) -> dict[str, Any]:

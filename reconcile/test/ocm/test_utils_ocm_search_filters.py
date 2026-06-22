@@ -1,16 +1,21 @@
+from __future__ import annotations
+
 from datetime import (
     UTC,
     datetime,
 )
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.utils.ocm.search_filters import (
     Filter,
     InvalidChunkRequestError,
     InvalidFilterError,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 #
 # eq and is_in

@@ -3,6 +3,8 @@
 Implements the async-only pattern with blocking GET (see ADR-003).
 """
 
+from __future__ import annotations
+
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, status

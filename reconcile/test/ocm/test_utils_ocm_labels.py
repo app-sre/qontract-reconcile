@@ -1,8 +1,8 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
-from werkzeug import Request
 
 from reconcile.test.ocm.fixtures import (
     OcmUrl,
@@ -28,7 +28,14 @@ from reconcile.utils.ocm.labels import (
     update_ocm_label,
 )
 from reconcile.utils.ocm.search_filters import Filter
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytest_mock import MockerFixture
+    from werkzeug import Request
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def build_organization_label(key: str, value: str, org_id: str) -> OCMOrganizationLabel:

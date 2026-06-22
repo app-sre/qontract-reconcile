@@ -3,19 +3,24 @@
 Service layer should use PagerDutyWorkspaceClient, not PagerDutyApi directly.
 """
 
+from __future__ import annotations
+
 import hashlib
+from typing import TYPE_CHECKING
 
 from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks
 from qontract_utils.pagerduty_api import PagerDutyApi
 from qontract_utils.secret_reader import Secret
 
-from qontract_api.cache import CacheBackend
-from qontract_api.config import Settings
 from qontract_api.external.pagerduty.pagerduty_workspace_client import (
     PagerDutyWorkspaceClient,
 )
 from qontract_api.logger import get_logger
-from qontract_api.secret_manager import SecretManager
+
+if TYPE_CHECKING:
+    from qontract_api.cache import CacheBackend
+    from qontract_api.config import Settings
+    from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
 

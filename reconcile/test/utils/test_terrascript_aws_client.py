@@ -1,11 +1,12 @@
+from __future__ import annotations
+
 import contextlib
 import json
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
 from terrascript.resource import (
     aws_lb,
     aws_s3_bucket,
@@ -13,6 +14,7 @@ from terrascript.resource import (
     aws_s3_bucket_policy,
 )
 
+from reconcile.gql_definitions.fragments.aws_vpc_request import VPCRequest
 from reconcile.terraform_tgw_attachments import (
     Accepter,
     ClusterAccountProviderInfo,
@@ -32,6 +34,9 @@ from reconcile.utils.terrascript_aws_client import (
     TerrascriptClient,
     aws_kinesis_resource_policy,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture
@@ -2044,3 +2049,67 @@ def test_populate_tgw_attachments_unique_sg_rule_ids_per_cluster(
     assert len(set(sg_rule_ids)) == len(sg_rule_ids), (
         "Security group rule IDs must be unique"
     )
+
+
+def test_populate_vpc_requests_s3_gateway_endpoint_route_tables(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+    gql_class_factory: Any,
+) -> None:
+    """S3 gateway endpoints must associate private route tables, not tag them."""
+    mocked_add_resource = mocker.patch.object(ts, "add_resource")
+    vpc_request = gql_class_factory(
+        VPCRequest,
+        {
+            "identifier": "cluster-vpc",
+            "delete": False,
+            "account": {
+                "name": "cluster-account",
+                "uid": "123456789012",
+                "terraformUsername": None,
+                "automationToken": {
+                    "path": "path",
+                    "field": "field",
+                    "version": None,
+                    "format": None,
+                },
+                "disable": None,
+                "supportedDeploymentRegions": ["us-east-1"],
+                "resourcesDefaultRegion": "us-east-1",
+                "providerVersion": "5.7.1",
+                "terraformState": None,
+                "enableDeletion": None,
+                "deletionApprovals": None,
+                "organization": None,
+            },
+            "region": "us-east-1",
+            "cidr_block": {"networkAddress": "10.0.0.0/16"},
+            "vpc_tags": None,
+            "subnets": {
+                "private": ["10.0.1.0/24", "10.0.2.0/24"],
+                "public": ["10.0.101.0/24", "10.0.102.0/24"],
+                "availability_zones": ["us-east-1a", "us-east-1b"],
+                "private_subnet_tags": None,
+                "public_subnet_tags": None,
+            },
+        },
+    )
+
+    ts.populate_vpc_requests([vpc_request], "5.7.1")
+
+    endpoint_modules = [
+        call.args[1]
+        for call in mocked_add_resource.call_args_list
+        if call.args[1]._name == "cluster-vpc-endpoint"
+    ]
+    assert len(endpoint_modules) == 1
+    endpoint_module = endpoint_modules[0]
+    s3_endpoint = endpoint_module["endpoints"]["s3"]
+
+    assert s3_endpoint["service_type"] == "Gateway"
+    assert (
+        s3_endpoint["route_table_ids"]
+        == "${module.cluster-vpc.private_route_table_ids}"
+    )
+    assert "route_table_ids" not in s3_endpoint["tags"]
+    assert s3_endpoint["tags"]["Name"] == "cluster-vpc--vpce-s3"

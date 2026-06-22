@@ -19,7 +19,7 @@ from qontract_utils.vcs.providers.gitlab_client import (
 
 
 @pytest.fixture
-def mock_gitlab_client() -> Generator[MagicMock, None, None]:
+def mock_gitlab_client() -> Generator[MagicMock]:
     """Mock GitLab client."""
     with patch(
         "qontract_utils.vcs.providers.gitlab_client.gitlab.Gitlab"

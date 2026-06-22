@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import json
-from collections.abc import Generator, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -8,9 +9,12 @@ from reconcile.ocm.types import OCMClusterNetwork, OCMSpec, OSDClusterSpec
 from reconcile.ocm_upgrade_scheduler_org_updater import render_policy
 from reconcile.utils.jinja2.utils import Jinja2TemplateError
 
+if TYPE_CHECKING:
+    from collections.abc import Generator, Mapping
+
 
 @pytest.fixture
-def cluster_ocm_spec() -> Generator[OCMSpec, None, None]:
+def cluster_ocm_spec() -> Generator[OCMSpec]:
     n = OCMClusterNetwork(
         vpc="10.112.0.0/16",
         service="10.120.0.0/16",

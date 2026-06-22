@@ -1,8 +1,8 @@
-import logging
-from collections.abc import Callable, Mapping
-from typing import Any
+from __future__ import annotations
 
-from gitlab.v4.objects import ProjectMergeRequest
+import logging
+from typing import TYPE_CHECKING, Any
+
 from sretoolbox.utils import threaded
 
 from reconcile import queries
@@ -15,6 +15,11 @@ from reconcile.utils.gitlab_api import (
 )
 from reconcile.utils.mr.labels import APPROVED
 from reconcile.utils.repo_owners import RepoOwners
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
+    from gitlab.v4.objects import ProjectMergeRequest
 
 QONTRACT_INTEGRATION = "gitlab-owners"
 

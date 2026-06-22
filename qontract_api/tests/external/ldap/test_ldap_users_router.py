@@ -13,7 +13,7 @@ from qontract_api.models import TokenData
 
 
 @pytest.fixture
-def api_client() -> Generator[TestClient, None, None]:
+def api_client() -> Generator[TestClient]:
     """Create test client with mocked cache and secret_manager."""
     from qontract_api.main import app
 

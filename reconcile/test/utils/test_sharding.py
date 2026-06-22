@@ -1,8 +1,12 @@
-import importlib
+from __future__ import annotations
 
-from pytest import MonkeyPatch
+import importlib
+from typing import TYPE_CHECKING
 
 from reconcile.utils import sharding
+
+if TYPE_CHECKING:
+    from pytest import MonkeyPatch
 
 VALUE = "saas-qontract-reconcile"
 

@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import copy
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.acs_policies import AcsPoliciesIntegration
 from reconcile.gql_definitions.acs.acs_policies import (
@@ -19,6 +20,9 @@ from reconcile.gql_definitions.acs.acs_policies import (
     NamespaceV1_ClusterV1,
 )
 from reconcile.utils.acs.policies import AcsPolicyApi, Policy, PolicyCondition, Scope
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 CLUSTER_NAME_ONE = "app-sre-stage"
 CLUSTER_ID_ONE = "5211d395-5cf7-4185-a1fb-d88f41bc7542"
