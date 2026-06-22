@@ -3,15 +3,18 @@
 import contextvars
 import time
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import structlog
 from github import Github
-from github.Repository import Repository
 from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.vcs.provider_protocol import CreateMergeRequestInput
+
+if TYPE_CHECKING:
+    from github.Repository import Repository
 
 logger = structlog.get_logger(__name__)
 

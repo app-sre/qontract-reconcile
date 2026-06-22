@@ -4,7 +4,9 @@ This module defines background tasks for reconciling Slack usergroups.
 Tasks run in Celery workers, separate from the FastAPI application.
 """
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from celery import Task
 from qontract_utils.events import Event
@@ -12,7 +14,6 @@ from qontract_utils.events import Event
 from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
 from qontract_api.event_manager import get_event_manager
-from qontract_api.event_manager._base import EventManager
 from qontract_api.integrations.slack_usergroups.schemas import (
     SlackUsergroupActionUpdateUsers,
     SlackUsergroupsTaskResult,
@@ -27,6 +28,9 @@ from qontract_api.slack.domain import (
     SlackWorkspace,
 )
 from qontract_api.tasks import celery_app, deduplicated_task
+
+if TYPE_CHECKING:
+    from qontract_api.event_manager._base import EventManager
 
 logger = get_logger(__name__)
 

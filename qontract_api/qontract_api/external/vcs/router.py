@@ -4,6 +4,8 @@ Provides cached access to repository OWNERS files from GitHub/GitLab,
 file reading, and file sync reconciliation.
 """
 
+from __future__ import annotations
+
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status

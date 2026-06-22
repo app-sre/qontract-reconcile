@@ -4,7 +4,9 @@ This module defines background tasks for reconciling GitHub organization
 owner membership. Tasks run in Celery workers, separate from the FastAPI app.
 """
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from celery import Task
 from qontract_utils.events import Event
@@ -13,13 +15,15 @@ from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
 from qontract_api.event_manager import get_event_manager
 from qontract_api.github import GithubOrgClientFactory
-from qontract_api.integrations.github_owners.domain import GithubOrgDesiredState
 from qontract_api.integrations.github_owners.schemas import GithubOwnersTaskResult
 from qontract_api.integrations.github_owners.service import GithubOwnersService
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.secret_manager._factory import get_secret_manager
 from qontract_api.tasks import celery_app, deduplicated_task
+
+if TYPE_CHECKING:
+    from qontract_api.integrations.github_owners.domain import GithubOrgDesiredState
 
 logger = get_logger(__name__)
 

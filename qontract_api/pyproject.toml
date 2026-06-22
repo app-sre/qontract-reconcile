@@ -129,6 +129,14 @@ runtime-evaluated-decorators = [
     "dataclasses.dataclass",
     "pydantic.dataclasses.dataclass",
     "pydantic.validate_call",
+    "fastapi.FastAPI.get",
+    "fastapi.FastAPI.post",
+    "fastapi.FastAPI.put",
+    "fastapi.FastAPI.delete",
+    "fastapi.APIRouter.get",
+    "fastapi.APIRouter.post",
+    "fastapi.APIRouter.put",
+    "fastapi.APIRouter.delete",
 ]
 
 [tool.ruff.lint.isort]

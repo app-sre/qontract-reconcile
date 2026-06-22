@@ -1,6 +1,8 @@
 """Celery tasks for Glitchtip reconciliation."""
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from celery import Task
 from qontract_utils.events import Event
@@ -9,13 +11,15 @@ from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
 from qontract_api.event_manager import get_event_manager
 from qontract_api.glitchtip import GlitchtipClientFactory
-from qontract_api.integrations.glitchtip.domain import GIInstance
 from qontract_api.integrations.glitchtip.schemas import GlitchtipTaskResult
 from qontract_api.integrations.glitchtip.service import GlitchtipService
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.secret_manager._factory import get_secret_manager
 from qontract_api.tasks import celery_app, deduplicated_task
+
+if TYPE_CHECKING:
+    from qontract_api.integrations.glitchtip.domain import GIInstance
 
 logger = get_logger(__name__)
 

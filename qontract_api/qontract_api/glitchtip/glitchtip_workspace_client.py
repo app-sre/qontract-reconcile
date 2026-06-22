@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
-from qontract_utils.glitchtip_api import GlitchtipApi
 from qontract_utils.glitchtip_api.models import (
     Organization,
     Project,
@@ -23,6 +22,8 @@ from qontract_utils.glitchtip_api.models import (
 from qontract_api.logger import get_logger
 
 if TYPE_CHECKING:
+    from qontract_utils.glitchtip_api import GlitchtipApi
+
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
 

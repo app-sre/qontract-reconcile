@@ -17,7 +17,7 @@ from qontract_utils.pagerduty_api import (
 
 
 @pytest.fixture
-def mock_pagerduty_client() -> Generator[MagicMock, None, None]:
+def mock_pagerduty_client() -> Generator[MagicMock]:
     """Mock PagerDuty client."""
     with patch("qontract_utils.pagerduty_api.client.RestApiV2Client") as mock_client:
         yield mock_client

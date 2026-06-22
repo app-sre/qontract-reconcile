@@ -19,7 +19,7 @@ DEFAULT_SLACK_API_URL = "https://slack.com/api/"
 
 
 @pytest.fixture
-def mock_webclient() -> Generator[MagicMock, None, None]:
+def mock_webclient() -> Generator[MagicMock]:
     """Mock Slack WebClient."""
     with patch("qontract_utils.slack_api.client.WebClient") as mock_client:
         mock_client.return_value.retry_handlers = []

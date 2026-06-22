@@ -81,7 +81,7 @@ def test_generator_post_hooks_fire_on_close() -> None:
             )
 
         @invoke_with_hooks()
-        def items(self) -> Generator[int, None, None]:
+        def items(self) -> Generator[int]:
             yield 1
             yield 2
             yield 3

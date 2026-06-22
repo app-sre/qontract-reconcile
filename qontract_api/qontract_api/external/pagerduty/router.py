@@ -3,6 +3,8 @@
 Provides cached access to PagerDuty data (schedules, escalation policies).
 """
 
+from __future__ import annotations
+
 from typing import Annotated
 
 from fastapi import APIRouter, Query

@@ -14,18 +14,18 @@ Singleton Pattern:
 - Ensures in-memory cache is shared across all users in the same process
 """
 
+from __future__ import annotations
+
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
+from typing import Any, ClassVar, TypeVar
 
 from cachetools import TTLCache
 from pydantic import BaseModel
 from qontract_utils.json_utils import json_dumps, json_loads
-
-if TYPE_CHECKING:
-    from redis import Redis
+from redis import Redis
 
 from qontract_api.logger import get_logger
 
@@ -52,7 +52,7 @@ class CacheBackend(ABC):
     """
 
     # Singleton instances per backend type (e.g., "redis", "dynamodb")
-    _instances: ClassVar[dict[str, "CacheBackend"]] = {}
+    _instances: ClassVar[dict[str, CacheBackend]] = {}
     _lock: ClassVar[threading.Lock] = threading.Lock()
 
     @classmethod
@@ -60,7 +60,7 @@ class CacheBackend(ABC):
         cls,
         backend_type: str,
         **kwargs: Any,
-    ) -> "CacheBackend":
+    ) -> CacheBackend:
         """Get singleton cache instance for backend type (thread-safe factory).
 
         Uses double-checked locking for thread-safe singleton creation.
@@ -232,7 +232,7 @@ class CacheBackend(ABC):
         ...
 
     @property
-    def client(self) -> "Redis":
+    def client(self) -> Redis:
         """Return the underlying client."""
         raise NotImplementedError
 
@@ -315,7 +315,7 @@ class CacheBackend(ABC):
 
     @abstractmethod
     @contextmanager
-    def lock(self, key: str, timeout: float = 300) -> Generator[None, None, None]:
+    def lock(self, key: str, timeout: float = 300) -> Generator[None]:
         """Distributed lock context manager for thread-safe operations.
 
         Backend-specific implementation using native locking mechanisms:

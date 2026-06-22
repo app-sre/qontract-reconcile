@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.support import AWSApiSupport, SupportPlan
 from qontract_utils.hooks import Hooks
 
@@ -12,6 +11,7 @@ if TYPE_CHECKING:
 
     from mypy_boto3_support import SupportClient
     from pytest_mock import MockerFixture
+    from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 
 
 @pytest.fixture
