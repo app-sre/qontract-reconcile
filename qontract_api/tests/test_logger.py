@@ -1,5 +1,7 @@
 """Tests for structured logging with structlog."""
 
+from __future__ import annotations
+
 import json
 import logging
 from io import StringIO

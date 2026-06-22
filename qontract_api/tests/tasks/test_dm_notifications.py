@@ -1,5 +1,7 @@
 """Tests for _publish_dm_notifications in slack usergroups tasks."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
