@@ -239,6 +239,7 @@ ignore = [
     "TRY002",  # Create your own exception class instead of raising `Exception`
     "BLE001",  # Do not catch blind exception: `Exception`
     "LOG015",  # call on root logger
+    "RUF076",  # pytest-fixture-autouse (https://github.com/astral-sh/ruff/issues/26178)
 ]
 
 [tool.ruff.lint.per-file-ignores]
