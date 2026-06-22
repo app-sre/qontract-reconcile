@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import copy
-from collections.abc import Mapping, Sequence
 from typing import (
+    TYPE_CHECKING,
     Any,
 )
 from unittest.mock import (
@@ -10,7 +12,6 @@ from unittest.mock import (
 
 import pytest
 from kubernetes.dynamic import Resource
-from pytest_mock import MockerFixture
 
 from reconcile import openshift_resources_base as orb
 from reconcile.openshift_base import CurrentStateSpec
@@ -25,6 +26,11 @@ from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+    from pytest_mock import MockerFixture
 
 fxt = Fixtures("namespaces")
 

@@ -1,14 +1,15 @@
+from __future__ import annotations
+
 import logging
 import os
 from subprocess import CompletedProcess
-from typing import Any, TypedDict, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 import pytest
 from kubernetes.dynamic import Resource
 from kubernetes.dynamic.exceptions import ResourceNotFoundError
-from pytest_mock import MockerFixture
 
 import reconcile.utils.oc
 from reconcile.utils.oc import (
@@ -33,6 +34,9 @@ from reconcile.utils.secret_reader import (
     SecretNotFoundError,
     SecretReader,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)

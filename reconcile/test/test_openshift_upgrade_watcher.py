@@ -1,18 +1,23 @@
+from __future__ import annotations
+
 from datetime import (
     UTC,
     datetime,
     timedelta,
 )
-from typing import Any
-from unittest.mock import MagicMock
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile import openshift_upgrade_watcher as ouw
 from reconcile.gql_definitions.common.clusters import ClusterV1
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.models import data_default_none
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
+    from pytest_mock import MockerFixture
 
 fxt = Fixtures("openshift_upgrade_watcher")
 

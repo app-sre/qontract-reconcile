@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from datetime import (
     UTC,
     datetime,
     timedelta,
 )
-
-from pytest_mock import MockFixture
+from typing import TYPE_CHECKING
 
 from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
 from reconcile.aus.base import (
@@ -29,6 +30,9 @@ from reconcile.test.ocm.aus.fixtures import (
     build_upgrade_policy,
 )
 from reconcile.test.ocm.fixtures import build_ocm_cluster
+
+if TYPE_CHECKING:
+    from pytest_mock import MockFixture
 
 
 def test_remaining_soak_day_metric_values_for_cluster_skip_early_ready() -> None:

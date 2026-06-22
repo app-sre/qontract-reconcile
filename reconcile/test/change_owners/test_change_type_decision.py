@@ -1,9 +1,7 @@
 import pytest
 
-from reconcile.change_owners.change_types import (
-    Approver,
-    ChangeTypeContext,
-)
+from reconcile.change_owners.approver import Approver
+from reconcile.change_owners.change_types import ChangeTypeContext
 from reconcile.change_owners.changes import BundleFileChange
 from reconcile.change_owners.decision import (
     Decision,

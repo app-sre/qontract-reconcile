@@ -1,13 +1,18 @@
+from __future__ import annotations
+
 import json
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_httpserver import HTTPServer
 from requests import HTTPError
 
 from reconcile.utils.quay_api import (
     QuayApi,
     QuayTeamNotFoundError,
 )
+
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
 
 ORG = "some-org"
 TEAM_NAME = "some-team"

@@ -1,9 +1,8 @@
-from collections.abc import Callable, Mapping
-from typing import Any
-from unittest.mock import MagicMock
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 from qontract_utils.aws_api_typed.api import AWSApi
 
 from reconcile.gql_definitions.external_resources.external_resources_settings import (
@@ -16,6 +15,12 @@ from reconcile.terraform_init.integration import (
 )
 from reconcile.terraform_init.merge_request_manager import MergeRequestManager
 from reconcile.test.fixtures import Fixtures
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+    from unittest.mock import MagicMock
+
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

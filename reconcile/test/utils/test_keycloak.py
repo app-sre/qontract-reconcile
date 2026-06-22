@@ -1,13 +1,18 @@
+from __future__ import annotations
+
 import json
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_httpserver import HTTPServer
 
 from reconcile.utils.keycloak import (
     KeycloakAPI,
     KeycloakInstance,
     KeycloakMap,
 )
+
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
 
 KEYCLOAK_DEFAULT_RESPONSE = {
     "clientId": "test-client",

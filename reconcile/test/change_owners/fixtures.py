@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import copy
 import hashlib
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jsonpath_ng.ext
-from pydantic import Json
 from pydantic.dataclasses import dataclass
 
 from reconcile.change_owners.bundle import (
@@ -48,6 +49,9 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     UserV1,
 )
 
+if TYPE_CHECKING:
+    from pydantic import Json
+
 
 def _sha256_sum(content: dict[str, Any]) -> str:
     m = hashlib.sha256()
@@ -74,7 +78,7 @@ class QontractServerBundleDiffDataBuilder:
         new_content: dict[str, Any] | None,
         old_sha_override: str | None = None,
         new_sha_override: str | None = None,
-    ) -> "QontractServerBundleDiffDataBuilder":
+    ) -> QontractServerBundleDiffDataBuilder:
         old = copy.deepcopy(old_content)
         if old:
             old[DATAFILE_SHA256SUM_FIELD_NAME] = old_sha_override or _sha256_sum(old)
@@ -98,7 +102,7 @@ class QontractServerBundleDiffDataBuilder:
         schema: str | None = None,
         old_backrefs: list[QontractServerResourcefileBackref] | None = None,
         new_backrefs: list[QontractServerResourcefileBackref] | None = None,
-    ) -> "QontractServerBundleDiffDataBuilder":
+    ) -> QontractServerBundleDiffDataBuilder:
         entry = QontractServerResourcefileDiff(resourcepath=path)
         if old_content:
             entry.old = QontractServerResourcefileDiffState(**{
@@ -398,14 +402,14 @@ class MockFileDiffResolver:
 
     def register_raw_diff(
         self, path: str, old: dict[str, Any] | None, new: dict[str, Any] | None
-    ) -> "MockFileDiffResolver":
+    ) -> MockFileDiffResolver:
         self.file_diffs[path] = (old, new)
         return self
 
     def register_bundle_change(
         self,
         bundle_change: BundleFileChange,
-    ) -> "MockFileDiffResolver":
+    ) -> MockFileDiffResolver:
         return self.register_raw_diff(
             bundle_change.fileref.path, bundle_change.old, bundle_change.new
         )

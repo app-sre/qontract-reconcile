@@ -1,5 +1,6 @@
-from collections.abc import Generator
-from datetime import timedelta
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.ocm.base import (
@@ -7,7 +8,12 @@ from reconcile.utils.ocm.base import (
     OCMClusterServiceLogCreateModel,
 )
 from reconcile.utils.ocm.search_filters import Filter
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+    from datetime import timedelta
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 CLUSTER_SERVICE_LOGS_LIST_ENDPOINT = "/api/service_logs/v1/clusters/cluster_logs"
 CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT = "/api/service_logs/v1/cluster_logs"
@@ -15,7 +21,7 @@ CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT = "/api/service_logs/v1/cluster_logs"
 
 def get_service_logs_for_cluster_uuid(
     ocm_api: OCMBaseClient, cluster_uuid: str, filter: Filter | None = None
-) -> Generator[OCMClusterServiceLog, None, None]:
+) -> Generator[OCMClusterServiceLog]:
     """
     Returns a list of service logs for a cluster, matching the optional filter.
     """

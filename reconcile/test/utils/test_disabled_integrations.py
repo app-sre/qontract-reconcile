@@ -1,15 +1,20 @@
-from collections.abc import Mapping
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from pydantic import BaseModel
-from pytest_mock import MockerFixture
 
 from reconcile.utils.disabled_integrations import (
     HasDisableIntegrations,
     disabled_integrations,
     integration_is_enabled,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from pytest_mock import MockerFixture
 
 
 class IntMandatory(BaseModel):

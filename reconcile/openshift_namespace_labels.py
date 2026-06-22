@@ -1,18 +1,14 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import (
-    Callable,
-    Generator,
-    Sequence,
-)
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from kubernetes.client.exceptions import ApiException
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
-from reconcile.gql_definitions.common.namespaces import NamespaceV1
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -34,6 +30,15 @@ from reconcile.utils.state import (
     State,
     init_state,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Generator,
+        Sequence,
+    )
+
+    from reconcile.gql_definitions.common.namespaces import NamespaceV1
 
 _LOG = logging.getLogger(__name__)
 
@@ -87,7 +92,7 @@ class LabelInventory:
         """Checks if any cluster / namespace has any error registered"""
         return any(e[2] for e in self.iter_errors())
 
-    def iter_errors(self) -> Generator[tuple[str, str, list[str]], None, None]:
+    def iter_errors(self) -> Generator[tuple[str, str, list[str]]]:
         """yields (cluster, namespace, errors) items"""
         for cluster, namespaces in self._errors.items():
             for namespace, errors in namespaces.items():
@@ -126,7 +131,7 @@ class LabelInventory:
         with self._lock:
             self._inv.get(cluster, {}).pop(namespace, None)
 
-    def __iter__(self) -> Generator[tuple[str, str, Types], None, None]:
+    def __iter__(self) -> Generator[tuple[str, str, Types]]:
         """Makes the inventory iterable by yielding (cluster, namespace, types)
         items. Types here is a Dict of {type: labelsOrKeys}"""
         for cluster, namespaces in self._inv.items():

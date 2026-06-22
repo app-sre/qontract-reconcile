@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import logging
 from logging import Logger
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, call, create_autospec
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.utils.early_exit_cache import (
     CacheHeadResult,
@@ -19,7 +20,11 @@ from reconcile.utils.extended_early_exit import (
     ExtendedEarlyExitRunnerResult,
     extended_early_exit_run,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 INTEGRATION = "some_integration"
 EXPECTED_INTEGRATION = "some-integration"

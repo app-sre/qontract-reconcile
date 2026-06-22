@@ -1,18 +1,25 @@
+from __future__ import annotations
+
 from collections import defaultdict
-from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from operator import attrgetter
+from typing import TYPE_CHECKING
 
 from reconcile.change_owners.approver import (
     Approver,
     ApproverReachability,
 )
 from reconcile.change_owners.bundle import FileRef
-from reconcile.change_owners.change_types import ChangeTypeContext, DiffCoverage
-from reconcile.change_owners.changes import BundleFileChange
+from reconcile.change_owners.change_types import ChangeTypeContext
 from reconcile.change_owners.diff import Diff
-from reconcile.utils.gitlab_api import Comment
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.change_owners.change_types import DiffCoverage
+    from reconcile.change_owners.changes import BundleFileChange
+    from reconcile.utils.gitlab_api import Comment
 
 
 class DecisionCommand(Enum):
@@ -82,12 +89,12 @@ class ChangeDecision:
 
     def apply_decision(
         self, ctx: ChangeTypeContext, decision_cmd: DecisionCommand
-    ) -> "ChangeDecision":
+    ) -> ChangeDecision:
         return self.apply_context_decision(ctx.context, decision_cmd)
 
     def apply_context_decision(
         self, context: str, decision_cmd: DecisionCommand
-    ) -> "ChangeDecision":
+    ) -> ChangeDecision:
         if decision_cmd == DecisionCommand.APPROVED:
             self.approve[context] = True
         elif decision_cmd == DecisionCommand.CANCEL_APPROVED:

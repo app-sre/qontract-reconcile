@@ -1,6 +1,6 @@
-from typing import Any
+from __future__ import annotations
 
-from pytest_mock import MockerFixture
+from typing import TYPE_CHECKING, Any
 
 from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
 from reconcile.aus.healthchecks import AUSClusterHealth
@@ -16,17 +16,21 @@ from reconcile.aus.ocm_upgrade_scheduler_org import (
     OCMClusterUpgradeSchedulerOrgIntegration,
 )
 from reconcile.gql_definitions.common.ocm_env_telemeter import OCMEnvTelemeterQueryData
-from reconcile.gql_definitions.fragments.aus_organization import (
-    AUSOCMOrganization,
-)
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.test.ocm.aus.fixtures import (
     build_addon_upgrade_spec,
     build_organization,
     build_upgrade_policy_cluster,
 )
 from reconcile.test.ocm.fixtures import build_cluster_details
-from reconcile.utils.ocm.base import ClusterDetails
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+
+    from reconcile.gql_definitions.fragments.aus_organization import (
+        AUSOCMOrganization,
+    )
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+    from reconcile.utils.ocm.base import ClusterDetails
 
 ORG_ID = "org-id"
 

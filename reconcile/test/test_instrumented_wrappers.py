@@ -1,7 +1,9 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 from prometheus_client import Counter
-from pytest_mock import MockerFixture
 from requests import Session
 from sretoolbox.container import (
     Image,
@@ -13,6 +15,9 @@ from reconcile.utils.instrumented_wrappers import (
     InstrumentedSession,
     InstrumentedSkopeo,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_instrumented_image(mocker: MockerFixture) -> None:

@@ -1,14 +1,19 @@
-from typing import Any
-from unittest.mock import MagicMock
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.slack_base import (
     slackapi_from_permissions,
     slackapi_from_slack_workspace,
 )
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
+    from pytest_mock import MockerFixture
 
 
 def create_api_config() -> dict[str, Any]:

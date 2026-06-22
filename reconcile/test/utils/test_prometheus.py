@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import pytest
-from pytest_httpserver import HTTPServer
 from requests import HTTPError
 
 from reconcile.utils.prometheus import (
@@ -11,6 +13,9 @@ from reconcile.utils.prometheus import (
     PrometheusValue,
     PrometheusVector,
 )
+
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
 
 
 def test_prometheus_vector() -> None:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import hashlib
 import itertools
@@ -8,17 +10,9 @@ import re
 from collections import (
     defaultdict,
 )
-from collections.abc import (
-    Generator,
-    Iterable,
-    Mapping,
-    MutableMapping,
-    Sequence,
-)
 from contextlib import suppress
 from datetime import datetime, timedelta
-from types import TracebackType
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 import yaml
 from github import (
@@ -39,9 +33,6 @@ from reconcile.status import RunningState
 from reconcile.utils import helm
 from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.github_api import GithubRepositoryApi
-from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.jenkins_api import JenkinsApi, JobBuildState
-from reconcile.utils.jjb_client import JJB
 from reconcile.utils.json import json_dumps
 from reconcile.utils.oc import (
     OCLocal,
@@ -87,10 +78,24 @@ from reconcile.utils.saasherder.models import (
     TriggerTypes,
     UpstreamJob,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.slo_document_manager import SLODetails, SLODocumentManager
-from reconcile.utils.state import State
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Generator,
+        Iterable,
+        Mapping,
+        MutableMapping,
+        Sequence,
+    )
+    from types import TracebackType
+
+    from reconcile.utils.gitlab_api import GitLabApi
+    from reconcile.utils.jenkins_api import JenkinsApi, JobBuildState
+    from reconcile.utils.jjb_client import JJB
+    from reconcile.utils.secret_reader import SecretReaderBase
+    from reconcile.utils.state import State
 
 TARGET_CONFIG_HASH = "target_config_hash"
 TEMPLATE_API_VERSION = "template.openshift.io/v1"
@@ -204,11 +209,7 @@ class SaasHerder:
 
     def __iter__(
         self,
-    ) -> Generator[
-        tuple[SaasFile, SaasResourceTemplate, SaasResourceTemplateTarget],
-        None,
-        None,
-    ]:
+    ) -> Generator[tuple[SaasFile, SaasResourceTemplate, SaasResourceTemplateTarget]]:
         for saas_file in self.saas_files:
             for resource_template in saas_file.resource_templates:
                 for target in resource_template.targets:

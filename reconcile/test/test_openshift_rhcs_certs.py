@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 import base64
 import time
-from collections.abc import Callable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, MagicMock, call
 
 import pytest
-from pytest_mock import MockerFixture
 
 import reconcile.openshift_rhcs_certs as rhcs_certs
 from reconcile.gql_definitions.rhcs.certs import (
@@ -26,6 +26,11 @@ from reconcile.utils.rhcsv2_certs import (
     RhcsV2CertPkcs12,
 )
 from reconcile.utils.vault import SecretNotFoundError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
+    from pytest_mock import MockerFixture
 
 
 def build_vault_cert_data(

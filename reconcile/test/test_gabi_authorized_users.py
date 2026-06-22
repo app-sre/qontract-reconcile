@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 from datetime import (
     UTC,
     datetime,
     timedelta,
 )
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
 
 import reconcile.gabi_authorized_users as gabi_u
 import reconcile.openshift_base as ob
@@ -13,6 +15,9 @@ from reconcile.test.fixtures import Fixtures
 from reconcile.utils.aggregated_list import RunnerError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 fixture = Fixtures("gabi_authorized_users").get_anymarkup("api.yml")
 

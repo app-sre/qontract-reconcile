@@ -1,8 +1,9 @@
-from collections.abc import Generator
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
-from pytest_mock import MockerFixture, MockFixture
 from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile.gcp_image_mirror import ImageSyncItem, QuayMirror, SyncTask
@@ -20,6 +21,11 @@ from reconcile.gql_definitions.gcp.gcp_docker_repos import (
     GcpProjectV1,
 )
 from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from pytest_mock import MockerFixture, MockFixture
 
 TEST_PROJECT_NAME = "foo"
 AR_IMAGE_URL = f"us-docker.pkg.dev/{TEST_PROJECT_NAME}/terraform-repo-executor"
@@ -130,7 +136,7 @@ def test_process_repos_to_sync(
 @pytest.fixture()
 def gcp_mirror_instance(
     setup_mocks: None, mocker: MockerFixture
-) -> Generator[tuple[QuayMirror, MagicMock], None, None]:
+) -> Generator[tuple[QuayMirror, MagicMock]]:
     mocker.patch("reconcile.gcp_image_mirror.gql_gcp_repos")
     with QuayMirror() as qm:
         mock_skopeo: MagicMock = MagicMock()

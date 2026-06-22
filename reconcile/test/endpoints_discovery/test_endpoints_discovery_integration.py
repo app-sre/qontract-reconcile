@@ -1,7 +1,7 @@
-from collections.abc import Callable, Sequence
-from textwrap import dedent
+from __future__ import annotations
 
-from pytest_mock import MockerFixture
+from textwrap import dedent
+from typing import TYPE_CHECKING
 
 from reconcile.endpoints_discovery.integration import (
     EndpointsDiscoveryIntegration,
@@ -12,7 +12,13 @@ from reconcile.endpoints_discovery.integration import (
 )
 from reconcile.endpoints_discovery.merge_request_manager import App, Endpoint
 from reconcile.gql_definitions.endpoints_discovery.apps import AppEndPointsV1, AppV1
-from reconcile.utils.oc_map import OCMap
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
+    from pytest_mock import MockerFixture
+
+    from reconcile.utils.oc_map import OCMap
 
 TEMPLATE = """
 ---

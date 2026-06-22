@@ -1,10 +1,6 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import (
-    Iterable,
-)
-from collections.abc import (
-    Set as AbstractSet,
-)
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import (
@@ -13,16 +9,10 @@ from datetime import (
 )
 from enum import StrEnum
 from operator import itemgetter
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import gitlab
 from gitlab.const import PipelineStatus
-from gitlab.v4.objects import (
-    ProjectCommit,
-    ProjectIssue,
-    ProjectMergeRequest,
-    ProjectMergeRequestPipeline,
-)
 from prometheus_client import (
     Counter,
     Gauge,
@@ -61,6 +51,21 @@ from reconcile.utils.mr.labels import (
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.state import State, init_state
 from reconcile.utils.unleash import get_feature_variant
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+    )
+    from collections.abc import (
+        Set as AbstractSet,
+    )
+
+    from gitlab.v4.objects import (
+        ProjectCommit,
+        ProjectIssue,
+        ProjectMergeRequest,
+        ProjectMergeRequestPipeline,
+    )
 
 MERGE_LABELS_PRIORITY = [
     prioritized_approval_label(p.value) for p in ChangeTypePriority

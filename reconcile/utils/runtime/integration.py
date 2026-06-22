@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import functools
 import os
 from abc import (
@@ -6,10 +8,9 @@ from abc import (
 )
 from collections.abc import Callable
 from dataclasses import dataclass
-from types import ModuleType
 from typing import (
+    TYPE_CHECKING,
     Any,
-    Optional,
     Self,
     TypeVar,
 )
@@ -31,6 +32,9 @@ from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
 )
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 
 @dataclass
@@ -139,7 +143,7 @@ class NoParams(RunParams):
     A `RunParams` instance that does not contain any parameters.
     """
 
-    def copy_and_update(self, update: dict[str, Any]) -> "NoParams":
+    def copy_and_update(self, update: dict[str, Any]) -> NoParams:
         return NoParams()
 
     def get(self, field: str) -> None:
@@ -189,7 +193,7 @@ class QontractReconcileIntegration[RunParamsTypeVar: RunParams](ABC):
         """
         return None
 
-    def get_desired_state_shard_config(self) -> Optional["DesiredStateShardConfig"]:
+    def get_desired_state_shard_config(self) -> DesiredStateShardConfig | None:
         """
         An integration that wants to support sharded dry-runs on its desired state
         must implement this method and return a `DesiredStateShardConfig` instance.
@@ -350,7 +354,7 @@ class ModuleArgsKwargsRunParams(RunParams):
         self.args = args
         self.kwargs = kwargs
 
-    def copy_and_update(self, update: dict[str, Any]) -> "ModuleArgsKwargsRunParams":
+    def copy_and_update(self, update: dict[str, Any]) -> ModuleArgsKwargsRunParams:
         kwargs_copy = self.kwargs.copy()
         kwargs_copy.update(update)
         return ModuleArgsKwargsRunParams(self.module, *self.args, **kwargs_copy)
@@ -397,7 +401,7 @@ class ModuleBasedQontractReconcileIntegration(
             )
         return None
 
-    def get_desired_state_shard_config(self) -> Optional["DesiredStateShardConfig"]:
+    def get_desired_state_shard_config(self) -> DesiredStateShardConfig | None:
         if self._integration_supports(DESIRED_STATE_SHARD_CONFIG_FUNCTION):
             return self.params.module.desired_state_shard_config()
         return None

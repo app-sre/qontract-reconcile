@@ -1,8 +1,8 @@
-from collections.abc import Callable
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockFixture
 
 from reconcile.utils.ocm.status_board import (
     METADATA_MANAGED_BY_KEY,
@@ -18,6 +18,11 @@ from reconcile.utils.ocm.status_board import (
     get_product_applications,
     update_service,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytest_mock import MockFixture
 
 
 @pytest.fixture

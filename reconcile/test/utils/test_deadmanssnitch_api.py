@@ -1,10 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
-from pytest_httpserver import HTTPServer
 from requests.exceptions import HTTPError
 
 from reconcile.utils.deadmanssnitch_api import (
     DeadMansSnitchApi,
 )
+
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
 
 TOKEN = "test_token"
 URL = "/v1/snitches"

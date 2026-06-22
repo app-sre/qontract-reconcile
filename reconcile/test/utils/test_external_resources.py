@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import json
 from collections import Counter
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
 import reconcile.utils.external_resources as uer
 from reconcile.utils.external_resource_spec import (
@@ -12,6 +13,9 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpecInventory,
     ExternalResourceUniqueKey,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 NamespaceInfo = Mapping[str, Any]
 

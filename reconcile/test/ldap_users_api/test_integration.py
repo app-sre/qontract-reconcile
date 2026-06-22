@@ -233,7 +233,7 @@ def _vcs_instances() -> list[Vcs]:
 
 
 @pytest.fixture
-def integration() -> Generator[LdapUsersApiIntegration, None, None]:
+def integration() -> Generator[LdapUsersApiIntegration]:
     """Create integration instance with mocked base class properties."""
     inst = LdapUsersApiIntegration(
         LdapUsersApiIntegrationParams(
