@@ -1,4 +1,5 @@
 """Tests for SlackWorkspaceClient.send_dm and _resolve_user_id."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

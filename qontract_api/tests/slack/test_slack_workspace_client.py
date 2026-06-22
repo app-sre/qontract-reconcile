@@ -1,4 +1,5 @@
 """Unit tests for SlackWorkspaceClient.chat_post_message method."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any

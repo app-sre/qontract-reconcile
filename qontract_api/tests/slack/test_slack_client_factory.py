@@ -1,4 +1,5 @@
 """Unit tests for create_slack_workspace_client factory function."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
