@@ -87,6 +87,7 @@ HOLD_LABELS = [
 ERROR_LABELS = [MERGE_ERROR, PIPELINE_ERROR]
 
 TENANT_LABEL_PREFIX = "tenant-"
+MIN_OMM_GROUP_SIZE = 3  # 1 lead + 2 pending MRs
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
@@ -1371,7 +1372,7 @@ def merge_merge_requests(
                     merge_requests=merge_requests,
                     merged_labels=merged_labels,
                 )
-                if candidates:
+                if len(candidates) >= MIN_OMM_GROUP_SIZE - 1:  # -1 for the lead
                     apply_omm_group_lead(dry_run, gl, mr)
                     apply_omm_pending(dry_run, gl, candidates)
             break
