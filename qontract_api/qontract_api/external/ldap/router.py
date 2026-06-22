@@ -9,7 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from qontract_api.config import settings
-from qontract_api.dependencies import CacheDep, SecretManagerDep, UserDep  # noqa: TC001
+from qontract_api.dependencies import CacheDep, SecretManagerDep, UserDep
 from qontract_api.external.ldap.ldap_factory import (
     create_ldap_workspace_client,
 )

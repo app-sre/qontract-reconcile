@@ -10,7 +10,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from qontract_api.config import settings
-from qontract_api.dependencies import CacheDep, SecretManagerDep, UserDep  # noqa: TC001
+from qontract_api.dependencies import CacheDep, SecretManagerDep, UserDep
 from qontract_api.external.pagerduty.pagerduty_factory import (
     create_pagerduty_workspace_client,
 )
@@ -20,7 +20,7 @@ from qontract_api.external.pagerduty.schemas import (
     ScheduleUsersResponse,
 )
 from qontract_api.logger import get_logger
-from qontract_api.models import Secret  # noqa: TC001
+from qontract_api.models import Secret
 
 logger = get_logger(__name__)
 

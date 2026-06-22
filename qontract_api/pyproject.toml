@@ -130,6 +130,7 @@ runtime-evaluated-decorators = [
     "pydantic.dataclasses.dataclass",
     "pydantic.validate_call",
 ]
+exempt-modules = ["qontract_api.dependencies", "qontract_api.health", "qontract_api.models"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["qontract_api"]

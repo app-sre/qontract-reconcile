@@ -13,7 +13,7 @@ from pydantic import Field
 from qontract_utils.events import Event
 
 from qontract_api.config import settings
-from qontract_api.dependencies import (  # noqa: TC001
+from qontract_api.dependencies import (
     CacheDep,
     EventManagerDep,
     SecretManagerDep,
