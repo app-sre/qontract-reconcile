@@ -66,7 +66,7 @@ class ConcreteCacheBackend(CacheBackend):
         self.storage.clear()
 
     @contextmanager
-    def lock(self, key: str, timeout: float = 300) -> Generator[None, None, None]:  # noqa: ARG002
+    def lock(self, key: str, timeout: float = 300) -> Generator[None]:  # noqa: ARG002
         """Mock lock implementation (no-op for base tests)."""
         yield
 

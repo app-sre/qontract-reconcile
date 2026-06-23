@@ -1,11 +1,10 @@
+from __future__ import annotations
+
 import json
 import logging
 from collections import defaultdict
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
-from gitlab.v4.objects import (
-    ProjectCommit,
-)
 from pydantic import BaseModel
 
 from reconcile.change_owners.bundle import (
@@ -32,6 +31,13 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 from reconcile.utils.state import init_state
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from gitlab.v4.objects import (
+        ProjectCommit,
+    )
 
 QONTRACT_INTEGRATION = "change-log-tracking"
 BUNDLE_DIFFS_OBJ = "bundle-diffs.json"

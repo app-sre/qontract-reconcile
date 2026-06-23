@@ -1,9 +1,8 @@
-from collections.abc import Callable, Mapping
-from typing import Any
-from unittest.mock import MagicMock
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.unleash_feature_toggles.feature_toggles import (
     UnleashInstanceV1,
@@ -20,6 +19,12 @@ from reconcile.utils.unleash.server import (
     Project,
     UnleashServer,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+    from unittest.mock import MagicMock
+
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

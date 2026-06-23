@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import threading
-from collections.abc import Mapping, MutableMapping
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 from oauthlib.oauth2 import BackendApplicationClient, TokenExpiredError
-from requests import Response
-from requests.adapters import BaseAdapter
 from requests_oauthlib import OAuth2Session
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, MutableMapping
+
+    from requests import Response
+    from requests.adapters import BaseAdapter
 
 FETCH_TOKEN_HEADERS = {
     "Accept": "application/json",

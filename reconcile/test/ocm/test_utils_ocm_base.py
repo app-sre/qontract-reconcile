@@ -1,11 +1,17 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
-from werkzeug import Request
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.test.ocm.test_utils_ocm_get_json import build_paged_ocm_response
 from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from werkzeug import Request
 
 
 @pytest.fixture

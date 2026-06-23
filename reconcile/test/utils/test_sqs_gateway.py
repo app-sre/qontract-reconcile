@@ -1,10 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.sqs_gateway import SQSGateway
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

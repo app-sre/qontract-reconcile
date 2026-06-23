@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import io
 import os
 import tarfile
-from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock, create_autospec
 
 import pytest
@@ -38,10 +39,14 @@ from gitlab.v4.objects import (
     ProjectMergeRequestResourceLabelEvent,
     ProjectMergeRequestResourceLabelEventManager,
 )
-from pytest_mock import MockerFixture
 from requests.exceptions import ConnectTimeout
 
 from reconcile.utils.gitlab_api import Assignment, Comment, GitLabApi
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from pytest_mock import MockerFixture
 
 
 def test_gitlab_client_timeout(mocker: MockerFixture, patch_sleep: None) -> None:

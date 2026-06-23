@@ -50,6 +50,18 @@ class TektonTimeoutBadValueError(Exception):
     pass
 
 
+def _validate_tekton_timeout(
+    saas_file_name: str, env_name: str, timeout: str | None
+) -> None:
+    if not timeout:
+        return
+    seconds = dhms_to_seconds(timeout)
+    if seconds < 3600:  # 1 hour
+        raise TektonTimeoutBadValueError(
+            f"[{saas_file_name}/{env_name}] timeout {timeout} is smaller than 60 minutes"
+        )
+
+
 @defer
 def run(
     dry_run: bool,
@@ -267,19 +279,23 @@ def _trigger_tekton(
         )
         return False
 
-    tkn_trigger_resource, tkn_name = _construct_tekton_trigger_resource(
-        spec.saas_file_name,
-        spec.env_name,
-        tkn_pipeline_name,
-        spec.timeout,
-        tkn_cluster_console_url,
-        tkn_namespace_name,
-        integration,
-        integration_version,
-        saasherder.include_trigger_trace,
-        spec.reason,
-        spec.target_ref,
-    )
+    try:
+        tkn_trigger_resource, tkn_name = _construct_tekton_trigger_resource(
+            spec.saas_file_name,
+            spec.env_name,
+            tkn_pipeline_name,
+            spec.timeout,
+            tkn_cluster_console_url,
+            tkn_namespace_name,
+            integration,
+            integration_version,
+            saasherder.include_trigger_trace,
+            spec.reason,
+            spec.target_ref,
+        )
+    except TektonTimeoutBadValueError as e:
+        logging.error(str(e))
+        return True
 
     error = False
     to_trigger = _register_trigger(tkn_name, already_triggered)
@@ -397,13 +413,8 @@ def _construct_tekton_trigger_resource(
         },
     }
 
+    _validate_tekton_timeout(saas_file_name, env_name, timeout)
     if timeout:
-        seconds = dhms_to_seconds(timeout)
-        if seconds < 3600:  # 1 hour
-            raise TektonTimeoutBadValueError(
-                f"timeout {timeout} is smaller than 60 minutes"
-            )
-
         body["spec"]["timeouts"] = {
             "pipeline": "0",
             "tasks": timeout,

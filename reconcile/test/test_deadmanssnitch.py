@@ -1,7 +1,9 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.deadmanssnitch import (
     DeadMansSnitchIntegration,
@@ -17,6 +19,9 @@ from reconcile.utils.deadmanssnitch_api import (
     DeadMansSnitchApi,
     Snitch,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

@@ -1,15 +1,21 @@
-from collections.abc import Callable
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_httpserver import HTTPServer
-from pytest_mock import MockerFixture
 
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.glitchtip import GlitchtipClient
-from reconcile.utils.oc import OCNative
-from reconcile.utils.oc_map import OCMap
 from reconcile.utils.rest_api_base import BearerTokenAuth
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytest_httpserver import HTTPServer
+    from pytest_mock import MockerFixture
+
+    from reconcile.utils.oc import OCNative
+    from reconcile.utils.oc_map import OCMap
 
 
 @pytest.fixture

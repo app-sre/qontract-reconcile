@@ -45,7 +45,7 @@ class MockCacheBackend(CacheBackend):
         self.locks.clear()
 
     @contextmanager
-    def lock(self, key: str, timeout: float = 300) -> Generator[None, None, None]:
+    def lock(self, key: str, timeout: float = 300) -> Generator[None]:
         """Acquire distributed lock (mock implementation)."""
         lock_key = f"{key}:lock"
         if lock_key in self.locks:

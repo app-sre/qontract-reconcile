@@ -1,10 +1,16 @@
 """Factory for creating GithubOrgWorkspaceClient instances."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from qontract_utils.github_org.api import GithubOrgApi
 
-from qontract_api.cache import CacheBackend
-from qontract_api.config import Settings
 from qontract_api.github.github_org_workspace_client import GithubOrgWorkspaceClient
+
+if TYPE_CHECKING:
+    from qontract_api.cache import CacheBackend
+    from qontract_api.config import Settings
 
 
 class GithubOrgClientFactory:

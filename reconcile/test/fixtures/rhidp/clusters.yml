@@ -60,6 +60,39 @@
     name: oidc-auth
     issuer: "https://issuer.com"
     status: enabled
+# with group filter regex
+- ocm_cluster:
+    name: cluster-groups
+    state: ready
+    subscription:
+      id: cluster-groups_subs_id
+    region:
+      id: us-east-1
+    cloud_provider:
+      id: aws
+    product:
+      id: rosa
+    identity_providers:
+      id: identity_providers
+    aws:
+      sts:
+        enabled: false
+    version:
+      id: openshift-v4.13.0
+      raw_id: 4.13.0
+      channel_group: stable
+      available_upgrades: []
+    hypershift:
+      enabled: false
+    console:
+      url: "https://console.foobar.com"
+  organization_id: "org-id-2"
+  console_url: "https://console.url.com"
+  auth:
+    name: oidc-auth
+    issuer: "https://issuer.com"
+    status: enabled
+    group_filter_regex: "^ai-.*"
 # disabled oidc auth
 - ocm_cluster:
     name: cluster-3

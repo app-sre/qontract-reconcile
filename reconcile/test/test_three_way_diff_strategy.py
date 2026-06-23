@@ -1,5 +1,6 @@
-from collections.abc import Generator
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -11,11 +12,14 @@ from reconcile.utils.three_way_diff_strategy import (
 
 from .fixtures import Fixtures
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
 fxt = Fixtures("openshift_resource")
 
 
 @pytest.fixture
-def deployment() -> Generator[dict[str, Any], None, None]:
+def deployment() -> Generator[dict[str, Any]]:
     yield fxt.get_anymarkup("deployment.yml")
 
 

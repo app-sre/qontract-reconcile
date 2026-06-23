@@ -419,7 +419,7 @@ class State:
     @contextlib.contextmanager
     def transaction(
         self, key: str, value: Any = None
-    ) -> Generator[TransactionStateObj, None, None]:
+    ) -> Generator[TransactionStateObj]:
         """Get a context manager to set the key in the state if no exception occurs.
 
         You can set the value either via the value parameter or by setting the value attribute of the returned object.

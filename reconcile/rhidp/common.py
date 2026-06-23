@@ -42,6 +42,7 @@ RHIDP_NAMESPACE_LABEL_KEY = sre_capability_label_key("rhidp")
 STATUS_LABEL_KEY = sre_capability_label_key("rhidp", "status")
 ISSUER_LABEL_KEY = sre_capability_label_key("rhidp", "issuer")
 AUTH_NAME_LABEL_KEY = sre_capability_label_key("rhidp", "name")
+GROUP_FILTER_REGEX_LABEL_KEY = sre_capability_label_key("rhidp", "group-filter-regex")
 
 
 class StatusValue(StrEnum):
@@ -59,6 +60,7 @@ class ClusterAuth(BaseModel):
     name: str
     issuer: str
     status: str
+    group_filter_regex: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -132,6 +134,9 @@ def build_cluster_objects(
                 status=cluster.labels.get_label_value(RHIDP_NAMESPACE_LABEL_KEY)
                 or cluster.labels.get_label_value(STATUS_LABEL_KEY)
                 or StatusValue.DISABLED.value,
+                group_filter_regex=cluster.labels.get_label_value(
+                    GROUP_FILTER_REGEX_LABEL_KEY
+                ),
             ),
             organization_id=cluster.organization_id,
         )

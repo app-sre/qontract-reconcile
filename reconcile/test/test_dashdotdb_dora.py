@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import yaml
-from pytest_mock import MockerFixture
 
 from reconcile.dashdotdb_dora import (
     AppEnv,
@@ -12,6 +14,9 @@ from reconcile.dashdotdb_dora import (
     RepoChanges,
     SaasTarget,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_get_repo_ref_for_sha(mocker: MockerFixture) -> None:

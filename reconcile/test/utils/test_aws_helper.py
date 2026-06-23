@@ -1,11 +1,17 @@
-from collections.abc import Iterable, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 from pydantic import BaseModel
-from pytest_mock import MockerFixture
 
 import reconcile.utils.aws_helper as awsh
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
+    from pytest_mock import MockerFixture
 
 
 def test_get_id_from_arn() -> None:

@@ -1,13 +1,8 @@
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
-from typing import Any
-from unittest.mock import Mock
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.ldap_groups.roles import RoleV1
 from reconcile.ldap_groups.integration import (
@@ -21,6 +16,16 @@ from reconcile.utils.internal_groups.models import (
     EntityType,
     Group,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
+    from unittest.mock import Mock
+
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

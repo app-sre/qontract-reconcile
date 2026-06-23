@@ -1,11 +1,8 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import (
-    Callable,
-    Generator,
-    Iterable,
-    Mapping,
-)
 from typing import (
+    TYPE_CHECKING,
     Any,
     TypedDict,
     cast,
@@ -13,9 +10,6 @@ from typing import (
 
 from pydantic import BaseModel
 
-from reconcile.gql_definitions.common.app_interface_vault_settings import (
-    AppInterfaceSettingsV1,
-)
 from reconcile.gql_definitions.common.clusters_with_peering import (
     ClusterPeeringConnectionAccountTGWV1,
     ClusterPeeringConnectionAccountV1,
@@ -55,6 +49,18 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 from reconcile.utils.unleash import get_feature_toggle_state
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Generator,
+        Iterable,
+        Mapping,
+    )
+
+    from reconcile.gql_definitions.common.app_interface_vault_settings import (
+        AppInterfaceSettingsV1,
+    )
 
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -154,7 +160,7 @@ def _build_desired_state_items(
     awsapi: AWSApi,
     tgw_account_names: list[str],
     account_name: str | None = None,
-) -> Generator[DesiredStateItem | None, Any, None]:
+) -> Generator[DesiredStateItem | None, Any]:
     for cluster_info in clusters:
         ocm = ocm_map.get(cluster_info.name) if ocm_map and cluster_info.ocm else None
         for peer_connection in cluster_info.peering.connections:  # type: ignore[union-attr]
@@ -176,7 +182,7 @@ def _build_desired_state_tgw_connection(
     cluster_info: ClusterV1,
     ocm: OCM | None,
     awsapi: AWSApi,
-) -> Generator[DesiredStateItem | None, Any, None]:
+) -> Generator[DesiredStateItem | None, Any]:
     cluster_name = cluster_info.name
     cluster_region = cluster_info.spec.region if cluster_info.spec is not None else ""
     cluster_cidr_block = (

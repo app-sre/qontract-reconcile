@@ -1,13 +1,20 @@
-import pytest
-from pytest_httpserver import HTTPServer
+from __future__ import annotations
 
-from reconcile.test.fixtures import Fixtures
+from typing import TYPE_CHECKING
+
+import pytest
+
 from reconcile.utils.internal_groups.client import (
     InternalGroupsApi,
     InternalGroupsClient,
     NotFoundError,
 )
 from reconcile.utils.internal_groups.models import Group
+
+if TYPE_CHECKING:
+    from pytest_httpserver import HTTPServer
+
+    from reconcile.test.fixtures import Fixtures
 
 
 def test_internal_groups_api_create_group(

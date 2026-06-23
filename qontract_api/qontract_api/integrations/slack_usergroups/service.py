@@ -1,12 +1,13 @@
 """Slack usergroups reconciliation service."""
 
+from __future__ import annotations
+
 from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from qontract_utils.differ import diff_iterables
 from qontract_utils.secret_reader import Secret
 
-from qontract_api.cache import CacheBackend
-from qontract_api.config import Settings
 from qontract_api.integrations.slack_usergroups.schemas import (
     SlackUsergroupAction,
     SlackUsergroupActionCreate,
@@ -16,10 +17,14 @@ from qontract_api.integrations.slack_usergroups.schemas import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
-from qontract_api.secret_manager import SecretManager
-from qontract_api.slack.domain import SlackUsergroup, SlackWorkspace
 from qontract_api.slack.slack_client_factory import create_slack_workspace_client
-from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
+
+if TYPE_CHECKING:
+    from qontract_api.cache import CacheBackend
+    from qontract_api.config import Settings
+    from qontract_api.secret_manager import SecretManager
+    from qontract_api.slack.domain import SlackUsergroup, SlackWorkspace
+    from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
 
 logger = get_logger(__name__)
 

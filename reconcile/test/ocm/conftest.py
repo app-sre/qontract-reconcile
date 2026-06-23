@@ -1,16 +1,21 @@
-from collections.abc import Callable
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import pytest
-from pytest_httpserver import HTTPServer
-from werkzeug import Request, Response
 
 from reconcile.test.fixtures import Fixtures
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.json import json_dumps, pydantic_encoder
 from reconcile.utils.ocm import OCM
 from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytest_httpserver import HTTPServer
+    from werkzeug import Request, Response
 
 
 @pytest.fixture

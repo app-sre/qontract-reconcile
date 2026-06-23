@@ -1,4 +1,6 @@
-from collections.abc import Mapping
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -11,6 +13,9 @@ from reconcile.utils.glitchtip.models import (
     ProjectAlert,
     slugify,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @pytest.mark.parametrize(
@@ -25,7 +30,7 @@ from reconcile.utils.glitchtip.models import (
 )
 @pytest.mark.parametrize("model", [Organization, Project, Team])
 def test_model_slugs(
-    model: type[Organization] | type[Project] | type[Team], name: str, slug: str
+    model: type[Organization | Project | Team], name: str, slug: str
 ) -> None:
     assert model(name=name).slug == slug
 

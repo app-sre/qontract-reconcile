@@ -1,6 +1,9 @@
 """Glitchtip project alerts reconciliation service."""
 
+from __future__ import annotations
+
 import operator
+from typing import TYPE_CHECKING
 
 from qontract_utils.differ import diff_iterables
 from qontract_utils.glitchtip_api.models import (
@@ -9,13 +12,6 @@ from qontract_utils.glitchtip_api.models import (
     RecipientType,
 )
 
-from qontract_api.config import Settings
-from qontract_api.glitchtip import GlitchtipClientFactory, GlitchtipWorkspaceClient
-from qontract_api.integrations.glitchtip_project_alerts.domain import (
-    GlitchtipInstance,
-    GlitchtipOrganization,
-    GlitchtipProjectAlert,
-)
 from qontract_api.integrations.glitchtip_project_alerts.schemas import (
     GlitchtipAlertAction,
     GlitchtipAlertActionCreate,
@@ -25,7 +21,16 @@ from qontract_api.integrations.glitchtip_project_alerts.schemas import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
-from qontract_api.secret_manager import SecretManager
+
+if TYPE_CHECKING:
+    from qontract_api.config import Settings
+    from qontract_api.glitchtip import GlitchtipClientFactory, GlitchtipWorkspaceClient
+    from qontract_api.integrations.glitchtip_project_alerts.domain import (
+        GlitchtipInstance,
+        GlitchtipOrganization,
+        GlitchtipProjectAlert,
+    )
+    from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
 

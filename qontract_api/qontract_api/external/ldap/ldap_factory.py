@@ -1,14 +1,19 @@
 """Factory for creating LdapWorkspaceClient instances."""
 
+from __future__ import annotations
+
 import hashlib
+from typing import TYPE_CHECKING
 
 from qontract_utils.ldap_api import LdapApi
 
-from qontract_api.cache import CacheBackend
-from qontract_api.config import Settings
 from qontract_api.external.ldap.ldap_workspace_client import LdapWorkspaceClient
-from qontract_api.external.ldap.schemas import LdapDirectSecret
-from qontract_api.secret_manager import SecretManager
+
+if TYPE_CHECKING:
+    from qontract_api.cache import CacheBackend
+    from qontract_api.config import Settings
+    from qontract_api.external.ldap.schemas import LdapDirectSecret
+    from qontract_api.secret_manager import SecretManager
 
 
 def create_ldap_workspace_client(

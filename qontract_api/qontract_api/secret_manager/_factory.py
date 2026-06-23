@@ -1,11 +1,17 @@
 """Secret Manager factory."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks
 from qontract_utils.secret_reader.base import SecretBackend
 
-from qontract_api.cache import CacheBackend
 from qontract_api.config import settings
 from qontract_api.secret_manager._base import SecretManager
+
+if TYPE_CHECKING:
+    from qontract_api.cache import CacheBackend
 
 
 def get_secret_manager(cache: CacheBackend) -> SecretManager:

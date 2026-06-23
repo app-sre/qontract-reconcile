@@ -1,13 +1,12 @@
+from __future__ import annotations
+
 import datetime
-from unittest.mock import Mock
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.aus import base
 from reconcile.aus.base import get_version_data_map
-from reconcile.aus.cluster_version_data import VersionData
-from reconcile.aus.healthchecks import AUSClusterHealth
 from reconcile.test.ocm.aus.fixtures import (
     build_cluster_health,
     build_healthy_cluster_health,
@@ -17,6 +16,14 @@ from reconcile.test.ocm.aus.fixtures import (
     build_upgrade_policy,
 )
 from reconcile.test.ocm.fixtures import build_ocm_cluster
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
+
+    from pytest_mock import MockerFixture
+
+    from reconcile.aus.cluster_version_data import VersionData
+    from reconcile.aus.healthchecks import AUSClusterHealth
 
 #
 # tests for reading version data and inheriting from other orgs

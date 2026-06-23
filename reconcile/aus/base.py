@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import sys
 from abc import (
@@ -5,12 +7,12 @@ from abc import (
     abstractmethod,
 )
 from collections import defaultdict
-from collections.abc import Callable, Sequence
 from datetime import (
     datetime,
     timedelta,
 )
 from typing import (
+    TYPE_CHECKING,
     Protocol,
     cast,
 )
@@ -18,7 +20,6 @@ from typing import (
 from croniter import croniter
 from pydantic import BaseModel
 from requests.exceptions import HTTPError
-from semver import VersionInfo
 
 from reconcile.aus.aus_sts_gate_handler import (
     AUS_VERSION_GATE_APPROVALS_LABEL,
@@ -61,15 +62,9 @@ from reconcile.gql_definitions.common.ocm_env_telemeter import (
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
-from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
 from reconcile.utils import (
     gql,
     metrics,
-)
-from reconcile.utils.clusterhealth.providerbase import (
-    ClusterHealthProvider,
 )
 from reconcile.utils.clusterhealth.telemeter import (
     TELEMETER_SOURCE,
@@ -101,7 +96,6 @@ from reconcile.utils.ocm.upgrades import (
     get_version_agreement,
     get_version_gates,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.prometheus import (
     init_prometheus_http_querier_from_prometheus_instance,
 )
@@ -109,13 +103,28 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.semver_helper import (
     get_version_prefix,
     parse_semver,
     sort_versions,
 )
 from reconcile.utils.state import init_state
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
+    from semver import VersionInfo
+
+    from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+    from reconcile.gql_definitions.fragments.upgrade_policy import (
+        ClusterUpgradePolicyV1,
+    )
+    from reconcile.utils.clusterhealth.providerbase import (
+        ClusterHealthProvider,
+    )
+    from reconcile.utils.ocm_base_client import OCMBaseClient
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 MIN_DELTA_MINUTES = 6
 
@@ -233,8 +242,8 @@ class AdvancedUpgradeSchedulerBaseIntegration(
         self,
         org_upgrade_spec: OrganizationUpgradeSpec,
         version_data: VersionData,
-        current_state: Sequence["AbstractUpgradePolicy"],
-        metrics_builder: "RemainingSoakDayMetricsBuilder",
+        current_state: Sequence[AbstractUpgradePolicy],
+        metrics_builder: RemainingSoakDayMetricsBuilder,
     ) -> None:
         current_cluster_upgrade_policies = {
             p.cluster.external_id: p for p in current_state

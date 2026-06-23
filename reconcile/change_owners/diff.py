@@ -1,17 +1,21 @@
+from __future__ import annotations
+
 import copy
 from dataclasses import dataclass
 from enum import Enum
 from functools import reduce
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jsonpath_ng
 from deepdiff import DeepDiff
 from deepdiff.helper import CannotCompare
-from deepdiff.model import DiffLevel
 from deepdiff.path import parse_path
 
 from reconcile.utils.json import json_dumps
 from reconcile.utils.jsonpath import parse_jsonpath
+
+if TYPE_CHECKING:
+    from deepdiff.model import DiffLevel
 
 
 class DiffType(Enum):
@@ -31,7 +35,7 @@ class Diff:
     old: Any | None
     new: Any | None
 
-    def create_subdiff(self, sub_path: jsonpath_ng.JSONPath) -> "Diff":
+    def create_subdiff(self, sub_path: jsonpath_ng.JSONPath) -> Diff:
         if sub_path == self.path:
             # no need to subdiff ... this is the same path
             return self

@@ -1,9 +1,14 @@
-from enum import StrEnum
+from __future__ import annotations
 
-import requests
+from enum import StrEnum
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel, Field
 
 from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth
+
+if TYPE_CHECKING:
+    import requests
 
 
 class FeatureToggleType(StrEnum):

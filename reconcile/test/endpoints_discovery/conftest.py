@@ -1,9 +1,9 @@
-from collections.abc import Callable, Mapping
+from __future__ import annotations
+
 from copy import deepcopy
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.endpoints_discovery.integration import (
     EndpointsDiscoveryIntegration,
@@ -11,8 +11,14 @@ from reconcile.endpoints_discovery.integration import (
 )
 from reconcile.gql_definitions.endpoints_discovery.apps import AppV1
 from reconcile.test.fixtures import Fixtures
-from reconcile.utils.oc import OCNative
-from reconcile.utils.oc_map import OCMap
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
+    from pytest_mock import MockerFixture
+
+    from reconcile.utils.oc import OCNative
+    from reconcile.utils.oc_map import OCMap
 
 
 @pytest.fixture

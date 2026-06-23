@@ -1,9 +1,6 @@
 import http
 import logging
-from collections.abc import (
-    Iterable,
-    Sequence,
-)
+from collections.abc import Iterable
 from urllib.parse import (
     urljoin,
     urlparse,
@@ -64,7 +61,6 @@ def run(
     secret_reader: VaultSecretReader,
     keycloak_vault_paths: Iterable[str],
     vault_input_path: str,
-    contacts: Sequence[str],
     dry_run: bool,
 ) -> None:
     with metrics.transactional_metrics(ocm_environment) as metrics_container:
@@ -117,7 +113,6 @@ def run(
                 keycloak_map=keycloak_map,
                 existing_sso_client_ids=existing_sso_client_ids,
                 desired_sso_clients=desired_sso_clients,
-                contacts=contacts,
                 secret_reader=secret_reader,
                 vault_input_path=vault_input_path,
                 dry_run=dry_run,
@@ -168,7 +163,6 @@ def act(
     vault_input_path: str,
     existing_sso_client_ids: list[str],
     desired_sso_clients: DesiredSSOClients,
-    contacts: Sequence[str],
     dry_run: bool,
 ) -> None:
     """Act on the difference between the current and desired state."""
@@ -198,7 +192,6 @@ def act(
                 keycloak_map=keycloak_map,
                 sso_client_id=sso_client_id,
                 cluster=cluster,
-                contacts=contacts,
                 secret_reader=secret_reader,
                 vault_input_path=vault_input_path,
             )
@@ -208,7 +201,6 @@ def create_sso_client(
     keycloak_map: KeycloakMap,
     sso_client_id: str,
     cluster: Cluster,
-    contacts: Sequence[str],
     secret_reader: VaultSecretReader,
     vault_input_path: str,
 ) -> None:
@@ -227,9 +219,7 @@ def create_sso_client(
                 auth_name=cluster.auth.name,
             )
         ],
-        initiate_login_uri=cluster.console_url,
-        request_uris=[cluster.console_url],
-        contacts=contacts,
+        group_filter_regex=cluster.auth.group_filter_regex,
     )
     secret = cluster_vault_secret(
         vault_input_path=vault_input_path,

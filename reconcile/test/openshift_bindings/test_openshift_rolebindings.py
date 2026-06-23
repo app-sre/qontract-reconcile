@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 """Tests for reconcile.openshift_bindings.openshift_rolebindings module."""
 
+from typing import TYPE_CHECKING
+
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.app_interface_roles import (
     AccessV1,
@@ -21,6 +24,9 @@ from reconcile.openshift_bindings.openshift_rolebindings import (
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def get_app_interface_test_roles() -> list[RoleV1]:

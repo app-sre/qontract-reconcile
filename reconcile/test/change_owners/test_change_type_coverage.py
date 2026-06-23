@@ -1,8 +1,8 @@
 import jsonpath_ng
 import pytest
 
+from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.change_types import (
-    Approver,
     ChangeTypeContext,
     DiffCoverage,
 )

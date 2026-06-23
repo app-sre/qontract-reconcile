@@ -883,7 +883,6 @@ def canonicalize_namespaces(
             elif providers[0] == "prometheus-rule":
                 override = [
                     "PrometheusRule.monitoring.coreos.com",
-                    "PrometheusRule.monitoring.rhobs.io",
                     "PrometheusRule.monitoring.rhobs",
                 ]
 

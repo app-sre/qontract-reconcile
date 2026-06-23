@@ -5,10 +5,10 @@ import contextvars
 import secrets
 import time
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import gitlab
 import structlog
-from gitlab.v4.objects import Project
 from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks, with_hooks
@@ -18,6 +18,9 @@ from qontract_utils.vcs.provider_protocol import (
     CreateMergeRequestInput,
     FileAction,
 )
+
+if TYPE_CHECKING:
+    from gitlab.v4.objects import Project
 
 logger = structlog.get_logger(__name__)
 
