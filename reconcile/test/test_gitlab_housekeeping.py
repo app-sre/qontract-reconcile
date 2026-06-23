@@ -2719,3 +2719,67 @@ def test_omm_group_unhandled_status_rebased_stays_active(
     assert merges == 0
     mr.merge.assert_not_called()
     clear_mock.assert_not_called()
+
+
+# --- Skipped pipeline filtering in serial merge and _form_omm_group ---
+
+
+def test_serial_merge_skipped_pipeline_filtered_merges_on_success(
+    mocker: MockerFixture,
+) -> None:
+    """After an OMM skip-ci rebase, the SKIPPED pipeline lands at pipelines[0].
+    The serial merge path should filter it out and merge on the SUCCESS pipeline."""
+    mr = _make_merge_mr(10, ["approved", "tenant-foo"])
+    items = [_make_merge_item(mr)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_skipped_pipeline(), _success_pipeline()],
+        },
+    )
+
+    mr.merge.assert_called_once()
+
+
+def test_serial_merge_all_skipped_pipelines_skips_mr(
+    mocker: MockerFixture,
+) -> None:
+    """When all pipelines are SKIPPED, the serial merge path should skip the MR
+    (no merge, no crash) rather than blocking on the SKIPPED status."""
+    mr = _make_merge_mr(10, ["approved", "tenant-foo"])
+    items = [_make_merge_item(mr)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_skipped_pipeline(), _skipped_pipeline()],
+        },
+    )
+
+    mr.merge.assert_not_called()
+
+
+def test_form_omm_group_skipped_pipeline_filtered_includes_candidate(
+    mocker: MockerFixture,
+) -> None:
+    """_form_omm_group should filter SKIPPED pipelines and include an MR
+    whose underlying pipeline is SUCCESS."""
+    mr = _make_merge_mr(10, ["approved", "tenant-foo"])
+    items = [_make_merge_item(mr)]
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _skipped_pipeline(),
+        _success_pipeline(),
+    ]
+
+    candidates = gl_h._form_omm_group(mocked_gl, items, set())
+
+    assert candidates == [mr]
