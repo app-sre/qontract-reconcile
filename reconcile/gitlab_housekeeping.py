@@ -840,6 +840,7 @@ def _form_omm_group(
         if has_overlapping_labels(mr_labels, group_labels):
             continue
         pipelines = gl.get_merge_request_pipelines(mr)
+        pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
         if not pipelines:
             continue
         if pipelines[0].status not in {
@@ -951,6 +952,7 @@ def _rebase_merge_requests_active_cap(
     needs_rebase: list[ProjectMergeRequest] = []
     for mr in merge_requests:
         pipelines = gl.get_merge_request_pipelines(mr)
+        pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
         if is_rebased(mr, gl):
             if pipelines and pipelines[0].status in {
                 PipelineStatus.RUNNING,
@@ -1354,6 +1356,10 @@ def merge_merge_requests(
                     fork_project_id=mr.source_project_id,
                     pipelines=timed_out_pipelines,
                 )
+
+        pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
+        if not pipelines:
+            continue
 
         if wait_for_pipeline:
             running_pipelines = [
