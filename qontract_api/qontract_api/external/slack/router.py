@@ -3,6 +3,8 @@
 Provides a POST endpoint for sending chat messages or DMs via Slack.
 """
 
+from __future__ import annotations
+
 from fastapi import APIRouter, HTTPException, status
 from qontract_utils.slack_api import SlackApiError, UserNotFoundError
 

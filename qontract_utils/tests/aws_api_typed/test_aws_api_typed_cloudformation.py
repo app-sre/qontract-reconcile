@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, call, create_autospec
 
 import pytest
@@ -8,9 +9,11 @@ from mypy_boto3_cloudformation import (
     StackUpdateCompleteWaiter,
 )
 from mypy_boto3_cloudformation.waiter import ChangeSetCreateCompleteWaiter
-from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.cloudformation import AWSApiCloudFormation
 from qontract_utils.hooks import Hooks
+
+if TYPE_CHECKING:
+    from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 
 
 @pytest.fixture

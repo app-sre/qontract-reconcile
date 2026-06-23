@@ -1,15 +1,19 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from unittest.mock import call, create_autospec
 
 import pytest
 from oauthlib.oauth2 import TokenExpiredError
-from pytest_mock import MockerFixture
 from requests import Response
 from requests.adapters import HTTPAdapter
 
 from reconcile.utils.oauth2_backend_application_session import (
     OAuth2BackendApplicationSession,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 CLIENT_ID = "client_id"
 CLIENT_SECRET = "client_secret"

@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 """Tests for reconcile.openshift_bindings.models module."""
 
-from pytest_mock import MockerFixture
+
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.common.app_interface_clusterrole import (
     AccessV1 as ClusterAccessV1,
@@ -31,6 +34,9 @@ from reconcile.openshift_bindings.models import (
     get_usernames_from_users,
 )
 from reconcile.openshift_bindings.utils import is_valid_namespace
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 class TestIsValidNamespace:

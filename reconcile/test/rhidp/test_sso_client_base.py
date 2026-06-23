@@ -1,11 +1,10 @@
-from collections.abc import Sequence
-from unittest.mock import Mock
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.rhidp.common import Cluster
 from reconcile.rhidp.sso_client.base import (
     act,
     console_url_to_oauth_url,
@@ -19,6 +18,14 @@ from reconcile.utils.keycloak import (
     KeycloakMap,
     SSOClient,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from unittest.mock import Mock
+
+    from pytest_mock import MockerFixture
+
+    from reconcile.rhidp.common import Cluster
 
 
 @pytest.mark.parametrize(

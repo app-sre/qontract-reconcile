@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 # ruff: noqa: SIM117
-from collections.abc import Generator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import (
     Mock,
     patch,
@@ -8,7 +9,6 @@ from unittest.mock import (
 
 import pytest
 from pydantic import ValidationError
-from pytest_mock import MockerFixture
 
 import reconcile.ocm_clusters as occ
 import reconcile.utils.ocm as ocmmod
@@ -41,6 +41,11 @@ from reconcile.utils.ocm.products import (
     OCMProductRosa,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from pytest_mock import MockerFixture
 
 fxt = Fixtures("clusters")
 
@@ -76,7 +81,7 @@ def ocm_rosa_cluster_post_spec() -> dict[str, Any]:
 
 
 @pytest.fixture
-def ocm_osd_cluster_spec() -> Generator[OCMSpec, None, None]:
+def ocm_osd_cluster_spec() -> Generator[OCMSpec]:
     n = OCMClusterNetwork(
         type="OpenShiftSDN",
         vpc="10.112.0.0/16",
@@ -341,7 +346,7 @@ def rosa_hosted_cp_cluster_fxt() -> dict[str, Any]:
 @pytest.fixture
 def queries_mock(
     osd_cluster_fxt: dict[str, Any],
-) -> Generator[tuple[Mock, Mock], None, None]:
+) -> Generator[tuple[Mock, Mock]]:
     with patch.object(queries, "get_app_interface_settings", autospec=True) as s:
         with patch.object(queries, "get_clusters", autospec=True) as gc:
             s.return_value = {}
@@ -352,7 +357,7 @@ def queries_mock(
 @pytest.fixture
 def ocmmap_mock(
     ocm_osd_cluster_spec: OCMSpec, ocm_mock: tuple[Mock, Mock]
-) -> Generator[tuple[Mock, Mock], None, None]:
+) -> Generator[tuple[Mock, Mock]]:
     with patch.object(OCMMap, "get", autospec=True) as get:
         with patch.object(OCMMap, "init_ocm_client_from_cluster", autospec=True):
             with patch.object(OCMMap, "cluster_specs", autospec=True) as cs:
@@ -362,7 +367,7 @@ def ocmmap_mock(
 
 
 @pytest.fixture
-def ocm_mock(mocker: MockerFixture) -> Generator[tuple[Mock, Mock], None, None]:
+def ocm_mock(mocker: MockerFixture) -> Generator[tuple[Mock, Mock]]:
     with patch.object(ocm, "init_ocm_base_client") as ioc:
         ocm_api_mock = mocker.Mock(OCMBaseClient)
         ioc.return_value = ocm_api_mock
@@ -374,27 +379,27 @@ def ocm_mock(mocker: MockerFixture) -> Generator[tuple[Mock, Mock], None, None]:
 
 
 @pytest.fixture
-def cluster_updates_mr_mock() -> Generator[Mock, None, None]:
+def cluster_updates_mr_mock() -> Generator[Mock]:
     with patch.object(mr_client_gateway, "init", autospec=True):
         with patch.object(CreateClustersUpdates, "submit", autospec=True) as ccu:
             yield ccu
 
 
 @pytest.fixture
-def get_json_mock() -> Generator[Mock, None, None]:
+def get_json_mock() -> Generator[Mock]:
     with patch.object(OCM, "_get_json", autospec=True) as get_json:
         yield get_json
 
 
 @pytest.fixture
-def osd_product() -> Generator[OCMProductOsd, None, None]:
+def osd_product() -> Generator[OCMProductOsd]:
     with patch.object(products, "get_provisioning_shard_id") as g:
         g.return_value = "provision_shard_id"
         yield OCMProductOsd()
 
 
 @pytest.fixture
-def rosa_product() -> Generator[OCMProductRosa, None, None]:
+def rosa_product() -> Generator[OCMProductRosa]:
     with patch.object(products, "get_provisioning_shard_id") as g:
         g.return_value = "provision_shard_id"
         yield OCMProductRosa(None)
@@ -415,7 +420,7 @@ def product_portfolio(
 @pytest.fixture
 def integration(
     product_portfolio: OCMProductPortfolio,
-) -> Generator[occ.OcmClusters, None, None]:
+) -> Generator[occ.OcmClusters]:
     integration = occ.OcmClusters(
         params=occ.OcmClustersParams(
             job_controller_cluster="cluster",

@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 """Tests for reconcile.openshift_bindings.openshift_clusterrolebindings module."""
 
-from pytest_mock import MockerFixture
+
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.common.app_interface_clusterrole import (
     AccessV1 as ClusterAccessV1,
@@ -30,6 +33,9 @@ from reconcile.openshift_bindings.openshift_clusterrolebindings import (
 from reconcile.test.openshift_bindings.conftest import MockOCMap, MockQueryCluster
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def get_app_interface_test_cluster_roles() -> list[ClusterRoleV1]:

@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import re
 from subprocess import CalledProcessError, CompletedProcess
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.utils.binary import binary, binary_version
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_binary_when_exist(mocker: MockerFixture) -> None:

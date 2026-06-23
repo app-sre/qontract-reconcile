@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from datetime import (
     UTC,
     datetime,
     timedelta,
 )
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import (
     MagicMock,
     Mock,
@@ -27,7 +29,6 @@ from gitlab.v4.objects import (
     ProjectMergeRequestPipeline,
     ProjectMergeRequestResourceLabelEvent,
 )
-from pytest_mock import MockerFixture
 from UnleashClient import UnleashClient
 
 import reconcile.gitlab_housekeeping as gl_h
@@ -36,6 +37,9 @@ from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
@@ -1833,7 +1837,8 @@ def test_multi_merge_two_non_overlapping_tenants(
 ) -> None:
     mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
     mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
-    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+    mr3 = _make_merge_mr(12, ["approved", "tenant-baz"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2), _make_merge_item(mr3)]
 
     _call_merge(
         mocker,
@@ -1843,12 +1848,15 @@ def test_multi_merge_two_non_overlapping_tenants(
         pipelines_by_iid={
             10: [_success_pipeline()],
             11: [_success_pipeline()],
+            12: [_success_pipeline()],
         },
     )
 
     mr1.merge.assert_called_once()
     mr2.merge.assert_not_called()
     mr2.rebase.assert_called_once_with(skip_ci=True)
+    mr3.merge.assert_not_called()
+    mr3.rebase.assert_called_once_with(skip_ci=True)
 
 
 def test_multi_merge_overlapping_tenants_serialized(
@@ -1871,6 +1879,33 @@ def test_multi_merge_overlapping_tenants_serialized(
 
     mr1.merge.assert_called_once()
     mr2.merge.assert_not_called()
+
+
+def test_multi_merge_below_min_group_size_no_omm(
+    mocker: MockerFixture,
+) -> None:
+    """With only 1 non-overlapping candidate, group size < MIN_OMM_GROUP_SIZE
+    so no OMM group should form."""
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+
+    mocked_gl = _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_not_called()
+    mr2.rebase.assert_not_called()
+    for call in mocked_gl.add_label_to_merge_request.call_args_list:
+        assert call.args[1] not in {"omm-group-lead", "omm-pending"}
 
 
 def test_multi_merge_no_tenant_labels_falls_back_serial(
@@ -1951,8 +1986,9 @@ def test_multi_merge_skip_ci_rebase_failure_handled(
 ) -> None:
     mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
     mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    mr3 = _make_merge_mr(12, ["approved", "tenant-baz"])
     mr2.rebase.side_effect = GitlabMRRebaseError("rebase conflict")
-    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+    items = [_make_merge_item(mr1), _make_merge_item(mr2), _make_merge_item(mr3)]
 
     mocked_gl = _call_merge(
         mocker,
@@ -1962,6 +1998,7 @@ def test_multi_merge_skip_ci_rebase_failure_handled(
         pipelines_by_iid={
             10: [_success_pipeline()],
             11: [_success_pipeline()],
+            12: [_success_pipeline()],
         },
     )
 

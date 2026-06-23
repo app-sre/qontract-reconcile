@@ -1,10 +1,16 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
-from qontract_utils.ruamel import yaml
 
 from reconcile.gql_definitions.templating.templates import TemplateTestV1, TemplateV1
 from reconcile.templating.validator import TemplateValidatorIntegration
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from qontract_utils.ruamel import yaml
 
 
 @pytest.fixture

@@ -1,10 +1,10 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from datetime import UTC, datetime
-from typing import Any
-from unittest.mock import Mock
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.aus import base
 from reconcile.aus.base import (
@@ -29,8 +29,14 @@ from reconcile.test.ocm.aus.fixtures import (
 )
 from reconcile.test.ocm.fixtures import build_label, build_ocm_cluster
 from reconcile.utils.ocm.base import OCMVersionGate, build_label_container
-from reconcile.utils.ocm.clusters import OCMCluster
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
+
+    from pytest_mock import MockerFixture
+
+    from reconcile.utils.ocm.clusters import OCMCluster
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 @pytest.fixture

@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import base64
 import json
-
-from pytest_mock import MockerFixture
+from typing import TYPE_CHECKING
 
 from reconcile.external_resources.secrets_sync import OutputSecretsFormatter
 from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_outputs(mocker: MockerFixture) -> None:

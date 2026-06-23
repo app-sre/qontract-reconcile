@@ -1,8 +1,8 @@
+from __future__ import annotations
+
 import logging
 import re
-from collections.abc import Iterable
-
-from gitlab.v4.objects import ProjectMergeRequest
+from typing import TYPE_CHECKING
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
     MRKind,
@@ -19,6 +19,11 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     VERSION_REF,
 )
 from reconcile.utils.vcs import VCS, MRCheckStatus
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from gitlab.v4.objects import ProjectMergeRequest
 
 ITEM_SEPARATOR = ","
 

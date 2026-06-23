@@ -1,11 +1,12 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import (
     Mock,
     call,
 )
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.rhidp import common
@@ -26,6 +27,11 @@ from reconcile.test.ocm.fixtures import (
 )
 from reconcile.utils.metrics import MetricsContainer
 from reconcile.utils.ocm.base import build_label_container
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from pytest_mock import MockerFixture
 
 VI = "vault-input-path"
 ORG = "org_id"

@@ -1,10 +1,6 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import (
-    Iterable,
-)
-from collections.abc import (
-    Set as AbstractSet,
-)
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import (
@@ -13,16 +9,10 @@ from datetime import (
 )
 from enum import StrEnum
 from operator import itemgetter
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import gitlab
 from gitlab.const import PipelineStatus
-from gitlab.v4.objects import (
-    ProjectCommit,
-    ProjectIssue,
-    ProjectMergeRequest,
-    ProjectMergeRequestPipeline,
-)
 from prometheus_client import (
     Counter,
     Gauge,
@@ -62,6 +52,21 @@ from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.state import State, init_state
 from reconcile.utils.unleash import get_feature_variant
 
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+    )
+    from collections.abc import (
+        Set as AbstractSet,
+    )
+
+    from gitlab.v4.objects import (
+        ProjectCommit,
+        ProjectIssue,
+        ProjectMergeRequest,
+        ProjectMergeRequestPipeline,
+    )
+
 MERGE_LABELS_PRIORITY = [
     prioritized_approval_label(p.value) for p in ChangeTypePriority
 ] + [
@@ -82,6 +87,7 @@ HOLD_LABELS = [
 ERROR_LABELS = [MERGE_ERROR, PIPELINE_ERROR]
 
 TENANT_LABEL_PREFIX = "tenant-"
+MIN_OMM_GROUP_SIZE = 3  # 1 lead + 2 pending MRs
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
@@ -1366,7 +1372,7 @@ def merge_merge_requests(
                     merge_requests=merge_requests,
                     merged_labels=merged_labels,
                 )
-                if candidates:
+                if len(candidates) >= MIN_OMM_GROUP_SIZE - 1:  # -1 for the lead
                     apply_omm_group_lead(dry_run, gl, mr)
                     apply_omm_pending(dry_run, gl, candidates)
             break

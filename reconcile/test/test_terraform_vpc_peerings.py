@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import sys
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 import pytest
 import testslide
-from pytest_mock import MockerFixture
 
 import reconcile.terraform_vpc_peerings as integ
 import reconcile.utils.terraform_client as terraform
@@ -15,6 +16,9 @@ from reconcile.utils import (
     aws_api,
     ocm,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 class MockOCM:

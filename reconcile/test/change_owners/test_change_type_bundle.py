@@ -1,7 +1,8 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock.plugin import MockerFixture
 
 from reconcile.change_owners import bundle
 from reconcile.change_owners.bundle import (
@@ -9,6 +10,9 @@ from reconcile.change_owners.bundle import (
     FileRef,
     QontractServerFileDiffResolver,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock.plugin import MockerFixture
 
 
 @pytest.mark.parametrize(

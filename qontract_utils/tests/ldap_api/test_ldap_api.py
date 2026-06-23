@@ -12,7 +12,7 @@ from qontract_utils.ldap_api.models import LdapGroup, LdapUser
 
 
 @pytest.fixture
-def mock_ldap3() -> Generator[MagicMock, None, None]:
+def mock_ldap3() -> Generator[MagicMock]:
     """Mock ldap3 module."""
     with (
         patch("qontract_utils.ldap_api.api.Server") as mock_server,

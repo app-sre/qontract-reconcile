@@ -1,10 +1,7 @@
-from collections.abc import (
-    Callable,
-    Mapping,
-)
-from unittest.mock import call
+from __future__ import annotations
 
-from gitlab.v4.objects import ProjectMergeRequest
+from typing import TYPE_CHECKING
+from unittest.mock import call
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager_v2 import (
     SAPM_LABEL,
@@ -24,7 +21,6 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     SAPM_VERSION,
     VERSION_REF,
 )
-from reconcile.utils.vcs import VCS
 
 from .data_keys import (
     DESCRIPTION,
@@ -32,6 +28,16 @@ from .data_keys import (
     LABELS,
     OPEN_MERGE_REQUESTS,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
+
+    from gitlab.v4.objects import ProjectMergeRequest
+
+    from reconcile.utils.vcs import VCS
 
 
 def test_valid_parsing(

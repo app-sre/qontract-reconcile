@@ -1,12 +1,10 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
 
-from reconcile.gql_definitions.fragments.membership_source import (
-    AppInterfaceMembershipProviderSourceV1,
-)
 from reconcile.gql_definitions.membershipsources.roles import (
     BotV1,
     UserV1,
@@ -15,6 +13,15 @@ from reconcile.utils.membershipsources import app_interface_resolver
 from reconcile.utils.membershipsources.app_interface_resolver import (
     resolve_app_interface_membership_source,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytest_mock import MockerFixture
+
+    from reconcile.gql_definitions.fragments.membership_source import (
+        AppInterfaceMembershipProviderSourceV1,
+    )
 
 
 @pytest.fixture

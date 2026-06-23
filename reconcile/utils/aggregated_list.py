@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Callable, KeysView
 from typing import Any, TypedDict
@@ -43,7 +45,7 @@ class AggregatedList:
     def get_by_params_hash(self, params_hash: int) -> AggregatedItem:
         return self._dict[params_hash]
 
-    def diff(self, right_state: "AggregatedList") -> dict[str, list[AggregatedItem]]:
+    def diff(self, right_state: AggregatedList) -> dict[str, list[AggregatedItem]]:
         left_params = self.get_all_params_hash()
         right_params = right_state.get_all_params_hash()
 

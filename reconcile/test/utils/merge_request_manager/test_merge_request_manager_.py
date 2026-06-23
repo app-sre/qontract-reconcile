@@ -1,17 +1,24 @@
-from unittest.mock import Mock
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 from gitlab.v4.objects import ProjectMergeRequest
 from pydantic import BaseModel
-from pytest_mock import MockerFixture
 
 from reconcile.test.utils.merge_request_manager.conftest import desc_string
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.merge_request_manager.merge_request_manager import (
     MergeRequestManagerBase,
 )
-from reconcile.utils.merge_request_manager.parser import Parser
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
+
+    from pytest_mock import MockerFixture
+
+    from reconcile.utils.merge_request_manager.parser import Parser
 
 
 @pytest.fixture

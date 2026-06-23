@@ -1,9 +1,9 @@
-from unittest.mock import MagicMock
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_mock import MockerFixture
 
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.oum import base
 from reconcile.oum.base import (
     OCMUserManagementIntegration,
@@ -44,7 +44,14 @@ from reconcile.utils.ocm.base import (
     OCMClusterUser,
     OCMClusterUserList,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
+    from pytest_mock import MockerFixture
+
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def build_ocm_cluster_group(

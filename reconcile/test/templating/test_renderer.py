@@ -1,12 +1,11 @@
+from __future__ import annotations
+
 import os
-from collections.abc import Callable
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, MagicMock, call
 
 import pytest
 from gitlab import GitlabGetError
-from pytest_mock import MockerFixture
 from qontract_utils.ruamel import create_ruamel_instance, yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
@@ -29,8 +28,15 @@ from reconcile.templating.renderer import (
     unpack_static_variables,
 )
 from reconcile.utils.jinja2.utils import Jinja2TemplateError
-from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
+
+    from pytest_mock import MockerFixture
+
+    from reconcile.utils.secret_reader import SecretReader
 
 
 @pytest.fixture

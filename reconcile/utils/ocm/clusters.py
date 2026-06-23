@@ -1,9 +1,7 @@
+from __future__ import annotations
+
 from collections import defaultdict
-from collections.abc import (
-    Generator,
-    Iterable,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile.utils.ocm.base import (
     ACTIVE_SUBSCRIPTION_STATES,
@@ -27,7 +25,14 @@ from reconcile.utils.ocm.subscriptions import (
     build_subscription_filter,
     get_subscriptions,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Generator,
+        Iterable,
+    )
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 NODE_POOL_DESIRED_KEYS = {
     "id",
@@ -130,7 +135,7 @@ def discover_clusters_for_organizations(
 def get_ocm_clusters(
     ocm_api: OCMBaseClient,
     cluster_filter: Filter,
-) -> Generator[OCMCluster, None, None]:
+) -> Generator[OCMCluster]:
     for cluster_dict in ocm_api.get_paginated(
         api_path="/api/clusters_mgmt/v1/clusters",
         params={"search": cluster_filter.render(), "order": "creation_timestamp"},
@@ -149,7 +154,7 @@ def get_provision_shard_for_cluster_id(
 
 def get_service_clusters(
     ocm_api: OCMBaseClient,
-) -> Generator[FleetManagerServiceCluster, None, None]:
+) -> Generator[FleetManagerServiceCluster]:
     for cluster_dict in ocm_api.get_paginated(
         api_path="/api/osd_fleet_mgmt/v1/service_clusters",
         max_page_size=100,
@@ -164,7 +169,7 @@ def get_cluster_details_for_subscriptions(
     subscription_filter: Filter | None = None,
     cluster_filter: Filter | None = None,
     init_labels: bool = False,
-) -> Generator[ClusterDetails, None, None]:
+) -> Generator[ClusterDetails]:
     """
     Discover clusters by filtering on their subscriptions. The subscription_filter
     can be used to restrict on any subscription field. Additionally, a cluster_filter

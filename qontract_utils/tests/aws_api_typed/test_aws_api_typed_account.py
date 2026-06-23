@@ -1,12 +1,15 @@
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import botocore
 import pytest
 from mypy_boto3_account import AccountClient
 from pytest_mock import MockerFixture
-from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.account import AWSApiAccount, OptStatus, Region
 from qontract_utils.hooks import Hooks
+
+if TYPE_CHECKING:
+    from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 
 
 @pytest.fixture

@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import sys
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
-from pytest_mock.plugin import MockerFixture
 
 from reconcile.test.runtime.fixtures import (
     ShardableTestIntegration,
@@ -22,6 +23,9 @@ from reconcile.utils.runtime.runner import (
     get_desired_state_diff,
     run_integration_cfg,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock.plugin import MockerFixture
 
 
 @dataclass

@@ -1,22 +1,29 @@
-from collections.abc import (
-    Callable,
-    Iterable,
-    Sequence,
-)
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import call
 
 import pytest
-from pytest_mock import MockerFixture
 
-from reconcile.cluster_auth_rhidp.integration import (
-    ClusterAuthRhidpIntegration,
-    OcmApis,
-)
 from reconcile.gql_definitions.cluster_auth_rhidp.clusters import ClusterV1
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.utils.ocm.base import ClusterDetails
-from reconcile.utils.ocm.label_sources import LabelState
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Sequence,
+    )
+
+    from pytest_mock import MockerFixture
+
+    from reconcile.cluster_auth_rhidp.integration import (
+        ClusterAuthRhidpIntegration,
+        OcmApis,
+    )
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+    from reconcile.utils.ocm.base import ClusterDetails
+    from reconcile.utils.ocm.label_sources import LabelState
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def test_cluster_auth_rhidp_early_exit(

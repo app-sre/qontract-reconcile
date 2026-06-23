@@ -1,11 +1,17 @@
-from collections.abc import Callable
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_httpserver import HTTPServer
 
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.unleash.server import UnleashServer
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytest_httpserver import HTTPServer
 
 
 @pytest.fixture

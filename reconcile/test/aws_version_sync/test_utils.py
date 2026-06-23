@@ -1,11 +1,8 @@
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_httpserver import HTTPServer
 
 from reconcile.aws_version_sync.utils import (
     get_values,
@@ -13,6 +10,14 @@ from reconcile.aws_version_sync.utils import (
     prom_get,
     uniquify,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Mapping,
+    )
+
+    from pytest_httpserver import HTTPServer
 
 
 def test_prom_get(httpserver: HTTPServer) -> None:

@@ -1,12 +1,18 @@
 """Factory for creating VCS workspace clients with provider registry."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from qontract_utils.vcs.provider_registry import get_default_registry
 
-from qontract_api.cache import CacheBackend
-from qontract_api.config import Settings
 from qontract_api.external.vcs.provider_factory import VCSProviderFactory
 from qontract_api.external.vcs.vcs_workspace_client import VCSWorkspaceClient
 from qontract_api.logger import get_logger
+
+if TYPE_CHECKING:
+    from qontract_api.cache import CacheBackend
+    from qontract_api.config import Settings
 
 logger = get_logger(__name__)
 

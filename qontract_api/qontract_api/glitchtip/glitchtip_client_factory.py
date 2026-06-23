@@ -1,12 +1,18 @@
 """Factory for creating GlitchtipWorkspaceClient instances."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from qontract_utils.glitchtip_api import GlitchtipApi
 
-from qontract_api.cache import CacheBackend
-from qontract_api.config import Settings
 from qontract_api.glitchtip.glitchtip_workspace_client import (
     GlitchtipWorkspaceClient,
 )
+
+if TYPE_CHECKING:
+    from qontract_api.cache import CacheBackend
+    from qontract_api.config import Settings
 
 
 class GlitchtipClientFactory:

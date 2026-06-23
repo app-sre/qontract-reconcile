@@ -1,10 +1,11 @@
-from collections.abc import Iterable, Mapping
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 from github import NamedUser
+from github.Organization import Organization
 from github.Team import Team
-from pytest_mock import MockerFixture
 
 from reconcile import github_org
 from reconcile.utils import (
@@ -14,6 +15,11 @@ from reconcile.utils import (
 from reconcile.utils.aggregated_list import AggregatedList
 
 from .fixtures import Fixtures
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from pytest_mock import MockerFixture
 
 fxt = Fixtures("github_org")
 
@@ -134,7 +140,7 @@ class TestGithubOrg:
         assert github_org.get_members(team) == ["a", "b"]
 
     def test_get_org_teams(self, mocker: MockerFixture) -> None:
-        org = mocker.create_autospec(github_org.Organization)
+        org = mocker.create_autospec(Organization)
         org.get_teams.return_value = ["teams"]
         gh = mocker.create_autospec(github_org.Github)
         gh.get_organization.return_value = org

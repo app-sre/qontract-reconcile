@@ -1,13 +1,13 @@
 from collections import defaultdict
 
 from reconcile.change_owners.approver import (
+    Approver,
     ApproverReachability,
     GitlabGroupApproverReachability,
     SlackGroupApproverReachability,
 )
 from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
-    Approver,
     ChangeTypeContext,
     ChangeTypeProcessor,
     FileChange,

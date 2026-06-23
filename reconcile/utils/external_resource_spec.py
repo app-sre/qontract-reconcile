@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from abc import abstractmethod
 from collections.abc import (
@@ -179,7 +181,7 @@ class ExternalResourceSpec:
     def get_secret_field(self, field: str) -> str | None:
         return self.secret.get(field)
 
-    def id_object(self) -> "ExternalResourceUniqueKey":
+    def id_object(self) -> ExternalResourceUniqueKey:
         return ExternalResourceUniqueKey.from_spec(self)
 
     def build_oc_secret(
@@ -218,7 +220,7 @@ class ExternalResourceUniqueKey:
         return f"{self.identifier}-{self.provider}"
 
     @staticmethod
-    def from_spec(spec: ExternalResourceSpec) -> "ExternalResourceUniqueKey":
+    def from_spec(spec: ExternalResourceSpec) -> ExternalResourceUniqueKey:
         return ExternalResourceUniqueKey(
             provision_provider=spec.provision_provider,
             provisioner_name=spec.provisioner_name,
