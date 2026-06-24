@@ -91,13 +91,14 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
                 if not dry_run:
                     gl.initiate_saas_bundle_repo(project_url)
 
-        if "sharedWithGroups" in pr:
+        shared_with_groups = pr.get("sharedWithGroups")
+        if shared_with_groups is not None:
             for p in requested_projects:
                 project_url = gl.get_project_url(group, p)
                 reconcile_project_shared_groups(
                     gl=gl,
                     project_url=project_url,
-                    shared_with_groups=pr["sharedWithGroups"],
+                    shared_with_groups=shared_with_groups,
                     dry_run=dry_run,
                 )
 

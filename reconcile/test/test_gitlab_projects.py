@@ -56,6 +56,31 @@ def test_reconcile_project_shared_groups_dry_run_missing_project(
     assert "share_project_with_group" in caplog.text
 
 
+def test_run_skips_null_shared_with_groups(mocker: MockerFixture) -> None:
+    gl = create_autospec(GitLabApi)
+    gl.get_group_id_and_projects.return_value = ("1", {"existing-project"})
+    mocker.patch("reconcile.gitlab_projects.queries.get_gitlab_instance", return_value={
+        "projectRequests": [
+            {
+                "group": "service",
+                "projects": ["existing-project"],
+                "sharedWithGroups": None,
+            },
+        ],
+    })
+    mocker.patch("reconcile.gitlab_projects.queries.get_app_interface_settings", return_value={})
+    mocker.patch("reconcile.gitlab_projects.queries.get_code_components", return_value=[])
+    mocker.patch("reconcile.gitlab_projects.GitLabApi", return_value=gl)
+    reconcile_mock = mocker.patch(
+        "reconcile.gitlab_projects.reconcile_project_shared_groups"
+    )
+    mocker.patch("reconcile.gitlab_projects.sys.exit")
+
+    gitlab_projects.run(dry_run=True)
+
+    reconcile_mock.assert_not_called()
+
+
 def test_reconcile_project_shared_groups_unshare(mocker: MockerFixture) -> None:
     gl = create_autospec(GitLabApi)
     project = create_autospec(Project)
