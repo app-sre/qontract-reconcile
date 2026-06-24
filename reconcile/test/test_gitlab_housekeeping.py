@@ -1727,6 +1727,7 @@ def _make_merge_mr(
     source_project_id: int = 3,
     squash: bool = False,
     author: str = "user",
+    sha: str | None = None,
 ) -> Mock:
     mr = create_autospec(ProjectMergeRequest)
     mr.iid = iid
@@ -1738,7 +1739,7 @@ def _make_merge_mr(
     mr.merge_status = "can_be_merged"
     mr.draft = False
     mr.commits.return_value = [create_autospec(ProjectCommit)]
-    mr.sha = f"sha-{iid}"
+    mr.sha = sha if sha is not None else f"sha-{iid}"
     mr.target_branch = "master"
     return mr
 
@@ -1824,12 +1825,22 @@ def _call_merge(
     return mocked_gl
 
 
-def _success_pipeline() -> Mock:
-    return create_autospec(ProjectMergeRequestPipeline, status="success")
+def _success_pipeline(
+    project_id: int = 1, sha: str = "pipeline-sha"
+) -> Mock:
+    p = create_autospec(ProjectMergeRequestPipeline, status="success")
+    p.project_id = project_id
+    p.sha = sha
+    return p
 
 
-def _running_pipeline() -> Mock:
-    return create_autospec(ProjectMergeRequestPipeline, status="running")
+def _running_pipeline(
+    project_id: int = 1, sha: str = "pipeline-sha"
+) -> Mock:
+    p = create_autospec(ProjectMergeRequestPipeline, status="running")
+    p.project_id = project_id
+    p.sha = sha
+    return p
 
 
 def test_multi_merge_two_non_overlapping_tenants(
@@ -2038,7 +2049,7 @@ def _make_omm_gl(*, head_sha: str = "abc123") -> Mock:
     """
     mocked_gl = create_autospec(GitLabApi)
     project = Mock()
-    project.id = "proj-1"
+    project.id = 1
     project.name = "test-project"
     project.squash_option = "never"
     branch_mock = Mock()
@@ -2567,8 +2578,13 @@ def test_multi_merge_disabled_single_merge_on_rebase(
 # --- OMM skipped pipeline handling tests ---
 
 
-def _skipped_pipeline() -> Mock:
-    return create_autospec(ProjectMergeRequestPipeline, status="skipped")
+def _skipped_pipeline(
+    project_id: int = 1, sha: str = "pipeline-sha"
+) -> Mock:
+    p = create_autospec(ProjectMergeRequestPipeline, status="skipped")
+    p.project_id = project_id
+    p.sha = sha
+    return p
 
 
 @pytest.mark.parametrize(
@@ -2669,8 +2685,13 @@ def test_omm_group_all_skipped_pipelines_rebased_stays_active(
     clear_mock.assert_not_called()
 
 
-def _canceled_pipeline() -> Mock:
-    return create_autospec(ProjectMergeRequestPipeline, status="canceled")
+def _canceled_pipeline(
+    project_id: int = 1, sha: str = "pipeline-sha"
+) -> Mock:
+    p = create_autospec(ProjectMergeRequestPipeline, status="canceled")
+    p.project_id = project_id
+    p.sha = sha
+    return p
 
 
 @pytest.mark.parametrize(
@@ -2718,6 +2739,130 @@ def test_omm_group_unhandled_status_rebased_stays_active(
 
     assert merges == 0
     mr.merge.assert_not_called()
+    clear_mock.assert_not_called()
+
+
+# --- Fork pipeline SHA filtering in OMM group ---
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
+def test_omm_group_fork_pipeline_post_rebase_filtered_merges(
+    mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
+) -> None:
+    """After skip-ci rebase, fork pipelines matching the new MR SHA are
+    filtered out.  The pre-rebase fork SUCCESS pipeline (old SHA) should
+    drive the merge decision."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=True,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
+    lead.target_branch = "master"
+
+    fork_id = 99
+    new_sha = "rebased-sha"
+    old_sha = "pre-rebase-sha"
+
+    mr = _make_merge_mr(
+        11,
+        ["approved", "tenant-bar", "omm-pending"],
+        source_project_id=fork_id,
+        sha=new_sha,
+    )
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _running_pipeline(project_id=fork_id, sha=new_sha),
+        _success_pipeline(project_id=fork_id, sha=old_sha),
+    ]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 1
+    mr.merge.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
+def test_omm_group_fork_pipeline_running_old_sha_waits(
+    mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
+) -> None:
+    """A rebased fork MR whose real CI (old SHA) is still RUNNING should
+    wait.  The running fork pipeline is kept because its SHA differs from
+    mr.sha."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=True,
+    )
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
+    lead.target_branch = "master"
+
+    fork_id = 99
+    new_sha = "rebased-sha"
+    old_sha = "pre-rebase-sha"
+
+    mr = _make_merge_mr(
+        11,
+        ["approved", "tenant-bar", "omm-pending"],
+        source_project_id=fork_id,
+        sha=new_sha,
+    )
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _running_pipeline(project_id=fork_id, sha=old_sha),
+    ]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
+    mr.rebase.assert_not_called()
     clear_mock.assert_not_called()
 
 
