@@ -4797,11 +4797,6 @@ class TerrascriptClient:
         for t in ElasticSearchLogGroupType:
             log_type = t.value
             if log_type not in publish_log_types:
-                publishing_options.append({
-                    "log_type": log_type,
-                    "enabled": False,
-                    "cloudwatch_log_group_arn": "",
-                })
                 continue
 
             log_type_identifier = TerrascriptClient.elasticsearch_log_group_identifier(
