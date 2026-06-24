@@ -1825,18 +1825,14 @@ def _call_merge(
     return mocked_gl
 
 
-def _success_pipeline(
-    project_id: int = 1, sha: str = "pipeline-sha"
-) -> Mock:
+def _success_pipeline(project_id: int = 1, sha: str = "pipeline-sha") -> Mock:
     p = create_autospec(ProjectMergeRequestPipeline, status="success")
     p.project_id = project_id
     p.sha = sha
     return p
 
 
-def _running_pipeline(
-    project_id: int = 1, sha: str = "pipeline-sha"
-) -> Mock:
+def _running_pipeline(project_id: int = 1, sha: str = "pipeline-sha") -> Mock:
     p = create_autospec(ProjectMergeRequestPipeline, status="running")
     p.project_id = project_id
     p.sha = sha
@@ -2578,9 +2574,7 @@ def test_multi_merge_disabled_single_merge_on_rebase(
 # --- OMM skipped pipeline handling tests ---
 
 
-def _skipped_pipeline(
-    project_id: int = 1, sha: str = "pipeline-sha"
-) -> Mock:
+def _skipped_pipeline(project_id: int = 1, sha: str = "pipeline-sha") -> Mock:
     p = create_autospec(ProjectMergeRequestPipeline, status="skipped")
     p.project_id = project_id
     p.sha = sha
@@ -2685,9 +2679,7 @@ def test_omm_group_all_skipped_pipelines_rebased_stays_active(
     clear_mock.assert_not_called()
 
 
-def _canceled_pipeline(
-    project_id: int = 1, sha: str = "pipeline-sha"
-) -> Mock:
+def _canceled_pipeline(project_id: int = 1, sha: str = "pipeline-sha") -> Mock:
     p = create_autospec(ProjectMergeRequestPipeline, status="canceled")
     p.project_id = project_id
     p.sha = sha

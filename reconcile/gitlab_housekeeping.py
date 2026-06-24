@@ -1099,18 +1099,23 @@ def _process_omm_group(
 
         # skip_ci=True rebase causes GitLab to create a "skipped" pipeline;
         # filter these out so the real (pre-rebase) pipeline drives decisions.
-        # Also filter post-rebase fork pipelines: a skip-ci rebase pushes a
-        # new commit to the fork, which can trigger CI there.  We keep fork
-        # pipelines for the *old* SHA (pre-rebase CI results) but discard
-        # those matching the current MR HEAD (post-rebase noise).
-        pipelines = [
-            p for p in pipelines
-            if p.status != PipelineStatus.SKIPPED
-            and not (p.project_id != gl.project.id and p.sha == mr.sha)
-        ]
+        pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
+
+        mr_is_rebased = is_rebased(mr, gl)
+
+        # After a skip-ci rebase the fork may start its own CI for the new
+        # commit.  Filter those post-rebase fork pipelines only when the MR
+        # is already rebased — for non-rebased MRs the current-HEAD fork
+        # pipeline is the real CI result we need.
+        if mr_is_rebased:
+            pipelines = [
+                p
+                for p in pipelines
+                if not (p.project_id != gl.project.id and p.sha == mr.sha)
+            ]
 
         if not pipelines:
-            if is_rebased(mr, gl):
+            if mr_is_rebased:
                 logging.info([
                     "omm-group",
                     "no-pipelines-rebased",
@@ -1135,7 +1140,7 @@ def _process_omm_group(
             ).inc()
             continue
 
-        if is_rebased(mr, gl):
+        if mr_is_rebased:
             if latest_status != PipelineStatus.SUCCESS:
                 if latest_status not in {
                     PipelineStatus.RUNNING,
