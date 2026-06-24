@@ -20,8 +20,7 @@ def reconcile_project_shared_groups(
     dry_run: bool,
 ) -> None:
     desired = {
-        sg["group"]: gl.get_access_level(sg["accessLevel"])
-        for sg in shared_with_groups
+        sg["group"]: gl.get_access_level(sg["accessLevel"]) for sg in shared_with_groups
     }
     project = gl.get_project(project_url)
     if project is None:
