@@ -367,6 +367,10 @@ GITLAB_INSTANCES_QUERY = """
     projectRequests {
       group
       projects
+      sharedWithGroups {
+        group
+        accessLevel
+      }
     }
     sslVerify
   }

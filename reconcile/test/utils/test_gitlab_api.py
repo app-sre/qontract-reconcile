@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock, create_autospec
 
 import pytest
+from gitlab.const import DEVELOPER_ACCESS, MAINTAINER_ACCESS
 from gitlab.exceptions import GitlabGetError
 from gitlab.v4.objects import (
     CurrentUser,
@@ -542,6 +543,61 @@ def test_get_app_sre_group_users(
     assert members == expected_members
     mocked_gl.groups.get.assert_called_once_with("app-sre")
     mocked_group.members.list.assert_called_once_with(get_all=True)
+
+
+def test_get_project_shared_groups() -> None:
+    project = create_autospec(Project)
+    project.shared_with_groups = [
+        {
+            "group_id": 1,
+            "group_name": "argo-platform-admin",
+            "group_full_path": "argo-platform-admin",
+            "group_access_level": DEVELOPER_ACCESS,
+        },
+        {
+            "group_id": 2,
+            "group_name": "other-group",
+            "group_full_path": "parent/other-group",
+            "group_access_level": MAINTAINER_ACCESS,
+        },
+    ]
+
+    shared_groups = GitLabApi.get_project_shared_groups(project)
+
+    assert shared_groups == {
+        "argo-platform-admin": DEVELOPER_ACCESS,
+        "parent/other-group": MAINTAINER_ACCESS,
+    }
+
+
+def test_share_project_with_group(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    project = create_autospec(Project)
+    group = create_autospec(Group, id="42")
+    mocked_gl.groups.get.return_value = group
+
+    mocked_gitlab_api.share_project_with_group(
+        project, "argo-platform-admin", "developer"
+    )
+
+    mocked_gl.groups.get.assert_called_once_with("argo-platform-admin")
+    project.share.assert_called_once_with("42", DEVELOPER_ACCESS)
+
+
+def test_unshare_project_from_group(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    project = create_autospec(Project)
+    group = create_autospec(Group, id="42")
+    mocked_gl.groups.get.return_value = group
+
+    mocked_gitlab_api.unshare_project_from_group(project, "argo-platform-admin")
+
+    mocked_gl.groups.get.assert_called_once_with("argo-platform-admin")
+    project.unshare.assert_called_once_with("42")
 
 
 def test_get_group_id_and_projects(

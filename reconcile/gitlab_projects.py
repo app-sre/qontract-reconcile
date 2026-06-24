@@ -1,13 +1,60 @@
 import logging
 import sys
 from collections.abc import Callable
+from operator import eq
 from typing import Any
+
+from qontract_utils.differ import diff_mappings
 
 from reconcile import queries
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 
 QONTRACT_INTEGRATION = "gitlab-projects"
+
+
+def reconcile_project_shared_groups(
+    gl: GitLabApi,
+    project_url: str,
+    shared_with_groups: list[dict[str, str]],
+    dry_run: bool,
+) -> None:
+    desired = {
+        sg["group"]: gl.get_access_level(sg["accessLevel"])
+        for sg in shared_with_groups
+    }
+    project = gl.get_project(project_url)
+    if project is None:
+        for group_name, access_level in desired.items():
+            logging.info([
+                "share_project_with_group",
+                project_url,
+                group_name,
+                gl.get_access_level_string(access_level),
+            ])
+        return
+
+    current = gl.get_project_shared_groups(project)
+    diff_data = diff_mappings(
+        current=current,
+        desired=desired,
+        equal=eq,
+    )
+    for group_name, access_level in diff_data.add.items():
+        access = gl.get_access_level_string(access_level)
+        logging.info(["share_project_with_group", project_url, group_name, access])
+        if not dry_run:
+            gl.share_project_with_group(project, group_name, access)
+    for group_name in diff_data.delete:
+        logging.info(["unshare_project_from_group", project_url, group_name])
+        if not dry_run:
+            gl.unshare_project_from_group(project, group_name)
+    for group_name, diff_pair in diff_data.change.items():
+        access = gl.get_access_level_string(diff_pair.desired)
+        logging.info(["change_shared_group_access", project_url, group_name, access])
+        if not dry_run:
+            gl.unshare_project_from_group(project, group_name)
+            gl.share_project_with_group(project, group_name, access)
 
 
 @defer
@@ -43,6 +90,16 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
                 logging.info(["initiate_saas_bundle_repo", group, p])
                 if not dry_run:
                     gl.initiate_saas_bundle_repo(project_url)
+
+        if "sharedWithGroups" in pr:
+            for p in requested_projects:
+                project_url = gl.get_project_url(group, p)
+                reconcile_project_shared_groups(
+                    gl=gl,
+                    project_url=project_url,
+                    shared_with_groups=pr["sharedWithGroups"],
+                    dry_run=dry_run,
+                )
 
     sys.exit(error)
 

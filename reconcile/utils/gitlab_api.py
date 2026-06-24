@@ -344,6 +344,24 @@ class GitLabApi:
     def get_project_url(self, group: str, project: str) -> str:
         return f"{self.server}/{group}/{project}"
 
+    @staticmethod
+    def get_project_shared_groups(project: Project) -> dict[str, int]:
+        result: dict[str, int] = {}
+        for shared in project.shared_with_groups or []:
+            group_path = shared.get("group_full_path") or shared["group_name"]
+            result[group_path] = shared["group_access_level"]
+        return result
+
+    def share_project_with_group(
+        self, project: Project, group_name: str, access: str
+    ) -> None:
+        group = self.get_group(group_name)
+        project.share(group.id, self.get_access_level(access))
+
+    def unshare_project_from_group(self, project: Project, group_name: str) -> None:
+        group = self.get_group(group_name)
+        project.unshare(group.id)
+
     @retry()
     def get_project(self, repo_url: str) -> Project | None:
         repo = repo_url.removeprefix(self.server).strip("/")
