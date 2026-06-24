@@ -2802,6 +2802,65 @@ def test_omm_group_fork_pipeline_post_rebase_filtered_merges(
     [("abc123", None), (None, "abc123")],
     ids=["merge-commit", "squash-commit"],
 )
+def test_omm_group_fork_pipeline_not_rebased_triggers_skip_ci(
+    mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
+) -> None:
+    """A non-rebased fork MR whose current-HEAD fork pipeline is SUCCESS
+    should trigger a skip-ci rebase.  The fork SHA filter must NOT discard
+    the pipeline when the MR is not yet rebased."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=False,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
+    lead.target_branch = "master"
+
+    fork_id = 99
+    current_sha = "current-head-sha"
+
+    mr = _make_merge_mr(
+        11,
+        ["approved", "tenant-bar", "omm-pending"],
+        source_project_id=fork_id,
+        sha=current_sha,
+    )
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _success_pipeline(project_id=fork_id, sha=current_sha),
+    ]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
+    mr.rebase.assert_called_once_with(skip_ci=True)
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
 def test_omm_group_fork_pipeline_running_old_sha_waits(
     mocker: MockerFixture,
     merge_sha: str | None,
