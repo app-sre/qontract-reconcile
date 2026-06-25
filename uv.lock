@@ -1946,15 +1946,15 @@ wheels = [
 
 [[package]]
 name = "python-gitlab"
-version = "6.0.0"
+version = "8.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
     { name = "requests-toolbelt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3b/ba/3ee473d71e32d60c8d6ef7b914f5f3df64a067b816499aa8a6083a397d4f/python_gitlab-6.0.0.tar.gz", hash = "sha256:704bf548c258f1cfe2f09b8ece9af1cc8fa6ae828ac6fe6a1cbe957c98431414", size = 397108, upload-time = "2025-06-04T02:38:33.497Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cc/96/c20b37e7fd86481e1bf2b1922e84b98dc5477fd9aafd30e5c5086f94d922/python_gitlab-8.4.0.tar.gz", hash = "sha256:f36f20ec3f09138f3b12089394941f4dbe5a407021bed71b70a04bbdd37b8a74", size = 410803, upload-time = "2026-05-28T02:43:32.857Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/33/42788d9860c15fffc617d90a7f1ccda596b11f1abedf5a315f3b66da0d73/python_gitlab-6.0.0-py3-none-any.whl", hash = "sha256:d63bb56b5f7781a7eb0a9846a3aed9b783c8036f67107d9d48653e17242a7130", size = 144035, upload-time = "2025-06-04T02:38:31.011Z" },
+    { url = "https://files.pythonhosted.org/packages/b1/af/1c3540dbdccb85fca0b0bbc58cdaf514d0a830d7e0302b2059a6c627b172/python_gitlab-8.4.0-py3-none-any.whl", hash = "sha256:102c747d9c107820e215cc5913627388001592a9a3ba1b43fc341a40f6943e72", size = 148242, upload-time = "2026-05-28T02:43:31.505Z" },
 ]
 
 [[package]]
@@ -2267,7 +2267,7 @@ requires-dist = [
     { name = "pyjwt", specifier = "~=2.7" },
     { name = "pyopenssl", specifier = "~=26.2" },
     { name = "pypd", specifier = ">=1.1.0,<1.2.0" },
-    { name = "python-gitlab", specifier = "==6.0.0" },
+    { name = "python-gitlab", specifier = "==8.4.0" },
     { name = "qontract-api-client", editable = "qontract_api_client" },
     { name = "qontract-utils", editable = "qontract_utils" },
     { name = "requests", specifier = "~=2.32" },
@@ -2374,7 +2374,7 @@ requires-dist = [
     { name = "prometheus-client", specifier = "==0.25.0" },
     { name = "pydantic", specifier = "==2.13.4" },
     { name = "pygithub", specifier = "==1.58.2" },
-    { name = "python-gitlab", specifier = "==6.0.0" },
+    { name = "python-gitlab", specifier = "==8.4.0" },
     { name = "redis", specifier = "==7.4.0" },
     { name = "requests", specifier = "==2.34.2" },
     { name = "ruamel-yaml", specifier = "==0.19.1" },
