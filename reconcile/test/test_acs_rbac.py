@@ -22,6 +22,7 @@ from reconcile.gql_definitions.acs.acs_rbac import (
     UserV1,
 )
 from reconcile.utils.acs import rbac
+from reconcile.utils.acs.rbac import AccessScopeNamespace
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -191,8 +192,8 @@ def modeled_acs_roles() -> list[AcsRole]:
                 description="vuln-admin access to service namespaces in acs instance",
                 clusters=[],
                 namespaces=[
-                    {"clusterName": "stage-cluster", "namespaceName": "serviceA-stage"},
-                    {"clusterName": "prod-cluster", "namespaceName": "serviceA-prod"},
+                    AccessScopeNamespace(clusterName="stage-cluster", namespaceName="serviceA-stage"),
+                    AccessScopeNamespace(clusterName="prod-cluster", namespaceName="serviceA-prod"),
                 ],
             ),
             system_default=False,
@@ -327,10 +328,12 @@ def api_response_access_scopes() -> list[rbac.AccessScope]:
                         {
                             "clusterName": "stage-cluster",
                             "namespaceName": "serviceA-stage",
+                            "clusterId": "cluster-uuid-1",
                         },
                         {
                             "clusterName": "prod-cluster",
                             "namespaceName": "serviceA-prod",
+                            "clusterId": "cluster-uuid-2",
                         },
                     ],
                 },
@@ -361,6 +364,29 @@ def api_response_permission_sets() -> list[rbac.PermissionSet]:
             }
         ),
     ]
+
+
+def test_access_scope_strips_cluster_id_from_namespaces() -> None:
+    # ACS API started returning a 'clusterId' field in namespace items; it must
+    # be stripped so the desired-vs-current comparison stays idempotent.
+    scope = rbac.AccessScope(
+        api_data={
+            "id": "42",
+            "name": "my-scope",
+            "description": "desc",
+            "rules": {
+                "includedClusters": [],
+                "includedNamespaces": [
+                    {
+                        "clusterName": "prod-cluster",
+                        "namespaceName": "my-ns",
+                        "clusterId": "some-uuid",
+                    }
+                ],
+            },
+        }
+    )
+    assert scope.namespaces == [rbac.AccessScopeNamespace(clusterName="prod-cluster", namespaceName="my-ns")]
 
 
 def test_get_desired_state(

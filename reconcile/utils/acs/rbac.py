@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from reconcile.utils.acs.base import AcsBaseApi
 
@@ -60,16 +60,20 @@ class Group(BaseModel):
         )
 
 
+class AccessScopeNamespace(BaseModel):
+    cluster_name: str = Field(alias="clusterName")
+    namespace_name: str = Field(alias="namespaceName")
+
+
 class AccessScope(BaseModel):
     id: str
     name: str
     description: str
     clusters: list[str]
-    namespaces: list[dict[str, str]]
+    namespaces: list[AccessScopeNamespace]
 
     def __init__(self, api_data: Any) -> None:
         # attributes defined within stackrox(ACS) API for GET /v1/simpleaccessscopes/{id}
-        unrestricted = False
         AcsBaseApi.check_len_attributes(["id", "name"], api_data)
 
         # it is valid for the default Unrestricted access scope to have null 'rules'
@@ -85,7 +89,10 @@ class AccessScope(BaseModel):
             else api_data["rules"].get("includedClusters", []),
             namespaces=[]
             if unrestricted
-            else api_data["rules"].get("includedNamespaces", []),
+            else [
+                AccessScopeNamespace(clusterName=ns["clusterName"], namespaceName=ns["namespaceName"])
+                for ns in api_data["rules"].get("includedNamespaces", [])
+            ],
             description=api_data.get("description", ""),
         )
 
@@ -226,7 +233,7 @@ class AcsRbacApi(AcsBaseApi):
         name: str,
         desc: str,
         clusters: list[str],
-        namespaces: list[dict[str, str]],
+        namespaces: list[AccessScopeNamespace],
     ) -> str:
         # response is the created access_scope id
         json = {
@@ -234,7 +241,7 @@ class AcsRbacApi(AcsBaseApi):
             "description": desc,
             "rules": {
                 "includedClusters": clusters,
-                "includedNamespaces": namespaces,
+                "includedNamespaces": [ns.model_dump(by_alias=True) for ns in namespaces],
             },
         }
 
@@ -251,14 +258,14 @@ class AcsRbacApi(AcsBaseApi):
         name: str,
         desc: str,
         clusters: list[str],
-        namespaces: list[dict[str, str]],
+        namespaces: list[AccessScopeNamespace],
     ) -> None:
         json = {
             "name": name,
             "description": desc,
             "rules": {
                 "includedClusters": clusters,
-                "includedNamespaces": namespaces,
+                "includedNamespaces": [ns.model_dump(by_alias=True) for ns in namespaces],
             },
         }
 
