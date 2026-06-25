@@ -11,6 +11,10 @@ from typing import (
 )
 
 from pydantic import BaseModel, field_validator, model_validator
+from qontract_utils.aws_policy_validator import (
+    AWSPolicyValidationError,
+    validate_aws_policy,
+)
 
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import (
     AWSAccountV1,
@@ -218,15 +222,44 @@ class AwsSamlRolesIntegration(
 
         return aws_roles
 
-    def populate_saml_iam_roles(
-        self, ts: TerrascriptClient, aws_roles: Iterable[AwsRole]
-    ) -> None:
-        """Populate the SAML IAM roles."""
-        unique_policies = {
+    @staticmethod
+    def _unique_policies(
+        aws_roles: Iterable[AwsRole],
+    ) -> dict[tuple[str, str], Any]:
+        """Return a deduplicated {(account, policy_name): policy_doc} mapping."""
+        return {
             (role.account, custom_policy.name): custom_policy.policy
             for role in aws_roles
             for custom_policy in role.custom_policies
         }
+
+    @staticmethod
+    def _validate_saml_iam_policies(
+        unique_policies: dict[tuple[str, str], Any],
+        aws_api: AWSApi,
+    ) -> None:
+        """Validate custom IAM policy documents via Access Analyzer before generation."""
+        errors: list[AWSPolicyValidationError] = []
+        for (account, policy_name), policy_doc in unique_policies.items():
+            client = aws_api._account_accessanalyzer_client(account)
+            try:
+                validate_aws_policy(
+                    client, policy_doc, f"iam_policy-{policy_name}", "IDENTITY_POLICY"
+                )
+            except AWSPolicyValidationError as e:
+                errors.append(e)
+        if errors:
+            raise RuntimeError(
+                "AWS policy validation failed:\n" + "\n".join(str(e) for e in errors)
+            )
+
+    def populate_saml_iam_roles(
+        self,
+        ts: TerrascriptClient,
+        aws_roles: Iterable[AwsRole],
+        unique_policies: dict[tuple[str, str], Any],
+    ) -> None:
+        """Populate the SAML IAM roles."""
         # User policies are unique per account
         for (account, policy), policy_doc in unique_policies.items():
             ts.populate_iam_policy(
@@ -268,15 +301,18 @@ class AwsSamlRolesIntegration(
             secret_reader=self.secret_reader,
             default_tags=default_tags,
         )
-        self.populate_saml_iam_roles(ts, aws_roles)
+        unique_policies = self._unique_policies(aws_roles)
+        aws_api = AWSApi(
+            1, aws_accounts_dict, secret_reader=self.secret_reader, init_users=False
+        )
+        if defer:
+            defer(aws_api.cleanup)
+        self._validate_saml_iam_policies(unique_policies, aws_api)
+        self.populate_saml_iam_roles(ts, aws_roles, unique_policies)
         working_dirs = ts.dump(print_to_file=self.params.print_to_file)
 
         if self.params.print_to_file:
             sys.exit(ExitCodes.SUCCESS)
-
-        aws_api = AWSApi(
-            1, aws_accounts_dict, secret_reader=self.secret_reader, init_users=False
-        )
         tf = TerraformClient(
             self.name,
             QONTRACT_INTEGRATION_VERSION,
