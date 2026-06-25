@@ -1,5 +1,6 @@
-from typing import cast
-from unittest.mock import Mock
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
 
 from reconcile.external_resources.aws import (
     AWSDefaultResourceFactory,
@@ -20,10 +21,14 @@ from reconcile.external_resources.model import (
     ModuleInventory,
     TerraformModuleProvisionData,
 )
-from reconcile.gql_definitions.external_resources.external_resources_settings import (
-    ExternalResourcesSettingsV1,
-)
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
+
+    from reconcile.gql_definitions.external_resources.external_resources_settings import (
+        ExternalResourcesSettingsV1,
+    )
 
 
 def test_create_external_resource(

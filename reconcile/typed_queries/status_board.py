@@ -1,5 +1,6 @@
-from collections.abc import Callable, Iterable
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from jsonpath_ng.ext import parser
 
@@ -9,6 +10,9 @@ from reconcile.gql_definitions.status_board.status_board import (
     query,
 )
 from reconcile.utils import gql
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 
 def get_status_board(

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 from reconcile.change_owners.change_types import ChangeTypePriority
@@ -5,8 +8,12 @@ from reconcile.change_owners.changes import (
     BundleFileChange,
     get_priority_for_changes,
 )
-from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import change_type_to_processor
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.change_owners.queries.change_types import (
+        ChangeTypeV1,
+    )
 
 #
 # priority tests

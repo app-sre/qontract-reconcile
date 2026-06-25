@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 import os
-from collections.abc import Callable, Iterable
 from functools import wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 
 def used_for_security_is_enabled() -> bool:

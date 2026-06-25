@@ -11,13 +11,14 @@ Differences from reconcile/slack_usergroups.py:
 - Business logic (reconciliation) happens server-side (qontract-api)
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import sys
 from collections import defaultdict
-from collections.abc import Callable, Coroutine, Iterable, Mapping
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 from qontract_api_client.client import (
@@ -77,6 +78,9 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine, Iterable, Mapping
 
 QONTRACT_INTEGRATION = "slack-usergroups-api"
 INTEGRATION_VERSION = "0.1.0"

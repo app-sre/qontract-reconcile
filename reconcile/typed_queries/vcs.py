@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from qontract_utils.vcs import Provider
@@ -6,6 +8,9 @@ from qontract_utils.vcs import Provider
 from reconcile.gql_definitions.common.vcs import query
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils import gql
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class Vcs(BaseModel):

@@ -1,8 +1,6 @@
-from collections.abc import (
-    Callable,
-    Mapping,
-)
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -13,6 +11,12 @@ from reconcile.aws_saml_roles.integration import (
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import AWSAccountV1
 from reconcile.gql_definitions.aws_saml_roles.roles import RoleV1
 from reconcile.test.fixtures import Fixtures
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
 
 
 @pytest.fixture

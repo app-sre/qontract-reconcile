@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 QONTRACT_INTEGRATION = "gitlab-projects"
 

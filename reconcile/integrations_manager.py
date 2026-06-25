@@ -1,13 +1,12 @@
+from __future__ import annotations
+
 import logging
 import os
 import sys
 from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
     Sequence,
 )
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from github import Github
 from pydantic import BaseModel
@@ -38,7 +37,6 @@ from reconcile.utils.openshift_resource import (
     OpenshiftResource,
     ResourceInventory,
 )
-from reconcile.utils.runtime.meta import IntegrationMeta
 from reconcile.utils.runtime.sharding import (
     AWSAccountShardingStrategy,
     IntegrationShardManager,
@@ -49,6 +47,15 @@ from reconcile.utils.runtime.sharding import (
 )
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vcs import GITHUB_BASE_URL
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
+
+    from reconcile.utils.runtime.meta import IntegrationMeta
 
 QONTRACT_INTEGRATION = "integrations-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

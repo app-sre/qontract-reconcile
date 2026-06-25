@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from reconcile.aus.healthchecks import (
     AUSClusterHealthCheckProvider,
@@ -12,14 +15,16 @@ from reconcile.aus.models import (
 )
 from reconcile.aus.node_pool_spec import get_node_pool_specs_by_org_cluster
 from reconcile.aus.ocm_upgrade_scheduler import OCMClusterUpgradeSchedulerIntegration
-from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.utils.ocm.base import LabelContainer
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
     discover_clusters_for_organizations,
 )
 from reconcile.utils.ocm_base_client import init_ocm_base_client
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler-org"
 

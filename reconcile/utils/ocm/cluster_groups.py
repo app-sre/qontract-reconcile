@@ -1,9 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from reconcile.utils.ocm.base import (
     OCMClusterGroup,
     OCMClusterGroupId,
     OCMClusterUser,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def add_user_to_cluster_group(

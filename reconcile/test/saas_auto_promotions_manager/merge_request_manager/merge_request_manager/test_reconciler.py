@@ -1,4 +1,6 @@
-from collections.abc import Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 import pytest
@@ -15,6 +17,9 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import
 from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
     OpenBatcherMergeRequest,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def _aggregate_hashes(items: Sequence[Addition | Deletion]) -> set[str]:

@@ -1,10 +1,9 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import (
-    Callable,
-    Iterable,
-)
 from typing import (
+    TYPE_CHECKING,
     Any,
     Self,
     TypedDict,
@@ -42,6 +41,12 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript_aws_client import TerrascriptClient
 from reconcile.utils.unleash.client import get_feature_toggle_state
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+    )
 
 QONTRACT_INTEGRATION = "aws-saml-roles"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)

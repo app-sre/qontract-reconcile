@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import logging
 import random
 import sys
 import time
-from collections.abc import Callable, Iterable, Sequence
 from enum import IntFlag, auto
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from jira import JIRAError
 from pydantic import BaseModel
@@ -29,6 +30,9 @@ from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import State, init_state
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Sequence
 
 QONTRACT_INTEGRATION = "jira-permissions-validator"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 2, 0)

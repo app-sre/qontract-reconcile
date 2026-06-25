@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import logging
 import os
 import pathlib
-from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING
 
 from qontract_utils.ruamel import create_ruamel_instance, yaml
 
-from reconcile.utils.github_api import GithubRepositoryApi
-from reconcile.utils.gitlab_api import GitLabApi
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from reconcile.utils.github_api import GithubRepositoryApi
+    from reconcile.utils.gitlab_api import GitLabApi
 
 _LOG = logging.getLogger(__name__)
 

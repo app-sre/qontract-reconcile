@@ -1,9 +1,6 @@
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 import anymarkup
@@ -11,6 +8,13 @@ import requests
 
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.gql import GqlGetResourceError
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
 
 
 def prom_get(

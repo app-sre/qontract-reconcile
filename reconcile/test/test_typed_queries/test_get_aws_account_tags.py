@@ -1,4 +1,6 @@
-from collections.abc import Mapping
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -7,6 +9,9 @@ from reconcile.gql_definitions.fragments.aws_organization import (
     AWSOrganization,
 )
 from reconcile.typed_queries.aws_account_tags import get_aws_account_tags
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def test_get_aws_account_tags_when_org_is_none() -> None:

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 import re
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.jenkins_configs import jenkins_configs
 from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
@@ -18,9 +20,6 @@ from reconcile.gql_definitions.vault_instances.vault_instances import (
     VaultReplicationPolicyV1,
 )
 from reconcile.gql_definitions.vault_policies import vault_policies
-from reconcile.gql_definitions.vault_policies.vault_policies import (
-    VaultPoliciesQueryData,
-)
 from reconcile.utils import gql
 from reconcile.utils.vault import (
     SecretAccessForbiddenError,
@@ -28,6 +27,13 @@ from reconcile.utils.vault import (
     SecretVersionNotFoundError,
     VaultClient,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.gql_definitions.vault_policies.vault_policies import (
+        VaultPoliciesQueryData,
+    )
 
 QONTRACT_INTEGRATION = "vault-replication"
 SECRET_PATH_PATTERN = re.compile(r"^[\w/-]+?(?P<folder>/\*?)?$")

@@ -1,10 +1,7 @@
-from collections.abc import (
-    Generator,
-    Mapping,
-    Sequence,
-)
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
 from requests import Response
@@ -14,7 +11,6 @@ from reconcile.dashdotdb_base import (
     LOG,
     DashdotdbBase,
 )
-from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -24,6 +20,15 @@ from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Generator,
+        Mapping,
+        Sequence,
+    )
+
+    from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
 
 QONTRACT_INTEGRATION = "dashdotdb-dvo"
 

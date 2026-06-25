@@ -1,8 +1,14 @@
-import logging
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
 
-from reconcile.utils.gitlab_api import GitLabApi
+import logging
+from typing import TYPE_CHECKING
+
 from reconcile.utils.mr.base import MergeRequestBase
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from reconcile.utils.gitlab_api import GitLabApi
 
 LOG = logging.getLogger(__name__)
 

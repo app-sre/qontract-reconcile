@@ -1,11 +1,12 @@
+from __future__ import annotations
+
 import base64
 import hashlib
 import logging
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Mapping
 from datetime import timedelta
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.metrics import (
@@ -19,22 +20,13 @@ from reconcile.dynatrace_token_provider.model import (
     K8sSecret,
     TokenSpecTenantBinding,
 )
-from reconcile.dynatrace_token_provider.ocm import (
-    OCMClient,
-    OCMCluster,
-)
 from reconcile.dynatrace_token_provider.validate import validate_token_specs
-from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
-    DynatraceAPITokenV1,
-    DynatraceTokenProviderTokenSpecV1,
-)
 from reconcile.typed_queries.dynatrace_token_provider_token_specs import (
     get_dynatrace_token_provider_token_specs,
 )
 from reconcile.utils import (
     metrics,
 )
-from reconcile.utils.dynatrace.client import DynatraceClient
 from reconcile.utils.ocm.base import (
     OCMClusterServiceLogCreateModel,
     OCMServiceLogSeverity,
@@ -50,6 +42,19 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from reconcile.dynatrace_token_provider.ocm import (
+        OCMClient,
+        OCMCluster,
+    )
+    from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
+        DynatraceAPITokenV1,
+        DynatraceTokenProviderTokenSpecV1,
+    )
+    from reconcile.utils.dynatrace.client import DynatraceClient
 
 QONTRACT_INTEGRATION_VERSION = make_semver(2, 0, 1)
 QONTRACT_INTEGRATION = "dynatrace-token-provider"

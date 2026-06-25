@@ -1,11 +1,8 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
@@ -21,6 +18,13 @@ from reconcile.utils.external_resources import (
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
 
 QONTRACT_INTEGRATION = "terraform_aws_route53"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

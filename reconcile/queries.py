@@ -1,17 +1,21 @@
+from __future__ import annotations
+
 import itertools
 import logging
 import os
 import shlex
-from collections.abc import Mapping
 from dataclasses import dataclass
 from textwrap import indent
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from jinja2 import Template
 
 from reconcile.gql_definitions.jumphosts.jumphosts import JumphostsQueryData
 from reconcile.gql_definitions.jumphosts.jumphosts import query as jumphosts_query
 from reconcile.utils import gql
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 SECRET_READER_SETTINGS = """
 {

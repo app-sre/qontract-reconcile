@@ -1,9 +1,14 @@
-from collections.abc import Callable
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from reconcile.utils.rhcsv2_certs import extract_cert, get_cert_expiry_timestamp
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @pytest.fixture

@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 from copy import deepcopy
-from typing import Any
-from unittest.mock import Mock
+from typing import TYPE_CHECKING, Any
 
 from reconcile.aus import cluster_version_data as cvd
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
 
 
 def get_data(

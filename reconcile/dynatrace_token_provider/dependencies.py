@@ -1,10 +1,8 @@
-from collections.abc import Mapping
-from typing import Self
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Self
 
 from reconcile.dynatrace_token_provider.ocm import OCMClient
-from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
-    DynatraceTokenProviderTokenSpecV1,
-)
 from reconcile.typed_queries.dynatrace_environments import get_dynatrace_environments
 from reconcile.typed_queries.dynatrace_token_provider_token_specs import (
     get_dynatrace_token_provider_token_specs,
@@ -14,7 +12,14 @@ from reconcile.utils.dynatrace.client import DynatraceClient
 from reconcile.utils.ocm_base_client import (
     init_ocm_base_client,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
+        DynatraceTokenProviderTokenSpecV1,
+    )
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class Dependencies:

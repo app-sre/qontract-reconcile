@@ -1,4 +1,6 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import requests
 from sretoolbox.utils import threaded
@@ -10,7 +12,6 @@ from reconcile.dashdotdb_base import (
 from reconcile.gql_definitions.dashdotdb_slo.slo_documents_query import (
     query,
 )
-from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -24,6 +25,9 @@ from reconcile.utils.slo_document_manager import (
     SLODetails,
     SLODocumentManager,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
 
 QONTRACT_INTEGRATION = "dashdotdb-slo"
 READ_TIMEOUT = 300

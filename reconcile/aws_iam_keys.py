@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 import shutil
 import sys
-from collections.abc import Callable, Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
@@ -10,6 +11,9 @@ from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.state import State, init_state
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping
 
 QONTRACT_INTEGRATION = "aws-iam-keys"
 

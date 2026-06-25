@@ -1,14 +1,11 @@
+from __future__ import annotations
+
 import json
 import logging
 import re
 import shutil
 import tempfile
 from collections import defaultdict
-from collections.abc import (
-    Iterable,
-    Iterator,
-    Mapping,
-)
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import (
@@ -19,6 +16,7 @@ from subprocess import CalledProcessError
 from threading import Lock
 from typing import (
     IO,
+    TYPE_CHECKING,
     Any,
     cast,
 )
@@ -34,13 +32,21 @@ import reconcile.utils.lean_terraform_client as lean_tf
 from reconcile.typed_queries.app_interface_custom_messages import (
     get_app_interface_custom_message,
 )
-from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.aws_helper import get_region_from_availability_zone
 from reconcile.utils.datetime_util import ensure_utc, utc_now
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
-    ExternalResourceSpecInventory,
-)
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Iterator,
+        Mapping,
+    )
+
+    from reconcile.utils.aws_api import AWSApi
+    from reconcile.utils.external_resource_spec import (
+        ExternalResourceSpec,
+        ExternalResourceSpecInventory,
+    )
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "1.2"
 DATE_FORMAT = "%Y-%m-%d"

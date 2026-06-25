@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 import logging
 import re
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.typed_queries.aws_account_tags import get_aws_account_tags
 from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils.aws_api import AWSApi
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Mapping,
+    )
 
 QONTRACT_INTEGRATION = "aws-ami-share"
 

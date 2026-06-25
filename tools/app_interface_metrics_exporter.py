@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
 import click
 from pydantic import BaseModel
@@ -21,6 +23,9 @@ from reconcile.utils import (
 )
 from reconcile.utils.metrics import GaugeMetric
 from reconcile.utils.runtime.environment import init_env
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 INTEGRATION = "app-interface-metrics-exporter"
 

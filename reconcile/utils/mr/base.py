@@ -1,21 +1,26 @@
+from __future__ import annotations
+
 import logging
 from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Iterable
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 from gitlab.exceptions import GitlabError
 from jinja2 import Template
 
-from reconcile.gql_definitions.fragments.user import User
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.json import json_dumps
 from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
 from reconcile.utils.sqs_gateway import SQSGateway
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.gql_definitions.fragments.user import User
 
 EMAIL_TEMPLATE = PROJ_ROOT / "templates" / "email.yml.j2"
 

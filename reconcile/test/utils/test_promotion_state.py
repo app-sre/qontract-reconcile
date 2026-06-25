@@ -1,15 +1,20 @@
+from __future__ import annotations
+
 import json
-from collections.abc import (
-    Callable,
-    Mapping,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile.utils.promotion_state import (
     PromotionData,
     PromotionState,
 )
-from reconcile.utils.state import State
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
+
+    from reconcile.utils.state import State
 
 
 def test_key_exists_v1(s3_state_builder: Callable[[Mapping[str, Any]], State]) -> None:

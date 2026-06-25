@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
 from reconcile import (
     mr_client_gateway,
 )
-from reconcile.gql_definitions.common.ldap_settings import LdapSettingsV1
-from reconcile.gql_definitions.common.users_with_paths import UserV1
 from reconcile.typed_queries.ldap_settings import get_ldap_settings
 from reconcile.typed_queries.users_with_paths import get_users_with_paths
 from reconcile.utils.defer import defer
@@ -17,6 +17,12 @@ from reconcile.utils.mr import (
     CreateDeleteUserInfra,
 )
 from reconcile.utils.mr.user_maintenance import PathSpec, PathTypes
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.gql_definitions.common.ldap_settings import LdapSettingsV1
+    from reconcile.gql_definitions.common.users_with_paths import UserV1
 
 QONTRACT_INTEGRATION = "ldap-users"
 

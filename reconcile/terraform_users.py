@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import sys
-from collections.abc import Iterable, Mapping
 from textwrap import indent
 from typing import (
+    TYPE_CHECKING,
     Any,
 )
 
@@ -32,6 +34,9 @@ from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascr
 from reconcile.utils.vault import (
     VaultClient,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 TF_POLICY = """
 name

@@ -1,15 +1,20 @@
+from __future__ import annotations
+
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Mapping, MutableMapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
-from reconcile.typed_queries.cost_report.app_names import App
 from reconcile.typed_queries.cost_report.settings import get_cost_report_settings
-from reconcile.utils.gql import GqlApi
 from reconcile.utils.secret_reader import create_secret_reader
-from tools.cli_commands.cost_report.model import Report
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping, MutableMapping
+
+    from reconcile.typed_queries.cost_report.app_names import App
+    from reconcile.utils.gql import GqlApi
+    from tools.cli_commands.cost_report.model import Report
 
 
 def dfs_build_reports(

@@ -1,17 +1,17 @@
+from __future__ import annotations
+
 import logging
 from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Iterable, Mapping
 from enum import Enum
 from itertools import chain
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from qontract_utils.differ import diff_mappings
 
-from reconcile.gql_definitions.slo_documents.slo_documents import SLODocumentV1
-from reconcile.gql_definitions.status_board.status_board import StatusBoardV1
 from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.typed_queries.status_board import (
     get_selected_app_names,
@@ -38,6 +38,12 @@ from reconcile.utils.ocm_base_client import (
     init_ocm_base_client,
 )
 from reconcile.utils.runtime.integration import QontractReconcileIntegration
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from reconcile.gql_definitions.slo_documents.slo_documents import SLODocumentV1
+    from reconcile.gql_definitions.status_board.status_board import StatusBoardV1
 
 QONTRACT_INTEGRATION = "status-board-exporter"
 

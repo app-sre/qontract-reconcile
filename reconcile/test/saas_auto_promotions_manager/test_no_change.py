@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 from reconcile.saas_auto_promotions_manager.dependencies import Dependencies
@@ -11,9 +14,11 @@ from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
 from reconcile.utils.promotion_state import (
     PromotionState,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.state import State
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 def test_sapm_reconcile_empty_states_no_change(secret_reader: SecretReaderBase) -> None:

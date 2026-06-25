@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import itertools
 import logging
-from collections.abc import Callable, Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import (
     mr_client_gateway,
@@ -11,6 +12,9 @@ from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.mr import CreateDeleteAwsAccessKey
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping
 
 QONTRACT_INTEGRATION = "aws-support-cases-sos"
 

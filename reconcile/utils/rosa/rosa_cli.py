@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import collections
 import itertools
 import os
 import textwrap
-from collections.abc import Callable, Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from kubernetes.client import (
     V1Container,
@@ -23,6 +24,9 @@ from kubernetes.client import (
 from pydantic import BaseModel
 
 from reconcile.utils.jobcontroller.models import JobStatus, K8sJob
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 SCRIPTS_MOUNT_PATH = "/scripts"
 EXEC_SCRIPT = "execute.sh"

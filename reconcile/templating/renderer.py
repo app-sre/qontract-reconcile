@@ -1,11 +1,12 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
 import tempfile
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 from qontract_utils.ruamel import create_ruamel_instance, yaml
 
@@ -31,15 +32,19 @@ from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
 from reconcile.utils.git import checkout, clone
-from reconcile.utils.gql import GqlApi
 from reconcile.utils.jinja2.utils import TemplateRenderOptions, process_jinja2_template
 from reconcile.utils.json import json_dumps
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.gql import GqlApi
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "template-renderer"
 

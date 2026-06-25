@@ -1,9 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from reconcile.gql_definitions.common.jira_settings import (
     AppInterfaceSettingsV1,
     query,
 )
 from reconcile.utils.exceptions import AppInterfaceSettingsError
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from reconcile.utils.gql import GqlApi
 
 
 def get_jira_settings(

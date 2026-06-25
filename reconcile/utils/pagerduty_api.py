@@ -1,10 +1,9 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import (
-    Callable,
-    Iterable,
-)
 from datetime import datetime, timedelta
 from typing import (
+    TYPE_CHECKING,
     Protocol,
 )
 
@@ -14,10 +13,17 @@ from pydantic import BaseModel
 from sretoolbox.utils import retry
 
 from reconcile.utils.datetime_util import utc_now
-from reconcile.utils.secret_reader import (
-    HasSecret,
-    SecretReader,
-)
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+    )
+
+    from reconcile.utils.secret_reader import (
+        HasSecret,
+        SecretReader,
+    )
 
 
 class PagerDutyTargetError(Exception):

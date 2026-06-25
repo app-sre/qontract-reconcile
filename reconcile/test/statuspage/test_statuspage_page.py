@@ -1,5 +1,11 @@
-from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from reconcile.statuspage.page import StatusPage
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 
 
 def test_build_status_page_from_desired_state(

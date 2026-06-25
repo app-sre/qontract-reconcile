@@ -1,5 +1,6 @@
-from collections.abc import Mapping
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.utils.secret_reader import (
@@ -10,6 +11,9 @@ from reconcile.utils.slack_api import (
     SlackApi,
     SlackApiConfig,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def slackapi_from_queries(

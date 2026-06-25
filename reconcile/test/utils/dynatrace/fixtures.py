@@ -1,8 +1,13 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 from dynatrace import Dynatrace
 from dynatrace.environment_v2.tokens_api import ApiToken, ApiTokenCreated, TokenService
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 def build_dynatrace_api(

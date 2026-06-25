@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 
@@ -36,11 +37,15 @@ from reconcile.utils.external_resources import publish_metrics
 from reconcile.utils.jobcontroller.controller import (
     build_job_controller,
 )
-from reconcile.utils.oc import (
-    OCCli,
-)
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
 from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.oc import (
+        OCCli,
+    )
 
 
 def fetch_current_state(

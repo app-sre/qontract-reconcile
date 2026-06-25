@@ -1,18 +1,22 @@
+from __future__ import annotations
+
 import json
 import os
 import tempfile
-from collections.abc import Iterable, Mapping
 from subprocess import (
     CalledProcessError,
     run,
 )
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
 from reconcile.utils import git
 from reconcile.utils.json import json_dumps
 from reconcile.utils.runtime.sharding import ShardSpec
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 
 class HelmTemplateError(Exception):

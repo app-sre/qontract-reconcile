@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jinja2
 from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
@@ -20,7 +21,6 @@ from reconcile.utils import gql
 from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
-from reconcile.utils.gql import GqlApi
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -28,6 +28,11 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.gql import GqlApi
 
 QONTRACT_INTEGRATION = "terraform-init"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)

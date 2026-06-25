@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 import random
 import sys
-from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING
 
 import reconcile.openshift_base as ob
 from reconcile.gql_definitions.openshift_serviceaccount_tokens.tokens import NamespaceV1
@@ -12,11 +14,15 @@ from reconcile.utils import gql
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
-from reconcile.utils.oc import OC_Map
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vault import VaultClient
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
+    from reconcile.utils.oc import OC_Map
 
 QONTRACT_INTEGRATION = "openshift-serviceaccount-tokens"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

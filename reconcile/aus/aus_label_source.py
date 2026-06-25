@@ -1,4 +1,6 @@
-from collections.abc import Callable, Iterable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.aus.advanced_upgrade_service import (
     aus_label_key,
@@ -14,13 +16,17 @@ from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
 from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
     query as aus_organizations_query,
 )
-from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.utils.ocm.label_sources import (
     ClusterRef,
     LabelSource,
     LabelState,
     OrgRef,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
+    from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 
 
 class AUSClusterUpgradePolicyLabelSource(LabelSource):

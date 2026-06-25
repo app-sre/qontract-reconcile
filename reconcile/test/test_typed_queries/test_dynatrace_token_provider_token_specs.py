@@ -1,7 +1,5 @@
-from collections.abc import (
-    Callable,
-    Mapping,
-)
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
 
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
@@ -11,10 +9,15 @@ from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
 from reconcile.typed_queries.dynatrace_token_provider_token_specs import (
     get_dynatrace_token_provider_token_specs,
 )
-from reconcile.utils.gql import GqlApi
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
     from unittest.mock import MagicMock
+
+    from reconcile.utils.gql import GqlApi
 
 
 def test_no_dynatrace_token_provider_token_specs(

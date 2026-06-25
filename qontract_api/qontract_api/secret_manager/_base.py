@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
-from qontract_utils.secret_reader import Secret, SecretBackend
-
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from qontract_utils.secret_reader import Secret, SecretBackend
+
     from qontract_api.cache import CacheBackend
 
 

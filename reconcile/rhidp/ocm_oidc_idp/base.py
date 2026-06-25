@@ -1,9 +1,8 @@
+from __future__ import annotations
+
 import logging
 import operator
-from collections.abc import (
-    Iterable,
-    Sequence,
-)
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from qontract_utils.differ import diff_iterables
@@ -32,8 +31,15 @@ from reconcile.utils.ocm.identity_providers import (
     get_identity_providers,
     update_identity_provider,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Sequence,
+    )
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class IDPState(BaseModel):

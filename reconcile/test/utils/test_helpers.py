@@ -1,9 +1,7 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import (
-    Iterable,
-    Sequence,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -14,6 +12,12 @@ from reconcile.utils.helpers import (
     match_patterns,
     toggle_logger,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Sequence,
+    )
 
 
 @pytest.fixture

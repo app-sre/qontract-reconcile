@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 import operator
-from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import pytest
 
 from reconcile.utils.grouping import group_by
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 
 @dataclass

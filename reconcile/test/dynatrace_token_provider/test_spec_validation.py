@@ -1,11 +1,9 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
-from reconcile.dynatrace_token_provider.dependencies import Dependencies
-from reconcile.dynatrace_token_provider.integration import (
-    DynatraceTokenProviderIntegration,
-)
 from reconcile.dynatrace_token_provider.validate import (
     KeyNameNotUniqueInSecretError,
     SecretNotUniqueError,
@@ -14,6 +12,14 @@ from reconcile.dynatrace_token_provider.validate import (
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceTokenProviderTokenSpecV1,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.dynatrace_token_provider.dependencies import Dependencies
+    from reconcile.dynatrace_token_provider.integration import (
+        DynatraceTokenProviderIntegration,
+    )
 
 
 def test_dtp_spec_validation_valid_spec(

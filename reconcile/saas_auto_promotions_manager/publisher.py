@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from reconcile.utils.promotion_state import PromotionState
-from reconcile.utils.secret_reader import HasSecret
-from reconcile.utils.vcs import VCS
+if TYPE_CHECKING:
+    from reconcile.utils.promotion_state import PromotionState
+    from reconcile.utils.secret_reader import HasSecret
+    from reconcile.utils.vcs import VCS
 
 
 @dataclass

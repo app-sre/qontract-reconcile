@@ -2,9 +2,11 @@
 SQS Consumer to create Gitlab merge requests.
 """
 
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from reconcile import queries
 from reconcile.utils import mr
@@ -13,6 +15,9 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.json import json_dumps
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.sqs_gateway import SQSGateway
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 QONTRACT_INTEGRATION = "gitlab-mr-sqs-consumer"
 

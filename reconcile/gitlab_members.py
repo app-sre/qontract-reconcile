@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from gitlab.v4.objects import (
     Group,
@@ -14,7 +15,6 @@ from reconcile.gql_definitions.common.pagerduty_instances import (
     query as pagerduty_instances_query,
 )
 from reconcile.gql_definitions.common.users import query as users_query
-from reconcile.gql_definitions.fragments.user import User
 from reconcile.gql_definitions.gitlab_members.gitlab_instances import GitlabInstanceV1
 from reconcile.gql_definitions.gitlab_members.gitlab_instances import (
     query as gitlab_instances_query,
@@ -35,6 +35,11 @@ from reconcile.utils.pagerduty_api import (
     get_usernames_from_pagerduty,
 )
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.gql_definitions.fragments.user import User
 
 QONTRACT_INTEGRATION = "gitlab-members"
 

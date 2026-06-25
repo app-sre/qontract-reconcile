@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.common.jiralert_settings import (
     JiralertSettingsV1,
@@ -6,6 +8,9 @@ from reconcile.gql_definitions.common.jiralert_settings import (
 )
 from reconcile.utils import gql
 from reconcile.utils.exceptions import AppInterfaceSettingsError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def get_jiralert_settings(

@@ -1,7 +1,8 @@
 """Shared data models for openshift-rolebindings and openshift-clusterrolebindings integrations."""
 
-from collections.abc import Sequence
-from typing import Any, Self
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Self
 
 from pydantic import BaseModel
 
@@ -38,6 +39,9 @@ from reconcile.openshift_bindings.constants import (
 )
 from reconcile.openshift_bindings.utils import is_valid_namespace
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def get_usernames_from_users(

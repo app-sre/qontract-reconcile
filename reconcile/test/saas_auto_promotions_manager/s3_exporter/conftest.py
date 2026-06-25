@@ -1,9 +1,14 @@
-from collections.abc import Callable, Mapping
+from __future__ import annotations
+
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import pytest
 
 from reconcile.saas_auto_promotions_manager.publisher import DeploymentInfo, Publisher
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
 
 
 @pytest.fixture

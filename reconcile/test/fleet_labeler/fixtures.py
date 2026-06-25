@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import json
-from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import (
     Mock,
     create_autospec,
@@ -10,6 +11,9 @@ from reconcile.fleet_labeler.metrics import FleetLabelerMetrics
 from reconcile.fleet_labeler.ocm import Cluster, OCMClient
 from reconcile.fleet_labeler.vcs import VCS
 from reconcile.test.fixtures import Fixtures
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 def build_ocm_client(

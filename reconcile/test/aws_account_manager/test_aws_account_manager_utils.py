@@ -1,11 +1,17 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
 from reconcile.aws_account_manager.utils import state_key, validate
-from reconcile.gql_definitions.aws_account_manager.aws_accounts import AWSAccountV1
 from reconcile.gql_definitions.fragments.aws_account_managed import (
     AWSQuotaLimitsV1,
     AWSQuotaV1,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.aws_account_manager.aws_accounts import AWSAccountV1
 
 
 def test_aws_account_manager_utils_is_valid_overlapping_quotas(

@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import logging
 import sys
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 from qontract_utils.differ import diff_iterables
 
@@ -8,13 +11,15 @@ from reconcile.slack_base import slackapi_from_queries
 from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
 from reconcile.statuspage.integration import get_binding_state, get_status_pages
 from reconcile.statuspage.page import StatusMaintenance
-from reconcile.statuspage.state import S3ComponentBindingState
 from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from reconcile.statuspage.state import S3ComponentBindingState
 
 QONTRACT_INTEGRATION = "status-page-maintenances"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

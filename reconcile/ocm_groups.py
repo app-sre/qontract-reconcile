@@ -1,11 +1,9 @@
+from __future__ import annotations
+
 import itertools
 import logging
 import sys
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sretoolbox.utils import threaded
 
@@ -18,6 +16,12 @@ from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.ocm.base import OCMClusterGroupId
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Mapping,
+    )
 
 QONTRACT_INTEGRATION = "ocm-groups"
 

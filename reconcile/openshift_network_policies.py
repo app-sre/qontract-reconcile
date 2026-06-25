@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Callable, Iterable, Mapping
 from textwrap import indent
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import reconcile.openshift_base as ob
 from reconcile import queries
@@ -13,6 +14,9 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping
 
 NAMESPACES_QUERY = """
 {

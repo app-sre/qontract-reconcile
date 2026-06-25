@@ -1,7 +1,7 @@
-from collections.abc import Callable, Mapping
+from __future__ import annotations
+
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -22,6 +22,10 @@ from reconcile.terraform_repo import (
 )
 from reconcile.utils.exceptions import ParameterError
 from reconcile.utils.state import State
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+    from pathlib import Path
 
 A_REPO = "https://git-example/tf-repo-example"
 A_REPO_SHA = "a390f5cb20322c90861d6d80e9b70c6a579be1d0"

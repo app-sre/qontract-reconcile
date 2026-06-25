@@ -1,6 +1,11 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
-from reconcile.utils.rosa.rosa_cli import LogHandle
+if TYPE_CHECKING:
+    from reconcile.utils.rosa.rosa_cli import LogHandle
 
 #
 # LogHandler

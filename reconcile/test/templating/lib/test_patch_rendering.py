@@ -1,9 +1,15 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
 from reconcile.templating.lib.rendering import PatchRenderer, TemplateData
-from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.secret_reader import SecretReader
 
 
 @pytest.mark.parametrize(

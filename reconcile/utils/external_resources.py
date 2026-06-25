@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 import json
 from collections import Counter
-from collections.abc import Mapping, MutableMapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import anymarkup
 
-from reconcile.external_resources.model import ExternalResourcesInventory
 from reconcile.utils import (
     gql,
     metrics,
@@ -16,6 +16,11 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, MutableMapping
+
+    from reconcile.external_resources.model import ExternalResourcesInventory
 
 PROVIDER_AWS = "aws"
 PROVIDER_CLOUDFLARE = "cloudflare"

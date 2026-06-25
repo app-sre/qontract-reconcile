@@ -1,10 +1,8 @@
+from __future__ import annotations
+
 from collections import Counter
-from collections.abc import (
-    Iterable,
-    MutableMapping,
-)
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, model_validator
@@ -12,7 +10,6 @@ from pydantic import BaseModel, model_validator
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.rhidp.organizations import (
     OpenShiftClusterManagerV1,
@@ -23,7 +20,6 @@ from reconcile.gql_definitions.rhidp.organizations import (
 from reconcile.rhidp.metrics import RhIdpClusterCounter
 from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
-from reconcile.utils.metrics import MetricsContainer
 from reconcile.utils.ocm.base import OCMCluster
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
@@ -34,7 +30,16 @@ from reconcile.utils.ocm.labels import (
     subscription_label_filter,
 )
 from reconcile.utils.ocm.sre_capability_labels import sre_capability_label_key
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        MutableMapping,
+    )
+
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+    from reconcile.utils.metrics import MetricsContainer
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 # Generates label keys for rhidp, compliant with the naming schema defined in
 # https://service.pages.redhat.com/dev-guidelines/docs/sre-capabilities/framework/ocm-labels/

@@ -1,6 +1,9 @@
-from typing import Any, TypedDict
+from __future__ import annotations
 
-from reconcile.utils.ocm_base_client import OCMBaseClient
+from typing import TYPE_CHECKING, Any, TypedDict
+
+if TYPE_CHECKING:
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 SERVICE_DESIRED_KEYS = {"id", "name", "fullname", "metadata"}
 APPLICATION_DESIRED_KEYS = {"id", "name", "fullname", "metadata"}

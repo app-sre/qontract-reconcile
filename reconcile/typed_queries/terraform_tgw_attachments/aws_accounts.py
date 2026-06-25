@@ -1,8 +1,14 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
     AWSAccountV1,
     query,
 )
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from reconcile.utils.gql import GqlApi
 
 
 def get_aws_accounts(

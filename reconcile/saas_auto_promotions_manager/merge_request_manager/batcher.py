@@ -1,10 +1,15 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
     OpenBatcherMergeRequest,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class Reason(Enum):

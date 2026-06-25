@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 from collections import defaultdict
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
     Promotion,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class DesiredState:

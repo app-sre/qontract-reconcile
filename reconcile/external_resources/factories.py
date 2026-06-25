@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from abc import (
     ABC,
     abstractmethod,
 )
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from reconcile.external_resources.aws import (
     AWSDefaultResourceFactory,
@@ -29,13 +31,15 @@ from reconcile.external_resources.model import (
     ModuleProvisionData,
     TerraformModuleProvisionData,
 )
-from reconcile.gql_definitions.external_resources.external_resources_settings import (
-    ExternalResourcesSettingsV1,
-)
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
-)
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.external_resources.external_resources_settings import (
+        ExternalResourcesSettingsV1,
+    )
+    from reconcile.utils.external_resource_spec import (
+        ExternalResourceSpec,
+    )
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 T = TypeVar("T")
 

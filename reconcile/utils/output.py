@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 import re
-from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING
 
 import yaml
 from tabulate import tabulate
 
 from reconcile.utils.json import json_dumps
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 
 def print_output(

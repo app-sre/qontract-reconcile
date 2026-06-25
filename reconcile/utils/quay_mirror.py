@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 import time
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from reconcile.utils.helpers import match_patterns
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 def record_timestamp(path: str) -> None:

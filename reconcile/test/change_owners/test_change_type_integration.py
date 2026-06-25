@@ -1,9 +1,12 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
 )
-from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     DatafileObjectV1,
 )
@@ -12,6 +15,11 @@ from reconcile.test.change_owners.fixtures import (
     build_role,
     change_type_to_processor,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.change_owners.queries.change_types import (
+        ChangeTypeV1,
+    )
 
 
 def test_change_coverage(

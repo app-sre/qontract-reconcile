@@ -1,4 +1,6 @@
-from typing import NamedTuple, Protocol
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, NamedTuple, Protocol
 
 import requests
 from pydantic import BaseModel, Field
@@ -8,7 +10,9 @@ from reconcile.gql_definitions.fragments.prometheus_instance import (
     PrometheusInstanceBearerAuthV1,
     PrometheusInstanceOidcAuthV1,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 INSTANT_VECTOR_RESULT_TYPE = "vector"
 

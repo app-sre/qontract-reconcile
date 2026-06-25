@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from reconcile.aus.base import ClusterUpgradePolicy, NodePoolUpgradePolicy
 from reconcile.aus.healthchecks import AUSClusterHealth, AUSHealthError
@@ -38,8 +41,10 @@ from reconcile.utils.ocm.base import (
     OCMVersionGate,
     build_label_container,
 )
-from reconcile.utils.ocm.clusters import OCMCluster
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from reconcile.utils.ocm.clusters import OCMCluster
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def build_upgrade_policy(

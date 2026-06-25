@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from collections import defaultdict
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from deepdiff import DeepHash
 
@@ -8,6 +9,9 @@ import reconcile.openshift_resources_base as orb
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 QONTRACT_INTEGRATION = "openshift-vault-secrets"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)

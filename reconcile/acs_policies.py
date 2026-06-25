@@ -1,14 +1,11 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from qontract_utils.differ import diff_iterables
 
 import reconcile.gql_definitions.acs.acs_policies as gql_acs_policies
-from reconcile.gql_definitions.acs.acs_policies import (
-    AcsPolicyConditionsV1,
-    AcsPolicyV1,
-)
 from reconcile.utils import gql
 from reconcile.utils.acs.policies import AcsPolicyApi, Policy, PolicyCondition, Scope
 from reconcile.utils.runtime.integration import (
@@ -16,6 +13,14 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.gql_definitions.acs.acs_policies import (
+        AcsPolicyConditionsV1,
+        AcsPolicyV1,
+    )
 
 # proceeding constants map schema enum values to corresponding acs api defaults
 POLICY_CATEGORIES = {

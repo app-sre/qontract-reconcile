@@ -1,5 +1,7 @@
-from collections.abc import Mapping
+from __future__ import annotations
+
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from pytest import fixture
 
@@ -32,6 +34,9 @@ from reconcile.gql_definitions.fragments.deploy_resources import (
     ResourceLimitsRequirementsV1,
     ResourceRequestsRequirementsV1,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @fixture

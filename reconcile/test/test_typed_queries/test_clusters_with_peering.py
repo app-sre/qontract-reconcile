@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -7,7 +9,11 @@ from reconcile.gql_definitions.common.clusters_with_peering import (
     ClustersWithPeeringQueryData,
 )
 from reconcile.typed_queries.clusters_with_peering import get_clusters_with_peering
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.gql import GqlApi
 
 
 @pytest.fixture

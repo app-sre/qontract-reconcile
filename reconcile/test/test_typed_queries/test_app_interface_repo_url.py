@@ -1,7 +1,6 @@
-from collections.abc import (
-    Callable,
-    Mapping,
-)
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -10,6 +9,12 @@ from reconcile.gql_definitions.common.app_interface_repo_settings import (
 )
 from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
 from reconcile.utils.exceptions import AppInterfaceSettingsError
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
 
 
 def test_no_settings(

@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import base64
 import json
 import logging
 from abc import abstractmethod
-from collections.abc import Iterable, Mapping
 from hashlib import shake_128
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 from qontract_utils.differ import diff_mappings
@@ -25,13 +26,7 @@ from reconcile.external_resources.model import (
 from reconcile.openshift_base import ApplyOptions, apply_action
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils.datetime_util import to_utc_seconds_iso_format, utc_now
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
-)
 from reconcile.utils.json import json_dumps
-from reconcile.utils.oc import (
-    OCCli,
-)
 from reconcile.utils.oc_map import OCMap, init_oc_map_from_clusters
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
 from reconcile.utils.secret_reader import SecretNotFoundError, SecretReaderBase
@@ -39,6 +34,16 @@ from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
 from reconcile.utils.vault import (
     VaultClient,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from reconcile.utils.external_resource_spec import (
+        ExternalResourceSpec,
+    )
+    from reconcile.utils.oc import (
+        OCCli,
+    )
 
 
 class VaultSecret(BaseModel):

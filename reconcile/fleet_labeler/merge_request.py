@@ -1,10 +1,14 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
+
+if TYPE_CHECKING:
+    from reconcile.utils.gitlab_api import GitLabApi
 
 FLEET_LABELER_LABEL = "FleetLabeler"
 

@@ -1,11 +1,15 @@
-from collections.abc import Callable, Iterable, Mapping, MutableMapping
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from unittest.mock import create_autospec
 
 import pytest
 
 from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping, MutableMapping
 
 
 @pytest.fixture

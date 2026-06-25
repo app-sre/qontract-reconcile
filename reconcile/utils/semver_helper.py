@@ -1,6 +1,11 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import semver
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 def make_semver(major: int, minor: int, patch: int) -> str:

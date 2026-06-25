@@ -1,5 +1,6 @@
-from collections.abc import Callable
-from typing import Any, Self
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Self
 from unittest.mock import (
     MagicMock,
     patch,
@@ -15,6 +16,9 @@ from reconcile.utils.aggregated_list import AggregatedList
 from reconcile.utils.quay_api import QuayApi
 
 from .fixtures import Fixtures
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 fxt = Fixtures("quay_membership")
 

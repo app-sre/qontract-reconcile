@@ -1,5 +1,6 @@
-from collections.abc import Sequence
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -22,6 +23,9 @@ from reconcile.test.change_owners.fixtures import (
     MockFileDiffResolver,
     build_jsonpath_change,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def build_def_change_type(name: str, inherit: list[str] | None = None) -> ChangeTypeV1:

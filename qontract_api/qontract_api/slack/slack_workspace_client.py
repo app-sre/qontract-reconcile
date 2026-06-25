@@ -9,7 +9,6 @@ This layer sits between the stateless SlackApi and business logic, providing:
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import TYPE_CHECKING, Protocol, TypeVar, runtime_checkable
 
 from pydantic import BaseModel, Field
@@ -31,6 +30,8 @@ from .domain import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
 

@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from qontract_utils.differ import diff_iterables
-from qontract_utils.secret_reader import Secret
 
 from qontract_api.integrations.slack_usergroups.schemas import (
     SlackUsergroupAction,
@@ -20,6 +18,10 @@ from qontract_api.models import TaskStatus
 from qontract_api.slack.slack_client_factory import create_slack_workspace_client
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from qontract_utils.secret_reader import Secret
+
     from qontract_api.cache import CacheBackend
     from qontract_api.config import Settings
     from qontract_api.secret_manager import SecretManager

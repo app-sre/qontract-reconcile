@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import base64
 import logging
 import re
-from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jsonpatch  # type: ignore
 from jsonpointer import resolve_pointer  # type: ignore
 
 from reconcile.utils.openshift_resource import QONTRACT_ANNOTATIONS
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 NORMALIZE_COMPARE_EXCLUDED_ATTRS = {
     "creationTimestamp",

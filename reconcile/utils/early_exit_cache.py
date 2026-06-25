@@ -1,15 +1,20 @@
-from collections.abc import Mapping
+from __future__ import annotations
+
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from functools import cached_property
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 from deepdiff import DeepHash
 from pydantic import BaseModel, ConfigDict
 
 from reconcile.utils.datetime_util import utc_now
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.state import State, init_state
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 STATE_INTEGRATION = "early-exit-cache"
 EXPIRE_AT_METADATA_KEY = "expire-at"

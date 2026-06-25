@@ -1,5 +1,7 @@
-from collections.abc import Callable
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -15,6 +17,9 @@ from tools.cli_commands.cost_report.response import (
     ResourceConfigResponse,
     ResourceResponse,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @pytest.fixture

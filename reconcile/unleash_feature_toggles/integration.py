@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable, Iterable, Sequence, ValuesView
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from qontract_utils.differ import DiffPair, diff_any_iterables, diff_mappings
 
@@ -26,6 +27,9 @@ from reconcile.utils.unleash.server import (
     TokenAuth,
     UnleashServer,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Sequence, ValuesView
 
 QONTRACT_INTEGRATION = "unleash-feature-toggles"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)

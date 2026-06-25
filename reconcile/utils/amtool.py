@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 import re
 import tempfile
-from collections.abc import Mapping
 from subprocess import (
     CalledProcessError,
     run,
 )
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 AMTOOL_VERSION = ["0.29.0"]
 AMTOOL_VERSION_REGEX = r"^amtool,\sversion\s([\d]+\.[\d]+\.[\d]+).+$"

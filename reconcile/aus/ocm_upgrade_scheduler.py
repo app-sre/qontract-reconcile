@@ -1,19 +1,24 @@
+from __future__ import annotations
+
 import functools
 from abc import ABC
+from typing import TYPE_CHECKING
 
 from reconcile.aus import base as aus
-from reconcile.aus.cluster_version_data import VersionData
 from reconcile.aus.metrics import (
     AUSClusterVersionRemainingSoakDaysGauge,
     AUSOrganizationVersionDataGauge,
 )
-from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.utils import metrics
 from reconcile.utils.ocm import (
     OCM_PRODUCT_OSD,
     OCM_PRODUCT_ROSA,
 )
 from reconcile.utils.ocm_base_client import init_ocm_base_client_for_org
+
+if TYPE_CHECKING:
+    from reconcile.aus.cluster_version_data import VersionData
+    from reconcile.aus.models import OrganizationUpgradeSpec
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD, OCM_PRODUCT_ROSA]

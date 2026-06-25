@@ -1,9 +1,15 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.aus.models import NodePoolSpec
 from reconcile.utils.ocm import get_node_pools
-from reconcile.utils.ocm.base import ClusterDetails
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from reconcile.utils.ocm.base import ClusterDetails
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def get_node_pool_specs(ocm_api: OCMBaseClient, cluster_id: str) -> list[NodePoolSpec]:

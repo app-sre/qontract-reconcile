@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 import logging
 import tomllib
-from collections.abc import Mapping
-from typing import Any, NotRequired, Self, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, Self, TypedDict
 
 import requests
 import yaml
 from sretoolbox.utils import retry
 
-from reconcile.utils.secret_reader import SecretReaderBase
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class JobBuildState(TypedDict):

@@ -12,13 +12,14 @@ from qontract_utils.vcs import (
     VCSProviderProtocol,
     VCSProviderRegistry,
 )
-from qontract_utils.vcs.models import Provider
 
 from qontract_api.config import GitHubProviderSettings as GitHubProviderConfig
 from qontract_api.config import GitLabProviderSettings as GitLabProviderConfig
 from qontract_api.config import Settings
 
 if TYPE_CHECKING:
+    from qontract_utils.vcs.models import Provider
+
     from qontract_api.cache import CacheBackend
 
 

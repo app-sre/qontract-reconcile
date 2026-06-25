@@ -1,10 +1,7 @@
+from __future__ import annotations
+
 import itertools
 import logging
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
 from typing import TYPE_CHECKING, Any
 
 from sretoolbox.utils import threaded
@@ -14,6 +11,12 @@ from reconcile import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
+
     from reconcile.gql_definitions.common.app_interface_roles import RoleV1
 from reconcile.gql_definitions.common.clusters_minimal import (
     ClusterAuthOIDCV1,

@@ -1,7 +1,6 @@
-from collections.abc import (
-    Callable,
-    Mapping,
-)
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -10,7 +9,14 @@ from reconcile.typed_queries.jira_settings import (
     AppInterfaceSettingsError,
     get_jira_settings,
 )
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
+
+    from reconcile.utils.gql import GqlApi
 
 
 def test_no_settings(
