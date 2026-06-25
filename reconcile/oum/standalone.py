@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.oum.base import OCMUserManagementIntegration
 from reconcile.oum.labelset import build_cluster_config_from_labels
 from reconcile.oum.models import (
@@ -27,6 +29,9 @@ from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
     init_ocm_base_client,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 
 
 class OCMStandaloneUserManagementIntegration(OCMUserManagementIntegration):

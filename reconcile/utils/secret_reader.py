@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Mapping
 from typing import (
+    TYPE_CHECKING,
     Any,
     Protocol,
     runtime_checkable,
@@ -16,6 +18,9 @@ from reconcile.utils import (
     vault,
 )
 from reconcile.utils.vault import VaultClient
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class VaultForbiddenError(Exception):

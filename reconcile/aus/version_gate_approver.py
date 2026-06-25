@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING
 
 from reconcile.aus.advanced_upgrade_service import aus_label_key
@@ -14,12 +15,6 @@ from reconcile.gql_definitions.common.ocm_environments import (
 )
 from reconcile.utils import gql
 from reconcile.utils.grouping import group_by
-from reconcile.utils.ocm.base import (
-    ClusterDetails,
-    LabelContainer,
-    OCMCluster,
-    OCMVersionGate,
-)
 from reconcile.utils.ocm.clusters import discover_clusters_by_labels
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.upgrades import (
@@ -39,7 +34,15 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.semver_helper import make_semver
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
     from reconcile.aus.version_gates.handler import GateHandler
+    from reconcile.utils.ocm.base import (
+        ClusterDetails,
+        LabelContainer,
+        OCMCluster,
+        OCMVersionGate,
+    )
 
 QONTRACT_INTEGRATION = "version-gate-approver"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

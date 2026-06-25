@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 import os
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from reconcile import queries
 from reconcile.gitlab_housekeeping import (
@@ -8,6 +10,9 @@ from reconcile.gitlab_housekeeping import (
     MERGE_LABELS_PRIORITY,
 )
 from reconcile.utils.gitlab_api import GitLabApi
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 LABEL_COLOR = "#0000FF"  # Color blue in hex for labels
 QONTRACT_INTEGRATION = "gitlab-labeler"

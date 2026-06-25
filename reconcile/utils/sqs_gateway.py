@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import json
 import os
-from collections.abc import Iterable, Mapping
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.json import json_dumps
-from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from reconcile.utils.secret_reader import SecretReader
 
 
 class SQSGatewayInitError(Exception):

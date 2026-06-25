@@ -1,16 +1,22 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from sretoolbox.utils import threaded
 
-from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.secret_reader import HasSecret
-from reconcile.utils.vcs import VCS
 from tools.saas_metrics_exporter.commit_distance.channel import (
     SaasTarget,
     build_channels,
 )
 from tools.saas_metrics_exporter.commit_distance.metrics import SaasCommitDistanceGauge
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.typed_queries.saas_files import SaasFile
+    from reconcile.utils.vcs import VCS
 
 
 @dataclass

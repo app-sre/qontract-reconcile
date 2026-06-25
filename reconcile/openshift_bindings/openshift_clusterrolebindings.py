@@ -3,8 +3,9 @@
 Manages cluster-scoped ClusterRoleBindings across OpenShift clusters.
 """
 
+from __future__ import annotations
+
 import sys
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import reconcile.openshift_base as ob
@@ -19,8 +20,6 @@ from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils import expiration
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
-from reconcile.utils.oc import OC_Map
-from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -28,7 +27,11 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.semver_helper import make_semver
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from reconcile.gql_definitions.common.app_interface_clusterrole import RoleV1
+    from reconcile.utils.oc import OC_Map
+    from reconcile.utils.openshift_resource import ResourceInventory
 
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 QONTRACT_INTEGRATION_MANAGED_TYPE = "ClusterRoleBinding.rbac.authorization.k8s.io"

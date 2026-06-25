@@ -1,7 +1,12 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.common.apps import AppV1, query
 from reconcile.utils import gql
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def get_apps(query_func: Callable | None = None) -> list[AppV1]:

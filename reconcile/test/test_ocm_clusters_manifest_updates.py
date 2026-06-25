@@ -1,4 +1,6 @@
-from collections.abc import Iterator
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -8,6 +10,9 @@ from reconcile.ocm.types import (
     OSDClusterSpec,
 )
 from reconcile.ocm_clusters import get_app_interface_spec_updates
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.fixture

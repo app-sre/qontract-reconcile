@@ -1,7 +1,6 @@
-from collections.abc import (
-    Callable,
-    Mapping,
-)
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -12,6 +11,12 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.utils.exceptions import AppInterfaceSettingsError
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
 
 
 def test_no_settings(

@@ -1,5 +1,6 @@
-from collections.abc import Callable, Mapping
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -21,6 +22,9 @@ from reconcile.typed_queries.saas_files import (
     get_saasherder_settings,
 )
 from reconcile.utils.exceptions import ParameterError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
 
 
 @pytest.fixture

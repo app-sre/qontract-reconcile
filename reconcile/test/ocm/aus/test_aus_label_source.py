@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
 from reconcile.aus.aus_label_source import (
@@ -8,11 +12,13 @@ from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
     ClusterSpecV1,
     ClusterV1,
 )
-from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.test.ocm.aus.fixtures import (
     build_organization,
     build_upgrade_policy,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 
 
 def build_cluster(

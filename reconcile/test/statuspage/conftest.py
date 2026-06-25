@@ -1,7 +1,9 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
-from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
-from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
 from reconcile.test.fixtures import Fixtures
 from reconcile.test.statuspage.fixtures import (
     construct_atlassian_page,
@@ -9,6 +11,10 @@ from reconcile.test.statuspage.fixtures import (
     describe_atlassian_component,
     describe_component_v1,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
+    from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
 
 
 @pytest.fixture

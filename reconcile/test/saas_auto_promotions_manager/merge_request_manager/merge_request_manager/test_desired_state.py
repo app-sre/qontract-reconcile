@@ -1,9 +1,14 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.desired_state import (
     DesiredState,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def test_desired_state_empty() -> None:

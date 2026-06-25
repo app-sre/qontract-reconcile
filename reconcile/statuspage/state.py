@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 from typing import (
+    TYPE_CHECKING,
     Protocol,
 )
 
-from reconcile.utils.state import State
+if TYPE_CHECKING:
+    from reconcile.utils.state import State
 
 # This module manages the binding state of components in the desired state
 # and their representation on an actual status page.

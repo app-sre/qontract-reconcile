@@ -1,14 +1,20 @@
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
 )
-from reconcile.typed_queries.saas_files import SaasFile
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
+
+    from reconcile.typed_queries.saas_files import SaasFile
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 def test_saas_files_without_auto_promote(

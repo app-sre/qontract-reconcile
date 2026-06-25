@@ -1,7 +1,11 @@
-from typing import Any, TypedDict
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from reconcile.utils.ocm.base import OCMVersionGate
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 class UpgradePolicy(TypedDict):

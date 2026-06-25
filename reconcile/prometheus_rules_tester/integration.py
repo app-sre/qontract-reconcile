@@ -1,12 +1,10 @@
+from __future__ import annotations
+
 import json
 import logging
 import sys
 from collections import defaultdict
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from deepdiff import DeepHash
@@ -14,9 +12,6 @@ from pydantic import BaseModel
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_resources_base as orb
-from reconcile.gql_definitions.common.app_interface_vault_settings import (
-    AppInterfaceSettingsV1,
-)
 from reconcile.status import ExitCodes
 from reconcile.typed_queries.alerting_services_settings import get_alerting_services
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -30,6 +25,16 @@ from reconcile.utils.jinja2.utils import process_extracurlyjinja2_template
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.structs import CommandExecutionResult
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Mapping,
+    )
+
+    from reconcile.gql_definitions.common.app_interface_vault_settings import (
+        AppInterfaceSettingsV1,
+    )
 
 # This comes from prometheus-operator. It is the largest configmap that they will
 # create. It is also the largest PrometheusRule yaml file they will process to add it

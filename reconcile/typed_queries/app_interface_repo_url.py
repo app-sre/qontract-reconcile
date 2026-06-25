@@ -1,8 +1,13 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.common.app_interface_repo_settings import query
 from reconcile.utils import gql
 from reconcile.utils.exceptions import AppInterfaceSettingsError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def get_app_interface_repo_url(query_func: Callable | None = None) -> str:

@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import base64
 import logging
 import os
 import tempfile
 import time
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 import requests
 from pydantic import BaseModel
@@ -20,10 +22,12 @@ from reconcile import queries
 from reconcile.gql_definitions.fragments.container_image_mirror import (
     ContainerImageMirror,
 )
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils import gql
 from reconcile.utils.quay_mirror import record_timestamp, sync_tag
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 QONTRACT_INTEGRATION = "gcp-image-mirror"
 REQUEST_TIMEOUT = 60

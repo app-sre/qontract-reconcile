@@ -1,10 +1,8 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import (
-    Callable,
-    Iterable,
-)
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import semver
 from pydantic import BaseModel, ValidationError, field_validator, model_validator
@@ -49,6 +47,12 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+    )
 
 QONTRACT_INTEGRATION = "aws-version-sync"
 

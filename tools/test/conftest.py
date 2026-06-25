@@ -1,17 +1,21 @@
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-    MutableMapping,
-)
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from pydantic import BaseModel, ValidationError
 
 from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.models import data_default_none
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+        MutableMapping,
+    )
 
 
 class GQLClassFactoryError(Exception):

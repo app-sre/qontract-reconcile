@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import datetime
 import json
 import os
 import threading
-from collections.abc import Callable, Mapping
 from functools import cache
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 import jinja2
 from github import Github
@@ -39,6 +40,9 @@ from reconcile.utils.secret_reader import (
     SecretReaderBase,
 )
 from reconcile.utils.sloth import generate_sloth_rules
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
 
 
 class Jinja2TemplateError(Exception):

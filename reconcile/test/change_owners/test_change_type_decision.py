@@ -1,20 +1,28 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
 from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.change_types import ChangeTypeContext
-from reconcile.change_owners.changes import BundleFileChange
 from reconcile.change_owners.decision import (
     Decision,
     DecisionCommand,
     apply_decisions_to_changes,
     get_approver_decisions_from_mr_comments,
 )
-from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import (
     build_bundle_datafile_change,
     change_type_to_processor,
 )
 from reconcile.utils.gitlab_api import Comment
+
+if TYPE_CHECKING:
+    from reconcile.change_owners.changes import BundleFileChange
+    from reconcile.gql_definitions.change_owners.queries.change_types import (
+        ChangeTypeV1,
+    )
 
 #
 # test MR decision comment parsing

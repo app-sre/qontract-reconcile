@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable
 from difflib import context_diff
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from qontract_utils.ruamel import create_ruamel_instance, yaml
@@ -16,7 +18,11 @@ from reconcile.utils.jinja2.utils import TemplateRenderOptions
 from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "template-validator"
 

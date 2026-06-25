@@ -1,10 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 import pytest
 
-from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.repo_owners import RepoOwners
+
+if TYPE_CHECKING:
+    from reconcile.utils.github_api import GithubRepositoryApi
 
 
 class MockedRepoOwners(RepoOwners):

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from gitlab.exceptions import GitlabGetError
 from pydantic import BaseModel
@@ -9,13 +12,15 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request import (
     Parser,
     Renderer,
 )
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.merge_request_manager.merge_request_manager import (
     MergeRequestManagerBase,
 )
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
-from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from reconcile.utils.gitlab_api import GitLabApi
+    from reconcile.utils.vcs import VCS
 
 
 class AVSMR(MergeRequestBase):

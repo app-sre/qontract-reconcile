@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.common.saas_files import ParentSaasPromotionV1
 from reconcile.saas_auto_promotions_manager.publisher import Publisher
@@ -9,9 +11,13 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     ConfigHash,
     Subscriber,
 )
-from reconcile.typed_queries.saas_files import SaasFile, SaasResourceTemplateTarget
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.slo_document_manager import SLODocumentManager
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.typed_queries.saas_files import SaasFile, SaasResourceTemplateTarget
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class SaasFileInventoryError(Exception):

@@ -1,6 +1,12 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from reconcile.gql_definitions.cost_report.settings import CostReportSettingsV1, query
 from reconcile.utils.exceptions import AppInterfaceSettingsError
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from reconcile.utils.gql import GqlApi
 
 
 def get_cost_report_settings(

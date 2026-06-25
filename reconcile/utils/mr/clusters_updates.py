@@ -1,11 +1,16 @@
-from collections.abc import Mapping
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from qontract_utils.ruamel import create_ruamel_instance, dump_yaml
 
 from reconcile.change_owners.decision import DecisionCommand
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from reconcile.utils.gitlab_api import GitLabApi
 
 yaml = create_ruamel_instance(explicit_start=True)
 

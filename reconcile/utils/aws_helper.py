@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 from collections.abc import Iterable, Mapping
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from reconcile.utils.disabled_integrations import (
     HasDisableIntegrations,
     integration_is_enabled,
 )
-from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from reconcile.utils.secret_reader import SecretReader
 
 
 class AccountNotFoundError(Exception):

@@ -1,9 +1,7 @@
-from collections.abc import Callable
+from __future__ import annotations
 
-from reconcile.fleet_labeler.dependencies import Dependencies
-from reconcile.fleet_labeler.integration import (
-    FleetLabelerIntegration,
-)
+from typing import TYPE_CHECKING
+
 from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
     FleetLabelsSpecV1,
 )
@@ -14,6 +12,14 @@ from reconcile.test.fleet_labeler.fixtures import (
     get_fixture_content,
     label_spec_data_from_fixture,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.fleet_labeler.dependencies import Dependencies
+    from reconcile.fleet_labeler.integration import (
+        FleetLabelerIntegration,
+    )
 
 
 def test_add_new_cluster(

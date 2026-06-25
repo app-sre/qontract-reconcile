@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Callable, Mapping
 from subprocess import CalledProcessError
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import (
     queries,
@@ -23,6 +24,9 @@ from reconcile.utils.smtp_client import (
     get_smtp_server_connection,
 )
 from reconcile.utils.state import init_state
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
 
 QONTRACT_INTEGRATION = "requests-sender"
 

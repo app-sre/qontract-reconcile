@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 from collections import Counter
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.terraform_repo.terraform_repo import query
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from reconcile.utils.gql import GqlApi
 
 
 def get_tf_repo_inventory(gql: GqlApi) -> Counter:

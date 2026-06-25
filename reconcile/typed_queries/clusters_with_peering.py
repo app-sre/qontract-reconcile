@@ -1,8 +1,14 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from reconcile.gql_definitions.common.clusters_with_peering import (
     ClusterV1,
     query,
 )
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from reconcile.utils.gql import GqlApi
 
 
 def get_clusters_with_peering(gql_api: GqlApi) -> list[ClusterV1]:

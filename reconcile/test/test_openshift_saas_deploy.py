@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 import pytest
@@ -18,6 +20,9 @@ from reconcile.utils import (
     slack_api,
 )
 from reconcile.utils.saasherder.saasherder import UNIQUE_SAAS_FILE_ENV_COMBO_LEN
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 TEST_GRAFANA_SAAS_DEPLOY_URL = (
     "https://grafana.example.test/d/saas-deploy-logs/saas-deploy-logs"

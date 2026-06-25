@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import functools
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
@@ -8,7 +11,6 @@ from reconcile.aus.base import (
     AddonUpgradePolicy,
     init_addon_service,
 )
-from reconcile.aus.cluster_version_data import VersionData
 from reconcile.aus.healthchecks import (
     AUSClusterHealthCheckProvider,
     build_cluster_health_providers_for_organization,
@@ -22,12 +24,7 @@ from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
 )
-from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.utils import metrics
-from reconcile.utils.ocm.addons import (
-    OCMAddonInstallation,
-)
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
     discover_clusters_for_organizations,
@@ -37,6 +34,14 @@ from reconcile.utils.ocm_base_client import (
     init_ocm_base_client,
     init_ocm_base_client_for_org,
 )
+
+if TYPE_CHECKING:
+    from reconcile.aus.cluster_version_data import VersionData
+    from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+    from reconcile.utils.ocm.addons import (
+        OCMAddonInstallation,
+    )
 
 QONTRACT_INTEGRATION = "ocm-addons-upgrade-scheduler-org"
 

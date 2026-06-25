@@ -1,15 +1,18 @@
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING, cast
 
 from gitlab.exceptions import GitlabGetError
 
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
-from reconcile.utils.vcs import VCS
 
 if TYPE_CHECKING:
     from gitlab.v4.objects import ProjectMergeRequest
+
+    from reconcile.utils.gitlab_api import GitLabApi
+    from reconcile.utils.vcs import VCS
 
 AWS_MGR = "aws-account-manager"
 

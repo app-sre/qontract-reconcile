@@ -1,11 +1,10 @@
+from __future__ import annotations
+
 import contextlib
 import logging
 import os
 import textwrap
-from collections.abc import Mapping, MutableMapping
-from datetime import (
-    datetime,
-)
+from typing import TYPE_CHECKING
 
 import click
 import requests
@@ -32,6 +31,12 @@ from reconcile.utils.datetime_util import ensure_utc, utc_now
 from reconcile.utils.mr import CreateAppInterfaceReporter
 from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, MutableMapping
+    from datetime import (
+        datetime,
+    )
 
 CONTENT_FORMAT_VERSION = "1.0.0"
 DASHDOTDB_SECRET = os.environ.get(

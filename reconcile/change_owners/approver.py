@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Protocol,
 )
 
-from reconcile.utils.gql import GqlApi
+if TYPE_CHECKING:
+    from reconcile.utils.gql import GqlApi
 
 
 @dataclass

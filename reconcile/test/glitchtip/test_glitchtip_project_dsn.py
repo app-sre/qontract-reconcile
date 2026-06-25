@@ -1,9 +1,6 @@
-from collections.abc import (
-    Callable,
-    MutableMapping,
-    Sequence,
-)
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -14,10 +11,18 @@ from reconcile.glitchtip_project_dsn.integration import (
     projects_query,
 )
 from reconcile.gql_definitions.glitchtip.glitchtip_project import GlitchtipProjectV1
-from reconcile.test.fixtures import Fixtures
-from reconcile.utils.glitchtip import GlitchtipClient
-from reconcile.utils.oc_map import OCMap
 from reconcile.utils.openshift_resource import ResourceInventory
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        MutableMapping,
+        Sequence,
+    )
+
+    from reconcile.test.fixtures import Fixtures
+    from reconcile.utils.glitchtip import GlitchtipClient
+    from reconcile.utils.oc_map import OCMap
 
 
 @pytest.fixture

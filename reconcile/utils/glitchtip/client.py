@@ -1,4 +1,6 @@
-from datetime import datetime
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.utils.glitchtip.models import (
     Organization,
@@ -10,6 +12,9 @@ from reconcile.utils.glitchtip.models import (
     User,
 )
 from reconcile.utils.rest_api_base import ApiBase
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class GlitchtipClient(ApiBase):

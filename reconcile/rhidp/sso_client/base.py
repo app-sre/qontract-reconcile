@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import http
 import logging
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 from urllib.parse import (
     urljoin,
     urlparse,
@@ -28,7 +30,11 @@ from reconcile.utils.keycloak import (
     KeycloakMap,
     SSOClient,
 )
-from reconcile.utils.secret_reader import VaultSecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.utils.secret_reader import VaultSecretReader
 
 DesiredSSOClients = dict[str, Cluster]
 

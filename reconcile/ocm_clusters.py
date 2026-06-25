@@ -1,10 +1,8 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import reconcile.utils.mr.clusters_updates as cu
 import reconcile.utils.ocm as ocmmod
@@ -36,6 +34,12 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import make_semver, parse_semver
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Mapping,
+    )
 
 QONTRACT_INTEGRATION = "ocm-clusters"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

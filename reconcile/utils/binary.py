@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import re
 import shutil
 import subprocess
-from collections.abc import Callable, Iterable
 from functools import wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 
 def binary(binaries: Iterable[str] | None = None) -> Callable:

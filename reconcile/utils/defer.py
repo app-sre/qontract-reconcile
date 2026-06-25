@@ -1,7 +1,11 @@
-from collections.abc import Callable
+from __future__ import annotations
+
 from contextlib import ExitStack
 from functools import wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def defer(func: Callable) -> Callable:

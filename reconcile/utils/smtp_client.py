@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import smtplib
-from collections.abc import Iterable
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
+from typing import TYPE_CHECKING
 
 from pydantic import (
     BaseModel,
@@ -11,10 +13,13 @@ from pydantic import (
 )
 from sretoolbox.utils import retry
 
-from reconcile.utils.secret_reader import (
-    HasSecret,
-    SecretReaderBase,
-)
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.utils.secret_reader import (
+        HasSecret,
+        SecretReaderBase,
+    )
 
 DEFAULT_SMTP_TIMEOUT = 30
 

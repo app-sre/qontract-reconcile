@@ -1,9 +1,9 @@
-from collections.abc import Callable
+from __future__ import annotations
+
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.typed_queries.cost_report.app_names import App
 from reconcile.typed_queries.cost_report.cost_namespaces import (
@@ -16,6 +16,11 @@ from tools.cli_commands.cost_report.response import OpenShiftReportCostResponse
 from tools.cli_commands.test.conftest import (
     COST_REPORT_SECRET,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

@@ -1,15 +1,21 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Iterable
 from enum import Enum
 from io import StringIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, field_validator
 from qontract_utils.ruamel import create_ruamel_instance
 
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.utils.gitlab_api import GitLabApi
 
 log = logging.getLogger(__name__)
 

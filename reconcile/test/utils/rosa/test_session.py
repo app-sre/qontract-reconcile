@@ -1,10 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
 from reconcile.test.utils.rosa.conftest import ROSA_CLI_IMAGE
-from reconcile.utils.jobcontroller.controller import K8sJobController
 from reconcile.utils.jobcontroller.models import JobStatus
 from reconcile.utils.rosa.rosa_cli import RosaCliError
-from reconcile.utils.rosa.session import RosaSession
+
+if TYPE_CHECKING:
+    from reconcile.utils.jobcontroller.controller import K8sJobController
+    from reconcile.utils.rosa.session import RosaSession
 
 #
 # context manager

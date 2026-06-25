@@ -1,12 +1,11 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.integration import (
     DTP_TENANT_V2_LABEL,
     DynatraceTokenProviderIntegration,
-)
-from reconcile.dynatrace_token_provider.model import DynatraceAPIToken
-from reconcile.dynatrace_token_provider.ocm import OCMCluster
-from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
-    DynatraceTokenProviderTokenSpecV1,
 )
 from reconcile.test.dynatrace_token_provider.fixtures import (
     build_dynatrace_client,
@@ -15,7 +14,14 @@ from reconcile.test.dynatrace_token_provider.fixtures import (
     build_ocm_client,
 )
 from reconcile.utils.dynatrace.client import DynatraceAPITokenCreated
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from reconcile.dynatrace_token_provider.model import DynatraceAPIToken
+    from reconcile.dynatrace_token_provider.ocm import OCMCluster
+    from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
+        DynatraceTokenProviderTokenSpecV1,
+    )
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 def test_single_hcp_cluster_create_tokens(

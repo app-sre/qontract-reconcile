@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from reconcile import queries
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -10,6 +12,9 @@ from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.state import init_state
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 QONTRACT_INTEGRATION = "ocm-addons-upgrade-tests-trigger"
 

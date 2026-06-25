@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 import contextlib
 import copy
 import os
 import subprocess
 import tempfile
-from collections.abc import Iterable, Mapping, MutableMapping
+from typing import TYPE_CHECKING
 
 import yaml
 
 from reconcile.utils.defer import defer
 from reconcile.utils.structs import CommandExecutionResult
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, MutableMapping
 
 PROMTOOL_VERSION = ["2.55.1", "3.9.1"]
 PROMTOOL_VERSION_REGEX = r"^promtool,\sversion\s([\d]+\.[\d]+\.[\d]+).+$"

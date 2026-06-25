@@ -1,5 +1,6 @@
-from collections.abc import Mapping
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from unittest.mock import (
     MagicMock,
     create_autospec,
@@ -16,6 +17,9 @@ from reconcile.utils.oc_map import (
     OCLogMsg,
     OCMap,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def make_connection_parameter(data: Mapping[str, Any]) -> OCConnectionParameters:

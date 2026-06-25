@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import hashlib
 import logging
-from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from gitlab.exceptions import GitlabGetError
 from pydantic import BaseModel
@@ -14,14 +15,18 @@ from reconcile.endpoints_discovery.merge_request import (
     Parser,
     Renderer,
 )
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.json import json_dumps
 from reconcile.utils.merge_request_manager.merge_request_manager import (
     MergeRequestManagerBase,
 )
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
-from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from reconcile.utils.gitlab_api import GitLabApi
+    from reconcile.utils.vcs import VCS
 
 
 class EndpointsDiscoveryMR(MergeRequestBase):

@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -15,6 +17,9 @@ from reconcile.unleash_feature_toggles.integration import (
     feature_toggle_equal,
 )
 from reconcile.utils.unleash.server import Environment, FeatureToggle, Project
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def test_unleash_feature_toggles_integration_early_exit(

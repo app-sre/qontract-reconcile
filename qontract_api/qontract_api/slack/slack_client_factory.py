@@ -8,12 +8,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks
-from qontract_utils.secret_reader import Secret
 from qontract_utils.slack_api import SlackApi
 
 from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
 
 if TYPE_CHECKING:
+    from qontract_utils.secret_reader import Secret
+
     from qontract_api.cache import CacheBackend
     from qontract_api.config import Settings
     from qontract_api.secret_manager import SecretManager

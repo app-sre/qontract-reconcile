@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 from jsonpath_ng.exceptions import JsonPathParserError
 
@@ -6,13 +10,17 @@ from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     ChangeTypeProcessor,
 )
-from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import (
     StubFile,
     build_change_type,
     build_test_resourcefile,
     change_type_to_processor,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.change_owners.queries.change_types import (
+        ChangeTypeV1,
+    )
 
 #
 # change type processor validations

@@ -1,12 +1,16 @@
-from collections.abc import (
-    Callable,
-    Mapping,
-)
-from typing import Any
+from __future__ import annotations
 
-from reconcile.saas_auto_promotions_manager.subscriber import (
-    Subscriber,
-)
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
+
+    from reconcile.saas_auto_promotions_manager.subscriber import (
+        Subscriber,
+    )
 
 
 def test_single_publisher_in_schedule(

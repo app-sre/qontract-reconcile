@@ -1,13 +1,14 @@
+from __future__ import annotations
+
 import copy
 import itertools
 import logging
 from collections import defaultdict
-from collections.abc import Sequence
 from dataclasses import (
     dataclass,
     field,
 )
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import anymarkup
 
@@ -31,6 +32,9 @@ from reconcile.change_owners.diff import (
 )
 from reconcile.utils import gql
 from reconcile.utils.jsonpath import parse_jsonpath
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 METADATA_CHANGE_PATH = "_metadata_"
 """

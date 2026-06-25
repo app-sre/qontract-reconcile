@@ -1,17 +1,24 @@
+from __future__ import annotations
+
 import copy
-from typing import Any
-from unittest.mock import MagicMock
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from reconcile.gql_definitions.skupper_network.skupper_networks import SkupperNetworkV1
 from reconcile.skupper_network import integration as intg
 from reconcile.skupper_network.integration import CONFIG_NAME
-from reconcile.skupper_network.models import SkupperSite
-from reconcile.test.fixtures import Fixtures
-from reconcile.utils.oc_map import OCMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
+    from reconcile.gql_definitions.skupper_network.skupper_networks import (
+        SkupperNetworkV1,
+    )
+    from reconcile.skupper_network.models import SkupperSite
+    from reconcile.test.fixtures import Fixtures
+    from reconcile.utils.oc_map import OCMap
 
 
 @pytest.fixture

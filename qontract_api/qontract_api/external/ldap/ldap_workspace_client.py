@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -12,6 +11,8 @@ from qontract_api.external.ldap.schemas import LdapUserStatus
 from qontract_api.logger import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from qontract_utils.ldap_api import LdapApi
 
     from qontract_api.cache.base import CacheBackend

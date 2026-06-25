@@ -1,16 +1,21 @@
+from __future__ import annotations
+
 import logging
 from abc import abstractmethod
-from collections.abc import Sequence
-from pathlib import Path
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from jinja2 import Template
 from pydantic import BaseModel
 
 from reconcile.utils.datetime_util import utc_now
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from pathlib import Path
+
+    from reconcile.utils.gitlab_api import GitLabApi
 
 AccessReportUser = TypeVar("AccessReportUser", bound=BaseModel)
 

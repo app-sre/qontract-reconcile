@@ -1,10 +1,9 @@
+from __future__ import annotations
+
 import logging
 import sys
 from collections import defaultdict
-from collections.abc import (
-    Callable,
-    Iterable,
-)
+from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 from qontract_api_client.client import (
@@ -44,6 +43,12 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+    )
 
 QONTRACT_INTEGRATION = "glitchtip-project-alerts-api"
 GJB_ALERT_NAME = "Glitchtip-Jira-Bridge-Integration"

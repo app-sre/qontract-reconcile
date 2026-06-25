@@ -1,18 +1,22 @@
-from abc import ABC, abstractmethod
-from typing import Any
+from __future__ import annotations
 
-from reconcile.external_resources.model import (
-    ExternalResource,
-    ExternalResourceKey,
-    ExternalResourceModuleConfiguration,
-    ExternalResourcesInventory,
-)
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
+
 from reconcile.utils.exceptions import SecretIncompleteError
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
-)
 from reconcile.utils.external_resources import ResourceValueResolver
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from reconcile.external_resources.model import (
+        ExternalResource,
+        ExternalResourceKey,
+        ExternalResourceModuleConfiguration,
+        ExternalResourcesInventory,
+    )
+    from reconcile.utils.external_resource_spec import (
+        ExternalResourceSpec,
+    )
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class CloudflareResourceFactory(ABC):

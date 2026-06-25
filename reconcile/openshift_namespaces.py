@@ -1,18 +1,14 @@
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
-from collections.abc import (
-    Callable,
-    Iterable,
-    Sequence,
-)
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
-from reconcile.gql_definitions.common.namespaces_minimal import NamespaceV1
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -29,6 +25,15 @@ from reconcile.utils.oc_map import (
 )
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Sequence,
+    )
+
+    from reconcile.gql_definitions.common.namespaces_minimal import NamespaceV1
 
 QONTRACT_INTEGRATION = "openshift-namespaces"
 

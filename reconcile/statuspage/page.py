@@ -1,20 +1,24 @@
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Self, cast
+from typing import TYPE_CHECKING, Self, cast
 
 from pydantic import BaseModel
 
-from reconcile.gql_definitions.maintenance.maintenances import (
-    MaintenanceStatuspageAnnouncementV1,
-)
-from reconcile.gql_definitions.statuspage.statuspages import (
-    MaintenanceV1,
-    StatusPageComponentV1,
-    StatusPageV1,
-)
 from reconcile.statuspage.status import (
     StatusProvider,
     build_status_provider_config,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.maintenance.maintenances import (
+        MaintenanceStatuspageAnnouncementV1,
+    )
+    from reconcile.gql_definitions.statuspage.statuspages import (
+        MaintenanceV1,
+        StatusPageComponentV1,
+        StatusPageV1,
+    )
 
 PROVIDER_NAME = "statuspage"
 

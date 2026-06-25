@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Iterable
 from threading import Lock
+from typing import TYPE_CHECKING
 
 from sretoolbox.utils import threaded
 
@@ -18,7 +20,11 @@ from reconcile.utils.oc_connection_parameters import (
     get_oc_connection_parameters_from_clusters,
     get_oc_connection_parameters_from_namespaces,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class OCMap:

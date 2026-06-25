@@ -1,9 +1,7 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import (
-    Callable,
-    Iterable,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sretoolbox.utils import threaded
 
@@ -43,6 +41,12 @@ from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.rest_api_base import BearerTokenAuth
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+    )
 
 QONTRACT_INTEGRATION = "glitchtip-project-dsn"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

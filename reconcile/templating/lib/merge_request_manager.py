@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import logging
 import re
 import string
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
 from reconcile.templating.lib.model import TemplateOutput, TemplateResult
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.merge_request_manager.merge_request_manager import (
     MergeRequestManagerBase,
 )
@@ -14,7 +16,10 @@ from reconcile.utils.merge_request_manager.parser import (
 )
 from reconcile.utils.mr import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
-from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from reconcile.utils.gitlab_api import GitLabApi
+    from reconcile.utils.vcs import VCS
 
 DATA_SEPARATOR = (
     "**TEMPLATE RENDERING DATA - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"

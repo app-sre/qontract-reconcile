@@ -1,13 +1,15 @@
+from __future__ import annotations
+
 import functools
 import os
 from collections import defaultdict
-from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import (
     datetime,
     timedelta,
 )
 from typing import (
+    TYPE_CHECKING,
     Any,
     Self,
 )
@@ -35,6 +37,9 @@ from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 QONTRACT_INTEGRATION = "dashdotdb-dora"
 

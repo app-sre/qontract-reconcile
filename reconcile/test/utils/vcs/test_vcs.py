@@ -1,11 +1,16 @@
-from collections.abc import Callable, Mapping
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 import pytest
 from gitlab.v4.objects import ProjectMergeRequest, ProjectMergeRequestPipeline
 
 from reconcile.utils.vcs import VCS, Commit, MRCheckStatus, VCSMissingSourceBranchError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
 
 
 # https://docs.gitlab.com/ee/api/pipelines.html

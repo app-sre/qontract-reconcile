@@ -1,8 +1,12 @@
-import copy
-from collections.abc import MutableMapping
-from typing import Any
+from __future__ import annotations
 
-from reconcile.skupper_network.models import SkupperSite
+import copy
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import MutableMapping
+
+    from reconcile.skupper_network.models import SkupperSite
 
 
 class SiteController:

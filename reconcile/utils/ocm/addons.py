@@ -1,10 +1,14 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from reconcile.utils.ocm.base import (
     OCMAddonInstallation,
     OCMAddonUpgradePolicy,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
+
+if TYPE_CHECKING:
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 class AddonService:

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
 from qontract_api.cache.base import CacheBackend
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
     from redis import Redis
 
 

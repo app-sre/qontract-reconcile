@@ -1,10 +1,15 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceV1,
     query,
 )
 from reconcile.utils import gql
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def get_namespaces(query_func: Callable | None = None) -> list[NamespaceV1]:

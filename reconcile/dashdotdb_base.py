@@ -1,17 +1,21 @@
+from __future__ import annotations
+
 import logging
 import os
 from base64 import b64encode
-from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 import requests
 
-from reconcile.utils.secret_reader import (
-    HasSecret,
-    SecretReaderBase,
-)
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from reconcile.utils.secret_reader import (
+        HasSecret,
+        SecretReaderBase,
+    )
 
 LOG = logging.getLogger(__name__)
 

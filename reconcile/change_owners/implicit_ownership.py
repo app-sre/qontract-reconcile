@@ -1,16 +1,21 @@
-import logging
+from __future__ import annotations
 
-from reconcile.change_owners.approver import ApproverResolver
+import logging
+from typing import TYPE_CHECKING
+
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     ChangeTypeProcessor,
     FileChange,
 )
-from reconcile.change_owners.changes import BundleFileChange
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeImplicitOwnershipJsonPathProviderV1,
 )
 from reconcile.utils.jsonpath import parse_jsonpath
+
+if TYPE_CHECKING:
+    from reconcile.change_owners.approver import ApproverResolver
+    from reconcile.change_owners.changes import BundleFileChange
 
 
 def cover_changes_with_implicit_ownership(

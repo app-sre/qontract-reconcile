@@ -1,22 +1,27 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.gql_definitions.service_dependencies import service_dependencies
-from reconcile.gql_definitions.service_dependencies.service_dependencies import (
-    AppCodeComponentsV1,
-    AppV1,
-    DependencyV1,
-    JenkinsConfigV1,
-    NamespaceV1,
-    SaasFileV2,
-    SaasResourceTemplateTargetV2,
-    SaasResourceTemplateV2,
-)
 from reconcile.utils import gql
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from reconcile.gql_definitions.service_dependencies.service_dependencies import (
+        AppCodeComponentsV1,
+        AppV1,
+        DependencyV1,
+        JenkinsConfigV1,
+        NamespaceV1,
+        SaasFileV2,
+        SaasResourceTemplateTargetV2,
+        SaasResourceTemplateV2,
+    )
 
 QONTRACT_INTEGRATION = "service-dependencies"
 

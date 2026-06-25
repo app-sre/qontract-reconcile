@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import call, create_autospec
 
 from gitlab.v4.objects import ProjectMergeRequest
@@ -28,6 +30,9 @@ from reconcile.test.saas_auto_promotions_manager.merge_request_manager.merge_req
     REF,
 )
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def test_reconcile(

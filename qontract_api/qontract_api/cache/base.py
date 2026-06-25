@@ -18,16 +18,19 @@ from __future__ import annotations
 
 import threading
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from typing import Any, ClassVar, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from cachetools import TTLCache
 from pydantic import BaseModel
 from qontract_utils.json_utils import json_dumps, json_loads
-from redis import Redis
 
 from qontract_api.logger import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
+    from redis import Redis
 
 logger = get_logger(__name__)
 

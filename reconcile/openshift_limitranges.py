@@ -1,16 +1,21 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Callable, Mapping, MutableMapping, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
-from reconcile.utils.oc import OC_Map
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping, MutableMapping, Sequence
+
+    from reconcile.utils.oc import OC_Map
 
 QONTRACT_INTEGRATION = "openshift-limitranges"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

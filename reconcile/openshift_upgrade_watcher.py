@@ -1,11 +1,9 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import (
-    Callable,
-    Iterable,
-)
+from typing import TYPE_CHECKING
 
 from reconcile import queries
-from reconcile.gql_definitions.common.clusters import ClusterV1
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -21,13 +19,21 @@ from reconcile.utils.oc_map import (
 )
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.ocm.upgrades import get_control_plane_upgrade_policies
-from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.secret_reader import create_secret_reader
-from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.state import (
     State,
     init_state,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+    )
+
+    from reconcile.gql_definitions.common.clusters import ClusterV1
+    from reconcile.utils.ocm_base_client import OCMBaseClient
+    from reconcile.utils.slack_api import SlackApi
 
 QONTRACT_INTEGRATION = "openshift-upgrade-watcher"
 

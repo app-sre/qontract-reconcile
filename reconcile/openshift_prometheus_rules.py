@@ -1,10 +1,15 @@
-from collections.abc import Iterable
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import reconcile.openshift_resources_base as orb
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
-from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.utils.runtime.integration import DesiredStateShardConfig
 
 QONTRACT_INTEGRATION = "openshift-prometheus-rules"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)

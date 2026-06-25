@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import re
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 from unittest.mock import call, create_autospec
 
 import pytest
 
 import reconcile.aws_ami_share as integ
 from reconcile.utils.aws_api import AWSApi
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 @pytest.fixture

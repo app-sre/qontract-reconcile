@@ -1,14 +1,16 @@
+from __future__ import annotations
+
 import logging
 from abc import (
     ABC,
     abstractmethod,
 )
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.oum.metrics import (
     OCMUserManagementOrganizationActionCounter as ReconcileActionCounter,
 )
@@ -52,6 +54,9 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 
 
 class OCMUserManagementIntegrationParams(PydanticRunParams):

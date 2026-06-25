@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections import Counter
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -10,7 +12,11 @@ from reconcile.gql_definitions.app_interface_metrics_exporter.onboarding_status 
 from reconcile.typed_queries.app_interface_metrics_exporter.onboarding_status import (
     get_onboarding_status,
 )
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.gql import GqlApi
 
 
 @pytest.fixture

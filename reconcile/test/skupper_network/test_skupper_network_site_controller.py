@@ -1,12 +1,16 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from reconcile.skupper_network.models import SkupperSite
 from reconcile.skupper_network.site_controller import (
     SiteController,
     get_site_controller,
 )
+
+if TYPE_CHECKING:
+    from reconcile.skupper_network.models import SkupperSite
 
 
 @pytest.fixture

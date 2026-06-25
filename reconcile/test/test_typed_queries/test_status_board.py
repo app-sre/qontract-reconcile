@@ -1,9 +1,14 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
 from reconcile.gql_definitions.status_board.status_board import StatusBoardProductV1
 from reconcile.typed_queries.status_board import get_selected_app_names
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @pytest.fixture

@@ -1,13 +1,11 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from gitlab.exceptions import GitlabGetError
 
 from reconcile.change_owners.change_types import ChangeTypePriority
-from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
-    Addition,
-    Batcher,
-)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.desired_state import (
     DesiredState,
 )
@@ -23,16 +21,24 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.metrics import
 from reconcile.saas_auto_promotions_manager.merge_request_manager.metrics import (
     SAPMParallelOpenMRsGauge as ParallelOpenMRGauge,
 )
-from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
-    MRParser,
-)
-from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
-    Renderer,
-)
-from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.utils import metrics
 from reconcile.utils.mr.labels import prioritized_approval_label
-from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
+        Addition,
+        Batcher,
+    )
+    from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
+        MRParser,
+    )
+    from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
+        Renderer,
+    )
+    from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
+    from reconcile.utils.vcs import VCS
 
 BATCH_SIZE_LIMIT = 5
 

@@ -1,10 +1,12 @@
 """Glitchtip API integration: manages Glitchtip organizations, teams, projects, and users."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import sys
 from collections import defaultdict
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from qontract_api_client.client import glitchtip as reconcile_glitchtip
 from qontract_api_client.schemas import (
@@ -37,6 +39,9 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 QONTRACT_INTEGRATION = "glitchtip-api"
 DEFAULT_MEMBER_ROLE = "member"

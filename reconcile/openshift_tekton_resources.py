@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import json
 import logging
 import sys
-from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jinja2
 import yaml
@@ -21,6 +22,9 @@ from reconcile.utils.parse_dhms_duration import (
 from reconcile.utils.saasherder import Providers
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 LOG = logging.getLogger(__name__)
 QONTRACT_INTEGRATION = "openshift-tekton-resources"

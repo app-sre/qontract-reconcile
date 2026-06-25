@@ -1,11 +1,15 @@
-from collections.abc import Callable, Mapping
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from reconcile.email_sender import get_emails
 from reconcile.gql_definitions.email_sender.emails import AppInterfaceEmailV1
 from reconcile.test.fixtures import Fixtures
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
 
 
 @pytest.fixture

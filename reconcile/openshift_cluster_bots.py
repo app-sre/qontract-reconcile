@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import json
 import logging
@@ -5,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
+from typing import TYPE_CHECKING
 from urllib.error import URLError
 
 from pydantic import BaseModel
@@ -12,7 +15,6 @@ from sretoolbox.utils import retry
 
 import reconcile.gql_definitions.openshift_cluster_bots.clusters as clusters_gql
 from reconcile import mr_client_gateway, queries
-from reconcile.gql_definitions.openshift_cluster_bots.clusters import ClusterV1
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -25,6 +27,9 @@ from reconcile.utils.openshift_resource import (
 )
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vault import VaultClient
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.openshift_cluster_bots.clusters import ClusterV1
 
 QONTRACT_INTEGRATION = "openshift-cluster-bots"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

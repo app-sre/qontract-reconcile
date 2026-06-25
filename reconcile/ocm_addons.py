@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Iterable, Mapping, MutableMapping
 from operator import itemgetter
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, MutableMapping
 
 QONTRACT_INTEGRATION = "ocm-addons"
 

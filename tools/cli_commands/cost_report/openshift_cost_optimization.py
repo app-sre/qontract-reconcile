@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from collections import defaultdict
-from collections.abc import Iterable, Mapping
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 from sretoolbox.utils import threaded
 
@@ -15,15 +16,19 @@ from tools.cli_commands.cost_report.model import (
     OptimizationReport,
     OptimizationReportItem,
 )
-from tools.cli_commands.cost_report.response import (
-    OpenShiftCostOptimizationReportResponse,
-    OpenShiftCostOptimizationResponse,
-    ResourceConfigResponse,
-)
 from tools.cli_commands.cost_report.util import fetch_cost_report_secret
 from tools.cli_commands.cost_report.view import (
     render_openshift_cost_optimization_report,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from tools.cli_commands.cost_report.response import (
+        OpenShiftCostOptimizationReportResponse,
+        OpenShiftCostOptimizationResponse,
+        ResourceConfigResponse,
+    )
 
 THREAD_POOL_SIZE = 10
 

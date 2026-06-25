@@ -1,12 +1,8 @@
+from __future__ import annotations
+
 from collections import defaultdict
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-    MutableMapping,
-)
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import (
     MagicMock,
     create_autospec,
@@ -29,8 +25,17 @@ from reconcile.utils.promotion_state import (
     PromotionData,
     PromotionState,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+        MutableMapping,
+    )
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.fixture

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable
 from typing import (
+    TYPE_CHECKING,
     Any,
     Self,
 )
@@ -11,6 +13,9 @@ from pydantic import BaseModel, ConfigDict
 from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
 from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
 from reconcile.utils.exceptions import AppInterfaceSettingsError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class AcsBaseApi(BaseModel):

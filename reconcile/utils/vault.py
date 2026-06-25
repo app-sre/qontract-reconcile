@@ -1,12 +1,12 @@
+from __future__ import annotations
+
 import base64
-import builtins
 import logging
 import os
 import threading
 import time
-from collections.abc import Mapping
 from functools import lru_cache
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 import hvac
 import requests
@@ -15,6 +15,10 @@ from requests.adapters import HTTPAdapter
 from sretoolbox.utils import retry
 
 from reconcile.utils.config import get_config
+
+if TYPE_CHECKING:
+    import builtins
+    from collections.abc import Mapping
 
 LOG = logging.getLogger(__name__)
 VAULT_AUTO_REFRESH_INTERVAL = int(os.getenv("VAULT_AUTO_REFRESH_INTERVAL") or 600)

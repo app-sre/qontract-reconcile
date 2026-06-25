@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import json
 import logging
-from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
@@ -10,9 +11,13 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
-from reconcile.ocm.types import OCMSpec
 from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.ocm import OCMMap
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from reconcile.ocm.types import OCMSpec
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler-org-updater"
 

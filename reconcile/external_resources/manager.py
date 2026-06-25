@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import logging
 from collections import Counter
-from collections.abc import Iterable
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from sretoolbox.utils import threaded
 
@@ -30,24 +31,28 @@ from reconcile.external_resources.model import (
     Reconciliation,
     ReconciliationStatus,
 )
-from reconcile.external_resources.reconciler import (
-    ExternalResourcesReconciler,
-)
-from reconcile.external_resources.secrets_sync import InClusterSecretsReconciler
 from reconcile.external_resources.state import (
     ExternalResourcesStateDynamoDB,
     ExternalResourceState,
     ReconcileStatus,
     ResourceStatus,
 )
-from reconcile.gql_definitions.external_resources.external_resources_settings import (
-    ExternalResourcesSettingsV1,
-)
 from reconcile.utils.datetime_util import utc_now
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
-)
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.external_resources.reconciler import (
+        ExternalResourcesReconciler,
+    )
+    from reconcile.external_resources.secrets_sync import InClusterSecretsReconciler
+    from reconcile.gql_definitions.external_resources.external_resources_settings import (
+        ExternalResourcesSettingsV1,
+    )
+    from reconcile.utils.external_resource_spec import (
+        ExternalResourceSpec,
+    )
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 def setup_factories(

@@ -1,16 +1,14 @@
+from __future__ import annotations
+
 import copy
-from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Protocol,
 )
 
 from pydantic import BaseModel
 
-from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
-from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
-    MinimalOCMOrganization,
-)
 from reconcile.gql_definitions.integrations.integrations import (
     AWSAccountShardingV1,
     AWSAccountShardSpecOverrideV1,
@@ -32,6 +30,14 @@ from reconcile.gql_definitions.sharding import (
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils import gql
 from reconcile.utils.runtime.meta import IntegrationMeta
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
+    from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
+        MinimalOCMOrganization,
+    )
 
 
 class ShardSpec(BaseModel):

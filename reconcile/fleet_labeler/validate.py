@@ -1,9 +1,14 @@
-from collections import Counter
-from collections.abc import Mapping
+from __future__ import annotations
 
-from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
-    FleetLabelsSpecV1,
-)
+from collections import Counter
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
+        FleetLabelsSpecV1,
+    )
 
 
 class MatchLabelsNotUniqueError(Exception):

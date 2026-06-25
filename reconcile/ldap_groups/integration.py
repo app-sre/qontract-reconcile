@@ -1,11 +1,9 @@
+from __future__ import annotations
+
 import contextlib
 import logging
 import operator
-from collections.abc import (
-    Callable,
-    Iterable,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from qontract_utils.differ import diff_iterables
 
@@ -38,6 +36,12 @@ from reconcile.utils.state import (
     State,
     init_state,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+    )
 
 QONTRACT_INTEGRATION = "ldap-groups"
 
