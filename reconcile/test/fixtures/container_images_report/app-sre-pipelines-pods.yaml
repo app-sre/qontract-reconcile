@@ -21,7 +21,7 @@
     namespace: app-sre-pipelines
   spec:
     containers:
-    - image: quay.io/app-sre/internal-redhat-ca:0.3.0
+    - image: quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master:0.5.0-1
       name: step-init-dast-config
     - image: quay.io/redhatproductsecurity/rapidast:latest
       name: step-dast-scan
