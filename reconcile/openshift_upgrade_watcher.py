@@ -130,6 +130,19 @@ def notify_upgrades_start(
                     state_key=state_key,
                     state_value=None,
                 )
+                if slack and cluster.labels and "notifications" in cluster.labels:
+                    notification_channels = cluster.labels["notifications"].split(",")
+                    for notification_channel in notification_channels:
+                        default_channel = slack.channel
+                        slack.channel = notification_channel
+                        handle_slack_notification(
+                            msg=msg,
+                            slack=slack,
+                            state=state,
+                            state_key=state_key,
+                            state_value=None,
+                        )
+                        slack.channel = default_channel
 
 
 def notify_cluster_new_version(
