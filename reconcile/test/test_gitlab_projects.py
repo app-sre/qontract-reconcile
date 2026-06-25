@@ -1,5 +1,5 @@
 import logging
-from unittest.mock import create_autospec
+from unittest.mock import Mock, create_autospec
 
 import pytest
 from gitlab.const import DEVELOPER_ACCESS
@@ -26,7 +26,7 @@ def argo_platform_admin_share() -> list[dict[str, str]]:
 
 
 @pytest.fixture
-def mocked_gitlab_api() -> GitLabApi:
+def mocked_gitlab_api() -> Mock:
     gl = create_autospec(GitLabApi)
     gl.get_access_level.return_value = DEVELOPER_ACCESS
     gl.get_access_level_string.return_value = "developer"
@@ -34,14 +34,14 @@ def mocked_gitlab_api() -> GitLabApi:
 
 
 @pytest.fixture
-def mocked_project() -> Project:
+def mocked_project() -> Mock:
     project = create_autospec(Project)
     project.shared_with_groups = []
     return project
 
 
 @pytest.fixture
-def mocked_project_with_argo_share() -> Project:
+def mocked_project_with_argo_share() -> Mock:
     project = create_autospec(Project)
     project.shared_with_groups = [
         {
@@ -54,8 +54,8 @@ def mocked_project_with_argo_share() -> Project:
 
 
 def test_reconcile_project_shared_groups_add(
-    mocked_gitlab_api: GitLabApi,
-    mocked_project: Project,
+    mocked_gitlab_api: Mock,
+    mocked_project: Mock,
     project_url: str,
     argo_platform_admin_share: list[dict[str, str]],
 ) -> None:
@@ -75,7 +75,7 @@ def test_reconcile_project_shared_groups_add(
 
 
 def test_reconcile_project_shared_groups_dry_run_missing_project(
-    mocked_gitlab_api: GitLabApi,
+    mocked_gitlab_api: Mock,
     project_url: str,
     argo_platform_admin_share: list[dict[str, str]],
     caplog: pytest.LogCaptureFixture,
@@ -127,8 +127,8 @@ def test_run_skips_null_shared_with_groups(mocker: MockerFixture) -> None:
 
 
 def test_reconcile_project_shared_groups_unshare(
-    mocked_gitlab_api: GitLabApi,
-    mocked_project_with_argo_share: Project,
+    mocked_gitlab_api: Mock,
+    mocked_project_with_argo_share: Mock,
     project_url: str,
 ) -> None:
     mocked_gitlab_api.get_project.return_value = mocked_project_with_argo_share
