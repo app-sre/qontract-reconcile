@@ -15,7 +15,12 @@ from qontract_utils.differ import (
 from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1
 from reconcile.gql_definitions.acs.acs_rbac import query as acs_rbac_query
 from reconcile.utils import gql
-from reconcile.utils.acs.rbac import AccessScopeNamespace, AcsRbacApi, Group, RbacResources
+from reconcile.utils.acs.rbac import (
+    AccessScopeNamespace,
+    AcsRbacApi,
+    Group,
+    RbacResources,
+)
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
@@ -100,7 +105,9 @@ class AcsRole(BaseModel):
                 # second arg is returned even if first arg == False
                 clusters=[cluster.name for cluster in (permission.clusters or [])],
                 namespaces=[
-                    AccessScopeNamespace(clusterName=n.cluster.name, namespaceName=n.name)
+                    AccessScopeNamespace(
+                        clusterName=n.cluster.name, namespaceName=n.name
+                    )
                     for n in (permission.namespaces or [])
                 ],
             ),

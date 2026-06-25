@@ -192,8 +192,12 @@ def modeled_acs_roles() -> list[AcsRole]:
                 description="vuln-admin access to service namespaces in acs instance",
                 clusters=[],
                 namespaces=[
-                    AccessScopeNamespace(clusterName="stage-cluster", namespaceName="serviceA-stage"),
-                    AccessScopeNamespace(clusterName="prod-cluster", namespaceName="serviceA-prod"),
+                    AccessScopeNamespace(
+                        clusterName="stage-cluster", namespaceName="serviceA-stage"
+                    ),
+                    AccessScopeNamespace(
+                        clusterName="prod-cluster", namespaceName="serviceA-prod"
+                    ),
                 ],
             ),
             system_default=False,
@@ -386,7 +390,9 @@ def test_access_scope_strips_cluster_id_from_namespaces() -> None:
             },
         }
     )
-    assert scope.namespaces == [rbac.AccessScopeNamespace(clusterName="prod-cluster", namespaceName="my-ns")]
+    assert scope.namespaces == [
+        rbac.AccessScopeNamespace(clusterName="prod-cluster", namespaceName="my-ns")
+    ]
 
 
 def test_get_desired_state(

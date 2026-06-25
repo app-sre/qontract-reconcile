@@ -90,7 +90,9 @@ class AccessScope(BaseModel):
             namespaces=[]
             if unrestricted
             else [
-                AccessScopeNamespace(clusterName=ns["clusterName"], namespaceName=ns["namespaceName"])
+                AccessScopeNamespace(
+                    clusterName=ns["clusterName"], namespaceName=ns["namespaceName"]
+                )
                 for ns in api_data["rules"].get("includedNamespaces", [])
             ],
             description=api_data.get("description", ""),
@@ -241,7 +243,9 @@ class AcsRbacApi(AcsBaseApi):
             "description": desc,
             "rules": {
                 "includedClusters": clusters,
-                "includedNamespaces": [ns.model_dump(by_alias=True) for ns in namespaces],
+                "includedNamespaces": [
+                    ns.model_dump(by_alias=True) for ns in namespaces
+                ],
             },
         }
 
@@ -265,7 +269,9 @@ class AcsRbacApi(AcsBaseApi):
             "description": desc,
             "rules": {
                 "includedClusters": clusters,
-                "includedNamespaces": [ns.model_dump(by_alias=True) for ns in namespaces],
+                "includedNamespaces": [
+                    ns.model_dump(by_alias=True) for ns in namespaces
+                ],
             },
         }
 
