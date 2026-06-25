@@ -9,50 +9,88 @@ from pytest_mock import MockerFixture
 from reconcile import gitlab_projects
 from reconcile.utils.gitlab_api import GitLabApi
 
+PROJECT_URL = "http://gitlab.example.com/service/my-project"
+ARGO_PLATFORM_ADMIN_SHARE = [
+    {"group": "argo-platform-admin", "accessLevel": "developer"},
+]
 
-def test_reconcile_project_shared_groups_add(mocker: MockerFixture) -> None:
+
+@pytest.fixture
+def project_url() -> str:
+    return PROJECT_URL
+
+
+@pytest.fixture
+def argo_platform_admin_share() -> list[dict[str, str]]:
+    return list(ARGO_PLATFORM_ADMIN_SHARE)
+
+
+@pytest.fixture
+def mocked_gitlab_api() -> GitLabApi:
     gl = create_autospec(GitLabApi)
-    project = create_autospec(Project)
-    project.shared_with_groups = []
-    gl.get_project.return_value = project
     gl.get_access_level.return_value = DEVELOPER_ACCESS
     gl.get_access_level_string.return_value = "developer"
+    return gl
+
+
+@pytest.fixture
+def mocked_project() -> Project:
+    project = create_autospec(Project)
+    project.shared_with_groups = []
+    return project
+
+
+@pytest.fixture
+def mocked_project_with_argo_share() -> Project:
+    project = create_autospec(Project)
+    project.shared_with_groups = [
+        {
+            "group_name": "argo-platform-admin",
+            "group_full_path": "argo-platform-admin",
+            "group_access_level": DEVELOPER_ACCESS,
+        },
+    ]
+    return project
+
+
+def test_reconcile_project_shared_groups_add(
+    mocked_gitlab_api: GitLabApi,
+    mocked_project: Project,
+    project_url: str,
+    argo_platform_admin_share: list[dict[str, str]],
+) -> None:
+    mocked_gitlab_api.get_project.return_value = mocked_project
 
     gitlab_projects.reconcile_project_shared_groups(
-        gl=gl,
-        project_url="http://gitlab.example.com/service/my-project",
-        shared_with_groups=[
-            {"group": "argo-platform-admin", "accessLevel": "developer"},
-        ],
+        gl=mocked_gitlab_api,
+        project_url=project_url,
+        shared_with_groups=argo_platform_admin_share,
         dry_run=False,
     )
 
-    gl.get_access_level.assert_called_once_with("developer")
-    gl.share_project_with_group.assert_called_once_with(
-        project, "argo-platform-admin", "developer"
+    mocked_gitlab_api.get_access_level.assert_called_once_with("developer")
+    mocked_gitlab_api.share_project_with_group.assert_called_once_with(
+        mocked_project, "argo-platform-admin", "developer"
     )
 
 
 def test_reconcile_project_shared_groups_dry_run_missing_project(
-    mocker: MockerFixture,
+    mocked_gitlab_api: GitLabApi,
+    project_url: str,
+    argo_platform_admin_share: list[dict[str, str]],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    gl = create_autospec(GitLabApi)
-    gl.get_project.return_value = None
-    gl.get_access_level.return_value = DEVELOPER_ACCESS
-    gl.get_access_level_string.return_value = "developer"
+    mocked_gitlab_api.get_project.return_value = None
 
     with caplog.at_level(logging.INFO):
         gitlab_projects.reconcile_project_shared_groups(
-            gl=gl,
-            project_url="http://gitlab.example.com/service/my-project",
-            shared_with_groups=[
-                {"group": "argo-platform-admin", "accessLevel": "developer"},
-            ],
+            gl=mocked_gitlab_api,
+            project_url=project_url,
+            shared_with_groups=argo_platform_admin_share,
             dry_run=True,
         )
 
-    gl.share_project_with_group.assert_not_called()
+    mocked_gitlab_api.share_project_with_group.assert_not_called()
     assert "share_project_with_group" in caplog.text
 
 
@@ -88,28 +126,23 @@ def test_run_skips_null_shared_with_groups(mocker: MockerFixture) -> None:
     reconcile_mock.assert_not_called()
 
 
-def test_reconcile_project_shared_groups_unshare(mocker: MockerFixture) -> None:
-    gl = create_autospec(GitLabApi)
-    project = create_autospec(Project)
-    project.shared_with_groups = [
-        {
-            "group_name": "argo-platform-admin",
-            "group_full_path": "argo-platform-admin",
-            "group_access_level": DEVELOPER_ACCESS,
-        },
-    ]
-    gl.get_project.return_value = project
-    gl.get_project_shared_groups.return_value = {
+def test_reconcile_project_shared_groups_unshare(
+    mocked_gitlab_api: GitLabApi,
+    mocked_project_with_argo_share: Project,
+    project_url: str,
+) -> None:
+    mocked_gitlab_api.get_project.return_value = mocked_project_with_argo_share
+    mocked_gitlab_api.get_project_shared_groups.return_value = {
         "argo-platform-admin": DEVELOPER_ACCESS,
     }
 
     gitlab_projects.reconcile_project_shared_groups(
-        gl=gl,
-        project_url="http://gitlab.example.com/service/my-project",
+        gl=mocked_gitlab_api,
+        project_url=project_url,
         shared_with_groups=[],
         dry_run=False,
     )
 
-    gl.unshare_project_from_group.assert_called_once_with(
-        project, "argo-platform-admin"
+    mocked_gitlab_api.unshare_project_from_group.assert_called_once_with(
+        mocked_project_with_argo_share, "argo-platform-admin"
     )
