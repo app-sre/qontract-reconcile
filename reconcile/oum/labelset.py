@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections import defaultdict
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from pydantic import BaseModel
 
@@ -7,7 +9,9 @@ from reconcile.oum.models import ExternalGroupRef
 from reconcile.utils.models import CSV
 from reconcile.utils.ocm import sre_capability_labels
 from reconcile.utils.ocm.cluster_groups import OCMClusterGroupId
-from reconcile.utils.ocm.labels import LabelContainer
+
+if TYPE_CHECKING:
+    from reconcile.utils.ocm.labels import LabelContainer
 
 
 class _GroupMappingLabelset(BaseModel):

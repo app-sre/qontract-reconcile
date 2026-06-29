@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import pytest
 from qontract_utils.slack_api import (
@@ -19,6 +18,8 @@ from qontract_api.slack.slack_workspace_client import (
 )
 
 if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
     from qontract_api.config import Settings
 
 

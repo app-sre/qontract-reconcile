@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import (
     create_autospec,
 )
@@ -13,8 +15,12 @@ from reconcile.fleet_labeler.metrics import FleetLabelerMetrics
 from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
     FleetLabelsSpecV1,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.fixture

@@ -1,14 +1,11 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Iterable, Mapping, MutableMapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jinja2
 
-from reconcile.gql_definitions.fragments.aws_vpc_request import (
-    AWSAccountV1,
-    VPCRequest,
-)
 from reconcile.status import ExitCodes
 from reconcile.terraform_vpc_resources.merge_request import Renderer, create_parser
 from reconcile.terraform_vpc_resources.merge_request_manager import (
@@ -39,6 +36,14 @@ from reconcile.utils.terrascript_aws_client import (
     TerrascriptClient,
 )
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, MutableMapping
+
+    from reconcile.gql_definitions.fragments.aws_vpc_request import (
+        AWSAccountV1,
+        VPCRequest,
+    )
 
 QONTRACT_INTEGRATION = "terraform_vpc_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

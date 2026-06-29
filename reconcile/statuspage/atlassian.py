@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import logging
 import time
 from datetime import datetime
 from typing import (
+    TYPE_CHECKING,
     Any,
     Self,
 )
@@ -11,15 +14,17 @@ from pydantic import BaseModel
 from requests import Response
 from sretoolbox.utils import retry
 
-from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 from reconcile.statuspage.page import (
     StatusComponent,
     StatusMaintenance,
     StatusMaintenanceAnnouncement,
     StatusPage,
 )
-from reconcile.statuspage.state import ComponentBindingState
 from reconcile.statuspage.status import ManualStatusProvider
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
+    from reconcile.statuspage.state import ComponentBindingState
 
 
 class AtlassianRawComponent(BaseModel):

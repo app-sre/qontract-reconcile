@@ -1,13 +1,18 @@
-from collections.abc import (
-    Callable,
-    Mapping,
-)
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.saas_auto_promotions_manager.subscriber import (
     CONTENT_HASH_LENGTH,
     ConfigHash,
     Subscriber,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
 
 
 def test_can_compute_content_hash(

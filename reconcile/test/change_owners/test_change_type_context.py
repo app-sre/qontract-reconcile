@@ -1,14 +1,22 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from reconcile.change_owners.bundle import (
     BundleFileType,
     FileRef,
 )
 from reconcile.change_owners.change_types import FileChange
-from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import (
     StubFile,
     build_bundle_datafile_change,
     change_type_to_processor,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.change_owners.queries.change_types import (
+        ChangeTypeV1,
+    )
 
 #
 # testcases for context file refs extraction from bundle changes

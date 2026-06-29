@@ -1,9 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from reconcile.gql_definitions.slo_documents.slo_documents import (
     SLODocumentV1,
     query,
 )
 from reconcile.utils import gql
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from reconcile.utils.gql import GqlApi
 
 
 def get_slo_documents(gql_api: GqlApi | None = None) -> list[SLODocumentV1]:

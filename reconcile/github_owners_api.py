@@ -18,9 +18,11 @@ Design note — add-only behavior:
     admins is a high-impact operation requiring explicit manual review.
 """
 
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from qontract_api_client.client import github_owners as reconcile_github_owners
 from qontract_api_client.schemas import (
@@ -45,6 +47,9 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 QONTRACT_INTEGRATION = "github-owners-api"
 

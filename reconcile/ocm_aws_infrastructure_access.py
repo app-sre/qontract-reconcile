@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
@@ -17,6 +18,9 @@ from reconcile.utils.ocm import (
     STATUS_FAILED,
     OCMMap,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 QONTRACT_INTEGRATION = "ocm-aws-infrastructure-access"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]

@@ -1,19 +1,24 @@
+from __future__ import annotations
+
 import copy
 import logging
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
-from reconcile.skupper_network.models import SkupperSite
 from reconcile.skupper_network.site_controller import get_site_controller
-from reconcile.utils.oc_map import OCMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Mapping,
+    )
+
+    from reconcile.skupper_network.models import SkupperSite
+    from reconcile.utils.oc_map import OCMap
 
 
 def delete_skupper_site(

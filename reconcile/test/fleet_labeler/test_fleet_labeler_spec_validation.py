@@ -1,15 +1,21 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
-from reconcile.fleet_labeler.dependencies import Dependencies
-from reconcile.fleet_labeler.integration import (
-    FleetLabelerIntegration,
-)
 from reconcile.fleet_labeler.validate import (
     MatchLabelsNotUniqueError,
 )
-from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
-    FleetLabelsSpecV1,
-)
+
+if TYPE_CHECKING:
+    from reconcile.fleet_labeler.dependencies import Dependencies
+    from reconcile.fleet_labeler.integration import (
+        FleetLabelerIntegration,
+    )
+    from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
+        FleetLabelsSpecV1,
+    )
 
 
 def test_valid_spec(

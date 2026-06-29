@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 from io import StringIO
+from typing import TYPE_CHECKING
 
 from jsonpath_ng.ext import parser
 from qontract_utils.ruamel import create_ruamel_instance
 
 from reconcile.typed_queries.users import get_users
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
+
+if TYPE_CHECKING:
+    from reconcile.utils.gitlab_api import GitLabApi
 
 
 class PromoteQontractSchemas(MergeRequestBase):

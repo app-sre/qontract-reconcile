@@ -1,8 +1,14 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from qontract_utils.ruamel import create_ruamel_instance, dump_yaml
 
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
+
+if TYPE_CHECKING:
+    from reconcile.utils.gitlab_api import GitLabApi
 
 
 class CreateOCMUpdateRecommendedVersion(MergeRequestBase):

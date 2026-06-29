@@ -1,5 +1,6 @@
-from collections.abc import Iterable
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.statuspage.statuspages import (
@@ -14,7 +15,11 @@ from reconcile.statuspage.atlassian import (
     AtlassianRawComponent,
     AtlassianStatusPageProvider,
 )
-from reconcile.statuspage.state import ComponentBindingState
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.statuspage.state import ComponentBindingState
 
 
 def describe_component_v1(

@@ -1,7 +1,6 @@
-from collections.abc import (
-    Callable,
-    Sequence,
-)
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 import yaml
@@ -18,6 +17,12 @@ from reconcile.integrations_manager import (
 )
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import helm
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Sequence,
+    )
 
 fxt = Fixtures("helm")
 

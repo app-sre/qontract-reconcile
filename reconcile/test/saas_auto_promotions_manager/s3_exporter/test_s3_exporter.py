@@ -1,9 +1,15 @@
-from collections.abc import Callable, Mapping
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
-from reconcile.saas_auto_promotions_manager.publisher import Publisher
 from reconcile.saas_auto_promotions_manager.s3_exporter import S3Exporter
 from reconcile.utils.state import State
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
+    from reconcile.saas_auto_promotions_manager.publisher import Publisher
 
 
 def test_s3_exporter(publisher_builder: Callable[[Mapping], Publisher]) -> None:

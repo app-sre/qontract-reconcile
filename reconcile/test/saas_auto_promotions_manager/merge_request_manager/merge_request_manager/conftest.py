@@ -1,8 +1,6 @@
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 import pytest
@@ -40,6 +38,13 @@ from .data_keys import (
     SUBSCRIBER_CHANNELS,
     SUBSCRIBER_CONTENT_HASH,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
 
 
 @pytest.fixture

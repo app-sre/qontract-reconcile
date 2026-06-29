@@ -1,13 +1,15 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
 from reconcile.utils.clusterhealth.providerbase import ClusterHealth
-from reconcile.utils.clusterhealth.telemeter import (
-    PrometheusQuerier,
-    TelemeterClusterHealthProvider,
-)
-from reconcile.utils.prometheus import PrometheusVector
+from reconcile.utils.clusterhealth.telemeter import TelemeterClusterHealthProvider
+from reconcile.utils.prometheus import PrometheusQuerier, PrometheusVector
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @pytest.fixture

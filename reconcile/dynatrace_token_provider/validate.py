@@ -1,8 +1,13 @@
-from collections.abc import Iterable
+from __future__ import annotations
 
-from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
-    DynatraceTokenProviderTokenSpecV1,
-)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
+        DynatraceTokenProviderTokenSpecV1,
+    )
 
 
 class SecretNotUniqueError(Exception):

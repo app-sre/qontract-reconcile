@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 from qontract_api.models import Secret
 from qontract_api.slack.slack_client_factory import create_slack_workspace_client
 from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
 
 if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
     from qontract_api.config import Settings
 
 

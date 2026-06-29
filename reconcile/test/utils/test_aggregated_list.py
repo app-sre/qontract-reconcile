@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -8,6 +10,9 @@ from reconcile.utils.aggregated_list import (
     AggregatedList,
     Cond,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class TestAggregatedList:

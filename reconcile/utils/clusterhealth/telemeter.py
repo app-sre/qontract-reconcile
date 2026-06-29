@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
 from reconcile.utils.clusterhealth.providerbase import (
     ClusterHealth,
     ClusterHealthProvider,
 )
 from reconcile.utils.grouping import group_by
-from reconcile.utils.prometheus import PrometheusQuerier
+
+if TYPE_CHECKING:
+    from reconcile.utils.prometheus import PrometheusQuerier
 
 TELEMETER_SOURCE = "telemeter"
 

@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.external_resources.external_resources_modules import (
     ExternalResourcesModuleV1,
@@ -19,6 +21,9 @@ from reconcile.gql_definitions.external_resources.external_resources_settings im
     query as query_settings,
 )
 from reconcile.utils import gql
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def get_namespaces(query_func: Callable | None = None) -> list[NamespaceV1]:

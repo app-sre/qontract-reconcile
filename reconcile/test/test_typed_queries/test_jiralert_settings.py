@@ -1,10 +1,15 @@
-from collections.abc import Callable, Mapping
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
 from reconcile.gql_definitions.common.jiralert_settings import JiralertSettingsQueryData
 from reconcile.typed_queries.jiralert_settings import get_jiralert_settings
 from reconcile.utils.exceptions import AppInterfaceSettingsError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
 
 
 def test_jiralert_settings_no_settings(

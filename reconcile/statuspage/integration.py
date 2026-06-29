@@ -1,11 +1,17 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from reconcile.gql_definitions.statuspage import statuspages
-from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 from reconcile.statuspage.state import S3ComponentBindingState
 from reconcile.utils import gql
-from reconcile.utils.secret_reader import (
-    SecretReaderBase,
-)
 from reconcile.utils.state import init_state
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
+    from reconcile.utils.secret_reader import (
+        SecretReaderBase,
+    )
 
 
 def get_status_pages() -> list[StatusPageV1]:

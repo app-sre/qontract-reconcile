@@ -1,20 +1,24 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
 
-from reconcile.test.utils.jobcontroller.conftest import OCItemSetter
 from reconcile.test.utils.jobcontroller.fixtures import (
     SomeJob,
     build_job_resource,
     build_job_status,
 )
-from reconcile.utils.jobcontroller.controller import K8sJobController
 from reconcile.utils.jobcontroller.models import (
     JobConcurrencyPolicy,
     JobStatus,
     JobValidationError,
 )
+
+if TYPE_CHECKING:
+    from reconcile.test.utils.jobcontroller.conftest import OCItemSetter
+    from reconcile.utils.jobcontroller.controller import K8sJobController
 
 #
 # enqueue_job

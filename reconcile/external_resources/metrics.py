@@ -1,15 +1,21 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel
 
 from reconcile.external_resources.meta import QONTRACT_INTEGRATION
-from reconcile.external_resources.model import Reconciliation, ReconciliationStatus
 from reconcile.external_resources.reconciler import ReconciliationK8sJob
 from reconcile.utils import metrics
-from reconcile.utils.external_resources import ExternalResourceSpec
 from reconcile.utils.metrics import (
     CounterMetric,
     GaugeMetric,
     normalize_integration_name,
 )
+
+if TYPE_CHECKING:
+    from reconcile.external_resources.model import Reconciliation, ReconciliationStatus
+    from reconcile.utils.external_resources import ExternalResourceSpec
 
 
 class ExternalResourcesBaseMetric(BaseModel):

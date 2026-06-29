@@ -1,10 +1,14 @@
-from collections.abc import Mapping
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 import reconcile.aws_iam_keys as integ
 from reconcile.utils.state import State
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def test_filter_accounts_with_account_name() -> None:

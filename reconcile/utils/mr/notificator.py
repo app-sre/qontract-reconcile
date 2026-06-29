@@ -1,15 +1,20 @@
+from __future__ import annotations
+
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
 from reconcile.utils.datetime_util import utc_now
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import (
     MergeRequestBase,
     app_interface_email,
 )
 from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
+
+if TYPE_CHECKING:
+    from reconcile.utils.gitlab_api import GitLabApi
 
 
 class Notification(BaseModel):

@@ -1,15 +1,21 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qontract_utils.ruamel import PreservedScalarString
 
 from reconcile.utils.datetime_util import utc_now
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import (
     MergeRequestBase,
     app_interface_email,
 )
 from reconcile.utils.mr.labels import AUTO_MERGE
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.utils.gitlab_api import GitLabApi
 
 
 class CreateAppInterfaceReporter(MergeRequestBase):

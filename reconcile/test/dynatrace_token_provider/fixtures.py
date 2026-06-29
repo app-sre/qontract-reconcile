@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import base64
-from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import (
     MagicMock,
     Mock,
@@ -18,6 +19,9 @@ from reconcile.utils.openshift_resource import (
     QONTRACT_ANNOTATION_INTEGRATION,
     QONTRACT_ANNOTATION_INTEGRATION_VERSION,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 REGIONAL_TENANT_KEY = "sre-capabilities.dtp.v3.regional.tenant"
 SLO_TENANT_KEY = "sre-capabilities.dtp.v3.slo.tenant"

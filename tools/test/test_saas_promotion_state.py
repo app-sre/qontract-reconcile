@@ -1,21 +1,27 @@
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import (
     create_autospec,
 )
 
 from pytest import raises
 
-from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.promotion_state import PromotionData, PromotionState
 from tools.saas_promotion_state.saas_promotion_state import (
     SaasPromotionState,
     SaasPromotionStateError,
     SaasPromotionStateMissingError,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
+
+    from reconcile.typed_queries.saas_files import SaasFile
 
 
 def test_get_saas_promotion_state(

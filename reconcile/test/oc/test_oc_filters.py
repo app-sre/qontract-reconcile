@@ -1,9 +1,14 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import pytest
 
 from reconcile.utils.oc_filters import filter_namespaces_by_cluster_and_namespace
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 @dataclass

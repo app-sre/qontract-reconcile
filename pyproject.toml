@@ -257,7 +257,11 @@ ignore = [
 allow-star-arg-any = true
 
 [tool.ruff.lint.flake8-type-checking]
-runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "reconcile.gql_definitions.common.saas_files.ConfiguredBaseModel",
+    "reconcile.gql_definitions.integrations.integrations.IntegrationSpecV1",
+]
 runtime-evaluated-decorators = [
     "dataclasses.dataclass",
     "pydantic.dataclasses.dataclass",

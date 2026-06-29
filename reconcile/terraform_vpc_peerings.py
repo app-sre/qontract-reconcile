@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import json
 import logging
 import sys
-from collections.abc import Callable, Iterable, Mapping
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_aws_client as terrascript
@@ -12,19 +13,23 @@ from reconcile.utils import (
     aws_api,
     ocm,
 )
-from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.extended_early_exit import (
     ExtendedEarlyExitRunnerResult,
     extended_early_exit_run,
 )
-from reconcile.utils.ocm import (
-    OCM,
-    OCMMap,
-)
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.unleash.client import get_feature_toggle_state
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping
+
+    from reconcile.utils.aws_api import AWSApi
+    from reconcile.utils.ocm import (
+        OCM,
+        OCMMap,
+    )
 
 QONTRACT_INTEGRATION = "terraform_vpc_peerings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

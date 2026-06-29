@@ -1,12 +1,18 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
 from reconcile.email_sender import collect_to
-from reconcile.gql_definitions.email_sender.emails import AppInterfaceEmailV1
 from reconcile.gql_definitions.fragments.email_service import (
     EmailServiceOwners,
     OwnerV1,
 )
 from reconcile.gql_definitions.fragments.email_user import EmailUser
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.email_sender.emails import AppInterfaceEmailV1
 
 ALL_APPS = [
     EmailServiceOwners(

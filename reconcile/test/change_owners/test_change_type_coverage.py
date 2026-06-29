@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import jsonpath_ng
 import pytest
 
@@ -14,13 +18,17 @@ from reconcile.change_owners.diff import (
     Diff,
     DiffType,
 )
-from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import (
     StubFile,
     build_bundle_datafile_change,
     build_test_datafile,
     change_type_to_processor,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.change_owners.queries.change_types import (
+        ChangeTypeV1,
+    )
 
 #
 # processing change coverage on a change type context

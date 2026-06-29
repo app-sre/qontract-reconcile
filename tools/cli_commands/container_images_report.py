@@ -1,12 +1,12 @@
+from __future__ import annotations
+
 import re
 from collections import defaultdict
-from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 from sretoolbox.utils import threaded
 
-from reconcile.gql_definitions.common.namespaces import NamespaceV1
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -15,6 +15,11 @@ from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.oc_filters import filter_namespaces_by_cluster_and_namespace
 from reconcile.utils.oc_map import OCMap, init_oc_map_from_namespaces
 from reconcile.utils.secret_reader import create_secret_reader
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from reconcile.gql_definitions.common.namespaces import NamespaceV1
 
 IMAGE_NAME_REGEX = re.compile(
     r"^(?P<name>[a-zA-Z0-9][a-zA-Z0-9/_.-]+)(?:$|(?:@sha256)?:.+.$)"

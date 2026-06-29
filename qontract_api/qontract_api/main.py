@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import re
-from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpxyz as httpx
 from fastapi import FastAPI, Response
@@ -32,6 +31,9 @@ from qontract_api.middleware import (
 )
 from qontract_api.opa import OPAClient
 from qontract_api.routers.api_v1 import api_v1_router
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 log = setup_logging()
 

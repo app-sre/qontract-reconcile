@@ -1,8 +1,12 @@
-from collections import Counter
+from __future__ import annotations
 
-from reconcile.gql_definitions.aws_account_manager.aws_accounts import (
-    AWSAccountV1,
-)
+from collections import Counter
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.aws_account_manager.aws_accounts import (
+        AWSAccountV1,
+    )
 
 
 def validate(account: AWSAccountV1) -> bool:

@@ -1,16 +1,22 @@
+from __future__ import annotations
+
 import os
 from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
-    ExternalResourceSpecInventory,
-)
 from reconcile.utils.git import is_file_in_git_repo
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.utils.external_resource_spec import (
+        ExternalResourceSpec,
+        ExternalResourceSpecInventory,
+    )
 
 
 class TerraformConfigClient(ABC):

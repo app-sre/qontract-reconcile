@@ -1,7 +1,5 @@
-from collections.abc import (
-    Callable,
-    Mapping,
-)
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
 
 from reconcile.gql_definitions.common.clusters_with_dms import (
@@ -11,10 +9,15 @@ from reconcile.gql_definitions.common.clusters_with_dms import (
 from reconcile.typed_queries.clusters_with_dms import (
     get_clusters_with_dms,
 )
-from reconcile.utils.gql import GqlApi
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
     from unittest.mock import MagicMock
+
+    from reconcile.utils.gql import GqlApi
 
 
 def test_no_clusters(

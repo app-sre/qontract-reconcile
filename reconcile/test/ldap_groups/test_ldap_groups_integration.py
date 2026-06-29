@@ -1,22 +1,27 @@
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-    Sequence,
-)
-from typing import Any
-from unittest.mock import Mock
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from reconcile.gql_definitions.ldap_groups.roles import RoleV1
-from reconcile.ldap_groups.integration import LdapGroupsIntegration
 from reconcile.utils.internal_groups.client import NotFoundError
 from reconcile.utils.internal_groups.models import (
     Entity,
     EntityType,
     Group,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+        Sequence,
+    )
+    from unittest.mock import Mock
+
+    from reconcile.ldap_groups.integration import LdapGroupsIntegration
 
 
 def test_get_early_exit_desired_state(

@@ -1,10 +1,16 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
 from reconcile.gql_definitions.cost_report.app_names import AppNamesQueryData, AppV1
 from reconcile.typed_queries.cost_report.app_names import App, get_app_names
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.gql import GqlApi
 
 
 def test_get_app_names_when_no_data(

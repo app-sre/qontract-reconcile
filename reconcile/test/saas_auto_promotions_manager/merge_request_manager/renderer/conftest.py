@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 import os
-from collections.abc import (
-    Callable,
-)
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+    )
 
 
 @pytest.fixture

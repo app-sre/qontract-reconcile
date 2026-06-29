@@ -1,9 +1,13 @@
-import re
-from typing import TypeVar
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, TypeVar
 
 from pydantic import BaseModel
 
 from reconcile.utils.models import data_default_none
+
+if TYPE_CHECKING:
+    import re
 
 
 class ParserError(Exception):

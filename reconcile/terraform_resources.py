@@ -1,13 +1,9 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import (
-    Callable,
-    Collection,
-    Iterable,
-    Mapping,
-    Sequence,
-)
 from dataclasses import asdict
 from typing import (
+    TYPE_CHECKING,
     Any,
     TypedDict,
 )
@@ -21,9 +17,6 @@ from sretoolbox.utils import (
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.aws_iam_keys import run as disable_keys
-from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
-    NamespaceV1,
-)
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -36,9 +29,6 @@ from reconcile.utils.defer import defer
 from reconcile.utils.extended_early_exit import (
     ExtendedEarlyExitRunnerResult,
     extended_early_exit_run,
-)
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpecInventory,
 )
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
@@ -64,6 +54,22 @@ from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vault import (
     VaultClient,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Collection,
+        Iterable,
+        Mapping,
+        Sequence,
+    )
+
+    from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
+        NamespaceV1,
+    )
+    from reconcile.utils.external_resource_spec import (
+        ExternalResourceSpecInventory,
+    )
 
 QONTRACT_INTEGRATION = "terraform_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 5)

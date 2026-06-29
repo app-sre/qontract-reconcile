@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import hashlib
-from collections.abc import Callable
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from jsonpath_ng.exceptions import JsonPathParserError
 from pydantic import (
@@ -49,6 +50,9 @@ from reconcile.utils.exceptions import (
 )
 from reconcile.utils.json import json_dumps
 from reconcile.utils.jsonpath import parse_jsonpath
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class SaasResourceTemplateTarget(

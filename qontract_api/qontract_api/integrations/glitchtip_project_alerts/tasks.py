@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from celery import Task
 from qontract_utils.events import Event
 
 from qontract_api.cache.factory import get_cache
@@ -27,6 +26,8 @@ from qontract_api.secret_manager._factory import get_secret_manager
 from qontract_api.tasks import celery_app, deduplicated_task
 
 if TYPE_CHECKING:
+    from celery import Task
+
     from qontract_api.integrations.glitchtip_project_alerts.domain import (
         GlitchtipInstance,
     )

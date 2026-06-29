@@ -1,15 +1,14 @@
 # ruff: noqa: PLC0415 - `import` should be at the top-level of a file
+from __future__ import annotations
+
 import faulthandler
 import logging
 import os
 import re
 import sys
 import traceback
-from collections.abc import Callable, Iterable
-from io import TextIOWrapper
 from signal import SIGUSR1
-from types import ModuleType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import click
 import sentry_sdk
@@ -47,6 +46,11 @@ from reconcile.utils.runtime.runner import (
     run_integration_cfg,
 )
 from reconcile.utils.unleash import get_feature_toggle_state
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+    from io import TextIOWrapper
+    from types import ModuleType
 
 TERRAFORM_VERSION = ["1.6.6"]
 TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"

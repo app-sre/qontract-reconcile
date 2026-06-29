@@ -1,14 +1,12 @@
+from __future__ import annotations
+
 import logging
 import sys
 import time
-from collections.abc import Callable, Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
-from reconcile.gql_definitions.common.rhcs_provider_settings import (
-    RhcsProviderSettingsV1,
-)
 from reconcile.gql_definitions.rhcs.certs import (
     NamespaceV1,
     OpenshiftResourceRhcsCert,
@@ -42,6 +40,13 @@ from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vault import SecretNotFoundError, VaultClient
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping
+
+    from reconcile.gql_definitions.common.rhcs_provider_settings import (
+        RhcsProviderSettingsV1,
+    )
 
 QONTRACT_INTEGRATION = "openshift-rhcs-certs"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)

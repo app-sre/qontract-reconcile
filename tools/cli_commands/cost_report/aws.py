@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
 from decimal import Decimal
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 from sretoolbox.utils import threaded
 
@@ -8,12 +9,16 @@ from reconcile.typed_queries.cost_report.app_names import App, get_app_names
 from reconcile.utils import gql
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
 from tools.cli_commands.cost_report.model import ChildAppReport, Report, ReportItem
-from tools.cli_commands.cost_report.response import AwsReportCostResponse
 from tools.cli_commands.cost_report.util import (
     fetch_cost_report_secret,
     process_reports,
 )
 from tools.cli_commands.cost_report.view import render_aws_cost_report
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from tools.cli_commands.cost_report.response import AwsReportCostResponse
 
 THREAD_POOL_SIZE = 10
 

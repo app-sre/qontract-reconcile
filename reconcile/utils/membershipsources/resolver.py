@@ -1,9 +1,8 @@
-from collections.abc import (
-    Iterable,
-    Sequence,
-)
+from __future__ import annotations
+
 from dataclasses import dataclass
 from itertools import chain
+from typing import TYPE_CHECKING
 
 from sretoolbox.utils import threaded
 
@@ -23,6 +22,12 @@ from reconcile.utils.membershipsources.models import (
     RoleUser,
     RoleWithMemberships,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Sequence,
+    )
 
 
 @dataclass

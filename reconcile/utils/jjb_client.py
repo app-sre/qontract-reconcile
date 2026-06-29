@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import difflib
 import filecmp
 import logging
@@ -7,7 +9,6 @@ import shutil
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
-from collections.abc import Iterable, Mapping
 from os import path
 from pathlib import Path
 from subprocess import (
@@ -15,7 +16,7 @@ from subprocess import (
     STDOUT,
     CalledProcessError,
 )
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from jenkins_jobs.errors import JenkinsJobsException
@@ -26,9 +27,13 @@ from sretoolbox.utils import retry
 from reconcile.utils import throughput
 from reconcile.utils.helpers import toggle_logger
 from reconcile.utils.json import json_dumps
-from reconcile.utils.secret_reader import SecretReaderBase
-from reconcile.utils.state import State
 from reconcile.utils.vcs import GITHUB_BASE_URL
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from reconcile.utils.secret_reader import SecretReaderBase
+    from reconcile.utils.state import State
 
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
 

@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 from pydantic import (
     BaseModel,
 )
 
-from reconcile.utils.state import State
+if TYPE_CHECKING:
+    from reconcile.utils.state import State
 
 
 class PromotionData(BaseModel, extra="forbid"):

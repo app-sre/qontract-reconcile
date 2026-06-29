@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import contextlib
 import cProfile
 import logging
 import os
 import sys
 import time
-from collections.abc import Callable
 from importlib import metadata
+from typing import TYPE_CHECKING
 
 import click
 from prometheus_client import (
@@ -29,6 +31,9 @@ from reconcile.utils.runtime.environment import (
     LOG_DATEFMT,
     log_fmt,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 SHARDS = int(os.environ.get("SHARDS", "1"))
 SHARD_ID = int(os.environ.get("SHARD_ID", "0"))

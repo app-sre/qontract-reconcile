@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import functools
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import semver
 
@@ -8,11 +10,13 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
-from reconcile.ocm.types import OCMSpec
 from reconcile.utils.mr.ocm_update_recommended_version import (
     CreateOCMUpdateRecommendedVersion,
 )
 from reconcile.utils.ocm import OCMMap
+
+if TYPE_CHECKING:
+    from reconcile.ocm.types import OCMSpec
 
 QONTRACT_INTEGRATION = "ocm-update-recommended-version"
 

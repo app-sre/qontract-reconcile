@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import itertools
 import logging
 from dataclasses import dataclass
 from math import isnan
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 import jinja2
 import requests
@@ -16,7 +18,9 @@ from reconcile.gql_definitions.fragments.saas_slo_document import (
 )
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 PROM_QUERY_URL = "api/v1/query"
 

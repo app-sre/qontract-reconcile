@@ -1,5 +1,6 @@
-from collections.abc import Callable
-from typing import cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
 from unittest.mock import ANY, MagicMock
 
 import pytest
@@ -11,7 +12,11 @@ from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
 from reconcile.typed_queries.terraform_tgw_attachments.aws_accounts import (
     get_aws_accounts,
 )
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.gql import GqlApi
 
 
 @pytest.fixture

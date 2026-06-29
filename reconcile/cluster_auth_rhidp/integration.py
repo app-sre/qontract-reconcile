@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable, Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from deepdiff import DeepHash
 from qontract_utils.differ import diff_mappings
@@ -13,7 +14,6 @@ from reconcile.gql_definitions.cluster_auth_rhidp.clusters import query as clust
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.rhidp.common import (
     AUTH_NAME_LABEL_KEY,
     ISSUER_LABEL_KEY,
@@ -36,8 +36,13 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "cluster-auth-rhidp"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)

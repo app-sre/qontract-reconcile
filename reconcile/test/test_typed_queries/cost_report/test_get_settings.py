@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -9,7 +11,11 @@ from reconcile.gql_definitions.cost_report.settings import (
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.typed_queries.cost_report.settings import get_cost_report_settings
 from reconcile.utils.exceptions import AppInterfaceSettingsError
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.gql import GqlApi
 
 
 @pytest.fixture

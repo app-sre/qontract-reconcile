@@ -1,11 +1,16 @@
-from collections.abc import Callable, Iterable, Mapping
+from __future__ import annotations
+
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
 from reconcile.utils.json import json_dumps
-from tools.cli_commands.cost_report.model import OptimizationReport, Report
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping
+
+    from tools.cli_commands.cost_report.model import OptimizationReport, Report
 
 LAYOUT = """\
 [TOC]

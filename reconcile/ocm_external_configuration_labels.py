@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import json
 import logging
 import sys
-from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 QONTRACT_INTEGRATION = "ocm-external-configuration-labels"
 

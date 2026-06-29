@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile.gql_definitions.quay_membership import quay_membership
 from reconcile.gql_definitions.quay_membership.quay_membership import (
@@ -23,6 +24,9 @@ from reconcile.utils.aggregated_list import (
     RunnerError,
 )
 from reconcile.utils.quay_api import QuayTeamNotFoundError
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 QONTRACT_INTEGRATION = "quay-membership"
 

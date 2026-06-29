@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 import os
 import sys
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 import reconcile.openshift_base as ob
@@ -34,9 +36,13 @@ from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.saasherder.models import ImagePatternsBlockRule
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.state import init_state
 from reconcile.utils.unleash import get_feature_toggle_state
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.slack_api import SlackApi
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

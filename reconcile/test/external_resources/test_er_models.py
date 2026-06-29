@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 from pytest import fixture
@@ -9,6 +11,9 @@ from reconcile.external_resources.model import (
     ExternalResourcesInventory,
 )
 from reconcile.typed_queries.external_resources import NamespaceV1
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @fixture

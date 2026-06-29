@@ -1,22 +1,18 @@
+from __future__ import annotations
+
 import itertools
 import logging
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
+from typing import TYPE_CHECKING
 
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
-from reconcile.gql_definitions.common.clusters import ClusterV1
 from reconcile.gql_definitions.openshift_groups.managed_groups import (
     query as query_managed_groups,
 )
 from reconcile.gql_definitions.openshift_groups.managed_roles import (
     query as query_managed_roles,
 )
-from reconcile.openshift_base import ClusterMap
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -35,6 +31,16 @@ from reconcile.utils.oc_map import (
 from reconcile.utils.ocm.base import OCMClusterGroupId
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
+
+    from reconcile.gql_definitions.common.clusters import ClusterV1
+    from reconcile.openshift_base import ClusterMap
 
 QONTRACT_INTEGRATION = "openshift-groups"
 

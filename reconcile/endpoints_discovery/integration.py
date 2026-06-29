@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
-from collections.abc import Callable, Iterable
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 import jinja2
 from pydantic import BaseModel
@@ -44,6 +45,9 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 QONTRACT_INTEGRATION = "endpoints-discovery"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 1, 0)

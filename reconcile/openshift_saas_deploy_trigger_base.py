@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sretoolbox.utils import threaded
 
@@ -38,10 +39,14 @@ from reconcile.utils.saasherder import (
     TriggerSpecUnion,
 )
 from reconcile.utils.saasherder.interfaces import SaasPipelinesProviderTekton
-from reconcile.utils.saasherder.models import TriggerTypes
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.state import init_state
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.saasherder.models import TriggerTypes
 
 _trigger_lock = Lock()
 

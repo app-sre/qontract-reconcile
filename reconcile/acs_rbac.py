@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
-from collections.abc import Callable
 from itertools import starmap
 from typing import (
+    TYPE_CHECKING,
     Self,
 )
 
@@ -26,6 +28,9 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
 DEFAULT_ADMIN_SCOPE_DESC = "Access to all clusters and namespaces"

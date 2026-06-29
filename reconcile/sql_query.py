@@ -1,14 +1,11 @@
+from __future__ import annotations
+
 import logging
 import sys
 import time
-from collections.abc import (
-    Callable,
-    Iterable,
-    Mapping,
-)
 from enum import Enum
 from textwrap import indent
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jinja2
 from qontract_utils.ruamel import create_ruamel_instance
@@ -49,6 +46,13 @@ from reconcile.utils.state import (
     init_state,
 )
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+        Mapping,
+    )
 
 QONTRACT_INTEGRATION = "sql-query"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 1, 0)

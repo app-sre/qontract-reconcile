@@ -1,11 +1,16 @@
-import logging
+from __future__ import annotations
 
-from reconcile.utils.jobcontroller.controller import K8sJobController
-from reconcile.utils.ocm.base import OCMCluster
-from reconcile.utils.ocm_base_client import OCMBaseClient
+import logging
+from typing import TYPE_CHECKING
+
 from reconcile.utils.rosa.rosa_cli import RosaCliError
 from reconcile.utils.rosa.session import RosaSession
 from reconcile.utils.semver_helper import get_version_prefix
+
+if TYPE_CHECKING:
+    from reconcile.utils.jobcontroller.controller import K8sJobController
+    from reconcile.utils.ocm.base import OCMCluster
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 STS_GATE_LABEL = "api.openshift.com/gate-sts"
 AUS_VERSION_GATE_APPROVALS_LABEL = "sre-capabilities.aus.version-gate-approvals"

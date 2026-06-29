@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 import base64
 import logging
-from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.json import json_dumps
 from reconcile.utils.vault import VaultClient
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 QONTRACT_INTEGRATION = "aws-ecr-image-pull-secrets"
 

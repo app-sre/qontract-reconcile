@@ -1,5 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 import pytest
@@ -17,6 +19,9 @@ from reconcile.utils.secret_reader import (
     SecretNotFoundError,
     SecretReaderBase,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 @pytest.mark.parametrize(

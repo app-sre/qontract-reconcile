@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import logging
 import os
 import sys
+from typing import TYPE_CHECKING
 
 from github import Github
 
@@ -8,10 +11,12 @@ from reconcile import queries
 from reconcile.github_org import get_default_config
 from reconcile.github_repo_invites import run as get_invitations
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.utils.jjb_client import JJB
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from reconcile.utils.jjb_client import JJB
 
 QONTRACT_INTEGRATION = "github-repo-permissions-validator"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

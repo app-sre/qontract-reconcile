@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 from reconcile.change_owners.approver import (
     Approver,
@@ -12,7 +15,6 @@ from reconcile.change_owners.change_types import (
     ChangeTypeProcessor,
     FileChange,
 )
-from reconcile.change_owners.changes import BundleFileChange
 from reconcile.gql_definitions.change_owners.queries import self_service_roles
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     PermissionGitlabGroupMembershipV1,
@@ -26,6 +28,9 @@ from reconcile.utils.membershipsources.models import (
     RoleUser,
 )
 from reconcile.utils.membershipsources.resolver import resolve_role_members
+
+if TYPE_CHECKING:
+    from reconcile.change_owners.changes import BundleFileChange
 
 CHANGE_OWNERS_LABELS_LABEL = "change-owners-labels"
 

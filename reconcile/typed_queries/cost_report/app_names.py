@@ -1,7 +1,13 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.cost_report.app_names import query
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from reconcile.utils.gql import GqlApi
 
 
 class App(BaseModel):

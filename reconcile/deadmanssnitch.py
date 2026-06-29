@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from qontract_utils.differ import diff_mappings
 
-from reconcile.gql_definitions.common.clusters_with_dms import ClusterV1
 from reconcile.typed_queries.app_interface_deadmanssnitch_settings import (
     get_deadmanssnitch_settings,
 )
@@ -20,6 +22,9 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vault import (
     VaultClient,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.common.clusters_with_dms import ClusterV1
 
 QONTRACT_INTEGRATION = "deadmanssnitch"
 SECRET_NOT_FOUND = "SECRET_NOT_FOUND"

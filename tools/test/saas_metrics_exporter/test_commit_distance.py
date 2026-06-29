@@ -1,12 +1,18 @@
-from collections.abc import Callable, Iterable, Mapping
+from __future__ import annotations
 
-from reconcile.typed_queries.saas_files import SaasFile
-from reconcile.utils.vcs import VCS
+from typing import TYPE_CHECKING
+
 from tools.saas_metrics_exporter.commit_distance.commit_distance import (
     CommitDistanceFetcher,
     CommitDistanceMetric,
 )
 from tools.saas_metrics_exporter.commit_distance.metrics import SaasCommitDistanceGauge
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping
+
+    from reconcile.typed_queries.saas_files import SaasFile
+    from reconcile.utils.vcs import VCS
 
 
 def test_commit_distance_no_saas_files(

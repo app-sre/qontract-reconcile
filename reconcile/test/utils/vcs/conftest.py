@@ -1,8 +1,7 @@
-from collections.abc import (
-    Callable,
-    Mapping,
-)
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec
 
 import pytest
@@ -11,8 +10,15 @@ from gitlab.v4.objects import Project, ProjectFileManager
 
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.fixture

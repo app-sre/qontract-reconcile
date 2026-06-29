@@ -1,9 +1,14 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.common.app_interface_custom_messages import (
     query,
 )
 from reconcile.utils import gql
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def get_app_interface_custom_message(

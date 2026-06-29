@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING
 
 from reconcile import queries
 from reconcile.utils import (
@@ -8,6 +10,9 @@ from reconcile.utils import (
 )
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 PERMISSIONS_QUERY = """
 {

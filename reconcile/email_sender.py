@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from reconcile import typed_queries
 from reconcile.gql_definitions.email_sender.apps import query as apps_query
@@ -10,8 +12,6 @@ from reconcile.gql_definitions.email_sender.emails import (
 )
 from reconcile.gql_definitions.email_sender.emails import query as emails_query
 from reconcile.gql_definitions.email_sender.users import query as users_query
-from reconcile.gql_definitions.fragments.email_service import EmailServiceOwners
-from reconcile.gql_definitions.fragments.email_user import EmailUser
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -24,6 +24,12 @@ from reconcile.utils.smtp_client import (
     get_smtp_server_connection,
 )
 from reconcile.utils.state import init_state
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.gql_definitions.fragments.email_service import EmailServiceOwners
+    from reconcile.gql_definitions.fragments.email_user import EmailUser
 
 QONTRACT_INTEGRATION = "email-sender"
 

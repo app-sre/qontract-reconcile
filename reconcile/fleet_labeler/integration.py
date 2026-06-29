@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
-from collections.abc import Iterable
 from io import StringIO
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from pydantic import BaseModel
@@ -15,10 +16,6 @@ from reconcile.fleet_labeler.meta import (
     QONTRACT_INTEGRATION,
     QONTRACT_INTEGRATION_VERSION,
 )
-from reconcile.fleet_labeler.metrics import (
-    FleetLabelerMetrics,
-)
-from reconcile.fleet_labeler.ocm import OCMClient
 from reconcile.fleet_labeler.validate import validate_label_specs
 from reconcile.fleet_labeler.vcs import VCS, Gitlab404Error
 from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
@@ -32,6 +29,14 @@ from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.fleet_labeler.metrics import (
+        FleetLabelerMetrics,
+    )
+    from reconcile.fleet_labeler.ocm import OCMClient
 
 
 class ClusterData(BaseModel):

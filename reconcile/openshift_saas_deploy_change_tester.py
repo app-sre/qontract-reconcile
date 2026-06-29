@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 from sretoolbox.utils import threaded
@@ -20,6 +21,9 @@ from reconcile.typed_queries.saas_files import (
 from reconcile.utils import gql
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy-change-tester"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

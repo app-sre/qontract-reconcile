@@ -1,7 +1,6 @@
-from collections.abc import (
-    Callable,
-    Mapping,
-)
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
@@ -10,6 +9,12 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     ConfigHash,
     Subscriber,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
 
 
 def test_content_single_namespace(

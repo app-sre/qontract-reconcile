@@ -1,6 +1,7 @@
-from collections.abc import Callable
+from __future__ import annotations
+
 from json import dumps
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import ANY, MagicMock
 
 import pytest
@@ -13,7 +14,11 @@ from reconcile.typed_queries.cost_report.cost_namespaces import (
     CostNamespaceLabels,
     get_cost_namespaces,
 )
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.gql import GqlApi
 
 
 def test_get_cost_namespaces_when_no_data(

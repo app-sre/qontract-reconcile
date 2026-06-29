@@ -1,10 +1,11 @@
 # ruff: noqa: N815
+from __future__ import annotations
+
 import json
 import logging
 from collections import defaultdict
-from collections.abc import Callable
 from dataclasses import field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from pydantic.dataclasses import dataclass
@@ -12,10 +13,14 @@ from pydantic.dataclasses import dataclass
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.utils.defer import defer
-from reconcile.utils.openshift_resource import (
-    OpenshiftResource,
-    ResourceInventory,
-)
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.utils.openshift_resource import (
+        OpenshiftResource,
+        ResourceInventory,
+    )
 
 LOG = logging.getLogger(__name__)
 

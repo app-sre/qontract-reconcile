@@ -1,19 +1,25 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
 from reconcile.external_resources.model import (
     ExternalResourceModuleConfiguration,
     ExternalResourceModuleConfigurationError,
 )
-from reconcile.gql_definitions.external_resources.external_resources_modules import (
-    ExternalResourcesModuleV1,
-)
-from reconcile.gql_definitions.external_resources.external_resources_settings import (
-    ExternalResourcesSettingsV1,
-)
 from reconcile.gql_definitions.external_resources.fragments.external_resources_module_overrides import (
     ExternalResourcesModuleOverrides,
 )
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.external_resources.external_resources_modules import (
+        ExternalResourcesModuleV1,
+    )
+    from reconcile.gql_definitions.external_resources.external_resources_settings import (
+        ExternalResourcesSettingsV1,
+    )
 
 
 @pytest.mark.parametrize(

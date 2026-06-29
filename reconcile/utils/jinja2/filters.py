@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import hashlib
 import json
 import re
-from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib import parse
 
 import jinja2
 import yaml
 
 from reconcile.utils.jsonpath import parse_jsonpath
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 def json_to_dict(input: str) -> Any:

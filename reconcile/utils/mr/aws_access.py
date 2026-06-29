@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from jinja2 import Template
 from qontract_utils.ruamel import (
@@ -8,12 +11,14 @@ from qontract_utils.ruamel import (
 )
 
 from reconcile.utils.constants import PROJ_ROOT
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import (
     MergeRequestBase,
     app_interface_email,
 )
 from reconcile.utils.mr.labels import AUTO_MERGE
+
+if TYPE_CHECKING:
+    from reconcile.utils.gitlab_api import GitLabApi
 
 BODY_TEMPLATE = PROJ_ROOT / "templates" / "aws_access_key_email.j2"
 

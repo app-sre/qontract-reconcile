@@ -1,11 +1,15 @@
-from collections.abc import Mapping
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.utils import gql
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.sqs_gateway import SQSGateway
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class MRClientGatewayError(Exception):

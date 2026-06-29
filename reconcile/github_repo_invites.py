@@ -1,11 +1,9 @@
+from __future__ import annotations
+
 import logging
 import os
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.utils import (
@@ -13,6 +11,12 @@ from reconcile.utils import (
     raw_github_api,
 )
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Mapping,
+    )
 
 QONTRACT_INTEGRATION = "github-repo-invites"
 

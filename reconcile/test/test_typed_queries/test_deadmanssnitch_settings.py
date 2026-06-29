@@ -1,7 +1,5 @@
-from collections.abc import (
-    Callable,
-    Mapping,
-)
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
 
 import pytest
@@ -14,10 +12,15 @@ from reconcile.typed_queries.app_interface_deadmanssnitch_settings import (
     get_deadmanssnitch_settings,
 )
 from reconcile.utils.exceptions import AppInterfaceSettingsError
-from reconcile.utils.gql import GqlApi
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
     from unittest.mock import MagicMock
+
+    from reconcile.utils.gql import GqlApi
 
 
 def test_no_settings(

@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import sys
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from kubernetes.client import (
     V1Container,
@@ -33,6 +34,9 @@ from reconcile.utils.jobcontroller.controller import (
     K8sJobController,
 )
 from reconcile.utils.jobcontroller.models import K8sJob
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class ExternalResourcesReconciler(ABC):

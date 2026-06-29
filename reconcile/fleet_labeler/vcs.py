@@ -1,7 +1,13 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from gitlab.exceptions import GitlabGetError
 
 from reconcile.fleet_labeler.merge_request import FleetLabelerUpdates
-from reconcile.utils.vcs import VCS as VCSBase
+
+if TYPE_CHECKING:
+    from reconcile.utils.vcs import VCS as VCSBase
 
 
 class Gitlab404Error(Exception):

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from celery import Task
 from qontract_utils.events import Event
 
 from qontract_api.cache.factory import get_cache
@@ -30,6 +29,8 @@ from qontract_api.slack.domain import (
 from qontract_api.tasks import celery_app, deduplicated_task
 
 if TYPE_CHECKING:
+    from celery import Task
+
     from qontract_api.event_manager._base import EventManager
 
 logger = get_logger(__name__)

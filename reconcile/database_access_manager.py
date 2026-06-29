@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 import base64
 import logging
-from collections.abc import Callable
 from random import choices
 from string import (
     ascii_letters,
     digits,
 )
 from typing import (
+    TYPE_CHECKING,
     Any,
     TypedDict,
 )
@@ -44,6 +46,9 @@ from reconcile.utils.state import (
 from reconcile.utils.vault import (
     VaultClient,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 QONTRACT_INTEGRATION = "database-access-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

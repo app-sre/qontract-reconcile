@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 from collections import Counter
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.app_interface_metrics_exporter.onboarding_status import (
     query,
 )
-from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from reconcile.utils.gql import GqlApi
 
 
 def get_onboarding_status(

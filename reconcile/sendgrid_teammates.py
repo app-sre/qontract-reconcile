@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import logging
 import sys
-from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import sendgrid
 from sretoolbox.utils import retry
@@ -9,6 +10,9 @@ from sretoolbox.utils import retry
 from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 LOG = logging.getLogger(__name__)
 QONTRACT_INTEGRATION = "sendgrid_teammates"

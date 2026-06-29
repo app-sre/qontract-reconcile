@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -8,6 +10,9 @@ from reconcile.openshift_saas_deploy_change_tester import (
     collect_state,
 )
 from reconcile.typed_queries.saas_files import SaasFile
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @pytest.fixture
