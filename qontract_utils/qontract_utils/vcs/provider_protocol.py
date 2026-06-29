@@ -4,12 +4,15 @@ Defines interfaces for VCS API clients and providers to enable
 extensible provider registry pattern.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from qontract_utils.hooks import Hooks
-from qontract_utils.vcs.models import Provider
+if TYPE_CHECKING:
+    from qontract_utils.hooks import Hooks
+    from qontract_utils.vcs.models import Provider
 
 AUTO_MERGE_LABEL = "bot/automerge"
 """Label used to trigger automatic merging of merge requests."""

@@ -4,14 +4,19 @@ Following ADR-011: Dependency Injection Pattern
 Following ADR-017: VCS Provider Registry Pattern
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
-from qontract_utils.pagerduty_api.client import Hooks
 from qontract_utils.vcs.models import Provider
-from qontract_utils.vcs.provider_protocol import VCSApiProtocol
 from qontract_utils.vcs.providers.gitlab_client import GitLabRepoApi
+
+if TYPE_CHECKING:
+    from qontract_utils.pagerduty_api.client import Hooks
+    from qontract_utils.vcs.provider_protocol import VCSApiProtocol
 
 
 class Repo(BaseModel):

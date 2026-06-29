@@ -1,5 +1,7 @@
 """GitHub Repository API client with hook system for metrics and rate limiting."""
 
+from __future__ import annotations
+
 import contextvars
 import time
 from dataclasses import dataclass
@@ -11,10 +13,11 @@ from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
-from qontract_utils.vcs.provider_protocol import CreateMergeRequestInput
 
 if TYPE_CHECKING:
     from github.Repository import Repository
+
+    from qontract_utils.vcs.provider_protocol import CreateMergeRequestInput
 
 logger = structlog.get_logger(__name__)
 

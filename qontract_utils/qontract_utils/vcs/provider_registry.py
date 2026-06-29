@@ -3,9 +3,15 @@
 Implements registry pattern for extensible VCS provider support.
 """
 
-from qontract_utils.vcs.models import Provider
-from qontract_utils.vcs.provider_protocol import VCSProviderProtocol
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from qontract_utils.vcs.providers import GitHubProvider, GitLabProvider
+
+if TYPE_CHECKING:
+    from qontract_utils.vcs.models import Provider
+    from qontract_utils.vcs.provider_protocol import VCSProviderProtocol
 
 
 class VCSProviderRegistry:

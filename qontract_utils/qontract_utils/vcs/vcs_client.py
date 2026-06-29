@@ -3,9 +3,15 @@
 Provides unified interface for working with Git repositories across platforms.
 """
 
-from qontract_utils.vcs.models import RepoOwners
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from qontract_utils.vcs.owners_parser import OwnersParser
-from qontract_utils.vcs.provider_protocol import VCSApiProtocol
+
+if TYPE_CHECKING:
+    from qontract_utils.vcs.models import RepoOwners
+    from qontract_utils.vcs.provider_protocol import VCSApiProtocol
 
 
 class VCSClient:
