@@ -904,8 +904,10 @@ def test_rebase_stale_success_pipeline_does_not_block_rebase(
     [
         ("merge-error", RebaseStrategy.ACTIVE_CAP),
         ("pipeline-error", RebaseStrategy.ACTIVE_CAP),
+        ("rebase-error", RebaseStrategy.ACTIVE_CAP),
         ("merge-error", RebaseStrategy.OLD_BURST),
         ("pipeline-error", RebaseStrategy.OLD_BURST),
+        ("rebase-error", RebaseStrategy.OLD_BURST),
     ],
 )
 def test_error_mr_skipped_in_rebase(
@@ -1111,6 +1113,8 @@ def _make_healthcheck_mr(
     labels: list[str],
     merge_status: str = "can_be_merged",
     draft: bool = False,
+    merge_error: str | None = None,
+    detailed_merge_status: str | None = None,
 ) -> Mock:
     """Create a minimal mock MR for healthcheck tests."""
     mr = create_autospec(ProjectMergeRequest)
@@ -1119,6 +1123,8 @@ def _make_healthcheck_mr(
     mr.draft = draft
     mr.iid = 1
     mr.target_project_id = 1
+    mr.merge_error = merge_error
+    mr.detailed_merge_status = detailed_merge_status
     return mr
 
 
@@ -1336,9 +1342,120 @@ def test_healthcheck_skips_non_queue_eligible_mrs(project: Project) -> None:
     mocked_gl.remove_label.assert_not_called()
 
 
+def test_healthcheck_applies_rebase_error_on_merge_error_field(
+    project: Project,
+) -> None:
+    """MR with merge_error='Rebase failed: ...' gets rebase-error label."""
+    mr = _make_healthcheck_mr(
+        labels=["lgtm"],
+        merge_error="Rebase failed: Rebase locally, resolve all conflicts, then push the branch.",
+        detailed_merge_status="need_rebase",
+    )
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+    )
+
+    mocked_gl.add_label_to_merge_request.assert_called_once_with(mr, "rebase-error")
+    mocked_gl.get_merge_request_pipelines.assert_not_called()
+
+
+def test_healthcheck_removes_rebase_error_when_merge_error_cleared(
+    project: Project,
+) -> None:
+    """rebase-error is removed when merge_error is None (author rebased)."""
+    mr = _make_healthcheck_mr(
+        labels=["lgtm", "rebase-error"],
+        merge_error=None,
+    )
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+    )
+
+    mocked_gl.remove_label.assert_called_once_with(mr, "rebase-error")
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_healthcheck_skips_rebase_error_if_already_labeled(
+    project: Project,
+) -> None:
+    """No duplicate add_label when rebase-error is already present."""
+    mr = _make_healthcheck_mr(
+        labels=["lgtm", "rebase-error"],
+        merge_error="Rebase failed: conflict",
+        detailed_merge_status="need_rebase",
+    )
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+    )
+
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
+
+
+def test_healthcheck_ignores_non_rebase_merge_error(
+    project: Project,
+) -> None:
+    """merge_error='Merge failed' does not trigger rebase-error label."""
+    mr = _make_healthcheck_mr(
+        labels=["lgtm"],
+        merge_error="Merge failed",
+    )
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+    )
+
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_healthcheck_removes_rebase_error_when_detailed_status_resolved(
+    project: Project,
+) -> None:
+    """rebase-error is removed when detailed_merge_status is no longer need_rebase."""
+    mr = _make_healthcheck_mr(
+        labels=["lgtm", "rebase-error"],
+        merge_error="Rebase failed: Rebase locally, resolve all conflicts, then push the branch.",
+        detailed_merge_status="ci_must_pass",
+    )
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+    )
+
+    mocked_gl.remove_label.assert_called_once_with(mr, "rebase-error")
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "error_label",
-    ["merge-error", "pipeline-error"],
+    ["merge-error", "pipeline-error", "rebase-error"],
 )
 def test_error_mr_skipped_cleanly_with_no_side_effects(
     state: Mock,
@@ -1383,7 +1500,7 @@ def test_error_mr_skipped_cleanly_with_no_side_effects(
 
 @pytest.mark.parametrize(
     "error_label",
-    ["merge-error", "pipeline-error"],
+    ["merge-error", "pipeline-error", "rebase-error"],
 )
 def test_error_labels_visible_in_queue(
     state: Mock,
@@ -2053,6 +2170,47 @@ def _make_omm_gl(*, head_sha: str = "abc123") -> Mock:
     project.branches.get.return_value = branch_mock
     mocked_gl.project = project
     return mocked_gl
+
+
+@pytest.mark.parametrize(
+    "error_label",
+    ["pipeline-error", "merge-error", "rebase-error"],
+)
+def test_omm_group_ejects_error_labeled_mr(
+    mocker: MockerFixture,
+    error_label: str,
+) -> None:
+    """MRs with any error label are ejected from OMM groups without
+    pipeline fetches or rebase attempts."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch("reconcile.gitlab_housekeeping.clear_omm_group")
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = "abc123"
+    lead.squash_commit_sha = None
+    lead.target_branch = "master"
+
+    mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending", error_label])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
+    mocked_gl.get_merge_request_pipelines.assert_not_called()
+    mr.merge.assert_not_called()
+    mr.rebase.assert_not_called()
 
 
 @pytest.mark.parametrize(
