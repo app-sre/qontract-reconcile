@@ -1,13 +1,18 @@
 """GitHub provider implementation for VCS provider registry."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
-from qontract_utils.hooks import Hooks
 from qontract_utils.vcs.models import Provider
-from qontract_utils.vcs.provider_protocol import VCSApiProtocol
 from qontract_utils.vcs.providers.github_client import GitHubRepoApi
+
+if TYPE_CHECKING:
+    from qontract_utils.hooks import Hooks
+    from qontract_utils.vcs.provider_protocol import VCSApiProtocol
 
 
 class Repo(BaseModel):

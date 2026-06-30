@@ -6,12 +6,17 @@ Ported from reconcile/utils/repo_owners.py but modernized to ADR standards.
 Following ADR-012: Fully Typed Pydantic Models Over Nested Dicts
 """
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from qontract_utils.ruamel import create_ruamel_instance, yaml
 from qontract_utils.vcs.models import OwnersFileData, RepoOwners
-from qontract_utils.vcs.provider_protocol import VCSApiProtocol
+
+if TYPE_CHECKING:
+    from qontract_utils.vcs.provider_protocol import VCSApiProtocol
 
 logger = logging.getLogger(__name__)
 
