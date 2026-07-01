@@ -84,7 +84,6 @@ dev = [
     "ruff==0.15.13",
     "smtpdfix==0.5.3",
     "snakeviz==2.2.2",
-    "testslide==2.7.1",
     "types-click",
     "types-croniter",
     "types-dateparser",
