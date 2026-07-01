@@ -85,7 +85,7 @@ HOLD_LABELS = [
     NEEDS_REBASE,
 ]
 
-ERROR_LABELS = [MERGE_ERROR, PIPELINE_ERROR, REBASE_ERROR]
+ERROR_LABELS = frozenset({MERGE_ERROR, PIPELINE_ERROR, REBASE_ERROR})
 
 TENANT_LABEL_PREFIX = "tenant-"
 MIN_OMM_GROUP_SIZE = 3  # 1 lead + 2 pending MRs
@@ -1086,13 +1086,14 @@ def _process_omm_group(
     any_active = False
 
     for mr in pending:
-        if any(label in ERROR_LABELS for label in mr.labels):
+        error_labels = ERROR_LABELS.intersection(mr.labels)
+        if error_labels:
             logging.info([
                 "omm-group",
                 "eject-error-label",
                 gl.project.name,
                 mr.iid,
-                [l for l in mr.labels if l in ERROR_LABELS],
+                sorted(error_labels),
             ])
             if not dry_run:
                 gl.remove_label(mr, OMM_PENDING)
@@ -1485,6 +1486,22 @@ def run_error_healthcheck(
             ])
             if not dry_run:
                 gl.remove_label(mr, REBASE_ERROR)
+        elif rebase_failed and has_rebase_error:
+            logging.info([
+                "rebase-error-retry",
+                gl.project.name,
+                mr.iid,
+            ])
+            if not dry_run:
+                try:
+                    mr.rebase()
+                except gitlab.exceptions.GitlabMRRebaseError:
+                    logging.warning([
+                        "rebase-error-retry-failed",
+                        gl.project.name,
+                        mr.iid,
+                    ])
+            continue
 
         pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
