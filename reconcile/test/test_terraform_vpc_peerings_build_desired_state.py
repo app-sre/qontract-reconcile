@@ -709,6 +709,12 @@ def test_vpc_mesh_all_fine(vpc_mesh_state: VpcMeshState) -> None:
         None,
     )
     assert rs == (expected, False)
+    vpc_mesh_state.vpc_mesh_single_cluster.assert_called_once_with(
+        vpc_mesh_state.clusters[0],
+        vpc_mesh_state.ocm_mock,
+        vpc_mesh_state.awsapi,
+        None,
+    )
 
 
 def test_vpc_mesh_cluster_raises(vpc_mesh_state: VpcMeshState) -> None:
@@ -741,7 +747,6 @@ class VpcMeshSingleState:
     peer_account: dict[str, Any]
     ocm_mock: MagicMock
     awsapi: MagicMock
-    find_matching_peering: MagicMock
     account_vpcs: list[dict[str, Any]]
 
 
@@ -805,7 +810,6 @@ def vpc_mesh_single_state(mocker: MockerFixture) -> VpcMeshSingleState:
     )
 
     awsapi = MagicMock(spec=aws_api.AWSApi)
-    find_matching_peering = mocker.patch.object(sut, "find_matching_peering")
 
     account_vpcs: list[dict[str, Any]] = [
         {
@@ -827,7 +831,6 @@ def vpc_mesh_single_state(mocker: MockerFixture) -> VpcMeshSingleState:
         peer_account=peer_account,
         ocm_mock=ocm_mock,
         awsapi=awsapi,
-        find_matching_peering=find_matching_peering,
         account_vpcs=account_vpcs,
     )
 
@@ -895,8 +898,18 @@ def test_vpc_mesh_single_one_cluster(vpc_mesh_single_state: VpcMeshSingleState) 
         None,
     )
     assert rs == expected
-    vpc_mesh_single_state.awsapi.get_cluster_vpc_details.assert_called_once()
-    vpc_mesh_single_state.awsapi.get_vpcs_details.assert_called_once()
+    assert vpc_mesh_single_state.peer_account["assume_region"] == "mars-plain-1"
+    assert vpc_mesh_single_state.peer_account["assume_cidr"] == "172.16.0.0/12"
+    vpc_mesh_single_state.awsapi.get_cluster_vpc_details.assert_called_once_with(
+        vpc_mesh_single_state.peer_account,
+        route_tables=True,
+        hcp_vpc_endpoint_sg=False,
+    )
+    vpc_mesh_single_state.awsapi.get_vpcs_details.assert_called_once_with(
+        vpc_mesh_single_state.peer_account,
+        tags=["tag1"],
+        route_tables=True,
+    )
 
 
 def test_vpc_mesh_single_one_cluster_private_hcp(
@@ -969,8 +982,18 @@ def test_vpc_mesh_single_one_cluster_private_hcp(
         None,
     )
     assert rs == expected
-    vpc_mesh_single_state.awsapi.get_cluster_vpc_details.assert_called_once()
-    vpc_mesh_single_state.awsapi.get_vpcs_details.assert_called_once()
+    assert vpc_mesh_single_state.peer_account["assume_region"] == "mars-plain-1"
+    assert vpc_mesh_single_state.peer_account["assume_cidr"] == "172.16.0.0/12"
+    vpc_mesh_single_state.awsapi.get_cluster_vpc_details.assert_called_once_with(
+        vpc_mesh_single_state.peer_account,
+        route_tables=True,
+        hcp_vpc_endpoint_sg=True,
+    )
+    vpc_mesh_single_state.awsapi.get_vpcs_details.assert_called_once_with(
+        vpc_mesh_single_state.peer_account,
+        tags=["tag1"],
+        route_tables=True,
+    )
 
 
 def test_vpc_mesh_single_no_peering_connections(
@@ -1137,7 +1160,12 @@ def test_vpc_all_fine(vpc_state: VpcState) -> None:
         vpc_state.clusters, vpc_state.ocm_map, vpc_state.awsapi, account_filter=None
     )
     assert rs == (expected, False)
-    vpc_state.build_single_cluster.assert_called_once()
+    vpc_state.build_single_cluster.assert_called_once_with(
+        vpc_state.clusters[0],
+        vpc_state.ocm_mock,
+        vpc_state.awsapi,
+        None,
+    )
 
 
 def test_vpc_cluster_fails(vpc_state: VpcState) -> None:
@@ -1411,8 +1439,8 @@ def test_vpc_single_no_vpc_id(vpc_single_state: VpcSingleState) -> None:
         None,
         None,
     )
-    vpc_single_state.ocm_mock.get_aws_infrastructure_access_terraform_assume_role.return_value = (
-        "a:role:that:you:will:like"
+    vpc_single_state.ocm_mock.get_aws_infrastructure_access_terraform_assume_role = (
+        MagicMock(return_value="a:role:that:you:will:like")
     )
 
     desired_state = sut.build_desired_state_vpc_single_cluster(
@@ -1429,8 +1457,8 @@ def test_vpc_single_no_vpc_id(vpc_single_state: VpcSingleState) -> None:
 def test_vpc_single_aws_exception(vpc_single_state: VpcSingleState) -> None:
     exc_txt = "AWS Problem!"
     vpc_single_state.awsapi.get_cluster_vpc_details.side_effect = Exception(exc_txt)
-    vpc_single_state.ocm_mock.get_aws_infrastructure_access_terraform_assume_role.return_value = (
-        "a:role:that:you:will:like"
+    vpc_single_state.ocm_mock.get_aws_infrastructure_access_terraform_assume_role = (
+        MagicMock(return_value="a:role:that:you:will:like")
     )
 
     with pytest.raises(Exception, match=exc_txt):
