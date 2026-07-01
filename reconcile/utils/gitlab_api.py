@@ -123,7 +123,7 @@ class GitLabApi:
         settings: Mapping | None = None,
         secret_reader: SecretReaderBase | None = None,
         project_url: str | None = None,
-        timeout: float = 30,
+        timeout: float = 120,
         session: Session | None = None,
     ):
         self.server = instance["url"]
