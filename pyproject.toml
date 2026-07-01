@@ -70,7 +70,7 @@ dependencies = [
 debugger = ["debugpy ~=1.8.17"]
 dev = [
     # keep in sync project.dependencies.boto3
-    "boto3-stubs[account,cloudformation,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.43.10",
+    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.43.10",
     "moto[ec2,iam,logs,s3,route53]==5.2.1",
     "mypy==2.1.0",
     "pyfakefs==6.2.0",
