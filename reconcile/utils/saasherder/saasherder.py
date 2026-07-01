@@ -2210,13 +2210,13 @@ class SaasHerder:
             return False
 
         if passed_soak_days < timedelta(days=promotion.soak_days):
-            detail_lines = "\n".join(
-                f"  channel={ch} uid={uid} check_in={check_in} contribution={contribution}"
+            detail_lines = " | ".join(
+                f"channel={ch} uid={uid} check_in={check_in} contribution={contribution}"
                 for ch, uid, check_in, contribution in soak_log
             )
             logging.error(
                 f"{target_id} SoakDays gate failed for commit {promotion.commit_sha}. "
-                f"Accumulated={passed_soak_days}, required={promotion.soak_days} day(s).\n"
+                f"Accumulated={passed_soak_days}, required={promotion.soak_days} day(s). "
                 f"{detail_lines}"
             )
             return False
