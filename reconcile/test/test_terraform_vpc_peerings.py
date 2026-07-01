@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self
+from unittest.mock import MagicMock
 
 import pytest
-import testslide
 
 import reconcile.terraform_vpc_peerings as integ
 import reconcile.utils.terraform_client as terraform
@@ -388,194 +389,199 @@ def test_empty_run(mocker: MockerFixture) -> None:
     )
 
 
-class TestRun(testslide.TestCase):
-    def setUp(self) -> None:
-        super().setUp()
+@dataclass
+class RunMocks:
+    awsapi: MagicMock
+    build_desired_state_vpc: MagicMock
+    build_desired_state_all_clusters: MagicMock
+    build_desired_state_vpc_mesh: MagicMock
+    terraform: MagicMock
+    terrascript: MagicMock
+    ocmmap: MagicMock
+    clusters: MagicMock
+    settings: MagicMock
+    exit: MagicMock
 
-        self.awsapi = testslide.StrictMock(aws_api.AWSApi)
-        self.mock_constructor(aws_api, "AWSApi").to_return_value(self.awsapi)
 
-        self.build_desired_state_vpc = self.mock_callable(
-            integ, "build_desired_state_vpc"
-        )
-        self.build_desired_state_all_clusters = self.mock_callable(
-            integ, "build_desired_state_all_clusters"
-        )
-        self.build_desired_state_vpc_mesh = self.mock_callable(
-            integ, "build_desired_state_vpc_mesh"
-        )
-        self.terraform = testslide.StrictMock(terraform.TerraformClient)
-        self.terrascript = testslide.StrictMock(
-            terrascript.TerrascriptClient, default_context_manager=True
-        )
-        self.mock_constructor(terraform, "TerraformClient").to_return_value(
-            self.terraform
-        )
-        self.terraform.apply_count = 1
-        self.mock_constructor(terrascript, "TerrascriptClient").to_return_value(
-            self.terrascript
-        )
-        self.ocmmap = testslide.StrictMock(ocm.OCMMap)
-        self.mock_constructor(ocm, "OCMMap").to_return_value(self.ocmmap)
-        self.mock_callable(queries, "get_aws_accounts").to_return_value([
-            {"name": "desired_account"}
-        ])
-        self.clusters = (
-            self
-            .mock_callable(queries, "get_clusters_with_peering_settings")
-            .to_return_value([
-                {"name": "aname", "ocm": "aocm", "peering": {"apeering"}}
-            ])
-            .and_assert_called_once()
-        )
-        self.settings = (
-            self
-            .mock_callable(queries, "get_secret_reader_settings")
-            .to_return_value({})
-            .and_assert_called_once()
-        )
-        self.mock_callable(external_resources, "get_settings").to_raise(
-            ValueError("No external resources settings found")
-        )
-        self.mock_callable(self.terrascript, "populate_vpc_peerings").to_return_value(
-            None
-        ).and_assert_called_once()
-        self.mock_callable(self.terrascript, "populate_configs").to_return_value(
-            None
-        ).and_assert_called_once()
-        self.mock_callable(self.terrascript, "dump").to_return_value({
-            "some_account": "/some/dir"
-        }).and_assert_called_once()
-        self.mock_callable(
-            self.terrascript, "terraform_configurations"
-        ).to_return_value({"foo": "bar"}).and_assert_called_once()
-        # Sigh...
-        self.exit = self.mock_callable(sys, "exit").to_raise(OSError("Exit called!"))
-        self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
+@pytest.fixture
+def run_mocks(mocker: MockerFixture) -> RunMocks:
+    awsapi = MagicMock(spec=aws_api.AWSApi)
+    mocker.patch.object(aws_api, "AWSApi", return_value=awsapi)
 
-    def initialize_desired_states(self, error_code: bool) -> None:
-        self.build_desired_state_vpc.to_return_value((
-            [
-                {
-                    "connection_name": "desired_vpc_conn",
-                    "infra_account_name": "desired_account",
-                    "requester": {"account": {"name": "desired_account"}},
-                    "accepter": {"account": {"name": "desired_account"}},
+    build_desired_state_vpc = mocker.patch.object(integ, "build_desired_state_vpc")
+    build_desired_state_all_clusters = mocker.patch.object(
+        integ, "build_desired_state_all_clusters"
+    )
+    build_desired_state_vpc_mesh = mocker.patch.object(
+        integ, "build_desired_state_vpc_mesh"
+    )
+
+    terraform_mock = MagicMock(spec=terraform.TerraformClient)
+    terraform_mock.apply_count = 1
+    mocker.patch.object(terraform, "TerraformClient", return_value=terraform_mock)
+
+    terrascript_mock = MagicMock(spec=terrascript.TerrascriptClient)
+    terrascript_mock.__enter__ = MagicMock(return_value=terrascript_mock)
+    terrascript_mock.__exit__ = MagicMock(return_value=False)
+    mocker.patch.object(terrascript, "TerrascriptClient", return_value=terrascript_mock)
+
+    ocmmap = MagicMock(spec=ocm.OCMMap)
+    mocker.patch.object(ocm, "OCMMap", return_value=ocmmap)
+
+    mocker.patch.object(
+        queries, "get_aws_accounts", return_value=[{"name": "desired_account"}]
+    )
+    clusters = mocker.patch.object(
+        queries,
+        "get_clusters_with_peering_settings",
+        return_value=[{"name": "aname", "ocm": "aocm", "peering": {"apeering"}}],
+    )
+    settings = mocker.patch.object(
+        queries, "get_secret_reader_settings", return_value={}
+    )
+    mocker.patch.object(
+        external_resources,
+        "get_settings",
+        side_effect=ValueError("No external resources settings found"),
+    )
+
+    terrascript_mock.populate_vpc_peerings.return_value = None
+    terrascript_mock.populate_configs.return_value = None
+    terrascript_mock.dump.return_value = {"some_account": "/some/dir"}
+    terrascript_mock.terraform_configurations.return_value = {"foo": "bar"}
+
+    exit_mock = mocker.patch.object(sys, "exit", side_effect=OSError("Exit called!"))
+
+    return RunMocks(
+        awsapi=awsapi,
+        build_desired_state_vpc=build_desired_state_vpc,
+        build_desired_state_all_clusters=build_desired_state_all_clusters,
+        build_desired_state_vpc_mesh=build_desired_state_vpc_mesh,
+        terraform=terraform_mock,
+        terrascript=terrascript_mock,
+        ocmmap=ocmmap,
+        clusters=clusters,
+        settings=settings,
+        exit=exit_mock,
+    )
+
+
+def _initialize_desired_states(mocks: RunMocks, error_code: bool) -> None:
+    mocks.build_desired_state_vpc.return_value = (
+        [
+            {
+                "connection_name": "desired_vpc_conn",
+                "infra_account_name": "desired_account",
+                "requester": {"account": {"name": "desired_account"}},
+                "accepter": {"account": {"name": "desired_account"}},
+            },
+        ],
+        error_code,
+    )
+    mocks.build_desired_state_all_clusters.return_value = (
+        [
+            {
+                "connection_name": "all_clusters_vpc_conn",
+                "infra_account_name": "desired_account",
+                "requester": {"account": {"name": "all_clusters_account"}},
+                "accepter": {
+                    "account": {
+                        "name": "all_clusters_account",
+                    }
                 },
-            ],
-            error_code,
-        ))
-        self.build_desired_state_all_clusters.to_return_value((
-            [
-                {
-                    "connection_name": "all_clusters_vpc_conn",
-                    "infra_account_name": "desired_account",
-                    "requester": {"account": {"name": "all_clusters_account"}},
-                    "accepter": {
-                        "account": {
-                            "name": "all_clusters_account",
-                        }
-                    },
-                }
-            ],
-            error_code,
-        ))
-        self.build_desired_state_vpc_mesh.to_return_value((
-            [
-                {
-                    "connection_name": "mesh_vpc_conn",
-                    "infra_account_name": "desired_account",
-                    "requester": {
-                        "account": {"name": "mesh_account"},
-                    },
-                    "accepter": {
-                        "account": {"name": "mesh_account"},
-                    },
-                }
-            ],
-            error_code,
-        ))
+            }
+        ],
+        error_code,
+    )
+    mocks.build_desired_state_vpc_mesh.return_value = (
+        [
+            {
+                "connection_name": "mesh_vpc_conn",
+                "infra_account_name": "desired_account",
+                "requester": {
+                    "account": {"name": "mesh_account"},
+                },
+                "accepter": {
+                    "account": {"name": "mesh_account"},
+                },
+            }
+        ],
+        error_code,
+    )
+    mocks.terrascript.populate_additional_providers.return_value = None
 
-        self.mock_callable(self.terrascript, "populate_additional_providers").for_call(
-            "desired_account",
-            [
-                {"name": "mesh_account"},
-                {"name": "all_clusters_account"},
-                {"name": "mesh_account"},
-                {"name": "all_clusters_account"},
-            ],
-        ).to_return_value(None).and_assert_called_once()
 
-    def test_all_fine(self) -> None:
-        self.initialize_desired_states(False)
-        self.mock_callable(self.terraform, "plan").to_return_value((
-            False,
-            False,
-        )).and_assert_called_once()
-        self.mock_callable(self.terraform, "cleanup").to_return_value(
-            None
-        ).and_assert_called_once()
-        self.mock_callable(self.terraform, "apply").to_return_value(
-            False
-        ).and_assert_called_once()
-        integ.run(False, print_to_file=None, enable_deletion=False)
+def test_run_all_fine(run_mocks: RunMocks) -> None:
+    _initialize_desired_states(run_mocks, False)
+    run_mocks.terraform.plan.return_value = (False, False)
+    run_mocks.terraform.cleanup.return_value = None
+    run_mocks.terraform.apply.return_value = False
 
-    def test_fail_state(self) -> None:
-        """Ensure we don't change the world if there are failures"""
-        self.initialize_desired_states(True)
-        self.mock_callable(self.terraform, "plan").to_return_value((
-            False,
-            False,
-        )).and_assert_not_called()
-        self.mock_callable(self.terraform, "cleanup").to_return_value(
-            None
-        ).and_assert_not_called()
-        self.mock_callable(self.terraform, "apply").to_return_value(
-            None
-        ).and_assert_not_called()
-        self.exit.for_call(1).and_assert_called_once()
-        with self.assertRaises(OSError):
-            integ.run(False, print_to_file=None, enable_deletion=True)
+    integ.run(False, print_to_file=None, enable_deletion=False)
 
-    def test_dry_run(self) -> None:
-        self.initialize_desired_states(False)
+    run_mocks.terraform.plan.assert_called_once()
+    run_mocks.terraform.cleanup.assert_called_once()
+    run_mocks.terraform.apply.assert_called_once()
+    run_mocks.clusters.assert_called_once()
+    run_mocks.settings.assert_called_once()
 
-        self.mock_callable(self.terraform, "plan").to_return_value((
-            False,
-            False,
-        )).and_assert_called_once()
-        self.mock_callable(self.terraform, "cleanup").to_return_value(
-            None
-        ).and_assert_called_once()
-        self.mock_callable(self.terraform, "apply").to_return_value(
-            None
-        ).and_assert_not_called()
+
+def test_run_fail_state(run_mocks: RunMocks) -> None:
+    """Ensure we don't change the world if there are failures"""
+    _initialize_desired_states(run_mocks, True)
+    run_mocks.terraform.plan.return_value = (False, False)
+    run_mocks.terraform.cleanup.return_value = None
+    run_mocks.terraform.apply.return_value = None
+
+    with pytest.raises(OSError, match="Exit called!"):
+        integ.run(False, print_to_file=None, enable_deletion=True)
+
+    run_mocks.terraform.plan.assert_not_called()
+    run_mocks.terraform.cleanup.assert_not_called()
+    run_mocks.terraform.apply.assert_not_called()
+    run_mocks.exit.assert_called_once_with(1)
+    run_mocks.clusters.assert_called_once()
+    run_mocks.settings.assert_called_once()
+
+
+def test_run_dry_run(run_mocks: RunMocks) -> None:
+    _initialize_desired_states(run_mocks, False)
+    run_mocks.terraform.plan.return_value = (False, False)
+    run_mocks.terraform.cleanup.return_value = None
+    run_mocks.terraform.apply.return_value = None
+
+    integ.run(True, print_to_file=None, enable_deletion=False)
+
+    run_mocks.terraform.plan.assert_called_once()
+    run_mocks.terraform.cleanup.assert_called_once()
+    run_mocks.terraform.apply.assert_not_called()
+    run_mocks.clusters.assert_called_once()
+    run_mocks.settings.assert_called_once()
+
+
+def test_run_dry_run_with_failures(run_mocks: RunMocks) -> None:
+    """This is what we do during PR checks and new clusters!"""
+    _initialize_desired_states(run_mocks, True)
+    run_mocks.terraform.plan.return_value = (False, False)
+    run_mocks.terraform.apply.return_value = None
+
+    with pytest.raises(OSError, match="Exit called!"):
         integ.run(True, print_to_file=None, enable_deletion=False)
 
-    def test_dry_run_with_failures(self) -> None:
-        """This is what we do during PR checks and new clusters!"""
-        self.initialize_desired_states(True)
-        self.mock_callable(self.terraform, "plan").to_return_value((
-            False,
-            False,
-        )).and_assert_not_called()
-        self.mock_callable(self.terraform, "apply").to_return_value(
-            None
-        ).and_assert_not_called()
-        self.exit.for_call(1).and_assert_called_once()
-        with self.assertRaises(OSError):
-            integ.run(True, print_to_file=None, enable_deletion=False)
+    run_mocks.terraform.plan.assert_not_called()
+    run_mocks.terraform.apply.assert_not_called()
+    run_mocks.exit.assert_called_once_with(1)
 
-    def test_dry_run_print_only_with_failures(self) -> None:
-        """This is what we do during PR checks and new clusters!"""
-        self.initialize_desired_states(True)
-        self.mock_callable(self.terraform, "plan").to_return_value((
-            False,
-            False,
-        )).and_assert_not_called()
-        self.mock_callable(self.terraform, "apply").to_return_value(
-            None
-        ).and_assert_not_called()
-        self.exit.for_call(0).and_assert_called_once()
-        with self.assertRaises(OSError):
-            integ.run(True, print_to_file="some/dir", enable_deletion=False)
+
+def test_run_dry_run_print_only_with_failures(run_mocks: RunMocks) -> None:
+    """This is what we do during PR checks and new clusters!"""
+    _initialize_desired_states(run_mocks, True)
+    run_mocks.terraform.plan.return_value = (False, False)
+    run_mocks.terraform.apply.return_value = None
+
+    with pytest.raises(OSError, match="Exit called!"):
+        integ.run(True, print_to_file="some/dir", enable_deletion=False)
+
+    run_mocks.terraform.plan.assert_not_called()
+    run_mocks.terraform.apply.assert_not_called()
+    run_mocks.exit.assert_called_once_with(0)
