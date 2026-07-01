@@ -559,7 +559,7 @@ class VpcMeshState:
     clusters: list[dict[str, Any]]
     peer_account: dict[str, Any]
     ocm_mock: MagicMock
-    ocm_map: dict[str, MagicMock]
+    ocm_map: Any
     awsapi: MagicMock
     vpc_mesh_single_cluster: MagicMock
     account_vpcs: list[dict[str, Any]]
@@ -999,7 +999,7 @@ def test_vpc_mesh_single_one_cluster_private_hcp(
 def test_vpc_mesh_single_no_peering_connections(
     vpc_mesh_single_state: VpcMeshSingleState,
 ) -> None:
-    vpc_mesh_single_state.cluster["peering"]["connections"] = []  # type: ignore
+    vpc_mesh_single_state.cluster["peering"]["connections"] = []
     rs = sut.build_desired_state_vpc_mesh_single_cluster(
         vpc_mesh_single_state.cluster,
         vpc_mesh_single_state.ocm_mock,
@@ -1034,7 +1034,7 @@ class VpcState:
     clusters: list[dict[str, Any]]
     aws_account: dict[str, Any]
     ocm_mock: MagicMock
-    ocm_map: dict[str, MagicMock]
+    ocm_map: Any
     awsapi: MagicMock
     build_single_cluster: MagicMock
 
@@ -1181,7 +1181,7 @@ def test_vpc_cluster_fails(vpc_state: VpcState) -> None:
 def test_vpc_error_persists(vpc_state: VpcState) -> None:
     vpc_state.clusters.append(vpc_state.clusters[0].copy())
     vpc_state.clusters[1]["name"] = "afailingcluster"
-    vpc_state.ocm_map["afailingcluster"] = vpc_state.ocm_mock  # type: ignore
+    vpc_state.ocm_map["afailingcluster"] = vpc_state.ocm_mock
     vpc_state.build_single_cluster.side_effect = [
         [{"a dict": "a value"}],
         sut.BadTerraformPeeringStateError("Fail!"),
@@ -1196,7 +1196,7 @@ def test_vpc_error_persists(vpc_state: VpcState) -> None:
 def test_vpc_other_exceptions_raise(vpc_state: VpcState) -> None:
     vpc_state.clusters.append(vpc_state.clusters[0].copy())
     vpc_state.clusters[1]["name"] = "afailingcluster"
-    vpc_state.ocm_map["afailingcluster"] = vpc_state.ocm_mock  # type: ignore
+    vpc_state.ocm_map["afailingcluster"] = vpc_state.ocm_mock
     vpc_state.build_single_cluster.side_effect = ValueError("I am not planned!")
     with pytest.raises(ValueError):
         sut.build_desired_state_vpc(
@@ -1420,7 +1420,7 @@ def test_vpc_single_private_hcp(vpc_single_state: VpcSingleState) -> None:
 
 
 def test_vpc_single_different_provider(vpc_single_state: VpcSingleState) -> None:
-    vpc_single_state.cluster["peering"]["connections"][0]["provider"] = "something-else"  # type: ignore
+    vpc_single_state.cluster["peering"]["connections"][0]["provider"] = "something-else"
     assert (
         sut.build_desired_state_vpc_single_cluster(
             vpc_single_state.cluster,
