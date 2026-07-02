@@ -66,7 +66,7 @@ def deep_copy_versions(
 
         try:
             secret, src_version = source_vault.read_all_with_version(secret_dict)
-        except (SecretNotFoundError, SecretVersionNotFoundError):
+        except SecretNotFoundError, SecretVersionNotFoundError:
             # Handle the case where the difference between the source and destination
             # versions is greater than the number of versions in the source vault.
             # By default the secret engines store up to 10 versions of a secret.

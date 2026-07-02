@@ -1,7 +1,7 @@
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:1.5.1-1@sha256:b376ee1b22f804ee7a13a5f6e0cf2fe67e897827c2be6d73fd5b89bfbe1931e1 AS build-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:2.2.0-1@sha256:7e858b043ef003d76b5b56f59a921f1102fda7f7315091ad5e788a665915f660 AS build-image
 COPY --from=ghcr.io/astral-sh/uv:0.11.26@sha256:3d868e555f8f1dbc324afa005066cd11e1053fc4743b9808ca8025283e65efa5 /uv /bin/uv
 
 WORKDIR /work
@@ -28,7 +28,7 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.6.0-1@sha256:5e308a422841a2ad80b82c0601cd4765fd3b52f65661ff361a15b18a6ff3fbc2 AS dev-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:2.2.0-1@sha256:918bc54441031f48f5b9c0b8f99c3ff3fb260aec1390bf5bbd79dbf020730e39 AS dev-image
 COPY --from=ghcr.io/astral-sh/uv:0.11.26@sha256:3d868e555f8f1dbc324afa005066cd11e1053fc4743b9808ca8025283e65efa5 /uv /bin/uv
 
 ENV \
@@ -59,7 +59,7 @@ ENTRYPOINT ["/work/dev/run.sh"]
 ###############################################################################
 # STAGE 3 - prod-image-pre-test
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.6.0-1@sha256:5e308a422841a2ad80b82c0601cd4765fd3b52f65661ff361a15b18a6ff3fbc2 AS prod-image-pre-test
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:2.2.0-1@sha256:918bc54441031f48f5b9c0b8f99c3ff3fb260aec1390bf5bbd79dbf020730e39 AS prod-image-pre-test
 
 # Tini
 ENV TINI_VERSION=v0.19.0

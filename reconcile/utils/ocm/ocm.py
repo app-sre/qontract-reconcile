@@ -923,7 +923,7 @@ class OCMMap:
             integrations = cluster_info["disable"]["integrations"]
             if self.calling_integration.replace("_", "-") in integrations:
                 return True
-        except (KeyError, TypeError):
+        except KeyError, TypeError:
             pass
 
         return False

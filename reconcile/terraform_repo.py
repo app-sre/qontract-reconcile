@@ -232,7 +232,7 @@ class TerraformRepoIntegration(
         ) as gl:
             try:
                 gl.get_commit_sha(ref=ref, repo_url=repo_url)
-            except (KeyError, AttributeError):
+            except KeyError, AttributeError:
                 raise ParameterError(
                     f'Invalid ref: "{ref}" on repo: "{repo_url}". Or the project repo is not reachable'
                 ) from None

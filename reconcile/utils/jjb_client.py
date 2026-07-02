@@ -356,7 +356,7 @@ class JJB:
                 try:
                     admins_list = j["triggers"][0]["github-pull-request"]["admin-list"]
                     admins.update(admins_list)
-                except (KeyError, TypeError):
+                except KeyError, TypeError:
                     # no admins, that's fine
                     pass
 

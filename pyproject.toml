@@ -5,12 +5,12 @@ description = "Collection of tools to reconcile services with their desired stat
 authors = [{ name = "Red Hat App-SRE Team", email = "sd-app-sre@redhat.com" }]
 license = { text = "Apache 2.0" }
 readme = "README.md"
-requires-python = "==3.12.*"
+requires-python = "==3.14.*"
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "anymarkup==0.8.1",
@@ -167,7 +167,7 @@ bump = true
 
 [tool.ruff]
 line-length = 88
-target-version = 'py312'
+target-version = 'py314'
 src = ["reconcile", "tools"]
 extend-exclude = ["reconcile/gql_definitions"]
 fix = true

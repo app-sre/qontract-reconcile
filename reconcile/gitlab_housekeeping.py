@@ -710,7 +710,7 @@ def get_omm_max_interval() -> timedelta:
     )
     try:
         return timedelta(minutes=int(value))
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         logging.warning(
             f"Invalid omm-max-interval variant '{value}', "
             f"falling back to {DEFAULT_OMM_MAX_INTERVAL_MINUTES}m"
