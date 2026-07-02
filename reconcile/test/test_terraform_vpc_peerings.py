@@ -385,8 +385,7 @@ def test_empty_run(mocker: MockerFixture) -> None:
     integ.run(True)
 
     mocked_logging.warning.assert_called_once_with(
-        "No participating AWS accounts found, consider disabling this integration, account name: %s",
-        None,
+        "No participating AWS accounts found, consider disabling this integration, account name: None"
     )
 
 
