@@ -13,6 +13,7 @@ from reconcile.gql_definitions.rhcs.certs import (
 )
 from reconcile.openshift_rhcs_certs import (
     QONTRACT_INTEGRATION,
+    cert_format_mismatch,
     construct_rhcs_cert_oc_secret,
     fetch_desired_state,
     get_namespaces_with_rhcs_certs,
@@ -439,6 +440,75 @@ def test_openshift_rhcs_certs__get_namespaces_with_shared_resources(
     assert any(r for r in shared_ns.openshift_resources), (
         "RHCS-cert not propagated from sharedResources"
     )
+
+
+@pytest.mark.parametrize(
+    ("desired_format", "vault_data_format", "expected"),
+    [
+        ("PEM", "PEM", False),
+        ("PKCS12", "PKCS12", False),
+        ("PKCS12", "PEM", True),
+        ("PEM", "PKCS12", True),
+    ],
+)
+def test_cert_format_mismatch(
+    namespaces: list[NamespaceV1],
+    desired_format: str,
+    vault_data_format: str,
+    expected: bool,
+) -> None:
+    """Test format mismatch detection between desired config and Vault secret keys."""
+    ns = namespaces[0]
+    cert_resource = ns.openshift_resources[0]
+    cert_resource.certificate_format = desired_format
+    vault_secret = build_vault_cert_data(vault_data_format)
+
+    assert cert_format_mismatch(ns, cert_resource, vault_secret) is expected
+
+
+def test_openshift_rhcs_certs__fetch_desired_state_format_mismatch(
+    mocker: MockerFixture,
+    mock_rhcs_cert_provider: MagicMock,
+    namespaces: list[NamespaceV1],
+    ri: ResourceInventory,
+    query_func: Callable,
+) -> None:
+    """Test that a certificate_format mismatch triggers regeneration."""
+    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient.get_instance")
+    vault_instance = mock_vault.return_value
+    vault_instance.read.return_value = "FAKE_SA_PASSWORD"
+    vault_instance.write.return_value = None
+    mocker.patch("reconcile.openshift_rhcs_certs.metrics.set_gauge")
+
+    # Vault has PEM data for test-cert-pkcs12 (format mismatch!)
+    cert_secrets_by_name = {
+        "test-cert-1": build_vault_cert_data("PEM", expiring=False),
+        "test-cert-2": build_vault_cert_data("PEM", expiring=False),
+        "test-cert-shared": build_vault_cert_data("PEM", expiring=False),
+        "test-cert-pkcs12": build_vault_cert_data("PEM", expiring=False),  # mismatch!
+        "test-cert-shared-pkcs12": build_vault_cert_data("PKCS12", expiring=False),
+    }
+    vault_instance.read_all.side_effect = create_vault_read_all_side_effect(
+        cert_secrets_by_name
+    )
+
+    new_cert = RhcsV2CertPkcs12(
+        pkcs12_keystore="NEW_KEYSTORE",
+        pkcs12_truststore="NEW_TRUSTSTORE",
+        expiration_timestamp=int(time.time()) + 86400 * 90,
+    )
+    mock_cert_generator = mocker.patch(
+        "reconcile.openshift_rhcs_certs.generate_cert", return_value=new_cert
+    )
+
+    fetch_desired_state(False, namespaces, ri, query_func)
+
+    # Only the format-mismatched cert should be regenerated
+    assert mock_cert_generator.call_count == 1
+    assert vault_instance.write.call_count == 1
+    secret_data = vault_instance.write.call_args[1]["secret"]["data"]
+    assert "keystore.pkcs12.b64" in secret_data
+    assert "truststore.pkcs12.b64" in secret_data
 
 
 def test_openshift_rhcs_certs__early_exit_desired_state(
