@@ -1486,22 +1486,6 @@ def run_error_healthcheck(
             ])
             if not dry_run:
                 gl.remove_label(mr, REBASE_ERROR)
-        elif rebase_failed and has_rebase_error:
-            logging.info([
-                "rebase-error-retry",
-                gl.project.name,
-                mr.iid,
-            ])
-            if not dry_run:
-                try:
-                    mr.rebase()
-                except gitlab.exceptions.GitlabMRRebaseError:
-                    logging.warning([
-                        "rebase-error-retry-failed",
-                        gl.project.name,
-                        mr.iid,
-                    ])
-            continue
 
         pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:

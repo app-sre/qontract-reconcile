@@ -1386,10 +1386,10 @@ def test_healthcheck_removes_rebase_error_when_merge_error_cleared(
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
-def test_healthcheck_retries_rebase_when_already_labeled(
+def test_healthcheck_skips_rebase_error_if_already_labeled(
     project: Project,
 ) -> None:
-    """MR with rebase-error and persisting error triggers a single rebase retry."""
+    """No duplicate add_label when rebase-error is already present."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
         merge_error="Rebase failed: conflict",
@@ -1397,6 +1397,7 @@ def test_healthcheck_retries_rebase_when_already_labeled(
     )
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
         dry_run=False,
@@ -1404,35 +1405,8 @@ def test_healthcheck_retries_rebase_when_already_labeled(
         project_merge_requests=[mr],
     )
 
-    mr.rebase.assert_called_once()
     mocked_gl.add_label_to_merge_request.assert_not_called()
     mocked_gl.remove_label.assert_not_called()
-    mocked_gl.get_merge_request_pipelines.assert_not_called()
-
-
-def test_healthcheck_retry_failure_keeps_label(
-    project: Project,
-) -> None:
-    """When the retry rebase raises GitlabMRRebaseError, label stays and no crash."""
-    mr = _make_healthcheck_mr(
-        labels=["lgtm", "rebase-error"],
-        merge_error="Rebase failed: conflict",
-        detailed_merge_status="need_rebase",
-    )
-    mr.rebase.side_effect = GitlabMRRebaseError("rebase conflict")
-    mocked_gl = create_autospec(GitLabApi)
-    mocked_gl.project = project
-
-    gl_h.run_error_healthcheck(
-        dry_run=False,
-        gl=mocked_gl,
-        project_merge_requests=[mr],
-    )
-
-    mr.rebase.assert_called_once()
-    mocked_gl.add_label_to_merge_request.assert_not_called()
-    mocked_gl.remove_label.assert_not_called()
-    mocked_gl.get_merge_request_pipelines.assert_not_called()
 
 
 def test_healthcheck_ignores_non_rebase_merge_error(
