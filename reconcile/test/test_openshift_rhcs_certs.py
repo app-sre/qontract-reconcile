@@ -459,6 +459,7 @@ def test_cert_format_mismatch(
 ) -> None:
     """Test format mismatch detection between desired config and Vault secret keys."""
     ns = namespaces[0]
+    assert ns.openshift_resources
     cert_resource = ns.openshift_resources[0]
     cert_resource.certificate_format = desired_format
     vault_secret = build_vault_cert_data(vault_data_format)
