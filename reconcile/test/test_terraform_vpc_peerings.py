@@ -524,6 +524,15 @@ def test_run_all_fine(run_mocks: RunMocks) -> None:
     run_mocks.terraform.apply.assert_called_once()
     run_mocks.clusters.assert_called_once()
     run_mocks.settings.assert_called_once()
+    run_mocks.terrascript.populate_additional_providers.assert_called_once_with(
+        "desired_account",
+        [
+            {"name": "mesh_account"},
+            {"name": "all_clusters_account"},
+            {"name": "mesh_account"},
+            {"name": "all_clusters_account"},
+        ],
+    )
     run_mocks.terrascript.populate_vpc_peerings.assert_called_once()
     run_mocks.terrascript.populate_configs.assert_called_once()
     run_mocks.terrascript.dump.assert_called_once()
@@ -540,6 +549,15 @@ def test_run_fail_state(run_mocks: RunMocks) -> None:
     with pytest.raises(OSError, match="Exit called!"):
         integ.run(False, print_to_file=None, enable_deletion=True)
 
+    run_mocks.terrascript.populate_additional_providers.assert_called_once_with(
+        "desired_account",
+        [
+            {"name": "mesh_account"},
+            {"name": "all_clusters_account"},
+            {"name": "mesh_account"},
+            {"name": "all_clusters_account"},
+        ],
+    )
     run_mocks.terraform.plan.assert_not_called()
     run_mocks.terraform.cleanup.assert_not_called()
     run_mocks.terraform.apply.assert_not_called()
@@ -556,6 +574,15 @@ def test_run_dry_run(run_mocks: RunMocks) -> None:
 
     integ.run(True, print_to_file=None, enable_deletion=False)
 
+    run_mocks.terrascript.populate_additional_providers.assert_called_once_with(
+        "desired_account",
+        [
+            {"name": "mesh_account"},
+            {"name": "all_clusters_account"},
+            {"name": "mesh_account"},
+            {"name": "all_clusters_account"},
+        ],
+    )
     run_mocks.terraform.plan.assert_called_once()
     run_mocks.terraform.cleanup.assert_called_once()
     run_mocks.terraform.apply.assert_not_called()
@@ -572,6 +599,15 @@ def test_run_dry_run_with_failures(run_mocks: RunMocks) -> None:
     with pytest.raises(OSError, match="Exit called!"):
         integ.run(True, print_to_file=None, enable_deletion=False)
 
+    run_mocks.terrascript.populate_additional_providers.assert_called_once_with(
+        "desired_account",
+        [
+            {"name": "mesh_account"},
+            {"name": "all_clusters_account"},
+            {"name": "mesh_account"},
+            {"name": "all_clusters_account"},
+        ],
+    )
     run_mocks.terraform.plan.assert_not_called()
     run_mocks.terraform.cleanup.assert_not_called()
     run_mocks.terraform.apply.assert_not_called()
@@ -587,6 +623,15 @@ def test_run_dry_run_print_only_with_failures(run_mocks: RunMocks) -> None:
     with pytest.raises(OSError, match="Exit called!"):
         integ.run(True, print_to_file="some/dir", enable_deletion=False)
 
+    run_mocks.terrascript.populate_additional_providers.assert_called_once_with(
+        "desired_account",
+        [
+            {"name": "mesh_account"},
+            {"name": "all_clusters_account"},
+            {"name": "mesh_account"},
+            {"name": "all_clusters_account"},
+        ],
+    )
     run_mocks.terraform.plan.assert_not_called()
     run_mocks.terraform.cleanup.assert_not_called()
     run_mocks.terraform.apply.assert_not_called()
