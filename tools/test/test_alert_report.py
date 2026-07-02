@@ -13,22 +13,22 @@ CLUSTER_PREFIXED_MESSAGES = [
     {
         "subtype": "bot_message",
         "bot_id": "BFYPB540Z",
-        "ts": "1750000100.000000",
+        "ts": "1750000200.000000",
         "username": "app-sre-alerts (appsrep11ue1)",
         "attachments": [
             {
-                "title": "[appsrep11ue1]Alert: ClusterPrefixedAlert [FIRING:1]  some alert message"
+                "title": "[appsrep11ue1]Alert: ClusterPrefixedAlert [RESOLVED]  some alert message"
             }
         ],
     },
     {
         "subtype": "bot_message",
         "bot_id": "BFYPB540Z",
-        "ts": "1750000200.000000",
+        "ts": "1750000100.000000",
         "username": "app-sre-alerts (appsrep11ue1)",
         "attachments": [
             {
-                "title": "[appsrep11ue1]Alert: ClusterPrefixedAlert [RESOLVED]  some alert message"
+                "title": "[appsrep11ue1]Alert: ClusterPrefixedAlert [FIRING:1]  some alert message"
             }
         ],
     },
