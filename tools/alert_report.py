@@ -68,7 +68,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
             if "title" not in at:
                 continue
 
-            mg = re.match(r"Alert: (.*) \[(FIRING:\d+|RESOLVED)\] *(.*)$", at["title"])
+            mg = re.search(r"Alert: (.*) \[(FIRING:\d+|RESOLVED)\] *(.*)$", at["title"])
             if not mg:
                 continue
 
