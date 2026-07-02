@@ -16,7 +16,9 @@ CLUSTER_PREFIXED_MESSAGES = [
         "ts": "1750000100.000000",
         "username": "app-sre-alerts (appsrep11ue1)",
         "attachments": [
-            {"title": "[appsrep11ue1]Alert: ClusterPrefixedAlert [FIRING:1]  some alert message"}
+            {
+                "title": "[appsrep11ue1]Alert: ClusterPrefixedAlert [FIRING:1]  some alert message"
+            }
         ],
     },
     {
@@ -25,7 +27,9 @@ CLUSTER_PREFIXED_MESSAGES = [
         "ts": "1750000200.000000",
         "username": "app-sre-alerts (appsrep11ue1)",
         "attachments": [
-            {"title": "[appsrep11ue1]Alert: ClusterPrefixedAlert [RESOLVED]  some alert message"}
+            {
+                "title": "[appsrep11ue1]Alert: ClusterPrefixedAlert [RESOLVED]  some alert message"
+            }
         ],
     },
 ]
