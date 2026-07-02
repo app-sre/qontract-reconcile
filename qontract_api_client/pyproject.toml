@@ -12,9 +12,9 @@ dev = [
     "clientele[cli]==2.2.2",
     # development and testing tools
     "mypy==2.1.0",
-    "pytest==9.0.3",
+    "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "ruff==0.15.13",
+    "ruff==0.15.20",
 ]
 
 [build-system]
