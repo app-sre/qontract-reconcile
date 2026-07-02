@@ -150,7 +150,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                 )
                 continue
             if not (spec := dependencies.token_spec_by_name.get(spec_name)):
-                logging.warning(
+                logging.debug(
                     f"[Missing spec '{spec_name}'] {ocm_cluster.id=} {ocm_cluster.subscription_id=}"
                 )
                 continue
@@ -165,7 +165,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
             token_spec_name = ocm_cluster.labels.get(DTP_SPEC_V2_LABEL)
             token_spec = dependencies.token_spec_by_name.get(token_spec_name or "")
             if not dt_tenant or not token_spec:
-                logging.warning(
+                logging.debug(
                     f"[Missing DTP labels] {ocm_cluster.id=} {ocm_cluster.subscription_id=} {dt_tenant=} {token_spec_name=}"
                 )
                 return None

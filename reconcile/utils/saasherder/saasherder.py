@@ -2117,8 +2117,12 @@ class SaasHerder:
         if not promotion.subscribe:
             return True
 
+        target_id = (
+            f"[saas_file={promotion.saas_file}/target_uid={promotion.saas_target_uid}]"
+        )
+
         if promotion.commit_sha in self.blocked_versions.get(promotion.url, set()):
-            logging.error(f"Commit {promotion.commit_sha} is blocked!")
+            logging.error(f"{target_id} Commit {promotion.commit_sha} is blocked!")
             return False
 
         # hotfix must run before further gates are evaluated to override them
@@ -2127,6 +2131,9 @@ class SaasHerder:
 
         now = utc_now()
         passed_soak_days = timedelta(days=0)
+        # Track (channel_name, publisher_uid, check_in, soak_contribution) for
+        # detailed logging when the soak gate fails.
+        soak_log: list[tuple[str, str, str | None, timedelta | None]] = []
 
         for channel in promotion.subscribe:
             config_hashes: set[str] = set()
@@ -2141,12 +2148,21 @@ class SaasHerder:
                     deployment and (deployment.success or deployment.has_succeeded_once)
                 ):
                     logging.error(
-                        f"Commit {promotion.commit_sha} was not "
-                        + f"published with success to channel {channel.name}"
+                        f"{target_id} Commit {promotion.commit_sha} was not "
+                        f"published with success to channel {channel.name} "
+                        f"(publisher uid: {target_uid})"
                     )
                     return False
+                contribution: timedelta | None = None
                 if check_in := deployment.check_in:
-                    passed_soak_days += now - datetime.fromisoformat(check_in)
+                    contribution = now - datetime.fromisoformat(check_in)
+                    passed_soak_days += contribution
+                soak_log.append((
+                    channel.name,
+                    target_uid,
+                    deployment.check_in,
+                    contribution,
+                ))
                 if deployment.target_config_hash:
                     config_hashes.add(deployment.target_config_hash)
 
@@ -2154,7 +2170,7 @@ class SaasHerder:
             # not have promotion_data yet
             if not config_hashes or not promotion.promotion_data:
                 logging.info(
-                    "Promotion data is missing; rely on the success state only"
+                    f"{target_id} Promotion data is missing; rely on the success state only"
                 )
                 continue
 
@@ -2174,7 +2190,7 @@ class SaasHerder:
             # is reached though.
             if not parent_saas_config:
                 logging.info(
-                    "Parent Saas config missing on target "
+                    f"{target_id} Parent Saas config missing on target; "
                     "rely on the success state only"
                 )
                 continue
@@ -2185,7 +2201,7 @@ class SaasHerder:
                 continue
 
             logging.error(
-                "Parent saas target has run with a newer "
+                f"{target_id} Parent saas target has run with a newer "
                 "configuration and the same commit (ref). "
                 "Check if other MR exists for this target, "
                 f"or update {parent_saas_config.target_config_hash} "
@@ -2194,9 +2210,14 @@ class SaasHerder:
             return False
 
         if passed_soak_days < timedelta(days=promotion.soak_days):
+            detail_lines = " | ".join(
+                f"channel={ch} uid={uid} check_in={check_in} contribution={contribution}"
+                for ch, uid, check_in, contribution in soak_log
+            )
             logging.error(
-                f"SoakDays in publishers did not pass. So far accumulated soakDays is {passed_soak_days},"
-                f"but we have a soakDays setting of {promotion.soak_days}. We cannot proceed with this promotion."
+                f"{target_id} SoakDays gate failed for commit {promotion.commit_sha}. "
+                f"Accumulated={passed_soak_days}, required={promotion.soak_days} day(s). "
+                f"{detail_lines}"
             )
             return False
         return True

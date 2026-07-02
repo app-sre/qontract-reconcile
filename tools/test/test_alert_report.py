@@ -6,6 +6,34 @@ from tools.alert_report import (
     group_alerts,
 )
 
+# Messages with cluster-name prefix in the attachment title, e.g.
+# "[appsrep11ue1]Alert: AlertName [FIRING:1]  message"
+# introduced when the Alertmanager Slack template was updated to include the cluster.
+CLUSTER_PREFIXED_MESSAGES = [
+    {
+        "subtype": "bot_message",
+        "bot_id": "BFYPB540Z",
+        "ts": "1750000200.000000",
+        "username": "app-sre-alerts (appsrep11ue1)",
+        "attachments": [
+            {
+                "title": "[appsrep11ue1]Alert: ClusterPrefixedAlert [RESOLVED]  some alert message"
+            }
+        ],
+    },
+    {
+        "subtype": "bot_message",
+        "bot_id": "BFYPB540Z",
+        "ts": "1750000100.000000",
+        "username": "app-sre-alerts (appsrep11ue1)",
+        "attachments": [
+            {
+                "title": "[appsrep11ue1]Alert: ClusterPrefixedAlert [FIRING:1]  some alert message"
+            }
+        ],
+    },
+]
+
 messages = Fixtures("slack_api").get_anymarkup("conversations_history_messages.yaml")
 
 
@@ -72,3 +100,18 @@ def test_alert_stats() -> None:
     assert art.triggered_alerts == 1
     assert art.resolved_alerts == 1
     assert median(art.elapsed_times) == 300
+
+
+def test_group_alerts_cluster_prefixed_title() -> None:
+    """Attachment titles with a [cluster] prefix are parsed correctly."""
+    alerts = group_alerts(CLUSTER_PREFIXED_MESSAGES)
+    assert "ClusterPrefixedAlert" in alerts
+    assert len(alerts["ClusterPrefixedAlert"]) == 2
+
+
+def test_alert_stats_cluster_prefixed_title() -> None:
+    alert_stats = gen_alert_stats(group_alerts(CLUSTER_PREFIXED_MESSAGES))
+    stat = alert_stats["ClusterPrefixedAlert"]
+    assert stat.triggered_alerts == 1
+    assert stat.resolved_alerts == 1
+    assert len(stat.elapsed_times) == 1

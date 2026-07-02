@@ -123,7 +123,7 @@ def test_gitlab_api_init(
         instance["url"],
         private_token="private-token",
         ssl_verify=False,
-        timeout=30,
+        timeout=120,
         session=mocked_session.return_value,
         per_page=100,
         pagination="keyset",
