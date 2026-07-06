@@ -1,0 +1,235 @@
+"""Tests for openshift-namespaces-api client-side integration."""
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from qontract_api_client.schemas import (
+    ClusterNamespaces,
+    DesiredNamespace,
+    OpenShiftNamespacesReconcileRequest,
+    OpenShiftNamespacesTaskResponse,
+    OpenShiftNamespacesTaskResult,
+    Secret,
+    TaskStatus,
+)
+
+from reconcile.openshift_namespaces_api import (
+    QONTRACT_INTEGRATION,
+    OpenShiftNamespacesIntegration,
+    OpenShiftNamespacesIntegrationParams,
+)
+
+
+@pytest.fixture
+def integration() -> OpenShiftNamespacesIntegration:
+    i = OpenShiftNamespacesIntegration(
+        OpenShiftNamespacesIntegrationParams(
+            cluster_name=None,
+            namespace_name=None,
+        )
+    )
+    # Mock secret_manager_url to avoid get_config() dependency
+    type(i).secret_manager_url = property(lambda self: "https://vault.example.com")
+    return i
+
+
+def test_integration_name(integration: OpenShiftNamespacesIntegration) -> None:
+    assert integration.name == QONTRACT_INTEGRATION
+    assert integration.name == "openshift-namespaces-api"
+
+
+@pytest.mark.asyncio(loop_scope="function")
+@patch(
+    "reconcile.openshift_namespaces_api.openshift_namespaces_reconcile",
+    new_callable=AsyncMock,
+)
+@patch("reconcile.openshift_namespaces_api.get_namespaces_minimal", return_value=[])
+@patch("reconcile.openshift_namespaces_api.gql")
+async def test_async_run_no_namespaces_returns_early(
+    mock_gql: MagicMock,
+    mock_get_ns: MagicMock,
+    mock_reconcile: AsyncMock,
+    integration: OpenShiftNamespacesIntegration,
+) -> None:
+    """No namespaces → returns early, no API call."""
+    await integration.async_run(dry_run=True)
+    mock_reconcile.assert_not_called()
+
+
+@pytest.mark.asyncio(loop_scope="function")
+@patch(
+    "reconcile.openshift_namespaces_api.openshift_namespaces_reconcile",
+    new_callable=AsyncMock,
+)
+@patch("reconcile.openshift_namespaces_api.get_namespaces_minimal")
+@patch("reconcile.openshift_namespaces_api.gql")
+async def test_async_run_dry_run_polls_and_logs(
+    mock_gql: MagicMock,
+    mock_get_ns: MagicMock,
+    mock_reconcile: AsyncMock,
+    integration: OpenShiftNamespacesIntegration,
+) -> None:
+    """Dry-run: sends request, polls task, logs actions."""
+    ns = MagicMock()
+    ns.name = "app-a"
+    ns.delete = False
+    ns.cluster.name = "prod-1"
+    ns.cluster.server_url = "https://prod-1:6443"
+    ns.cluster.automation_token.path = "k8s/prod/token"
+    ns.cluster.automation_token.field = "token"
+    ns.cluster.automation_token.version = None
+    mock_get_ns.return_value = [ns]
+
+    mock_reconcile.return_value = OpenShiftNamespacesTaskResponse(
+        id="task-1",
+        status=TaskStatus.PENDING,
+        status_url="http://api/reconcile/task-1",
+    )
+
+    mock_result = OpenShiftNamespacesTaskResult(
+        status=TaskStatus.SUCCESS,
+        actions=[],
+        applied_actions=[],
+        applied_count=0,
+        errors=[],
+    )
+
+    with patch.object(
+        integration, "poll_task_status", new_callable=AsyncMock
+    ) as mock_poll:
+        mock_poll.return_value = mock_result
+        await integration.async_run(dry_run=True)
+        mock_poll.assert_called_once()
+        mock_reconcile.assert_called_once()
+
+
+@pytest.mark.asyncio(loop_scope="function")
+@patch(
+    "reconcile.openshift_namespaces_api.openshift_namespaces_reconcile",
+    new_callable=AsyncMock,
+)
+@patch("reconcile.openshift_namespaces_api.get_namespaces_minimal")
+@patch("reconcile.openshift_namespaces_api.gql")
+async def test_async_run_non_dry_run_fires_and_forgets(
+    mock_gql: MagicMock,
+    mock_get_ns: MagicMock,
+    mock_reconcile: AsyncMock,
+    integration: OpenShiftNamespacesIntegration,
+) -> None:
+    """Non-dry-run: sends request, returns immediately without polling."""
+    ns = MagicMock()
+    ns.name = "app-a"
+    ns.delete = False
+    ns.cluster.name = "prod-1"
+    ns.cluster.server_url = "https://prod-1:6443"
+    ns.cluster.automation_token.path = "k8s/prod/token"
+    ns.cluster.automation_token.field = "token"
+    ns.cluster.automation_token.version = None
+    mock_get_ns.return_value = [ns]
+
+    mock_reconcile.return_value = OpenShiftNamespacesTaskResponse(
+        id="task-1",
+        status=TaskStatus.PENDING,
+        status_url="http://api/reconcile/task-1",
+    )
+
+    with patch.object(
+        integration, "poll_task_status", new_callable=AsyncMock
+    ) as mock_poll:
+        await integration.async_run(dry_run=False)
+        mock_poll.assert_not_called()
+        mock_reconcile.assert_called_once()
+
+
+def test_params_cluster_filter() -> None:
+    params = OpenShiftNamespacesIntegrationParams(
+        cluster_name="prod-1", namespace_name=None
+    )
+    assert params.cluster_name == "prod-1"
+
+
+def test_params_namespace_filter() -> None:
+    params = OpenShiftNamespacesIntegrationParams(
+        cluster_name=None, namespace_name="app-a"
+    )
+    assert params.namespace_name == "app-a"
+
+
+def _make_ns_mock(
+    name: str = "app-a",
+    cluster_name: str = "prod-1",
+    delete: bool = False,
+    disabled_integrations: list[str] | None = None,
+) -> MagicMock:
+    """Create a mock NamespaceV1 with cluster and disable info."""
+    from reconcile.gql_definitions.common.namespaces_minimal import (
+        DisableClusterAutomationsV1,
+    )
+
+    disable = (
+        DisableClusterAutomationsV1(integrations=disabled_integrations)
+        if disabled_integrations is not None
+        else None
+    )
+
+    ns = MagicMock()
+    ns.name = name
+    ns.delete = delete
+    ns.cluster.name = cluster_name
+    ns.cluster.server_url = f"https://{cluster_name}:6443"
+    ns.cluster.automation_token.path = f"k8s/{cluster_name}/token"
+    ns.cluster.automation_token.field = "token"
+    ns.cluster.automation_token.version = None
+    ns.cluster.disable = disable
+    return ns
+
+
+def test_disabled_upstream_name_filters_cluster(
+    integration: OpenShiftNamespacesIntegration,
+) -> None:
+    """Cluster with 'openshift-namespaces' disabled is skipped."""
+    ns_enabled = _make_ns_mock(name="app-a", cluster_name="enabled-cluster")
+    ns_disabled = _make_ns_mock(
+        name="app-b",
+        cluster_name="disabled-cluster",
+        disabled_integrations=["openshift-namespaces"],
+    )
+
+    result = integration._apply_filters([ns_enabled, ns_disabled])
+    assert len(result) == 1
+    assert result[0].cluster.name == "enabled-cluster"
+
+
+def test_disabled_api_name_filters_cluster(
+    integration: OpenShiftNamespacesIntegration,
+) -> None:
+    """Cluster with 'openshift-namespaces-api' disabled is also skipped."""
+    ns = _make_ns_mock(
+        disabled_integrations=["openshift-namespaces-api"],
+    )
+
+    result = integration._apply_filters([ns])
+    assert len(result) == 0
+
+
+def test_disabled_other_integration_passes(
+    integration: OpenShiftNamespacesIntegration,
+) -> None:
+    """Cluster with OTHER integration disabled still passes."""
+    ns = _make_ns_mock(
+        disabled_integrations=["some-other-integration"],
+    )
+
+    result = integration._apply_filters([ns])
+    assert len(result) == 1
+
+
+def test_disabled_none_passes(
+    integration: OpenShiftNamespacesIntegration,
+) -> None:
+    """Cluster with disable=None passes."""
+    ns = _make_ns_mock()
+
+    result = integration._apply_filters([ns])
+    assert len(result) == 1
