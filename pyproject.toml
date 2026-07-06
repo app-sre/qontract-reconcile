@@ -167,7 +167,6 @@ bump = true
 
 [tool.ruff]
 line-length = 88
-target-version = 'py314'
 src = ["reconcile", "tools"]
 extend-exclude = ["reconcile/gql_definitions"]
 fix = true

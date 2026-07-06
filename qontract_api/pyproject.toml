@@ -49,7 +49,6 @@ packages = ["qontract_api"]
 
 [tool.ruff]
 line-length = 88
-target-version = 'py314'
 src = ["qontract_api"]
 fix = true
 

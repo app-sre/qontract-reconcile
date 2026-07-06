@@ -54,7 +54,6 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 88
-target-version = "py314"
 src = ["qontract_utils"]
 fix = true
 
