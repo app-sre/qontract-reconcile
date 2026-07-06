@@ -1115,22 +1115,18 @@ def _process_omm_group(
                     pipelines=timed_out,
                 )
 
-        # skip_ci=True rebase causes GitLab to create a "skipped" pipeline;
-        # filter these out so the real (pre-rebase) pipeline drives decisions.
-        pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
+        # Filter noise pipelines caused by skip-ci rebase:
+        # SKIPPED: GitLab creates a skipped MR-event pipeline for skip_ci
+        # push at current SHA: fork CI fires on the new commit, and
+        # same-project MRs can also see a push pipeline despite skip_ci.
+        pipelines = [
+            p
+            for p in pipelines
+            if p.status != PipelineStatus.SKIPPED
+            and not (p.sha == mr.sha and p.source == "push")
+        ]
 
         mr_is_rebased = is_rebased(mr, gl)
-
-        # After a skip-ci rebase the fork may start its own CI for the new
-        # commit.  Filter those post-rebase fork pipelines only when the MR
-        # is already rebased — for non-rebased MRs the current-HEAD fork
-        # pipeline is the real CI result we need.
-        if mr_is_rebased:
-            pipelines = [
-                p
-                for p in pipelines
-                if not (p.project_id != gl.project.id and p.sha == mr.sha)
-            ]
 
         if not pipelines:
             if mr_is_rebased:
@@ -1144,6 +1140,7 @@ def _process_omm_group(
             continue
 
         latest_status = pipelines[0].status
+
         if latest_status == PipelineStatus.FAILED:
             logging.info([
                 "omm-group",
@@ -1158,30 +1155,33 @@ def _process_omm_group(
             ).inc()
             continue
 
-        if mr_is_rebased:
-            if latest_status != PipelineStatus.SUCCESS:
-                if latest_status not in {
-                    PipelineStatus.RUNNING,
-                    PipelineStatus.PENDING,
-                }:
-                    logging.info([
-                        "omm-group",
-                        "unhandled-status-rebased",
-                        gl.project.name,
-                        mr.iid,
-                        latest_status,
-                    ])
-                else:
-                    logging.info([
-                        "omm-group",
-                        "waiting-pipeline-rebased",
-                        gl.project.name,
-                        mr.iid,
-                        latest_status,
-                    ])
-                any_active = True
-                continue
+        if latest_status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
+            logging.info([
+                "omm-group",
+                "waiting-pipeline",
+                gl.project.name,
+                mr.iid,
+                latest_status,
+                "rebased" if mr_is_rebased else "not-rebased",
+            ])
+            any_active = True
+            continue
 
+        if latest_status != PipelineStatus.SUCCESS:
+            logging.info([
+                "omm-group",
+                "unhandled-status",
+                gl.project.name,
+                mr.iid,
+                latest_status,
+                "rebased" if mr_is_rebased else "not-rebased",
+            ])
+            if mr_is_rebased:
+                any_active = True
+            continue
+
+        # --- SUCCESS: the only path that differs on rebased state ---
+        if mr_is_rebased:
             if merges >= merge_limit:
                 logging.info([
                     "omm-group",
@@ -1226,51 +1226,31 @@ def _process_omm_group(
             merges += 1
             continue
 
-        if latest_status == PipelineStatus.SUCCESS:
-            logging.info([
-                "omm-group",
-                "skip-ci-rebase",
-                gl.project.name,
-                mr.iid,
-            ])
-            if not dry_run:
-                try:
-                    mr.rebase(skip_ci=True)
-                except gitlab.exceptions.GitlabMRRebaseError as e:
-                    logging.warning([
-                        "omm-group",
-                        "skip-ci-rebase-failed",
-                        gl.project.name,
-                        mr.iid,
-                        str(e),
-                    ])
-                    gl.remove_label(mr, OMM_PENDING)
-                    optimistic_merge_rejected.labels(
-                        project_id=mr.target_project_id,
-                        reason="skip_ci_rebase_conflict",
-                    ).inc()
-                    continue
-            any_active = True
-            continue
-
-        if latest_status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
-            logging.info([
-                "omm-group",
-                "waiting-pipeline-not-rebased",
-                gl.project.name,
-                mr.iid,
-                latest_status,
-            ])
-            any_active = True
-            continue
-
+        # Not rebased + SUCCESS: skip-ci rebase to bring MR up to date
         logging.info([
             "omm-group",
-            "unhandled-status-not-rebased",
+            "skip-ci-rebase",
             gl.project.name,
             mr.iid,
-            latest_status,
         ])
+        if not dry_run:
+            try:
+                mr.rebase(skip_ci=True)
+            except gitlab.exceptions.GitlabMRRebaseError as e:
+                logging.warning([
+                    "omm-group",
+                    "skip-ci-rebase-failed",
+                    gl.project.name,
+                    mr.iid,
+                    str(e),
+                ])
+                gl.remove_label(mr, OMM_PENDING)
+                optimistic_merge_rejected.labels(
+                    project_id=mr.target_project_id,
+                    reason="skip_ci_rebase_conflict",
+                ).inc()
+                continue
+        any_active = True
 
     if not any_active:
         logging.info(["omm-group", "adaptive-close", gl.project.name])
