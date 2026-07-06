@@ -156,6 +156,25 @@ def cert_expires_within_threshold(
     return False
 
 
+def cert_format_mismatch(
+    ns: NamespaceV1,
+    cert_resource: OpenshiftResourceRhcsCert,
+    vault_cert_secret: Mapping[str, Any],
+) -> bool:
+    """Check if the Vault secret's keys don't match the desired certificate_format."""
+    desired_format = get_certificate_format(cert_resource)
+    match desired_format:
+        case CertificateFormat.PEM:
+            is_mismatch = "tls.crt" not in vault_cert_secret
+        case CertificateFormat.PKCS12:
+            is_mismatch = "keystore.pkcs12.b64" not in vault_cert_secret
+    if is_mismatch:
+        logging.info(
+            f"Certificate format mismatch: cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}', desired_format='{desired_format}'"
+        )
+    return is_mismatch
+
+
 def get_vault_cert_secret(
     ns: NamespaceV1,
     cert_resource: OpenshiftResourceRhcsCert,
@@ -226,8 +245,10 @@ def fetch_openshift_resource_for_cert_resource(
 ) -> OR:
     vault_base_path = f"{rhcs_settings.vault_base_path}/{QONTRACT_INTEGRATION}"
     vault_cert_secret = get_vault_cert_secret(ns, cert_resource, vault, vault_base_path)
-    if vault_cert_secret is None or cert_expires_within_threshold(
-        ns, cert_resource, vault_cert_secret
+    if (
+        vault_cert_secret is None
+        or cert_expires_within_threshold(ns, cert_resource, vault_cert_secret)
+        or cert_format_mismatch(ns, cert_resource, vault_cert_secret)
     ):
         vault_cert_secret = generate_vault_cert_secret(
             dry_run,
