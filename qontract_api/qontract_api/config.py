@@ -266,6 +266,15 @@ class GlitchtipSettings(BaseModel):
     )
 
 
+class KubernetesSettings(BaseModel):
+    """Kubernetes namespace cache configuration."""
+
+    namespace_cache_ttl: int = Field(
+        default=60 * 5,
+        description="Kubernetes namespace existence cache TTL in seconds (5 minutes)",
+    )
+
+
 class LdapSettings(BaseModel):
     """LDAP external integration configuration."""
 
@@ -490,6 +499,12 @@ class Settings(BaseSettings):
     glitchtip: GlitchtipSettings = Field(
         default_factory=GlitchtipSettings,
         description="Glitchtip API and integration configuration",
+    )
+
+    # Kubernetes Configuration (nested)
+    kubernetes: KubernetesSettings = Field(
+        default_factory=KubernetesSettings,
+        description="Kubernetes namespace cache configuration",
     )
 
     # LDAP Configuration (nested)

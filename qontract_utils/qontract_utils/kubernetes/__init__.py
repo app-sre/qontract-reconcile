@@ -18,6 +18,8 @@ Example:
     >>> print(ns.metadata.name)
 """
 
+from lightkube.resources.core_v1 import Namespace
+
 from qontract_utils.kubernetes.client import (
     TIMEOUT,
     KubernetesApi,
@@ -35,6 +37,7 @@ from qontract_utils.kubernetes.exceptions import (
 __all__ = [
     "TIMEOUT",
     "AlreadyExistsError",
+    "Namespace",
     "ForbiddenError",
     "KubernetesApi",
     "KubernetesApiCallContext",
