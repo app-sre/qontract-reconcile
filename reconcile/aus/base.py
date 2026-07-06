@@ -18,7 +18,7 @@ from typing import (
 )
 
 from croniter import croniter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from requests.exceptions import HTTPError
 
 from reconcile.aus.aus_sts_gate_handler import (
@@ -39,6 +39,7 @@ from reconcile.aus.metrics import (
     UPGRADE_LONG_RUNNING_METRIC_VALUE,
     UPGRADE_SCHEDULED_METRIC_VALUE,
     UPGRADE_STARTED_METRIC_VALUE,
+    AUSClusterChannelSwitchGauge,
     AUSClusterHealthStateGauge,
     AUSClusterMissingVersionGateAgreementsGauge,
     AUSClusterUpgradePolicyInfoMetric,
@@ -95,6 +96,7 @@ from reconcile.utils.ocm.upgrades import (
     get_upgrade_policies,
     get_version_agreement,
     get_version_gates,
+    update_cluster_channel,
 )
 from reconcile.utils.prometheus import (
     init_prometheus_http_querier_from_prometheus_instance,
@@ -326,7 +328,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
                     cluster_uuid=cluster_upgrade_spec.cluster_uuid,
                     org_id=cluster_upgrade_spec.org.org_id,
                     org_name=org_upgrade_spec.org.name,
-                    channel=cluster_upgrade_spec.cluster.version.channel_group,
+                    channel=cluster_upgrade_spec.cluster.channel,
                     current_version=cluster_upgrade_spec.oldest_current_version,
                     cluster_name=cluster_upgrade_spec.name,
                     schedule=cluster_upgrade_spec.upgrade_policy.schedule,
@@ -1151,6 +1153,90 @@ def _calculate_node_pool_diffs(
     return None
 
 
+class ChannelSwitchAction(BaseModel):
+    cluster: OCMCluster
+    from_channel: str
+    to_channel: str
+    org_id: str
+
+
+def _get_available_channels(
+    ocm_api: OCMBaseClient,
+    version_id: str,
+    cache: dict[str, set[str]],
+) -> set[str]:
+    """Fetch available_channels from the versions API, cached by version ID.
+
+    The cluster list API omits available_channels (OCM-24287), so we fetch
+    from /api/clusters_mgmt/v1/versions/{version_id} instead. Since
+    available_channels is a property of the version (not the cluster),
+    multiple clusters on the same version share one API call.
+    """
+    if version_id in cache:
+        return cache[version_id]
+    try:
+        data = ocm_api.get(api_path=f"/api/clusters_mgmt/v1/versions/{version_id}")
+        channels = set(data.get("available_channels") or [])
+    except HTTPError as e:
+        detail = e.response.text if e.response is not None else ""
+        logging.warning(
+            f"failed to fetch available_channels for version {version_id}: {e}: {detail}"
+        )
+        channels = set()
+    cache[version_id] = channels
+    return channels
+
+
+def check_y_stream_channel_switch_needed(
+    spec: ClusterUpgradeSpec,
+    available_channels: set[str],
+) -> ChannelSwitchAction | None:
+    cluster = spec.cluster
+    if not cluster.is_y_stream_channel():
+        return None
+
+    target_channel = cluster.target_y_stream_channel()
+    if not target_channel:
+        return None
+
+    if cluster.channel == target_channel:
+        return None
+
+    if target_channel not in available_channels:
+        return None
+
+    return ChannelSwitchAction(
+        cluster=cluster,
+        from_channel=cluster.channel,
+        to_channel=target_channel,
+        org_id=spec.org.org_id,
+    )
+
+
+class CalculateDiffResult(BaseModel):
+    upgrade_policies: list[UpgradePolicyHandler] = Field(default_factory=list)
+    channel_switches: list[ChannelSwitchAction] = Field(default_factory=list)
+
+
+def _try_channel_switch(
+    spec: ClusterUpgradeSpec,
+    addon_id: str,
+    channel_switches: list[ChannelSwitchAction],
+    ocm_api: OCMBaseClient,
+    available_channels_cache: dict[str, set[str]],
+) -> None:
+    if addon_id:
+        return
+    available_channels = set(
+        spec.cluster.version.available_channels
+    ) or _get_available_channels(
+        ocm_api, spec.cluster.version.id, available_channels_cache
+    )
+    channel_switch = check_y_stream_channel_switch_needed(spec, available_channels)
+    if channel_switch:
+        channel_switches.append(channel_switch)
+
+
 def calculate_diff(
     current_state: Sequence[AbstractUpgradePolicy],
     desired_state: OrganizationUpgradeSpec,
@@ -1158,7 +1244,7 @@ def calculate_diff(
     version_data: VersionData,
     addon_id: str = "",
     integration: str = "",
-) -> list[UpgradePolicyHandler]:
+) -> CalculateDiffResult:
     """Check available upgrades for each cluster in the desired state
     according to upgrade conditions
 
@@ -1175,6 +1261,7 @@ def calculate_diff(
 
     locked: dict[str, str] = {}
     sector_mutex_upgrades: dict[tuple[str, str], set[str]] = defaultdict(set)
+    available_channels_cache: dict[str, set[str]] = {}
 
     def set_upgrading(
         cluster_id: str, mutexes: set[str], sector_name: str | None
@@ -1185,6 +1272,7 @@ def calculate_diff(
                 sector_mutex_upgrades[sector_name, mutex].add(cluster_id)
 
     diffs: list[UpgradePolicyHandler] = []
+    channel_switches: list[ChannelSwitchAction] = []
 
     # all clusters IDs with a current upgradePolicy are considered locked
     for spec in desired_state.specs:
@@ -1218,6 +1306,13 @@ def calculate_diff(
 
         next_schedule = verify_schedule_should_skip(spec, now, addon_id)
         if not next_schedule:
+            _try_channel_switch(
+                spec,
+                addon_id,
+                channel_switches,
+                ocm_api=ocm_api,
+                available_channels_cache=available_channels_cache,
+            )
             continue
 
         if verify_max_upgrades_should_skip(spec, locked, sector_mutex_upgrades, sector):
@@ -1282,8 +1377,19 @@ def calculate_diff(
                     )
                 )
             set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
+        else:
+            _try_channel_switch(
+                spec,
+                addon_id,
+                channel_switches,
+                ocm_api=ocm_api,
+                available_channels_cache=available_channels_cache,
+            )
 
-    return diffs
+    return CalculateDiffResult(
+        upgrade_policies=diffs,
+        channel_switches=channel_switches,
+    )
 
 
 def sort_diffs(diff: UpgradePolicyHandler) -> int:
@@ -1313,6 +1419,45 @@ def act(
             diff.act(dry_run, ocm_api, rosa_role_upgrade_handler_params, secret_reader)
         except HTTPError as e:
             logging.error(f"{policy.cluster.name}: {e}: {e.response.text}")
+
+
+def act_channel_switches(
+    dry_run: bool,
+    channel_switches: list[ChannelSwitchAction],
+    ocm_api: OCMBaseClient,
+    ocm_env: str = "",
+    integration: str = "",
+) -> None:
+    errors: list[Exception] = []
+    for switch in channel_switches:
+        logging.info(
+            f"[{switch.org_id}/{switch.cluster.name}] "
+            f"switching channel {switch.from_channel} -> {switch.to_channel}"
+        )
+        if dry_run:
+            continue
+        try:
+            update_cluster_channel(ocm_api, switch.cluster.id, switch.to_channel)
+        except HTTPError as e:
+            detail = e.response.text if e.response is not None else ""
+            logging.error(
+                f"{switch.cluster.name}: channel switch failed: {e}: {detail}"
+            )
+            errors.append(e)
+            continue
+        metrics.set_gauge(
+            AUSClusterChannelSwitchGauge(
+                integration=integration,
+                ocm_env=ocm_env,
+                org_id=switch.org_id,
+                cluster_uuid=switch.cluster.external_id,
+                from_channel=switch.from_channel,
+                to_channel=switch.to_channel,
+            ),
+            1,
+        )
+    if errors:
+        raise ExceptionGroup("Channel switch errors", errors)
 
 
 def soaking_days(
