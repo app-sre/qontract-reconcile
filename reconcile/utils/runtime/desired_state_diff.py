@@ -134,10 +134,11 @@ def extract_diffs_with_timeout(
           valueable results when it is fast. if it takes too long, the results
           yield contain too many diffs to be meaningful for followup processing
     """
-    m = multiprocessing.Manager()
+    ctx = multiprocessing.get_context("fork")
+    m = ctx.Manager()
     result_value = m.dict()
 
-    process = multiprocessing.Process(
+    process = ctx.Process(
         target=_extract_diffs_task,
         args=(
             extraction_function,
