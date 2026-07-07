@@ -204,6 +204,9 @@ class KubernetesApi:
     def list_namespaces(self) -> list[Namespace]:
         """List all namespaces.
 
+        On OpenShift, every Project creates a corresponding Namespace,
+        so listing Namespaces returns Projects too.
+
         Returns:
             List of Namespace objects
         """

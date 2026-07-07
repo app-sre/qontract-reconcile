@@ -21,17 +21,18 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class CachedNamespaceExists(BaseModel, frozen=True):
-    """Cached namespace existence check result."""
+class CachedNamespaceNames(BaseModel, frozen=True):
+    """Cached set of all namespace names on a cluster."""
 
-    exists: bool
+    names: frozenset[str]
 
 
 class KubernetesWorkspaceClient:
     """Caching layer for Kubernetes namespace operations.
 
-    Uses double-check locking for thread-safe cache updates.
-    Mutations (create/delete) invalidate the relevant cache entries.
+    Caches the full set of namespace names per cluster (single LIST call)
+    instead of checking each namespace individually.
+    Mutations (create/delete) invalidate the cached set.
     """
 
     def __init__(
@@ -46,41 +47,50 @@ class KubernetesWorkspaceClient:
         self._cache = cache
         self._settings = settings
 
-    def _cache_key_namespace_exists(self, name: str) -> str:
-        return f"kubernetes:{self._cluster_name}:namespace:{name}:exists"
+    def _cache_key_namespace_names(self) -> str:
+        return f"kubernetes:{self._cluster_name}:namespace_names"
 
-    def _invalidate_namespace_cache(self, name: str) -> None:
-        self._cache.delete(self._cache_key_namespace_exists(name))
+    def _get_namespace_names(self) -> frozenset[str]:
+        """Get the cached set of namespace names, or fetch and cache it."""
+        cache_key = self._cache_key_namespace_names()
 
-    def namespace_exists(self, name: str) -> bool:
-        """Check if a namespace exists (cached with double-check locking)."""
-        cache_key = self._cache_key_namespace_exists(name)
-
-        if cached := self._cache.get_obj(cache_key, CachedNamespaceExists):
-            return cached.exists
+        if cached := self._cache.get_obj(cache_key, CachedNamespaceNames):
+            return cached.names
 
         with self._cache.lock(cache_key):
-            if cached := self._cache.get_obj(cache_key, CachedNamespaceExists):
-                return cached.exists
+            if cached := self._cache.get_obj(cache_key, CachedNamespaceNames):
+                return cached.names
 
-            exists = self._api.namespace_exists(name)
+            namespaces = self._api.list_namespaces()
+            names = frozenset(
+                ns.metadata.name
+                for ns in namespaces
+                if ns.metadata and ns.metadata.name
+            )
             self._cache.set_obj(
                 cache_key,
-                CachedNamespaceExists(exists=exists),
+                CachedNamespaceNames(names=names),
                 self._settings.kubernetes.namespace_cache_ttl,
             )
-            return exists
+            return names
+
+    def _invalidate_namespace_cache(self) -> None:
+        self._cache.delete(self._cache_key_namespace_names())
+
+    def namespace_exists(self, name: str) -> bool:
+        """Check if a namespace exists (cached via full namespace listing)."""
+        return name in self._get_namespace_names()
 
     def create_namespace(self, name: str) -> Namespace:
         """Create a namespace and invalidate cache."""
         result = self._api.create_namespace(name)
-        self._invalidate_namespace_cache(name)
+        self._invalidate_namespace_cache()
         return result
 
     def delete_namespace(self, name: str) -> None:
         """Delete a namespace and invalidate cache."""
         self._api.delete_namespace(name)
-        self._invalidate_namespace_cache(name)
+        self._invalidate_namespace_cache()
 
     def list_namespaces(self) -> list[Namespace]:
         """List all namespaces (not cached)."""

@@ -270,8 +270,8 @@ class KubernetesSettings(BaseModel):
     """Kubernetes namespace cache configuration."""
 
     namespace_cache_ttl: int = Field(
-        default=60 * 5,
-        description="Kubernetes namespace existence cache TTL in seconds (5 minutes)",
+        default=60 * 60,
+        description="Kubernetes namespace existence cache TTL in seconds (one hour)",
     )
 
 
