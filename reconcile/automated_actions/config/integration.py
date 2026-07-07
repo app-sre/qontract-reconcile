@@ -17,6 +17,8 @@ from reconcile.gql_definitions.automated_actions.instance import (
     AutomatedActionExternalResourceFlushElastiCacheV1,
     AutomatedActionExternalResourceRdsRebootV1,
     AutomatedActionExternalResourceRdsSnapshotV1,
+    AutomatedActionExternalResourceRdsStartV1,
+    AutomatedActionExternalResourceRdsStopV1,
     AutomatedActionOpenshiftTriggerCronjobV1,
     AutomatedActionOpenshiftWorkloadDeleteV1,
     AutomatedActionOpenshiftWorkloadRestartArgumentV1,
@@ -210,6 +212,28 @@ class AutomatedActionsConfigIntegration(
                             parameters.append({
                                 "account": f"^{rds_snapshot_er.provisioner.name}$",
                                 "identifier": rds_snapshot_arg.identifier,
+                            })
+                case AutomatedActionExternalResourceRdsStartV1():
+                    for rds_start_arg in action.external_resource_rds_start_arguments:
+                        for rds_start_er in (
+                            rds_start_arg.namespace.external_resources or []
+                        ):
+                            if not isinstance(rds_start_er.provisioner, AWSAccountV1):
+                                continue
+                            parameters.append({
+                                "account": f"^{rds_start_er.provisioner.name}$",
+                                "identifier": rds_start_arg.identifier,
+                            })
+                case AutomatedActionExternalResourceRdsStopV1():
+                    for rds_stop_arg in action.external_resource_rds_stop_arguments:
+                        for rds_stop_er in (
+                            rds_stop_arg.namespace.external_resources or []
+                        ):
+                            if not isinstance(rds_stop_er.provisioner, AWSAccountV1):
+                                continue
+                            parameters.append({
+                                "account": f"^{rds_stop_er.provisioner.name}$",
+                                "identifier": rds_stop_arg.identifier,
                             })
                 case AutomatedActionOpenshiftTriggerCronjobV1():
                     parameters.extend(
