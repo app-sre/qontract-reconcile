@@ -319,7 +319,7 @@ class KubernetesApi:
         https://github.com/gtsystem/lightkube/issues/144
         """
         if client := getattr(self, "_client", None):
-            client._client._client.close()  # type: ignore[attr-defined]  # noqa: SLF001
+            client._client._client.close()  # noqa: SLF001
             del self._client
 
     def __enter__(self) -> Self:
