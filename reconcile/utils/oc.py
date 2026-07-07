@@ -1156,7 +1156,7 @@ class OCCli:
                     continue
                 resource_name = volume_ref[volume_kind_ref]
                 resources.setdefault(resource_name, set())
-            except (KeyError, TypeError):
+            except KeyError, TypeError:
                 continue
         for c in spec["containers"] + (spec.get("initContainers") or []):
             for e in c.get("envFrom") or []:
@@ -1166,7 +1166,7 @@ class OCCli:
                         continue
                     resource_name = resource_ref[env_ref]
                     resources.setdefault(resource_name, set())
-                except (KeyError, TypeError):
+                except KeyError, TypeError:
                     continue
             for e in c.get("env") or []:
                 try:
@@ -1177,7 +1177,7 @@ class OCCli:
                     resources.setdefault(resource_name, set())
                     key = resource_ref["key"]
                     resources[resource_name].add(key)
-                except (KeyError, TypeError):
+                except KeyError, TypeError:
                     continue
 
         return resources
@@ -1815,7 +1815,7 @@ class OC_Map:  # noqa: N801
             integrations = cluster_info["disable"]["integrations"]
             if self.calling_integration.replace("_", "-") in integrations:
                 return True
-        except (KeyError, TypeError):
+        except KeyError, TypeError:
             pass
 
         return False

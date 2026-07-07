@@ -156,7 +156,7 @@ class OCMap:
             integrations = cluster_info.disabled_integrations or []
             if self._calling_integration.replace("_", "-") in integrations:
                 return True
-        except (KeyError, TypeError):
+        except KeyError, TypeError:
             pass
         return False
 

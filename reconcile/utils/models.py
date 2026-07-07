@@ -290,7 +290,7 @@ def data_default_none(
 
                         # If we get here, this union variant matched successfully
                         return data
-                    except (ValidationError, TypeError):
+                    except ValidationError, TypeError:
                         # This variant didn't match, try the next one
                         continue
 
