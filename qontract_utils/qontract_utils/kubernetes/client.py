@@ -160,8 +160,12 @@ class KubernetesApi:
                 next(iter(self._client.list(_Project, chunk_size=1)), None)
                 self._has_projects = True
             except ApiError as e:
-                # 403 = API group exists but no list permission
-                self._has_projects = e.status.code == _HTTP_FORBIDDEN
+                if e.status.code == _HTTP_FORBIDDEN:
+                    self._has_projects = True
+                elif e.status.code == _HTTP_NOT_FOUND:
+                    self._has_projects = False
+                else:
+                    raise from_api_error(e) from e
         return self._has_projects
 
     def _use_project_api(self, name: str) -> bool:
@@ -309,8 +313,14 @@ class KubernetesApi:
             raise from_api_error(e) from e
 
     def close(self) -> None:
-        """Release the underlying lightkube client resources."""
-        del self._client
+        """Release the underlying lightkube client and httpx connection pool.
+
+        Workaround: lightkube has no public close() on the sync client.
+        https://github.com/gtsystem/lightkube/issues/144
+        """
+        if client := getattr(self, "_client", None):
+            client._client._client.close()  # type: ignore[attr-defined]  # noqa: SLF001
+            del self._client
 
     def __enter__(self) -> Self:
         return self

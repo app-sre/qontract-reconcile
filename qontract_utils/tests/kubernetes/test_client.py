@@ -8,7 +8,11 @@ from prometheus_client import REGISTRY
 from pytest_httpserver import HTTPServer
 from qontract_utils.hooks import Hooks
 from qontract_utils.kubernetes.client import KubernetesApi, KubernetesApiCallContext
-from qontract_utils.kubernetes.exceptions import ForbiddenError, NotFoundError
+from qontract_utils.kubernetes.exceptions import (
+    ForbiddenError,
+    KubernetesApiError,
+    NotFoundError,
+)
 from werkzeug import Request, Response
 
 from .conftest import (
@@ -288,6 +292,24 @@ def test_supports_projects_cached(httpserver: HTTPServer) -> None:
     assert api._supports_projects() is True
     assert api._supports_projects() is True
     assert len(httpserver.log) == 1
+
+
+def test_supports_projects_raises_on_unexpected_error(httpserver: HTTPServer) -> None:
+    """Test that unexpected errors (500, 401) are raised, not cached as False."""
+    httpserver.expect_request(
+        "/apis/project.openshift.io/v1/projects",
+        method="GET",
+    ).respond_with_json(
+        k8s_status_json(500, "InternalError", "internal server error"),
+        status=500,
+    )
+    api = KubernetesApi(
+        server=httpserver.url_for(""),
+        token="test-token",
+    )
+    with pytest.raises(KubernetesApiError, match="internal server error"):
+        api._supports_projects()
+    assert api._has_projects is None
 
 
 # --- namespace_exists with Projects ---

@@ -75,7 +75,9 @@ class KubernetesWorkspaceClient:
             return names
 
     def _invalidate_namespace_cache(self) -> None:
-        self._cache.delete(self._cache_key_namespace_names())
+        cache_key = self._cache_key_namespace_names()
+        with self._cache.lock(cache_key):
+            self._cache.delete(cache_key)
 
     def namespace_exists(self, name: str) -> bool:
         """Check if a namespace exists (cached via full namespace listing)."""

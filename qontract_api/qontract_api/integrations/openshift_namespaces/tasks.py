@@ -122,12 +122,14 @@ def reconcile_openshift_namespaces_task(
         }
 
         if not connection_params:
-            return OpenShiftNamespacesTaskResult(
+            result = OpenShiftNamespacesTaskResult(
                 status=TaskStatus.FAILED,
                 actions=[],
                 applied_count=0,
                 errors=secret_errors,
             )
+            _publish_result_events(result, dry_run=dry_run)
+            return result
 
         with ClusterClientMap(connection_params, cache, settings) as cluster_map:
             service = OpenShiftNamespacesService()
