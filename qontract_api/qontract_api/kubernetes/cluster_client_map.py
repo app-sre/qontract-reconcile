@@ -12,12 +12,15 @@ from pydantic import BaseModel
 from qontract_utils.kubernetes import KubernetesApi
 
 from qontract_api.kubernetes.workspace_client import KubernetesWorkspaceClient
+from qontract_api.logger import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import ItemsView, Iterable, Iterator
 
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
+
+logger = get_logger(__name__)
 
 
 class ClusterConnectionParams(BaseModel, frozen=True):
@@ -46,19 +49,23 @@ class ClusterClientMap:
         self._clients: dict[str, KubernetesWorkspaceClient] = {}
         self._api_clients: list[KubernetesApi] = []
 
-        for params in clusters:
-            api = KubernetesApi(
-                params.server,
-                params.token,
-                insecure_skip_tls_verify=params.insecure_skip_tls_verify,
-            )
-            self._api_clients.append(api)
-            self._clients[params.cluster_name] = KubernetesWorkspaceClient(
-                kubernetes_api=api,
-                cluster_name=params.cluster_name,
-                cache=cache,
-                settings=settings,
-            )
+        try:
+            for params in clusters:
+                api = KubernetesApi(
+                    params.server,
+                    params.token,
+                    insecure_skip_tls_verify=params.insecure_skip_tls_verify,
+                )
+                self._api_clients.append(api)
+                self._clients[params.cluster_name] = KubernetesWorkspaceClient(
+                    kubernetes_api=api,
+                    cluster_name=params.cluster_name,
+                    cache=cache,
+                    settings=settings,
+                )
+        except Exception:
+            self.cleanup()
+            raise
 
     def get(self, cluster_name: str) -> KubernetesWorkspaceClient:
         """Get workspace client for a cluster.
@@ -81,7 +88,10 @@ class ClusterClientMap:
     def cleanup(self) -> None:
         """Close all underlying API clients."""
         for api in self._api_clients:
-            api.close()
+            try:
+                api.close()
+            except Exception:
+                logger.exception("Failed to close Kubernetes API client")
         self._api_clients.clear()
         self._clients.clear()
 

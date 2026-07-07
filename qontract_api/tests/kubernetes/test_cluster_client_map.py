@@ -86,7 +86,7 @@ def test_get_unknown_cluster_raises_key_error(
     mock_settings: Settings,
 ) -> None:
     cluster_map = ClusterClientMap(two_clusters, mock_cache, mock_settings)
-    with pytest.raises(KeyError, match="unknown"):
+    with pytest.raises(KeyError, match="Unknown cluster"):
         cluster_map.get("unknown")
 
 
