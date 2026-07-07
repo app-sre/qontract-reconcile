@@ -1,12 +1,15 @@
 """Tests for Kubernetes workspace client module."""
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-from qontract_api.config import Settings
 from qontract_api.kubernetes.workspace_client import (
     CachedNamespaceExists,
     KubernetesWorkspaceClient,
 )
+
+if TYPE_CHECKING:
+    from qontract_api.config import Settings
 
 
 def _make_client(

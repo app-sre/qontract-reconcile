@@ -21,7 +21,6 @@ from qontract_api_client.schemas import (
 from qontract_utils.exceptions import IntegrationError
 
 from reconcile.typed_queries.namespaces_minimal import get_namespaces_minimal
-from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,

@@ -37,7 +37,6 @@ from qontract_utils.kubernetes.exceptions import (
 __all__ = [
     "TIMEOUT",
     "AlreadyExistsError",
-    "Namespace",
     "ForbiddenError",
     "KubernetesApi",
     "KubernetesApiCallContext",

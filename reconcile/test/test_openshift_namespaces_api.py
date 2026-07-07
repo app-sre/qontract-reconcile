@@ -3,14 +3,9 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from qontract_api_client.schemas import (
-    ClusterNamespaces,
-    DesiredNamespace,
-    OpenShiftNamespacesReconcileRequest,
     OpenShiftNamespacesTaskResponse,
     OpenShiftNamespacesTaskResult,
-    Secret,
     TaskStatus,
 )
 
@@ -20,18 +15,23 @@ from reconcile.openshift_namespaces_api import (
     OpenShiftNamespacesIntegrationParams,
 )
 
+SECRET_MANAGER_URL = "https://vault.example.com"
+
+
+class _TestableIntegration(OpenShiftNamespacesIntegration):
+    @property
+    def secret_manager_url(self) -> str:
+        return SECRET_MANAGER_URL
+
 
 @pytest.fixture
 def integration() -> OpenShiftNamespacesIntegration:
-    i = OpenShiftNamespacesIntegration(
+    return _TestableIntegration(
         OpenShiftNamespacesIntegrationParams(
             cluster_name=None,
             namespace_name=None,
         )
     )
-    # Mock secret_manager_url to avoid get_config() dependency
-    type(i).secret_manager_url = property(lambda self: "https://vault.example.com")
-    return i
 
 
 def test_integration_name(integration: OpenShiftNamespacesIntegration) -> None:
@@ -45,9 +45,7 @@ def test_integration_name(integration: OpenShiftNamespacesIntegration) -> None:
     new_callable=AsyncMock,
 )
 @patch("reconcile.openshift_namespaces_api.get_namespaces_minimal", return_value=[])
-@patch("reconcile.openshift_namespaces_api.gql")
 async def test_async_run_no_namespaces_returns_early(
-    mock_gql: MagicMock,
     mock_get_ns: MagicMock,
     mock_reconcile: AsyncMock,
     integration: OpenShiftNamespacesIntegration,
@@ -63,9 +61,7 @@ async def test_async_run_no_namespaces_returns_early(
     new_callable=AsyncMock,
 )
 @patch("reconcile.openshift_namespaces_api.get_namespaces_minimal")
-@patch("reconcile.openshift_namespaces_api.gql")
 async def test_async_run_dry_run_polls_and_logs(
-    mock_gql: MagicMock,
     mock_get_ns: MagicMock,
     mock_reconcile: AsyncMock,
     integration: OpenShiftNamespacesIntegration,
@@ -110,9 +106,7 @@ async def test_async_run_dry_run_polls_and_logs(
     new_callable=AsyncMock,
 )
 @patch("reconcile.openshift_namespaces_api.get_namespaces_minimal")
-@patch("reconcile.openshift_namespaces_api.gql")
 async def test_async_run_non_dry_run_fires_and_forgets(
-    mock_gql: MagicMock,
     mock_get_ns: MagicMock,
     mock_reconcile: AsyncMock,
     integration: OpenShiftNamespacesIntegration,
