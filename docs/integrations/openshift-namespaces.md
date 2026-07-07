@@ -281,7 +281,7 @@ Authorization: Bearer <JWT_TOKEN>
 **Issue 3: Cache stale after manual namespace changes**
 
 - **Symptom:** Integration reports no action needed, but namespace doesn't exist
-- **Cause:** Namespace was deleted outside of the integration, cache still has `exists: true`
+- **Cause:** Namespace was deleted outside the integration, cache still has `exists: true`
 - **Solution:** Wait for cache TTL (5 minutes) to expire, or restart the worker to clear in-memory cache
 
 ## References
