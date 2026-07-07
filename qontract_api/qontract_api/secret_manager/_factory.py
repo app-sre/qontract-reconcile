@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 def get_secret_manager(cache: CacheBackend) -> SecretManager:
     secret_backends = []
     for provider in settings.secrets.providers:
-        # TODO: hooks!!!
         match provider.backend_type:
             case "vault":
                 from qontract_utils.secret_reader.providers.vault import (  # noqa: PLC0415
