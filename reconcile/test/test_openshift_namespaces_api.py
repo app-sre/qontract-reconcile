@@ -72,9 +72,9 @@ async def test_async_run_dry_run_polls_and_logs(
     ns.delete = False
     ns.cluster.name = "prod-1"
     ns.cluster.server_url = "https://prod-1:6443"
-    ns.cluster.automation_token.path = "k8s/prod/token"
-    ns.cluster.automation_token.field = "token"
-    ns.cluster.automation_token.version = None
+    ns.cluster.cluster_admin_automation_token.path = "k8s/prod/token"
+    ns.cluster.cluster_admin_automation_token.field = "token"
+    ns.cluster.cluster_admin_automation_token.version = None
     mock_get_ns.return_value = [ns]
 
     mock_reconcile.return_value = OpenShiftNamespacesTaskResponse(
@@ -117,9 +117,9 @@ async def test_async_run_non_dry_run_fires_and_forgets(
     ns.delete = False
     ns.cluster.name = "prod-1"
     ns.cluster.server_url = "https://prod-1:6443"
-    ns.cluster.automation_token.path = "k8s/prod/token"
-    ns.cluster.automation_token.field = "token"
-    ns.cluster.automation_token.version = None
+    ns.cluster.cluster_admin_automation_token.path = "k8s/prod/token"
+    ns.cluster.cluster_admin_automation_token.field = "token"
+    ns.cluster.cluster_admin_automation_token.version = None
     mock_get_ns.return_value = [ns]
 
     mock_reconcile.return_value = OpenShiftNamespacesTaskResponse(
@@ -179,9 +179,9 @@ def _make_ns_mock(
     ns.delete = delete
     ns.cluster.name = cluster_name
     ns.cluster.server_url = f"https://{cluster_name}:6443"
-    ns.cluster.automation_token.path = f"k8s/{cluster_name}/token"
-    ns.cluster.automation_token.field = "token"
-    ns.cluster.automation_token.version = None
+    ns.cluster.cluster_admin_automation_token.path = f"k8s/{cluster_name}/token"
+    ns.cluster.cluster_admin_automation_token.field = "token"
+    ns.cluster.cluster_admin_automation_token.version = None
     ns.cluster.disable = disable
     return ns
 

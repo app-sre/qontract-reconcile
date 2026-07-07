@@ -82,10 +82,10 @@ class OpenShiftNamespacesIntegration(
         result: list[ClusterNamespaces] = []
         for cluster_name, desired_namespaces in by_cluster.items():
             ns_ref = cluster_info[cluster_name]
-            token_ref = ns_ref.cluster.automation_token
+            token_ref = ns_ref.cluster.cluster_admin_automation_token
             if not token_ref:
                 logging.warning(
-                    f"No automation token for cluster '{cluster_name}' — skipping"
+                    f"No clusterAdminAutomationToken for cluster '{cluster_name}' — skipping"
                 )
                 continue
 
