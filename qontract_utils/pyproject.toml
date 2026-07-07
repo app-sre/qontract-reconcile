@@ -2,7 +2,7 @@
 name = "qontract-utils"
 version = "0.1.0"
 description = "Shared utilities for qontract-reconcile and qontract-api"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
     # keep in sync with boto3-stubs in dependency-groups.type
     "boto3==1.43.10",
@@ -54,7 +54,6 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 88
-target-version = "py312"
 src = ["qontract_utils"]
 fix = true
 

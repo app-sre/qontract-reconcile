@@ -1601,7 +1601,7 @@ class SaasHerder:
                         continue
                     # we finally found something we want to trigger on!
                     trigger_specs.append(trigger_spec)
-                except (GithubException, GitlabError):
+                except GithubException, GitlabError:
                     logging.exception(
                         f"Skipping target {saas_file.name}:{rt.name}"
                         f" - repo: {rt.url} - ref: {target.ref}"
@@ -1633,7 +1633,7 @@ class SaasHerder:
         for instance_name, jenkins in self.jenkins_map.items():
             try:
                 current_state[instance_name] = jenkins.get_jobs_state()
-            except (rqexc.ConnectionError, rqexc.HTTPError):
+            except rqexc.ConnectionError, rqexc.HTTPError:
                 error = True
                 logging.error(f"instance unreachable: {instance_name}")
                 current_state[instance_name] = {}
@@ -1837,7 +1837,7 @@ class SaasHerder:
                         continue
                     # we finally found something we want to trigger on!
                     trigger_specs.append(trigger_spec)
-                except (GithubException, GitlabError):
+                except GithubException, GitlabError:
                     logging.exception(
                         f"Skipping target {saas_file.name}:{rt.name}"
                         f" - repo: {rt.url} - ref: {target.ref}"

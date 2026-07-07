@@ -533,7 +533,7 @@ def apply(
                 del owner_references[0]["blockOwnerDeletion"]
                 obsolete_rs["metadata"]["ownerReferences"] = owner_references
                 oc.apply(namespace=namespace, resource=OR(obsolete_rs, "", ""))
-        except (MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError):
+        except MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError:
             if resource_type != "Service":
                 raise
 
