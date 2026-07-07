@@ -304,8 +304,13 @@ def clusters(ctx: click.Context, name: str) -> None:
         jh = c.get("jumpHost")
         if jh:
             c["sshuttle"] = f"sshuttle -r {jh['hostname']} {c['network']['vpc']}"
+        prometheus_url = c.get("prometheusUrl")
+        if prometheus_url:
+            c["thanosQuerierUrl"] = prometheus_url.replace(
+                "prometheus", "thanos-querier", 1
+            )
 
-    columns = ["name", "consoleUrl", "prometheusUrl", "sshuttle"]
+    columns = ["name", "consoleUrl", "prometheusUrl", "thanosQuerierUrl", "sshuttle"]
     print_output(ctx.obj["options"], clusters, columns)
 
 
