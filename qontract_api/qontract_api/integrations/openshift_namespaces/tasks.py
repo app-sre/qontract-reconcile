@@ -31,8 +31,54 @@ if TYPE_CHECKING:
         ClusterNamespaces,
         DesiredNamespace,
     )
+    from qontract_api.secret_manager._base import SecretManager
 
 logger = get_logger(__name__)
+
+
+def _resolve_cluster_connection(
+    cluster: ClusterNamespaces,
+    secret_manager: SecretManager,
+) -> ClusterConnectionParams:
+    """Resolve cluster connection params by reading the automation token."""
+    return ClusterConnectionParams(
+        cluster_name=cluster.cluster_name,
+        server=cluster.server_url,
+        token=secret_manager.read(cluster.automation_token),
+        insecure_skip_tls_verify=cluster.insecure_skip_tls_verify,
+    )
+
+
+def _publish_result_events(
+    result: OpenShiftNamespacesTaskResult,
+    *,
+    dry_run: bool,
+) -> None:
+    """Publish CloudEvents for applied actions and errors."""
+    if dry_run:
+        return
+    event_manager = get_event_manager()
+    if not event_manager:
+        return
+
+    for action in result.applied_actions:
+        event_manager.publish_event(
+            Event(
+                source=__name__,
+                type=f"qontract-api.openshift-namespaces.{action.action_type}",
+                data=action.model_dump(mode="json"),
+                datacontenttype="application/json",
+            )
+        )
+    for error in result.errors:
+        event_manager.publish_event(
+            Event(
+                source=__name__,
+                type="qontract-api.openshift-namespaces.error",
+                data={"error": error},
+                datacontenttype="application/json",
+            )
+        )
 
 
 def generate_lock_key(_self: Task, clusters: list[ClusterNamespaces], **_: Any) -> str:
@@ -55,21 +101,33 @@ def reconcile_openshift_namespaces_task(
     try:
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
-        event_manager = get_event_manager()
 
-        connection_params = [
-            ClusterConnectionParams(
-                cluster_name=cluster.cluster_name,
-                server=cluster.server_url,
-                token=secret_manager.read(cluster.automation_token),
-                insecure_skip_tls_verify=cluster.insecure_skip_tls_verify,
-            )
-            for cluster in clusters
-        ]
+        connection_params: list[ClusterConnectionParams] = []
+        secret_errors: list[str] = []
+        for cluster in clusters:
+            try:
+                params = _resolve_cluster_connection(cluster, secret_manager)
+            except Exception:
+                error_msg = f"Failed to read token for cluster {cluster.cluster_name}"
+                logger.exception(error_msg)
+                secret_errors.append(error_msg)
+            else:
+                connection_params.append(params)
 
+        connected_clusters = {p.cluster_name for p in connection_params}
         cluster_namespaces: dict[str, list[DesiredNamespace]] = {
-            cluster.cluster_name: list(cluster.namespaces) for cluster in clusters
+            cluster.cluster_name: list(cluster.namespaces)
+            for cluster in clusters
+            if cluster.cluster_name in connected_clusters
         }
+
+        if not connection_params:
+            return OpenShiftNamespacesTaskResult(
+                status=TaskStatus.FAILED,
+                actions=[],
+                applied_count=0,
+                errors=secret_errors,
+            )
 
         with ClusterClientMap(connection_params, cache, settings) as cluster_map:
             service = OpenShiftNamespacesService()
@@ -77,6 +135,15 @@ def reconcile_openshift_namespaces_task(
                 cluster_clients=dict(cluster_map.items()),
                 cluster_namespaces=cluster_namespaces,
                 dry_run=dry_run,
+            )
+
+        if secret_errors:
+            result = OpenShiftNamespacesTaskResult(
+                status=TaskStatus.FAILED,
+                actions=result.actions,
+                applied_actions=result.applied_actions,
+                applied_count=result.applied_count,
+                errors=[*secret_errors, *result.errors],
             )
 
         logger.info(
@@ -88,34 +155,16 @@ def reconcile_openshift_namespaces_task(
             errors=result.errors,
         )
 
-        if not dry_run and event_manager:
-            for action in result.applied_actions:
-                event_manager.publish_event(
-                    Event(
-                        source=__name__,
-                        type=f"qontract-api.openshift-namespaces.{action.action_type}",
-                        data=action.model_dump(mode="json"),
-                        datacontenttype="application/json",
-                    )
-                )
-
-            for error in result.errors:
-                event_manager.publish_event(
-                    Event(
-                        source=__name__,
-                        type="qontract-api.openshift-namespaces.error",
-                        data={"error": error},
-                        datacontenttype="application/json",
-                    )
-                )
-
+        _publish_result_events(result, dry_run=dry_run)
         return result
 
     except Exception as e:
         logger.exception(f"Task {request_id} failed with error")
-        return OpenShiftNamespacesTaskResult(
+        result = OpenShiftNamespacesTaskResult(
             status=TaskStatus.FAILED,
             actions=[],
             applied_count=0,
             errors=[str(e)],
         )
+        _publish_result_events(result, dry_run=dry_run)
+        return result
