@@ -28,7 +28,7 @@ class _TestableIntegration(OpenShiftNamespacesIntegration):
 def integration() -> OpenShiftNamespacesIntegration:
     return _TestableIntegration(
         OpenShiftNamespacesIntegrationParams(
-            cluster_name=None,
+            cluster_names=None,
             namespace_name=None,
         )
     )
@@ -138,14 +138,21 @@ async def test_async_run_non_dry_run_fires_and_forgets(
 
 def test_params_cluster_filter() -> None:
     params = OpenShiftNamespacesIntegrationParams(
-        cluster_name="prod-1", namespace_name=None
+        cluster_names=frozenset({"prod-1"}), namespace_name=None
     )
-    assert params.cluster_name == "prod-1"
+    assert params.cluster_names == frozenset({"prod-1"})
+
+
+def test_params_multiple_cluster_filter() -> None:
+    params = OpenShiftNamespacesIntegrationParams(
+        cluster_names=frozenset({"prod-1", "prod-2"}), namespace_name=None
+    )
+    assert params.cluster_names == frozenset({"prod-1", "prod-2"})
 
 
 def test_params_namespace_filter() -> None:
     params = OpenShiftNamespacesIntegrationParams(
-        cluster_name=None, namespace_name="app-a"
+        cluster_names=None, namespace_name="app-a"
     )
     assert params.namespace_name == "app-a"
 

@@ -37,7 +37,7 @@ QONTRACT_INTEGRATION_UPSTREAM = "openshift-namespaces"
 class OpenShiftNamespacesIntegrationParams(PydanticRunParams):
     """Parameters for openshift-namespaces-api integration."""
 
-    cluster_name: str | None = None
+    cluster_names: frozenset[str] | None = None
     namespace_name: str | None = None
 
 
@@ -160,9 +160,9 @@ class OpenShiftNamespacesIntegration(
             if integration_is_enabled(QONTRACT_INTEGRATION, ns.cluster)
             and integration_is_enabled(QONTRACT_INTEGRATION_UPSTREAM, ns.cluster)
         ]
-        if self.params.cluster_name:
+        if self.params.cluster_names:
             result = [
-                ns for ns in result if ns.cluster.name == self.params.cluster_name
+                ns for ns in result if ns.cluster.name in self.params.cluster_names
             ]
         if self.params.namespace_name:
             result = [ns for ns in result if ns.name == self.params.namespace_name]

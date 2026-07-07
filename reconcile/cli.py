@@ -1630,7 +1630,7 @@ def openshift_namespaces_api(
     run_class_integration(
         integration=OpenShiftNamespacesIntegration(
             OpenShiftNamespacesIntegrationParams(
-                cluster_name=next(iter(cluster_name), None) if cluster_name else None,
+                cluster_names=frozenset(cluster_name) if cluster_name else None,
                 namespace_name=namespace_name,
             )
         ),

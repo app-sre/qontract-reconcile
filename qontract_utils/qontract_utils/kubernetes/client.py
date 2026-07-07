@@ -278,7 +278,10 @@ class KubernetesApi:
             return self._client.create(ns)
         except ApiError as e:
             if e.status.code == _HTTP_CONFLICT:
-                return self._client.get(Namespace, name=name)
+                try:
+                    return self._client.get(Namespace, name=name)
+                except ApiError as get_e:
+                    raise from_api_error(get_e) from get_e
             raise from_api_error(e) from e
 
     @invoke_with_hooks(
