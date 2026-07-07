@@ -3,9 +3,12 @@ import random
 import shutil
 import tempfile
 import threading
+import warnings
 from dataclasses import dataclass
 
-from sshtunnel import SSHTunnelForwarder
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=SyntaxWarning)
+    from sshtunnel import SSHTunnelForwarder
 
 from reconcile.utils import gql
 from reconcile.utils.exceptions import FetchResourceError
