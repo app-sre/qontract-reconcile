@@ -1942,17 +1942,23 @@ def _call_merge(
     return mocked_gl
 
 
-def _success_pipeline(project_id: int = 1, sha: str = "pipeline-sha") -> Mock:
+def _success_pipeline(
+    project_id: int = 1, sha: str = "pipeline-sha", source: str = "external"
+) -> Mock:
     p = create_autospec(ProjectMergeRequestPipeline, status="success")
     p.project_id = project_id
     p.sha = sha
+    p.source = source
     return p
 
 
-def _running_pipeline(project_id: int = 1, sha: str = "pipeline-sha") -> Mock:
+def _running_pipeline(
+    project_id: int = 1, sha: str = "pipeline-sha", source: str = "external"
+) -> Mock:
     p = create_autospec(ProjectMergeRequestPipeline, status="running")
     p.project_id = project_id
     p.sha = sha
+    p.source = source
     return p
 
 
@@ -2732,10 +2738,13 @@ def test_multi_merge_disabled_single_merge_on_rebase(
 # --- OMM skipped pipeline handling tests ---
 
 
-def _skipped_pipeline(project_id: int = 1, sha: str = "pipeline-sha") -> Mock:
+def _skipped_pipeline(
+    project_id: int = 1, sha: str = "pipeline-sha", source: str = "external"
+) -> Mock:
     p = create_autospec(ProjectMergeRequestPipeline, status="skipped")
     p.project_id = project_id
     p.sha = sha
+    p.source = source
     return p
 
 
@@ -2837,10 +2846,13 @@ def test_omm_group_all_skipped_pipelines_rebased_stays_active(
     clear_mock.assert_not_called()
 
 
-def _canceled_pipeline(project_id: int = 1, sha: str = "pipeline-sha") -> Mock:
+def _canceled_pipeline(
+    project_id: int = 1, sha: str = "pipeline-sha", source: str = "external"
+) -> Mock:
     p = create_autospec(ProjectMergeRequestPipeline, status="canceled")
     p.project_id = project_id
     p.sha = sha
+    p.source = source
     return p
 
 
@@ -2940,7 +2952,7 @@ def test_omm_group_fork_pipeline_post_rebase_filtered_merges(
 
     mocked_gl = _make_omm_gl(head_sha="abc123")
     mocked_gl.get_merge_request_pipelines.return_value = [
-        _running_pipeline(project_id=fork_id, sha=new_sha),
+        _running_pipeline(project_id=fork_id, sha=new_sha, source="push"),
         _success_pipeline(project_id=fork_id, sha=old_sha),
     ]
 
@@ -3073,6 +3085,126 @@ def test_omm_group_fork_pipeline_running_old_sha_waits(
     mr.merge.assert_not_called()
     mr.rebase.assert_not_called()
     clear_mock.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
+def test_omm_group_fork_push_pipeline_filtered_when_not_rebased(
+    mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
+) -> None:
+    """Defect A: a non-rebased fork MR has a push pipeline at mr.sha (noise
+    from fork CI firing on the new commit) alongside the real external SUCCESS
+    pipeline.  The push pipeline must be filtered regardless of rebased state,
+    leaving the external SUCCESS to drive skip-ci rebase."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=False,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
+    lead.target_branch = "master"
+
+    fork_id = 99
+    current_sha = "current-head-sha"
+
+    mr = _make_merge_mr(
+        11,
+        ["approved", "tenant-bar", "omm-pending"],
+        source_project_id=fork_id,
+        sha=current_sha,
+    )
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _running_pipeline(project_id=fork_id, sha=current_sha, source="push"),
+        _success_pipeline(project_id=fork_id, sha=current_sha, source="external"),
+    ]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
+    mr.rebase.assert_called_once_with(skip_ci=True)
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
+def test_omm_group_fork_external_pipeline_preserved_at_current_sha(
+    mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
+) -> None:
+    """Regression guard: a fork MR whose only pipeline at mr.sha has
+    source='external' (the real Jenkins/Konflux CI) must NOT be filtered.
+    The external pipeline should drive the merge or rebase decision normally."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=False,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
+    lead.target_branch = "master"
+
+    fork_id = 99
+    current_sha = "current-head-sha"
+
+    mr = _make_merge_mr(
+        11,
+        ["approved", "tenant-bar", "omm-pending"],
+        source_project_id=fork_id,
+        sha=current_sha,
+    )
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _success_pipeline(project_id=fork_id, sha=current_sha, source="external"),
+    ]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
+    mr.rebase.assert_called_once_with(skip_ci=True)
 
 
 # --- Skipped pipeline filtering in serial merge and _form_omm_group ---
