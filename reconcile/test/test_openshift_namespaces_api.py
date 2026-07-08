@@ -67,14 +67,7 @@ async def test_async_run_dry_run_polls_and_logs(
     integration: OpenShiftNamespacesIntegration,
 ) -> None:
     """Dry-run: sends request, polls task, logs actions."""
-    ns = MagicMock()
-    ns.name = "app-a"
-    ns.delete = False
-    ns.cluster.name = "prod-1"
-    ns.cluster.server_url = "https://prod-1:6443"
-    ns.cluster.cluster_admin_automation_token.path = "k8s/prod/token"
-    ns.cluster.cluster_admin_automation_token.field = "token"
-    ns.cluster.cluster_admin_automation_token.version = None
+    ns = _make_ns_mock()
     mock_get_ns.return_value = [ns]
 
     mock_reconcile.return_value = OpenShiftNamespacesTaskResponse(
@@ -112,14 +105,7 @@ async def test_async_run_non_dry_run_fires_and_forgets(
     integration: OpenShiftNamespacesIntegration,
 ) -> None:
     """Non-dry-run: sends request, returns immediately without polling."""
-    ns = MagicMock()
-    ns.name = "app-a"
-    ns.delete = False
-    ns.cluster.name = "prod-1"
-    ns.cluster.server_url = "https://prod-1:6443"
-    ns.cluster.cluster_admin_automation_token.path = "k8s/prod/token"
-    ns.cluster.cluster_admin_automation_token.field = "token"
-    ns.cluster.cluster_admin_automation_token.version = None
+    ns = _make_ns_mock()
     mock_get_ns.return_value = [ns]
 
     mock_reconcile.return_value = OpenShiftNamespacesTaskResponse(
@@ -162,6 +148,8 @@ def _make_ns_mock(
     cluster_name: str = "prod-1",
     delete: bool = False,
     disabled_integrations: list[str] | None = None,
+    managed_by_external: bool | None = None,
+    insecure_skip_tls_verify: bool | None = None,
 ) -> MagicMock:
     """Create a mock NamespaceV1 with cluster and disable info."""
     from reconcile.gql_definitions.common.namespaces_minimal import (
@@ -177,11 +165,13 @@ def _make_ns_mock(
     ns = MagicMock()
     ns.name = name
     ns.delete = delete
+    ns.managed_by_external = managed_by_external
     ns.cluster.name = cluster_name
     ns.cluster.server_url = f"https://{cluster_name}:6443"
     ns.cluster.cluster_admin_automation_token.path = f"k8s/{cluster_name}/token"
     ns.cluster.cluster_admin_automation_token.field = "token"
     ns.cluster.cluster_admin_automation_token.version = None
+    ns.cluster.insecure_skip_tls_verify = insecure_skip_tls_verify
     ns.cluster.disable = disable
     return ns
 
@@ -234,3 +224,47 @@ def test_disabled_none_passes(
 
     result = integration._apply_filters([ns])
     assert len(result) == 1
+
+
+def test_managed_by_external_excluded(
+    integration: OpenShiftNamespacesIntegration,
+) -> None:
+    """Namespaces with managed_by_external=True are excluded."""
+    ns_managed = _make_ns_mock(name="ext-ns", managed_by_external=True)
+    ns_normal = _make_ns_mock(name="normal-ns", managed_by_external=None)
+
+    result = integration._apply_filters([ns_managed, ns_normal])
+    assert len(result) == 1
+    assert result[0].name == "normal-ns"
+
+
+def test_managed_by_external_false_included(
+    integration: OpenShiftNamespacesIntegration,
+) -> None:
+    """Namespaces with managed_by_external=False are included."""
+    ns = _make_ns_mock(managed_by_external=False)
+
+    result = integration._apply_filters([ns])
+    assert len(result) == 1
+
+
+def test_compile_desired_state_passes_insecure_skip_tls(
+    integration: OpenShiftNamespacesIntegration,
+) -> None:
+    """insecure_skip_tls_verify from cluster is passed to ClusterNamespaces."""
+    ns = _make_ns_mock(insecure_skip_tls_verify=True)
+
+    clusters = integration.compile_desired_state([ns])
+    assert len(clusters) == 1
+    assert clusters[0].insecure_skip_tls_verify is True
+
+
+def test_compile_desired_state_defaults_insecure_skip_tls_false(
+    integration: OpenShiftNamespacesIntegration,
+) -> None:
+    """insecure_skip_tls_verify defaults to False when not set on cluster."""
+    ns = _make_ns_mock(insecure_skip_tls_verify=None)
+
+    clusters = integration.compile_desired_state([ns])
+    assert len(clusters) == 1
+    assert clusters[0].insecure_skip_tls_verify is False

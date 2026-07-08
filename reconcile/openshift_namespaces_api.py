@@ -99,6 +99,8 @@ class OpenShiftNamespacesIntegration(
                         field=token_ref.field,
                         version=token_ref.version,
                     ),
+                    insecure_skip_tls_verify=ns_ref.cluster.insecure_skip_tls_verify
+                    or False,
                     namespaces=desired_namespaces,
                 )
             )
@@ -159,6 +161,7 @@ class OpenShiftNamespacesIntegration(
             for ns in namespaces
             if integration_is_enabled(QONTRACT_INTEGRATION, ns.cluster)
             and integration_is_enabled(QONTRACT_INTEGRATION_UPSTREAM, ns.cluster)
+            and not ns.managed_by_external
         ]
         if self.params.cluster_names:
             result = [
