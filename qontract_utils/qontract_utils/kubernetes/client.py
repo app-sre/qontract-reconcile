@@ -1,12 +1,4 @@
-"""Kubernetes API client using lightkube with hook system.
-
-Following ADR-014 (Three-Layer Architecture) - Layer 1: Pure Communication.
-This module provides a stateless Kubernetes API client with support for
-metrics and logging via hooks (ADR-006).
-
-Uses lightkube for all K8s API communication (binding decision from
-docs/design/appsre-13581-kubernetes-client-analysis.md).
-"""
+"""Kubernetes API client using lightkube with hook system."""
 
 import contextvars
 import time
