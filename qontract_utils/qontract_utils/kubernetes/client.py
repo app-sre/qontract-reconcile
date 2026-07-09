@@ -313,14 +313,8 @@ class KubernetesApi:
             raise from_api_error(e) from e
 
     def close(self) -> None:
-        """Release the underlying lightkube client and httpx connection pool.
-
-        Workaround: lightkube has no public close() on the sync client.
-        https://github.com/gtsystem/lightkube/issues/144
-        """
-        if client := getattr(self, "_client", None):
-            client._client._client.close()  # noqa: SLF001
-            del self._client
+        """Release the underlying lightkube client."""
+        self._client.close()
 
     def __enter__(self) -> Self:
         return self

@@ -12,6 +12,7 @@ dependencies = [
     "httpxyz==0.31.2",
     "hvac==2.4.0",
     "ldap3>=2.9.1,<2.10.0",
+    "lightkube==0.22.0",
     "pagerduty==6.2.1",
     "prometheus-client==0.25.0",
     "pydantic==2.13.4",
@@ -22,7 +23,6 @@ dependencies = [
     "ruamel-yaml==0.19.1",
     "slack_sdk==3.42.0",
     "stamina==26.1.0",
-    "lightkube==0.21.0",
     "structlog==25.5.0",
 ]
 
