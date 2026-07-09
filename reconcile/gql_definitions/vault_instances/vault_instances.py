@@ -99,6 +99,7 @@ query VaultInstances {
               name
               address
             }
+            rules
           }
         }
         ... on VaultReplicationPolicy_v1 {
@@ -108,6 +109,7 @@ query VaultInstances {
               name
               address
             }
+            rules
           }
         }
       }
@@ -186,6 +188,7 @@ class VaultPolicyV1_VaultInstanceV1(ConfiguredBaseModel):
 class VaultPolicyV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     instance: VaultPolicyV1_VaultInstanceV1 = Field(..., alias="instance")
+    rules: str = Field(..., alias="rules")
 
 
 class VaultReplicationJenkinsV1(VaultReplicationPathsV1):
@@ -201,6 +204,7 @@ class VaultReplicationPolicyV1_VaultPolicyV1_VaultInstanceV1(ConfiguredBaseModel
 class VaultReplicationPolicyV1_VaultPolicyV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     instance: VaultReplicationPolicyV1_VaultPolicyV1_VaultInstanceV1 = Field(..., alias="instance")
+    rules: str = Field(..., alias="rules")
 
 
 class VaultReplicationPolicyV1(VaultReplicationPathsV1):
