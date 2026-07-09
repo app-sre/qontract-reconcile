@@ -156,13 +156,24 @@ class OpenShiftNamespacesIntegration(
 
     def _apply_filters(self, namespaces: list[NamespaceV1]) -> list[NamespaceV1]:
         """Apply cluster and namespace name filters."""
-        result = [
-            ns
-            for ns in namespaces
-            if integration_is_enabled(QONTRACT_INTEGRATION, ns.cluster)
-            and integration_is_enabled(QONTRACT_INTEGRATION_UPSTREAM, ns.cluster)
-            and not ns.managed_by_external
-        ]
+        result: list[NamespaceV1] = []
+        seen: set[str] = set()
+        for ns in namespaces:
+            if not integration_is_enabled(QONTRACT_INTEGRATION, ns.cluster):
+                continue
+            if not integration_is_enabled(QONTRACT_INTEGRATION_UPSTREAM, ns.cluster):
+                continue
+            if ns.managed_by_external:
+                continue
+            key = f"{ns.cluster.name}/{ns.name}"
+            if key in seen:
+                logging.warning(
+                    f"Duplicate namespace definition for '{key}' — skipping"
+                )
+                continue
+            seen.add(key)
+            result.append(ns)
+
         if self.params.cluster_names:
             result = [
                 ns for ns in result if ns.cluster.name in self.params.cluster_names

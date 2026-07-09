@@ -1,5 +1,6 @@
 """Tests for openshift-namespaces-api client-side integration."""
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -268,3 +269,20 @@ def test_compile_desired_state_defaults_insecure_skip_tls_false(
     clusters = integration.compile_desired_state([ns])
     assert len(clusters) == 1
     assert clusters[0].insecure_skip_tls_verify is False
+
+
+def test_apply_filters_warns_on_duplicate_namespaces(
+    integration: OpenShiftNamespacesIntegration,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Duplicate cluster+name keys produce a warning and keep only the first."""
+    ns1 = _make_ns_mock(name="app-a", cluster_name="prod-1")
+    ns2 = _make_ns_mock(name="app-a", cluster_name="prod-1")
+
+    with caplog.at_level(logging.WARNING):
+        result = integration._apply_filters([ns1, ns2])
+
+    assert len(result) == 1
+    assert result[0] is ns1
+    assert "Duplicate namespace definition" in caplog.text
+    assert "prod-1/app-a" in caplog.text
