@@ -14,11 +14,13 @@ from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
     ResourceV1,
 )
 from reconcile.gql_definitions.vault_instances.vault_instances import (
+    VaultPolicyV1,
+    VaultPolicyV1_VaultInstanceV1,
     VaultReplicationConfigV1_VaultInstanceAuthV1,
     VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
 )
-from reconcile.gql_definitions.vault_policies import vault_policies
 from reconcile.test.fixtures import Fixtures
+from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.vault import (
     SecretAccessForbiddenError,
     SecretNotFoundError,
@@ -71,15 +73,13 @@ def vault_instance_data_invalid_auth() -> VaultReplicationConfigV1_VaultInstance
 
 
 @pytest.fixture
-def policy_query_data() -> vault_policies.VaultPoliciesQueryData:
-    return vault_policies.VaultPoliciesQueryData(
-        policy=[
-            vault_policies.VaultPolicyV1(
-                name="test-policy",
-                instance=vault_policies.VaultInstanceV1(name="vault-instance"),
-                rules='path "this/is/a/path/*" {\n  capabilities = ["create", "read", "update"]\n}\n',
-            )
-        ]
+def policy_data() -> VaultPolicyV1:
+    return VaultPolicyV1(
+        name="test-policy",
+        instance=VaultPolicyV1_VaultInstanceV1(
+            name="vault-instance", address="https://vault.example.com"
+        ),
+        rules='path "this/is/a/path/*" {\n  capabilities = ["create", "read", "update"]\n}\n',
     )
 
 
@@ -156,24 +156,25 @@ def vault_instance_data() -> (
 
 def test_get_vault_credentials_invalid_auth_method(
     vault_instance_data_invalid_auth: VaultReplicationConfigV1_VaultInstanceAuthV1,
-    vault_client_test: Any,
+    mocker: MockerFixture,
 ) -> None:
-    vault_client_test.return_value.read.side_effect = ["a", "b"]
+    secret_reader = mocker.create_autospec(SecretReaderBase)
 
     with pytest.raises(integ.VaultInvalidAuthMethodError):
         integ.get_vault_credentials(
-            vault_instance_data_invalid_auth, "http://vault.com"
+            secret_reader, vault_instance_data_invalid_auth, "http://vault.com"
         )
 
 
 def test_get_vault_credentials_app_role(
     vault_instance_data: VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
-    vault_client_test: Any,
+    mocker: MockerFixture,
 ) -> None:
-    vault_client_test.return_value.read.side_effect = ["a", "b"]
+    secret_reader = mocker.create_autospec(SecretReaderBase)
+    secret_reader.read.side_effect = ["a", "b"]
 
     assert integ.get_vault_credentials(
-        vault_instance_data, "https://vault-instance.com"
+        secret_reader, vault_instance_data, "https://vault-instance.com"
     ) == {
         "role_id": "a",
         "secret_id": "b",
@@ -182,11 +183,9 @@ def test_get_vault_credentials_app_role(
 
 
 def test_get_policy_paths(
-    policy_query_data: vault_policies.VaultPoliciesQueryData,
+    policy_data: VaultPolicyV1,
 ) -> None:
-    assert integ.get_policy_paths(
-        "test-policy", "vault-instance", policy_query_data
-    ) == ["this/is/a/path/*"]
+    assert integ.get_policy_paths(policy_data) == ["this/is/a/path/*"]
 
 
 @pytest.mark.parametrize(
@@ -261,11 +260,8 @@ def test_get_jenkins_secret_list_templating(mocker: MockerFixture) -> None:
 
 def test_get_policy_paths_real_data() -> None:
     test = fxt.get_anymarkup("vault_policies/vault_policies_query_data.yaml")
-    assert integ.get_policy_paths(
-        "vault-test-policy",
-        "vault-instance",
-        vault_policies.VaultPoliciesQueryData(**test),
-    ) == ["path/test-1/*", "path/test-2/*"]
+    policy = VaultPolicyV1(**test["policy"][0])
+    assert integ.get_policy_paths(policy) == ["path/test-1/*", "path/test-2/*"]
 
 
 @pytest.mark.parametrize(
@@ -336,7 +332,6 @@ def test_deep_copy_versions_exception(
     current_source_version: int,
     path: str,
     mocker: MockerFixture,
-    vault_client_test: Any,
 ) -> None:
     vault_client = mocker.patch("reconcile.utils.vault.VaultClient", autospec=True)
     write_dummy_versions = mocker.patch(

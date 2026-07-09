@@ -71,6 +71,7 @@ query VaultInstances {
               name
               address
             }
+            rules
           }
         }
         ... on VaultReplicationPolicy_v1 {
@@ -80,6 +81,7 @@ query VaultInstances {
               name
               address
             }
+            rules
           }
         }
       }
