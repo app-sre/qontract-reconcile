@@ -9,18 +9,25 @@ from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
     JenkinsConfigsQueryData,
     JenkinsConfigV1_JenkinsConfigV1,
 )
-from reconcile.gql_definitions.vault_instances import vault_instances
 from reconcile.gql_definitions.vault_instances.vault_instances import (
     VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
     VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
+    VaultPolicyV1,
     VaultReplicationConfigV1,
     VaultReplicationConfigV1_VaultInstanceAuthV1,
     VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
     VaultReplicationJenkinsV1,
     VaultReplicationPolicyV1,
+    VaultReplicationPolicyV1_VaultPolicyV1,
 )
-from reconcile.gql_definitions.vault_policies import vault_policies
+from reconcile.gql_definitions.vault_instances.vault_instances import (
+    query as vault_instances_query,
+)
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import gql
+from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.vault import (
     SecretAccessForbiddenError,
     SecretNotFoundError,
@@ -31,9 +38,6 @@ from reconcile.utils.vault import (
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from reconcile.gql_definitions.vault_policies.vault_policies import (
-        VaultPoliciesQueryData,
-    )
 
 QONTRACT_INTEGRATION = "vault-replication"
 SECRET_PATH_PATTERN = re.compile(r"^[\w/-]+?(?P<folder>/\*?)?$")
@@ -277,21 +281,15 @@ def _policy_contains_path(path: str, policy_paths: Iterable[str]) -> bool:
 
 
 def get_policy_paths(
-    policy_name: str, instance_name: str, policy_query_data: VaultPoliciesQueryData
+    policy: VaultReplicationPolicyV1_VaultPolicyV1 | VaultPolicyV1,
 ) -> list[str]:
     """Get all paths that are allowed to be copied from the given policy"""
-    policy_paths = []
 
-    if policy_query_data.policy:
-        for policy in policy_query_data.policy:
-            if policy.name == policy_name and policy.instance.name == instance_name:
-                for line in policy.rules.split("\n"):
-                    res = re.search(r"path \s*[\'\"](.+)[\'\"]", line)
-
-                    if res is not None:
-                        policy_paths.append(res.group(1))
-
-    return policy_paths
+    return [
+        res.group(1)
+        for line in policy.rules.split("\n")
+        if (res := re.search(r"path \s*[\'\"](.+)[\'\"]", line)) is not None
+    ]
 
 
 def get_policy_secret_list(
@@ -354,15 +352,14 @@ def get_jenkins_secret_list(
 
 
 def get_vault_credentials(
+    secret_reader: SecretReaderBase,
     vault_auth: VaultReplicationConfigV1_VaultInstanceAuthV1
     | VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
     vault_address: str,
-) -> dict[str, str | None]:
+) -> dict[str, str]:
     """Returns a dictionary with the credentials used to authenticate with Vault,
     retrieved from the values present on AppInterface and comming from Vault itself."""
     vault_creds = {}
-    vault = VaultClient.get_instance()
-
     if not isinstance(
         vault_auth,
         VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
@@ -373,17 +370,14 @@ def get_vault_credentials(
         # Exit if the auth method is not approle as is the only one supported
         raise VaultInvalidAuthMethodError
 
-    role_id = {
+    vault_creds["role_id"] = secret_reader.read({
         "path": vault_auth.role_id.path,
         "field": vault_auth.role_id.field,
-    }
-    secret_id = {
+    })
+    vault_creds["secret_id"] = secret_reader.read({
         "path": vault_auth.secret_id.path,
         "field": vault_auth.secret_id.field,
-    }
-
-    vault_creds["role_id"] = vault.read(role_id)
-    vault_creds["secret_id"] = vault.read(secret_id)
+    })
     vault_creds["server"] = vault_address
 
     return vault_creds
@@ -403,16 +397,7 @@ def replicate_paths(
 
     for path in replications.paths:
         if isinstance(path, VaultReplicationJenkinsV1):
-            if path.policy is not None:
-                vault_query_data = vault_policies.query(query_func=gql.get_api().query)
-                policy_paths = get_policy_paths(
-                    path.policy.name,
-                    path.policy.instance.name,
-                    vault_query_data,
-                )
-            else:
-                policy_paths = None
-
+            policy_paths = get_policy_paths(path.policy) if path.policy else None
             jenkins_query_data = jenkins_configs.query(query_func=gql.get_api().query)
             path_list = get_jenkins_secret_list(
                 source_vault, path.jenkins_instance.name, jenkins_query_data
@@ -422,18 +407,13 @@ def replicate_paths(
                 copy_vault_secret(dry_run, source_vault, dest_vault, vault_path)
 
         elif isinstance(path, VaultReplicationPolicyV1):
-            vault_query_data = vault_policies.query(query_func=gql.get_api().query)
             if path.policy is None:
                 # Exit if the replication config is empty, this should never happen
                 # as policy is a required field in the schema but makes mypy happy.
                 raise VaultInvalidPolicyError(
                     "Policy is required when using policy provider"
                 )
-            policy_paths = get_policy_paths(
-                path.policy.name,
-                path.policy.instance.name,
-                vault_query_data,
-            )
+            policy_paths = get_policy_paths(path.policy)
             path_list = get_policy_secret_list(source_vault, policy_paths)
             for vault_path in path_list:
                 copy_vault_secret(dry_run, source_vault, dest_vault, vault_path)
@@ -489,37 +469,43 @@ def get_secrets_from_templated_path(path: str, vault_list: Iterable[str]) -> lis
 
 
 def run(dry_run: bool) -> None:
-    query_data = vault_instances.query(query_func=gql.get_api().query)
+    gqlapi = gql.get_api()
+    vault_settings = get_app_interface_vault_settings(query_func=gqlapi.query)
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    vault_instances = (
+        vault_instances_query(query_func=gqlapi.query).vault_instances or []
+    )
 
-    if query_data.vault_instances:
-        for instance in query_data.vault_instances:
-            if instance.replication:
-                for replication in instance.replication:
-                    source_creds = get_vault_credentials(
-                        replication.source_auth, instance.address
-                    )
-                    dest_creds = get_vault_credentials(
-                        replication.dest_auth, replication.vault_instance.address
-                    )
+    for instance in vault_instances:
+        if instance.replication:
+            for replication in instance.replication:
+                source_creds = get_vault_credentials(
+                    secret_reader, replication.source_auth, instance.address
+                )
+                dest_creds = get_vault_credentials(
+                    secret_reader,
+                    replication.dest_auth,
+                    replication.vault_instance.address,
+                )
 
-                    # Private class VaultClient is used because the public class is
-                    # defined as a singleton, and we need to create multiple instances
-                    # as the source vault is different than the replication.
-                    with (
-                        VaultClient(
-                            server=source_creds["server"],
-                            role_id=source_creds["role_id"],
-                            secret_id=source_creds["secret_id"],
-                        ) as source_vault,
-                        VaultClient(
-                            server=dest_creds["server"],
-                            role_id=dest_creds["role_id"],
-                            secret_id=dest_creds["secret_id"],
-                        ) as dest_vault,
-                    ):
-                        replicate_paths(
-                            dry_run=dry_run,
-                            source_vault=source_vault,
-                            dest_vault=dest_vault,
-                            replications=replication,
-                        )
+                # Private class VaultClient is used because the public class is
+                # defined as a singleton, and we need to create multiple instances
+                # as the source vault is different than the replication.
+                with (
+                    VaultClient(
+                        server=source_creds["server"],
+                        role_id=source_creds["role_id"],
+                        secret_id=source_creds["secret_id"],
+                    ) as source_vault,
+                    VaultClient(
+                        server=dest_creds["server"],
+                        role_id=dest_creds["role_id"],
+                        secret_id=dest_creds["secret_id"],
+                    ) as dest_vault,
+                ):
+                    replicate_paths(
+                        dry_run=dry_run,
+                        source_vault=source_vault,
+                        dest_vault=dest_vault,
+                        replications=replication,
+                    )
