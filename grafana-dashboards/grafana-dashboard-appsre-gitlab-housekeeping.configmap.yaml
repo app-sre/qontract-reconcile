@@ -593,7 +593,7 @@ data:
             "options": [],
             "query": "prometheus",
             "refresh": 1,
-            "regex": "appsrep09ue1-prometheus",
+            "regex": "/appsrep09ue1-prometheus/",
             "type": "datasource"
           }
         ]
