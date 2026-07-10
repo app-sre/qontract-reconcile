@@ -767,7 +767,7 @@ def github_validator(ctx: click.Context) -> None:
 
 @integration.command(short_help="Configures ClusterRolebindings in OpenShift clusters.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @click.pass_context
@@ -794,7 +794,7 @@ def openshift_clusterrolebindings(
 
 @integration.command(short_help="Configures Rolebindings in OpenShift clusters.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @click.option(
@@ -828,7 +828,7 @@ def openshift_rolebindings(
 
 @integration.command(short_help="Manages OpenShift Groups.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @click.pass_context
@@ -840,7 +840,7 @@ def openshift_groups(ctx: click.Context, thread_pool_size: int, internal: bool) 
 
 @integration.command(short_help="Deletion of users from OpenShift clusters.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @click.pass_context
@@ -854,7 +854,7 @@ def openshift_users(ctx: click.Context, thread_pool_size: int, internal: bool) -
     short_help="Use OpenShift ServiceAccount tokens across namespaces/clusters."
 )
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @vault_output_path
@@ -1170,7 +1170,7 @@ def jira_permissions_validator(
 @integration.command(
     short_help="Watches for OpenShift upgrades and sends notifications."
 )
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @threaded()
 @internal()
@@ -1313,7 +1313,7 @@ def aws_support_cases_sos(
 
 @integration.command(short_help="Manages OpenShift Resources.")
 @threaded()
-@binary(["oc", "ssh", "amtool"])
+@binary(["oc", "amtool"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @binary_version("amtool", ["--version"], AMTOOL_VERSION_REGEX, AMTOOL_VERSION)
 @internal()
@@ -1345,7 +1345,7 @@ def openshift_resources(
 @integration.command(short_help="Manage OpenShift resources defined in Saas files.")
 @threaded()
 @throughput
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @binary_version("helm", ["version"], HELM_VERSION_REGEX, HELM_VERSIONS)
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
@@ -1401,7 +1401,7 @@ def openshift_saas_deploy(
     "--comparison-sha",
     help="bundle sha to compare to to find changes",
 )
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @click.pass_context
 def openshift_saas_deploy_change_tester(
@@ -1433,7 +1433,7 @@ def saas_file_validator(ctx: click.Context) -> None:
 
 @integration.command(short_help="Trigger deployments when a commit changed for a ref.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @include_trigger_trace
@@ -1457,7 +1457,7 @@ def openshift_saas_deploy_trigger_moving_commits(
 
 @integration.command(short_help="Trigger deployments when upstream job runs.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @include_trigger_trace
@@ -1481,7 +1481,7 @@ def openshift_saas_deploy_trigger_upstream_jobs(
 
 @integration.command(short_help="Trigger deployments when images are pushed.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @include_trigger_trace
@@ -1505,7 +1505,7 @@ def openshift_saas_deploy_trigger_images(
 
 @integration.command(short_help="Trigger deployments when configuration changes.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @include_trigger_trace
@@ -1569,7 +1569,7 @@ def gitlab_labeler(
 
 @integration.command(short_help="Manages labels on OpenShift namespaces.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @click.pass_context
@@ -1588,7 +1588,7 @@ def openshift_namespace_labels(
 
 @integration.command(short_help="Manages OpenShift Namespaces.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @cluster_name
@@ -1615,7 +1615,7 @@ def openshift_namespaces(
 
 @integration.command(short_help="Manages OpenShift NetworkPolicies.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @click.pass_context
@@ -1635,7 +1635,7 @@ def openshift_network_policies(
 @integration.command(short_help="Manages OpenShift LimitRange objects.")
 @threaded()
 @take_over()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @click.pass_context
@@ -1659,7 +1659,7 @@ def openshift_limitranges(
 @integration.command(short_help="Manages OpenShift ResourceQuota objects.")
 @threaded()
 @take_over()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @click.pass_context
@@ -1682,7 +1682,7 @@ def openshift_resourcequotas(
 
 @integration.command(short_help="Manages OpenShift Secrets from Vault.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @cluster_name
@@ -1709,7 +1709,7 @@ def openshift_vault_secrets(
 
 @integration.command(short_help="Manages OpenShift Secrets for RHCS certificates")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @cluster_name
@@ -1733,7 +1733,7 @@ def openshift_rhcs_certs(
 
 @integration.command(short_help="Manages OpenShift Routes.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @cluster_name
@@ -1760,7 +1760,7 @@ def openshift_routes(
 
 @integration.command(short_help="Manages OpenShift Prometheus Rules.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @cluster_name
@@ -3291,7 +3291,7 @@ def resource_scraper(
 
 @integration.command(short_help="Manages user access for GABI instances.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @click.pass_context
@@ -3442,7 +3442,7 @@ def vault_replication(ctx: click.Context) -> None:
 @integration.command(short_help="Manages Qontract Reconcile integrations.")
 @environment_name
 @threaded()
-@binary(["oc", "ssh", "helm"])
+@binary(["oc", "helm"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @click.option(
@@ -3605,7 +3605,7 @@ def glitchtip_api(ctx: click.Context, instance: str | None) -> None:
 
 @integration.command(short_help="Glitchtip project dsn as openshift secret.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @click.option("--instance", help="Reconcile just this instance.", default=None)
@@ -3629,7 +3629,7 @@ def glitchtip_project_dsn(
 
 @integration.command(short_help="Manages Skupper Networks.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @click.pass_context
