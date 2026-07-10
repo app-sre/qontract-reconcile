@@ -7,9 +7,6 @@ query ClustersMinimal($name: String) {
     consoleUrl
     prometheusUrl
     insecureSkipTLSVerify
-    jumpHost {
-      ...CommonJumphostFields
-    }
     managedGroups
     ocm {
       name

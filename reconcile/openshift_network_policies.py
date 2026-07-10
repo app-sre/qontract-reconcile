@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import logging
 import sys
-from textwrap import indent
 from typing import TYPE_CHECKING, Any
 
 import reconcile.openshift_base as ob
-from reconcile import queries
 from reconcile.utils import gql
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
@@ -28,9 +26,6 @@ NAMESPACES_QUERY = """
       name
       serverUrl
       insecureSkipTLSVerify
-      jumpHost {
-        %s
-      }
       automationToken {
         path
         field
@@ -56,7 +51,7 @@ NAMESPACES_QUERY = """
     }
   }
 }
-""" % (indent(queries.JUMPHOST_FIELDS, 8 * " "),)
+"""
 
 QONTRACT_INTEGRATION = "openshift-network-policies"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

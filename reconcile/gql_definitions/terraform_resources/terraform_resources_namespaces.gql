@@ -491,9 +491,6 @@ query TerraformResourcesNamespaces {
       name
       serverUrl
       insecureSkipTLSVerify
-      jumpHost {
-        ...CommonJumphostFields
-      }
       automationToken {
         ...VaultSecret
       }
