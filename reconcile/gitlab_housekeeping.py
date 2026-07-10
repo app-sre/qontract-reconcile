@@ -1456,11 +1456,17 @@ def run_error_healthcheck(
         if mr_merge_error and "Rebase failed" in mr_merge_error:
             try:
                 fresh = gl.project.mergerequests.get(mr.iid)
-            except Exception:
-                rebase_failed = False
-            else:
-                mr_detailed = getattr(fresh, "detailed_merge_status", None)
-                rebase_failed = mr_detailed == "need_rebase"
+            except gitlab.exceptions.GitlabGetError as e:
+                logging.warning([
+                    "error-healthcheck",
+                    "rebase-status-refresh-failed",
+                    gl.project.name,
+                    mr.iid,
+                    str(e),
+                ])
+                continue
+            mr_detailed = getattr(fresh, "detailed_merge_status", None)
+            rebase_failed = mr_detailed == "need_rebase"
         else:
             rebase_failed = False
 
