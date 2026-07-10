@@ -176,6 +176,7 @@ def test_get_users_builds_correct_filter(
     assert call_args[0][0] == "dc=example,dc=com"
     filter_str = call_args[0][1]
     assert "(objectclass=person)" in filter_str
+    assert "(!(nsAccountLock=TRUE))" in filter_str
     assert "(uid=alice)" in filter_str
     assert "(uid=bob)" in filter_str
 
