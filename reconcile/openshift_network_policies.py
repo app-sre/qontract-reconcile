@@ -126,7 +126,6 @@ def run(
     dry_run: bool,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     defer: Callable | None = None,
 ) -> None:
     gqlapi = gql.get_api()
@@ -156,7 +155,6 @@ def run(
         integration_version=QONTRACT_INTEGRATION_VERSION,
         override_managed_types=["NetworkPolicy"],
         internal=internal,
-        use_jump_host=use_jump_host,
     )
     if defer:
         defer(oc_map.cleanup)

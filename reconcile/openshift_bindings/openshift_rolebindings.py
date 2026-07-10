@@ -43,7 +43,6 @@ class OpenShiftRoleBindingsIntegrationParams(PydanticRunParams):
     enforced_user_keys: list[str] | None = None
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE
     internal: bool | None = None
-    use_jump_host: bool = True
 
 
 class OpenShiftRoleBindingsIntegration(
@@ -89,7 +88,6 @@ class OpenShiftRoleBindingsIntegration(
             integration_version=self.integration_version,
             override_managed_types=[QONTRACT_INTEGRATION_MANAGED_TYPE],
             internal=self.params.internal,
-            use_jump_host=self.params.use_jump_host,
         )
 
     def fetch_desired_state(

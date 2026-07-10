@@ -141,7 +141,6 @@ def run_for_provider(
     dry_run: bool,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     managed_types: list[str] | None = None,
     defer: Callable | None = None,
 ) -> None:
@@ -167,7 +166,6 @@ def run_for_provider(
             namespaces,
             thread_pool_size=thread_pool_size,
             internal=internal,
-            use_jump_host=use_jump_host,
             integration=integration,
             integration_version=integration_version,
             override_managed_types=managed_types or ["Probe.monitoring.coreos.com"],
