@@ -1345,14 +1345,19 @@ def test_healthcheck_skips_non_queue_eligible_mrs(project: Project) -> None:
 def test_healthcheck_applies_rebase_error_on_merge_error_field(
     project: Project,
 ) -> None:
-    """MR with merge_error='Rebase failed: ...' gets rebase-error label."""
+    """MR with merge_error='Rebase failed: ...' gets rebase-error label via fresh .get()."""
     mr = _make_healthcheck_mr(
         labels=["lgtm"],
         merge_error="Rebase failed: Rebase locally, resolve all conflicts, then push the branch.",
-        detailed_merge_status="need_rebase",
+        detailed_merge_status=None,  # stale on list endpoint
     )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.detailed_merge_status = "need_rebase"
+
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    project.mergerequests = Mock()
+    project.mergerequests.get.return_value = fresh_mr
 
     gl_h.run_error_healthcheck(
         dry_run=False,
@@ -1360,6 +1365,7 @@ def test_healthcheck_applies_rebase_error_on_merge_error_field(
         project_merge_requests=[mr],
     )
 
+    project.mergerequests.get.assert_called_once_with(mr.iid)
     mocked_gl.add_label_to_merge_request.assert_called_once_with(mr, "rebase-error")
     mocked_gl.get_merge_request_pipelines.assert_not_called()
 
@@ -1395,8 +1401,13 @@ def test_healthcheck_skips_rebase_error_if_already_labeled(
         merge_error="Rebase failed: conflict",
         detailed_merge_status="need_rebase",
     )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.detailed_merge_status = "need_rebase"
+
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    project.mergerequests = Mock()
+    project.mergerequests.get.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
@@ -1407,6 +1418,53 @@ def test_healthcheck_skips_rebase_error_if_already_labeled(
 
     mocked_gl.add_label_to_merge_request.assert_not_called()
     mocked_gl.remove_label.assert_not_called()
+
+
+def test_healthcheck_no_rebase_error_when_resolved_despite_stale_merge_error(
+    project: Project,
+) -> None:
+    """merge_error persists but fresh .get() shows MR is mergeable -- no label."""
+    mr = _make_healthcheck_mr(
+        labels=["lgtm"],
+        merge_error="Rebase failed: Rebase locally, resolve all conflicts, then push the branch.",
+        detailed_merge_status=None,
+    )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.detailed_merge_status = "mergeable"
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    project.mergerequests = Mock()
+    project.mergerequests.get.return_value = fresh_mr
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+    )
+
+    project.mergerequests.get.assert_called_once_with(mr.iid)
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_apply_omm_pending_rebase_error_applies_label(
+    project: Project,
+) -> None:
+    """GitlabMRRebaseError at formation applies rebase-error label."""
+    mr = create_autospec(ProjectMergeRequest)
+    mr.iid = 100
+    mr.target_project_id = 1
+    mr.rebase.side_effect = GitlabMRRebaseError
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+
+    gl_h.apply_omm_pending(dry_run=False, gl=mocked_gl, mrs=[mr])
+
+    mocked_gl.add_label_to_merge_request.assert_any_call(mr, "omm-pending")
+    mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
+    mocked_gl.add_label_to_merge_request.assert_any_call(mr, "rebase-error")
 
 
 def test_healthcheck_ignores_non_rebase_merge_error(
@@ -1439,8 +1497,13 @@ def test_healthcheck_removes_rebase_error_when_detailed_status_resolved(
         merge_error="Rebase failed: Rebase locally, resolve all conflicts, then push the branch.",
         detailed_merge_status="ci_must_pass",
     )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.detailed_merge_status = "ci_must_pass"
+
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    project.mergerequests = Mock()
+    project.mergerequests.get.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(

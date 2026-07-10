@@ -760,6 +760,7 @@ def apply_omm_pending(
                     mr.iid,
                 ])
                 gl.remove_label(mr, OMM_PENDING)
+                gl.add_label_to_merge_request(mr, REBASE_ERROR)
                 optimistic_merge_rejected.labels(
                     project_id=mr.target_project_id,
                     reason="rebase_failed",
@@ -1452,12 +1453,16 @@ def run_error_healthcheck(
 
         has_rebase_error = REBASE_ERROR in labels
         mr_merge_error = getattr(mr, "merge_error", None)
-        mr_detailed = getattr(mr, "detailed_merge_status", None)
-        rebase_failed = bool(
-            mr_merge_error
-            and "Rebase failed" in mr_merge_error
-            and mr_detailed == "need_rebase"
-        )
+        if mr_merge_error and "Rebase failed" in mr_merge_error:
+            try:
+                fresh = gl.project.mergerequests.get(mr.iid)
+            except Exception:
+                rebase_failed = False
+            else:
+                mr_detailed = getattr(fresh, "detailed_merge_status", None)
+                rebase_failed = mr_detailed == "need_rebase"
+        else:
+            rebase_failed = False
 
         if rebase_failed and not has_rebase_error:
             logging.warning([
