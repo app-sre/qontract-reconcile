@@ -173,11 +173,38 @@ def test_get_users_builds_correct_filter(
         ldap_api.get_users(["alice", "bob"])
 
     call_args = mock_ldap3.connection.search.call_args
-    assert call_args[0][0] == "dc=example,dc=com"
+    assert call_args[0][0] == "cn=users,cn=accounts,dc=example,dc=com"
     filter_str = call_args[0][1]
     assert "(objectclass=person)" in filter_str
     assert "(uid=alice)" in filter_str
     assert "(uid=bob)" in filter_str
+
+
+def test_get_users_scopes_search_to_active_users_container(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_users only searches the active users container.
+
+    FreeIPA moves deprovisioned accounts out of cn=users,cn=accounts into a
+    separate preserved-users container, but accounts merely disabled via
+    `ipa user-disable` (nsAccountLock=TRUE) stay active and remain in this
+    container. Scoping the search here -- rather than filtering on
+    nsAccountLock -- avoids treating a disabled-but-still-employed user as
+    deprovisioned.
+    """
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [{"attributes": {"uid": ["alice"]}}],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_users(["alice"])
+
+    call_args = mock_ldap3.connection.search.call_args
+    assert call_args[0][0] == "cn=users,cn=accounts,dc=example,dc=com"
+    assert {u.username for u in result} == {"alice"}
 
 
 def test_get_users_escapes_special_characters(
