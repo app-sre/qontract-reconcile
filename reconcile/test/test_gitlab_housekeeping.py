@@ -1356,8 +1356,7 @@ def test_healthcheck_applies_rebase_error_on_merge_error_field(
 
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
-    project.mergerequests = Mock()
-    project.mergerequests.get.return_value = fresh_mr
+    mocked_gl.get_merge_request.return_value = fresh_mr
 
     gl_h.run_error_healthcheck(
         dry_run=False,
@@ -1365,7 +1364,7 @@ def test_healthcheck_applies_rebase_error_on_merge_error_field(
         project_merge_requests=[mr],
     )
 
-    project.mergerequests.get.assert_called_once_with(mr.iid)
+    mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
     mocked_gl.add_label_to_merge_request.assert_called_once_with(mr, "rebase-error")
     mocked_gl.get_merge_request_pipelines.assert_not_called()
 
@@ -1406,8 +1405,7 @@ def test_healthcheck_skips_rebase_error_if_already_labeled(
 
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
-    project.mergerequests = Mock()
-    project.mergerequests.get.return_value = fresh_mr
+    mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
@@ -1434,8 +1432,7 @@ def test_healthcheck_no_rebase_error_when_resolved_despite_stale_merge_error(
 
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
-    project.mergerequests = Mock()
-    project.mergerequests.get.return_value = fresh_mr
+    mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
@@ -1444,7 +1441,7 @@ def test_healthcheck_no_rebase_error_when_resolved_despite_stale_merge_error(
         project_merge_requests=[mr],
     )
 
-    project.mergerequests.get.assert_called_once_with(mr.iid)
+    mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
@@ -1502,8 +1499,7 @@ def test_healthcheck_removes_rebase_error_when_detailed_status_resolved(
 
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
-    project.mergerequests = Mock()
-    project.mergerequests.get.return_value = fresh_mr
+    mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
