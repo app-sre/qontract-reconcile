@@ -31,7 +31,6 @@
     "cluster": {
       "name": "appsres03ue1",
       "serverUrl": "",
-      "jumpHost": null,
       "automationToken": {
         "path": "",
         "field": "token",

@@ -77,7 +77,6 @@ def run_integration(
     dry_run: bool = False,
     thread_pool_size: int = 1,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     raise_errors: bool = True,
 ) -> None:
     """Calls the integration with sensible overridable defaults"""
@@ -85,7 +84,6 @@ def run_integration(
         dry_run=dry_run,
         thread_pool_size=thread_pool_size,
         internal=internal,
-        use_jump_host=use_jump_host,
         raise_errors=raise_errors,
     )
 

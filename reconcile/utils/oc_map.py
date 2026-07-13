@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 from sretoolbox.utils import threaded
 
-from reconcile.utils.jump_host import JumpHostSSH
 from reconcile.utils.oc import (
     OC,
     OCCli,
@@ -44,7 +43,6 @@ class OCMap:
         connection_parameters: Iterable[OCConnectionParameters],
         integration: str = "",
         internal: bool | None = None,
-        use_jump_host: bool = True,
         thread_pool_size: int = 1,
         init_projects: bool = False,
         init_api_resources: bool = False,
@@ -54,12 +52,10 @@ class OCMap:
         self._privileged_oc_map: dict[str, OCCli | OCLogMsg] = {}
         self._calling_integration = integration
         self._internal = internal
-        self._use_jump_host = use_jump_host
         self._thread_pool_size = thread_pool_size
         self._init_projects = init_projects
         self._init_api_resources = init_api_resources
         self._lock = Lock()
-        self._jh_ports: dict[str, int] = {}
         self._oc_cls = oc_cls or OC
 
         threaded.run(
@@ -67,16 +63,6 @@ class OCMap:
             connection_parameters,
             self._thread_pool_size,
         )
-
-    def _set_jumphost_tunnel_ports(
-        self, connection_parameters: OCConnectionParameters
-    ) -> None:
-        key = f"{connection_parameters.jumphost_hostname}:{connection_parameters.jumphost_remote_port}"
-        with self._lock:
-            if key not in self._jh_ports:
-                port = JumpHostSSH.get_unique_random_port()
-                self._jh_ports[key] = port
-            connection_parameters.jumphost_local_port = self._jh_ports[key]
 
     def _init_oc_client(
         self,
@@ -123,10 +109,6 @@ class OCMap:
                 privileged,
             )
         else:
-            if self._use_jump_host and connection_parameters.jumphost_hostname:
-                self._set_jumphost_tunnel_ports(
-                    connection_parameters=connection_parameters
-                )
             try:
                 oc_client: OCCli | OCLogMsg = self._oc_cls(  # type: ignore[assignment]
                     connection_parameters=connection_parameters,
@@ -201,7 +183,6 @@ def init_oc_map_from_clusters(
     secret_reader: SecretReaderBase,
     integration: str = "",
     internal: bool | None = None,
-    use_jump_host: bool = True,
     thread_pool_size: int = 1,
     init_projects: bool = False,
     init_api_resources: bool = False,
@@ -214,13 +195,11 @@ def init_oc_map_from_clusters(
         clusters=clusters,
         secret_reader=secret_reader,
         thread_pool_size=thread_pool_size,
-        use_jump_host=use_jump_host,
     )
     return OCMap(
         connection_parameters=connection_parameters,
         integration=integration,
         internal=internal,
-        use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
         init_projects=init_projects,
         init_api_resources=init_api_resources,
@@ -232,7 +211,6 @@ def init_oc_map_from_namespaces(
     secret_reader: SecretReaderBase,
     integration: str = "",
     internal: bool | None = None,
-    use_jump_host: bool = True,
     thread_pool_size: int = 1,
     init_projects: bool = False,
     init_api_resources: bool = False,
@@ -246,14 +224,12 @@ def init_oc_map_from_namespaces(
         namespaces=namespaces,
         secret_reader=secret_reader,
         thread_pool_size=thread_pool_size,
-        use_jump_host=use_jump_host,
         cluster_admin=cluster_admin,
     )
     return OCMap(
         connection_parameters=connection_parameters,
         integration=integration,
         internal=internal,
-        use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
         init_projects=init_projects,
         init_api_resources=init_api_resources,

@@ -172,7 +172,6 @@ def run(
     dry_run: bool,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     instance: str | None = None,
     defer: Callable | None = None,
 ) -> None:
@@ -194,7 +193,6 @@ def run(
         ],
         secret_reader=secret_reader,
         integration=QONTRACT_INTEGRATION,
-        use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
         internal=internal,
     )

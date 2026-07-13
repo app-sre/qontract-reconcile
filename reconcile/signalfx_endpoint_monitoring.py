@@ -19,9 +19,7 @@ LOG = logging.getLogger(__name__)
 PROVIDER = "signalfx"
 
 
-def run(
-    dry_run: bool, thread_pool_size: int, internal: bool, use_jump_host: bool
-) -> None:
+def run(dry_run: bool, thread_pool_size: int, internal: bool) -> None:
     try:
         run_for_provider(
             provider=PROVIDER,
@@ -31,7 +29,6 @@ def run(
             dry_run=dry_run,
             thread_pool_size=thread_pool_size,
             internal=internal,
-            use_jump_host=use_jump_host,
         )
     except Exception as e:
         LOG.error(e)

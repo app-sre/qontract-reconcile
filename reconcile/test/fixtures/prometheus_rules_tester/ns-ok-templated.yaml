@@ -13,7 +13,6 @@
     disable: null
     insecureSkipTLSVerify: null
     internal: false
-    jumpHost: null
     name: appint-ex-01
     network:
       pod: 10.128.0.0/14

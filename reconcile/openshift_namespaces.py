@@ -149,7 +149,6 @@ def run(
     dry_run: bool,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     cluster_name: Sequence[str] | None = None,
     namespace_name: Sequence[str] | None = None,
     defer: Callable | None = None,
@@ -165,7 +164,6 @@ def run(
         integration=QONTRACT_INTEGRATION,
         secret_reader=secret_reader,
         internal=internal,
-        use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
         init_projects=True,
     )
