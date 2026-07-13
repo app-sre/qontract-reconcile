@@ -1345,14 +1345,15 @@ def test_healthcheck_skips_non_queue_eligible_mrs(project: Project) -> None:
 def test_healthcheck_applies_rebase_error_on_merge_error_field(
     project: Project,
 ) -> None:
-    """MR with merge_error='Rebase failed: ...' gets rebase-error label via fresh .get()."""
+    """detailed_merge_status='need_rebase' in .list() triggers .get() which confirms merge_error."""
     mr = _make_healthcheck_mr(
         labels=["lgtm"],
-        merge_error="Rebase failed: Rebase locally, resolve all conflicts, then push the branch.",
-        detailed_merge_status=None,  # stale on list endpoint
+        detailed_merge_status="need_rebase",
     )
     fresh_mr = create_autospec(ProjectMergeRequest)
-    fresh_mr.detailed_merge_status = "need_rebase"
+    fresh_mr.merge_error = (
+        "Rebase failed: Rebase locally, resolve all conflicts, then push the branch."
+    )
 
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -1369,13 +1370,13 @@ def test_healthcheck_applies_rebase_error_on_merge_error_field(
     mocked_gl.get_merge_request_pipelines.assert_not_called()
 
 
-def test_healthcheck_removes_rebase_error_when_merge_error_cleared(
+def test_healthcheck_removes_rebase_error_when_detailed_status_cleared(
     project: Project,
 ) -> None:
-    """rebase-error is removed when merge_error is None (author rebased)."""
+    """rebase-error is removed when detailed_merge_status is no longer need_rebase."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
-        merge_error=None,
+        detailed_merge_status="mergeable",
     )
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -1387,6 +1388,7 @@ def test_healthcheck_removes_rebase_error_when_merge_error_cleared(
         project_merge_requests=[mr],
     )
 
+    mocked_gl.get_merge_request.assert_not_called()
     mocked_gl.remove_label.assert_called_once_with(mr, "rebase-error")
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
@@ -1397,11 +1399,10 @@ def test_healthcheck_skips_rebase_error_if_already_labeled(
     """No duplicate add_label when rebase-error is already present."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
-        merge_error="Rebase failed: conflict",
         detailed_merge_status="need_rebase",
     )
     fresh_mr = create_autospec(ProjectMergeRequest)
-    fresh_mr.detailed_merge_status = "need_rebase"
+    fresh_mr.merge_error = "Rebase failed: conflict"
 
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -1418,17 +1419,16 @@ def test_healthcheck_skips_rebase_error_if_already_labeled(
     mocked_gl.remove_label.assert_not_called()
 
 
-def test_healthcheck_no_rebase_error_when_resolved_despite_stale_merge_error(
+def test_healthcheck_no_rebase_error_when_resolved_despite_stale_detailed_status(
     project: Project,
 ) -> None:
-    """merge_error persists but fresh .get() shows MR is mergeable -- no label."""
+    """detailed_merge_status='need_rebase' is stale but .get() shows merge_error cleared."""
     mr = _make_healthcheck_mr(
         labels=["lgtm"],
-        merge_error="Rebase failed: Rebase locally, resolve all conflicts, then push the branch.",
-        detailed_merge_status=None,
+        detailed_merge_status="need_rebase",
     )
     fresh_mr = create_autospec(ProjectMergeRequest)
-    fresh_mr.detailed_merge_status = "mergeable"
+    fresh_mr.merge_error = None
 
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -1467,35 +1467,13 @@ def test_apply_omm_pending_rebase_error_applies_label(
 def test_healthcheck_ignores_non_rebase_merge_error(
     project: Project,
 ) -> None:
-    """merge_error='Merge failed' does not trigger rebase-error label."""
+    """detailed_merge_status='need_rebase' but .get() merge_error is not a rebase failure."""
     mr = _make_healthcheck_mr(
         labels=["lgtm"],
-        merge_error="Merge failed",
-    )
-    mocked_gl = create_autospec(GitLabApi)
-    mocked_gl.project = project
-    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
-
-    gl_h.run_error_healthcheck(
-        dry_run=False,
-        gl=mocked_gl,
-        project_merge_requests=[mr],
-    )
-
-    mocked_gl.add_label_to_merge_request.assert_not_called()
-
-
-def test_healthcheck_removes_rebase_error_when_detailed_status_resolved(
-    project: Project,
-) -> None:
-    """rebase-error is removed when detailed_merge_status is no longer need_rebase."""
-    mr = _make_healthcheck_mr(
-        labels=["lgtm", "rebase-error"],
-        merge_error="Rebase failed: Rebase locally, resolve all conflicts, then push the branch.",
-        detailed_merge_status="ci_must_pass",
+        detailed_merge_status="need_rebase",
     )
     fresh_mr = create_autospec(ProjectMergeRequest)
-    fresh_mr.detailed_merge_status = "ci_must_pass"
+    fresh_mr.merge_error = "Merge failed"
 
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -1508,6 +1486,30 @@ def test_healthcheck_removes_rebase_error_when_detailed_status_resolved(
         project_merge_requests=[mr],
     )
 
+    mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_healthcheck_removes_rebase_error_when_detailed_status_resolved(
+    project: Project,
+) -> None:
+    """rebase-error is removed when detailed_merge_status is no longer need_rebase."""
+    mr = _make_healthcheck_mr(
+        labels=["lgtm", "rebase-error"],
+        detailed_merge_status="ci_must_pass",
+    )
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+    )
+
+    mocked_gl.get_merge_request.assert_not_called()
     mocked_gl.remove_label.assert_called_once_with(mr, "rebase-error")
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
