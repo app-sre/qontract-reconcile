@@ -207,9 +207,12 @@ class LdapApi:
     def get_users(self, usernames: Iterable[str]) -> list[LdapUser]:
         """Check which usernames exist in LDAP.
 
-        Locked/preserved accounts are treated as not existing: FreeIPA doesn't
-        hard-delete deprovisioned users, it moves them under a preserved
-        container and sets nsAccountLock, while still keeping objectclass=person.
+        Only searches the active users container (cn=users,cn=accounts under
+        base_dn): FreeIPA doesn't hard-delete deprovisioned users, it moves
+        them out of this container into a separate preserved-users container.
+        Accounts merely disabled via `ipa user-disable` (nsAccountLock=TRUE)
+        stay active and remain in this container, so they are still correctly
+        reported as existing.
 
         Args:
             usernames: Usernames to check
@@ -223,11 +226,9 @@ class LdapApi:
         if not usernames:
             return []
         user_filter = "".join(f"(uid={escape_filter_chars(u)})" for u in usernames)
-        # Exclude locked/preserved (deprovisioned) IPA accounts: they keep
-        # objectclass=person and would otherwise still match this filter.
         _, status, results, _ = self._connection.search(
-            self.base_dn,
-            f"(&(objectclass=person)(!(nsAccountLock=TRUE))(|{user_filter}))",
+            f"cn=users,cn=accounts,{self.base_dn}",
+            f"(&(objectclass=person)(|{user_filter}))",
             attributes=["uid"],
         )
         self._check_ldap_response(status)
