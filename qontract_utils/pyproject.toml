@@ -22,7 +22,7 @@ dependencies = [
     "ruamel-yaml==0.19.1",
     "slack_sdk==3.42.0",
     "stamina==26.1.0",
-    "structlog==25.5.0",
+    "structlog==26.1.0",
 ]
 
 [dependency-groups]
