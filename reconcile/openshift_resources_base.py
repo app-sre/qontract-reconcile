@@ -192,9 +192,6 @@ NAMESPACES_QUERY = """
           # }
         }
       insecureSkipTLSVerify
-      jumpHost {
-        %s
-      }
       spec {
         ... on ClusterSpecROSA_v1 {
           account {
@@ -230,7 +227,6 @@ NAMESPACES_QUERY = """
 """ % (
     indent(OPENSHIFT_RESOURCE, 8 * " "),
     indent(OPENSHIFT_RESOURCE, 6 * " "),
-    indent(queries.JUMPHOST_FIELDS, 8 * " "),
 )
 
 QONTRACT_INTEGRATION = "openshift_resources_base"
@@ -797,7 +793,6 @@ def fetch_data(
     namespaces: Iterable[Mapping[str, Any]],
     thread_pool_size: int,
     internal: bool | None,
-    use_jump_host: bool,
     cache: Jinja2TemplateCache,
     init_api_resources: bool = False,
     overrides: Iterable[str] | None = None,
@@ -810,7 +805,6 @@ def fetch_data(
         integration=QONTRACT_INTEGRATION,
         settings=settings,
         internal=internal,
-        use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
         init_api_resources=init_api_resources,
     )
@@ -925,7 +919,6 @@ def run(
     dry_run: bool,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     providers: Sequence[str] | None = None,
     cluster_name: Sequence[str] | None = None,
     exclude_cluster: Sequence[str] | None = None,
@@ -966,7 +959,6 @@ def run(
         namespaces,
         thread_pool_size,
         internal,
-        use_jump_host,
         init_api_resources=init_api_resources,
         overrides=overrides,
         cache=Jinja2TemplateCache(),

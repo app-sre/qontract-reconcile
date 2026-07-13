@@ -17,22 +17,10 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
-fragment CommonJumphostFields on ClusterJumpHost_v1 {
-  hostname
-  knownHosts
-  user
-  port
-  remotePort
-  identity {
-    ...VaultSecret
-  }
-}
-
 fragment VaultSecret on VaultSecret_v1 {
   path
   field
@@ -47,9 +35,6 @@ query ClustersMinimal($name: String) {
     consoleUrl
     prometheusUrl
     insecureSkipTLSVerify
-    jumpHost {
-      ...CommonJumphostFields
-    }
     managedGroups
     ocm {
       name
@@ -134,7 +119,6 @@ class ClusterV1(ConfiguredBaseModel):
     console_url: str = Field(..., alias="consoleUrl")
     prometheus_url: str = Field(..., alias="prometheusUrl")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
-    jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     managed_groups: Optional[list[str]] = Field(..., alias="managedGroups")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")

@@ -5,9 +5,6 @@ fragment OcConnectionCluster on Cluster_v1 {
   serverUrl
   internal
   insecureSkipTLSVerify
-  jumpHost {
-    ...CommonJumphostFields
-  }
   automationToken {
     ...VaultSecret
   }

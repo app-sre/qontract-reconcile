@@ -76,7 +76,6 @@ class GPGEncryptCommand:
                 clusters=clusters,
                 integration="qontract-cli",
                 settings=settings,
-                use_jump_host=True,
                 thread_pool_size=1,
                 init_projects=False,
             )

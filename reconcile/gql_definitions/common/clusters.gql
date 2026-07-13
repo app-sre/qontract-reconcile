@@ -13,9 +13,6 @@ query Clusters($name: String) {
     managedClusterRoles
     insecureSkipTLSVerify
     allowedToBypassPublicPeeringRestriction
-    jumpHost {
-      ...CommonJumphostFields
-    }
     auth {
       service
       ... on ClusterAuthGithubOrg_v1 {

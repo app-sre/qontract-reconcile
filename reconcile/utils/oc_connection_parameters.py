@@ -28,26 +28,12 @@ class Disable(Protocol):
     integrations: list[str] | None
 
 
-class Jumphost(Protocol):
-    hostname: str
-    port: int | None
-    remote_port: int | None
-    known_hosts: str
-    user: str
-
-    @property
-    def identity(self) -> HasSecret: ...
-
-
 @runtime_checkable
 class Cluster(Protocol):
     name: str
     server_url: str
     internal: bool | None
     insecure_skip_tls_verify: bool | None
-
-    @property
-    def jump_host(self) -> Jumphost | None: ...
 
     @property
     def automation_token(self) -> HasSecret | None: ...
@@ -90,14 +76,6 @@ class OCConnectionParameters:
     automation_token: str | None
     cluster_admin_automation_token: str | None
     disabled_integrations: list[str]
-    jumphost_hostname: str | None
-    jumphost_known_hosts: str | None
-    jumphost_user: str | None
-    jumphost_port: int | None
-    jumphost_key: str | None
-    jumphost_remote_port: int | None
-    # The local port is currently calculated and set outside of this class
-    jumphost_local_port: int | None
 
     @staticmethod
     def _get_token_verify_server_url(secret: ClusterSecret, cluster: Cluster) -> str:
@@ -130,7 +108,6 @@ class OCConnectionParameters:
         cluster: Cluster,
         secret_reader: SecretReaderBase,
         cluster_admin: bool,
-        use_jump_host: bool = True,
     ) -> OCConnectionParameters:
         automation_token: str | None = None
         cluster_admin_automation_token: str | None = None
@@ -173,28 +150,6 @@ class OCConnectionParameters:
         if cluster.disable:
             disabled_integrations = cluster.disable.integrations or []
 
-        jumphost_hostname = None
-        jumphost_known_hosts = None
-        jumphost_user = None
-        jumphost_port = None
-        jumphost_key = None
-        jumphost_remote_port = None
-        jumphost_local_port = None
-        if use_jump_host and cluster.jump_host:
-            jumphost_hostname = cluster.jump_host.hostname
-            jumphost_known_hosts = cluster.jump_host.known_hosts
-            jumphost_user = cluster.jump_host.user
-            jumphost_port = cluster.jump_host.port
-            jumphost_remote_port = cluster.jump_host.remote_port
-
-            try:
-                jumphost_key = secret_reader.read_secret(cluster.jump_host.identity)
-            except SecretNotFoundError:
-                logging.error(
-                    f"[{cluster.name}] jumphost secret {cluster.jump_host.identity} not found"
-                )
-                raise
-
         return OCConnectionParameters(
             cluster_name=cluster.name,
             server_url=cluster.server_url,
@@ -202,13 +157,6 @@ class OCConnectionParameters:
             skip_tls_verify=cluster.insecure_skip_tls_verify,
             disabled_integrations=disabled_integrations,
             automation_token=automation_token,
-            jumphost_hostname=jumphost_hostname,
-            jumphost_key=jumphost_key,
-            jumphost_known_hosts=jumphost_known_hosts,
-            jumphost_user=jumphost_user,
-            jumphost_port=jumphost_port,
-            jumphost_remote_port=jumphost_remote_port,
-            jumphost_local_port=jumphost_local_port,
             cluster_admin_automation_token=cluster_admin_automation_token,
             is_cluster_admin=cluster_admin,
         )
@@ -225,7 +173,6 @@ def get_oc_connection_parameters_from_clusters(
     secret_reader: SecretReaderBase,
     clusters: Iterable[Cluster],
     thread_pool_size: int = 1,
-    use_jump_host: bool = True,
 ) -> list[OCConnectionParameters]:
     """
     Convert nested generated cluster classes from queries into flat ClusterParameter objects.
@@ -238,7 +185,6 @@ def get_oc_connection_parameters_from_clusters(
         unique_clusers,
         thread_pool_size,
         secret_reader=secret_reader,
-        use_jump_host=use_jump_host,
         cluster_admin=False,
     )
     return parameters
@@ -248,7 +194,6 @@ def get_oc_connection_parameters_from_namespaces(
     secret_reader: SecretReaderBase,
     namespaces: Iterable[Namespace],
     thread_pool_size: int = 1,
-    use_jump_host: bool = True,
     cluster_admin: bool = False,
 ) -> list[OCConnectionParameters]:
     """
@@ -273,7 +218,6 @@ def get_oc_connection_parameters_from_namespaces(
         all_unique_clusters,
         thread_pool_size,
         secret_reader=secret_reader,
-        use_jump_host=use_jump_host,
         cluster_admin=False,
         return_exceptions=True,
     )
@@ -283,7 +227,6 @@ def get_oc_connection_parameters_from_namespaces(
         unique_privileged_clusters,
         thread_pool_size,
         secret_reader=secret_reader,
-        use_jump_host=use_jump_host,
         cluster_admin=True,
         return_exceptions=True,
     )

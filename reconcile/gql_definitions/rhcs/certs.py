@@ -17,23 +17,11 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.rhcs.openshift_resource_rhcs_cert import OpenshiftResourceRhcsCert
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
-fragment CommonJumphostFields on ClusterJumpHost_v1 {
-  hostname
-  knownHosts
-  user
-  port
-  remotePort
-  identity {
-    ...VaultSecret
-  }
-}
-
 fragment OpenshiftResourceRhcsCert on NamespaceOpenshiftResourceRhcsCert_v1 {
   secret_name
   service_account_name
@@ -73,9 +61,6 @@ query RhcsCerts {
       name
       serverUrl
       insecureSkipTLSVerify
-      jumpHost {
-        ...CommonJumphostFields
-      }
       automationToken {
         ...VaultSecret
       }
@@ -110,7 +95,6 @@ class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     server_url: str = Field(..., alias="serverUrl")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
-    jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
     cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
     internal: Optional[bool] = Field(..., alias="internal")

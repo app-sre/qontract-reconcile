@@ -20,7 +20,6 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 from reconcile.gql_definitions.fragments.aws_infra_management_account import AWSInfrastructureManagementAccount
 from reconcile.gql_definitions.fragments.aws_vpc import AWSVPC
 from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
-from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -71,17 +70,6 @@ fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
   }
 }
 
-fragment CommonJumphostFields on ClusterJumpHost_v1 {
-  hostname
-  knownHosts
-  user
-  port
-  remotePort
-  identity {
-    ...VaultSecret
-  }
-}
-
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
   name
   description
@@ -114,9 +102,6 @@ query Clusters($name: String) {
     managedClusterRoles
     insecureSkipTLSVerify
     allowedToBypassPublicPeeringRestriction
-    jumpHost {
-      ...CommonJumphostFields
-    }
     auth {
       service
       ... on ClusterAuthGithubOrg_v1 {
@@ -637,7 +622,6 @@ class ClusterV1(ConfiguredBaseModel):
     managed_cluster_roles: Optional[bool] = Field(..., alias="managedClusterRoles")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     allowed_to_bypass_public_peering_restriction: Optional[bool] = Field(..., alias="allowedToBypassPublicPeeringRestriction")
-    jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     auth: list[Union[ClusterAuthGithubOrgTeamV1, ClusterAuthGithubOrgV1, ClusterAuthV1]] = Field(..., alias="auth")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
     aws_infrastructure_management_accounts: Optional[list[AWSInfrastructureManagementAccount]] = Field(..., alias="awsInfrastructureManagementAccounts")

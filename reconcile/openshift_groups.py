@@ -84,7 +84,7 @@ def create_groups_list(
 
 
 def fetch_current_state(
-    thread_pool_size: int, internal: bool | None, use_jump_host: bool
+    thread_pool_size: int, internal: bool | None
 ) -> tuple[OCMap, list[dict[str, str]], list[str], list[dict[str, str]]]:
     clusters = [c for c in get_clusters() if is_in_shard(c.name)]
     ocm_clusters = [c.name for c in clusters if c.ocm is not None]
@@ -96,7 +96,6 @@ def fetch_current_state(
         integration=QONTRACT_INTEGRATION,
         secret_reader=secret_reader,
         internal=internal,
-        use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
 
@@ -270,11 +269,10 @@ def run(
     dry_run: bool,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     defer: Callable | None = None,
 ) -> None:
     oc_map, current_state, ocm_clusters, groups_list = fetch_current_state(
-        thread_pool_size, internal, use_jump_host
+        thread_pool_size, internal
     )
     if defer:
         defer(oc_map.cleanup)

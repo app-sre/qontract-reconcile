@@ -10,8 +10,6 @@ from typing import TYPE_CHECKING, Any
 
 from jinja2 import Template
 
-from reconcile.gql_definitions.jumphosts.jumphosts import JumphostsQueryData
-from reconcile.gql_definitions.jumphosts.jumphosts import query as jumphosts_query
 from reconcile.utils import gql
 
 if TYPE_CHECKING:
@@ -154,20 +152,6 @@ def get_credentials_requests() -> list[dict[str, Any]]:
     return data.get("credentials_requests") or []
 
 
-JUMPHOST_FIELDS = """
-hostname
-knownHosts
-user
-port
-identity {
-  path
-  field
-  version
-  format
-}
-"""
-
-
 INTEGRATIONS_QUERY = """
 {
   integrations: integrations_v1 {
@@ -185,9 +169,6 @@ INTEGRATIONS_QUERY = """
           name
           serverUrl
           insecureSkipTLSVerify
-          jumpHost {
-            %s
-          }
           automationToken {
             path
             field
@@ -258,7 +239,7 @@ INTEGRATIONS_QUERY = """
     }
   }
 }
-""" % (indent(JUMPHOST_FIELDS, 12 * " "),)
+"""
 
 
 def get_integrations(managed: bool = False) -> list[dict[str, Any]]:
@@ -594,21 +575,6 @@ def get_queue_aws_accounts() -> list[dict[str, Any]]:
     return get_aws_accounts(uid=uid)
 
 
-def get_jumphosts(hostname: str | None = None) -> JumphostsQueryData:
-    """Returns all jumphosts"""
-    variables = {}
-    # The dictionary must be empty if no hostname is set.
-    # That way it will return every hostname.
-    # Otherwise GQL will try to find hostname: null
-    if hostname:
-        variables["hostname"] = hostname
-    gqlapi = gql.get_api()
-    return jumphosts_query(
-        query_func=gqlapi.query,
-        variables=variables,
-    )
-
-
 AWS_INFRA_MANAGEMENT_ACCOUNT = """
 awsInfrastructureManagementAccounts {
   account {
@@ -690,9 +656,6 @@ CLUSTERS_QUERY = """
     managedGroups
     managedClusterRoles
     insecureSkipTLSVerify
-    jumpHost {
-      %s
-    }
     auth {
       service
       ... on ClusterAuthGithubOrg_v1 {
@@ -1015,7 +978,6 @@ CLUSTERS_QUERY = """
 }
 """ % (
     indent(CLUSTER_FILTER_QUERY, 2 * " "),
-    indent(JUMPHOST_FIELDS, 6 * " "),
     indent(AWS_INFRASTRUCTURE_ACCESS_QUERY, 4 * " "),
     indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 4 * " "),
     indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 12 * " "),
@@ -1032,9 +994,6 @@ CLUSTERS_MINIMAL_QUERY = """
     consoleUrl
     prometheusUrl
     insecureSkipTLSVerify
-    jumpHost {
-      %s
-    }
     managedGroups
     ocm {
       name
@@ -1067,10 +1026,7 @@ CLUSTERS_MINIMAL_QUERY = """
     }
   }
 }
-""" % (
-    indent(CLUSTER_FILTER_QUERY, 2 * " "),
-    indent(JUMPHOST_FIELDS, 6 * " "),
-)
+""" % (indent(CLUSTER_FILTER_QUERY, 2 * " "),)
 
 
 def get_clusters(
@@ -1566,9 +1522,6 @@ NAMESPACES_QUERY = """
       name
       serverUrl
       insecureSkipTLSVerify
-      jumpHost {
-        %s
-      }
       automationToken {
         path
         field
@@ -1635,7 +1588,7 @@ NAMESPACES_QUERY = """
     }
   }
 }
-""" % (indent(JUMPHOST_FIELDS, 8 * " "),)
+"""
 
 NAMESPACES_MINIMAL_QUERY = """
 {
@@ -1647,9 +1600,6 @@ NAMESPACES_MINIMAL_QUERY = """
       name
       serverUrl
       insecureSkipTLSVerify
-      jumpHost {
-        %s
-      }
       automationToken {
         path
         field
@@ -1663,7 +1613,7 @@ NAMESPACES_MINIMAL_QUERY = """
     }
   }
 }
-""" % (indent(JUMPHOST_FIELDS, 8 * " "),)
+"""
 
 
 def get_namespaces(minimal: bool = False) -> list[dict[str, Any]]:
@@ -2253,9 +2203,6 @@ PIPELINES_PROVIDERS_QUERY = """
           name
           serverUrl
           insecureSkipTLSVerify
-          jumpHost {
-            %s
-          }
           automationToken {
             path
             field
@@ -2297,7 +2244,7 @@ PIPELINES_PROVIDERS_QUERY = """
     }
   }
 }
-""" % (indent(JUMPHOST_FIELDS, 12 * " "),)
+"""
 
 
 def get_pipelines_providers() -> list[dict[str, Any]]:
@@ -2680,9 +2627,6 @@ GABI_INSTANCES_QUERY = """
           name
           serverUrl
           insecureSkipTLSVerify
-          jumpHost {
-            %s
-          }
           automationToken {
             path
             field
@@ -2702,7 +2646,7 @@ GABI_INSTANCES_QUERY = """
     expirationDate
   }
 }
-""" % (indent(JUMPHOST_FIELDS, 12 * " "),)
+"""
 
 
 def get_gabi_instances() -> list[dict[str, Any]]:
