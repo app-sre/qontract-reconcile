@@ -97,13 +97,13 @@ def reconcile_openshift_namespaces_task(
 ) -> OpenShiftNamespacesTaskResult:
     """Reconcile openshift namespaces (background task)."""
     request_id = self.request.id
+    secret_errors: list[str] = []
 
     try:
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
 
         connection_params: list[ClusterConnectionParams] = []
-        secret_errors: list[str] = []
         for cluster in clusters:
             try:
                 params = _resolve_cluster_connection(cluster, secret_manager)
@@ -166,7 +166,7 @@ def reconcile_openshift_namespaces_task(
             status=TaskStatus.FAILED,
             actions=[],
             applied_count=0,
-            errors=[str(e)],
+            errors=[*secret_errors, str(e)],
         )
         _publish_result_events(result, dry_run=dry_run)
         return result
