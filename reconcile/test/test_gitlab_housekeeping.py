@@ -16,6 +16,7 @@ from unittest.mock import (
 import pytest
 from gitlab import Gitlab
 from gitlab.exceptions import (
+    GitlabGetError,
     GitlabMRClosedError,
     GitlabMRRebaseError,
 )
@@ -1370,13 +1371,18 @@ def test_healthcheck_applies_rebase_error_on_merge_error_field(
     mocked_gl.get_merge_request_pipelines.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "resolved_status",
+    ["mergeable", "ci_must_pass"],
+)
 def test_healthcheck_removes_rebase_error_when_detailed_status_cleared(
     project: Project,
+    resolved_status: str,
 ) -> None:
     """rebase-error is removed when detailed_merge_status is no longer need_rebase."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
-        detailed_merge_status="mergeable",
+        detailed_merge_status=resolved_status,
     )
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -1490,17 +1496,18 @@ def test_healthcheck_ignores_non_rebase_merge_error(
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
-def test_healthcheck_removes_rebase_error_when_detailed_status_resolved(
+def test_healthcheck_preserves_rebase_error_on_api_failure(
     project: Project,
 ) -> None:
-    """rebase-error is removed when detailed_merge_status is no longer need_rebase."""
+    """rebase-error label is preserved when fresh .get() raises GitlabGetError."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
-        detailed_merge_status="ci_must_pass",
+        detailed_merge_status="need_rebase",
     )
-
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.project.name = "test-project"
+    mocked_gl.get_merge_request.side_effect = GitlabGetError("500 Server Error")
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
@@ -1509,9 +1516,8 @@ def test_healthcheck_removes_rebase_error_when_detailed_status_resolved(
         project_merge_requests=[mr],
     )
 
-    mocked_gl.get_merge_request.assert_not_called()
-    mocked_gl.remove_label.assert_called_once_with(mr, "rebase-error")
     mocked_gl.add_label_to_merge_request.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
 
 
 @pytest.mark.parametrize(
