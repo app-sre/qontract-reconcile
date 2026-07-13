@@ -279,7 +279,6 @@ class OCCli:
         cluster_name: str | None,
         server: str | None,
         token: str | None,
-        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
@@ -306,7 +305,6 @@ class OCCli:
                 cluster_name=cluster_name,
                 server=server,
                 token=token,
-                settings=settings,
                 init_projects=init_projects,
                 init_api_resources=init_api_resources,
                 local=local,
@@ -324,7 +322,6 @@ class OCCli:
         cluster_name: str,
         server: str | None,
         token: str | None,
-        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
@@ -336,7 +333,6 @@ class OCCli:
             cluster_name (string): Name of cluster
             server (string): Server URL of the cluster
             token (string): Token to use for authentication
-            settings (dict, optional): App-interface settings
             init_projects (bool, optional): Initiate projects
             init_api_resources (bool, optional): Initiate api-resources
             local (bool, optional): Use oc locally
@@ -1297,7 +1293,6 @@ class OCNative(OCCli):
         cluster_name: str | None,
         server: str | None,
         token: str | None,
-        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
@@ -1307,7 +1302,6 @@ class OCNative(OCCli):
             cluster_name,
             server,
             token,
-            settings,
             init_projects=False,
             init_api_resources=False,
             local=local,
@@ -1503,7 +1497,6 @@ class OC:
         cluster_name: str | None = None,
         server: str | None = None,
         token: str | None = None,
-        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
@@ -1529,7 +1522,6 @@ class OC:
                 cluster_name=cluster_name,
                 server=server,
                 token=token,
-                settings=settings,
                 init_projects=init_projects,
                 local=local,
                 insecure_skip_tls_verify=insecure_skip_tls_verify,
@@ -1541,7 +1533,6 @@ class OC:
             cluster_name=cluster_name,
             server=server,
             token=token,
-            settings=settings,
             init_projects=init_projects,
             init_api_resources=init_api_resources,
             local=local,
@@ -1711,7 +1702,6 @@ class OC_Map:  # noqa: N801
                         cluster,
                         server_url,
                         token,
-                        settings=self.settings,
                         init_projects=self.init_projects,
                         init_api_resources=self.init_api_resources,
                         insecure_skip_tls_verify=bool(insecure_skip_tls_verify),
