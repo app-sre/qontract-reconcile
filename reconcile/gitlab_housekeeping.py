@@ -88,7 +88,6 @@ HOLD_LABELS = [
 ERROR_LABELS = frozenset({MERGE_ERROR, PIPELINE_ERROR, REBASE_ERROR})
 
 TENANT_LABEL_PREFIX = "tenant-"
-MIN_OMM_GROUP_SIZE = 3  # 1 lead + 2 pending MRs
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
@@ -751,6 +750,12 @@ def apply_omm_pending(
         if not dry_run:
             gl.add_label_to_merge_request(mr, OMM_PENDING)
             try:
+                logging.info([
+                    "omm-group",
+                    "skip-ci-rebase-at-formation",
+                    gl.project.name,
+                    mr.iid,
+                ])
                 mr.rebase(skip_ci=True)
             except gitlab.exceptions.GitlabMRRebaseError:
                 logging.warning([
@@ -1418,7 +1423,7 @@ def merge_merge_requests(
                     merge_requests=merge_requests,
                     merged_labels=merged_labels,
                 )
-                if len(candidates) >= MIN_OMM_GROUP_SIZE - 1:  # -1 for the lead
+                if candidates:
                     apply_omm_group_lead(dry_run, gl, mr)
                     apply_omm_pending(dry_run, gl, candidates)
             break
