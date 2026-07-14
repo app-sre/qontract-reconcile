@@ -11,6 +11,9 @@ from signal import SIGUSR1
 from typing import TYPE_CHECKING, Any
 
 import click
+
+# always import qontract_utils first to ensure httpxyz is loaded before any transitive dependency can pull in the real httpx
+import qontract_utils  # noqa: F401
 import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
 
