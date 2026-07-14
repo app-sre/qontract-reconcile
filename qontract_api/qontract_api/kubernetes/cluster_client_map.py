@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Self
 
 from pydantic import BaseModel
-from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks
+from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks
 from qontract_utils.kubernetes import KubernetesApi
 
 from qontract_api.kubernetes.workspace_client import KubernetesWorkspaceClient
@@ -56,7 +56,7 @@ class ClusterClientMap:
                     params.server,
                     params.token,
                     insecure_skip_tls_verify=params.insecure_skip_tls_verify,
-                    hooks=Hooks(retry_config=DEFAULT_RETRY_CONFIG),
+                    hooks=Hooks(retry_config=NO_RETRY_CONFIG),
                 )
                 self._api_clients.append(api)
                 self._clients[params.cluster_name] = KubernetesWorkspaceClient(
