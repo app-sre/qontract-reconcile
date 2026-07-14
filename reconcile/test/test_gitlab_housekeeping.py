@@ -1518,6 +1518,7 @@ def test_healthcheck_preserves_rebase_error_on_api_failure(
 
     mocked_gl.add_label_to_merge_request.assert_not_called()
     mocked_gl.remove_label.assert_not_called()
+    mocked_gl.get_merge_request_pipelines.assert_called_once()
 
 
 @pytest.mark.parametrize(
