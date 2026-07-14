@@ -1613,6 +1613,31 @@ def openshift_namespaces(
     )
 
 
+@integration.command(short_help="Manages OpenShift Namespaces via qontract-api.")
+@cluster_name
+@namespace_name
+@click.pass_context
+def openshift_namespaces_api(
+    ctx: click.Context,
+    cluster_name: Iterable[str] | None,
+    namespace_name: str | None,
+) -> None:
+    from reconcile.openshift_namespaces_api import (
+        OpenShiftNamespacesIntegration,
+        OpenShiftNamespacesIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=OpenShiftNamespacesIntegration(
+            OpenShiftNamespacesIntegrationParams(
+                cluster_names=frozenset(cluster_name) if cluster_name else None,
+                namespace_name=namespace_name,
+            )
+        ),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Manages OpenShift NetworkPolicies.")
 @threaded()
 @binary(["oc"])
