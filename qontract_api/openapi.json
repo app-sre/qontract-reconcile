@@ -132,6 +132,121 @@
         "title": "ChatResponse",
         "type": "object"
       },
+      "ClusterNamespaces": {
+        "description": "Cluster with its desired namespaces and connection info.",
+        "properties": {
+          "automation_token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Vault reference for the automation token (NOT the actual token)"
+          },
+          "cluster_name": {
+            "description": "Cluster identifier",
+            "title": "Cluster Name",
+            "type": "string"
+          },
+          "insecure_skip_tls_verify": {
+            "default": false,
+            "description": "Skip TLS certificate verification",
+            "title": "Insecure Skip Tls Verify",
+            "type": "boolean"
+          },
+          "namespaces": {
+            "description": "Desired namespaces for this cluster",
+            "items": {
+              "$ref": "#/components/schemas/DesiredNamespace"
+            },
+            "title": "Namespaces",
+            "type": "array"
+          },
+          "server_url": {
+            "description": "Kubernetes API server URL",
+            "title": "Server Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster_name",
+          "server_url",
+          "automation_token"
+        ],
+        "title": "ClusterNamespaces",
+        "type": "object"
+      },
+      "CreateNamespaceAction": {
+        "description": "Action: Create a namespace on a cluster.",
+        "properties": {
+          "action_type": {
+            "const": "create_namespace",
+            "default": "create_namespace",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "namespace": {
+            "description": "Namespace name",
+            "title": "Namespace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster",
+          "namespace"
+        ],
+        "title": "CreateNamespaceAction",
+        "type": "object"
+      },
+      "DeleteNamespaceAction": {
+        "description": "Action: Delete a namespace from a cluster.",
+        "properties": {
+          "action_type": {
+            "const": "delete_namespace",
+            "default": "delete_namespace",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "namespace": {
+            "description": "Namespace name",
+            "title": "Namespace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster",
+          "namespace"
+        ],
+        "title": "DeleteNamespaceAction",
+        "type": "object"
+      },
+      "DesiredNamespace": {
+        "description": "A namespace that should exist or be deleted on a cluster.",
+        "properties": {
+          "delete": {
+            "default": false,
+            "description": "True = namespace should be removed",
+            "title": "Delete",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Namespace name",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "DesiredNamespace",
+        "type": "object"
+      },
       "EscalationPolicyUsersResponse": {
         "description": "Response model for escalation policy users endpoint.\n\nImmutable response containing list of users in an escalation policy.\n\nAttributes:\n    users: List of users in escalation policy",
         "properties": {
@@ -2163,6 +2278,131 @@
         "title": "NotificationRemoveUser",
         "type": "object"
       },
+      "OpenShiftNamespacesReconcileRequest": {
+        "description": "Request to reconcile namespaces across clusters.",
+        "properties": {
+          "clusters": {
+            "description": "Clusters with desired namespaces",
+            "items": {
+              "$ref": "#/components/schemas/ClusterNamespaces"
+            },
+            "title": "Clusters",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing",
+            "title": "Dry Run",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "clusters"
+        ],
+        "title": "OpenShiftNamespacesReconcileRequest",
+        "type": "object"
+      },
+      "OpenShiftNamespacesTaskResponse": {
+        "description": "Response for POST /reconcile (202 Accepted).",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Initial task status"
+          },
+          "status_url": {
+            "description": "URL to poll for task result",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "status_url"
+        ],
+        "title": "OpenShiftNamespacesTaskResponse",
+        "type": "object"
+      },
+      "OpenShiftNamespacesTaskResult": {
+        "description": "Result of a namespace reconciliation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "All planned actions",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create_namespace": "#/components/schemas/CreateNamespaceAction",
+                  "delete_namespace": "#/components/schemas/DeleteNamespaceAction"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CreateNamespaceAction"
+                },
+                {
+                  "$ref": "#/components/schemas/DeleteNamespaceAction"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were applied (empty if dry_run)",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create_namespace": "#/components/schemas/CreateNamespaceAction",
+                  "delete_namespace": "#/components/schemas/DeleteNamespaceAction"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CreateNamespaceAction"
+                },
+                {
+                  "$ref": "#/components/schemas/DeleteNamespaceAction"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "OpenShiftNamespacesTaskResult",
+        "type": "object"
+      },
       "PagerDutyUser": {
         "description": "PagerDuty user representation.\n\nImmutable model representing a user from PagerDuty API.\n\nAttributes:\n    username: PagerDuty username (computed from email)",
         "properties": {
@@ -3569,6 +3809,101 @@
           }
         ],
         "summary": "Glitchtip Reconcile Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/openshift-namespaces/reconcile": {
+      "post": {
+        "description": "Queue openshift-namespaces reconciliation task.",
+        "operationId": "openshift-namespaces",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenShiftNamespacesReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenShiftNamespacesTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Openshift Namespaces Reconcile",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/openshift-namespaces/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation result (blocking or non-blocking).",
+        "operationId": "openshift-namespaces-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenShiftNamespacesTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Openshift Namespaces Reconcile Task Status",
         "tags": [
           "integrations"
         ]

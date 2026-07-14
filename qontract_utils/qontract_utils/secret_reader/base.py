@@ -47,12 +47,12 @@ class Secret(Protocol):
 class SecretBackend(ABC):
     """Abstract base class for secret backends.
 
-    Provides thread-safe singleton instances per backend type (e.g., "vault",
-    "aws_kms", "google"). Each backend implementation must override read()
-    and read_all() methods.
+    Provides thread-safe singleton instances per backend URL. Multiple
+    instances of the same backend type (e.g., two Vault servers) are
+    fully supported — each URL gets its own singleton.
 
     Singleton Pattern (double-checked locking):
-    - get_instance() provides thread-safe singleton per backend type
+    - get_instance() provides thread-safe singleton per backend URL
     - reset_singleton() for testing cleanup
 
     Required Instance Variables:
@@ -80,7 +80,7 @@ class SecretBackend(ABC):
         creds = backend.read_all("aws/account1/creds")
     """
 
-    # Singleton instances per backend type
+    # Singleton instances keyed by backend URL
     _instances: ClassVar[dict[str, SecretBackend]] = {}
     _lock: ClassVar[threading.Lock] = threading.Lock()
 
@@ -101,48 +101,33 @@ class SecretBackend(ABC):
     ) -> SecretBackend:
         """Get singleton secret backend instance (thread-safe factory).
 
-        Uses double-checked locking for thread safety. Each backend type
-        (vault, aws_kms, google) has its own singleton instance.
+        Uses double-checked locking for thread safety. Each backend URL
+        gets its own singleton — multiple instances of the same backend
+        type (e.g., two Vault servers) are supported.
 
         Args:
             backend_type: Backend type ("vault", "aws_kms", "google")
-            **kwargs: Backend-specific initialization parameters
-                     For Vault: server, role_id, secret_id, kube_auth_role, etc.
+            backend_settings: Backend-specific settings (contains the server URL)
+            hooks: Optional hooks for metrics/logging
 
         Returns:
-            Singleton SecretBackend instance for the specified backend type
+            Singleton SecretBackend instance for the specified backend URL
 
         Raises:
             ValueError: If backend_type is not supported
-
-        Example:
-            # Vault with AppRole auth
-            vault_backend = SecretBackend.get_instance(
-                backend_type="vault",
-                server="https://vault.example.com",
-                role_id="qontract-api",
-                secret_id="xxxyyy",
-            )
-
-            # Vault with Kubernetes auth
-            vault_backend = SecretBackend.get_instance(
-                backend_type="vault",
-                server="https://vault.example.com",
-                kube_auth_role="qontract-api",
-            )
         """
+        instance_key = backend_settings.server
+
         # Fast path: Check if instance exists (no lock needed)
-        if backend_type in cls._instances:
-            return cls._instances[backend_type]
+        if instance_key in cls._instances:
+            return cls._instances[instance_key]
 
         # Slow path: Create new instance (thread-safe)
         with cls._lock:
             # Double-check after acquiring lock (another thread may have created it)
-            if backend_type not in cls._instances:
-                # Factory: Create backend based on type
+            if instance_key not in cls._instances:
                 match backend_type:
                     case "vault":
-                        # Import here to avoid circular dependency
                         from qontract_utils.secret_reader.providers.vault import (  # noqa: PLC0415
                             VaultSecretBackend,
                             VaultSecretBackendSettings,
@@ -151,37 +136,28 @@ class SecretBackend(ABC):
                         assert isinstance(
                             backend_settings, VaultSecretBackendSettings
                         )  # for mypy
-                        cls._instances[backend_type] = VaultSecretBackend(
+                        cls._instances[instance_key] = VaultSecretBackend(
                             backend_settings, hooks=hooks
                         )
                     case _:
                         msg = f"Unsupported secret backend: {backend_type}"
                         raise ValueError(msg)
 
-        return cls._instances[backend_type]
+        return cls._instances[instance_key]
 
     @classmethod
-    def reset_singleton(cls, backend_type: str | None = None) -> None:
+    def reset_singleton(cls, url: str | None = None) -> None:
         """Reset singleton instance(s) - primarily for testing.
 
         Args:
-            backend_type: Specific backend type to reset (None = reset all)
-
-        Example:
-            # Reset all singletons
-            SecretBackend.reset_singleton()
-
-            # Reset only Vault singleton
-            SecretBackend.reset_singleton("vault")
+            url: Specific backend URL to reset (None = reset all)
         """
         with cls._lock:
-            if backend_type:
-                # Reset specific backend
-                if backend_type in cls._instances:
-                    cls._instances[backend_type].close()
-                    del cls._instances[backend_type]
+            if url:
+                if url in cls._instances:
+                    cls._instances[url].close()
+                    del cls._instances[url]
             else:
-                # Reset all backends
                 for instance in cls._instances.values():
                     instance.close()
                 cls._instances.clear()

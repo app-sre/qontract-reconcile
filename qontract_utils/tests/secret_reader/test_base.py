@@ -86,10 +86,10 @@ class TestSecretBackendSingleton:
                 backend_type="invalid", backend_settings=vault_settings
             )
 
-    def test_reset_singleton_clears_specific_backend(
+    def test_reset_singleton_clears_specific_url(
         self, vault_settings: VaultSecretBackendSettings
     ) -> None:
-        """Test that reset_singleton clears specific backend instance."""
+        """Test that reset_singleton clears specific backend URL."""
         with patch(
             "qontract_utils.secret_reader.providers.vault.VaultSecretBackend"
         ) as mock_vault:
@@ -105,7 +105,7 @@ class TestSecretBackendSingleton:
 
             assert instance1 is mock_instance1
 
-            SecretBackend.reset_singleton(backend_type="vault")
+            SecretBackend.reset_singleton(url="https://vault.test")
 
             instance2 = SecretBackend.get_instance(
                 backend_type="vault",
@@ -161,9 +161,40 @@ class TestSecretBackendSingleton:
                 backend_settings=vault_settings,
             )
 
-            SecretBackend.reset_singleton(backend_type="vault")
+            SecretBackend.reset_singleton(url="https://vault.test")
 
             mock_instance.close.assert_called_once()
+
+    def test_multiple_vault_instances_per_url(self) -> None:
+        """Test that different Vault URLs create separate instances."""
+        settings_a = VaultSecretBackendSettings(
+            server="https://vault-a.test",
+            role_id="role-a",
+            secret_id="secret-a",
+        )
+        settings_b = VaultSecretBackendSettings(
+            server="https://vault-b.test",
+            role_id="role-b",
+            secret_id="secret-b",
+        )
+        with patch(
+            "qontract_utils.secret_reader.providers.vault.VaultSecretBackend"
+        ) as mock_vault:
+            mock_a = MagicMock()
+            mock_b = MagicMock()
+            mock_vault.side_effect = [mock_a, mock_b]
+
+            instance_a = SecretBackend.get_instance(
+                backend_type="vault", backend_settings=settings_a
+            )
+            instance_b = SecretBackend.get_instance(
+                backend_type="vault", backend_settings=settings_b
+            )
+
+            assert instance_a is mock_a
+            assert instance_b is mock_b
+            assert instance_a is not instance_b
+            assert mock_vault.call_count == 2
 
     def test_singleton_thread_safety(
         self, vault_settings: VaultSecretBackendSettings

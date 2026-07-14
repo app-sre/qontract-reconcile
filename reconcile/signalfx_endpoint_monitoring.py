@@ -17,6 +17,8 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 LOG = logging.getLogger(__name__)
 
 PROVIDER = "signalfx"
+COO_NAMESPACE_NAME = "app-sre-observability-per-cluster"
+MANAGED_TYPES = ["Probe.monitoring.coreos.com", "Probe.monitoring.rhobs"]
 
 
 def run(dry_run: bool, thread_pool_size: int, internal: bool) -> None:
@@ -29,6 +31,7 @@ def run(dry_run: bool, thread_pool_size: int, internal: bool) -> None:
             dry_run=dry_run,
             thread_pool_size=thread_pool_size,
             internal=internal,
+            managed_types=MANAGED_TYPES,
         )
     except Exception as e:
         LOG.error(e)
@@ -61,32 +64,55 @@ def build_probe(
     ]
     relabeling.append({"action": "labeldrop", "regex": "namespace"})
 
-    body: dict[str, Any] = {
+    spec: dict[str, Any] = {
+        "jobName": provider.name,
+        "interval": provider.checkInterval or "10s",
+        "prober": prober_url,
+        "targets": {
+            "staticConfig": {
+                "relabelingConfigs": relabeling,
+                "labels": provider.metric_labels,
+                "static": [ep.name for ep in endpoints],
+            }
+        },
+    }
+    if provider.timeout:
+        spec["scrapeTimeout"] = provider.timeout
+
+    namespace = signalfx.namespace
+
+    coreos_body: dict[str, Any] = {
         "apiVersion": "monitoring.coreos.com/v1",
         "kind": "Probe",
         "metadata": {
             "name": provider.name,
-            "namespace": signalfx.namespace.get("name"),
+            "namespace": namespace.get("name"),
             "labels": {"prometheus": "app-sre"},
         },
-        "spec": {
-            "jobName": provider.name,
-            "interval": provider.checkInterval or "10s",
-            "prober": prober_url,
-            "targets": {
-                "staticConfig": {
-                    "relabelingConfigs": relabeling,
-                    "labels": provider.metric_labels,
-                    "static": [ep.name for ep in endpoints],
-                }
-            },
-        },
+        "spec": spec,
     }
-    if provider.timeout:
-        body["spec"]["scrapeTimeout"] = provider.timeout
+    coo_namespace: dict[str, Any] = {**namespace, "name": COO_NAMESPACE_NAME}
+    rhobs_body: dict[str, Any] = {
+        "apiVersion": "monitoring.rhobs/v1",
+        "kind": "Probe",
+        "metadata": {
+            "name": provider.name,
+            "namespace": COO_NAMESPACE_NAME,
+            "labels": {"prometheus": "app-sre"},
+        },
+        "spec": spec,
+    }
     return [
         (
-            OpenshiftResource(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION),
-            signalfx.namespace,
-        )
+            OpenshiftResource(
+                coreos_body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
+            ),
+            namespace,
+        ),
+        (
+            OpenshiftResource(
+                rhobs_body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
+            ),
+            coo_namespace,
+        ),
     ]

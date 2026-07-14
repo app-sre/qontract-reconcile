@@ -136,6 +136,7 @@ celery_app = Celery(
         "qontract_api.integrations.glitchtip_project_alerts.tasks",
         "qontract_api.integrations.github_owners.tasks",
         "qontract_api.integrations.glitchtip.tasks",
+        "qontract_api.integrations.openshift_namespaces.tasks",
     ],
 )
 

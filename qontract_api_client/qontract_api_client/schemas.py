@@ -26,6 +26,31 @@ class ChatResponse(pydantic.BaseModel):
     ts: str
 
 
+class ClusterNamespaces(pydantic.BaseModel):
+    automation_token: Secret
+    cluster_name: str
+    insecure_skip_tls_verify: bool = False
+    namespaces: list[DesiredNamespace] | None = None
+    server_url: str
+
+
+class CreateNamespaceAction(pydantic.BaseModel):
+    action_type: typing.Literal["create_namespace"] = "create_namespace"
+    cluster: str
+    namespace: str
+
+
+class DeleteNamespaceAction(pydantic.BaseModel):
+    action_type: typing.Literal["delete_namespace"] = "delete_namespace"
+    cluster: str
+    namespace: str
+
+
+class DesiredNamespace(pydantic.BaseModel):
+    delete: bool = False
+    name: str
+
+
 class EscalationPolicyUsersResponse(pydantic.BaseModel):
     users: list[PagerDutyUser]
 
@@ -460,6 +485,35 @@ class NotificationAddUser(pydantic.BaseModel):
 class NotificationRemoveUser(pydantic.BaseModel):
     action: typing.Literal["remove-user"] = "remove-user"
     message: str
+
+
+class OpenShiftNamespacesReconcileRequest(pydantic.BaseModel):
+    clusters: list[ClusterNamespaces]
+    dry_run: bool = True
+
+
+class OpenShiftNamespacesTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus
+    status_url: str
+
+
+class OpenShiftNamespacesTaskResult(pydantic.BaseModel):
+    actions: list[
+        typing.Annotated[
+            CreateNamespaceAction | DeleteNamespaceAction,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_actions: list[
+        typing.Annotated[
+            CreateNamespaceAction | DeleteNamespaceAction,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
 
 
 class PagerDutyUser(pydantic.BaseModel):

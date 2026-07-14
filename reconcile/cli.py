@@ -11,6 +11,9 @@ from signal import SIGUSR1
 from typing import TYPE_CHECKING, Any
 
 import click
+
+# always import qontract_utils first to ensure httpxyz is loaded before any transitive dependency can pull in the real httpx
+import qontract_utils  # noqa: F401
 import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
 
@@ -1610,6 +1613,31 @@ def openshift_namespaces(
         internal,
         cluster_name=cluster_name,
         namespace_name=namespace_name,
+    )
+
+
+@integration.command(short_help="Manages OpenShift Namespaces via qontract-api.")
+@cluster_name
+@namespace_name
+@click.pass_context
+def openshift_namespaces_api(
+    ctx: click.Context,
+    cluster_name: Iterable[str] | None,
+    namespace_name: str | None,
+) -> None:
+    from reconcile.openshift_namespaces_api import (
+        OpenShiftNamespacesIntegration,
+        OpenShiftNamespacesIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=OpenShiftNamespacesIntegration(
+            OpenShiftNamespacesIntegrationParams(
+                cluster_names=frozenset(cluster_name) if cluster_name else None,
+                namespace_name=namespace_name,
+            )
+        ),
+        ctx=ctx,
     )
 
 
