@@ -25,6 +25,9 @@ from typing import TYPE_CHECKING, Any, cast
 import boto3
 import click
 import click.core
+
+# always import qontract_utils first to ensure httpxyz is loaded before any transitive dependency can pull in the real httpx
+import qontract_utils  # noqa: F401
 import requests
 import yaml
 from gitlab.const import PipelineStatus
