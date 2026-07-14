@@ -16,6 +16,7 @@ from unittest.mock import (
 import pytest
 from gitlab import Gitlab
 from gitlab.exceptions import (
+    GitlabGetError,
     GitlabMRClosedError,
     GitlabMRRebaseError,
 )
@@ -1345,14 +1346,19 @@ def test_healthcheck_skips_non_queue_eligible_mrs(project: Project) -> None:
 def test_healthcheck_applies_rebase_error_on_merge_error_field(
     project: Project,
 ) -> None:
-    """MR with merge_error='Rebase failed: ...' gets rebase-error label."""
+    """detailed_merge_status='need_rebase' in .list() triggers .get() which confirms merge_error."""
     mr = _make_healthcheck_mr(
         labels=["lgtm"],
-        merge_error="Rebase failed: Rebase locally, resolve all conflicts, then push the branch.",
         detailed_merge_status="need_rebase",
     )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.merge_error = (
+        "Rebase failed: Rebase locally, resolve all conflicts, then push the branch."
+    )
+
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.get_merge_request.return_value = fresh_mr
 
     gl_h.run_error_healthcheck(
         dry_run=False,
@@ -1360,17 +1366,23 @@ def test_healthcheck_applies_rebase_error_on_merge_error_field(
         project_merge_requests=[mr],
     )
 
+    mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
     mocked_gl.add_label_to_merge_request.assert_called_once_with(mr, "rebase-error")
     mocked_gl.get_merge_request_pipelines.assert_not_called()
 
 
-def test_healthcheck_removes_rebase_error_when_merge_error_cleared(
+@pytest.mark.parametrize(
+    "resolved_status",
+    ["mergeable", "ci_must_pass"],
+)
+def test_healthcheck_removes_rebase_error_when_detailed_status_cleared(
     project: Project,
+    resolved_status: str,
 ) -> None:
-    """rebase-error is removed when merge_error is None (author rebased)."""
+    """rebase-error is removed when detailed_merge_status is no longer need_rebase."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
-        merge_error=None,
+        detailed_merge_status=resolved_status,
     )
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -1382,6 +1394,7 @@ def test_healthcheck_removes_rebase_error_when_merge_error_cleared(
         project_merge_requests=[mr],
     )
 
+    mocked_gl.get_merge_request.assert_not_called()
     mocked_gl.remove_label.assert_called_once_with(mr, "rebase-error")
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
@@ -1392,11 +1405,14 @@ def test_healthcheck_skips_rebase_error_if_already_labeled(
     """No duplicate add_label when rebase-error is already present."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
-        merge_error="Rebase failed: conflict",
         detailed_merge_status="need_rebase",
     )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.merge_error = "Rebase failed: conflict"
+
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
@@ -1409,16 +1425,65 @@ def test_healthcheck_skips_rebase_error_if_already_labeled(
     mocked_gl.remove_label.assert_not_called()
 
 
+def test_healthcheck_no_rebase_error_when_resolved_despite_stale_detailed_status(
+    project: Project,
+) -> None:
+    """detailed_merge_status='need_rebase' is stale but .get() shows merge_error cleared."""
+    mr = _make_healthcheck_mr(
+        labels=["lgtm"],
+        detailed_merge_status="need_rebase",
+    )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.merge_error = None
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request.return_value = fresh_mr
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+    )
+
+    mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_apply_omm_pending_rebase_error_applies_label(
+    project: Project,
+) -> None:
+    """GitlabMRRebaseError at formation applies rebase-error label."""
+    mr = create_autospec(ProjectMergeRequest)
+    mr.iid = 100
+    mr.target_project_id = 1
+    mr.rebase.side_effect = GitlabMRRebaseError
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+
+    gl_h.apply_omm_pending(dry_run=False, gl=mocked_gl, mrs=[mr])
+
+    mocked_gl.add_label_to_merge_request.assert_any_call(mr, "omm-pending")
+    mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
+    mocked_gl.add_label_to_merge_request.assert_any_call(mr, "rebase-error")
+
+
 def test_healthcheck_ignores_non_rebase_merge_error(
     project: Project,
 ) -> None:
-    """merge_error='Merge failed' does not trigger rebase-error label."""
+    """detailed_merge_status='need_rebase' but .get() merge_error is not a rebase failure."""
     mr = _make_healthcheck_mr(
         labels=["lgtm"],
-        merge_error="Merge failed",
+        detailed_merge_status="need_rebase",
     )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.merge_error = "Merge failed"
+
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
@@ -1427,20 +1492,22 @@ def test_healthcheck_ignores_non_rebase_merge_error(
         project_merge_requests=[mr],
     )
 
+    mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
-def test_healthcheck_removes_rebase_error_when_detailed_status_resolved(
+def test_healthcheck_preserves_rebase_error_on_api_failure(
     project: Project,
 ) -> None:
-    """rebase-error is removed when detailed_merge_status is no longer need_rebase."""
+    """rebase-error label is preserved when fresh .get() raises GitlabGetError."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
-        merge_error="Rebase failed: Rebase locally, resolve all conflicts, then push the branch.",
-        detailed_merge_status="ci_must_pass",
+        detailed_merge_status="need_rebase",
     )
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.project.name = "test-project"
+    mocked_gl.get_merge_request.side_effect = GitlabGetError("500 Server Error")
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
@@ -1449,8 +1516,9 @@ def test_healthcheck_removes_rebase_error_when_detailed_status_resolved(
         project_merge_requests=[mr],
     )
 
-    mocked_gl.remove_label.assert_called_once_with(mr, "rebase-error")
     mocked_gl.add_label_to_merge_request.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
+    mocked_gl.get_merge_request_pipelines.assert_called_once()
 
 
 @pytest.mark.parametrize(

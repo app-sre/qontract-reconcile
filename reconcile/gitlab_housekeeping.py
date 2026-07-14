@@ -760,6 +760,7 @@ def apply_omm_pending(
                     mr.iid,
                 ])
                 gl.remove_label(mr, OMM_PENDING)
+                gl.add_label_to_merge_request(mr, REBASE_ERROR)
                 optimistic_merge_rejected.labels(
                     project_id=mr.target_project_id,
                     reason="rebase_failed",
@@ -1451,13 +1452,26 @@ def run_error_healthcheck(
         labels = set(mr.labels)
 
         has_rebase_error = REBASE_ERROR in labels
-        mr_merge_error = getattr(mr, "merge_error", None)
         mr_detailed = getattr(mr, "detailed_merge_status", None)
-        rebase_failed = bool(
-            mr_merge_error
-            and "Rebase failed" in mr_merge_error
-            and mr_detailed == "need_rebase"
-        )
+        if mr_detailed == "need_rebase":
+            try:
+                fresh = gl.get_merge_request(mr.iid)
+            except gitlab.exceptions.GitlabGetError as e:
+                logging.warning([
+                    "error-healthcheck",
+                    "rebase-status-refresh-failed",
+                    gl.project.name,
+                    mr.iid,
+                    str(e),
+                ])
+                rebase_failed = has_rebase_error
+            else:
+                fresh_merge_error = getattr(fresh, "merge_error", None)
+                rebase_failed = bool(
+                    fresh_merge_error and "Rebase failed" in fresh_merge_error
+                )
+        else:
+            rebase_failed = False
 
         if rebase_failed and not has_rebase_error:
             logging.warning([
@@ -1465,7 +1479,7 @@ def run_error_healthcheck(
                 REBASE_ERROR,
                 gl.project.name,
                 mr.iid,
-                mr_merge_error,
+                fresh_merge_error,
             ])
             if not dry_run:
                 gl.add_label_to_merge_request(mr, REBASE_ERROR)
