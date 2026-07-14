@@ -243,7 +243,6 @@ def run(
     integration_runtime_meta: dict[str, IntegrationMeta],
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool = False,
-    use_jump_host: bool = True,
     image_tag_from_ref: dict[str, str] | None = None,
     upstream: str | None = None,
     image: str | None = None,
@@ -285,7 +284,6 @@ def run(
         integration_version=QONTRACT_INTEGRATION_VERSION,
         override_managed_types=["Deployment", "StatefulSet", "CronJob", "Service"],
         internal=internal,
-        use_jump_host=use_jump_host,
         caller=upstream,
     )
     if defer:

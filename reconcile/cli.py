@@ -11,6 +11,9 @@ from signal import SIGUSR1
 from typing import TYPE_CHECKING, Any
 
 import click
+
+# always import qontract_utils first to ensure httpxyz is loaded before any transitive dependency can pull in the real httpx
+import qontract_utils  # noqa: F401
 import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
 
@@ -225,17 +228,6 @@ def internal() -> Callable:
         function = click.option("--internal/--external", help=help_msg, default=None)(
             function
         )
-        return function
-
-    return f
-
-
-def use_jump_host() -> Callable:
-    def f(function: Callable) -> Callable:
-        help_msg = "use jump host if defined."
-        function = click.option(
-            "--use-jump-host/--no-use-jump-host", help=help_msg, default=False
-        )(function)
         return function
 
     return f
@@ -778,16 +770,14 @@ def github_validator(ctx: click.Context) -> None:
 
 @integration.command(short_help="Configures ClusterRolebindings in OpenShift clusters.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @click.pass_context
 def openshift_clusterrolebindings(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
 ) -> None:
     from reconcile.openshift_bindings.openshift_clusterrolebindings import (
         OpenShiftClusterRoleBindingsIntegration,
@@ -799,7 +789,6 @@ def openshift_clusterrolebindings(
             OpenShiftClusterRoleBindingsIntegrationParams(
                 thread_pool_size=thread_pool_size,
                 internal=internal,
-                use_jump_host=use_jump_host,
             )
         ),
         ctx=ctx,
@@ -808,10 +797,9 @@ def openshift_clusterrolebindings(
 
 @integration.command(short_help="Configures Rolebindings in OpenShift clusters.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @click.option(
     "--support-role-ref",
     default=False,
@@ -822,7 +810,6 @@ def openshift_rolebindings(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     support_role_ref: bool,
 ) -> None:
     from reconcile.openshift_bindings.openshift_rolebindings import (
@@ -835,7 +822,6 @@ def openshift_rolebindings(
             OpenShiftRoleBindingsIntegrationParams(
                 thread_pool_size=thread_pool_size,
                 internal=internal,
-                use_jump_host=use_jump_host,
                 support_role_ref=support_role_ref,
             )
         ),
@@ -845,53 +831,41 @@ def openshift_rolebindings(
 
 @integration.command(short_help="Manages OpenShift Groups.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @click.pass_context
-def openshift_groups(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
-) -> None:
+def openshift_groups(ctx: click.Context, thread_pool_size: int, internal: bool) -> None:
     import reconcile.openshift_groups
 
-    run_integration(
-        reconcile.openshift_groups, ctx, thread_pool_size, internal, use_jump_host
-    )
+    run_integration(reconcile.openshift_groups, ctx, thread_pool_size, internal)
 
 
 @integration.command(short_help="Deletion of users from OpenShift clusters.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @click.pass_context
-def openshift_users(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
-) -> None:
+def openshift_users(ctx: click.Context, thread_pool_size: int, internal: bool) -> None:
     import reconcile.openshift_users
 
-    run_integration(
-        reconcile.openshift_users, ctx, thread_pool_size, internal, use_jump_host
-    )
+    run_integration(reconcile.openshift_users, ctx, thread_pool_size, internal)
 
 
 @integration.command(
     short_help="Use OpenShift ServiceAccount tokens across namespaces/clusters."
 )
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @vault_output_path
 @click.pass_context
 def openshift_serviceaccount_tokens(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     vault_output_path: str,
 ) -> None:
     import reconcile.openshift_serviceaccount_tokens
@@ -901,7 +875,6 @@ def openshift_serviceaccount_tokens(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         vault_output_path,
     )
 
@@ -1200,14 +1173,13 @@ def jira_permissions_validator(
 @integration.command(
     short_help="Watches for OpenShift upgrades and sends notifications."
 )
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @threaded()
 @internal()
-@use_jump_host()
 @click.pass_context
 def openshift_upgrade_watcher(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+    ctx: click.Context, thread_pool_size: int, internal: bool
 ) -> None:
     import reconcile.openshift_upgrade_watcher
 
@@ -1216,7 +1188,6 @@ def openshift_upgrade_watcher(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
     )
 
 
@@ -1345,11 +1316,10 @@ def aws_support_cases_sos(
 
 @integration.command(short_help="Manages OpenShift Resources.")
 @threaded()
-@binary(["oc", "ssh", "amtool"])
+@binary(["oc", "amtool"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @binary_version("amtool", ["--version"], AMTOOL_VERSION_REGEX, AMTOOL_VERSION)
 @internal()
-@use_jump_host()
 @cluster_name
 @exclude_cluster
 @namespace_name
@@ -1358,7 +1328,6 @@ def openshift_resources(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     cluster_name: Iterable[str] | None,
     exclude_cluster: Iterable[str],
     namespace_name: str | None,
@@ -1370,7 +1339,6 @@ def openshift_resources(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         cluster_name=cluster_name,
         exclude_cluster=exclude_cluster,
         namespace_name=namespace_name,
@@ -1380,8 +1348,7 @@ def openshift_resources(
 @integration.command(short_help="Manage OpenShift resources defined in Saas files.")
 @threaded()
 @throughput
-@use_jump_host()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @binary_version("helm", ["version"], HELM_VERSION_REGEX, HELM_VERSIONS)
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
@@ -1404,7 +1371,6 @@ def openshift_saas_deploy(
     ctx: click.Context,
     thread_pool_size: int,
     io_dir: str,
-    use_jump_host: bool,
     saas_file_name: str | None,
     env_name: str | None,
     grafana_saas_deploy_url: str | None,
@@ -1419,7 +1385,6 @@ def openshift_saas_deploy(
         ctx,
         thread_pool_size=thread_pool_size,
         io_dir=io_dir,
-        use_jump_host=use_jump_host,
         saas_file_name=saas_file_name,
         env_name=env_name,
         grafana_saas_deploy_url=grafana_saas_deploy_url,
@@ -1439,9 +1404,8 @@ def openshift_saas_deploy(
     "--comparison-sha",
     help="bundle sha to compare to to find changes",
 )
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
-@use_jump_host()
 @click.pass_context
 def openshift_saas_deploy_change_tester(
     ctx: click.Context,
@@ -1449,7 +1413,6 @@ def openshift_saas_deploy_change_tester(
     gitlab_merge_request_id: str,
     thread_pool_size: int,
     comparison_sha: str | None,
-    use_jump_host: bool,
 ) -> None:
     import reconcile.openshift_saas_deploy_change_tester
 
@@ -1460,7 +1423,6 @@ def openshift_saas_deploy_change_tester(
         gitlab_merge_request_id,
         thread_pool_size,
         comparison_sha,
-        use_jump_host,
     )
 
 
@@ -1474,17 +1436,15 @@ def saas_file_validator(ctx: click.Context) -> None:
 
 @integration.command(short_help="Trigger deployments when a commit changed for a ref.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @include_trigger_trace
 @click.pass_context
 def openshift_saas_deploy_trigger_moving_commits(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     include_trigger_trace: bool,
 ) -> None:
     import reconcile.openshift_saas_deploy_trigger_moving_commits
@@ -1494,24 +1454,21 @@ def openshift_saas_deploy_trigger_moving_commits(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         include_trigger_trace,
     )
 
 
 @integration.command(short_help="Trigger deployments when upstream job runs.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @include_trigger_trace
 @click.pass_context
 def openshift_saas_deploy_trigger_upstream_jobs(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     include_trigger_trace: bool,
 ) -> None:
     import reconcile.openshift_saas_deploy_trigger_upstream_jobs
@@ -1521,24 +1478,21 @@ def openshift_saas_deploy_trigger_upstream_jobs(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         include_trigger_trace,
     )
 
 
 @integration.command(short_help="Trigger deployments when images are pushed.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @include_trigger_trace
 @click.pass_context
 def openshift_saas_deploy_trigger_images(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     include_trigger_trace: bool,
 ) -> None:
     import reconcile.openshift_saas_deploy_trigger_images
@@ -1548,24 +1502,21 @@ def openshift_saas_deploy_trigger_images(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         include_trigger_trace,
     )
 
 
 @integration.command(short_help="Trigger deployments when configuration changes.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @include_trigger_trace
 @click.pass_context
 def openshift_saas_deploy_trigger_configs(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     include_trigger_trace: bool,
 ) -> None:
     import reconcile.openshift_saas_deploy_trigger_configs
@@ -1575,7 +1526,6 @@ def openshift_saas_deploy_trigger_configs(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         include_trigger_trace,
     )
 
@@ -1585,14 +1535,12 @@ def openshift_saas_deploy_trigger_configs(
 )
 @threaded()
 @internal()
-@use_jump_host()
 @saas_file_name
 @click.pass_context
 def openshift_tekton_resources(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     saas_file_name: str | None,
 ) -> None:
     import reconcile.openshift_tekton_resources
@@ -1602,7 +1550,6 @@ def openshift_tekton_resources(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         saas_file_name,
     )
 
@@ -1625,13 +1572,12 @@ def gitlab_labeler(
 
 @integration.command(short_help="Manages labels on OpenShift namespaces.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @click.pass_context
 def openshift_namespace_labels(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+    ctx: click.Context, thread_pool_size: int, internal: bool
 ) -> None:
     import reconcile.openshift_namespace_labels
 
@@ -1640,16 +1586,14 @@ def openshift_namespace_labels(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
     )
 
 
 @integration.command(short_help="Manages OpenShift Namespaces.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @cluster_name
 @namespace_name
 @click.pass_context
@@ -1657,7 +1601,6 @@ def openshift_namespaces(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     cluster_name: Iterable[str] | None,
     namespace_name: str | None,
 ) -> None:
@@ -1668,21 +1611,44 @@ def openshift_namespaces(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         cluster_name=cluster_name,
         namespace_name=namespace_name,
     )
 
 
+@integration.command(short_help="Manages OpenShift Namespaces via qontract-api.")
+@cluster_name
+@namespace_name
+@click.pass_context
+def openshift_namespaces_api(
+    ctx: click.Context,
+    cluster_name: Iterable[str] | None,
+    namespace_name: str | None,
+) -> None:
+    from reconcile.openshift_namespaces_api import (
+        OpenShiftNamespacesIntegration,
+        OpenShiftNamespacesIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=OpenShiftNamespacesIntegration(
+            OpenShiftNamespacesIntegrationParams(
+                cluster_names=frozenset(cluster_name) if cluster_name else None,
+                namespace_name=namespace_name,
+            )
+        ),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Manages OpenShift NetworkPolicies.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @click.pass_context
 def openshift_network_policies(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+    ctx: click.Context, thread_pool_size: int, internal: bool
 ) -> None:
     import reconcile.openshift_network_policies
 
@@ -1691,23 +1657,20 @@ def openshift_network_policies(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
     )
 
 
 @integration.command(short_help="Manages OpenShift LimitRange objects.")
 @threaded()
 @take_over()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @click.pass_context
 def openshift_limitranges(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     take_over: bool,
 ) -> None:
     import reconcile.openshift_limitranges
@@ -1717,7 +1680,6 @@ def openshift_limitranges(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         take_over,
     )
 
@@ -1725,16 +1687,14 @@ def openshift_limitranges(
 @integration.command(short_help="Manages OpenShift ResourceQuota objects.")
 @threaded()
 @take_over()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @click.pass_context
 def openshift_resourcequotas(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     take_over: bool,
 ) -> None:
     import reconcile.openshift_resourcequotas
@@ -1744,17 +1704,15 @@ def openshift_resourcequotas(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         take_over,
     )
 
 
 @integration.command(short_help="Manages OpenShift Secrets from Vault.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @cluster_name
 @namespace_name
 @click.pass_context
@@ -1762,7 +1720,6 @@ def openshift_vault_secrets(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     cluster_name: Iterable[str] | None,
     namespace_name: str | None,
 ) -> None:
@@ -1773,7 +1730,6 @@ def openshift_vault_secrets(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         cluster_name=cluster_name,
         namespace_name=namespace_name,
     )
@@ -1781,17 +1737,15 @@ def openshift_vault_secrets(
 
 @integration.command(short_help="Manages OpenShift Secrets for RHCS certificates")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @cluster_name
 @click.pass_context
 def openshift_rhcs_certs(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     cluster_name: Iterable[str] | None,
 ) -> None:
     import reconcile.openshift_rhcs_certs
@@ -1801,17 +1755,15 @@ def openshift_rhcs_certs(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         cluster_name=cluster_name,
     )
 
 
 @integration.command(short_help="Manages OpenShift Routes.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @cluster_name
 @namespace_name
 @click.pass_context
@@ -1819,7 +1771,6 @@ def openshift_routes(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     cluster_name: Iterable[str] | None,
     namespace_name: str | None,
 ) -> None:
@@ -1830,7 +1781,6 @@ def openshift_routes(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         cluster_name=cluster_name,
         namespace_name=namespace_name,
     )
@@ -1838,10 +1788,9 @@ def openshift_routes(
 
 @integration.command(short_help="Manages OpenShift Prometheus Rules.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @cluster_name
 @namespace_name
 @click.pass_context
@@ -1849,7 +1798,6 @@ def openshift_prometheus_rules(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     cluster_name: Iterable[str] | None,
     namespace_name: str | None,
 ) -> None:
@@ -1860,7 +1808,6 @@ def openshift_prometheus_rules(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         cluster_name=cluster_name,
         namespace_name=namespace_name,
     )
@@ -1871,7 +1818,6 @@ def openshift_prometheus_rules(
 @binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @cluster_name
 @enable_extended_early_exit
 @extended_early_exit_cache_ttl_seconds
@@ -1887,7 +1833,6 @@ def endpoints_discovery(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     cluster_name: Iterable[str] | None,
     enable_extended_early_exit: bool,
     extended_early_exit_cache_ttl_seconds: int,
@@ -1903,7 +1848,6 @@ def endpoints_discovery(
     params = EndpointsDiscoveryIntegrationParams(
         thread_pool_size=thread_pool_size,
         internal=internal,
-        use_jump_host=use_jump_host,
         cluster_name=cluster_name,
         app_name=app_name,
         enable_extended_early_exit=enable_extended_early_exit,
@@ -2319,7 +2263,6 @@ def template_renderer(
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @enable_deletion(default=False)
 @account_name_multiple
 @exclude_aws_accounts
@@ -2338,7 +2281,6 @@ def terraform_resources(
     enable_deletion: bool,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     light: bool,
     vault_output_path: str,
     account_name: Iterable[str] | None,
@@ -2358,7 +2300,6 @@ def terraform_resources(
         enable_deletion,
         thread_pool_size,
         internal,
-        use_jump_host,
         light,
         vault_output_path,
         account_name=account_name,
@@ -3378,13 +3319,12 @@ def resource_scraper(
 
 @integration.command(short_help="Manages user access for GABI instances.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @click.pass_context
 def gabi_authorized_users(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+    ctx: click.Context, thread_pool_size: int, internal: bool
 ) -> None:
     import reconcile.gabi_authorized_users
 
@@ -3393,7 +3333,6 @@ def gabi_authorized_users(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
     )
 
 
@@ -3470,10 +3409,9 @@ def ocm_standalone_user_management(
 )
 @threaded()
 @internal()
-@use_jump_host()
 @click.pass_context
 def blackbox_exporter_endpoint_monitoring(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+    ctx: click.Context, thread_pool_size: int, internal: bool
 ) -> None:
     import reconcile.blackbox_exporter_endpoint_monitoring
 
@@ -3482,7 +3420,6 @@ def blackbox_exporter_endpoint_monitoring(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
     )
 
 
@@ -3491,10 +3428,9 @@ def blackbox_exporter_endpoint_monitoring(
 )
 @threaded()
 @internal()
-@use_jump_host()
 @click.pass_context
 def signalfx_prometheus_endpoint_monitoring(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+    ctx: click.Context, thread_pool_size: int, internal: bool
 ) -> None:
     import reconcile.signalfx_endpoint_monitoring
 
@@ -3503,7 +3439,6 @@ def signalfx_prometheus_endpoint_monitoring(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
     )
 
 
@@ -3535,10 +3470,9 @@ def vault_replication(ctx: click.Context) -> None:
 @integration.command(short_help="Manages Qontract Reconcile integrations.")
 @environment_name
 @threaded()
-@binary(["oc", "ssh", "helm"])
+@binary(["oc", "helm"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @click.option(
     "--image-tag-from-ref",
     "-r",
@@ -3567,7 +3501,6 @@ def integrations_manager(
     environment_name: str | None,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     image_tag_from_ref: dict[str, str] | None,
     upstream: str | None,
     image: str | None,
@@ -3581,7 +3514,6 @@ def integrations_manager(
         get_integration_cli_meta(),
         thread_pool_size,
         internal,
-        use_jump_host,
         image_tag_from_ref,
         upstream,
         image,
@@ -3701,17 +3633,15 @@ def glitchtip_api(ctx: click.Context, instance: str | None) -> None:
 
 @integration.command(short_help="Glitchtip project dsn as openshift secret.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @click.option("--instance", help="Reconcile just this instance.", default=None)
 @click.pass_context
 def glitchtip_project_dsn(
     ctx: click.Context,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     instance: str | None,
 ) -> None:
     import reconcile.glitchtip_project_dsn.integration
@@ -3721,21 +3651,17 @@ def glitchtip_project_dsn(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
         instance,
     )
 
 
 @integration.command(short_help="Manages Skupper Networks.")
 @threaded()
-@binary(["oc", "ssh"])
+@binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
-@use_jump_host()
 @click.pass_context
-def skupper_network(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
-) -> None:
+def skupper_network(ctx: click.Context, thread_pool_size: int, internal: bool) -> None:
     import reconcile.skupper_network.integration
 
     run_integration(
@@ -3743,7 +3669,6 @@ def skupper_network(
         ctx,
         thread_pool_size,
         internal,
-        use_jump_host,
     )
 
 
@@ -3905,10 +3830,9 @@ def external_resources_secrets_sync(
 @integration.command(short_help="Deploy the Automated Actions Config")
 @threaded()
 @internal()
-@use_jump_host()
 @click.pass_context
 def automated_actions_config(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+    ctx: click.Context, thread_pool_size: int, internal: bool
 ) -> None:
     from reconcile.automated_actions.config.integration import (
         AutomatedActionsConfigIntegration,
@@ -3919,7 +3843,6 @@ def automated_actions_config(
         integration=AutomatedActionsConfigIntegration(
             AutomatedActionsConfigIntegrationParams(
                 thread_pool_size=thread_pool_size,
-                use_jump_host=use_jump_host,
                 internal=internal,
             )
         ),

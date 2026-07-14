@@ -54,7 +54,6 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 1)
 
 class AutomatedActionsConfigIntegrationParams(PydanticRunParams):
     thread_pool_size: int
-    use_jump_host: bool
     internal: bool | None = None
     configmap_name: str = "automated-actions-policy"
 
@@ -378,7 +377,6 @@ class AutomatedActionsConfigIntegration(
             namespaces=[instance.deployment for instance in instances],
             secret_reader=self.secret_reader,
             integration=QONTRACT_INTEGRATION,
-            use_jump_host=self.params.use_jump_host,
             thread_pool_size=self.params.thread_pool_size,
             internal=self.params.internal,
         )

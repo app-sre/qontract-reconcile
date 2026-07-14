@@ -595,9 +595,6 @@ query ExternalResourcesNamespaces {
       name
       serverUrl
       insecureSkipTLSVerify
-      jumpHost {
-        ...CommonJumphostFields
-      }
       automationToken {
         ...VaultSecret
       }

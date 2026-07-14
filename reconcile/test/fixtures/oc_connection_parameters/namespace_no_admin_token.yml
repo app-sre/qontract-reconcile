@@ -13,17 +13,6 @@ cluster:
   disable: null
   insecureSkipTLSVerify: null
   internal: false
-  jumpHost:
-    hostname: jumphost
-    identity:
-      field: identity
-      format: base64
-      path: jumphost-secret
-      version: null
-    knownHosts: /path/to/file
-    port: null
-    remotePort: null
-    user: jumphost-user
   name: cluster-without-admin
   serverUrl: server-url
 clusterAdmin: true

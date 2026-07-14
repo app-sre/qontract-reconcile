@@ -24,25 +24,11 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
-fragment CommonJumphostFields on ClusterJumpHost_v1 {
-  hostname
-  knownHosts
-  user
-  port
-  remotePort
-  identity {
-    ...VaultSecret
-  }
-}
-
 fragment OcConnectionCluster on Cluster_v1 {
   name
   serverUrl
   internal
   insecureSkipTLSVerify
-  jumpHost {
-    ...CommonJumphostFields
-  }
   automationToken {
     ...VaultSecret
   }
@@ -139,9 +125,6 @@ fragment SaasTargetNamespace on Namespace_v1 {
     internal
     insecureSkipTLSVerify
     labels
-    jumpHost {
-      ...CommonJumphostFields
-    }
     automationToken {
       ...VaultSecret
     }
