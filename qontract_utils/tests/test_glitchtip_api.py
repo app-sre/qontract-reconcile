@@ -50,11 +50,13 @@ def test_organization_model() -> None:
 
 def test_project_model() -> None:
     """Test Project model validation."""
-    project = Project.model_validate({
-        "id": 2,
-        "name": "my-project",
-        "slug": "my-project",
-    })
+    project = Project.model_validate(
+        {
+            "id": 2,
+            "name": "my-project",
+            "slug": "my-project",
+        }
+    )
     assert project.pk == 2
     assert project.name == "my-project"
     assert project.slug == "my-project"
@@ -62,20 +64,22 @@ def test_project_model() -> None:
 
 def test_project_alert_model() -> None:
     """Test ProjectAlert model validation with camelCase aliases."""
-    alert = ProjectAlert.model_validate({
-        "id": 10,
-        "name": "high-error-rate",
-        "timespanMinutes": 5,
-        "quantity": 100,
-        "alertRecipients": [
-            {"id": 1, "recipientType": "email", "url": ""},
-            {
-                "id": 2,
-                "recipientType": "webhook",
-                "url": "https://example.com/hook",
-            },
-        ],
-    })
+    alert = ProjectAlert.model_validate(
+        {
+            "id": 10,
+            "name": "high-error-rate",
+            "timespanMinutes": 5,
+            "quantity": 100,
+            "alertRecipients": [
+                {"id": 1, "recipientType": "email", "url": ""},
+                {
+                    "id": 2,
+                    "recipientType": "webhook",
+                    "url": "https://example.com/hook",
+                },
+            ],
+        }
+    )
     assert alert.pk == 10
     assert alert.name == "high-error-rate"
     assert alert.timespan_minutes == 5
@@ -88,21 +92,25 @@ def test_project_alert_model() -> None:
 
 def test_project_alert_model_empty_recipients() -> None:
     """Test ProjectAlert model with no recipients."""
-    alert = ProjectAlert.model_validate({
-        "name": "my-alert",
-        "timespanMinutes": 1,
-        "quantity": 10,
-    })
+    alert = ProjectAlert.model_validate(
+        {
+            "name": "my-alert",
+            "timespanMinutes": 1,
+            "quantity": 10,
+        }
+    )
     assert alert.recipients == []
 
 
 def test_project_alert_recipient_model() -> None:
     """Test ProjectAlertRecipient model validation."""
-    recipient = ProjectAlertRecipient.model_validate({
-        "id": 5,
-        "recipientType": "webhook",
-        "url": "https://example.com/hook",
-    })
+    recipient = ProjectAlertRecipient.model_validate(
+        {
+            "id": 5,
+            "recipientType": "webhook",
+            "url": "https://example.com/hook",
+        }
+    )
     assert recipient.pk == 5
     assert recipient.recipient_type == RecipientType.WEBHOOK
     assert recipient.url == "https://example.com/hook"
@@ -323,10 +331,12 @@ def test_organizations_single_page(
     glitchtip_api: GlitchtipApi, mock_httpx_client: MagicMock
 ) -> None:
     """Test organizations() fetches single page."""
-    mock_httpx_client.get.return_value = _make_response([
-        {"id": 1, "name": "org-1", "slug": "org-1"},
-        {"id": 2, "name": "org-2", "slug": "org-2"},
-    ])
+    mock_httpx_client.get.return_value = _make_response(
+        [
+            {"id": 1, "name": "org-1", "slug": "org-1"},
+            {"id": 2, "name": "org-2", "slug": "org-2"},
+        ]
+    )
 
     orgs = glitchtip_api.organizations()
 
@@ -360,9 +370,11 @@ def test_organizations_pagination(
 
 def test_projects(glitchtip_api: GlitchtipApi, mock_httpx_client: MagicMock) -> None:
     """Test projects() fetches projects for an organization."""
-    mock_httpx_client.get.return_value = _make_response([
-        {"id": 1, "name": "project-1", "slug": "project-1"},
-    ])
+    mock_httpx_client.get.return_value = _make_response(
+        [
+            {"id": 1, "name": "project-1", "slug": "project-1"},
+        ]
+    )
 
     projects = glitchtip_api.projects("my-org")
 
@@ -377,15 +389,17 @@ def test_project_alerts(
     glitchtip_api: GlitchtipApi, mock_httpx_client: MagicMock
 ) -> None:
     """Test project_alerts() fetches alerts for a project."""
-    mock_httpx_client.get.return_value = _make_response([
-        {
-            "id": 10,
-            "name": "alert-1",
-            "timespanMinutes": 5,
-            "quantity": 100,
-            "alertRecipients": [],
-        }
-    ])
+    mock_httpx_client.get.return_value = _make_response(
+        [
+            {
+                "id": 10,
+                "name": "alert-1",
+                "timespanMinutes": 5,
+                "quantity": 100,
+                "alertRecipients": [],
+            }
+        ]
+    )
 
     alerts = glitchtip_api.project_alerts("my-org", "my-project")
 
@@ -400,13 +414,15 @@ def test_create_project_alert(
     glitchtip_api: GlitchtipApi, mock_httpx_client: MagicMock
 ) -> None:
     """Test create_project_alert() POSTs new alert."""
-    mock_httpx_client.post.return_value = _make_response({
-        "id": 42,
-        "name": "new-alert",
-        "timespanMinutes": 1,
-        "quantity": 10,
-        "alertRecipients": [],
-    })
+    mock_httpx_client.post.return_value = _make_response(
+        {
+            "id": 42,
+            "name": "new-alert",
+            "timespanMinutes": 1,
+            "quantity": 10,
+            "alertRecipients": [],
+        }
+    )
 
     alert = ProjectAlert(name="new-alert", timespan_minutes=1, quantity=10)
     created = glitchtip_api.create_project_alert("my-org", "my-project", alert)
@@ -420,13 +436,15 @@ def test_create_project_alert_email_recipient_omits_url(
     glitchtip_api: GlitchtipApi, mock_httpx_client: MagicMock
 ) -> None:
     """Test that email recipients do not send url in the request body."""
-    mock_httpx_client.post.return_value = _make_response({
-        "id": 42,
-        "name": "alert-with-email",
-        "timespanMinutes": 1,
-        "quantity": 10,
-        "alertRecipients": [{"id": 1, "recipientType": "email", "url": ""}],
-    })
+    mock_httpx_client.post.return_value = _make_response(
+        {
+            "id": 42,
+            "name": "alert-with-email",
+            "timespanMinutes": 1,
+            "quantity": 10,
+            "alertRecipients": [{"id": 1, "recipientType": "email", "url": ""}],
+        }
+    )
 
     alert = ProjectAlert(
         name="alert-with-email",
@@ -451,15 +469,17 @@ def test_create_project_alert_webhook_recipient_includes_url(
     glitchtip_api: GlitchtipApi, mock_httpx_client: MagicMock
 ) -> None:
     """Test that webhook recipients include url in the request body."""
-    mock_httpx_client.post.return_value = _make_response({
-        "id": 42,
-        "name": "alert-with-webhook",
-        "timespanMinutes": 1,
-        "quantity": 10,
-        "alertRecipients": [
-            {"id": 1, "recipientType": "webhook", "url": "https://example.com/hook"}
-        ],
-    })
+    mock_httpx_client.post.return_value = _make_response(
+        {
+            "id": 42,
+            "name": "alert-with-webhook",
+            "timespanMinutes": 1,
+            "quantity": 10,
+            "alertRecipients": [
+                {"id": 1, "recipientType": "webhook", "url": "https://example.com/hook"}
+            ],
+        }
+    )
 
     alert = ProjectAlert(
         name="alert-with-webhook",
@@ -490,13 +510,15 @@ def test_update_project_alert(
     glitchtip_api: GlitchtipApi, mock_httpx_client: MagicMock
 ) -> None:
     """Test update_project_alert() PUTs updated alert."""
-    mock_httpx_client.put.return_value = _make_response({
-        "id": 42,
-        "name": "updated-alert",
-        "timespanMinutes": 5,
-        "quantity": 50,
-        "alertRecipients": [],
-    })
+    mock_httpx_client.put.return_value = _make_response(
+        {
+            "id": 42,
+            "name": "updated-alert",
+            "timespanMinutes": 5,
+            "quantity": 50,
+            "alertRecipients": [],
+        }
+    )
 
     alert = ProjectAlert(pk=42, name="updated-alert", timespan_minutes=5, quantity=50)
     updated = glitchtip_api.update_project_alert("my-org", "my-project", alert)
