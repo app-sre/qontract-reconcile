@@ -48,16 +48,14 @@ class MirrorEngine:
         needing to mock the Image constructor import path."""
         from sretoolbox.container import Image  # noqa: PLC0415
 
-        source_creds_parts = (
-            spec.source_creds.split(":") if spec.source_creds else (None, None)
-        )
+        # maxsplit=1 preserves colons in passwords (e.g., base64-decoded
+        # GCP service account keys frequently contain colons).
         if spec.source_creds:
-            src_user, src_pass = source_creds_parts[0], source_creds_parts[1]
+            src_user, src_pass = spec.source_creds.split(":", maxsplit=1)
         else:
             src_user, src_pass = None, None
 
-        dest_creds_parts = spec.destination_creds.split(":")
-        dst_user, dst_pass = dest_creds_parts[0], dest_creds_parts[1]
+        dst_user, dst_pass = spec.destination_creds.split(":", maxsplit=1)
 
         source = Image(
             spec.source_url,
@@ -175,13 +173,13 @@ class MirrorEngine:
                         _LOG.error("skopeo command error: '%s'", details)
                         errors.append(details)
 
-        # Record the deep sync timestamp only when a real deep sync
-        # completed and not in dry-run mode. Writing the timestamp
-        # after a fast-mode run would incorrectly delay the next
-        # deep sync. Writing it in dry-run mode would claim a sync
-        # happened when no actual copying occurred.
-        if self._deep_sync_timer and self.is_deep_sync and not self.dry_run:
-            self._deep_sync_timer.record()
-
+        # Raise before recording the timestamp so that a failed deep
+        # sync is not marked as successful. Otherwise, failed images
+        # would not be re-compared until the full interval elapses.
         if errors:
             raise ExceptionGroup("skopeo copy failures", errors)
+
+        # Record the deep sync timestamp only when a real deep sync
+        # completed without errors and not in dry-run mode.
+        if self._deep_sync_timer and self.is_deep_sync and not self.dry_run:
+            self._deep_sync_timer.record()

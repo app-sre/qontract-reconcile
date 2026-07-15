@@ -8,9 +8,12 @@ if TYPE_CHECKING:
         ContainerRegistryMirror,
     )
 
-# The factory return type is Any at runtime to avoid a circular import
-# with protocol.py. Type checkers see the Protocol via the TYPE_CHECKING
-# import above.
+# The factory return type is Any at runtime because type aliases
+# assigned at module scope are evaluated eagerly, and importing
+# ContainerRegistryMirror outside TYPE_CHECKING would create a
+# circular import with protocol.py. The public API (get_mirror)
+# returns ContainerRegistryMirror via a deferred annotation, so
+# type checkers see the correct type for all normal usage.
 MirrorFactory = Callable[[], Any]
 
 # Module-level registry mapping implementation names to factory functions.

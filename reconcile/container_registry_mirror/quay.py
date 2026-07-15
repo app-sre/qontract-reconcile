@@ -4,6 +4,8 @@ import logging
 from collections import namedtuple
 from typing import TYPE_CHECKING, Any
 
+from sretoolbox.container import Image
+
 from reconcile import queries
 from reconcile.container_registry_mirror import register
 from reconcile.container_registry_mirror.deep_sync_timer import DeepSyncTimer
@@ -140,6 +142,21 @@ class QuayMirror:
                     if exclude_urls and mirror_url in exclude_urls:
                         continue
 
+                    destination_url = f"{server_url}/{org}/{item['name']}"
+                    source_image = Image(mirror_url)
+                    if self.should_skip_mirror(
+                        source_registry=source_image.registry,
+                        source_url=mirror_url,
+                        destination_url=destination_url,
+                        destination_public=item.get("public"),
+                    ):
+                        _LOG.error(
+                            "Image %s cannot be mirrored to a public repository at %s",
+                            mirror_url,
+                            destination_url,
+                        )
+                        continue
+
                     source_creds = self.resolve_source_credentials(
                         item["mirror"]["pullCredentials"]
                     )
@@ -149,7 +166,7 @@ class QuayMirror:
                         MirrorSpec(
                             source_url=mirror_url,
                             source_creds=source_creds,
-                            destination_url=f"{server_url}/{org}/{item['name']}",
+                            destination_url=destination_url,
                             destination_creds=dest_creds,
                             tag_include=item["mirror"].get("tags"),
                             tag_exclude=item["mirror"].get("tagsExclude"),

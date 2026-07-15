@@ -75,8 +75,9 @@ class DeepSyncTimer:
         try:
             with open(self.control_file_path, encoding="locale") as f:
                 last_sync = float(f.read())
-        except FileNotFoundError:
-            # First run or volume was wiped; trigger a deep sync.
+        except FileNotFoundError, ValueError:
+            # First run, volume wipe, or corrupt/empty file from an
+            # interrupted write (e.g., pod OOM-killed mid-record).
             return True
 
         next_sync = last_sync + self.interval
