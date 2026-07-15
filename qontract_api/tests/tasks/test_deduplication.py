@@ -31,7 +31,7 @@ def test_deduplicated_task_success(mock_cache: MagicMock) -> None:
     assert result == "processed-workspace-1"
     # Verify lock was attempted with correct key
     mock_cache.lock.assert_called_once_with(
-        "task_lock:test_task:workspace-1", timeout=60
+        "task_lock:test_task:dry_run=false:workspace-1", timeout=60
     )
 
 
@@ -95,7 +95,9 @@ def test_deduplicated_task_with_multiple_args(mock_cache: MagicMock) -> None:
 
     assert result == "result-a-b-10"
     # Verify lock key includes both x and y
-    mock_cache.lock.assert_called_once_with("task_lock:test_task:a-b", timeout=120)
+    mock_cache.lock.assert_called_once_with(
+        "task_lock:test_task:dry_run=false:a-b", timeout=120
+    )
 
 
 def test_deduplicated_task_lock_timeout(mock_cache: MagicMock) -> None:
@@ -110,7 +112,7 @@ def test_deduplicated_task_lock_timeout(mock_cache: MagicMock) -> None:
 
     # Verify custom timeout was used
     mock_cache.lock.assert_called_once_with(
-        "task_lock:test_task:workspace-1", timeout=300
+        "task_lock:test_task:dry_run=false:workspace-1", timeout=300
     )
 
 
@@ -148,7 +150,9 @@ def test_deduplicated_task_with_kwargs(mock_cache: MagicMock) -> None:
         result = test_task(workspace="test-ws", dry_run=False)
 
     assert result == {"workspace": "test-ws", "dry_run": False}
-    mock_cache.lock.assert_called_once_with("task_lock:test_task:test-ws", timeout=60)
+    mock_cache.lock.assert_called_once_with(
+        "task_lock:test_task:dry_run=false:test-ws", timeout=60
+    )
 
 
 def test_deduplicated_task_dry_run_never_locks(mock_cache: MagicMock) -> None:
@@ -207,7 +211,9 @@ def test_deduplicated_task_production_still_dedupes_concurrent_same_resource(
 
     assert isinstance(result, TaskResult)
     assert result.status == TaskStatus.SKIPPED
-    mock_cache.lock.assert_called_once_with("task_lock:test_task:ws-1", timeout=60)
+    mock_cache.lock.assert_called_once_with(
+        "task_lock:test_task:dry_run=false:ws-1", timeout=60
+    )
 
 
 def test_deduplicated_task_preserves_function_name() -> None:
@@ -243,5 +249,5 @@ def test_deduplicated_task_with_complex_lock_key(mock_cache: MagicMock) -> None:
     assert result == 2
     # Lock key should be sorted workspace names
     mock_cache.lock.assert_called_once_with(
-        "task_lock:test_task:ws-a,ws-b", timeout=600
+        "task_lock:test_task:dry_run=false:ws-a,ws-b", timeout=600
     )

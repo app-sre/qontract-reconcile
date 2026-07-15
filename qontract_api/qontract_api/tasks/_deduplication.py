@@ -81,8 +81,14 @@ def deduplicated_task(
             if kwargs.get("dry_run", True):
                 return func(*args, **kwargs)
 
+            # Keep the pre-existing key format (with the now-constant
+            # dry_run=false segment) so that during a rolling deploy, old
+            # and new worker pods compute the identical lock key for the
+            # same production task - a differing format would let an old
+            # and a new pod both believe they hold the lock for the same
+            # resource.
             lock_key_suffix = lock_key_fn(*args, **kwargs)
-            lock_key = f"task_lock:{func.__name__}:{lock_key_suffix}"
+            lock_key = f"task_lock:{func.__name__}:dry_run=false:{lock_key_suffix}"
 
             logger.debug(
                 f"Attempting to acquire lock for task {func.__name__}",
