@@ -9,7 +9,7 @@ dependencies = [
     "botocore==1.43.10",
     "cloudevents==2.0.0",
     "faststream[redis]==0.6.7",
-    "httpxyz==0.31.2",
+    "httpx2==2.5.0",
     "hvac==2.4.0",
     "ldap3>=2.9.1,<2.10.0",
     "lightkube==0.22.0",
@@ -42,13 +42,6 @@ dev = [
     "types-ldap3",
     "tzdata==2026.2",
 ]
-
-[[tool.uv.dependency-metadata]]
-name = "pagerduty"
-requires-dist = ["httpxyz>=0.31"]
-
-[tool.ruff.lint.pyflakes]
-allowed-unused-imports = ["httpxyz"]
 
 [build-system]
 requires = ["hatchling"]

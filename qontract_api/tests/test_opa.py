@@ -4,7 +4,7 @@ import re
 from typing import Any
 from unittest.mock import AsyncMock, Mock
 
-import httpxyz as httpx
+import httpx2
 import pytest
 from fastapi import HTTPException
 
@@ -134,7 +134,7 @@ def test_opa_client_urls(
         host=host,
         package_name=package_name,
         skip_endpoints=[],
-        client=httpx.AsyncClient(),
+        client=httpx2.AsyncClient(),
     )
     assert client.opa_url == expected_opa_url
     assert client.health_url == expected_health_url
@@ -149,7 +149,7 @@ def opa_client() -> OPAClient:
         host="http://opa:8181",
         package_name="authz",
         skip_endpoints=[re.compile(r"^/health/.*"), re.compile(r"^/docs.*")],
-        client=httpx.AsyncClient(),
+        client=httpx2.AsyncClient(),
     )
 
 
@@ -235,7 +235,7 @@ async def test_authorize_returns_403(response: Mock, description: str) -> None:
 @pytest.mark.anyio
 async def test_authorize_connection_error_returns_403() -> None:
     mock = AsyncMock()
-    mock.post.side_effect = httpx.ConnectError("connection refused")
+    mock.post.side_effect = httpx2.ConnectError("connection refused")
     with pytest.raises(HTTPException) as exc_info:
         await _make_client(mock).authorize(
             username="user",
