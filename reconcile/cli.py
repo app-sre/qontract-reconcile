@@ -1930,9 +1930,9 @@ def quay_membership(ctx: click.Context) -> None:
 @click.pass_context
 @binary(["skopeo"])
 def gcp_image_mirror(ctx: click.Context) -> None:
-    import reconcile.gcp_image_mirror
+    import reconcile.container_registry_mirror.gcp
 
-    run_integration(reconcile.gcp_image_mirror, ctx)
+    run_integration(reconcile.container_registry_mirror.gcp, ctx)
 
 
 @integration.command(short_help="Mirrors external images into Quay.")
@@ -1979,10 +1979,10 @@ def quay_mirror(
     repository_url: Iterable[str] | None,
     exclude_repository_url: Iterable[str] | None,
 ) -> None:
-    import reconcile.quay_mirror
+    import reconcile.container_registry_mirror.quay
 
     run_integration(
-        reconcile.quay_mirror,
+        reconcile.container_registry_mirror.quay,
         ctx,
         control_file_dir,
         compare_tags,
