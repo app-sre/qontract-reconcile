@@ -81,7 +81,7 @@ def check_opa_health(opa_client: OPAClient | None) -> HealthStatus:
             status="unhealthy",
             message=f"OPA returned {response.status_code}",
         )
-    except (OSError, httpx2.TimeoutException) as e:
+    except (OSError, httpx2.RequestError) as e:
         return HealthStatus(
             status="unhealthy",
             message=f"OPA health check failed: {e}",
