@@ -787,6 +787,8 @@ parameters:
     required: true
 
   ## Prod worker (qontract-api-prod queue) Pod limits
+  # The -Q queue name must match QUEUE_PROD in
+  # qontract_api/qontract_api/tasks/__init__.py.
   - name: QAPI_WORKER_PROD_CELERY_OPTS
     description: Celery options for the prod worker (binds it to the prod queue)
     value: "--pool solo -Q qontract-api-prod"
@@ -808,6 +810,8 @@ parameters:
     required: true
 
   ## MR-check worker (qontract-api-mr-check queue) Pod limits
+  # The -Q queue name must match QUEUE_MR_CHECK in
+  # qontract_api/qontract_api/tasks/__init__.py.
   - name: QAPI_WORKER_MR_CHECK_CELERY_OPTS
     description: Celery options for the mr-check worker (binds it to the mr-check queue)
     value: "--pool solo -Q qontract-api-mr-check"
