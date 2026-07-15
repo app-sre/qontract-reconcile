@@ -31,6 +31,11 @@ def deduplicated_task(
     - Redis/Valkey: Native lock with Lua scripts + watch-dog
     - Other backends: Backend-specific distributed locking
 
+    Dry-run tasks (kwarg `dry_run=True`) are read-only and never write
+    anything, so they bypass locking entirely and always execute. Locking
+    only applies to production (`dry_run=False`) runs, where concurrent
+    writes to the same resource must be prevented.
+
     Args:
         lock_key_fn: Function to generate lock key from task arguments.
                     Example: `lambda workspace, **kw: workspace`
@@ -70,12 +75,14 @@ def deduplicated_task(
 
         @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            # Generate lock key from task arguments.
-            # Always include dry_run in the key so that dry-run and production
-            # tasks for the same resources do not block each other.
+            # Dry-run tasks never write anything, so there is no correctness
+            # reason to serialize them - skip locking entirely so MR-check
+            # traffic isn't throttled by unrelated in-flight dry runs.
+            if kwargs.get("dry_run", True):
+                return func(*args, **kwargs)
+
             lock_key_suffix = lock_key_fn(*args, **kwargs)
-            dry_run = str(kwargs.get("dry_run", True)).lower()
-            lock_key = f"task_lock:{func.__name__}:dry_run={dry_run}:{lock_key_suffix}"
+            lock_key = f"task_lock:{func.__name__}:{lock_key_suffix}"
 
             logger.debug(
                 f"Attempting to acquire lock for task {func.__name__}",

@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from qontract_api.auth import create_access_token
 from qontract_api.models import TokenData
+from qontract_api.tasks import QUEUE_MR_CHECK, QUEUE_PROD
 
 
 @pytest.fixture
@@ -17,7 +18,7 @@ def auth_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {test_token}"}
 
 
-def _request_body() -> dict:
+def _request_body(*, dry_run: bool = True) -> dict:
     return {
         "clusters": [
             {
@@ -31,7 +32,7 @@ def _request_body() -> dict:
                 "namespaces": [{"name": "app-a"}],
             }
         ],
-        "dry_run": True,
+        "dry_run": dry_run,
     }
 
 
@@ -55,6 +56,26 @@ def test_post_reconcile_returns_202(
     assert data["status"] == "pending"
     assert "status_url" in data
     mock_task.apply_async.assert_called_once()
+    assert mock_task.apply_async.call_args.kwargs["queue"] == QUEUE_MR_CHECK
+
+
+@patch(
+    "qontract_api.integrations.openshift_namespaces.router.reconcile_openshift_namespaces_task"
+)
+def test_post_reconcile_dry_run_false_uses_prod_queue(
+    mock_task: MagicMock,
+    client_with_cache: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """POST /reconcile with dry_run=False routes to the prod queue."""
+    response = client_with_cache.post(
+        "/api/v1/integrations/openshift-namespaces/reconcile",
+        json=_request_body(dry_run=False),
+        headers=auth_headers,
+    )
+    assert response.status_code == 202
+    mock_task.apply_async.assert_called_once()
+    assert mock_task.apply_async.call_args.kwargs["queue"] == QUEUE_PROD
 
 
 @patch(
