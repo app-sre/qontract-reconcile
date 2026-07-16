@@ -1438,7 +1438,7 @@ def run_error_healthcheck(
     consecutive_failure_limit: int = 3,
 ) -> None:
     """Check error labels for queue-eligible MRs. Apply/remove
-    rebase-error based on merge_error field and detailed_merge_status,
+    rebase-error based on merge_error field from .get(),
     pipeline-error based on consecutive failure count, and remove
     merge-error if any new notes have been posted since the label was applied."""
     for mr in project_merge_requests:
