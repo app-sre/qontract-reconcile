@@ -14,6 +14,7 @@ from qontract_api.integrations.glitchtip.schemas import (
     GlitchtipTaskResult,
 )
 from qontract_api.models import Secret, TaskStatus, TokenData
+from qontract_api.tasks import QUEUE_MR_CHECK, QUEUE_PROD
 
 
 @pytest.fixture
@@ -73,6 +74,7 @@ def test_post_reconcile_queues_task(
     call_kwargs = mock_task.apply_async.call_args.kwargs["kwargs"]
     assert call_kwargs["dry_run"] is True
     assert len(call_kwargs["instances"]) == 1
+    assert mock_task.apply_async.call_args.kwargs["queue"] == QUEUE_MR_CHECK
 
 
 @patch("qontract_api.integrations.glitchtip.router.reconcile_glitchtip_task")
@@ -110,6 +112,7 @@ def test_post_reconcile_dry_run_false(
     assert response.status_code == HTTPStatus.ACCEPTED
     call_kwargs = mock_task.apply_async.call_args.kwargs["kwargs"]
     assert call_kwargs["dry_run"] is False
+    assert mock_task.apply_async.call_args.kwargs["queue"] == QUEUE_PROD
 
 
 def test_post_reconcile_requires_auth(
