@@ -300,13 +300,16 @@ def clusters(ctx: click.Context, name: str) -> None:
         clusters = [c for c in clusters if c["name"] == name]
 
     for c in clusters:
+        jh = c.get("jumpHost")
+        if jh:
+            c["sshuttle"] = f"sshuttle -r {jh['hostname']} {c['network']['vpc']}"
         prometheus_url = c.get("prometheusUrl")
         if prometheus_url:
             c["thanosQuerierUrl"] = prometheus_url.replace(
                 "prometheus", "thanos-querier", 1
             )
 
-    columns = ["name", "consoleUrl", "prometheusUrl", "thanosQuerierUrl"]
+    columns = ["name", "consoleUrl", "prometheusUrl", "thanosQuerierUrl", "sshuttle"]
     print_output(ctx.obj["options"], clusters, columns)
 
 
@@ -1674,6 +1677,30 @@ def rosa_create_cluster_command(ctx: click.Context, cluster_name: str) -> None:
             ),
         ])
     )
+
+
+@get.command(
+    short_help="obtain sshuttle command for "
+    "connecting to private clusters via a jump host. "
+    "executing this command will set up the tunnel: "
+    "$(qontract-cli get sshuttle-command bastion.example.com)"
+)
+@click.argument("jumphost_hostname", required=False)
+@click.argument("cluster_name", required=False)
+@click.pass_context
+def sshuttle_command(
+    ctx: click.Context, jumphost_hostname: str | None, cluster_name: str | None
+) -> None:
+    jumphosts_query_data = queries.get_jumphosts(hostname=jumphost_hostname)
+    jumphosts = jumphosts_query_data.jumphosts or []
+    for jh in jumphosts:
+        jh_clusters = jh.clusters or []
+        if cluster_name:
+            jh_clusters = [c for c in jh_clusters if c.name == cluster_name]
+
+        vpc_cidr_blocks = [c.network.vpc for c in jh_clusters if c.network]
+        cmd = f"sshuttle -r {jh.hostname} {' '.join(vpc_cidr_blocks)}"
+        print(cmd)
 
 
 @get.command(
