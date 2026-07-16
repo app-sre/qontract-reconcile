@@ -55,8 +55,6 @@ dependencies = [
     "setuptools==80.8.0",
     "slack_sdk>=3.10,<4.0",
     "sretoolbox==4.0.1",
-    "sshtunnel>=0.4.0",
-    "paramiko==3.5.1",
     "tabulate==0.10.0",
     "terrascript==0.9.0",
     "UnleashClient==6.7.0",
@@ -100,11 +98,6 @@ dev = [
     "types-tabulate",
     "pytest-xdist>=3.8.0",
 ]
-
-# required for qontract_utils
-[[tool.uv.dependency-metadata]]
-name = "pagerduty"
-requires-dist = ["httpxyz>=0.31"]
 
 [project.scripts]
 app-interface-metrics-exporter = "tools.app_interface_metrics_exporter:main"
@@ -311,7 +304,6 @@ module = [
     "pygments.*",
     "pypd.*",
     "sendgrid.*",
-    "sshtunnel.*",
     "terrascript.*",
     "yamllint.*",
 ]

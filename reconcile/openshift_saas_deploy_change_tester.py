@@ -58,7 +58,6 @@ def osd_run_wrapper(
     spec: tuple[str, str],
     dry_run: bool,
     available_thread_pool_size: int,
-    use_jump_host: bool,
     saas_file_list: SaasFileList | None,
 ) -> int:
     saas_file_name, env_name = spec
@@ -67,7 +66,6 @@ def osd_run_wrapper(
         osd.run(
             dry_run=dry_run,
             thread_pool_size=available_thread_pool_size,
-            use_jump_host=use_jump_host,
             saas_file_name=saas_file_name,
             env_name=env_name,
             saas_file_list=saas_file_list,
@@ -205,7 +203,6 @@ def run(
     gitlab_merge_request_id: int,
     thread_pool_size: int,
     comparison_sha: str,
-    use_jump_host: bool,
 ) -> None:
     comparison_gql_api = gql.get_api_for_sha(
         comparison_sha, QONTRACT_INTEGRATION, validate_schemas=False
@@ -248,7 +245,6 @@ def run(
         thread_pool_size,
         dry_run=dry_run,
         available_thread_pool_size=available_thread_pool_size,
-        use_jump_host=use_jump_host,
         saas_file_list=saas_file_list,
     )
 

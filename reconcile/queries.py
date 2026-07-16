@@ -185,9 +185,6 @@ INTEGRATIONS_QUERY = """
           name
           serverUrl
           insecureSkipTLSVerify
-          jumpHost {
-            %s
-          }
           automationToken {
             path
             field
@@ -258,7 +255,7 @@ INTEGRATIONS_QUERY = """
     }
   }
 }
-""" % (indent(JUMPHOST_FIELDS, 12 * " "),)
+"""
 
 
 def get_integrations(managed: bool = False) -> list[dict[str, Any]]:
@@ -1566,9 +1563,6 @@ NAMESPACES_QUERY = """
       name
       serverUrl
       insecureSkipTLSVerify
-      jumpHost {
-        %s
-      }
       automationToken {
         path
         field
@@ -1635,7 +1629,7 @@ NAMESPACES_QUERY = """
     }
   }
 }
-""" % (indent(JUMPHOST_FIELDS, 8 * " "),)
+"""
 
 NAMESPACES_MINIMAL_QUERY = """
 {
@@ -1647,9 +1641,6 @@ NAMESPACES_MINIMAL_QUERY = """
       name
       serverUrl
       insecureSkipTLSVerify
-      jumpHost {
-        %s
-      }
       automationToken {
         path
         field
@@ -1663,7 +1654,7 @@ NAMESPACES_MINIMAL_QUERY = """
     }
   }
 }
-""" % (indent(JUMPHOST_FIELDS, 8 * " "),)
+"""
 
 
 def get_namespaces(minimal: bool = False) -> list[dict[str, Any]]:
@@ -2253,9 +2244,6 @@ PIPELINES_PROVIDERS_QUERY = """
           name
           serverUrl
           insecureSkipTLSVerify
-          jumpHost {
-            %s
-          }
           automationToken {
             path
             field
@@ -2297,7 +2285,7 @@ PIPELINES_PROVIDERS_QUERY = """
     }
   }
 }
-""" % (indent(JUMPHOST_FIELDS, 12 * " "),)
+"""
 
 
 def get_pipelines_providers() -> list[dict[str, Any]]:
@@ -2680,9 +2668,6 @@ GABI_INSTANCES_QUERY = """
           name
           serverUrl
           insecureSkipTLSVerify
-          jumpHost {
-            %s
-          }
           automationToken {
             path
             field
@@ -2702,7 +2687,7 @@ GABI_INSTANCES_QUERY = """
     expirationDate
   }
 }
-""" % (indent(JUMPHOST_FIELDS, 12 * " "),)
+"""
 
 
 def get_gabi_instances() -> list[dict[str, Any]]:

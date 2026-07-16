@@ -21,7 +21,11 @@ from qontract_api.integrations.slack_usergroups.tasks import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
-from qontract_api.tasks import get_celery_task_result, wait_for_task_completion
+from qontract_api.tasks import (
+    get_celery_task_result,
+    queue_for,
+    wait_for_task_completion,
+)
 
 logger = get_logger(__name__)
 
@@ -56,6 +60,7 @@ def slack_usergroups(
     # Queue Celery task (async execution in background worker)
     reconcile_slack_usergroups_task.apply_async(
         task_id=request.state.request_id,
+        queue=queue_for(dry_run=reconcile_request.dry_run),
         kwargs={
             "workspaces": reconcile_request.workspaces,
             "dry_run": reconcile_request.dry_run,

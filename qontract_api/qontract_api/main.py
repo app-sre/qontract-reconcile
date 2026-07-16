@@ -6,7 +6,7 @@ import re
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
-import httpxyz as httpx
+import httpx2
 from fastapi import FastAPI, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.utils import get_openapi
@@ -71,7 +71,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     # Startup: Initialize OPA client if enabled
     if settings.opa.enabled:
-        opa_http_client = httpx.AsyncClient(
+        opa_http_client = httpx2.AsyncClient(
             timeout=settings.opa.timeout,
         )
         _app.state.opa_client = OPAClient(

@@ -74,6 +74,34 @@ query AutomatedActionsInstances {
           identifier
         }
       }
+      ... on AutomatedActionExternalResourceRdsStart_v1 {
+        external_resource_rds_start_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
+      }
+      ... on AutomatedActionExternalResourceRdsStop_v1 {
+        external_resource_rds_stop_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
+      }
       ... on AutomatedActionOpenshiftTriggerCronjob_v1 {
         openshift_trigger_cronjob_arguments: arguments {
           namespace {

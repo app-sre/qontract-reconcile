@@ -338,6 +338,31 @@ async def glitchtip_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/openshift-namespaces/reconcile")
+async def openshift_namespaces(
+    result: schemas.OpenShiftNamespacesTaskResponse,
+    data: schemas.OpenShiftNamespacesReconcileRequest,
+) -> schemas.OpenShiftNamespacesTaskResponse:
+    """Openshift Namespaces Reconcile
+
+    Queue openshift-namespaces reconciliation task.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/openshift-namespaces/reconcile/{task_id}")
+async def openshift_namespaces_task_status(
+    result: schemas.OpenShiftNamespacesTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.OpenShiftNamespacesTaskResult:
+    """Openshift Namespaces Reconcile Task Status
+
+    Retrieve reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
 @client.post("/api/v1/integrations/slack-usergroups/reconcile")
 async def slack_usergroups(
     result: schemas.SlackUsergroupsTaskResponse,

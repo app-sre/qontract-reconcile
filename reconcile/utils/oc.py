@@ -48,10 +48,6 @@ from sretoolbox.utils import (
 
 from reconcile.status import RunningState
 from reconcile.utils.json import json_dumps
-from reconcile.utils.jump_host import (
-    JumphostParameters,
-    JumpHostSSH,
-)
 from reconcile.utils.metrics import oc_get_items_duration, reconcile_time
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.secret_reader import (
@@ -61,7 +57,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.unleash import get_feature_toggle_state
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Mapping, MutableMapping
+    from collections.abc import Callable, Iterable, Mapping
 
     from reconcile.utils.oc_connection_parameters import OCConnectionParameters
 
@@ -283,8 +279,6 @@ class OCCli:
         cluster_name: str | None,
         server: str | None,
         token: str | None,
-        jh: Mapping[Any, Any] | None = None,
-        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
@@ -311,8 +305,6 @@ class OCCli:
                 cluster_name=cluster_name,
                 server=server,
                 token=token,
-                jh=jh,
-                settings=settings,
                 init_projects=init_projects,
                 init_api_resources=init_api_resources,
                 local=local,
@@ -330,8 +322,6 @@ class OCCli:
         cluster_name: str,
         server: str | None,
         token: str | None,
-        jh: Mapping[Any, Any] | None = None,
-        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
@@ -343,8 +333,6 @@ class OCCli:
             cluster_name (string): Name of cluster
             server (string): Server URL of the cluster
             token (string): Token to use for authentication
-            jh (dict, optional): Info to initiate JumpHostSSH
-            settings (dict, optional): App-interface settings
             init_projects (bool, optional): Initiate projects
             init_api_resources (bool, optional): Initiate api-resources
             local (bool, optional): Use oc locally
@@ -359,22 +347,6 @@ class OCCli:
 
         if token:
             oc_base_cmd.extend(["--token", token])
-
-        self.jump_host = None
-        if jh is not None:
-            secret_reader = SecretReader(settings=settings)
-            key = secret_reader.read(jh["identity"])
-            jumphost_parameters = JumphostParameters(
-                hostname=jh["hostname"],
-                key=key,
-                known_hosts=jh["knownHosts"],
-                local_port=jh.get("localPort"),
-                port=jh.get("port"),
-                remote_port=jh.get("remotePort"),
-                user=jh["user"],
-            )
-            self.jump_host = JumpHostSSH(parameters=jumphost_parameters)
-            oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
 
         self.oc_base_cmd = oc_base_cmd
 
@@ -427,25 +399,6 @@ class OCCli:
         if token:
             oc_base_cmd.extend(["--token", token])
 
-        self.jump_host = None
-        if (
-            connection_parameters.jumphost_hostname
-            and connection_parameters.jumphost_user
-            and connection_parameters.jumphost_key
-            and connection_parameters.jumphost_known_hosts
-        ):
-            jumphost_parameters = JumphostParameters(
-                hostname=connection_parameters.jumphost_hostname,
-                key=connection_parameters.jumphost_key,
-                known_hosts=connection_parameters.jumphost_known_hosts,
-                local_port=connection_parameters.jumphost_local_port,
-                port=connection_parameters.jumphost_port,
-                remote_port=connection_parameters.jumphost_remote_port,
-                user=connection_parameters.jumphost_user,
-            )
-            self.jump_host = JumpHostSSH(parameters=jumphost_parameters)
-            oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
-
         self.oc_base_cmd = oc_base_cmd
 
         # calling get_version to check if cluster is reachable
@@ -476,8 +429,7 @@ class OCCli:
         return self._run(["whoami"])
 
     def cleanup(self) -> None:
-        if hasattr(self, "jump_host") and isinstance(self.jump_host, JumpHostSSH):
-            self.jump_host.cleanup()
+        pass
 
     def get_items(self, kind: str, **kwargs: Any) -> list[dict[str, Any]]:
         start_time = time.monotonic()
@@ -1341,8 +1293,6 @@ class OCNative(OCCli):
         cluster_name: str | None,
         server: str | None,
         token: str | None,
-        jh: Mapping[Any, Any] | None = None,
-        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
@@ -1352,8 +1302,6 @@ class OCNative(OCCli):
             cluster_name,
             server,
             token,
-            jh,
-            settings,
             init_projects=False,
             init_api_resources=False,
             local=local,
@@ -1404,12 +1352,6 @@ class OCNative(OCCli):
             # default timeout seems to be 1+ minutes
             "retries": 5,
         }
-        if self.jump_host:
-            # the ports could be parameterized, but at this point
-            # we only have need of 1 tunnel for 1 service
-            self.jump_host.create_ssh_tunnel()
-            local_port = self.jump_host.local_port
-            opts["proxy"] = f"http://localhost:{local_port}"
         configuration = Configuration()
         # the kubernetes client configuration takes a limited set
         # of parameters during initialization, but there are a lot
@@ -1555,8 +1497,6 @@ class OC:
         cluster_name: str | None = None,
         server: str | None = None,
         token: str | None = None,
-        jh: Mapping[Any, Any] | None = None,
-        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
@@ -1582,8 +1522,6 @@ class OC:
                 cluster_name=cluster_name,
                 server=server,
                 token=token,
-                jh=jh,
-                settings=settings,
                 init_projects=init_projects,
                 local=local,
                 insecure_skip_tls_verify=insecure_skip_tls_verify,
@@ -1595,8 +1533,6 @@ class OC:
             cluster_name=cluster_name,
             server=server,
             token=token,
-            jh=jh,
-            settings=settings,
             init_projects=init_projects,
             init_api_resources=init_api_resources,
             local=local,
@@ -1625,7 +1561,6 @@ class OC_Map:  # noqa: N801
         integration: str = "",
         settings: Mapping[str, Any] | None = None,
         internal: bool | None = None,
-        use_jump_host: bool = True,
         thread_pool_size: int = 1,
         init_projects: bool = False,
         init_api_resources: bool = False,
@@ -1636,12 +1571,10 @@ class OC_Map:  # noqa: N801
         self.calling_integration = integration
         self.settings = settings
         self.internal = internal
-        self.use_jump_host = use_jump_host
         self.thread_pool_size = thread_pool_size
         self.init_projects = init_projects
         self.init_api_resources = init_api_resources
         self._lock = Lock()
-        self.jh_ports: dict[str, str | int] = {}
 
         if clusters and namespaces:
             raise KeyError("expected only one of clusters or namespaces.")
@@ -1690,17 +1623,6 @@ class OC_Map:  # noqa: N801
 
     def __exit__(self, *exc: object) -> None:
         self.cleanup()
-
-    def set_jh_ports(self, jh: MutableMapping[str, str | int]) -> None:
-        # This will be replaced with getting the data from app-interface in
-        # a future PR.
-        jh["remotePort"] = 8888
-        key = f"{jh['hostname']}:{jh['remotePort']}"
-        with self._lock:
-            if key not in self.jh_ports:
-                port = JumpHostSSH.get_unique_random_port()
-                self.jh_ports[key] = port
-            jh["localPort"] = self.jh_ports[key]
 
     def init_oc_client(self, cluster_info: Mapping[str, Any], privileged: bool) -> None:
         cluster = cluster_info["name"]
@@ -1773,9 +1695,6 @@ class OC_Map:  # noqa: N801
                 )
                 return
 
-            jump_host = cluster_info.get("jumpHost") if self.use_jump_host else None
-            if jump_host:
-                self.set_jh_ports(jump_host)
             try:
                 oc_client = cast(
                     "OCClient",
@@ -1783,8 +1702,6 @@ class OC_Map:  # noqa: N801
                         cluster,
                         server_url,
                         token,
-                        jump_host,
-                        settings=self.settings,
                         init_projects=self.init_projects,
                         init_api_resources=self.init_api_resources,
                         insecure_skip_tls_verify=bool(insecure_skip_tls_verify),

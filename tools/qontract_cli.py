@@ -68,7 +68,6 @@ from reconcile.cli import (
     cluster_name,
     config_file,
     namespace_name,
-    use_jump_host,
 )
 from reconcile.cli import (
     threaded as thread_pool_size,
@@ -2593,9 +2592,8 @@ def app_interface_merge_history(ctx: click.Context) -> None:
     short_help="obtain a list of all resources that are managed "
     "on a customer cluster via a Hive SelectorSyncSet."
 )
-@use_jump_host()
 @click.pass_context
-def selectorsyncset_managed_resources(ctx: click.Context, use_jump_host: bool) -> None:
+def selectorsyncset_managed_resources(ctx: click.Context) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = get_clusters()
@@ -2605,7 +2603,6 @@ def selectorsyncset_managed_resources(ctx: click.Context, use_jump_host: bool) -
         integration="qontract-cli",
         thread_pool_size=1,
         init_api_resources=True,
-        use_jump_host=use_jump_host,
     )
     columns = [
         "cluster",
@@ -2651,11 +2648,8 @@ def selectorsyncset_managed_resources(ctx: click.Context, use_jump_host: bool) -
     short_help="obtain a list of all resources that are managed "
     "on a customer cluster via an ACM Policy via a Hive SelectorSyncSet."
 )
-@use_jump_host()
 @click.pass_context
-def selectorsyncset_managed_hypershift_resources(
-    ctx: click.Context, use_jump_host: bool
-) -> None:
+def selectorsyncset_managed_hypershift_resources(ctx: click.Context) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = get_clusters()
@@ -2665,7 +2659,6 @@ def selectorsyncset_managed_hypershift_resources(
         integration="qontract-cli",
         thread_pool_size=1,
         init_api_resources=True,
-        use_jump_host=use_jump_host,
     )
     columns = [
         "cluster",
@@ -4673,7 +4666,6 @@ def force_unlock(ctx: click.Context, lock_id: str) -> None:
 @cluster_name
 @namespace_name
 @thread_pool_size()
-@use_jump_host()
 @click.option("--exclude-pattern", help="Exclude images that match this pattern")
 @click.option("--include-pattern", help="Only include images that match this pattern")
 @click.pass_context
@@ -4682,7 +4674,6 @@ def container_images(
     cluster_name: str,
     namespace_name: str,
     thread_pool_size: int,
-    use_jump_host: bool,
     exclude_pattern: str,
     include_pattern: str,
 ) -> None:
@@ -4692,7 +4683,6 @@ def container_images(
         cluster_name=cluster_name,
         namespace_name=namespace_name,
         thread_pool_size=thread_pool_size,
-        use_jump_host=use_jump_host,
         exclude_pattern=exclude_pattern,
         include_pattern=include_pattern,
     )

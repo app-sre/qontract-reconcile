@@ -21,7 +21,6 @@ objects:
       QAPI_DEBUG: "${QAPI_DEBUG}"
       QAPI_ROOT_PATH: "${QAPI_ROOT_PATH}"
       QAPI_LOG_LEVEL: "${QAPI_LOG_LEVEL}"
-      QAPI_CELERY_OPTS: "${QAPI_CELERY_OPTS}"
       QAPI_UVICORN_OPTS: "${QAPI_UVICORN_OPTS}"
 
 
@@ -349,7 +348,9 @@ objects:
         app.kubernetes.io/component: subscriber
         app.kubernetes.io/name: qontract-api
 
-  # --------- WORKER DEPLOYMENT --------------
+  # --------- PROD WORKER DEPLOYMENT --------------
+  # Consumes the qontract-api-prod Celery queue (dry_run=False, real writes).
+  # Replica count is managed by the qontract-api-worker ScaledObject (KEDA) below.
   - apiVersion: policy/v1
     kind: PodDisruptionBudget
     metadata:
@@ -379,7 +380,6 @@ objects:
         app.kubernetes.io/name: qontract-api
       name: qontract-api-worker
     spec:
-      replicas: ${{QAPI_WORKER_REPLICAS}}
       selector:
         matchLabels:
           app.kubernetes.io/component: worker
@@ -417,6 +417,8 @@ objects:
             - env:
                 - name: QAPI_START_MODE
                   value: worker
+                - name: QAPI_CELERY_OPTS
+                  value: "${QAPI_WORKER_PROD_CELERY_OPTS}"
                 - name: QAPI_WORKER_METRICS_PORT
                   value: "${QAPI_WORKER_METRICS_PORT}"
                 - name: QAPI_WORKER_TEMP_DIR
@@ -468,7 +470,7 @@ objects:
               emptyDir:
                 sizeLimit: 50Mi
 
-  # ---------- WORKER SERVICE (PROMETHEUS) -----------
+  # ---------- PROD WORKER SERVICE (PROMETHEUS) -----------
   - apiVersion: v1
     kind: Service
     metadata:
@@ -484,6 +486,206 @@ objects:
       selector:
         app.kubernetes.io/component: worker
         app.kubernetes.io/name: qontract-api
+
+  # --------- MR-CHECK WORKER DEPLOYMENT --------------
+  # Consumes the qontract-api-mr-check Celery queue (dry_run=True, read-only
+  # validation runs). Kept as a separate Deployment + queue so a stuck/blocked
+  # prod reconciliation can't starve MR-check validation capacity, or vice versa.
+  # Replica count is managed by the qontract-api-worker-mr-check ScaledObject
+  # (KEDA) below.
+  - apiVersion: policy/v1
+    kind: PodDisruptionBudget
+    metadata:
+      name: qontract-api-worker-mr-check
+    spec:
+      minAvailable: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: worker-mr-check
+
+  - apiVersion: v1
+    kind: ServiceAccount
+    imagePullSecrets: "${{IMAGE_PULL_SECRETS}}"
+    metadata:
+      name: qontract-api-worker-mr-check
+      labels:
+        app.kubernetes.io/component: worker-mr-check
+        app.kubernetes.io/name: qontract-api
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
+      labels:
+        app.kubernetes.io/component: worker-mr-check
+        app.kubernetes.io/name: qontract-api
+      name: qontract-api-worker-mr-check
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: worker-mr-check
+          app.kubernetes.io/name: qontract-api
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: worker-mr-check
+            app.kubernetes.io/name: qontract-api
+        spec:
+          restartPolicy: Always
+          serviceAccountName: qontract-api-worker-mr-check
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/component
+                          operator: In
+                          values:
+                            - worker-mr-check
+                    topologyKey: topology.kubernetes.io/zone
+                  weight: 100
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/component
+                          operator: In
+                          values:
+                            - worker-mr-check
+                    topologyKey: kubernetes.io/hostname
+                  weight: 1
+          containers:
+            - env:
+                - name: QAPI_START_MODE
+                  value: worker
+                - name: QAPI_CELERY_OPTS
+                  value: "${QAPI_WORKER_MR_CHECK_CELERY_OPTS}"
+                - name: QAPI_WORKER_METRICS_PORT
+                  value: "${QAPI_WORKER_METRICS_PORT}"
+                - name: QAPI_WORKER_TEMP_DIR
+                  value: /worker-temp-dir
+                - name: QAPI_SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${QAPI_SENTRY_SECRET_NAME}
+                      key: dsn
+              envFrom:
+                - secretRef:
+                    name: qontract-api-secret
+                    optional: true
+                - configMapRef:
+                    name: qontract-api-config
+                    optional: true
+              image: "${IMAGE}:${IMAGE_TAG}"
+              name: worker-mr-check
+              ports:
+                - containerPort: ${{QAPI_WORKER_METRICS_PORT}}
+              readinessProbe:
+                httpGet:
+                  path: /metrics
+                  port: ${{QAPI_WORKER_METRICS_PORT}}
+                periodSeconds: 15
+                timeoutSeconds: 5
+              startupProbe:
+                tcpSocket:
+                  port: ${{QAPI_WORKER_METRICS_PORT}}
+                initialDelaySeconds: 5
+                periodSeconds: 5
+                timeoutSeconds: 5
+              livenessProbe:
+                tcpSocket:
+                  port: ${{QAPI_WORKER_METRICS_PORT}}
+                periodSeconds: 30
+                timeoutSeconds: 5
+              resources:
+                requests:
+                  cpu: ${{QAPI_WORKER_MR_CHECK_CPU_REQUESTS}}
+                  memory: ${{QAPI_WORKER_MR_CHECK_MEMORY_REQUESTS}}
+                limits:
+                  memory: ${{QAPI_WORKER_MR_CHECK_MEMORY_LIMITS}}
+              volumeMounts:
+                - mountPath: /worker-temp-dir
+                  name: worker-temp-dir
+          volumes:
+            - name: worker-temp-dir
+              emptyDir:
+                sizeLimit: 50Mi
+
+  # ---------- MR-CHECK WORKER SERVICE (PROMETHEUS) -----------
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: worker-mr-check
+        app.kubernetes.io/name: qontract-api
+      name: qontract-api-worker-mr-check
+    spec:
+      ports:
+        - name: "http"
+          port: ${{QAPI_WORKER_METRICS_PORT}}
+          targetPort: ${{QAPI_WORKER_METRICS_PORT}}
+      selector:
+        app.kubernetes.io/component: worker-mr-check
+        app.kubernetes.io/name: qontract-api
+
+  # ---------- KEDA AUTOSCALING (APPSRE-14860) -----------
+  # Scales each worker Deployment on the backlog (list length) of its Celery
+  # queue in the Redis/Valkey broker, instead of a fixed replica count. This
+  # ensures a stuck task (e.g. an unreachable OpenShift cluster) doesn't just
+  # serialize behind a fixed pod count - extra pods spin up to drain the
+  # backlog. Queue names below must match QUEUE_PROD/QUEUE_MR_CHECK in
+  # qontract_api/qontract_api/tasks/__init__.py.
+  - apiVersion: keda.sh/v1alpha1
+    kind: TriggerAuthentication
+    metadata:
+      name: qontract-api-worker-redis-auth
+    spec:
+      secretTargetRef:
+        - parameter: address
+          name: qontract-api-secret
+          key: KEDA_REDIS_ADDRESS
+        - parameter: password
+          name: qontract-api-secret
+          key: KEDA_REDIS_PASSWORD
+
+  - apiVersion: keda.sh/v1alpha1
+    kind: ScaledObject
+    metadata:
+      name: qontract-api-worker
+    spec:
+      scaleTargetRef:
+        name: qontract-api-worker
+      minReplicaCount: ${{QAPI_WORKER_PROD_MIN_REPLICAS}}
+      maxReplicaCount: ${{QAPI_WORKER_PROD_MAX_REPLICAS}}
+      triggers:
+        - type: redis
+          metadata:
+            listName: qontract-api-prod
+            listLength: "${QAPI_WORKER_PROD_QUEUE_TARGET_LENGTH}"
+            databaseIndex: "0"
+            enableTLS: "true"
+          authenticationRef:
+            name: qontract-api-worker-redis-auth
+
+  - apiVersion: keda.sh/v1alpha1
+    kind: ScaledObject
+    metadata:
+      name: qontract-api-worker-mr-check
+    spec:
+      scaleTargetRef:
+        name: qontract-api-worker-mr-check
+      minReplicaCount: ${{QAPI_WORKER_MR_CHECK_MIN_REPLICAS}}
+      maxReplicaCount: ${{QAPI_WORKER_MR_CHECK_MAX_REPLICAS}}
+      triggers:
+        - type: redis
+          metadata:
+            listName: qontract-api-mr-check
+            listLength: "${QAPI_WORKER_MR_CHECK_QUEUE_TARGET_LENGTH}"
+            databaseIndex: "0"
+            enableTLS: "true"
+          authenticationRef:
+            name: qontract-api-worker-redis-auth
 
 parameters:
   # Global config
@@ -508,9 +710,6 @@ parameters:
     description: Port to expose the API app on
     value: "8080"
     required: true
-
-  - name: QAPI_CELERY_OPTS
-    description: Celery options
 
   - name: QAPI_UVICORN_OPTS
     description: Uvicorn options
@@ -581,31 +780,87 @@ parameters:
     value: "100m"
     required: true
 
-  # Worker config
+  # Worker config (shared by both prod and mr-check worker deployments)
   - name: QAPI_WORKER_METRICS_PORT
     description: Port to expose the web app on
     value: "8000"
     required: true
 
-  ## Worker Pod limits
-  - name: QAPI_WORKER_REPLICAS
-    description: Worker replicas
-    value: "3"
+  ## Prod worker (qontract-api-prod queue) Pod limits
+  # The -Q queue name must match QUEUE_PROD in
+  # qontract_api/qontract_api/tasks/__init__.py.
+  - name: QAPI_WORKER_PROD_CELERY_OPTS
+    description: Celery options for the prod worker (binds it to the prod queue)
+    value: "--pool solo -Q qontract-api-prod"
     required: true
 
   - name: QAPI_WORKER_MEMORY_REQUESTS
-    description: Worker memory requests
+    description: Prod worker memory requests
     value: "200Mi"
     required: true
 
   - name: QAPI_WORKER_MEMORY_LIMITS
-    description: Worker memory limits
+    description: Prod worker memory limits
     value: "200Mi"
     required: true
 
   - name: QAPI_WORKER_CPU_REQUESTS
-    description: Worker cpu requests
+    description: Prod worker cpu requests
     value: "100m"
+    required: true
+
+  ## MR-check worker (qontract-api-mr-check queue) Pod limits
+  # The -Q queue name must match QUEUE_MR_CHECK in
+  # qontract_api/qontract_api/tasks/__init__.py.
+  - name: QAPI_WORKER_MR_CHECK_CELERY_OPTS
+    description: Celery options for the mr-check worker (binds it to the mr-check queue)
+    value: "--pool solo -Q qontract-api-mr-check"
+    required: true
+
+  - name: QAPI_WORKER_MR_CHECK_MEMORY_REQUESTS
+    description: MR-check worker memory requests
+    value: "200Mi"
+    required: true
+
+  - name: QAPI_WORKER_MR_CHECK_MEMORY_LIMITS
+    description: MR-check worker memory limits
+    value: "200Mi"
+    required: true
+
+  - name: QAPI_WORKER_MR_CHECK_CPU_REQUESTS
+    description: MR-check worker cpu requests
+    value: "100m"
+    required: true
+
+  ## KEDA autoscaling (APPSRE-14860)
+  - name: QAPI_WORKER_PROD_MIN_REPLICAS
+    description: Minimum prod worker replicas
+    value: "3"
+    required: true
+
+  - name: QAPI_WORKER_PROD_MAX_REPLICAS
+    description: Maximum prod worker replicas
+    value: "15"
+    required: true
+
+  - name: QAPI_WORKER_PROD_QUEUE_TARGET_LENGTH
+    description: Target qontract-api-prod queue length per prod worker replica
+    value: "5"
+    required: true
+
+  - name: QAPI_WORKER_MR_CHECK_MIN_REPLICAS
+    description: Minimum mr-check worker replicas
+    value: "3"
+    required: true
+
+  - name: QAPI_WORKER_MR_CHECK_MAX_REPLICAS
+    description: Maximum mr-check worker replicas
+    value: "15"
+    required: true
+
+  - name: QAPI_WORKER_MR_CHECK_QUEUE_TARGET_LENGTH
+    description: Target qontract-api-mr-check queue length per mr-check worker replica
+    value: "5"
     required: true
 
   # OPA sidecar

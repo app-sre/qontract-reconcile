@@ -6,6 +6,7 @@ from typing import Any
 import celery
 import structlog
 from celery import Celery
+from kombu import Queue
 from prometheus_client import Counter, Histogram
 
 from qontract_api.config import settings
@@ -19,6 +20,20 @@ from qontract_api.tasks._utils import (
 )
 
 logger = structlog.getLogger(__name__)
+
+QUEUE_PROD = "qontract-api-prod"
+QUEUE_MR_CHECK = "qontract-api-mr-check"
+
+
+def queue_for(*, dry_run: bool) -> str:
+    """Return the Celery queue name for a reconciliation task.
+
+    Dry-run (MR check) and production tasks run on separate queues so that
+    one class of work can't block the other, and so each can be
+    autoscaled independently.
+    """
+    return QUEUE_MR_CHECK if dry_run else QUEUE_PROD
+
 
 task_elapsed_time = Histogram(
     name="qontract_reconcile_worker_task_elapsed_seconds",
@@ -130,21 +145,27 @@ celery_app = Celery(
     event_serializer="json",
     accept_content=["application/json", "application/x-python-serialize"],
     result_accept_content=["application/json", "application/x-python-serialize"],
+    task_default_queue=QUEUE_PROD,
+    task_queues=(Queue(QUEUE_PROD), Queue(QUEUE_MR_CHECK)),
     include=[
         "qontract_api.tasks.health",
         "qontract_api.integrations.slack_usergroups.tasks",
         "qontract_api.integrations.glitchtip_project_alerts.tasks",
         "qontract_api.integrations.github_owners.tasks",
         "qontract_api.integrations.glitchtip.tasks",
+        "qontract_api.integrations.openshift_namespaces.tasks",
     ],
 )
 
 __all__ = [
+    "QUEUE_MR_CHECK",
+    "QUEUE_PROD",
     "BackgroundTask",
     "celery_app",
     "deduplicated_task",
     "get_celery_task_result",
     "get_logger",
+    "queue_for",
     "setup_logger",
     "wait_for_task_completion",
 ]
