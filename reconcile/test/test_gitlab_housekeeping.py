@@ -2096,8 +2096,8 @@ def test_multi_merge_overlapping_tenants_serialized(
 def test_multi_merge_no_tenant_labels_falls_back_serial(
     mocker: MockerFixture,
 ) -> None:
-    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
-    mr2 = _make_merge_mr(11, ["approved"])
+    mr1 = _make_merge_mr(10, ["approved"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
     items = [_make_merge_item(mr1), _make_merge_item(mr2)]
 
     _call_merge(
@@ -2113,6 +2113,7 @@ def test_multi_merge_no_tenant_labels_falls_back_serial(
 
     mr1.merge.assert_called_once()
     mr2.merge.assert_not_called()
+    mr2.rebase.assert_not_called()
 
 
 def test_multi_merge_three_mrs_partial_overlap(

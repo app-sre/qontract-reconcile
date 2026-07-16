@@ -1417,7 +1417,7 @@ def merge_merge_requests(
         merges += 1
 
         if rebase and merges == 1:
-            if multi_merge:
+            if multi_merge and is_eligible_for_optimistic_merge(mr):
                 candidates = _form_omm_group(
                     gl=gl,
                     merge_requests=merge_requests,
