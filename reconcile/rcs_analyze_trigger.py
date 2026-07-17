@@ -47,6 +47,8 @@ from reconcile.utils.semver_helper import make_semver
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from gitlab.v4.objects import ProjectMergeRequestNote
+
     from reconcile.change_owners.bundle import FileRef
     from reconcile.utils.gitlab_api import Comment
 
@@ -59,6 +61,12 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 # "/rcs override ..." on the same MR - those are not our concern and are
 # never matched by this exact comparison.
 TRIGGER_COMMAND = "/rcs analyze"
+
+# Awarded to the trigger comment itself. This is the durable record of
+# whether a comment already launched (or finished) an analysis - it never
+# expires and needs no separate storage.
+EMOJI_LAUNCHED = "eyes"
+EMOJI_COMPLETED = "white_check_mark"
 
 JOB_CHECK_INTERVAL_SECONDS = 30
 JOB_TIMEOUT_SECONDS = 1800
@@ -92,6 +100,14 @@ def find_trigger_comment(comments: Iterable[Comment]) -> Comment | None:
     if not matches:
         return None
     return max(matches, key=attrgetter("created_at"))
+
+
+def _has_award_emoji(note: ProjectMergeRequestNote, emoji_name: str) -> bool:
+    return any(e.name == emoji_name for e in note.awardemojis.list(iterator=True))
+
+
+def _award_emoji(note: ProjectMergeRequestNote, emoji_name: str) -> None:
+    note.awardemojis.create({"name": emoji_name})
 
 
 def _repo_relative_path(file_ref: FileRef) -> str:
@@ -291,7 +307,13 @@ def run(
         comments = gl.get_merge_request_comments(merge_request)
 
         trigger_comment = find_trigger_comment(comments)
-        if trigger_comment is None:
+        if trigger_comment is None or trigger_comment.note is None:
+            return
+        note = trigger_comment.note
+
+        if _has_award_emoji(note, EMOJI_LAUNCHED):
+            # Already launched (regardless of outcome) by a prior pr_check
+            # run for this exact comment.
             return
 
         changed_paths = gl.get_merge_request_changed_paths(merge_request)
@@ -386,12 +408,20 @@ def run(
         )
 
         try:
-            status = controller.enqueue_job_and_wait_for_completion(
-                job,
-                check_interval_seconds=JOB_CHECK_INTERVAL_SECONDS,
-                timeout_seconds=JOB_TIMEOUT_SECONDS,
-                concurrency_policy=JobConcurrencyPolicy.NO_REPLACE,
+            controller.enqueue_job(
+                job, concurrency_policy=JobConcurrencyPolicy.NO_REPLACE
             )
+            _award_emoji(note, EMOJI_LAUNCHED)
+            status = (
+                JobStatus.SUCCESS
+                if controller.wait_for_job_completion(
+                    job.name(),
+                    check_interval_seconds=JOB_CHECK_INTERVAL_SECONDS,
+                    timeout_seconds=JOB_TIMEOUT_SECONDS,
+                )
+                else JobStatus.ERROR
+            )
+            _award_emoji(note, EMOJI_COMPLETED)
         except TimeoutError:
             LOG.warning(
                 "Timed out waiting for RCS analysis job to complete for MR "

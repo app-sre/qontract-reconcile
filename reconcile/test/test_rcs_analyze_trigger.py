@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeImplicitOwnershipJsonPathProviderV1,
@@ -9,6 +10,8 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     DatafileObjectV1,
 )
 from reconcile.rcs_analyze_trigger import (
+    EMOJI_COMPLETED,
+    EMOJI_LAUNCHED,
     TRIGGER_COMMAND,
     ComponentDiff,
     RcsAnalyzeJob,
@@ -23,12 +26,10 @@ from reconcile.test.change_owners.fixtures import (
     build_test_datafile,
 )
 from reconcile.utils.gitlab_api import Comment
-from reconcile.utils.jobcontroller.models import JobConcurrencyPolicy, JobStatus
+from reconcile.utils.jobcontroller.models import JobConcurrencyPolicy
 from reconcile.utils.saas_diff import Definition, State
 
 if TYPE_CHECKING:
-    from unittest.mock import MagicMock
-
     import pytest
     from pytest_mock import MockerFixture
 
@@ -39,13 +40,31 @@ if TYPE_CHECKING:
     )
 
 
+def _emoji_award(name: str) -> MagicMock:
+    # MagicMock(name=...) sets the mock's own repr, not a "name" attribute,
+    # so it must be assigned separately to be readable as award.name.
+    award = MagicMock()
+    award.name = name
+    return award
+
+
 def _comment(
     body: str,
     username: str = "someuser",
     comment_id: int = 1,
     created_at: str = "2026-01-01T00:00:00Z",
+    awarded_emojis: tuple[str, ...] = (),
+    note: MagicMock | None = None,
 ) -> Comment:
-    return Comment(id=comment_id, username=username, body=body, created_at=created_at)
+    # Accepting an externally-built note lets callers keep a MagicMock-typed
+    # handle to assert on award calls later - going through comment.note
+    # would statically resolve to the real (non-mock) gitlab-lib type.
+    if note is None:
+        note = MagicMock()
+    note.awardemojis.list.return_value = [_emoji_award(n) for n in awarded_emojis]
+    return Comment(
+        id=comment_id, username=username, body=body, created_at=created_at, note=note
+    )
 
 
 def _state(
@@ -562,7 +581,8 @@ def _mock_run_dependencies(
         side_effect=[[_state(ref="old-sha")], [_state(ref="new-sha")]],
     )
     mock_controller = mocker.MagicMock()
-    mock_controller.enqueue_job_and_wait_for_completion.return_value = JobStatus.SUCCESS
+    mock_controller.enqueue_job.return_value = True
+    mock_controller.wait_for_job_completion.return_value = True
     mocker.patch(
         "reconcile.rcs_analyze_trigger.build_job_controller",
         return_value=mock_controller,
@@ -588,7 +608,7 @@ def test_run_skips_when_no_trigger_comment(mocker: MockerFixture) -> None:
         rcs_secrets_path="app-sre/rcs/secrets",
     )
 
-    mocks["controller"].enqueue_job_and_wait_for_completion.assert_not_called()
+    mocks["controller"].enqueue_job.assert_not_called()
 
 
 def test_run_skips_authorization_check_when_no_diffs(mocker: MockerFixture) -> None:
@@ -614,7 +634,7 @@ def test_run_skips_authorization_check_when_no_diffs(mocker: MockerFixture) -> N
     )
 
     mocks["is_authorized_approver"].assert_not_called()
-    mocks["controller"].enqueue_job_and_wait_for_completion.assert_not_called()
+    mocks["controller"].enqueue_job.assert_not_called()
 
 
 def test_run_skips_when_trigger_comment_not_authorized_approver(
@@ -639,7 +659,7 @@ def test_run_skips_when_trigger_comment_not_authorized_approver(
         rcs_secrets_path="app-sre/rcs/secrets",
     )
 
-    mocks["controller"].enqueue_job_and_wait_for_completion.assert_not_called()
+    mocks["controller"].enqueue_job.assert_not_called()
 
 
 def test_run_does_not_raise_when_authorization_check_fails(
@@ -664,14 +684,13 @@ def test_run_does_not_raise_when_authorization_check_fails(
         rcs_secrets_path="app-sre/rcs/secrets",
     )
 
-    mocks["controller"].enqueue_job_and_wait_for_completion.assert_not_called()
+    mocks["controller"].enqueue_job.assert_not_called()
 
 
 def test_run_launches_job_when_triggered(mocker: MockerFixture) -> None:
-    mocks = _mock_run_dependencies(
-        mocker,
-        comments=[_comment(TRIGGER_COMMAND, username="alice", comment_id=42)],
-    )
+    note = MagicMock()
+    comment = _comment(TRIGGER_COMMAND, username="alice", comment_id=42, note=note)
+    mocks = _mock_run_dependencies(mocker, comments=[comment])
 
     run(
         dry_run=False,
@@ -684,19 +703,39 @@ def test_run_launches_job_when_triggered(mocker: MockerFixture) -> None:
         rcs_secrets_path="app-sre/rcs/secrets",
     )
 
-    mocks["controller"].enqueue_job_and_wait_for_completion.assert_called_once()
-    call_args = mocks["controller"].enqueue_job_and_wait_for_completion.call_args
+    mocks["controller"].enqueue_job.assert_called_once()
+    call_args = mocks["controller"].enqueue_job.call_args
     job = call_args[0][0]
     assert call_args[1]["concurrency_policy"] == JobConcurrencyPolicy.NO_REPLACE
     assert job.trigger_comment_id == 42
     assert job.triggered_by == "alice"
+    note.awardemojis.create.assert_any_call({"name": EMOJI_LAUNCHED})
+    note.awardemojis.create.assert_any_call({"name": EMOJI_COMPLETED})
+
+
+def test_run_skips_when_already_launched(mocker: MockerFixture) -> None:
+    comment = _comment(TRIGGER_COMMAND, awarded_emojis=(EMOJI_LAUNCHED,))
+    mocks = _mock_run_dependencies(mocker, comments=[comment])
+
+    run(
+        dry_run=False,
+        gitlab_project_id="123",
+        gitlab_merge_request_id="456",
+        comparison_sha="deadbeef",
+        job_controller_cluster="cluster",
+        job_controller_namespace="namespace",
+        rcs_job_image="quay.io/example/rcs:latest",
+        rcs_secrets_path="app-sre/rcs/secrets",
+    )
+
+    mocks["controller"].enqueue_job.assert_not_called()
 
 
 def test_run_does_not_raise_on_non_success_job_status(mocker: MockerFixture) -> None:
-    mocks = _mock_run_dependencies(mocker, comments=[_comment(TRIGGER_COMMAND)])
-    mocks[
-        "controller"
-    ].enqueue_job_and_wait_for_completion.return_value = JobStatus.ERROR
+    note = MagicMock()
+    comment = _comment(TRIGGER_COMMAND, note=note)
+    mocks = _mock_run_dependencies(mocker, comments=[comment])
+    mocks["controller"].wait_for_job_completion.return_value = False
 
     run(
         dry_run=False,
@@ -710,11 +749,16 @@ def test_run_does_not_raise_on_non_success_job_status(mocker: MockerFixture) -> 
     )
 
     mocks["controller"].get_job_logs.assert_called_once()
+    # Awarded regardless of outcome - the marker means "already handled",
+    # not "succeeded".
+    note.awardemojis.create.assert_any_call({"name": EMOJI_COMPLETED})
 
 
 def test_run_deletes_job_on_timeout(mocker: MockerFixture) -> None:
-    mocks = _mock_run_dependencies(mocker, comments=[_comment(TRIGGER_COMMAND)])
-    mocks["controller"].enqueue_job_and_wait_for_completion.side_effect = TimeoutError
+    note = MagicMock()
+    comment = _comment(TRIGGER_COMMAND, note=note)
+    mocks = _mock_run_dependencies(mocker, comments=[comment])
+    mocks["controller"].wait_for_job_completion.side_effect = TimeoutError
 
     run(
         dry_run=False,
@@ -728,13 +772,15 @@ def test_run_deletes_job_on_timeout(mocker: MockerFixture) -> None:
     )
 
     mocks["controller"].delete_job.assert_called_once()
+    assert comment.note is not None
+    note.awardemojis.create.assert_called_once_with({"name": EMOJI_LAUNCHED})
 
 
 def test_run_does_not_raise_on_unexpected_job_controller_error(
     mocker: MockerFixture,
 ) -> None:
     mocks = _mock_run_dependencies(mocker, comments=[_comment(TRIGGER_COMMAND)])
-    mocks["controller"].enqueue_job_and_wait_for_completion.side_effect = Exception(
+    mocks["controller"].wait_for_job_completion.side_effect = Exception(
         "Failed to lookup job uid for rcs-analyze-xyz"
     )
 
@@ -773,7 +819,7 @@ def test_run_skips_job_launch_in_dry_run(mocker: MockerFixture) -> None:
     # dry_run must never reach the point of launching a real job, since
     # K8sJobController's own dry_run flag is not actually enforced.
     mock_build_job_controller.assert_not_called()
-    mocks["controller"].enqueue_job_and_wait_for_completion.assert_not_called()
+    mocks["controller"].enqueue_job.assert_not_called()
 
 
 def test_run_logs_same_plan_message_in_both_dry_run_modes(
