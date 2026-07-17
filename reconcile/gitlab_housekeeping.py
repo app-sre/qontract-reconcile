@@ -1426,6 +1426,9 @@ def merge_merge_requests(
                 if candidates:
                     apply_omm_group_lead(dry_run, gl, mr)
                     apply_omm_pending(dry_run, gl, candidates)
+            elif multi_merge:
+                # lead has no tenant labels — fall back to serial merge
+                logging.info(["omm-group", "lead-ineligible", gl.project.name, mr.iid])
             break
 
     merge_batch_size_histogram.labels(project_id=gl.project.id).observe(merges)
