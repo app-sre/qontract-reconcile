@@ -1,16 +1,25 @@
 from __future__ import annotations
 
+import logging
 from io import StringIO
 from typing import TYPE_CHECKING
 
 from jsonpath_ng.ext import parser
 from qontract_utils.ruamel import create_ruamel_instance
+from sretoolbox.container import Image
 
 from reconcile.typed_queries.users import get_users
 from reconcile.utils.mr.base import MergeRequestBase
 
 if TYPE_CHECKING:
     from reconcile.utils.gitlab_api import GitLabApi
+
+# matches reconcile/utils/saasherder/saasherder.py REQUEST_TIMEOUT
+IMAGE_REQUEST_TIMEOUT = 60
+
+OPA_MASTER_IMAGE = (
+    "quay.io/redhat-services-prod/app-sre-tenant/qontract-reconcile-master/opa-master"
+)
 
 
 class PromoteQontractSchemas(MergeRequestBase):
@@ -206,6 +215,52 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
             content=new_content,
         )
 
+    def _update_opa_image_pin(self, gitlab_cli: GitLabApi) -> None:
+        """
+        Best-effort refresh of the OPA sidecar's digest pin in
+        saas-qontract-api.yaml.
+
+        The OPA image is rebuilt from this repo on every push (same commit
+        as the main image), but saasherder only auto-resolves parameters
+        literally named IMAGE_DIGEST/REPO_DIGEST via REGISTRY_IMG - it has
+        no generic mechanism for a second per-commit image. So we resolve
+        and pin it here instead.
+
+        This must not raise: unlike the other process() steps, it depends
+        on the OPA image already being mirrored to quay.io, which can lag
+        behind this MR by a few minutes. Any failure here would otherwise
+        abort the whole MR (see MergeRequestBase.submit_to_gitlab) and
+        block the unrelated bumps below. On failure we just skip - the
+        existing pin stays in place and we retry on the next promotion.
+        """
+        image_uri = f"{OPA_MASTER_IMAGE}:{self.commit_sha}"
+        try:
+            img = Image(image_uri, timeout=IMAGE_REQUEST_TIMEOUT)
+            digest = img.digest if img else None
+        except Exception as e:
+            digest = None
+            logging.warning(
+                f"could not resolve OPA image digest for {image_uri}, "
+                f"skipping OPA_IMAGE_TAG/OPA_IMAGE_DIGEST bump this cycle: {e}"
+            )
+        if not digest:
+            return
+
+        self._process_file_with_json_paths(
+            gitlab_cli=gitlab_cli,
+            path="data/services/app-interface/cicd/ci-int/saas-qontract-api.yaml",
+            replacements=[
+                (
+                    "$.resourceTemplates[?(@.name == 'qontract-api')].parameters.OPA_IMAGE_TAG",
+                    self.commit_sha,
+                ),
+                (
+                    "$.resourceTemplates[?(@.name == 'qontract-api')].parameters.OPA_IMAGE_DIGEST",
+                    digest,
+                ),
+            ],
+        )
+
     def process(self, gitlab_cli: GitLabApi) -> None:
         # .env
         self._process_by(
@@ -251,6 +306,9 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
             search_text="$.resourceTemplates[?(@.url == 'https://github.com/app-sre/qontract-reconcile')].targets[?(@.name == 'qontract-api-production')].ref",
             replace_text=self.commit_sha,
         )
+
+        # data/services/app-interface/cicd/ci-int/saas-qontract-api.yaml (OPA sidecar digest pin)
+        self._update_opa_image_pin(gitlab_cli)
 
         # data/services/app-interface/terraform-repo/cicd/ci-int/saas-terraform-repo.yaml
         self._process_by(
