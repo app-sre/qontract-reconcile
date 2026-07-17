@@ -798,6 +798,67 @@ def test_run_does_not_raise_on_unexpected_job_controller_error(
     )
 
 
+def test_run_does_not_raise_on_unexpected_error_before_job_launch(
+    mocker: MockerFixture,
+) -> None:
+    mocks = _mock_run_dependencies(mocker, comments=[_comment(TRIGGER_COMMAND)])
+    # Anything outside the two inner try/except blocks - GitLab access, GQL
+    # access, Vault reads, controller construction - must also be caught by
+    # the outer boundary rather than crashing the calling pr_check.
+    mocks["gl"].get_merge_request_changed_paths.side_effect = Exception(
+        "GitLab API unavailable"
+    )
+
+    run(
+        dry_run=False,
+        gitlab_project_id="123",
+        gitlab_merge_request_id="456",
+        comparison_sha="deadbeef",
+        job_controller_cluster="cluster",
+        job_controller_namespace="namespace",
+        rcs_job_image="quay.io/example/rcs:latest",
+        rcs_secrets_path="app-sre/rcs/secrets",
+    )
+
+
+def test_run_does_not_raise_when_deleting_timed_out_job_fails(
+    mocker: MockerFixture,
+) -> None:
+    mocks = _mock_run_dependencies(mocker, comments=[_comment(TRIGGER_COMMAND)])
+    mocks["controller"].wait_for_job_completion.side_effect = TimeoutError
+    mocks["controller"].delete_job.side_effect = Exception("job already gone")
+
+    run(
+        dry_run=False,
+        gitlab_project_id="123",
+        gitlab_merge_request_id="456",
+        comparison_sha="deadbeef",
+        job_controller_cluster="cluster",
+        job_controller_namespace="namespace",
+        rcs_job_image="quay.io/example/rcs:latest",
+        rcs_secrets_path="app-sre/rcs/secrets",
+    )
+
+
+def test_run_does_not_raise_when_fetching_job_logs_fails(
+    mocker: MockerFixture,
+) -> None:
+    mocks = _mock_run_dependencies(mocker, comments=[_comment(TRIGGER_COMMAND)])
+    mocks["controller"].wait_for_job_completion.return_value = False
+    mocks["controller"].get_job_logs.side_effect = Exception("log stream error")
+
+    run(
+        dry_run=False,
+        gitlab_project_id="123",
+        gitlab_merge_request_id="456",
+        comparison_sha="deadbeef",
+        job_controller_cluster="cluster",
+        job_controller_namespace="namespace",
+        rcs_job_image="quay.io/example/rcs:latest",
+        rcs_secrets_path="app-sre/rcs/secrets",
+    )
+
+
 def test_run_skips_job_launch_in_dry_run(mocker: MockerFixture) -> None:
     mocks = _mock_run_dependencies(mocker, comments=[_comment(TRIGGER_COMMAND)])
     mock_build_job_controller = mocker.patch(

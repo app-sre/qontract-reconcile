@@ -296,6 +296,39 @@ def run(
     rcs_job_image: str,
     rcs_secrets_path: str,
 ) -> None:
+    try:
+        _run(
+            dry_run,
+            gitlab_project_id,
+            gitlab_merge_request_id,
+            comparison_sha,
+            job_controller_cluster,
+            job_controller_namespace,
+            rcs_job_image,
+            rcs_secrets_path,
+        )
+    except Exception:
+        # RCS is a manual, non-blocking, best-effort trigger: no unexpected
+        # failure anywhere in this flow (GitLab/GQL access, Vault reads,
+        # controller construction, job execution) may fail the calling
+        # pr_check pipeline.
+        LOG.exception(
+            "Unexpected failure while processing %s trigger for MR !%s",
+            TRIGGER_COMMAND,
+            gitlab_merge_request_id,
+        )
+
+
+def _run(
+    dry_run: bool,
+    gitlab_project_id: str,
+    gitlab_merge_request_id: str,
+    comparison_sha: str,
+    job_controller_cluster: str,
+    job_controller_namespace: str,
+    rcs_job_image: str,
+    rcs_secrets_path: str,
+) -> None:
     instance = queries.get_gitlab_instance()
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -428,7 +461,13 @@ def run(
                 "!%s, deleting it",
                 gitlab_merge_request_id,
             )
-            controller.delete_job(job.name())
+            try:
+                controller.delete_job(job.name())
+            except Exception:
+                LOG.exception(
+                    "Failed to delete timed-out RCS analysis job for MR !%s",
+                    gitlab_merge_request_id,
+                )
             return
         except Exception:
             # RCS is a manual, non-blocking, best-effort trigger: any
@@ -447,4 +486,10 @@ def run(
                 status,
                 gitlab_merge_request_id,
             )
-            controller.get_job_logs(job.name(), output=sys.stdout)
+            try:
+                controller.get_job_logs(job.name(), output=sys.stdout)
+            except Exception:
+                LOG.exception(
+                    "Failed to retrieve logs for RCS analysis job for MR !%s",
+                    gitlab_merge_request_id,
+                )
