@@ -171,7 +171,11 @@ def data_default_none(
             case "default":
                 # If no data provided, use the field's default value
                 if data is None:
-                    return field_info["default"]
+                    if "default" in field_info:
+                        return field_info["default"]
+                    if "default_factory" in field_info:
+                        return field_info["default_factory"]()
+                    return None
 
                 # Data exists - recursively process it in case it's a complex type
                 return _process_field_with_alias(

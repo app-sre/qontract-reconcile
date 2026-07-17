@@ -118,7 +118,7 @@ def build_version_data(
 def test_calculate_diff_empty(ocm_api: OCMBaseClient) -> None:
     assert not base.calculate_diff(
         [], build_organization_upgrade_spec(specs=[]), ocm_api, VersionData()
-    )
+    ).upgrade_policies
 
 
 def test_calculate_diff_create_cluster_upgrade_no_gates(
@@ -152,7 +152,7 @@ def test_calculate_diff_create_cluster_upgrade_no_gates(
             workload=workload,
             soak_days=11,
         ),
-    )
+    ).upgrade_policies
     assert diffs == [
         UpgradePolicyHandler(
             action="create",
@@ -216,7 +216,7 @@ def test_calculate_diff_create_cluster_upgrade_all_gates_agreed(
             workload=workload,
             soak_days=11,
         ),
-    )
+    ).upgrade_policies
     assert diffs == [
         UpgradePolicyHandler(
             action="create",
@@ -279,7 +279,7 @@ def test_calculate_diff_create_control_plane_upgrade_all_gates_agreed(
             workload=workload,
             soak_days=11,
         ),
-    )
+    ).upgrade_policies
     assert diffs == [
         UpgradePolicyHandler(
             action="create",
@@ -324,7 +324,7 @@ def test_calculate_diff_create_control_plane_upgrade_no_gates(
             workload=workload,
             soak_days=11,
         ),
-    )
+    ).upgrade_policies
     assert diffs == [
         UpgradePolicyHandler(
             action="create",
@@ -375,7 +375,7 @@ def test_calculate_diff_create_control_plane_node_pool_only(
             workload=workload,
             soak_days=11,
         ),
-    )
+    ).upgrade_policies
     assert diffs == [expected]
 
 
@@ -405,7 +405,7 @@ def test_calculate_diff_not_soaked(
             workload=workload,
             soak_days=11,
         ),
-    )
+    ).upgrade_policies
     assert not diffs
 
 
@@ -471,7 +471,7 @@ def test_calculate_diff_mutex_set(
             workload=workload,
             soak_days=11,
         ),
-    )
+    ).upgrade_policies
     assert len(diffs) == expected_upgrade
 
 
@@ -517,7 +517,7 @@ def test_calculate_diff_implicit_mutex_set(
             workload=workload,
             soak_days=11,
         ),
-    )
+    ).upgrade_policies
     assert not diffs
 
 
