@@ -18,10 +18,7 @@ from reconcile.utils.ocm import (
 from reconcile.utils.ocm.base import (
     ACTIVE_SUBSCRIPTION_STATES,
     ClusterDetails,
-    ClusterManagementReference,
-    FleetManagerServiceCluster,
     OCMCluster,
-    OCMModelLink,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
     build_label_container,
@@ -29,10 +26,8 @@ from reconcile.utils.ocm.base import (
 from reconcile.utils.ocm.clusters import (
     discover_clusters_by_labels,
     discover_clusters_for_organizations,
-    discover_clusters_for_subscriptions,
     get_cluster_details_for_subscriptions,
     get_node_pools,
-    get_service_clusters,
 )
 from reconcile.utils.ocm.labels import label_filter
 from reconcile.utils.ocm.search_filters import Filter
@@ -69,38 +64,6 @@ def build_cluster_details(
         ),
         capabilities={},
     )
-
-
-def test_utils_ocm_discover_clusters_for_subscriptions(
-    ocm_api: OCMBaseClient, mocker: MockerFixture
-) -> None:
-    get_clusters_for_subscriptions_mock = mocker.patch.object(
-        clusters, "get_cluster_details_for_subscriptions"
-    )
-    discover_clusters_for_subscriptions(
-        ocm_api,
-        ["sub1", "sub2"],
-    )
-
-    get_clusters_for_subscriptions_mock.assert_called_once_with(
-        ocm_api=ocm_api,
-        subscription_filter=Filter().is_in("id", ["sub1", "sub2"]),
-        cluster_filter=None,
-    )
-
-
-def test_utils_ocm_discover_clusters_for_empty_subscriptions_id_list(
-    ocm_api: OCMBaseClient, mocker: MockerFixture
-) -> None:
-    get_clusters_for_subscriptions_mock = mocker.patch.object(
-        clusters, "get_cluster_details_for_subscriptions"
-    )
-    assert not discover_clusters_for_subscriptions(
-        ocm_api,
-        [],
-    )
-
-    get_clusters_for_subscriptions_mock.assert_not_called()
 
 
 def test_utils_ocm_discover_clusters_for_organizations(
@@ -327,43 +290,3 @@ def test_get_node_pools(mocker: MockFixture) -> None:
     assert node_pools[0]["instance_type"] == node_pool["instance_type"]
     assert node_pools[0]["replicas"] == node_pool["replicas"]
     assert "foo" not in node_pools[0]
-
-
-def test_get_service_clusters_empty(mocker: MockFixture) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
-    ocm.get_paginated.return_value = []
-
-    service_clusters = list(get_service_clusters(ocm_api=ocm))
-
-    assert service_clusters == []
-
-
-def test_get_service_clusters_no_provision_shard(mocker: MockFixture) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
-    cluster_a = FleetManagerServiceCluster(
-        cluster_management_reference=ClusterManagementReference(
-            cluster_id="test1",
-            href="href1",
-        ),
-        provision_shard_reference=OCMModelLink(
-            id="shard1",
-        ),
-    )
-    data_a = cluster_a.model_dump(by_alias=True)
-    cluster_b = FleetManagerServiceCluster(
-        cluster_management_reference=ClusterManagementReference(
-            cluster_id="test2",
-            href="href2",
-        ),
-        provision_shard_reference=OCMModelLink(
-            id="shard2",
-        ),
-    )
-    data_b = cluster_b.model_dump(by_alias=True)
-    data_b["provision_shard_reference"] = {}
-
-    ocm.get_paginated.return_value = [data_a, data_b]
-
-    service_clusters = list(get_service_clusters(ocm_api=ocm))
-
-    assert service_clusters == [cluster_a]
