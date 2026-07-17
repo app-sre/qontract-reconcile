@@ -110,7 +110,7 @@ objects:
                 - configMapRef:
                     name: qontract-api-config
                     optional: true
-              image: "${IMAGE}:${IMAGE_TAG}"
+              image: "${IMAGE}:${IMAGE_TAG}@${IMAGE_DIGEST}"
               name: api
               ports:
                 - containerPort: ${{QAPI_APP_PORT}}
@@ -147,7 +147,7 @@ objects:
                   memory: ${{QAPI_API_MEMORY_LIMITS}}
             # OPA sidecar for parameter-level authorization
             - name: opa
-              image: "${OPA_IMAGE}:${OPA_IMAGE_TAG}"
+              image: "${OPA_IMAGE}:${OPA_IMAGE_TAG}@${OPA_IMAGE_DIGEST}"
               args:
                 - run
                 - --ignore=.*
@@ -302,7 +302,7 @@ objects:
                 - configMapRef:
                     name: qontract-api-config
                     optional: true
-              image: "${IMAGE}:${IMAGE_TAG}"
+              image: "${IMAGE}:${IMAGE_TAG}@${IMAGE_DIGEST}"
               name: subscriber
               ports:
                 - containerPort: ${{QAPI_SUBSCRIBER_METRICS_PORT}}
@@ -435,7 +435,7 @@ objects:
                 - configMapRef:
                     name: qontract-api-config
                     optional: true
-              image: "${IMAGE}:${IMAGE_TAG}"
+              image: "${IMAGE}:${IMAGE_TAG}@${IMAGE_DIGEST}"
               name: worker
               ports:
                 - containerPort: ${{QAPI_WORKER_METRICS_PORT}}
@@ -577,7 +577,7 @@ objects:
                 - configMapRef:
                     name: qontract-api-config
                     optional: true
-              image: "${IMAGE}:${IMAGE_TAG}"
+              image: "${IMAGE}:${IMAGE_TAG}@${IMAGE_DIGEST}"
               name: worker-mr-check
               ports:
                 - containerPort: ${{QAPI_WORKER_METRICS_PORT}}
@@ -704,6 +704,11 @@ parameters:
     description: qontract-api version
     value: "latest"
     required: true
+
+  - name: IMAGE_DIGEST
+    description: qontract-api image digest
+    value: ''
+    required: false
 
   # Api config
   - name: QAPI_APP_PORT
@@ -879,6 +884,11 @@ parameters:
     description: OPA sidecar image tag
     value: "latest"
     required: true
+
+  - name: OPA_IMAGE_DIGEST
+    description: OPA sidecar image digest
+    value: ''
+    required: false
 
   - name: QAPI_OPA_CPU_REQUESTS
     description: OPA sidecar cpu requests
