@@ -1674,14 +1674,14 @@ wheels = [
 
 [[package]]
 name = "pagerduty"
-version = "6.2.1"
+version = "7.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "httpx" },
+    { name = "httpx2" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ae/df/c04b48f1a572fba4fbdd30df5ee84231adddaa60adf73915e0f7b34188de/pagerduty-6.2.1.tar.gz", hash = "sha256:ccab9cc14cb78fef9d1a33919662d620259406c5d764737af09f4b0e9a9264d7", size = 44798, upload-time = "2026-03-03T22:24:11.401Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8d/a9/2350041088e69a144bb5248b02f17dc5ad61f5ee341c09546fb8b1c52200/pagerduty-7.0.0.tar.gz", hash = "sha256:e4d644d15033a4ed3fbc77622daafce19fdeb635caaf2279e840d9b0eb51387e", size = 45110, upload-time = "2026-07-15T20:52:17.889Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1f/5f/32170240e7cb5dfd78a68b82047a598c77b810d2e3083ce8317d4f67df7a/pagerduty-6.2.1-py3-none-any.whl", hash = "sha256:38433bf2ec9bd74b2deffef2f9b0e88b897f4d9785646b776c53d88f279e948f", size = 55580, upload-time = "2026-03-03T22:24:10.115Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/c7/86d43b83fe529f68f6ccb48543c84baad872a51101b0c862f0eda5d55c5a/pagerduty-7.0.0-py3-none-any.whl", hash = "sha256:d751528399ec5ec4bdf7e6f6c14ce157e08ba1d1c911bbc416698f1c353d15e8", size = 55817, upload-time = "2026-07-15T20:52:16.663Z" },
 ]
 
 [[package]]
@@ -2594,7 +2594,7 @@ requires-dist = [
     { name = "hvac", specifier = "==2.4.0" },
     { name = "ldap3", specifier = ">=2.9.1,<2.10.0" },
     { name = "lightkube", specifier = "==0.22.0" },
-    { name = "pagerduty", specifier = "==6.2.1" },
+    { name = "pagerduty", specifier = "==7.0.0" },
     { name = "prometheus-client", specifier = "==0.25.0" },
     { name = "pydantic", specifier = "==2.13.4" },
     { name = "pygithub", specifier = "==1.58.2" },
