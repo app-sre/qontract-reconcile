@@ -302,7 +302,8 @@ resourceTemplates:
 """
 
 
-def build_saas_qontract_api_gitlab_cli_mock() -> MagicMock:
+@pytest.fixture
+def saas_qontract_api_gitlab_cli_mock() -> MagicMock:
     cli = MagicMock(spec=GitLabApi)
     cli.project = MagicMock()
     cli.get_raw_file.return_value = bytes(SAAS_QONTRACT_API_CONTENT, "utf-8")
@@ -310,11 +311,13 @@ def build_saas_qontract_api_gitlab_cli_mock() -> MagicMock:
 
 
 @patch("reconcile.utils.mr.promote_qontract.Image")
-def test_update_opa_image_pin_success(image_mock: MagicMock) -> None:
+def test_update_opa_image_pin_success(
+    image_mock: MagicMock, saas_qontract_api_gitlab_cli_mock: MagicMock
+) -> None:
     commit_sha = "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
     image_mock.return_value.digest = "sha256:newdigest"
     mr = PromoteQontractReconcileCommercial("1q2w3e4", commit_sha)
-    gitlab_cli = build_saas_qontract_api_gitlab_cli_mock()
+    gitlab_cli = saas_qontract_api_gitlab_cli_mock
 
     mr._update_opa_image_pin(gitlab_cli)
 
@@ -329,12 +332,14 @@ def test_update_opa_image_pin_success(image_mock: MagicMock) -> None:
 
 
 @patch("reconcile.utils.mr.promote_qontract.Image")
-def test_update_opa_image_pin_skips_on_exception(image_mock: MagicMock) -> None:
+def test_update_opa_image_pin_skips_on_exception(
+    image_mock: MagicMock, saas_qontract_api_gitlab_cli_mock: MagicMock
+) -> None:
     image_mock.side_effect = Exception("boom")
     mr = PromoteQontractReconcileCommercial(
         "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
     )
-    gitlab_cli = build_saas_qontract_api_gitlab_cli_mock()
+    gitlab_cli = saas_qontract_api_gitlab_cli_mock
 
     mr._update_opa_image_pin(gitlab_cli)
 
@@ -342,12 +347,14 @@ def test_update_opa_image_pin_skips_on_exception(image_mock: MagicMock) -> None:
 
 
 @patch("reconcile.utils.mr.promote_qontract.Image")
-def test_update_opa_image_pin_skips_on_falsy_image(image_mock: MagicMock) -> None:
+def test_update_opa_image_pin_skips_on_falsy_image(
+    image_mock: MagicMock, saas_qontract_api_gitlab_cli_mock: MagicMock
+) -> None:
     image_mock.return_value = None
     mr = PromoteQontractReconcileCommercial(
         "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
     )
-    gitlab_cli = build_saas_qontract_api_gitlab_cli_mock()
+    gitlab_cli = saas_qontract_api_gitlab_cli_mock
 
     mr._update_opa_image_pin(gitlab_cli)
 

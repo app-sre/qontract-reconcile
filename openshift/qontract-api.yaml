@@ -708,7 +708,7 @@ parameters:
   - name: IMAGE_DIGEST
     description: qontract-api image digest
     value: ''
-    required: false
+    required: true
 
   # Api config
   - name: QAPI_APP_PORT
@@ -888,7 +888,7 @@ parameters:
   - name: OPA_IMAGE_DIGEST
     description: OPA sidecar image digest
     value: ''
-    required: false
+    required: true
 
   - name: QAPI_OPA_CPU_REQUESTS
     description: OPA sidecar cpu requests
