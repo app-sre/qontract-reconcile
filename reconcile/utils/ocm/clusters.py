@@ -8,12 +8,10 @@ from reconcile.utils.ocm.base import (
     PRODUCT_ID_OSD,
     PRODUCT_ID_ROSA,
     ClusterDetails,
-    FleetManagerServiceCluster,
     OCMCluster,
     OCMClusterState,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
-    ProvisionShard,
     build_label_container,
 )
 from reconcile.utils.ocm.labels import (
@@ -88,28 +86,6 @@ def discover_clusters_by_labels(
     return clusters
 
 
-def discover_clusters_for_subscriptions(
-    ocm_api: OCMBaseClient,
-    subscription_ids: list[str],
-    cluster_filter: Filter | None = None,
-) -> list[ClusterDetails]:
-    """
-    Discover clusters by filtering on their subscription IDs.
-    Additionally, a cluster_filter can be applied to narrow the
-    discovered clusters.
-    """
-    if not subscription_ids:
-        return []
-
-    return list(
-        get_cluster_details_for_subscriptions(
-            ocm_api=ocm_api,
-            subscription_filter=Filter().is_in("id", subscription_ids),
-            cluster_filter=cluster_filter,
-        )
-    )
-
-
 def discover_clusters_for_organizations(
     ocm_api: OCMBaseClient,
     organization_ids: Iterable[str],
@@ -142,26 +118,6 @@ def get_ocm_clusters(
         max_page_size=100,
     ):
         yield OCMCluster(**cluster_dict)
-
-
-def get_provision_shard_for_cluster_id(
-    ocm_api: OCMBaseClient,
-    id: str,
-) -> ProvisionShard:
-    data = ocm_api.get(api_path=f"/api/clusters_mgmt/v1/clusters/{id}/provision_shard")
-    return ProvisionShard(**data)
-
-
-def get_service_clusters(
-    ocm_api: OCMBaseClient,
-) -> Generator[FleetManagerServiceCluster]:
-    for cluster_dict in ocm_api.get_paginated(
-        api_path="/api/osd_fleet_mgmt/v1/service_clusters",
-        max_page_size=100,
-    ):
-        if not cluster_dict.get("provision_shard_reference"):
-            continue
-        yield FleetManagerServiceCluster(**cluster_dict)
 
 
 def get_cluster_details_for_subscriptions(
