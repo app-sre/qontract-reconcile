@@ -29,7 +29,6 @@ STATUS_READY = "ready"
 STATUS_FAILED = "failed"
 STATUS_DELETING = "deleting"
 
-AMS_API_BASE = "/api/accounts_mgmt"
 CS_API_BASE = "/api/clusters_mgmt"
 
 MACHINE_POOL_DESIRED_KEYS = {
@@ -40,28 +39,9 @@ MACHINE_POOL_DESIRED_KEYS = {
     "labels",
     "taints",
 }
-UPGRADE_CHANNELS = {"stable", "fast", "candidate"}
-UPGRADE_POLICY_DESIRED_KEYS = {
-    "id",
-    "schedule_type",
-    "schedule",
-    "next_run",
-    "version",
-    "state",
-}
-ADDON_UPGRADE_POLICY_DESIRED_KEYS = {
-    "id",
-    "addon_id",
-    "schedule_type",
-    "schedule",
-    "next_run",
-    "version",
-}
 ROUTER_DESIRED_KEYS = {"id", "listening", "dns_name", "route_selectors"}
 CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
 
-DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
-CLUSTER_ADMIN_LABEL_KEY = "capability.cluster.manage_cluster_admin"
 REQUEST_TIMEOUT_SEC = 60
 
 
