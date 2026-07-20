@@ -487,6 +487,19 @@ class NotificationRemoveUser(pydantic.BaseModel):
     message: str
 
 
+class OcmClusterInfo(pydantic.BaseModel):
+    console_url: str | None = None
+    external_auth_enabled: bool = False
+    id: str
+    labels: dict[str, typing.Any] | None = None
+    name: str
+    organization_id: str
+
+
+class OcmClustersResponse(pydantic.BaseModel):
+    clusters: list[OcmClusterInfo]
+
+
 class OpenShiftNamespacesReconcileRequest(pydantic.BaseModel):
     clusters: list[ClusterNamespaces]
     dry_run: bool = True

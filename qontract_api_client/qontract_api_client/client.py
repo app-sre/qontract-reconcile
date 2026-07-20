@@ -29,6 +29,31 @@ async def ldap_users_check(
     return result
 
 
+@client.get("/api/v1/external/ocm/clusters")
+async def ocm_clusters(
+    result: schemas.OcmClustersResponse,
+    secret_manager_url: str,
+    path: str,
+    ocm_url: str,
+    access_token_url: str,
+    access_token_client_id: str,
+    label_key_prefix: str,
+    field: str | None = None,
+    version: int | None = None,
+    org_ids: list[str] | None = None,
+) -> schemas.OcmClustersResponse:
+    """Get Clusters
+
+        Discover OCM clusters with subscription/organization labels matching a prefix.
+
+    Returns raw cluster info plus a flat dict of matching labels, merged with
+    subscription-level labels winning over organization-level labels on key
+    collisions. Label *interpretation* is left entirely to the caller. Results
+    are cached (TTL configured in settings).
+    """
+    return result
+
+
 @client.get("/api/v1/external/pagerduty/escalation-policies/{policy_id}/users")
 async def pagerduty_escalation_policy_users(
     result: schemas.EscalationPolicyUsersResponse,

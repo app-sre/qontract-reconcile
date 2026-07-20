@@ -2278,6 +2278,73 @@
         "title": "NotificationRemoveUser",
         "type": "object"
       },
+      "OcmClusterInfo": {
+        "description": "A single OCM cluster matching label_key_prefix, with merged labels.\n\nlabels is the flat, merged view of subscription-level and\norganization-level labels whose key starts with label_key_prefix\n(subscription-level labels win on key collisions). Label *interpretation*\nis left entirely to the caller.",
+        "properties": {
+          "console_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cluster console URL",
+            "title": "Console Url"
+          },
+          "external_auth_enabled": {
+            "default": false,
+            "description": "Whether external auth is enabled on the cluster",
+            "title": "External Auth Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "OCM cluster id",
+            "title": "Id",
+            "type": "string"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Merged subscription+organization labels matching label_key_prefix",
+            "title": "Labels",
+            "type": "object"
+          },
+          "name": {
+            "description": "Cluster name",
+            "title": "Name",
+            "type": "string"
+          },
+          "organization_id": {
+            "description": "OCM organization id",
+            "title": "Organization Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "organization_id"
+        ],
+        "title": "OcmClusterInfo",
+        "type": "object"
+      },
+      "OcmClustersResponse": {
+        "description": "Response model for the cluster discovery endpoint.",
+        "properties": {
+          "clusters": {
+            "items": {
+              "$ref": "#/components/schemas/OcmClusterInfo"
+            },
+            "title": "Clusters",
+            "type": "array"
+          }
+        },
+        "title": "OcmClustersResponse",
+        "type": "object"
+      },
       "OpenShiftNamespacesReconcileRequest": {
         "description": "Request to reconcile namespaces across clusters.",
         "properties": {
@@ -3014,6 +3081,158 @@
           }
         ],
         "summary": "Check Users Exist",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/ocm/clusters": {
+      "get": {
+        "description": "Discover OCM clusters with subscription/organization labels matching a prefix.\n\nReturns raw cluster info plus a flat dict of matching labels, merged with\nsubscription-level labels winning over organization-level labels on key\ncollisions. Label *interpretation* is left entirely to the caller. Results\nare cached (TTL configured in settings).",
+        "operationId": "ocm-clusters",
+        "parameters": [
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "OCM environment base URL",
+            "in": "query",
+            "name": "ocm_url",
+            "required": true,
+            "schema": {
+              "description": "OCM environment base URL",
+              "title": "Ocm Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "OAuth2 token endpoint (client-credentials grant)",
+            "in": "query",
+            "name": "access_token_url",
+            "required": true,
+            "schema": {
+              "description": "OAuth2 token endpoint (client-credentials grant)",
+              "title": "Access Token Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "OAuth2 client id",
+            "in": "query",
+            "name": "access_token_client_id",
+            "required": true,
+            "schema": {
+              "description": "OAuth2 client id",
+              "title": "Access Token Client Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Subscription/organization label key prefix to search for (e.g. 'sre-capabilities.rhidp'); matched with a trailing '%' wildcard",
+            "in": "query",
+            "name": "label_key_prefix",
+            "required": true,
+            "schema": {
+              "description": "Subscription/organization label key prefix to search for (e.g. 'sre-capabilities.rhidp'); matched with a trailing '%' wildcard",
+              "title": "Label Key Prefix",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional list of organization ids to restrict results to. Omit to include all matching organizations.",
+            "in": "query",
+            "name": "org_ids",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of organization ids to restrict results to. Omit to include all matching organizations.",
+              "title": "Org Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OcmClustersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Clusters",
         "tags": [
           "external"
         ]
