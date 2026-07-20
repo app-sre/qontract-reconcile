@@ -19,7 +19,7 @@ from typing import Any
 
 import hvac
 import structlog
-from hvac.exceptions import Forbidden, InvalidPath
+from hvac.exceptions import Forbidden, InvalidPath, InvalidRequest
 from prometheus_client import Counter, Histogram
 from pydantic import BaseModel
 
@@ -42,19 +42,19 @@ from qontract_utils.secret_reader.base import (
 logger = structlog.get_logger(__name__)
 
 
+def _should_retry_vault(exc: Exception) -> bool:
+    """Return True if exception should be retried, False if it should fail instantly."""
+    # Do not retry on Forbidden (403), as it typically means token expired or policy denied access.
+    # Do not retry on InvalidRequest (400), as it typically means the request is malformed or invalid.
+    return not isinstance(exc, (Forbidden, InvalidRequest))
+
+
 SHORT_RETRY_CONFIG = RetryConfig(
-    on=Exception,
+    on=_should_retry_vault,
     attempts=3,
     wait_initial=1.0,
     wait_max=2.0,
 )
-
-
-def _should_retry_vault(exc: Exception) -> bool:
-    """Return True if exception should be retried, False if it should fail instantly."""
-    # Do not retry on Forbidden (403), as it typically means token expired
-    # or policy denied access. Retrying 10 times over 45s is wasteful.
-    return not isinstance(exc, Forbidden)
 
 
 VAULT_READ_RETRY_CONFIG = RetryConfig(
@@ -345,33 +345,42 @@ class VaultSecretBackend(SecretBackend):
             self._kube_login(jwt)
         else:
             msg = (
-                "Must provide either AppRole credentials (role_id + secret_id) "
+                f"[{self._settings.server}] Must provide either AppRole credentials (role_id + secret_id) "
                 "or Kubernetes auth credentials (kube_auth_role)"
             )
             raise ValueError(msg)
 
         # Verify authentication succeeded
         if not self._client.is_authenticated():
-            raise SecretBackendError("Vault authentication failed")
+            raise SecretBackendError(
+                f"[{self._settings.server}] Vault authentication failed"
+            )
 
-        logger.info("Successfully authenticated to Vault")
+        logger.info("Successfully authenticated to Vault", server=self._settings.server)
 
     @invoke_with_hooks(
         lambda self, mount_point: VaultApiCallContext(
-            method="secrets.kv.v2.read_configuration",
+            method="sys.internal_ui_mounts",
             id=self._settings.server,
             mount_point=mount_point,
         ),
         retry_config=NO_RETRY_CONFIG,
     )
-    def _read_kv_config(self, mount_point: str) -> None:
-        """Read KV v2 configuration API call.
+    def _read_mount_info(self, mount_point: str) -> dict[str, Any]:
+        """Read mount info via the low-privilege sys/internal/ui/mounts endpoint.
 
-        Note: This method intentionally uses NO_RETRY_CONFIG because it's used for
-        KV version detection via try/except. Any exception (InvalidPath, Forbidden, etc.)
-        indicates KV v1, so retries would be counterproductive.
+        This is what Vault's own CLI (`vault kv get/put`) uses to auto-detect KV
+        version, specifically because it requires only baseline read access - unlike
+        secrets.kv.v2.read_configuration, which requires the mount's `config`
+        capability. That capability is often NOT granted even to tokens with full
+        read/write/list access to the actual secret data, which would cause KV v2
+        mounts to be misdetected as v1 on a Forbidden response. hvac has no dedicated
+        wrapper for this endpoint, so it's called via the generic adapter.
+
+        Note: NO_RETRY_CONFIG is intentional - this call drives a fast version
+        decision, not a resilience-critical read.
         """
-        self._client.secrets.kv.v2.read_configuration(mount_point)
+        return self._client.adapter.get(f"/v1/sys/internal/ui/mounts/{mount_point}")
 
     def _compile_vault_secret(self, path: str) -> VaultSecret:
         """Compile a VaultSecret object from the given secret path."""
@@ -384,18 +393,14 @@ class VaultSecretBackend(SecretBackend):
                 read_path=read_path,
             )
 
-        # Try to read KV v2 configuration
-        # If this succeeds, it's a KV v2 engine
-        # If it fails (any exception), assume KV v1
         try:
-            self._read_kv_config(mount_point)
-            kv_version = KV_VERSION_2
-        except Exception:  # noqa: BLE001
-            # Broad exception catch is intentional here:
-            # - InvalidPath: mount doesn't exist or is KV v1
-            # - Forbidden: no permission (assume v1 as fallback)
-            # - Any other error: assume v1 as safe default
-            kv_version = KV_VERSION_1
+            response = self._read_mount_info(mount_point)
+        except Exception as e:
+            msg = f"[{self._settings.server}] Failed to determine KV version for mount point '{mount_point}'"
+            raise SecretBackendError(msg) from e
+
+        options = response.get("data", {}).get("options") or {}
+        kv_version = KV_VERSION_2 if options.get("version") == "2" else KV_VERSION_1
 
         # Cache the detected version
         self._kv_version_cache[mount_point] = kv_version
@@ -421,11 +426,9 @@ class VaultSecretBackend(SecretBackend):
                         logger.debug("Attempting to renew Vault token")
                         # Try to renew the existing token first to avoid GC churn
                         self._renew_self()
-                    except Exception as e:  # noqa: BLE001
+                    except Exception:  # noqa: BLE001
                         try:
-                            logger.warning(
-                                "Token renewal failed, re-authenticating", exc_info=e
-                            )
+                            logger.debug("Token renewal failed, re-authenticating")
                             # If renewal fails (e.g. token expired), get a new one
                             self._authenticate()
                         except Exception:
@@ -466,7 +469,7 @@ class VaultSecretBackend(SecretBackend):
         if secret.field:
             if secret.field not in data:
                 raise SecretNotFoundError(
-                    f"Field '{secret.field}' not found in secret {secret.path}. "
+                    f"[{self._settings.server}] Field '{secret.field}' not found in secret {secret.path}. "
                     f"Available fields: {list(data.keys())}"
                 )
             return data[secret.field]
@@ -477,7 +480,7 @@ class VaultSecretBackend(SecretBackend):
 
         # Multiple fields but no field specified - error
         msg = (
-            f"Secret {secret.path} has multiple fields {list(data.keys())}. "
+            f"[{self._settings.server}] Secret {secret.path} has multiple fields {list(data.keys())}. "
             "Specify field parameter to select one."
         )
         raise ValueError(msg)
@@ -559,9 +562,209 @@ class VaultSecretBackend(SecretBackend):
                 vault_secret.read_path, vault_secret.mount_point
             )
         except InvalidPath as e:
-            raise SecretNotFoundError(f"Secret not found: {secret.path}") from e
+            raise SecretNotFoundError(
+                f"[{self._settings.server}] Secret not found: {secret.path}"
+            ) from e
         except Forbidden as e:
-            raise SecretAccessForbiddenError(f"Access denied: {secret.path}") from e
+            raise SecretAccessForbiddenError(
+                f"[{self._settings.server}] Access denied: {secret.path}"
+            ) from e
+
+    @invoke_with_hooks(
+        lambda self, path, mount_point: VaultApiCallContext(
+            method="secrets.kv.v2.create_or_update_secret",
+            id=self._settings.server,
+            path=path,
+            mount_point=mount_point,
+        ),
+        retry_config=SHORT_RETRY_CONFIG,
+    )
+    def _write_kv_v2_secret(
+        self, path: str, mount_point: str, data: dict[str, str]
+    ) -> None:
+        """Write KV v2 secret API call."""
+        self._client.secrets.kv.v2.create_or_update_secret(
+            path=path, mount_point=mount_point, secret=data
+        )
+
+    @invoke_with_hooks(
+        lambda self, path, mount_point: VaultApiCallContext(
+            method="secrets.kv.v1.create_or_update_secret",
+            id=self._settings.server,
+            path=path,
+            mount_point=mount_point,
+        ),
+        retry_config=SHORT_RETRY_CONFIG,
+    )
+    def _write_kv_v1_secret(
+        self, path: str, mount_point: str, data: dict[str, str]
+    ) -> None:
+        """Write KV v1 secret API call."""
+        self._client.secrets.kv.v1.create_or_update_secret(
+            path=path, mount_point=mount_point, secret=data
+        )
+
+    def write(
+        self, secret: Secret, data: dict[str, str], *, force: bool = False
+    ) -> None:
+        """Write all fields to a Vault secret path, replacing any existing data.
+
+        Automatically detects KV v1 or v2 based on mount point configuration.
+        Skips the write if the current data already matches `data` (avoids
+        unnecessary KV version churn on repeated reconciliation runs) unless
+        `force=True`.
+
+        Args:
+            secret: Secret object identifying the path to write to
+            data: Field name -> value mapping to write
+            force: Write even if the current data is identical
+
+        Raises:
+            SecretAccessForbiddenError: Access denied to secret
+        """
+        vault_secret = self._compile_vault_secret(secret.path)
+
+        if not force:
+            try:
+                current_data = (
+                    self._read_kv_v2_secret(
+                        vault_secret.read_path, vault_secret.mount_point, version=None
+                    )
+                    if vault_secret.kv_version == KV_VERSION_2
+                    else self._read_kv_v1_secret(
+                        vault_secret.read_path, vault_secret.mount_point
+                    )
+                )
+            except InvalidPath:
+                current_data = None
+            except Forbidden as e:
+                raise SecretAccessForbiddenError(
+                    f"[{self._settings.server}] Access denied: {secret.path}"
+                ) from e
+            if current_data == data:
+                logger.debug(f"Skipping unchanged Vault secret write: {secret.path}")
+                return
+
+        logger.debug(
+            f"Writing Vault secret: path={secret.path}, kv_version={vault_secret.kv_version}"
+        )
+        try:
+            if vault_secret.kv_version == KV_VERSION_2:
+                self._write_kv_v2_secret(
+                    vault_secret.read_path, vault_secret.mount_point, data
+                )
+            else:
+                self._write_kv_v1_secret(
+                    vault_secret.read_path, vault_secret.mount_point, data
+                )
+        except Forbidden as e:
+            raise SecretAccessForbiddenError(
+                f"[{self._settings.server}] Access denied: {secret.path}"
+            ) from e
+
+    @invoke_with_hooks(
+        lambda self, path, mount_point: VaultApiCallContext(
+            method="secrets.kv.v1.delete_secret",
+            id=self._settings.server,
+            path=path,
+            mount_point=mount_point,
+        ),
+        retry_config=SHORT_RETRY_CONFIG,
+    )
+    def _delete_kv_v1_secret(self, path: str, mount_point: str) -> None:
+        """Delete KV v1 secret API call."""
+        self._client.secrets.kv.v1.delete_secret(path=path, mount_point=mount_point)
+
+    def delete(self, secret: Secret) -> None:
+        """Delete a Vault secret path.
+
+        Only KV v1 mounts are supported.
+
+        Args:
+            secret: Secret object identifying the path to delete
+
+        Raises:
+            SecretAccessForbiddenError: Access denied to secret
+            NotImplementedError: The mount is KV v2
+        """
+        vault_secret = self._compile_vault_secret(secret.path)
+        if vault_secret.kv_version == KV_VERSION_2:
+            msg = (
+                f"[{self._settings.server}] Deleting KV v2 secrets is not supported yet"
+            )
+            raise NotImplementedError(msg)
+
+        logger.debug(f"Deleting Vault secret: path={secret.path}")
+        try:
+            self._delete_kv_v1_secret(vault_secret.read_path, vault_secret.mount_point)
+        except Forbidden as e:
+            raise SecretAccessForbiddenError(
+                f"[{self._settings.server}] Access denied: {secret.path}"
+            ) from e
+
+    @invoke_with_hooks(
+        lambda self, path, mount_point: VaultApiCallContext(
+            method="secrets.kv.v2.list_secrets",
+            id=self._settings.server,
+            path=path,
+            mount_point=mount_point,
+        ),
+        retry_config=VAULT_READ_RETRY_CONFIG,
+    )
+    def _list_kv_v2_secrets(self, path: str, mount_point: str) -> list[str]:
+        """List KV v2 secrets API call."""
+        response = self._client.secrets.kv.v2.list_secrets(
+            path=path, mount_point=mount_point
+        )
+        return list(response["data"]["keys"])
+
+    @invoke_with_hooks(
+        lambda self, path, mount_point: VaultApiCallContext(
+            method="secrets.kv.v1.list_secrets",
+            id=self._settings.server,
+            path=path,
+            mount_point=mount_point,
+        ),
+        retry_config=VAULT_READ_RETRY_CONFIG,
+    )
+    def _list_kv_v1_secrets(self, path: str, mount_point: str) -> list[str]:
+        """List KV v1 secrets API call."""
+        response = self._client.secrets.kv.v1.list_secrets(
+            path=path, mount_point=mount_point
+        )
+        return list(response["data"]["keys"])
+
+    def list(self, secret: Secret) -> list[str]:
+        """List secret keys directly under a Vault path.
+
+        Automatically detects KV v1 or v2 based on mount point configuration.
+
+        Args:
+            secret: Secret object identifying the path to list
+
+        Returns:
+            List of key names directly under path. Empty list if path does not
+            exist.
+
+        Raises:
+            SecretAccessForbiddenError: Access denied to path
+        """
+        vault_secret = self._compile_vault_secret(secret.path)
+
+        try:
+            if vault_secret.kv_version == KV_VERSION_2:
+                return self._list_kv_v2_secrets(
+                    vault_secret.read_path, vault_secret.mount_point
+                )
+            return self._list_kv_v1_secrets(
+                vault_secret.read_path, vault_secret.mount_point
+            )
+        except InvalidPath:
+            return []
+        except Forbidden as e:
+            raise SecretAccessForbiddenError(
+                f"[{self._settings.server}] Access denied: {secret.path}"
+            ) from e
 
     def close(self) -> None:
         """Close Vault client and stop auto-refresh thread.
