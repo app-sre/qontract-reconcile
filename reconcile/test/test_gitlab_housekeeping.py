@@ -1343,13 +1343,18 @@ def test_healthcheck_skips_non_queue_eligible_mrs(project: Project) -> None:
     mocked_gl.remove_label.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "list_status",
+    ["need_rebase", "ci_must_pass", "unchecked"],
+)
 def test_healthcheck_applies_rebase_error_on_merge_error_field(
     project: Project,
+    list_status: str,
 ) -> None:
-    """detailed_merge_status='need_rebase' in .list() triggers .get() which confirms merge_error."""
+    """.get() confirms merge_error regardless of detailed_merge_status from .list()."""
     mr = _make_healthcheck_mr(
         labels=["lgtm"],
-        detailed_merge_status="need_rebase",
+        detailed_merge_status=list_status,
     )
     fresh_mr = create_autospec(ProjectMergeRequest)
     fresh_mr.merge_error = (
@@ -1375,17 +1380,21 @@ def test_healthcheck_applies_rebase_error_on_merge_error_field(
     "resolved_status",
     ["mergeable", "ci_must_pass"],
 )
-def test_healthcheck_removes_rebase_error_when_detailed_status_cleared(
+def test_healthcheck_removes_rebase_error_when_merge_error_cleared(
     project: Project,
     resolved_status: str,
 ) -> None:
-    """rebase-error is removed when detailed_merge_status is no longer need_rebase."""
+    """rebase-error is removed when .get() confirms merge_error is cleared."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
         detailed_merge_status=resolved_status,
     )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.merge_error = None
+
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
@@ -1394,7 +1403,7 @@ def test_healthcheck_removes_rebase_error_when_detailed_status_cleared(
         project_merge_requests=[mr],
     )
 
-    mocked_gl.get_merge_request.assert_not_called()
+    mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
     mocked_gl.remove_label.assert_called_once_with(mr, "rebase-error")
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
@@ -1496,13 +1505,18 @@ def test_healthcheck_ignores_non_rebase_merge_error(
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "list_status",
+    ["unchecked", "need_rebase"],
+)
 def test_healthcheck_preserves_rebase_error_on_api_failure(
     project: Project,
+    list_status: str,
 ) -> None:
     """rebase-error label is preserved when fresh .get() raises GitlabGetError."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
-        detailed_merge_status="need_rebase",
+        detailed_merge_status=list_status,
     )
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project

@@ -21,11 +21,8 @@ from reconcile.utils.ocm.labels import (
     add_subscription_label,
     build_container_for_prefix,
     build_label_from_dict,
-    delete_ocm_label,
     get_cluster_labels_for_cluster_id,
     get_organization_labels,
-    get_subscription_labels,
-    update_ocm_label,
 )
 from reconcile.utils.ocm.search_filters import Filter
 
@@ -173,41 +170,6 @@ def test_utils_get_organization_labels(
     )
 
 
-def test_utils_get_subscription_labels(
-    ocm_api: OCMBaseClient,
-    mocker: MockerFixture,
-    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-) -> None:
-    get_labels_call_recorder = mocker.patch.object(
-        labels, "get_labels", wraps=labels.get_labels
-    )
-    register_ocm_url_responses([
-        OcmUrl(method="GET", uri="/api/accounts_mgmt/v1/labels").add_list_response([
-            build_subscription_label("label", "value", "sub_id").model_dump(
-                by_alias=True
-            )
-        ])
-    ])
-
-    filter = Filter().eq("additional", "filter")
-    org_labels = list(
-        get_subscription_labels(
-            ocm_api=ocm_api,
-            filter=filter,
-        )
-    )
-
-    # make sure we got the label we expected
-    assert len(org_labels) == 1
-    assert isinstance(org_labels[0], OCMSubscriptionLabel)
-    assert org_labels[0].key == "label"
-
-    # make sure the filter was applied correctly
-    get_labels_call_recorder.assert_called_once_with(
-        ocm_api=ocm_api, filter=filter.eq("type", "Subscription")
-    )
-
-
 def test_build_label_filter_for_key() -> None:
     filter = labels.label_filter("foo")
     assert filter == Filter().eq("key", "foo")
@@ -347,40 +309,6 @@ def test_add_subscription_labels(
     add_subscription_label(ocm_api, cluster.ocm_cluster, "label", "value")
 
     ocm_calls = find_all_ocm_http_requests("POST")
-    assert len(ocm_calls) == 1
-
-
-def test_update_ocm_labels(
-    ocm_api: OCMBaseClient,
-    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str], list[Request]],
-) -> None:
-    cluster = build_cluster_details(subs_labels=[("label", "value")])
-
-    register_ocm_url_responses([
-        OcmUrl(method="PATCH", uri="/label/label_id"),
-    ])
-
-    update_ocm_label(ocm_api, cluster.labels["label"], "value2")
-
-    ocm_calls = find_all_ocm_http_requests("PATCH")
-    assert len(ocm_calls) == 1
-
-
-def test_delete_ocm_labels(
-    ocm_api: OCMBaseClient,
-    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str], list[Request]],
-) -> None:
-    cluster = build_cluster_details(subs_labels=[("label", "value")])
-
-    register_ocm_url_responses([
-        OcmUrl(method="DELETE", uri="/label/label_id"),
-    ])
-
-    delete_ocm_label(ocm_api, cluster.labels["label"])
-
-    ocm_calls = find_all_ocm_http_requests("DELETE")
     assert len(ocm_calls) == 1
 
 

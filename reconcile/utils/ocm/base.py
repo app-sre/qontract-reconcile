@@ -196,6 +196,7 @@ class OCMClusterVersion(BaseModel):
     raw_id: str
     channel_group: str
     available_upgrades: list[str] = Field(default_factory=list)
+    available_channels: list[str] = Field(default_factory=list)
 
 
 class OCMClusterConsole(BaseModel):
@@ -268,6 +269,9 @@ class OCMCluster(BaseModel):
 
     version: OCMClusterVersion
 
+    # always present — OCM defaults on create, existing clusters backfilled (ROSA-377)
+    channel: str
+
     hypershift: OCMClusterFlag
 
     console: OCMClusterConsole | None = None
@@ -286,6 +290,27 @@ class OCMCluster(BaseModel):
 
     def available_upgrades(self) -> list[str]:
         return self.version.available_upgrades
+
+    def is_y_stream_channel(self) -> bool:
+        parts = self.channel.rsplit("-", 1)
+        if len(parts) != 2:
+            return False
+        version_part = parts[1]
+        segments = version_part.split(".")
+        return len(segments) == 2 and all(s.isdigit() for s in segments)
+
+    def channel_type(self) -> str:
+        return self.channel.rsplit("-", 1)[0]
+
+    def target_y_stream_channel(self) -> str | None:
+        if not self.is_y_stream_channel():
+            return None
+        channel_prefix, version_part = self.channel.rsplit("-", 1)
+        major, minor = version_part.split(".")
+        next_minor = int(minor) + 1
+        if channel_prefix == "eus" and next_minor % 2 == 1:
+            next_minor += 1
+        return f"{channel_prefix}-{major}.{next_minor}"
 
     def is_osd(self) -> bool:
         return self.product.id == PRODUCT_ID_OSD
