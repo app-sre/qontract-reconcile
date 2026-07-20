@@ -8,6 +8,7 @@ import reconcile.gql_definitions.gcp.gcp_docker_repos as gql_gcp_repos
 import reconcile.gql_definitions.gcp.gcp_projects as gql_gcp_projects
 from reconcile import queries
 from reconcile.container_registry_mirror import register
+from reconcile.container_registry_mirror.deep_sync_timer import DeepSyncTimer
 from reconcile.container_registry_mirror.engine import MirrorEngine
 from reconcile.container_registry_mirror.mirror_spec import MirrorSpec
 from reconcile.utils import gql
@@ -188,14 +189,24 @@ register("gcp-image-mirror", GcpMirror)
 # Used by the integration framework for metric labels, log context,
 # and early-exit cache keys.
 QONTRACT_INTEGRATION = "gcp-image-mirror"
+# The original gcp_image_mirror.py ran deep sync every 8 hours
+# to detect mutable tag drift at the GCP fallback registry.
+CONTROL_FILE_NAME = "qontract-reconcile-gcp-image-mirror.timestamp"
+DEEP_SYNC_INTERVAL = 28800  # 8 hours
 
 
 def run(dry_run: bool) -> None:
     """Module-level entry point called by the integration framework."""
     impl = GcpMirror()
+    timer = DeepSyncTimer.from_dir(
+        control_file_dir=None,
+        control_file_name=CONTROL_FILE_NAME,
+        interval=DEEP_SYNC_INTERVAL,
+    )
     specs = impl.discover_mirrors()
     engine = MirrorEngine(
         skopeo=Skopeo(dry_run),
         dry_run=dry_run,
+        deep_sync_timer=timer,
     )
     engine.sync(specs)
