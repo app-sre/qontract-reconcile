@@ -284,6 +284,23 @@ class LdapSettings(BaseModel):
     )
 
 
+class OcmSettings(BaseModel):
+    """OCM API and integration configuration."""
+
+    api_timeout: int = Field(
+        default=60,
+        description="OCM API timeout in seconds",
+    )
+    api_max_retries: int = Field(
+        default=3,
+        description="OCM API max transport-level retries for failed requests",
+    )
+    clusters_cache_ttl: int = Field(
+        default=60 * 10,
+        description="OCM cluster discovery cache TTL in seconds (10 minutes)",
+    )
+
+
 class VaultSettings(BaseModel):
     # Vault-specific configuration
     backend_type: str = Field(
@@ -511,6 +528,12 @@ class Settings(BaseSettings):
     ldap: LdapSettings = Field(
         default_factory=LdapSettings,
         description="LDAP external integration configuration",
+    )
+
+    # OCM Configuration (nested)
+    ocm: OcmSettings = Field(
+        default_factory=OcmSettings,
+        description="OCM API and integration configuration",
     )
 
     # VCS Configuration (nested)
