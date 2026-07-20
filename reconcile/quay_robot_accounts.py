@@ -6,7 +6,7 @@ from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
     QuayRobotV1,
     query,
 )
-from reconcile.quay_base import QuayApiStore, get_quay_api_store
+from reconcile.quay_base import OrgKey, QuayApiStore, get_quay_api_store
 from reconcile.utils import gql
 from reconcile.utils.quay_api import RobotAccountDetails
 
@@ -32,6 +32,7 @@ class RobotAccountState:
     instance_name: str
     teams: set[str]
     repositories: dict[str, str]  # repo_name -> permission
+    delete: bool = False
 
 
 @dataclass
@@ -100,6 +101,7 @@ def build_desired_state(
             instance_name=instance_name,
             teams=teams,
             repositories=repositories,
+            delete=robot.delete or False,
         )
 
         desired_state[instance_name, org_name, robot_name] = state
@@ -115,34 +117,37 @@ def build_current_state(
     current_state = {}
 
     for (instance_name, org_name), robots in current_robots.items():
-        org_key = next(
-            (
-                k
-                for k in quay_api_store
-                if k.instance == instance_name and k.org_name == org_name
-            ),
-            None,
-        )
-
-        if not org_key:
+        org_key = OrgKey(instance_name, org_name)
+        if org_key not in quay_api_store:
             continue
 
+        quay_api = quay_api_store[org_key]["api"]
+
         for robot_data in robots:
-            robot_name = robot_data["name"]
+            robot_full_name = robot_data["name"]  # e.g. "org+shortname"
+            robot_short_name = robot_full_name.split("+", 1)[-1]
             description = robot_data.get("description")
 
-            # Get team memberships
-            team_permissions = robot_data.get("teams", [])
-            teams = {team_perm["name"] for team_perm in team_permissions}
+            # Get team memberships — teams is a list of dicts with a "name" key
+            teams = {t["name"] for t in robot_data.get("teams", [])}
 
-            # Get repository permissions
+            # Get repository permissions via dedicated endpoint (the robots list
+            # endpoint only returns repo names, not roles)
             repositories = {}
-            repo_permissions = robot_data.get("repositories", [])
-            for repo_perm in repo_permissions:
-                repositories[repo_perm["name"]] = repo_perm["role"]
+            try:
+                for perm in quay_api.get_robot_account_permissions(robot_short_name):
+                    repo = perm.get("repository", {})
+                    repo_name = repo.get("name") if isinstance(repo, dict) else repo
+                    role = perm.get("role")
+                    if repo_name and role:
+                        repositories[repo_name] = role
+            except Exception as e:
+                logging.debug(
+                    f"Could not fetch permissions for {robot_full_name}: {e}"
+                )
 
             state = RobotAccountState(
-                name=robot_name,
+                name=robot_full_name,
                 description=description,
                 org_name=org_name,
                 instance_name=instance_name,
@@ -150,7 +155,7 @@ def build_current_state(
                 repositories=repositories,
             )
 
-            current_state[instance_name, org_name, robot_name] = state
+            current_state[instance_name, org_name, robot_full_name] = state
 
     return current_state
 
@@ -162,8 +167,20 @@ def calculate_diff(
     """Calculate the differences between desired and current state"""
     actions = []
 
-    # Find robots to create
     for key, desired in desired_state.items():
+        if desired.delete:
+            # Explicit deletion requested — delete if it exists, no-op otherwise
+            if key in current_state:
+                actions.append(
+                    RobotAccountAction(
+                        action=RobotAccountActionType.DELETE,
+                        robot_name=desired.name,
+                        org_name=desired.org_name,
+                        instance_name=desired.instance_name,
+                    )
+                )
+            continue
+
         if key not in current_state:
             actions.append(
                 RobotAccountAction(
@@ -259,17 +276,9 @@ def calculate_diff(
                 for repo in repos_to_remove
             ])
 
-    # Find robots to delete (robots in current state but not in desired state)
-    for key, current in current_state.items():
-        if key not in desired_state:
-            actions.append(
-                RobotAccountAction(
-                    action=RobotAccountActionType.DELETE,
-                    robot_name=current.name,
-                    org_name=current.org_name,
-                    instance_name=current.instance_name,
-                )
-            )
+    # Robots in current state but not in desired state are intentionally ignored —
+    # they may be managed outside of app-interface. Use delete: true to explicitly
+    # remove a robot account.
 
     return actions
 
@@ -280,16 +289,8 @@ def apply_action(
     dry_run: bool = False,
 ) -> None:
     """Apply a single action to Quay"""
-    org_key = next(
-        (
-            k
-            for k in quay_api_store
-            if k.instance == action.instance_name and k.org_name == action.org_name
-        ),
-        None,
-    )
-
-    if not org_key:
+    org_key = OrgKey(action.instance_name, action.org_name)
+    if org_key not in quay_api_store:
         logging.error(f"No API found for {action.instance_name}/{action.org_name}")
         return
 
