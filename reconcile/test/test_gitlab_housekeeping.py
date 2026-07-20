@@ -2096,8 +2096,10 @@ def test_multi_merge_overlapping_tenants_serialized(
 def test_multi_merge_no_tenant_labels_falls_back_serial(
     mocker: MockerFixture,
 ) -> None:
-    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
-    mr2 = _make_merge_mr(11, ["approved"])
+    # Lead has no tenant labels → ineligible for OMM, falls back to serial merge.
+    # Candidate has a tenant label but must not be rebased or merged.
+    mr1 = _make_merge_mr(10, ["approved"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
     items = [_make_merge_item(mr1), _make_merge_item(mr2)]
 
     _call_merge(
@@ -2113,6 +2115,37 @@ def test_multi_merge_no_tenant_labels_falls_back_serial(
 
     mr1.merge.assert_called_once()
     mr2.merge.assert_not_called()
+    mr2.rebase.assert_not_called()
+
+
+def test_multi_merge_candidate_no_tenant_labels_excluded(
+    mocker: MockerFixture,
+) -> None:
+    """Candidate without tenant labels is skipped by _form_omm_group's eligibility filter."""
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved"])
+    mr3 = _make_merge_mr(12, ["approved", "tenant-bar"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2), _make_merge_item(mr3)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+            12: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    # mr2 has no tenant labels — excluded from OMM group, not rebased
+    mr2.merge.assert_not_called()
+    mr2.rebase.assert_not_called()
+    # mr3 is eligible and non-overlapping — included in OMM group
+    mr3.merge.assert_not_called()
+    mr3.rebase.assert_called_once_with(skip_ci=True)
 
 
 def test_multi_merge_three_mrs_partial_overlap(
