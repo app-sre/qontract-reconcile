@@ -211,6 +211,55 @@ class SecretBackend(ABC):
             old_creds = backend.read_all("aws/account1/creds", version=5)
         """
 
+    @abstractmethod
+    def write(
+        self, secret: Secret, data: dict[str, str], *, force: bool = False
+    ) -> None:
+        """Write all fields to secret path, replacing any existing data there.
+
+        `secret.field`/`.version` are not used - the whole path is written at once.
+
+        Args:
+            secret: Secret object identifying the path (and backend url) to write to
+            data: Field name -> value mapping to write
+            force: If True, write even if the current data is identical (by default,
+                an identical write is skipped to avoid unnecessary backend version
+                churn, e.g. new KV versions on every reconciliation run)
+
+        Raises:
+            SecretAccessForbiddenError: Access denied to secret
+        """
+
+    @abstractmethod
+    def delete(self, secret: Secret) -> None:
+        """Delete the secret at path.
+
+        `secret.field`/`.version` are not used - the whole path is deleted.
+
+        Args:
+            secret: Secret object identifying the path (and backend url) to delete
+
+        Raises:
+            SecretAccessForbiddenError: Access denied to secret
+        """
+
+    @abstractmethod
+    def list(self, secret: Secret) -> list[str]:
+        """List secret keys directly under path.
+
+        `secret.field`/`.version` are not used.
+
+        Args:
+            secret: Secret object identifying the path (and backend url) to list
+
+        Returns:
+            List of key names directly under path (directory-like entries end in
+            "/"). Empty list if path does not exist.
+
+        Raises:
+            SecretAccessForbiddenError: Access denied to path
+        """
+
     def close(self) -> None:  # noqa: B027
         """Close backend connections and cleanup resources.
 
