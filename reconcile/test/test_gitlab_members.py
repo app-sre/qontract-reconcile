@@ -102,6 +102,7 @@ def user() -> User:
         name="name",
         pagerduty_username="pagerduty_username",
         tag_on_merge_requests=None,
+        gov_slack_username=None,
     )
 
 

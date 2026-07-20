@@ -296,6 +296,7 @@ def users() -> list[User]:
             github_username="github_user",
             pagerduty_username=None,
             tag_on_merge_requests=None,
+            gov_slack_username=None,
         )
     ]
 
