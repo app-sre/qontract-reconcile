@@ -250,13 +250,13 @@ class QuayApi(ApiBase):
 
     def list_robot_accounts(self) -> list[RobotAccountDetails]:
         url = f"/api/v1/organization/{self.organization}/robots"
-        body = self._get(url)
+        body = self._get(url, params={"permissions": "true"})
         return [
             RobotAccountDetails(
                 name=robot["name"],
-                description=robot["description"],
-                teams=[],
-                repositories=[],
+                description=robot.get("description"),
+                teams=robot.get("teams", []),
+                repositories=robot.get("repositories", []),
             )
             for robot in body["robots"]
         ]

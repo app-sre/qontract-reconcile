@@ -19,8 +19,8 @@ class OrgInfo(TypedDict):
 
 
 class QuayApiStore(UserDict[OrgKey, OrgInfo]):
-    def __init__(self) -> None:
-        super().__init__(get_quay_api_store())
+    def __init__(self, data: dict[OrgKey, OrgInfo] | None = None) -> None:
+        super().__init__(data or {})
 
     def cleanup(self) -> None:
         """Close all QuayApi sessions."""
@@ -42,7 +42,7 @@ def get_quay_api_store() -> QuayApiStore:
     quay_orgs = queries.get_quay_orgs()
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
-    store = QuayApiStore()
+    data: dict[OrgKey, OrgInfo] = {}
     for org_data in quay_orgs:
         instance_name = org_data["instance"]["name"]
         org_name = org_data["name"]
@@ -90,6 +90,6 @@ def get_quay_api_store() -> QuayApiStore:
             "api": api,
         }
 
-        store[org_key] = org_info
+        data[org_key] = org_info
 
-    return store
+    return QuayApiStore(data)

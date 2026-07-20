@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 query QuayRobotAccounts {
   robot_accounts: quay_robots_v1 {
@@ -21,5 +21,6 @@ query QuayRobotAccounts {
       name
       permission
     }
+    delete
   }
 }

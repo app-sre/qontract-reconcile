@@ -39,6 +39,7 @@ def mock_robot_gql() -> QuayRobotV1:
             QuayRepositoryV1(name="repo1", permission="read"),
             QuayRepositoryV1(name="repo2", permission="write"),
         ],
+        delete=None,
     )
 
 
@@ -46,10 +47,10 @@ def mock_robot_gql() -> QuayRobotV1:
 def mock_current_robot() -> RobotAccountDetails:
     """Mock current robot account from Quay API"""
     return RobotAccountDetails(
-        name="existing-robot",
+        name="test-org+existing-robot",
         description="Existing robot",
         teams=[{"name": "team1"}],
-        repositories=[{"name": "repo1", "role": "read"}],
+        repositories=["repo1"],  # robots list endpoint returns names only
     )
 
 
@@ -101,6 +102,7 @@ def test_build_desired_state_no_quay_org(mock_robot_gql: QuayRobotV1) -> None:
         quay_org=None,
         teams=[],
         repositories=[],
+        delete=None,
     )
 
     desired_state = build_desired_state([robot])
@@ -119,6 +121,7 @@ def test_build_desired_state_empty_teams_repos(mock_robot_gql: QuayRobotV1) -> N
         ),
         teams=None,
         repositories=None,
+        delete=None,
     )
 
     desired_state = build_desired_state([robot])
@@ -130,19 +133,24 @@ def test_build_desired_state_empty_teams_repos(mock_robot_gql: QuayRobotV1) -> N
 
 
 def test_build_current_state_single_robot(
-    mock_current_robot: RobotAccountDetails, mock_quay_api_store: QuayApiStore
+    mock_current_robot: RobotAccountDetails,
+    mock_quay_api_store: QuayApiStore,
+    mock_quay_api: QuayApi,
 ) -> None:
     """Test building current state with a single robot"""
+    mock_quay_api.get_robot_account_permissions.return_value = [
+        {"repository": {"name": "repo1"}, "role": "read"}
+    ]
     current_robots = {("quay-instance", "test-org"): [mock_current_robot]}
 
     current_state = build_current_state(current_robots, mock_quay_api_store)
 
     assert len(current_state) == 1
-    key = ("quay-instance", "test-org", "existing-robot")
+    key = ("quay-instance", "test-org", "test-org+existing-robot")
     assert key in current_state
 
     state = current_state[key]
-    assert state.name == "existing-robot"
+    assert state.name == "test-org+existing-robot"
     assert state.description == "Existing robot"
     assert state.teams == {"team1"}
     assert state.repositories == {"repo1": "read"}
@@ -205,8 +213,18 @@ def test_calculate_diff_create_robot() -> None:
 
 
 def test_calculate_diff_delete_robot() -> None:
-    """Test calculating diff when robot needs to be deleted"""
-    desired_state: dict[tuple[str, str, str], RobotAccountState] = {}
+    """Test that a robot with delete=True is deleted when it exists in current state"""
+    desired_state = {
+        ("instance", "org", "old-robot"): RobotAccountState(
+            name="old-robot",
+            description="Old robot",
+            org_name="org",
+            instance_name="instance",
+            teams=set(),
+            repositories={},
+            delete=True,
+        )
+    }
     current_state = {
         ("instance", "org", "old-robot"): RobotAccountState(
             name="old-robot",
@@ -223,6 +241,45 @@ def test_calculate_diff_delete_robot() -> None:
     assert len(actions) == 1
     assert actions[0].action == RobotAccountActionType.DELETE
     assert actions[0].robot_name == "old-robot"
+
+
+def test_calculate_diff_delete_robot_not_in_current_state() -> None:
+    """Test that a robot with delete=True generates no action when it doesn't exist"""
+    desired_state = {
+        ("instance", "org", "old-robot"): RobotAccountState(
+            name="old-robot",
+            description="Old robot",
+            org_name="org",
+            instance_name="instance",
+            teams=set(),
+            repositories={},
+            delete=True,
+        )
+    }
+    current_state: dict[tuple[str, str, str], RobotAccountState] = {}
+
+    actions = calculate_diff(desired_state, current_state)
+
+    assert len(actions) == 0
+
+
+def test_calculate_diff_unmanaged_robot_is_ignored() -> None:
+    """Test that robots in current state but absent from desired state are not deleted"""
+    desired_state: dict[tuple[str, str, str], RobotAccountState] = {}
+    current_state = {
+        ("instance", "org", "unmanaged-robot"): RobotAccountState(
+            name="unmanaged-robot",
+            description="Robot created outside app-interface",
+            org_name="org",
+            instance_name="instance",
+            teams=set(),
+            repositories={},
+        )
+    }
+
+    actions = calculate_diff(desired_state, current_state)
+
+    assert len(actions) == 0
 
 
 def test_calculate_diff_team_changes() -> None:
