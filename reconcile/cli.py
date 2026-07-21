@@ -3080,6 +3080,75 @@ def rhidp_sso_client(
 
 
 @integration.command(
+    short_help="Manage Keycloak SSO clients for OCM clusters via qontract-api. Part of RHIDP."
+)
+@click.option(
+    "--keycloak-instances",
+    help=(
+        "A JSON array of Keycloak instances, each with the instance's issuer URL and "
+        'the Vault reference to its initial-access-token secret, e.g. \'[{"url": '
+        '"https://sso.example.com", "secret": {"secret_manager_url": '
+        '"https://it-vault.example.com", "path": "path/to/iat"}}]\'. The Vault instance '
+        "holding these secrets is often different from the one used for everything else."
+    ),
+    required=True,
+)
+@click.option(
+    "--vault-input-path",
+    help="path in Vault to find input resources.",
+    required=True,
+)
+@click.option(
+    "--ocm-env",
+    help="The OCM environment RHIDP should operator on. If none is specified, all environments will be operated on.",
+    required=False,
+    envvar="RHIDP_OCM_ENV",
+)
+@click.option(
+    "--default-auth-name",
+    default="redhat-sso",
+    help="The authentication name must match that one used in the redirect URL.",
+    required=True,
+    envvar="RHIDP_DEFAULT_AUTH_NAME",
+)
+@click.option(
+    "--default-auth-issuer-url",
+    default="https://auth.redhat.com/auth/realms/EmployeeIDP",
+    help="Use this Issuer (SSO server) URL if nothing else is specified for a cluster in the OCM cluster labels.",
+    required=True,
+    envvar="RHIDP_DEFAULT_AUTH_ISSUER_URL",
+)
+@click.pass_context
+def rhidp_sso_client_api(
+    ctx: click.Context,
+    keycloak_instances: str,
+    vault_input_path: str,
+    ocm_env: str | None,
+    default_auth_name: str,
+    default_auth_issuer_url: str,
+) -> None:
+    import json
+
+    from reconcile.rhidp_api.sso_client.integration import (
+        SSOClientApiIntegration,
+        SSOClientApiIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=SSOClientApiIntegration(
+            SSOClientApiIntegrationParams(
+                keycloak_instances=json.loads(keycloak_instances),
+                vault_input_path=vault_input_path,
+                ocm_environment=ocm_env,
+                default_auth_name=default_auth_name,
+                default_auth_issuer_url=default_auth_issuer_url,
+            )
+        ),
+        ctx=ctx,
+    )
+
+
+@integration.command(
     short_help="Manages the OCM subscription labels for clusters with RHIDP authentication. Part of RHIDP."
 )
 @click.pass_context

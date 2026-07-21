@@ -38,6 +38,7 @@ dev = [
     "ruff==0.15.13",
     "types-cachetools==7.0.0.20260518",
     "types-hvac==2.4.0.20260518",
+    "types-python-jose==3.5.0.20260408",
 ]
 
 [build-system]

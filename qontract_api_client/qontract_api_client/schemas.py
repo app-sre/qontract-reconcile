@@ -454,6 +454,11 @@ class HealthStatus(pydantic.BaseModel):
     status: str
 
 
+class KeycloakInstanceSecret(pydantic.BaseModel):
+    secret: Secret
+    url: str
+
+
 class LdapDirectSecret(pydantic.BaseModel):
     base_dn: str
     field: str | None = None
@@ -638,6 +643,64 @@ class SlackWorkspace(pydantic.BaseModel):
     name: str
     token: Secret
     usergroups: list[SlackUsergroup]
+
+
+class SsoClientActionCreate(pydantic.BaseModel):
+    action_type: typing.Literal["create"] = "create"
+    auth_name: str
+    cluster_name: str
+    sso_client_id: str
+
+
+class SsoClientActionDelete(pydantic.BaseModel):
+    action_type: typing.Literal["delete"] = "delete"
+    sso_client_id: str
+
+
+class SsoClientAuth(pydantic.BaseModel):
+    group_filter_regex: str | None = None
+    issuer: str
+    name: str
+
+
+class SsoClientCluster(pydantic.BaseModel):
+    auth: SsoClientAuth
+    console_url: str | None = None
+    name: str
+    organization_id: str
+    rhidp_enabled: bool
+
+
+class SsoClientReconcileRequest(pydantic.BaseModel):
+    clusters: list[SsoClientCluster]
+    dry_run: bool = True
+    keycloak_secrets: list[KeycloakInstanceSecret]
+    ocm_environment: str
+    vault_target: Secret
+
+
+class SsoClientTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class SsoClientTaskResult(pydantic.BaseModel):
+    actions: list[
+        typing.Annotated[
+            SsoClientActionCreate | SsoClientActionDelete,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_actions: list[
+        typing.Annotated[
+            SsoClientActionCreate | SsoClientActionDelete,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
 
 
 class TaskStatus(str, enum.Enum):
