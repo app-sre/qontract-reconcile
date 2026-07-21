@@ -31,6 +31,26 @@ def test_identifier_creation_from_spec() -> None:
     assert id.provisioner_name == "a"
 
 
+def test_cluster_admin_true() -> None:
+    spec = ExternalResourceSpec(
+        provision_provider="p",
+        provisioner={"name": "a"},
+        resource={"identifier": "i", "provider": "p"},
+        namespace={"name": "n", "cluster": {"name": "c"}, "clusterAdmin": True},
+    )
+    assert spec.cluster_admin is True
+
+
+def test_cluster_admin_false_when_absent() -> None:
+    spec = ExternalResourceSpec(
+        provision_provider="p",
+        provisioner={"name": "a"},
+        resource={"identifier": "i", "provider": "p"},
+        namespace={"name": "n", "cluster": {"name": "c"}},
+    )
+    assert spec.cluster_admin is False
+
+
 def test_identifier_missing() -> None:
     with pytest.raises(ValidationError):
         ExternalResourceUniqueKey.from_spec(

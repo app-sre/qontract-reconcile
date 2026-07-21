@@ -4,6 +4,7 @@ import base64
 import json
 import logging
 from abc import abstractmethod
+from dataclasses import dataclass
 from hashlib import shake_128
 from typing import TYPE_CHECKING, Any
 
@@ -23,11 +24,16 @@ from reconcile.external_resources.meta import (
 from reconcile.external_resources.model import (
     ExternalResourceKey,
 )
+from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
 from reconcile.openshift_base import ApplyOptions, apply_action
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils.datetime_util import to_utc_seconds_iso_format, utc_now
 from reconcile.utils.json import json_dumps
-from reconcile.utils.oc_map import OCMap, init_oc_map_from_clusters
+from reconcile.utils.oc_map import (
+    OCMap,
+    init_oc_map_from_clusters,
+    init_oc_map_from_namespaces,
+)
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
 from reconcile.utils.secret_reader import SecretNotFoundError, SecretReaderBase
 from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
@@ -132,6 +138,17 @@ class OutputSecretsFormatter:
         }
 
 
+@dataclass
+class _ClusterAdminNamespace:
+    """Minimal stand-in satisfying the `oc_connection_parameters.Namespace`
+    protocol, so we can request a privileged (cluster-admin) OC client for
+    clusters that host at least one clusterAdmin: true namespace among the
+    specs being synced."""
+
+    cluster: ClusterV1
+    cluster_admin: bool | None
+
+
 class SecretsReconciler:
     def __init__(
         self,
@@ -144,6 +161,10 @@ class SecretsReconciler:
         self.ri = ri
         self.thread_pool_size = thread_pool_size
         self.dry_run = dry_run
+        # (cluster_name, namespace_name) pairs that require the privileged
+        # cluster-admin OC client to read/write their output Secret.
+        # Populated per sync_secrets() call. See _init_ocmap().
+        self._privileged_namespaces: set[tuple[str, str]] = set()
 
     @abstractmethod
     def _populate_secret_data(self, specs: Iterable[ExternalResourceSpec]) -> None:
@@ -185,12 +206,33 @@ class SecretsReconciler:
         )
 
     def _init_ocmap(self, specs: Iterable[ExternalResourceSpec]) -> OCMap:
-        return init_oc_map_from_clusters(
-            clusters=[
-                c
-                for c in get_clusters_minimal()
-                if c.name in [o.cluster_name for o in specs]
-            ],
+        specs = list(specs)
+        # A namespace with clusterAdmin: true (e.g. an output secret that must
+        # land in a platform-protected namespace such as openshift-ingress)
+        # needs the privileged cluster-admin token to read/write its Secret -
+        # the standard dedicated-admin automation token is forbidden there.
+        # Track it here so reconcile_data()/apply_action() know which
+        # (cluster, namespace) pairs must use the privileged OC client.
+        self._privileged_namespaces = {
+            (spec.cluster_name, spec.namespace_name)
+            for spec in specs
+            if spec.cluster_admin
+        }
+        privileged_cluster_names = {cluster for cluster, _ in self._privileged_namespaces}
+        clusters_by_name = {
+            c.name: c
+            for c in get_clusters_minimal()
+            if c.name in {spec.cluster_name for spec in specs}
+        }
+        namespaces = [
+            _ClusterAdminNamespace(
+                cluster=cluster,
+                cluster_admin=cluster_name in privileged_cluster_names,
+            )
+            for cluster_name, cluster in clusters_by_name.items()
+        ]
+        return init_oc_map_from_namespaces(
+            namespaces=namespaces,
             secret_reader=self.secrets_reader,
             integration=QONTRACT_INTEGRATION,
         )
@@ -244,7 +286,8 @@ class SecretsReconciler:
         ocmap: OCMap,
     ) -> None:
         cluster, namespace, kind, data = ri_item
-        oc = ocmap.get_cluster(cluster)
+        privileged = (cluster, namespace) in self._privileged_namespaces
+        oc = ocmap.get_cluster(cluster, privileged)
         names = list(data["desired"].keys())
 
         logging.debug(
@@ -271,7 +314,7 @@ class SecretsReconciler:
             diff.add.values()
         )
 
-        self.apply_action(ocmap, cluster, namespace, items_to_update)
+        self.apply_action(ocmap, cluster, namespace, items_to_update, privileged)
 
     def apply_action(
         self,
@@ -279,6 +322,7 @@ class SecretsReconciler:
         cluster: str,
         namespace: str,
         items: Iterable[OpenshiftResource],
+        privileged: bool = False,
     ) -> None:
         options = ApplyOptions(
             dry_run=self.dry_run,
@@ -289,7 +333,7 @@ class SecretsReconciler:
             override_enable_deletion=False,
             caller=None,
             all_callers=None,
-            privileged=None,
+            privileged=privileged,
             enable_deletion=None,
         )
         for item in items:
