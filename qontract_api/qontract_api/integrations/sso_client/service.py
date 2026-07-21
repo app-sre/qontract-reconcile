@@ -154,13 +154,24 @@ class SsoClientService:
             issuer=cluster.auth.issuer,
             attributes=sso_client.attributes,
         )
-        self.secret_manager.write(
-            Secret(
-                secret_manager_url=vault_target.secret_manager_url,
-                path=f"{vault_target.path}/{action.sso_client_id}",
-            ),
-            secret_data.model_dump(),
-        )
+        try:
+            self.secret_manager.write(
+                Secret(
+                    secret_manager_url=vault_target.secret_manager_url,
+                    path=f"{vault_target.path}/{action.sso_client_id}",
+                ),
+                secret_data.model_dump(),
+            )
+        except Exception:
+            logger.exception(
+                f"Failed to persist secret for {action.sso_client_id}; "
+                "rolling back Keycloak client registration"
+            )
+            keycloak.delete_client(
+                client_id=sso_client.client_id,
+                registration_access_token=sso_client.registration_access_token,
+            )
+            raise
         return True
 
     def _delete_sso_client(
@@ -181,10 +192,14 @@ class SsoClientService:
                 registration_access_token=secret_data.registration_access_token,
             )
         except httpx2.HTTPStatusError as e:
-            if e.response.status_code != httpx2.codes.UNAUTHORIZED:
+            if e.response.status_code not in {
+                httpx2.codes.UNAUTHORIZED,
+                httpx2.codes.NOT_FOUND,
+            }:
                 raise
             logger.warning(
-                f"Failed to delete SSO client {action.sso_client_id} due to unauthorized error: {e}. "
+                f"Failed to delete SSO client {action.sso_client_id}, "
+                f"treating as already deleted: {e}. "
                 "Continuing to delete the vault secret."
             )
         self.secret_manager.delete(secret)
