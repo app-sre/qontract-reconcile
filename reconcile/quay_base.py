@@ -36,7 +36,7 @@ class QuayApiStore(UserDict[OrgKey, OrgInfo]):
 
 def get_quay_api_store() -> QuayApiStore:
     """
-    Returns a dictionary with a key for each Quay organization
+    Returns a QuayApiStore with a key for each Quay organization
     managed in app-interface.
     """
     quay_orgs = queries.get_quay_orgs()

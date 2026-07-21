@@ -1,6 +1,7 @@
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
     QuayRobotV1,
@@ -8,7 +9,9 @@ from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
 )
 from reconcile.quay_base import OrgKey, QuayApiStore, get_quay_api_store
 from reconcile.utils import gql
-from reconcile.utils.quay_api import RobotAccountDetails
+
+if TYPE_CHECKING:
+    from reconcile.utils.quay_api import RobotAccountDetails
 
 QONTRACT_INTEGRATION = "quay-robot-accounts"
 
@@ -46,6 +49,7 @@ class RobotAccountAction:
     team: str | None = None
     repo: str | None = None
     permission: str | None = None
+    description: str | None = None
 
 
 def get_robot_accounts_from_gql() -> list[QuayRobotV1]:
@@ -61,14 +65,8 @@ def get_current_robot_accounts(
     current_state = {}
 
     for org_key, org_info in quay_api_store.items():
-        try:
-            robots = org_info["api"].list_robot_accounts()
-            current_state[org_key.instance, org_key.org_name] = robots or []
-        except Exception as e:
-            logging.error(
-                f"Failed to fetch robot accounts for {org_key.instance}/{org_key.org_name}: {e}"
-            )
-            current_state[org_key.instance, org_key.org_name] = []
+        robots = org_info["api"].list_robot_accounts()
+        current_state[org_key.instance, org_key.org_name] = robots or []
 
     return current_state
 
@@ -124,8 +122,7 @@ def build_current_state(
         quay_api = quay_api_store[org_key]["api"]
 
         for robot_data in robots:
-            robot_full_name = robot_data["name"]  # e.g. "org+shortname"
-            robot_short_name = robot_full_name.split("+", 1)[-1]
+            robot_name = robot_data["name"]  # already normalized to short name
             description = robot_data.get("description")
 
             # Get team memberships — teams is a list of dicts with a "name" key
@@ -134,20 +131,11 @@ def build_current_state(
             # Get repository permissions via dedicated endpoint (the robots list
             # endpoint only returns repo names, not roles)
             repositories = {}
-            try:
-                for perm in quay_api.get_robot_account_permissions(robot_short_name):
-                    repo = perm.get("repository", {})
-                    repo_name = repo.get("name") if isinstance(repo, dict) else repo
-                    role = perm.get("role")
-                    if repo_name and role:
-                        repositories[repo_name] = role
-            except Exception as e:
-                logging.debug(
-                    f"Could not fetch permissions for {robot_full_name}: {e}"
-                )
+            for perm in quay_api.get_robot_account_permissions(robot_name):
+                repositories[perm["repository"]["name"]] = perm["role"]
 
             state = RobotAccountState(
-                name=robot_full_name,
+                name=robot_name,
                 description=description,
                 org_name=org_name,
                 instance_name=instance_name,
@@ -155,7 +143,7 @@ def build_current_state(
                 repositories=repositories,
             )
 
-            current_state[instance_name, org_name, robot_full_name] = state
+            current_state[instance_name, org_name, robot_name] = state
 
     return current_state
 
@@ -188,6 +176,7 @@ def calculate_diff(
                     robot_name=desired.name,
                     org_name=desired.org_name,
                     instance_name=desired.instance_name,
+                    description=desired.description,
                 )
             )
 
@@ -305,7 +294,7 @@ def apply_action(
             logging.info(
                 f"Creating robot account {action.robot_name} in {action.org_name}"
             )
-            quay_api.create_robot_account(action.robot_name, "")
+            quay_api.create_robot_account(action.robot_name, action.description or "")
 
         case RobotAccountActionType.DELETE:
             logging.info(
@@ -364,37 +353,30 @@ def apply_action(
 
 def run(dry_run: bool = False) -> None:
     """Main function to run the integration"""
-    # Get GraphQL data
     robot_accounts = get_robot_accounts_from_gql()
     logging.debug(f"Found {len(robot_accounts)} robot account definitions")
 
-    # Get Quay API store
-    quay_api_store = get_quay_api_store()
+    with get_quay_api_store() as quay_api_store:
+        current_robots = get_current_robot_accounts(quay_api_store)
 
-    # Get current state from Quay
-    current_robots = get_current_robot_accounts(quay_api_store)
+        desired_state = build_desired_state(robot_accounts)
+        current_state = build_current_state(current_robots, quay_api_store)
 
-    # Build states
-    desired_state = build_desired_state(robot_accounts)
-    current_state = build_current_state(current_robots, quay_api_store)
+        logging.debug(f"Desired robots: {len(desired_state)}")
+        logging.debug(f"Current robots: {len(current_state)}")
 
-    logging.debug(f"Desired robots: {len(desired_state)}")
-    logging.debug(f"Current robots: {len(current_state)}")
+        actions = calculate_diff(desired_state, current_state)
 
-    # Calculate diff
-    actions = calculate_diff(desired_state, current_state)
+        if not actions:
+            logging.debug("No actions needed")
+            return
 
-    if not actions:
-        logging.debug("No actions needed")
-        return
+        logging.debug(f"Found {len(actions)} actions to perform")
 
-    logging.debug(f"Found {len(actions)} actions to perform")
+        if dry_run:
+            logging.debug("Running in dry-run mode - no changes will be made")
 
-    if dry_run:
-        logging.debug("Running in dry-run mode - no changes will be made")
-
-    # Apply actions
-    for action in actions:
-        apply_action(action, quay_api_store, dry_run)
+        for action in actions:
+            apply_action(action, quay_api_store, dry_run)
 
     logging.debug("Integration completed successfully")
