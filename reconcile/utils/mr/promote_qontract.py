@@ -236,15 +236,20 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
         image_uri = f"{OPA_MASTER_IMAGE}:{self.commit_sha}"
         try:
             img = Image(image_uri, timeout=IMAGE_REQUEST_TIMEOUT)
-            digest = img.digest if img else None
         except Exception as e:
-            digest = None
             logging.warning(
                 f"could not resolve OPA image digest for {image_uri}, "
                 f"skipping OPA_IMAGE_TAG/OPA_IMAGE_DIGEST bump this cycle: {e}"
             )
-        if not digest:
             return
+
+        if not img:
+            logging.info(
+                f"no digest resolved for OPA image {image_uri}, skipping pin update"
+            )
+            return
+
+        digest = img.digest
 
         self._process_file_with_json_paths(
             gitlab_cli=gitlab_cli,

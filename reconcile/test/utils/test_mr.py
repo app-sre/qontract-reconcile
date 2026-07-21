@@ -350,7 +350,9 @@ def test_update_opa_image_pin_skips_on_exception(
 def test_update_opa_image_pin_skips_on_falsy_image(
     image_mock: MagicMock, saas_qontract_api_gitlab_cli_mock: MagicMock
 ) -> None:
-    image_mock.return_value = None
+    # Image() always returns an Image instance, never None - the realistic
+    # falsy case is Image.__bool__ returning False (manifest not found).
+    image_mock.return_value.__bool__.return_value = False
     mr = PromoteQontractReconcileCommercial(
         "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
     )
