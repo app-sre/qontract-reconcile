@@ -3134,10 +3134,17 @@ def rhidp_sso_client_api(
         SSOClientApiIntegrationParams,
     )
 
+    try:
+        parsed_keycloak_instances = json.loads(keycloak_instances)
+    except json.JSONDecodeError as exc:
+        raise click.BadParameter(
+            "must be valid JSON", param_hint="--keycloak-instances"
+        ) from exc
+
     run_class_integration(
         integration=SSOClientApiIntegration(
             SSOClientApiIntegrationParams(
-                keycloak_instances=json.loads(keycloak_instances),
+                keycloak_instances=parsed_keycloak_instances,
                 vault_input_path=vault_input_path,
                 ocm_environment=ocm_env,
                 default_auth_name=default_auth_name,
