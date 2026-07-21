@@ -8,6 +8,7 @@ import pytest
 
 from qontract_api.integrations.sso_client.domain import KeycloakInstanceSecret
 from qontract_api.integrations.sso_client.schemas import (
+    SsoClientAction,
     SsoClientActionCreate,
     SsoClientActionDelete,
     SsoClientTaskResult,
@@ -49,7 +50,8 @@ def _make_create_action(sso_client_id: str = "client-1") -> SsoClientActionCreat
 
 
 def _make_result(
-    applied_actions: list | None = None, errors: list[str] | None = None
+    applied_actions: list[SsoClientAction] | None = None,
+    errors: list[str] | None = None,
 ) -> SsoClientTaskResult:
     applied = applied_actions or []
     errs = errors or []
