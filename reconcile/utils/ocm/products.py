@@ -47,7 +47,6 @@ SPEC_ATTR_MULTI_AZ = "multi_az"
 SPEC_ATTR_HYPERSHIFT = "hypershift"
 SPEC_ATTR_SUBNET_IDS = "subnet_ids"
 SPEC_ATTR_AVAILABILITY_ZONES = "availability_zones"
-SPEC_ATTR_FIPS = "fips"
 
 SPEC_ATTR_NETWORK = "network"
 IGNORE_NETWORK_TYPE_ATTR = "type"

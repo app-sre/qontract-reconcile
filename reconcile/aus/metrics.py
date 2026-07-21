@@ -158,6 +158,19 @@ class AUSOrganizationErrorRate(ErrorRateMetricSet):
         )
 
 
+class AUSClusterChannelSwitchGauge(AUSBaseMetric, GaugeMetric):
+    """Tracks channel switches performed by AUS for Y+1 upgrades"""
+
+    org_id: str
+    cluster_uuid: str
+    from_channel: str
+    to_channel: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "aus_cluster_channel_switch"
+
+
 class AUSOrganizationVersionDataGauge(AUSBaseMetric, GaugeMetric):
     """Gauge for the version data for an OCM organization"""
 

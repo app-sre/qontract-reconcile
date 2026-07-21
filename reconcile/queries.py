@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any
 
 from jinja2 import Template
 
+from reconcile.gql_definitions.jumphosts.jumphosts import JumphostsQueryData
+from reconcile.gql_definitions.jumphosts.jumphosts import query as jumphosts_query
 from reconcile.utils import gql
 
 if TYPE_CHECKING:
@@ -150,6 +152,20 @@ def get_credentials_requests() -> list[dict[str, Any]]:
     if not data:
         return []
     return data.get("credentials_requests") or []
+
+
+JUMPHOST_FIELDS = """
+hostname
+knownHosts
+user
+port
+identity {
+  path
+  field
+  version
+  format
+}
+"""
 
 
 INTEGRATIONS_QUERY = """
@@ -575,6 +591,21 @@ def get_queue_aws_accounts() -> list[dict[str, Any]]:
     return get_aws_accounts(uid=uid)
 
 
+def get_jumphosts(hostname: str | None = None) -> JumphostsQueryData:
+    """Returns all jumphosts"""
+    variables = {}
+    # The dictionary must be empty if no hostname is set.
+    # That way it will return every hostname.
+    # Otherwise GQL will try to find hostname: null
+    if hostname:
+        variables["hostname"] = hostname
+    gqlapi = gql.get_api()
+    return jumphosts_query(
+        query_func=gqlapi.query,
+        variables=variables,
+    )
+
+
 AWS_INFRA_MANAGEMENT_ACCOUNT = """
 awsInfrastructureManagementAccounts {
   account {
@@ -656,6 +687,9 @@ CLUSTERS_QUERY = """
     managedGroups
     managedClusterRoles
     insecureSkipTLSVerify
+    jumpHost {
+      %s
+    }
     auth {
       service
       ... on ClusterAuthGithubOrg_v1 {
@@ -978,6 +1012,7 @@ CLUSTERS_QUERY = """
 }
 """ % (
     indent(CLUSTER_FILTER_QUERY, 2 * " "),
+    indent(JUMPHOST_FIELDS, 6 * " "),
     indent(AWS_INFRASTRUCTURE_ACCESS_QUERY, 4 * " "),
     indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 4 * " "),
     indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 12 * " "),
@@ -994,6 +1029,9 @@ CLUSTERS_MINIMAL_QUERY = """
     consoleUrl
     prometheusUrl
     insecureSkipTLSVerify
+    jumpHost {
+      %s
+    }
     managedGroups
     ocm {
       name
@@ -1026,7 +1064,10 @@ CLUSTERS_MINIMAL_QUERY = """
     }
   }
 }
-""" % (indent(CLUSTER_FILTER_QUERY, 2 * " "),)
+""" % (
+    indent(CLUSTER_FILTER_QUERY, 2 * " "),
+    indent(JUMPHOST_FIELDS, 6 * " "),
+)
 
 
 def get_clusters(

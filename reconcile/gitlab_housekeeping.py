@@ -88,7 +88,6 @@ HOLD_LABELS = [
 ERROR_LABELS = frozenset({MERGE_ERROR, PIPELINE_ERROR, REBASE_ERROR})
 
 TENANT_LABEL_PREFIX = "tenant-"
-MIN_OMM_GROUP_SIZE = 3  # 1 lead + 2 pending MRs
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
@@ -751,6 +750,12 @@ def apply_omm_pending(
         if not dry_run:
             gl.add_label_to_merge_request(mr, OMM_PENDING)
             try:
+                logging.info([
+                    "omm-group",
+                    "skip-ci-rebase-at-formation",
+                    gl.project.name,
+                    mr.iid,
+                ])
                 mr.rebase(skip_ci=True)
             except gitlab.exceptions.GitlabMRRebaseError:
                 logging.warning([
@@ -760,6 +765,7 @@ def apply_omm_pending(
                     mr.iid,
                 ])
                 gl.remove_label(mr, OMM_PENDING)
+                gl.add_label_to_merge_request(mr, REBASE_ERROR)
                 optimistic_merge_rejected.labels(
                     project_id=mr.target_project_id,
                     reason="rebase_failed",
@@ -1411,15 +1417,18 @@ def merge_merge_requests(
         merges += 1
 
         if rebase and merges == 1:
-            if multi_merge:
+            if multi_merge and is_eligible_for_optimistic_merge(mr):
                 candidates = _form_omm_group(
                     gl=gl,
                     merge_requests=merge_requests,
                     merged_labels=merged_labels,
                 )
-                if len(candidates) >= MIN_OMM_GROUP_SIZE - 1:  # -1 for the lead
+                if candidates:
                     apply_omm_group_lead(dry_run, gl, mr)
                     apply_omm_pending(dry_run, gl, candidates)
+            elif multi_merge:
+                # lead has no tenant labels — fall back to serial merge
+                logging.info(["omm-group", "lead-ineligible", gl.project.name, mr.iid])
             break
 
     merge_batch_size_histogram.labels(project_id=gl.project.id).observe(merges)
@@ -1432,7 +1441,7 @@ def run_error_healthcheck(
     consecutive_failure_limit: int = 3,
 ) -> None:
     """Check error labels for queue-eligible MRs. Apply/remove
-    rebase-error based on merge_error field and detailed_merge_status,
+    rebase-error based on merge_error field from .get(),
     pipeline-error based on consecutive failure count, and remove
     merge-error if any new notes have been posted since the label was applied."""
     for mr in project_merge_requests:
@@ -1451,13 +1460,22 @@ def run_error_healthcheck(
         labels = set(mr.labels)
 
         has_rebase_error = REBASE_ERROR in labels
-        mr_merge_error = getattr(mr, "merge_error", None)
-        mr_detailed = getattr(mr, "detailed_merge_status", None)
-        rebase_failed = bool(
-            mr_merge_error
-            and "Rebase failed" in mr_merge_error
-            and mr_detailed == "need_rebase"
-        )
+        try:
+            fresh = gl.get_merge_request(mr.iid)
+        except gitlab.exceptions.GitlabGetError as e:
+            logging.warning([
+                "error-healthcheck",
+                "rebase-status-refresh-failed",
+                gl.project.name,
+                mr.iid,
+                str(e),
+            ])
+            rebase_failed = has_rebase_error
+        else:
+            fresh_merge_error = getattr(fresh, "merge_error", None)
+            rebase_failed = bool(
+                fresh_merge_error and "Rebase failed" in fresh_merge_error
+            )
 
         if rebase_failed and not has_rebase_error:
             logging.warning([
@@ -1465,7 +1483,7 @@ def run_error_healthcheck(
                 REBASE_ERROR,
                 gl.project.name,
                 mr.iid,
-                mr_merge_error,
+                fresh_merge_error,
             ])
             if not dry_run:
                 gl.add_label_to_merge_request(mr, REBASE_ERROR)

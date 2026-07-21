@@ -20,7 +20,11 @@ from qontract_api.integrations.openshift_namespaces.tasks import (
     reconcile_openshift_namespaces_task,
 )
 from qontract_api.models import TaskStatus
-from qontract_api.tasks import get_celery_task_result, wait_for_task_completion
+from qontract_api.tasks import (
+    get_celery_task_result,
+    queue_for,
+    wait_for_task_completion,
+)
 
 router = APIRouter(prefix="/openshift-namespaces")
 
@@ -38,6 +42,7 @@ def openshift_namespaces_reconcile(
     """Queue openshift-namespaces reconciliation task."""
     reconcile_openshift_namespaces_task.apply_async(
         task_id=request.state.request_id,
+        queue=queue_for(dry_run=reconcile_request.dry_run),
         kwargs={
             "clusters": reconcile_request.clusters,
             "dry_run": reconcile_request.dry_run,

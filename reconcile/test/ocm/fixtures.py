@@ -124,7 +124,9 @@ def build_ocm_cluster(
     sts_cluster: bool = False,
     version: str = "4.13.0",
     channel_group: str | None = None,
+    channel: str | None = None,
     available_upgrades: list[str] | None = None,
+    available_channels: list[str] | None = None,
     cluster_product: str = PRODUCT_ID_ROSA,
     hypershift: bool = False,
     console_url: str | None = "https://console.foobar.com",
@@ -153,7 +155,10 @@ def build_ocm_cluster(
             raw_id=version,
             channel_group=channel_group or "stable",
             available_upgrades=available_upgrades or [],
+            available_channels=available_channels or [],
         ),
+        channel=channel
+        or f"{channel_group or 'stable'}-{'.'.join(version.split('.')[:2])}",
         hypershift=OCMClusterFlag(enabled=hypershift),
         console=OCMClusterConsole(url=console_url) if console_url else None,
         external_auth_config=OCMExternalAuthConfig(enabled=external_auth_enabled)

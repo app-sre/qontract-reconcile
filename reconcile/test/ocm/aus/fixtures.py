@@ -221,11 +221,13 @@ def build_cluster_upgrade_spec(
     soak_days: int = 0,
     org: AUSOCMOrganization | None = None,
     available_upgrades: list[str] | None = None,
+    available_channels: list[str] | None = None,
     mutexes: list[str] | None = None,
     blocked_versions: list[str] | None = None,
     cluster_health: bool = True,
     node_pools: list[NodePoolSpec] | None = None,
     hypershift: bool = False,
+    channel: str | None = None,
 ) -> ClusterUpgradeSpec:
     return ClusterUpgradeSpec(
         org=org or build_organization(),
@@ -233,7 +235,9 @@ def build_cluster_upgrade_spec(
             name=name,
             version=current_version,
             available_upgrades=available_upgrades,
+            available_channels=available_channels,
             hypershift=hypershift,
+            channel=channel,
         ),
         upgradePolicy=build_upgrade_policy(
             workloads=workloads,

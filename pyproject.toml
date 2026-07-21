@@ -99,11 +99,6 @@ dev = [
     "pytest-xdist>=3.8.0",
 ]
 
-# required for qontract_utils
-[[tool.uv.dependency-metadata]]
-name = "pagerduty"
-requires-dist = ["httpxyz>=0.31"]
-
 [project.scripts]
 app-interface-metrics-exporter = "tools.app_interface_metrics_exporter:main"
 app-interface-reporter = "tools.app_interface_reporter:main"
@@ -123,7 +118,7 @@ repository = "https://github.com/app-sre/qontract-reconcile"
 documentation = "https://github.com/app-sre/qontract-reconcile"
 
 [tool.uv]
-required-version = ">=0.11.26"
+required-version = ">=0.11.30"
 
 [tool.uv.sources]
 qontract-api = { workspace = true }
