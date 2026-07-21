@@ -440,6 +440,33 @@ async def slack_usergroups_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/sso-client/reconcile")
+async def sso_client(
+    result: schemas.SsoClientTaskResponse, data: schemas.SsoClientReconcileRequest
+) -> schemas.SsoClientTaskResponse:
+    """Sso Client
+
+        Queue RHIDP SSO client reconciliation task.
+
+    This endpoint always queues a background task and returns immediately with a
+    task_id. Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/sso-client/reconcile/{task_id}")
+async def sso_client_task_status(
+    result: schemas.SsoClientTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.SsoClientTaskResult:
+    """Sso Client Task Status
+
+    Retrieve reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
 @client.get("/health/live")
 async def liveness(result: schemas.ResponseLiveness) -> schemas.ResponseLiveness:
     """Liveness
