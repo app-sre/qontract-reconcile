@@ -26,7 +26,8 @@ class _FakeCluster:
     name: str
 
 
-def _reconciler() -> VaultSecretsReconciler:
+@fixture
+def reconciler() -> VaultSecretsReconciler:
     return VaultSecretsReconciler(
         ri=ResourceInventory(),
         secrets_reader=create_autospec(SecretReaderBase),
@@ -50,12 +51,12 @@ def _spec(cluster: str, namespace: str, cluster_admin: bool) -> ExternalResource
 
 def test_init_ocmap_requests_privileged_client_for_cluster_admin_namespace(
     monkeypatch: MonkeyPatch,
+    reconciler: VaultSecretsReconciler,
 ) -> None:
     """A namespace with clusterAdmin: true (e.g. a protected namespace like
     openshift-ingress) must get a privileged OC client - otherwise the
     secret sync 403s, since the standard dedicated-admin token is forbidden
     there."""
-    reconciler = _reconciler()
     specs = [
         _spec("cluster-a", "protected-ns", cluster_admin=True),
         _spec("cluster-b", "regular-ns", cluster_admin=False),
@@ -91,8 +92,8 @@ def test_init_ocmap_requests_privileged_client_for_cluster_admin_namespace(
 
 def test_apply_action_threads_privileged_flag_into_apply_options(
     monkeypatch: MonkeyPatch,
+    reconciler: VaultSecretsReconciler,
 ) -> None:
-    reconciler = _reconciler()
     captured_options: list[Any] = []
 
     def fake_apply_action(

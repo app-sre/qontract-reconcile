@@ -214,10 +214,9 @@ class SecretsReconciler:
             if spec.cluster_admin
         }
         privileged_clusters = {ns.cluster for ns in self._privileged_namespaces}
+        spec_cluster_names = {spec.cluster_name for spec in specs}
         clusters_by_name = {
-            c.name: c
-            for c in get_clusters_minimal()
-            if c.name in {spec.cluster_name for spec in specs}
+            c.name: c for c in get_clusters_minimal() if c.name in spec_cluster_names
         }
         namespaces = [
             _ClusterAdminNamespace(

@@ -31,24 +31,21 @@ def test_identifier_creation_from_spec() -> None:
     assert id.provisioner_name == "a"
 
 
-def test_cluster_admin_true() -> None:
+@pytest.mark.parametrize(
+    ("namespace", "expected"),
+    [
+        ({"name": "n", "cluster": {"name": "c"}, "clusterAdmin": True}, True),
+        ({"name": "n", "cluster": {"name": "c"}}, False),
+    ],
+)
+def test_cluster_admin(namespace: dict[str, Any], expected: bool) -> None:
     spec = ExternalResourceSpec(
         provision_provider="p",
         provisioner={"name": "a"},
         resource={"identifier": "i", "provider": "p"},
-        namespace={"name": "n", "cluster": {"name": "c"}, "clusterAdmin": True},
+        namespace=namespace,
     )
-    assert spec.cluster_admin is True
-
-
-def test_cluster_admin_false_when_absent() -> None:
-    spec = ExternalResourceSpec(
-        provision_provider="p",
-        provisioner={"name": "a"},
-        resource={"identifier": "i", "provider": "p"},
-        namespace={"name": "n", "cluster": {"name": "c"}},
-    )
-    assert spec.cluster_admin is False
+    assert spec.cluster_admin is expected
 
 
 def test_identifier_missing() -> None:
