@@ -100,6 +100,7 @@ from reconcile.gql_definitions.vault_instances.vault_instances import (
 from reconcile.gql_definitions.vault_instances.vault_instances import (
     VaultInstanceV1,
 )
+from reconcile.slack_base import is_gov_slack_workspace
 from reconcile.statuspage.integration import get_status_pages
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.dynatrace import get_dynatrace_environments
@@ -122,7 +123,6 @@ from reconcile.typed_queries.vault import get_vault_instances
 from reconcile.utils import (
     gql,
 )
-from reconcile.utils.slack_api import is_gov_slack_workspace
 
 
 class SystemTool(BaseModel):

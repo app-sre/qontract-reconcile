@@ -126,12 +126,6 @@ ocm_request = Counter(
     labelnames=["verb", "client_id"],
 )
 
-slack_request = Counter(
-    name="qontract_reconcile_slack_request_total",
-    documentation="Number of calls made to Slack API",
-    labelnames=["resource", "verb"],
-)
-
 
 #
 # Class based metrics
