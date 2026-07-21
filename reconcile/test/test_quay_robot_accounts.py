@@ -47,7 +47,7 @@ def mock_robot_gql() -> QuayRobotV1:
 def mock_current_robot() -> RobotAccountDetails:
     """Mock current robot account from Quay API"""
     return RobotAccountDetails(
-        name="test-org+existing-robot",
+        name="existing-robot",  # already normalized to short name by list_robot_accounts
         description="Existing robot",
         teams=[{"name": "team1"}],
         repositories=["repo1"],  # robots list endpoint returns names only
@@ -138,7 +138,7 @@ def test_build_current_state_single_robot(
     mock_quay_api: QuayApi,
 ) -> None:
     """Test building current state with a single robot"""
-    mock_quay_api.get_robot_account_permissions.return_value = [
+    mock_quay_api.get_robot_account_permissions.return_value = [  # type: ignore
         {"repository": {"name": "repo1"}, "role": "read"}
     ]
     current_robots = {("quay-instance", "test-org"): [mock_current_robot]}
@@ -146,11 +146,11 @@ def test_build_current_state_single_robot(
     current_state = build_current_state(current_robots, mock_quay_api_store)
 
     assert len(current_state) == 1
-    key = ("quay-instance", "test-org", "test-org+existing-robot")
+    key = ("quay-instance", "test-org", "existing-robot")
     assert key in current_state
 
     state = current_state[key]
-    assert state.name == "test-org+existing-robot"
+    assert state.name == "existing-robot"
     assert state.description == "Existing robot"
     assert state.teams == {"team1"}
     assert state.repositories == {"repo1": "read"}
@@ -307,17 +307,17 @@ def test_calculate_diff_team_changes() -> None:
 
     actions = calculate_diff(desired_state, current_state)
 
-    action_types = [a.action for a in actions]
-    assert RobotAccountActionType.ADD_TEAM in action_types
-    assert RobotAccountActionType.REMOVE_TEAM in action_types
+    assert len(actions) == 2
 
-    add_action = next(a for a in actions if a.action == RobotAccountActionType.ADD_TEAM)
-    assert add_action.team == "team3"
+    add_actions = [a for a in actions if a.action == RobotAccountActionType.ADD_TEAM]
+    assert len(add_actions) == 1
+    assert add_actions[0].team == "team3"
 
-    remove_action = next(
+    remove_actions = [
         a for a in actions if a.action == RobotAccountActionType.REMOVE_TEAM
-    )
-    assert remove_action.team == "team2"
+    ]
+    assert len(remove_actions) == 1
+    assert remove_actions[0].team == "team2"
 
 
 def test_calculate_diff_repository_changes() -> None:
@@ -351,19 +351,19 @@ def test_calculate_diff_repository_changes() -> None:
 
     actions = calculate_diff(desired_state, current_state)
 
-    action_types = [a.action for a in actions]
-    assert RobotAccountActionType.SET_REPO_PERMISSION in action_types
-    assert RobotAccountActionType.REMOVE_REPO_PERMISSION in action_types
+    assert len(actions) == 3  # repo1 permission change, repo3 new, repo2 removed
 
     set_actions = [
         a for a in actions if a.action == RobotAccountActionType.SET_REPO_PERMISSION
     ]
-    assert len(set_actions) == 2  # repo1 permission change, repo3 new
+    assert len(set_actions) == 2
+    assert {a.repo for a in set_actions} == {"repo1", "repo3"}
 
-    remove_action = next(
+    remove_actions = [
         a for a in actions if a.action == RobotAccountActionType.REMOVE_REPO_PERMISSION
-    )
-    assert remove_action.repo == "repo2"
+    ]
+    assert len(remove_actions) == 1
+    assert remove_actions[0].repo == "repo2"
 
 
 def test_calculate_diff_no_changes() -> None:
@@ -392,13 +392,13 @@ def test_get_current_robot_accounts_success(
             name="robot1",
             description="Robot 1",
             teams=[{"name": "team1"}],
-            repositories=[{"name": "repo1", "role": "read"}],
+            repositories=["repo1"],
         ),
         RobotAccountDetails(
             name="robot2",
             description="Robot 2",
             teams=[{"name": "team2"}],
-            repositories=[{"name": "repo2", "role": "write"}],
+            repositories=["repo2"],
         ),
     ]
 
@@ -411,17 +411,15 @@ def test_get_current_robot_accounts_success(
     assert result["quay-instance", "test-org"] == mock_robots
 
 
-def test_get_current_robot_accounts_exception(
+def test_get_current_robot_accounts_propagates_exception(
     mock_quay_api: QuayApi,
     mock_quay_api_store: QuayApiStore,
 ) -> None:
-    """Test handling of exceptions when fetching robot accounts"""
+    """Test that API errors propagate instead of being swallowed"""
     mock_quay_api.list_robot_accounts.side_effect = Exception("API Error")  # type: ignore
 
-    result = get_current_robot_accounts(mock_quay_api_store)
-
-    assert len(result) == 1
-    assert result["quay-instance", "test-org"] == []
+    with pytest.raises(Exception, match="API Error"):
+        get_current_robot_accounts(mock_quay_api_store)
 
 
 def test_apply_action_create_robot(

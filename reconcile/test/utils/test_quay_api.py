@@ -110,15 +110,15 @@ def test_list_robot_accounts(quay_api: QuayApi, httpserver: HTTPServer) -> None:
         {
             "robots": [
                 {
-                    "name": "robot1",
+                    "name": f"{ORG}+robot1",
                     "description": "robot1 description",
                     "created": "2021-01-01T00:00:00Z",
                     "last_accessed": None,
                     "teams": [{"name": "team1"}, {"name": "team2"}],
-                    "repositories": [{"name": "repo1", "role": "read"}],
+                    "repositories": ["repo1"],
                 },
                 {
-                    "name": "robot2",
+                    "name": f"{ORG}+robot2",
                     "description": "robot2 description",
                     "created": "2021-01-01T00:00:00Z",
                     "last_accessed": None,
@@ -135,7 +135,7 @@ def test_list_robot_accounts(quay_api: QuayApi, httpserver: HTTPServer) -> None:
             "name": "robot1",
             "description": "robot1 description",
             "teams": [{"name": "team1"}, {"name": "team2"}],
-            "repositories": [{"name": "repo1", "role": "read"}],
+            "repositories": ["repo1"],
         },
         {
             "name": "robot2",
@@ -209,6 +209,20 @@ def test_get_repo_robot_account_permissions(
 
     result = quay_api.get_repo_robot_account_permissions("some-repo", "robot1")
     assert result == "write"
+
+
+def test_get_repo_robot_account_permissions_returns_none_when_no_permission(
+    quay_api: QuayApi, httpserver: HTTPServer
+) -> None:
+    httpserver.expect_request(
+        f"/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
+        method="GET",
+    ).respond_with_json(
+        {"message": "User does not have permission for repo."}, status=404
+    )
+
+    result = quay_api.get_repo_robot_account_permissions("some-repo", "robot1")
+    assert result is None
 
 
 def test_get_repo_robot_permissions_raises_other_status_codes(

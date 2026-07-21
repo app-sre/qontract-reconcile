@@ -23,7 +23,7 @@ NOW = 1662124612.995397
 
 @patch("reconcile.utils.gql.get_api", autospec=True)
 @patch("reconcile.queries.get_app_interface_settings", return_value={})
-@patch("reconcile.quay_base.get_quay_api_store", return_value={})
+@patch("reconcile.quay_mirror_org.get_quay_api_store", return_value={})
 class TestControlFile:
     def test_control_file_dir_does_not_exist(
         self, mock_gql: Mock, mock_settings: Mock, mock_quay_api_store: Mock
@@ -41,7 +41,7 @@ class TestControlFile:
 
 @patch("reconcile.utils.gql.get_api", autospec=True)
 @patch("reconcile.queries.get_app_interface_settings", return_value={})
-@patch("reconcile.quay_base.get_quay_api_store", return_value={})
+@patch("reconcile.quay_mirror_org.get_quay_api_store", return_value={})
 @patch("time.time", return_value=NOW)
 class TestIsCompareTags:
     def setup_method(self) -> None:
@@ -113,7 +113,7 @@ def test_quay_mirror_org_session(mocker: MockerFixture) -> None:
     mocked_request = mocker.patch("reconcile.quay_mirror_org.requests")
 
     with (
-        patch("reconcile.quay_base.get_quay_api_store", return_value={}),
+        patch("reconcile.quay_mirror_org.get_quay_api_store", return_value=MagicMock()),
         QuayMirrorOrg() as quay_mirror_org,
     ):
         assert quay_mirror_org.session == mocked_request.Session.return_value
@@ -123,7 +123,7 @@ def test_quay_mirror_org_session(mocker: MockerFixture) -> None:
 
 @pytest.fixture()
 def quay_mirror_org_instance(mocker: MockerFixture) -> tuple[QuayMirrorOrg, MagicMock]:
-    mocker.patch("reconcile.quay_base.get_quay_api_store", return_value={})
+    mocker.patch("reconcile.quay_mirror_org.get_quay_api_store", return_value={})
     mocker.patch("reconcile.quay_mirror_org.requests")
     qm = QuayMirrorOrg(dry_run=True, compare_tags=False)
     mock_skopeo: MagicMock = MagicMock()
