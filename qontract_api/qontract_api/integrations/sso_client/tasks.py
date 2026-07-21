@@ -78,16 +78,25 @@ def reconcile_sso_client_task(
             vault_target=vault_target,
             dry_run=dry_run,
         )
-
-        logger.info(
-            f"Task {request_id} completed",
-            status=result.status,
-            total_actions=len(result.actions),
-            applied_count=result.applied_count,
-            errors=result.errors,
+    except Exception as e:
+        logger.exception(f"Task {request_id} failed with error")
+        return SsoClientTaskResult(
+            status=TaskStatus.FAILED,
+            actions=[],
+            applied_count=0,
+            errors=[str(e)],
         )
 
-        if not dry_run and event_manager:
+    logger.info(
+        f"Task {request_id} completed",
+        status=result.status,
+        total_actions=len(result.actions),
+        applied_count=result.applied_count,
+        errors=result.errors,
+    )
+
+    if not dry_run and event_manager:
+        try:
             for action in result.applied_actions:
                 event_manager.publish_event(
                     Event(
@@ -106,14 +115,7 @@ def reconcile_sso_client_task(
                         datacontenttype="application/json",
                     )
                 )
+        except Exception:
+            logger.exception(f"Task {request_id} failed to publish events")
 
-        return result
-
-    except Exception as e:
-        logger.exception(f"Task {request_id} failed with error")
-        return SsoClientTaskResult(
-            status=TaskStatus.FAILED,
-            actions=[],
-            applied_count=0,
-            errors=[str(e)],
-        )
+    return result
