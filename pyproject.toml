@@ -53,7 +53,6 @@ dependencies = [
     # in setuptools 81.
     # setuptools 80.9.0 set a deadline for the removal and started showing warnings when pkg_resources is used.
     "setuptools==80.8.0",
-    "slack_sdk>=3.10,<4.0",
     "sretoolbox==4.0.1",
     "tabulate==0.10.0",
     "terrascript==0.9.0",
