@@ -12,6 +12,7 @@ from reconcile.external_resources.meta import (
 )
 from reconcile.external_resources.secrets_sync import (
     SECRET_UPDATED_AT,
+    ClusterNamespace,
     SecretHelper,
     VaultSecretsReconciler,
 )
@@ -81,7 +82,9 @@ def test_init_ocmap_requests_privileged_client_for_cluster_admin_namespace(
     ocmap = reconciler._init_ocmap(specs)
 
     assert ocmap == "fake-ocmap"
-    assert reconciler._privileged_namespaces == {("cluster-a", "protected-ns")}
+    assert reconciler._privileged_namespaces == {
+        ClusterNamespace("cluster-a", "protected-ns")
+    }
     admin_by_cluster = {ns.cluster.name: ns.cluster_admin for ns in captured_namespaces}
     assert admin_by_cluster == {"cluster-a": True, "cluster-b": False}
 

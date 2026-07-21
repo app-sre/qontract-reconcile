@@ -6,7 +6,7 @@ import logging
 from abc import abstractmethod
 from dataclasses import dataclass
 from hashlib import shake_128
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from pydantic import BaseModel
 from qontract_utils.differ import diff_mappings
@@ -138,12 +138,14 @@ class OutputSecretsFormatter:
         }
 
 
+class ClusterNamespace(NamedTuple):
+    cluster: str
+    namespace: str
+
+
 @dataclass
 class _ClusterAdminNamespace:
-    """Minimal stand-in satisfying the `oc_connection_parameters.Namespace`
-    protocol, so we can request a privileged (cluster-admin) OC client for
-    clusters that host at least one clusterAdmin: true namespace among the
-    specs being synced."""
+    """Satisfies the `oc_connection_parameters.Namespace` protocol."""
 
     cluster: ClusterV1
     cluster_admin: bool | None
@@ -161,10 +163,8 @@ class SecretsReconciler:
         self.ri = ri
         self.thread_pool_size = thread_pool_size
         self.dry_run = dry_run
-        # (cluster_name, namespace_name) pairs that require the privileged
-        # cluster-admin OC client to read/write their output Secret.
-        # Populated per sync_secrets() call. See _init_ocmap().
-        self._privileged_namespaces: set[tuple[str, str]] = set()
+        # Namespaces requiring the privileged cluster-admin OC client. Set by _init_ocmap().
+        self._privileged_namespaces: set[ClusterNamespace] = set()
 
     @abstractmethod
     def _populate_secret_data(self, specs: Iterable[ExternalResourceSpec]) -> None:
@@ -207,18 +207,13 @@ class SecretsReconciler:
 
     def _init_ocmap(self, specs: Iterable[ExternalResourceSpec]) -> OCMap:
         specs = list(specs)
-        # A namespace with clusterAdmin: true (e.g. an output secret that must
-        # land in a platform-protected namespace such as openshift-ingress)
-        # needs the privileged cluster-admin token to read/write its Secret -
-        # the standard dedicated-admin automation token is forbidden there.
-        # Track it here so reconcile_data()/apply_action() know which
-        # (cluster, namespace) pairs must use the privileged OC client.
+        # clusterAdmin: true namespaces (e.g. openshift-ingress) need the privileged token.
         self._privileged_namespaces = {
-            (spec.cluster_name, spec.namespace_name)
+            ClusterNamespace(spec.cluster_name, spec.namespace_name)
             for spec in specs
             if spec.cluster_admin
         }
-        privileged_cluster_names = {cluster for cluster, _ in self._privileged_namespaces}
+        privileged_clusters = {ns.cluster for ns in self._privileged_namespaces}
         clusters_by_name = {
             c.name: c
             for c in get_clusters_minimal()
@@ -226,10 +221,9 @@ class SecretsReconciler:
         }
         namespaces = [
             _ClusterAdminNamespace(
-                cluster=cluster,
-                cluster_admin=cluster_name in privileged_cluster_names,
+                cluster=cluster, cluster_admin=name in privileged_clusters
             )
-            for cluster_name, cluster in clusters_by_name.items()
+            for name, cluster in clusters_by_name.items()
         ]
         return init_oc_map_from_namespaces(
             namespaces=namespaces,
@@ -286,7 +280,7 @@ class SecretsReconciler:
         ocmap: OCMap,
     ) -> None:
         cluster, namespace, kind, data = ri_item
-        privileged = (cluster, namespace) in self._privileged_namespaces
+        privileged = ClusterNamespace(cluster, namespace) in self._privileged_namespaces
         oc = ocmap.get_cluster(cluster, privileged)
         names = list(data["desired"].keys())
 
