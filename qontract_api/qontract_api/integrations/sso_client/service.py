@@ -167,10 +167,16 @@ class SsoClientService:
                 f"Failed to persist secret for {action.sso_client_id}; "
                 "rolling back Keycloak client registration"
             )
-            keycloak.delete_client(
-                client_id=sso_client.client_id,
-                registration_access_token=sso_client.registration_access_token,
-            )
+            try:
+                keycloak.delete_client(
+                    client_id=sso_client.client_id,
+                    registration_access_token=sso_client.registration_access_token,
+                )
+            except Exception:
+                logger.exception(
+                    f"Rollback also failed for {action.sso_client_id}; "
+                    f"Keycloak client {sso_client.client_id} may be orphaned"
+                )
             raise
         return True
 
@@ -249,55 +255,58 @@ class SsoClientService:
         keycloak_instances = build_keycloak_instances(
             keycloak_secrets, self.cache, self.secret_manager
         )
+        try:
+            existing_ids = self.secret_manager.list(vault_target)
+            rhidp_sso_client_number_of_clients.labels(
+                INTEGRATION_NAME, ocm_environment
+            ).set(len(existing_ids))
 
-        existing_ids = self.secret_manager.list(vault_target)
-        rhidp_sso_client_number_of_clients.labels(
-            INTEGRATION_NAME, ocm_environment
-        ).set(len(existing_ids))
+            clusters_by_id = {
+                cluster_vault_secret_id(
+                    cluster.organization_id,
+                    cluster.name,
+                    cluster.auth.name,
+                    cluster.auth.issuer,
+                ): cluster
+                for cluster in clusters
+                if cluster.rhidp_enabled
+            }
 
-        clusters_by_id = {
-            cluster_vault_secret_id(
-                cluster.organization_id,
-                cluster.name,
-                cluster.auth.name,
-                cluster.auth.issuer,
-            ): cluster
-            for cluster in clusters
-            if cluster.rhidp_enabled
-        }
+            to_remove = sorted(set(existing_ids) - set(clusters_by_id))
+            to_add = sorted(set(clusters_by_id) - set(existing_ids))
 
-        to_remove = sorted(set(existing_ids) - set(clusters_by_id))
-        to_add = sorted(set(clusters_by_id) - set(existing_ids))
+            actions: list[SsoClientAction] = [
+                SsoClientActionDelete(sso_client_id=sso_client_id)
+                for sso_client_id in to_remove
+            ] + [
+                SsoClientActionCreate(
+                    sso_client_id=sso_client_id,
+                    cluster_name=clusters_by_id[sso_client_id].name,
+                    auth_name=clusters_by_id[sso_client_id].auth.name,
+                )
+                for sso_client_id in to_add
+            ]
 
-        actions: list[SsoClientAction] = [
-            SsoClientActionDelete(sso_client_id=sso_client_id)
-            for sso_client_id in to_remove
-        ] + [
-            SsoClientActionCreate(
-                sso_client_id=sso_client_id,
-                cluster_name=clusters_by_id[sso_client_id].name,
-                auth_name=clusters_by_id[sso_client_id].auth.name,
-            )
-            for sso_client_id in to_add
-        ]
-
-        applied_actions: list[SsoClientAction] = []
-        errors: list[str] = []
-        if not dry_run:
-            for action in actions:
-                try:
-                    applied = self._execute_action(
-                        action, clusters_by_id, keycloak_instances, vault_target
-                    )
-                    if applied:
-                        applied_actions.append(action)
-                except Exception as e:
-                    error_msg = (
-                        f"{action.sso_client_id}: Failed to execute action "
-                        f"{action.action_type}: {e}"
-                    )
-                    logger.exception(error_msg)
-                    errors.append(error_msg)
+            applied_actions: list[SsoClientAction] = []
+            errors: list[str] = []
+            if not dry_run:
+                for action in actions:
+                    try:
+                        applied = self._execute_action(
+                            action, clusters_by_id, keycloak_instances, vault_target
+                        )
+                        if applied:
+                            applied_actions.append(action)
+                    except Exception as e:
+                        error_msg = (
+                            f"{action.sso_client_id}: Failed to execute action "
+                            f"{action.action_type}: {e}"
+                        )
+                        logger.exception(error_msg)
+                        errors.append(error_msg)
+        finally:
+            for keycloak in keycloak_instances.values():
+                keycloak.close()
 
         if errors:
             rhidp_sso_client_reconcile_errors.labels(
