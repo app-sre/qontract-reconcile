@@ -1,9 +1,10 @@
 import copy
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, create_autospec
 
+import pytest
 from pytest import MonkeyPatch, fixture
 
 from reconcile.external_resources.meta import (
@@ -19,6 +20,9 @@ from reconcile.external_resources.secrets_sync import (
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
 from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @dataclass
@@ -124,6 +128,42 @@ def test_apply_action_threads_privileged_flag_into_apply_options(
     )
 
     assert captured_options[-1].privileged is True
+
+
+@pytest.mark.parametrize(
+    ("privileged_namespaces", "expected_privileged"),
+    [
+        ({ClusterNamespace("cluster-a", "protected-ns")}, True),
+        (set(), False),
+    ],
+)
+def test_reconcile_data_threads_privileged_flag_from_lookup(
+    reconciler: VaultSecretsReconciler,
+    privileged_namespaces: set[ClusterNamespace],
+    expected_privileged: bool,
+) -> None:
+    """reconcile_data() must look up the (cluster, namespace) pair set by
+    _init_ocmap() and thread it through to both ocmap.get_cluster() and
+    apply_action(), otherwise the privileged client computed at init time
+    never reaches the code that actually talks to the cluster."""
+    reconciler._privileged_namespaces = privileged_namespaces
+    reconciler.apply_action = MagicMock()  # type: ignore[method-assign]
+
+    ocmap = MagicMock()
+    ocmap.get_cluster.return_value.get_items.return_value = []
+
+    ri_item: tuple[str, str, str, Mapping[str, Any]] = (
+        "cluster-a",
+        "protected-ns",
+        "Secret",
+        {"desired": {}, "current": {}},
+    )
+    reconciler.reconcile_data(ri_item, ocmap)
+
+    ocmap.get_cluster.assert_called_once_with("cluster-a", expected_privileged)
+    reconciler.apply_action.assert_called_once_with(
+        ocmap, "cluster-a", "protected-ns", [], expected_privileged
+    )
 
 
 @fixture
