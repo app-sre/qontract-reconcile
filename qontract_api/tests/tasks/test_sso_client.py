@@ -116,7 +116,7 @@ def test_publishes_one_event_per_applied_action(
     mock_get_event_manager: MagicMock,
     mock_self: MagicMock,
 ) -> None:
-    actions = [
+    actions: list[SsoClientAction] = [
         _make_create_action("client-1"),
         SsoClientActionDelete(sso_client_id="client-2"),
     ]
