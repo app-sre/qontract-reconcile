@@ -215,23 +215,24 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
             content=new_content,
         )
 
-    def _update_opa_image_pin(self, gitlab_cli: GitLabApi) -> None:
+    def _resolve_opa_image_pin_replacements(self) -> list[tuple[str, str]]:
         """
-        Best-effort refresh of the OPA sidecar's digest pin in
+        Best-effort resolution of the OPA sidecar's tag/digest pin for
         saas-qontract-api.yaml.
 
         The OPA image is rebuilt from this repo on every push (same commit
         as the main image), but saasherder only auto-resolves parameters
         literally named IMAGE_DIGEST/REPO_DIGEST via REGISTRY_IMG - it has
         no generic mechanism for a second per-commit image. So we resolve
-        and pin it here instead.
+        it here instead.
 
         This must not raise: unlike the other process() steps, it depends
         on the OPA image already being mirrored to quay.io, which can lag
         behind this MR by a few minutes. Any failure here would otherwise
         abort the whole MR (see MergeRequestBase.submit_to_gitlab) and
-        block the unrelated bumps below. On failure we just skip - the
-        existing pin stays in place and we retry on the next promotion.
+        block the unrelated bumps below. On failure we return no
+        replacements - the existing pin stays in place in the caller's
+        write and we retry on the next promotion.
         """
         image_uri = f"{OPA_MASTER_IMAGE}:{self.commit_sha}"
         try:
@@ -241,30 +242,24 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
                 f"could not resolve OPA image digest for {image_uri}, "
                 f"skipping OPA_IMAGE_TAG/OPA_IMAGE_DIGEST bump this cycle: {e}"
             )
-            return
+            return []
 
         if not img:
             logging.info(
                 f"no digest resolved for OPA image {image_uri}, skipping pin update"
             )
-            return
+            return []
 
-        digest = img.digest
-
-        self._process_file_with_json_paths(
-            gitlab_cli=gitlab_cli,
-            path="data/services/app-interface/cicd/ci-int/saas-qontract-api.yaml",
-            replacements=[
-                (
-                    "$.resourceTemplates[?(@.name == 'qontract-api')].parameters.OPA_IMAGE_TAG",
-                    self.commit_sha,
-                ),
-                (
-                    "$.resourceTemplates[?(@.name == 'qontract-api')].parameters.OPA_IMAGE_DIGEST",
-                    digest,
-                ),
-            ],
-        )
+        return [
+            (
+                "$.resourceTemplates[?(@.name == 'qontract-api')].parameters.OPA_IMAGE_TAG",
+                self.commit_sha,
+            ),
+            (
+                "$.resourceTemplates[?(@.name == 'qontract-api')].parameters.OPA_IMAGE_DIGEST",
+                img.digest,
+            ),
+        ]
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         # .env
@@ -304,16 +299,21 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
         )
 
         # data/services/app-interface/cicd/ci-int/saas-qontract-api.yaml
-        self._process_by(
-            "json_path",
+        # (qontract-api-production ref bump + OPA sidecar digest pin, in one
+        # read-modify-write - _process_by/_process_file_with_json_paths always
+        # read from main_branch, so a second touch to this file would
+        # silently clobber whichever change landed first)
+        self._process_file_with_json_paths(
             gitlab_cli=gitlab_cli,
             path="data/services/app-interface/cicd/ci-int/saas-qontract-api.yaml",
-            search_text="$.resourceTemplates[?(@.url == 'https://github.com/app-sre/qontract-reconcile')].targets[?(@.name == 'qontract-api-production')].ref",
-            replace_text=self.commit_sha,
+            replacements=[
+                (
+                    "$.resourceTemplates[?(@.url == 'https://github.com/app-sre/qontract-reconcile')].targets[?(@.name == 'qontract-api-production')].ref",
+                    self.commit_sha,
+                ),
+                *self._resolve_opa_image_pin_replacements(),
+            ],
         )
-
-        # data/services/app-interface/cicd/ci-int/saas-qontract-api.yaml (OPA sidecar digest pin)
-        self._update_opa_image_pin(gitlab_cli)
 
         # data/services/app-interface/terraform-repo/cicd/ci-int/saas-terraform-repo.yaml
         self._process_by(
