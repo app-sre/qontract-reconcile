@@ -26,6 +26,7 @@ from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.slack_api.models import (
     ChatPostMessageResponse,
     SlackChannel,
+    SlackMessage,
     SlackUser,
     SlackUsergroup,
 )
@@ -404,6 +405,57 @@ class SlackApi:
             additional_kwargs["cursor"] = cursor
 
         return channels
+
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="conversations.history", verb="GET", workspace=self.workspace_name
+        )
+    )
+    def conversations_history(
+        self,
+        *,
+        channel_id: str,
+        oldest: str | None = None,
+        latest: str | None = None,
+    ) -> list[SlackMessage]:
+        """Fetch message history for a channel from Slack API.
+
+        Args:
+            channel_id: Channel ID (e.g., "C01234ABCD")
+            oldest: Only return messages at or after this Slack timestamp (inclusive)
+            latest: Only return messages at or before this Slack timestamp (inclusive)
+
+        Returns:
+            List of SlackMessage objects, newest first, with typed Pydantic models
+        """
+        messages: list[SlackMessage] = []
+        cursor = ""
+        additional_kwargs: dict[str, str | int | bool] = {
+            "channel": channel_id,
+            "cursor": cursor,
+            "inclusive": True,
+        }
+        if oldest is not None:
+            additional_kwargs["oldest"] = oldest
+        if latest is not None:
+            additional_kwargs["latest"] = latest
+
+        while True:
+            result = self._sc.api_call(
+                "conversations.history", params=additional_kwargs
+            )
+
+            messages.extend(
+                SlackMessage(**message_data) for message_data in result["messages"]
+            )
+
+            cursor = (result.get("response_metadata") or {}).get("next_cursor") or ""
+            if not cursor:
+                break
+
+            additional_kwargs["cursor"] = cursor
+
+        return messages
 
     def _send_message(
         self,

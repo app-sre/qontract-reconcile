@@ -2517,6 +2517,138 @@
         "title": "Secret",
         "type": "object"
       },
+      "SlackConversationHistoryResponse": {
+        "description": "Response model for the conversation history endpoint.",
+        "properties": {
+          "messages": {
+            "description": "Messages in the requested time range, newest first",
+            "items": {
+              "$ref": "#/components/schemas/SlackMessageResponse"
+            },
+            "title": "Messages",
+            "type": "array"
+          }
+        },
+        "title": "SlackConversationHistoryResponse",
+        "type": "object"
+      },
+      "SlackMessageAttachmentResponse": {
+        "description": "A legacy attachment on a Slack message (e.g. alertmanager notifications).",
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Attachment text",
+            "title": "Text"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Attachment title",
+            "title": "Title"
+          }
+        },
+        "title": "SlackMessageAttachmentResponse",
+        "type": "object"
+      },
+      "SlackMessageReactionResponse": {
+        "description": "A reaction (emoji) on a Slack message.",
+        "properties": {
+          "count": {
+            "default": 0,
+            "description": "Number of users who reacted",
+            "title": "Count",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Reaction emoji name (e.g., 'eyes')",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SlackMessageReactionResponse",
+        "type": "object"
+      },
+      "SlackMessageResponse": {
+        "description": "A single message from a channel's conversation history.",
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/SlackMessageAttachmentResponse"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/SlackMessageReactionResponse"
+            },
+            "title": "Reactions",
+            "type": "array"
+          },
+          "reply_count": {
+            "default": 0,
+            "description": "Number of thread replies",
+            "title": "Reply Count",
+            "type": "integer"
+          },
+          "subtype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Message subtype",
+            "title": "Subtype"
+          },
+          "text": {
+            "default": "",
+            "description": "Message text",
+            "title": "Text",
+            "type": "string"
+          },
+          "ts": {
+            "description": "Message timestamp",
+            "title": "Ts",
+            "type": "string"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bot/app username that posted the message",
+            "title": "Username"
+          }
+        },
+        "required": [
+          "ts"
+        ],
+        "title": "SlackMessageResponse",
+        "type": "object"
+      },
       "SlackUsergroup": {
         "description": "A single Slack usergroup with its handle and configuration.",
         "properties": {
@@ -3243,6 +3375,144 @@
           }
         ],
         "summary": "Post Chat",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/slack/conversations/history": {
+      "get": {
+        "description": "Get a channel's message history within a timestamp range.\n\nArgs:\n    params: workspace_name, channel, from_timestamp/to_timestamp, and secret\n\nReturns:\n    SlackConversationHistoryResponse with messages, newest first\n\nRaises:\n    HTTPException:\n        - 404 Not Found: Channel not found\n        - 502 Bad Gateway: If Slack API call fails",
+        "operationId": "slack-conversations-history",
+        "parameters": [
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "Slack workspace name",
+            "in": "query",
+            "name": "workspace_name",
+            "required": true,
+            "schema": {
+              "description": "Slack workspace name",
+              "title": "Workspace Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Channel name (e.g., 'sd-app-sre-reconcile')",
+            "in": "query",
+            "name": "channel",
+            "required": true,
+            "schema": {
+              "description": "Channel name (e.g., 'sd-app-sre-reconcile')",
+              "title": "Channel",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only return messages at or after this unix timestamp",
+            "in": "query",
+            "name": "from_timestamp",
+            "required": true,
+            "schema": {
+              "description": "Only return messages at or after this unix timestamp",
+              "title": "From Timestamp",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Only return messages at or before this unix timestamp",
+            "in": "query",
+            "name": "to_timestamp",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only return messages at or before this unix timestamp",
+              "title": "To Timestamp"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackConversationHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Conversations History",
         "tags": [
           "external"
         ]

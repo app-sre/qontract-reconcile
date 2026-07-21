@@ -60,6 +60,57 @@ class ChatRequest(BaseModel, frozen=True):
         return self
 
 
+class SlackMessageReactionResponse(BaseModel, frozen=True):
+    """A reaction (emoji) on a Slack message."""
+
+    name: str = Field(..., description="Reaction emoji name (e.g., 'eyes')")
+    count: int = Field(default=0, description="Number of users who reacted")
+
+
+class SlackMessageAttachmentResponse(BaseModel, frozen=True):
+    """A legacy attachment on a Slack message (e.g. alertmanager notifications)."""
+
+    title: str | None = Field(default=None, description="Attachment title")
+    text: str | None = Field(default=None, description="Attachment text")
+
+
+class SlackMessageResponse(BaseModel, frozen=True):
+    """A single message from a channel's conversation history."""
+
+    ts: str = Field(..., description="Message timestamp")
+    text: str = Field(default="", description="Message text")
+    subtype: str | None = Field(default=None, description="Message subtype")
+    username: str | None = Field(
+        default=None, description="Bot/app username that posted the message"
+    )
+    reply_count: int = Field(default=0, description="Number of thread replies")
+    reactions: list[SlackMessageReactionResponse] = Field(default_factory=list)
+    attachments: list[SlackMessageAttachmentResponse] = Field(default_factory=list)
+
+
+class SlackConversationHistoryResponse(BaseModel, frozen=True):
+    """Response model for the conversation history endpoint."""
+
+    messages: list[SlackMessageResponse] = Field(
+        default_factory=list,
+        description="Messages in the requested time range, newest first",
+    )
+
+
+class ConversationsHistoryParams(Secret):
+    """Query parameters for the conversation history endpoint."""
+
+    workspace_name: str = Field(..., description="Slack workspace name")
+    channel: str = Field(..., description="Channel name (e.g., 'sd-app-sre-reconcile')")
+    from_timestamp: int = Field(
+        ..., description="Only return messages at or after this unix timestamp"
+    )
+    to_timestamp: int | None = Field(
+        default=None,
+        description="Only return messages at or before this unix timestamp",
+    )
+
+
 class ChatResponse(BaseModel, frozen=True):
     """Response model for a posted Slack message.
 

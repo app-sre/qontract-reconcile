@@ -11,6 +11,7 @@ from qontract_utils.slack_api import (
     SlackApiError,
     SlackChannel,
     SlackEnterpriseUser,
+    SlackMessage,
     SlackUser,
     SlackUsergroup,
     SlackUsergroupPrefs,
@@ -698,6 +699,68 @@ def test_chat_post_message_propagates_slack_api_error(
         )
 
     assert exc_info.value.response["error"] == "channel_not_found"
+
+
+def test_get_flat_conversation_history_resolves_channel_name(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """Verify get_flat_conversation_history resolves channel name to ID and delegates."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
+    mock_messages = [SlackMessage(ts="1700000002.000000", text="hi")]
+    mock_slack_api.conversations_history.return_value = mock_messages
+
+    result = client.get_flat_conversation_history(
+        channel="general",
+        from_timestamp=1700000000,
+        to_timestamp=1700000100,
+    )
+
+    mock_slack_api.conversations_history.assert_called_once_with(
+        channel_id="C123456",
+        oldest="1700000000",
+        latest="1700000100",
+    )
+    assert result == mock_messages
+
+
+def test_get_flat_conversation_history_without_to_timestamp(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """Verify to_timestamp=None is forwarded as latest=None (no upper bound)."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
+    mock_slack_api.conversations_history.return_value = []
+
+    client.get_flat_conversation_history(
+        channel="general",
+        from_timestamp=1700000000,
+        to_timestamp=None,
+    )
+
+    mock_slack_api.conversations_history.assert_called_once_with(
+        channel_id="C123456",
+        oldest="1700000000",
+        latest=None,
+    )
+
+
+def test_get_flat_conversation_history_channel_not_found_raises_value_error(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Verify ValueError is raised when channel name is not found."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
+
+    with pytest.raises(ValueError, match="Channel 'nonexistent' not found"):
+        client.get_flat_conversation_history(
+            channel="nonexistent",
+            from_timestamp=1700000000,
+            to_timestamp=None,
+        )
 
 
 def test_get_slack_usergroups_enterprise_grid_user_resolved(

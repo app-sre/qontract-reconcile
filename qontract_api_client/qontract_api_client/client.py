@@ -135,6 +135,36 @@ async def slack_chat_post_message(
     return result
 
 
+@client.get("/api/v1/external/slack/conversations/history")
+async def slack_conversations_history(
+    result: schemas.SlackConversationHistoryResponse,
+    secret_manager_url: str,
+    path: str,
+    workspace_name: str,
+    channel: str,
+    from_timestamp: int,
+    field: str | None = None,
+    version: int | None = None,
+    to_timestamp: int | None = None,
+) -> schemas.SlackConversationHistoryResponse:
+    """Get Conversations History
+
+        Get a channel's message history within a timestamp range.
+
+    Args:
+        params: workspace_name, channel, from_timestamp/to_timestamp, and secret
+
+    Returns:
+        SlackConversationHistoryResponse with messages, newest first
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Channel not found
+            - 502 Bad Gateway: If Slack API call fails
+    """
+    return result
+
+
 @client.post("/api/v1/external/vcs/file-sync")
 async def vcs_file_sync(
     result: schemas.FileSyncResponse, data: schemas.FileSyncRequest

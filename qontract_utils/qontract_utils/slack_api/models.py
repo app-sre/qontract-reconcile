@@ -76,3 +76,29 @@ class ChatPostMessageResponse(BaseModel, frozen=True):
     ts: str
     channel: str
     thread_ts: str | None = None
+
+
+class SlackMessageReaction(BaseModel, frozen=True):
+    """A reaction (emoji) on a Slack message."""
+
+    name: str
+    count: int = 0
+
+
+class SlackMessageAttachment(BaseModel, frozen=True):
+    """A legacy attachment on a Slack message (e.g. alertmanager notifications)."""
+
+    title: str | None = None
+    text: str | None = None
+
+
+class SlackMessage(BaseModel, frozen=True):
+    """A message returned by conversations.history."""
+
+    ts: str
+    text: str = ""
+    subtype: str | None = None
+    username: str | None = None
+    reply_count: int = 0
+    reactions: list[SlackMessageReaction] = Field(default_factory=list)
+    attachments: list[SlackMessageAttachment] = Field(default_factory=list)

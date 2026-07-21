@@ -16,6 +16,7 @@ from qontract_utils.slack_api import (
     ChatPostMessageResponse,
     SlackApi,
     SlackApiError,
+    SlackMessage,
     UserNotFoundError,
 )
 from qontract_utils.slack_api import SlackChannel as SlackChannelAPI
@@ -514,6 +515,37 @@ class SlackWorkspaceClient:
             icon_emoji=icon_emoji,
             icon_url=icon_url,
             username=username,
+        )
+
+    def get_flat_conversation_history(
+        self,
+        *,
+        channel: str,
+        from_timestamp: int,
+        to_timestamp: int | None,
+    ) -> list[SlackMessage]:
+        """Get message history for a channel within a timestamp range.
+
+        Resolves the channel name to ID via cached channels, then delegates to
+        SlackApi.conversations_history, letting Slack filter by timestamp range
+        server-side.
+
+        Args:
+            channel: Channel name (e.g., "sd-app-sre-reconcile")
+            from_timestamp: Only return messages at or after this unix timestamp
+            to_timestamp: Only return messages at or before this unix timestamp
+
+        Returns:
+            List of SlackMessage objects, newest first
+
+        Raises:
+            ValueError: If channel name is not found
+        """
+        channel_id = self._resolve_channel_id(channel)
+        return self.slack_api.conversations_history(
+            channel_id=channel_id,
+            oldest=str(from_timestamp),
+            latest=str(to_timestamp) if to_timestamp is not None else None,
         )
 
     def _resolve_user_id(self, org_username: str) -> str:

@@ -542,6 +542,30 @@ class Secret(pydantic.BaseModel):
     version: int | None = None
 
 
+class SlackConversationHistoryResponse(pydantic.BaseModel):
+    messages: list[SlackMessageResponse]
+
+
+class SlackMessageAttachmentResponse(pydantic.BaseModel):
+    text: str | None
+    title: str | None
+
+
+class SlackMessageReactionResponse(pydantic.BaseModel):
+    count: int = 0
+    name: str
+
+
+class SlackMessageResponse(pydantic.BaseModel):
+    attachments: list[SlackMessageAttachmentResponse] | None = None
+    reactions: list[SlackMessageReactionResponse] | None = None
+    reply_count: int = 0
+    subtype: str | None = None
+    text: str = ""
+    ts: str
+    username: str | None = None
+
+
 class SlackUsergroup(pydantic.BaseModel):
     config: SlackUsergroupConfig
     handle: str
