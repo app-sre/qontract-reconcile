@@ -39,7 +39,14 @@ QONTRACT_INTEGRATION = "openshift-upgrade-watcher"
 
 
 def cluster_slack_handle(cluster: str) -> str:
-    return f"<!subteam^@{cluster}-cluster>"
+    """Build a mention for the cluster's usergroup.
+
+    Written as plain "@handle" text — qontract-api resolves it to a real
+    Slack usergroup mention server-side (see
+    SlackWorkspaceClient._resolve_mentions) if a usergroup with this handle
+    exists; otherwise it's posted as literal text.
+    """
+    return f"@{cluster}-cluster"
 
 
 def handle_slack_notification(

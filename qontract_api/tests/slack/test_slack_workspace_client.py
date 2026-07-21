@@ -701,6 +701,164 @@ def test_chat_post_message_propagates_slack_api_error(
     assert exc_info.value.response["error"] == "channel_not_found"
 
 
+def _mock_usergroups_and_users(
+    mock_cache: MagicMock,
+    *,
+    usergroups: list[SlackUsergroup] | None = None,
+    users: list[SlackUser] | None = None,
+) -> None:
+    """Mock get_obj to return usergroups/users based on the cache key."""
+    cached_usergroups = CachedUsergroups(items=usergroups or [])
+    cached_users = CachedUsers(items=users or [])
+
+    def get_obj_side_effect(
+        cache_key: str, *_args: Any, **_kwargs: Any
+    ) -> CachedUsergroups | CachedUsers | None:
+        if "usergroups" in cache_key:
+            return cached_usergroups
+        if "users" in cache_key:
+            return cached_users
+        return None
+
+    mock_cache.get_obj.side_effect = get_obj_side_effect
+
+
+def test_resolve_mentions_usergroup_handle(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """A "@handle" matching a usergroup becomes a subteam mention."""
+    _mock_usergroups_and_users(
+        mock_cache,
+        usergroups=[SlackUsergroup(id="UG1", handle="oncall-team", name="On-Call")],
+    )
+
+    result = client._resolve_mentions("Heads up @oncall-team!")
+
+    assert result == "Heads up <!subteam^UG1>!"
+
+
+def test_resolve_mentions_user_org_username(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """A "@handle" matching a user's org_username becomes a user mention."""
+    _mock_usergroups_and_users(
+        mock_cache,
+        users=[
+            SlackUser(
+                id="U1", name="Jane", profile=SlackUserProfile(email="jsmith@x.com")
+            )
+        ],
+    )
+
+    result = client._resolve_mentions("cc @jsmith please")
+
+    assert result == "cc <@U1> please"
+
+
+def test_resolve_mentions_usergroup_takes_priority_over_user(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """When a handle matches both a usergroup and a username, usergroup wins."""
+    _mock_usergroups_and_users(
+        mock_cache,
+        usergroups=[SlackUsergroup(id="UG1", handle="shared", name="Shared")],
+        users=[
+            SlackUser(
+                id="U1", name="Shared", profile=SlackUserProfile(email="shared@x.com")
+            )
+        ],
+    )
+
+    result = client._resolve_mentions("@shared")
+
+    assert result == "<!subteam^UG1>"
+
+
+def test_resolve_mentions_unresolvable_left_unchanged(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """A "@handle" matching neither a usergroup nor a user is left as plain text."""
+    _mock_usergroups_and_users(mock_cache)
+
+    result = client._resolve_mentions("no such @typo-handle here")
+
+    assert result == "no such @typo-handle here"
+
+
+def test_resolve_mentions_does_not_match_email_addresses(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """An embedded email address is not treated as a mention."""
+    _mock_usergroups_and_users(
+        mock_cache,
+        users=[
+            SlackUser(
+                id="U1", name="Jane", profile=SlackUserProfile(email="jsmith@x.com")
+            )
+        ],
+    )
+
+    result = client._resolve_mentions("contact jsmith@x.com for help")
+
+    assert result == "contact jsmith@x.com for help"
+
+
+def test_resolve_mentions_multiple_in_one_message(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Multiple mentions in the same message are all resolved."""
+    _mock_usergroups_and_users(
+        mock_cache,
+        usergroups=[SlackUsergroup(id="UG1", handle="oncall-team", name="On-Call")],
+        users=[
+            SlackUser(
+                id="U1", name="Jane", profile=SlackUserProfile(email="jsmith@x.com")
+            )
+        ],
+    )
+
+    result = client._resolve_mentions("@oncall-team and @jsmith, please look")
+
+    assert result == "<!subteam^UG1> and <@U1>, please look"
+
+
+def test_chat_post_message_resolves_mentions_in_text(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """chat_post_message resolves @handle mentions before posting."""
+    cached_channels = CachedChannels(items=[SlackChannel(id="C1", name="alerts")])
+    cached_usergroups = CachedUsergroups(
+        items=[SlackUsergroup(id="UG1", handle="oncall-team", name="On-Call")]
+    )
+
+    def get_obj_side_effect(
+        cache_key: str, *_args: Any, **_kwargs: Any
+    ) -> CachedChannels | CachedUsergroups | CachedUsers | None:
+        if "channels" in cache_key:
+            return cached_channels
+        if "usergroups" in cache_key:
+            return cached_usergroups
+        if "users" in cache_key:
+            return CachedUsers(items=[])
+        return None
+
+    mock_cache.get_obj.side_effect = get_obj_side_effect
+    mock_slack_api.chat_post_message.return_value = ChatPostMessageResponse(
+        ts="1234567890.123456", channel="C1"
+    )
+
+    client.chat_post_message(channel="alerts", text="Heads up @oncall-team!")
+
+    mock_slack_api.chat_post_message.assert_called_once_with(
+        channel_id="C1",
+        text="Heads up <!subteam^UG1>!",
+        thread_ts=None,
+        icon_emoji=None,
+        icon_url=None,
+        username=None,
+    )
+
+
 def test_get_flat_conversation_history_resolves_channel_name(
     client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
 ) -> None:
