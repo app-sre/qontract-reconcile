@@ -4,6 +4,7 @@ import logging
 from collections import namedtuple
 from typing import TYPE_CHECKING, Any
 
+import requests
 from sretoolbox.container import Image
 
 from reconcile import queries
@@ -12,6 +13,7 @@ from reconcile.container_registry_mirror.deep_sync_timer import DeepSyncTimer
 from reconcile.container_registry_mirror.engine import MirrorEngine
 from reconcile.container_registry_mirror.mirror_spec import MirrorSpec
 from reconcile.utils import gql
+from reconcile.utils.instrumented_wrappers import InstrumentedImage
 from reconcile.utils.instrumented_wrappers import InstrumentedSkopeo as Skopeo
 from reconcile.utils.secret_reader import SecretReader
 
@@ -151,7 +153,11 @@ class QuayMirror:
                         destination_public=item.get("public"),
                     ):
                         _LOG.error(
-                            "Image %s cannot be mirrored to a public repository at %s",
+                            "[MIRROR_BLOCKED] Image %s cannot be mirrored to "
+                            "%s because docker.io sources cannot be mirrored "
+                            "to public Quay repositories. To fix: either make "
+                            "the destination repository private, or use a "
+                            "non-docker.io source.",
                             mirror_url,
                             destination_url,
                         )
@@ -230,12 +236,24 @@ def run(
         compare_tags_override=compare_tags,
     )
     specs = impl.discover_mirrors()
-    engine = MirrorEngine(
-        skopeo=Skopeo(dry_run),
-        dry_run=dry_run,
-        deep_sync_timer=timer,
-    )
-    engine.sync(specs)
+    # InstrumentedImage counts manifest fetches via the
+    # registry_reachouts Prometheus counter. The shared cache and
+    # session avoid redundant HTTP requests and pool TCP connections
+    # across repos within the same sync run.
+    response_cache: dict = {}
+    session = requests.Session()
+    try:
+        engine = MirrorEngine(
+            skopeo=Skopeo(dry_run),
+            dry_run=dry_run,
+            deep_sync_timer=timer,
+            image_class=InstrumentedImage,
+            response_cache=response_cache,
+            session=session,
+        )
+        engine.sync(specs)
+    finally:
+        session.close()
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:

@@ -22,7 +22,7 @@ class ContainerRegistryMirror(Protocol):
         for GCP service account keys)."""
         ...
 
-    def resolve_destination_credentials(self, key: str) -> str:
+    def resolve_destination_credentials(self, key: Any) -> str:
         """Fetch write credentials for the destination registry and
         return them in skopeo's "user:password" format. The key
         identifies which destination (e.g., an OrgKey for Quay, a

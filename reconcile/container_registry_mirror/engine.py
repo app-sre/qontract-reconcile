@@ -29,6 +29,9 @@ class MirrorEngine:
         dry_run: bool = False,
         is_deep_sync: bool = False,
         deep_sync_timer: DeepSyncTimer | None = None,
+        image_class: type | None = None,
+        response_cache: dict | None = None,
+        session: Any | None = None,
     ) -> None:
         self.skopeo = skopeo
         self.dry_run = dry_run
@@ -41,12 +44,25 @@ class MirrorEngine:
             self.is_deep_sync = deep_sync_timer.should_run
         else:
             self.is_deep_sync = is_deep_sync
+        # Callers can pass InstrumentedImage to count manifest fetches,
+        # a shared response_cache to avoid redundant HTTP requests
+        # across repos in the same org, and a shared Session for TCP
+        # connection pooling. All three default to None, in which case
+        # _build_images uses plain Image with no caching or pooling.
+        self._image_class = image_class
+        self._response_cache = response_cache
+        self._session = session
 
     def _build_images(self, spec: MirrorSpec) -> tuple[Any, Any]:
         """Build source and destination Image objects for a spec.
         Exists as a separate method so tests can patch it without
         needing to mock the Image constructor import path."""
-        from sretoolbox.container import Image  # noqa: PLC0415
+        if self._image_class is None:
+            from sretoolbox.container import Image  # noqa: PLC0415
+
+            image_cls: Any = Image
+        else:
+            image_cls = self._image_class
 
         # maxsplit=1 preserves colons in passwords (e.g., base64-decoded
         # GCP service account keys frequently contain colons).
@@ -57,15 +73,26 @@ class MirrorEngine:
 
         dst_user, dst_pass = spec.destination_creds.split(":", maxsplit=1)
 
-        source = Image(
+        # Pass response_cache and session when available so that
+        # manifest fetches are cached across repos and HTTP
+        # connections are pooled within a single sync run.
+        extra_kwargs: dict[str, Any] = {}
+        if self._response_cache is not None:
+            extra_kwargs["response_cache"] = self._response_cache
+        if self._session is not None:
+            extra_kwargs["session"] = self._session
+
+        source = image_cls(
             spec.source_url,
             username=src_user,
             password=src_pass,
+            **extra_kwargs,
         )
-        dest = Image(
+        dest = image_cls(
             spec.destination_url,
             username=dst_user,
             password=dst_pass,
+            **extra_kwargs,
         )
         return source, dest
 
