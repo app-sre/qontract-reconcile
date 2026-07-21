@@ -253,8 +253,7 @@ class Filter:
     def is_in(self, key: str, values: Iterable[Any] | None) -> Filter:
         """Add an IN condition. Empty/None values are a no-op."""
         if values:
-            value_list = values if isinstance(values, list) else list(values)
-            value_list.sort()
+            value_list = sorted(values)
             return self.add_condition(EqCondition(key, value_list))
         return self
 
