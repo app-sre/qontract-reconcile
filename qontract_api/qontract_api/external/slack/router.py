@@ -118,6 +118,10 @@ def post_chat(
 @router.get(
     "/conversations/history",
     operation_id="slack-conversations-history",
+    responses={
+        404: {"description": "Channel not found"},
+        502: {"description": "Slack API error"},
+    },
 )
 def get_conversations_history(
     _user: UserDep,

@@ -3505,6 +3505,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Channel not found"
+          },
+          "502": {
+            "description": "Slack API error"
           }
         },
         "security": [
