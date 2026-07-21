@@ -154,24 +154,28 @@ def test_check_y1_blocked_still_switches() -> None:
 # --- _get_available_channels tests ---
 
 
-def test_get_available_channels_from_versions_api() -> None:
+def test_get_available_channels_from_cluster_api() -> None:
     ocm_api = MagicMock()
     ocm_api.get.return_value = {
-        "available_channels": ["stable-4.20", "stable-4.21"],
+        "version": {
+            "available_channels": ["stable-4.20", "stable-4.21"],
+        },
     }
     cache: dict[str, set[str]] = {}
-    result = aus_base._get_available_channels(ocm_api, "openshift-v4.20.10", cache)
-    assert result == {"stable-4.20", "stable-4.21"}
-    ocm_api.get.assert_called_once_with(
-        api_path="/api/clusters_mgmt/v1/versions/openshift-v4.20.10"
+    result = aus_base._get_available_channels(
+        ocm_api, "c1_id", "openshift-v4.20.10", cache
     )
+    assert result == {"stable-4.20", "stable-4.21"}
+    ocm_api.get.assert_called_once_with(api_path="/api/clusters_mgmt/v1/clusters/c1_id")
     assert cache["openshift-v4.20.10"] == {"stable-4.20", "stable-4.21"}
 
 
 def test_get_available_channels_cache_hit() -> None:
     ocm_api = MagicMock()
     cache = {"openshift-v4.20.10": {"stable-4.20", "stable-4.21"}}
-    result = aus_base._get_available_channels(ocm_api, "openshift-v4.20.10", cache)
+    result = aus_base._get_available_channels(
+        ocm_api, "c1_id", "openshift-v4.20.10", cache
+    )
     assert result == {"stable-4.20", "stable-4.21"}
     ocm_api.get.assert_not_called()
 
@@ -182,7 +186,9 @@ def test_get_available_channels_http_error() -> None:
     response.text = "not found"
     ocm_api.get.side_effect = HTTPError(response=response)
     cache: dict[str, set[str]] = {}
-    result = aus_base._get_available_channels(ocm_api, "openshift-v4.20.10", cache)
+    result = aus_base._get_available_channels(
+        ocm_api, "c1_id", "openshift-v4.20.10", cache
+    )
     assert result == set()
     assert cache["openshift-v4.20.10"] == set()
 
@@ -201,7 +207,7 @@ def test_try_channel_switch_skips_addon() -> None:
     assert switches == []
 
 
-def test_try_channel_switch_uses_versions_api_fallback() -> None:
+def test_try_channel_switch_uses_cluster_get_fallback() -> None:
     spec = build_cluster_upgrade_spec(
         name="c1",
         current_version="4.20.10",
@@ -209,7 +215,9 @@ def test_try_channel_switch_uses_versions_api_fallback() -> None:
     )
     ocm_api = MagicMock()
     ocm_api.get.return_value = {
-        "available_channels": ["stable-4.20", "stable-4.21"],
+        "version": {
+            "available_channels": ["stable-4.20", "stable-4.21"],
+        },
     }
     switches: list[ChannelSwitchAction] = []
     cache: dict[str, set[str]] = {}
