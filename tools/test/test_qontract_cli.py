@@ -499,9 +499,7 @@ def test_review_queue_succeeds_when_slack_api_fails(
 
     assert result.exit_code == 0
     assert "MR 9" in result.output
-    mock_slackapi_from_queries.assert_called_once_with(
-        "app-interface-review-queue", init_usergroups=False
-    )
+    mock_slackapi_from_queries.assert_called_once_with("app-interface-review-queue")
 
 
 def test_review_queue_succeeds_when_slack_request_fails(
