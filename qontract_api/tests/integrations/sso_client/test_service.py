@@ -383,6 +383,84 @@ def test_reconcile_deterministic_ordering(
     )
 
 
+def test_reconcile_closes_keycloak_instances_dry_run(
+    service: SsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak_instance: MagicMock,
+) -> None:
+    mock_secret_manager.list.return_value = []
+
+    service.reconcile(
+        "prod", [_cluster()], [KEYCLOAK_SECRET], VAULT_TARGET, dry_run=True
+    )
+
+    mock_keycloak_instance.close.assert_called_once_with()
+
+
+def test_reconcile_closes_keycloak_instances_after_apply(
+    service: SsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak_instance: MagicMock,
+) -> None:
+    mock_secret_manager.list.return_value = ["obsolete-client"]
+    mock_secret_manager.read_all.side_effect = _read_all_dispatch(_stored_sso_client())
+
+    service.reconcile("prod", [], [KEYCLOAK_SECRET], VAULT_TARGET, dry_run=False)
+
+    mock_keycloak_instance.close.assert_called_once_with()
+
+
+def test_reconcile_closes_keycloak_instances_even_on_unexpected_error(
+    service: SsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak_instance: MagicMock,
+) -> None:
+    """The close() finally block must run even if reconcile() raises outright."""
+    mock_secret_manager.list.side_effect = RuntimeError("vault unreachable")
+
+    with pytest.raises(RuntimeError, match="vault unreachable"):
+        service.reconcile("prod", [], [KEYCLOAK_SECRET], VAULT_TARGET, dry_run=True)
+
+    mock_keycloak_instance.close.assert_called_once_with()
+
+
+def test_create_rollback_failure_does_not_mask_original_write_error(
+    service: SsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak_instance: MagicMock,
+) -> None:
+    """Rollback failure must not mask the original Vault-write error.
+
+    If the Keycloak rollback itself fails, the original Vault-write error must
+    still surface in result.errors - not the rollback failure.
+    """
+    mock_secret_manager.list.return_value = []
+    mock_secret_manager.write.side_effect = RuntimeError("vault write failed")
+    mock_keycloak_instance.register_client.return_value = KeycloakSsoClient(
+        client_id="my-cluster-org-1-redhat-sso-issuer.example.com",
+        client_secret="s3cr3t",
+        redirect_uris=["https://console.example.com/oauth2callback/redhat-sso"],
+        registration_access_token="rat",
+        attributes={},
+    )
+    mock_keycloak_instance.delete_client.side_effect = RuntimeError(
+        "keycloak unreachable"
+    )
+
+    result = service.reconcile(
+        "prod", [_cluster()], [KEYCLOAK_SECRET], VAULT_TARGET, dry_run=False
+    )
+
+    assert result.status == TaskStatus.FAILED
+    assert len(result.errors) == 1
+    assert "vault write failed" in result.errors[0]
+    assert "keycloak unreachable" not in result.errors[0]
+    mock_keycloak_instance.delete_client.assert_called_once_with(
+        client_id="my-cluster-org-1-redhat-sso-issuer.example.com",
+        registration_access_token="rat",
+    )
+
+
 def test_reconcile_exposes_metrics(
     service: SsoClientService, mock_secret_manager: MagicMock
 ) -> None:

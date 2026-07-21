@@ -47,3 +47,7 @@ class KeycloakWorkspaceClient:
                 client_id=client_id,
                 registration_access_token=registration_access_token,
             )
+
+    def close(self) -> None:
+        """Release the underlying Keycloak API client's HTTP connection."""
+        self.keycloak_api.close()

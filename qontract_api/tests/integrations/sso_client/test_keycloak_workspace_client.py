@@ -74,3 +74,11 @@ def test_delete_client_acquires_lock_per_client_id(
     mock_keycloak_api.delete_client.assert_called_once_with(
         client_id="my-client", registration_access_token="rat"
     )
+
+
+def test_close_delegates_to_keycloak_api(
+    client: KeycloakWorkspaceClient, mock_keycloak_api: MagicMock
+) -> None:
+    client.close()
+
+    mock_keycloak_api.close.assert_called_once_with()
