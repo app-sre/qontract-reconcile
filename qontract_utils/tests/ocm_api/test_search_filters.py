@@ -1,0 +1,422 @@
+"""Tests for qontract_utils.ocm_api.search_filters."""
+
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+import pytest
+from qontract_utils.ocm_api.search_filters import (
+    Filter,
+    InvalidChunkRequestError,
+    InvalidFilterError,
+)
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+
+#
+# eq and is_in
+#
+
+
+def test_search_filter_eq() -> None:
+    assert Filter().eq("some_field", "some_value").render() == "some_field='some_value'"
+
+
+def test_search_filter_eq_none_value() -> None:
+    with pytest.raises(InvalidFilterError):
+        Filter().eq("some_field", None).render()
+
+
+def test_search_filter_is_in() -> None:
+    assert (
+        Filter().is_in("some_field", ["a", "b", "c"]).render()
+        == "some_field in ('a','b','c')"
+    )
+
+
+def test_search_filter_is_in_no_items() -> None:
+    with pytest.raises(InvalidFilterError):
+        Filter().is_in("some_field", None).render()
+    with pytest.raises(InvalidFilterError):
+        Filter().is_in("some_field", []).render()
+
+
+def test_search_filter_is_in_one_items() -> None:
+    assert Filter().is_in("some_field", [1]).render() == "some_field='1'"
+
+
+def test_search_filter_merge_eq_eq_and() -> None:
+    f1 = Filter().eq("some_field", "a")
+    f2 = Filter().eq("some_field", "b")
+    assert (f1 & f2).render() == "some_field in ('a','b')"
+
+
+def test_search_filter_merge_eq_eq_chain() -> None:
+    f = Filter().eq("some_field", "a").eq("some_field", "b")
+    assert f.render() == "some_field in ('a','b')"
+
+
+def test_search_filter_merge_eq_is_in_and() -> None:
+    f1 = Filter().eq("some_field", "a")
+    f2 = Filter().is_in("some_field", ["b", "c"])
+    assert (f1 & f2).render() == "some_field in ('a','b','c')"
+
+
+def test_search_filter_merge_eq_is_in_chain() -> None:
+    f = Filter().eq("some_field", "a").is_in("some_field", ["b", "c"])
+    assert f.render() == "some_field in ('a','b','c')"
+
+
+def test_search_filter_merge_eq_is_in_dedup() -> None:
+    f1 = Filter().eq("some_field", "a")
+    f2 = Filter().is_in("some_field", ["a", "b", "c"])
+    assert (f1 & f2).render() == "some_field in ('a','b','c')"
+
+
+#
+# like
+#
+
+
+def test_search_filter_like() -> None:
+    assert (
+        Filter().like("some_field", "some_value%").render()
+        == "some_field like 'some_value%'"
+    )
+
+
+def test_search_filter_like_none_value() -> None:
+    with pytest.raises(InvalidFilterError):
+        Filter().like("some_field", None).render()
+
+
+def test_search_filter_merge_like_merge() -> None:
+    f1 = Filter().like("some_field", "a%")
+    f2 = Filter().like("some_field", "b%")
+    assert (f1 & f2).render() == "(some_field like 'a%' or some_field like 'b%')"
+
+
+def test_search_filter_merge_like_chain() -> None:
+    f = Filter().like("some_field", "a%").like("some_field", "b%")
+    assert f.render() == "(some_field like 'a%' or some_field like 'b%')"
+
+
+#
+# date
+#
+
+
+def test_search_filter_before() -> None:
+    assert (
+        Filter()
+        .before("timestamp", datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=UTC))
+        .render()
+        == "timestamp <= '2020-01-01T00:00:00+00:00'"
+    )
+
+
+def test_search_filter_before_relative(mocker: MockerFixture) -> None:
+    mocker.patch(
+        "qontract_utils.ocm_api.search_filters._utc_now",
+        return_value=datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC),
+    )
+    assert (
+        Filter().before("timestamp", "1 day ago").render()
+        == "timestamp <= '2020-01-01T00:00:00'"
+    )
+
+
+def test_search_filter_after() -> None:
+    assert (
+        Filter()
+        .after("timestamp", datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=UTC))
+        .render()
+        == "timestamp >= '2020-01-01T00:00:00+00:00'"
+    )
+
+
+def test_search_filter_after_relative(mocker: MockerFixture) -> None:
+    mocker.patch(
+        "qontract_utils.ocm_api.search_filters._utc_now",
+        return_value=datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC),
+    )
+
+    assert (
+        Filter().after("timestamp", "1 day ago").render()
+        == "timestamp >= '2020-01-01T00:00:00'"
+    )
+
+
+def test_search_filter_between() -> None:
+    assert (
+        Filter()
+        .between(
+            "timestamp",
+            datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=UTC),
+            datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC),
+        )
+        .render()
+        == "timestamp >= '2020-01-01T00:00:00+00:00' and timestamp <= '2020-01-02T00:00:00+00:00'"
+    )
+
+
+def test_search_filter_between_end_before_start() -> None:
+    with pytest.raises(InvalidFilterError):
+        Filter().between(
+            "timestamp",
+            datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC),
+            datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=UTC),
+        ).render()
+
+
+def test_search_filter_invalid_relative_date() -> None:
+    with pytest.raises(InvalidFilterError):
+        Filter().after("timestamp", "5 glas of milk").render()
+
+
+def test_search_filter_date_range_cannot_be_merged() -> None:
+    with pytest.raises(InvalidFilterError, match="daterange merge not supported"):
+        Filter().before("timestamp", "now").before("timestamp", "1 day ago")
+
+
+#
+# chunking
+#
+
+
+def test_search_filter_chunk_is_in() -> None:
+    list_filter = Filter().is_in("some_field", ["a", "b", "c", "d", "e"])
+    chunks = list_filter.chunk_by("some_field", chunk_size=2)
+    assert len(chunks) == 3
+
+    assert {
+        "some_field in ('a','b')",
+        "some_field in ('c','d')",
+        "some_field='e'",
+    } == {c.render() for c in chunks}
+
+
+def test_search_filter_chunk_eq() -> None:
+    f = Filter().eq("some_field", "some_value")
+    chunks = f.chunk_by("some_field", chunk_size=2)
+    assert len(chunks) == 1
+    assert f.render() == chunks[0].render()
+
+
+def test_search_filter_chunk_like() -> None:
+    f = (
+        Filter()
+        .like("some_field", "a%")
+        .like("some_field", "b%")
+        .like("some_field", "c%")
+    )
+    chunks = f.chunk_by("some_field", chunk_size=2)
+    assert len(chunks) == 2
+    assert {
+        "(some_field like 'a%' or some_field like 'b%')",
+        "some_field like 'c%'",
+    } == {c.render() for c in chunks}
+
+
+def test_search_filter_chunk_unknown_field() -> None:
+    list_filter = Filter().is_in("some_field", ["a", "b"])
+    with pytest.raises(InvalidChunkRequestError):
+        list_filter.chunk_by("some_other_field", chunk_size=2)
+
+
+def test_search_filter_chunk_ignore_missing() -> None:
+    list_filter = Filter().is_in("some_field", ["a", "b"])
+    assert [list_filter] == list_filter.chunk_by(
+        "some_other_field",
+        chunk_size=2,
+        ignore_missing=True,
+    )
+
+
+#
+# combination tests
+#
+
+
+def test_search_filter_chain_conditions() -> None:
+    multi_filter = (
+        Filter().eq("some_field", "some_value").is_in("some_list", ["a", "b"])
+    )
+    assert multi_filter.render() == "some_field='some_value' and some_list in ('a','b')"
+
+
+def test_search_filter_combine_different_conditions() -> None:
+    f1 = Filter().eq("eq_field_1", "some_value")
+    f2 = Filter().eq("eq_field_2", "some_other_value")
+    f3 = Filter().like("like_field", "a%")
+    f4 = Filter().like("like_field", "b%")
+    combined = f1 & f2 & f3 & f4
+    assert (
+        combined.render()
+        == "eq_field_1='some_value' and eq_field_2='some_other_value' and "
+        "(like_field like 'a%' or like_field like 'b%')"
+    )
+
+
+#
+# immutability
+#
+
+
+def test_search_filter_immutability() -> None:
+    eq_filter = Filter().eq("some_field", "some_value")
+    derive_filter = eq_filter.eq("some_other_field", "some_other_value")
+    assert eq_filter != derive_filter
+    assert eq_filter.render() == "some_field='some_value'"
+
+
+#
+# or
+#
+
+
+def test_search_filter_or() -> None:
+    f1 = Filter().eq("some_field", "some_value")
+    f2 = Filter().eq("some_other_field", "some_other_value")
+    or_condition = f1 | f2
+    assert (
+        or_condition.render()
+        == "(some_field='some_value' or some_other_field='some_other_value')"
+    )
+
+
+def test_search_filter_combine_and_or() -> None:
+    f1 = Filter().eq("some_field", "some_value")
+    f2 = Filter().eq("some_other_field", "some_other_value")
+    or_condition = f1 | f2
+    combined_filter = Filter().eq("eq_field", "eq_value") & or_condition
+    assert (
+        combined_filter.render()
+        == "(some_field='some_value' or some_other_field='some_other_value') and eq_field='eq_value'"
+    )
+
+
+def test_search_filter_combine_or_and() -> None:
+    f1 = Filter().eq("some_field", "some_value")
+    f2 = Filter().eq("some_other_field", "some_other_value")
+    or_condition = f1 | f2
+    combined_filter = or_condition & Filter().eq("eq_field", "eq_value")
+    assert (
+        combined_filter.render()
+        == "(some_field='some_value' or some_other_field='some_other_value') and eq_field='eq_value'"
+    )
+
+
+#
+# filter term optimizations
+#
+
+
+def test_search_filter_eliminate_empty_or_conditions() -> None:
+    f1 = (
+        Filter().is_in("some_list_field", [])
+        | Filter().eq("some_field", "some_value")
+        | Filter()
+    )
+    assert f1.render() == "some_field='some_value'"
+
+    f2 = (
+        Filter().is_in("some_list_field", [1, 2])
+        | Filter().eq("some_field", "some_value")
+        | Filter()
+    )
+    assert f2.render() == "(some_field='some_value' or some_list_field in ('1','2'))"
+
+
+def test_search_filter_dont_render_brackets_when_one_condition() -> None:
+    f = Filter().is_in("some_list_field", [1, 2]) | Filter()
+    assert f.render() == "some_list_field in ('1','2')"
+
+
+def test_search_filter_simplify_multiple_or_conditions() -> None:
+    or_condition = (
+        Filter().is_in("some_list_field", [1, 2])
+        | Filter().eq("some_field", "some_value")
+        | Filter().eq("other_field", "other_value")
+    )
+    eq_condition = Filter().eq("eq_field", "eq_value")
+    combined = or_condition & eq_condition
+    assert (
+        combined.render()
+        == "(other_field='other_value' or some_field='some_value' or some_list_field in ('1','2')) and eq_field='eq_value'"
+    )
+
+
+#
+# misc
+#
+
+
+def test_search_filter_escape_quotes() -> None:
+    assert (
+        Filter().eq("some_field", "contains'quote").render()
+        == "some_field='contains''quote'"
+    )
+
+    assert (
+        Filter().eq("some_field", "contains''quote").render()
+        == "some_field='contains''''quote'"
+    )
+
+
+def test_search_filter_equals() -> None:
+    f1 = Filter().eq("some_field", "a")
+    f2 = Filter().eq("some_field", "a")
+    assert f1 == f2
+
+    f3 = Filter().eq("some_field", "a").is_in("some_field", ["b", "c"])
+    f4 = Filter().eq("some_field", "a").eq("some_field", "c").eq("some_field", "b")
+    assert f3 == f4
+
+
+def test_search_filter_unhashable() -> None:
+    with pytest.raises(TypeError):
+        hash(Filter().eq("some_field", "a"))
+
+
+def test_empty_filter() -> None:
+    with pytest.raises(InvalidFilterError):
+        assert Filter().render()
+
+
+#
+# canned filter helpers
+#
+
+
+def test_subscription_label_filter() -> None:
+    from qontract_utils.ocm_api.search_filters import subscription_label_filter
+
+    assert subscription_label_filter().render() == "type='Subscription'"
+
+
+def test_organization_label_filter() -> None:
+    from qontract_utils.ocm_api.search_filters import organization_label_filter
+
+    assert organization_label_filter().render() == "type='Organization'"
+
+
+def test_build_subscription_filter() -> None:
+    from qontract_utils.ocm_api.search_filters import (
+        ACTIVE_SUBSCRIPTION_STATES,
+        build_subscription_filter,
+    )
+
+    rendered = build_subscription_filter(
+        states=ACTIVE_SUBSCRIPTION_STATES, managed=True
+    ).render()
+    assert rendered == "managed='true' and status in ('Active','Reserved')"
+
+
+def test_cluster_ready_for_app_interface() -> None:
+    from qontract_utils.ocm_api.search_filters import cluster_ready_for_app_interface
+
+    rendered = cluster_ready_for_app_interface().render()
+    assert (
+        rendered == "managed='true' and product.id in ('osd','rosa') and state='ready'"
+    )

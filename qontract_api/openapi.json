@@ -2120,6 +2120,26 @@
         "title": "HealthStatus",
         "type": "object"
       },
+      "KeycloakInstanceSecret": {
+        "description": "A Keycloak instance's issuer URL + the Vault location of its IAT secret.\n\nThe Vault secret itself does not carry the issuer URL (see KeycloakInstanceIat),\nso the client must supply it explicitly alongside the secret reference.",
+        "properties": {
+          "secret": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Vault reference to the instance's initial-access-token secret"
+          },
+          "url": {
+            "description": "Keycloak realm base URL (issuer)",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "secret"
+        ],
+        "title": "KeycloakInstanceSecret",
+        "type": "object"
+      },
       "LdapDirectSecret": {
         "description": "VaultSecret reference for FreeIPA direct LDAP access.\n\nThe referenced Vault path must contain bind_dn and bind_password fields.\nNo plain credentials are transmitted via API -- only Vault path references.\n\nAttributes:\n    server_url: LDAP server URL (e.g., \"ldap://freeipa.example.com\")\n    base_dn: Base DN for LDAP searches (e.g., \"dc=example,dc=com\")\n    (inherited) secret_manager_url, path, field, version: Vault secret ref",
         "properties": {
@@ -2276,6 +2296,73 @@
           "message"
         ],
         "title": "NotificationRemoveUser",
+        "type": "object"
+      },
+      "OcmClusterInfo": {
+        "description": "A single OCM cluster matching label_key_prefix, with merged labels.\n\nlabels is the flat, merged view of subscription-level and\norganization-level labels whose key starts with label_key_prefix\n(subscription-level labels win on key collisions). Label *interpretation*\nis left entirely to the caller.",
+        "properties": {
+          "console_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cluster console URL",
+            "title": "Console Url"
+          },
+          "external_auth_enabled": {
+            "default": false,
+            "description": "Whether external auth is enabled on the cluster",
+            "title": "External Auth Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "OCM cluster id",
+            "title": "Id",
+            "type": "string"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Merged subscription+organization labels matching label_key_prefix",
+            "title": "Labels",
+            "type": "object"
+          },
+          "name": {
+            "description": "Cluster name",
+            "title": "Name",
+            "type": "string"
+          },
+          "organization_id": {
+            "description": "OCM organization id",
+            "title": "Organization Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "organization_id"
+        ],
+        "title": "OcmClusterInfo",
+        "type": "object"
+      },
+      "OcmClustersResponse": {
+        "description": "Response model for the cluster discovery endpoint.",
+        "properties": {
+          "clusters": {
+            "items": {
+              "$ref": "#/components/schemas/OcmClusterInfo"
+            },
+            "title": "Clusters",
+            "type": "array"
+          }
+        },
+        "title": "OcmClustersResponse",
         "type": "object"
       },
       "OpenShiftNamespacesReconcileRequest": {
@@ -2906,6 +2993,282 @@
         "title": "SlackWorkspace",
         "type": "object"
       },
+      "SsoClientActionCreate": {
+        "description": "Action: register a new SSO client with Keycloak and store its secret.",
+        "properties": {
+          "action_type": {
+            "const": "create",
+            "default": "create",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "auth_name": {
+            "description": "Auth name",
+            "title": "Auth Name",
+            "type": "string"
+          },
+          "cluster_name": {
+            "description": "Cluster name",
+            "title": "Cluster Name",
+            "type": "string"
+          },
+          "sso_client_id": {
+            "description": "Vault secret id / Keycloak client id",
+            "title": "Sso Client Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sso_client_id",
+          "cluster_name",
+          "auth_name"
+        ],
+        "title": "SsoClientActionCreate",
+        "type": "object"
+      },
+      "SsoClientActionDelete": {
+        "description": "Action: delete an SSO client from Keycloak and remove its stored secret.",
+        "properties": {
+          "action_type": {
+            "const": "delete",
+            "default": "delete",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "sso_client_id": {
+            "description": "Vault secret id / Keycloak client id",
+            "title": "Sso Client Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sso_client_id"
+        ],
+        "title": "SsoClientActionDelete",
+        "type": "object"
+      },
+      "SsoClientAuth": {
+        "description": "Authentication configuration for a cluster's SSO client.",
+        "properties": {
+          "group_filter_regex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional group filter regex for the SSO client",
+            "title": "Group Filter Regex"
+          },
+          "issuer": {
+            "description": "Keycloak instance URL (routes to the matching KeycloakApi)",
+            "title": "Issuer",
+            "type": "string"
+          },
+          "name": {
+            "description": "Auth name, must match the redirect URL",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "issuer"
+        ],
+        "title": "SsoClientAuth",
+        "type": "object"
+      },
+      "SsoClientCluster": {
+        "description": "A single cluster considered for RHIDP, as compiled client-side from OCM labels.\n\nSent for ALL rhidp-labeled clusters (not just enabled ones) so the backend can\nexpose the rhidp_managed_clusters metric (all discovered clusters per org,\nregardless of status) while only reconciling rhidp_enabled ones.",
+        "properties": {
+          "auth": {
+            "$ref": "#/components/schemas/SsoClientAuth",
+            "description": "SSO client auth configuration"
+          },
+          "console_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cluster console URL",
+            "title": "Console Url"
+          },
+          "name": {
+            "description": "Cluster name",
+            "title": "Name",
+            "type": "string"
+          },
+          "organization_id": {
+            "description": "OCM organization id",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "rhidp_enabled": {
+            "description": "Whether this cluster should have an SSO client reconciled",
+            "title": "Rhidp Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "organization_id",
+          "rhidp_enabled",
+          "auth"
+        ],
+        "title": "SsoClientCluster",
+        "type": "object"
+      },
+      "SsoClientReconcileRequest": {
+        "description": "Request model for RHIDP SSO client reconciliation.\n\nPOST requests always queue a background task (async execution).",
+        "properties": {
+          "clusters": {
+            "description": "All RHIDP-labeled clusters discovered for this environment",
+            "items": {
+              "$ref": "#/components/schemas/SsoClientCluster"
+            },
+            "title": "Clusters",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "keycloak_secrets": {
+            "description": "One entry per Keycloak instance (issuer URL + its Vault IAT secret reference)",
+            "items": {
+              "$ref": "#/components/schemas/KeycloakInstanceSecret"
+            },
+            "title": "Keycloak Secrets",
+            "type": "array"
+          },
+          "ocm_environment": {
+            "description": "OCM environment name (metric label only)",
+            "title": "Ocm Environment",
+            "type": "string"
+          },
+          "vault_target": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Vault location to store/list/delete SSO client secrets under (field/version unused)"
+          }
+        },
+        "required": [
+          "ocm_environment",
+          "clusters",
+          "keycloak_secrets",
+          "vault_target"
+        ],
+        "title": "SsoClientReconcileRequest",
+        "type": "object"
+      },
+      "SsoClientTaskResponse": {
+        "description": "Response model for POST /reconcile endpoint.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "SsoClientTaskResponse",
+        "type": "object"
+      },
+      "SsoClientTaskResult": {
+        "description": "Result model for a completed reconciliation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "All actions calculated (desired - current), including any that failed to apply.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create": "#/components/schemas/SsoClientActionCreate",
+                  "delete": "#/components/schemas/SsoClientActionDelete"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SsoClientActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/SsoClientActionDelete"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (non-dry-run only).",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create": "#/components/schemas/SsoClientActionCreate",
+                  "delete": "#/components/schemas/SsoClientActionDelete"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SsoClientActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/SsoClientActionDelete"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "SsoClientTaskResult",
+        "type": "object"
+      },
       "TaskStatus": {
         "description": "Status for background tasks.\n\nUsed across all async API endpoints to indicate task execution state.",
         "enum": [
@@ -3014,6 +3377,158 @@
           }
         ],
         "summary": "Check Users Exist",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/ocm/clusters": {
+      "get": {
+        "description": "Discover OCM clusters with subscription/organization labels matching a prefix.\n\nReturns raw cluster info plus a flat dict of matching labels, merged with\nsubscription-level labels winning over organization-level labels on key\ncollisions. Label *interpretation* is left entirely to the caller. Results\nare cached (TTL configured in settings).",
+        "operationId": "ocm-clusters",
+        "parameters": [
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "OCM environment base URL",
+            "in": "query",
+            "name": "ocm_url",
+            "required": true,
+            "schema": {
+              "description": "OCM environment base URL",
+              "title": "Ocm Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "OAuth2 token endpoint (client-credentials grant)",
+            "in": "query",
+            "name": "access_token_url",
+            "required": true,
+            "schema": {
+              "description": "OAuth2 token endpoint (client-credentials grant)",
+              "title": "Access Token Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "OAuth2 client id",
+            "in": "query",
+            "name": "access_token_client_id",
+            "required": true,
+            "schema": {
+              "description": "OAuth2 client id",
+              "title": "Access Token Client Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Subscription/organization label key prefix to search for (e.g. 'sre-capabilities.rhidp'); matched with a trailing '%' wildcard",
+            "in": "query",
+            "name": "label_key_prefix",
+            "required": true,
+            "schema": {
+              "description": "Subscription/organization label key prefix to search for (e.g. 'sre-capabilities.rhidp'); matched with a trailing '%' wildcard",
+              "title": "Label Key Prefix",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional list of organization ids to restrict results to. Omit to include all matching organizations.",
+            "in": "query",
+            "name": "org_ids",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of organization ids to restrict results to. Omit to include all matching organizations.",
+              "title": "Org Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OcmClustersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Clusters",
         "tags": [
           "external"
         ]
@@ -3999,6 +4514,101 @@
           }
         ],
         "summary": "Slack Usergroups Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/sso-client/reconcile": {
+      "post": {
+        "description": "Queue RHIDP SSO client reconciliation task.\n\nThis endpoint always queues a background task and returns immediately with a\ntask_id. Use GET /reconcile/{task_id} to retrieve the result.",
+        "operationId": "sso-client",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SsoClientReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoClientTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sso Client",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/sso-client/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation result (blocking or non-blocking).",
+        "operationId": "sso-client-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoClientTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sso Client Task Status",
         "tags": [
           "integrations"
         ]

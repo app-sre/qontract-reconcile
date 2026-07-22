@@ -15,6 +15,7 @@ from qontract_api.integrations.openshift_namespaces import (
     router as openshift_namespaces_router,
 )
 from qontract_api.integrations.slack_usergroups import router as slack_usergroups_router
+from qontract_api.integrations.sso_client import router as sso_client_router
 
 # Create integrations router
 integrations_router = APIRouter(
@@ -28,6 +29,7 @@ integrations_router.include_router(glitchtip_project_alerts_router.router)
 integrations_router.include_router(github_owners_router.router)
 integrations_router.include_router(glitchtip_router.router)
 integrations_router.include_router(openshift_namespaces_router.router)
+integrations_router.include_router(sso_client_router.router)
 
 # Future integrations will be added here:
 # - AWS RDS reboot
