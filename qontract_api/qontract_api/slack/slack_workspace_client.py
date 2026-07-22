@@ -39,10 +39,11 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Matches "@handle" tokens not preceded by a non-whitespace character, so it
-# skips things like "user@example.com" while still catching "@handle" at the
-# start of a message or after whitespace/punctuation.
-_MENTION_PATTERN = re.compile(r"(?<!\S)@([\w-]+)")
+# Matches "@handle" tokens not preceded by a word character, so it skips
+# embedded handles like "user@example.com" (preceded by "r") while still
+# catching "@handle" at the start of a message, after whitespace, or after
+# punctuation (e.g. "(@handle)", "alert:@handle").
+_MENTION_PATTERN = re.compile(r"(?<!\w)@([\w-]+)")
 
 
 @runtime_checkable

@@ -803,6 +803,19 @@ def test_resolve_mentions_does_not_match_email_addresses(
     assert result == "contact jsmith@x.com for help"
 
 
+def test_resolve_mentions_punctuation_prefixed(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """A "@handle" preceded by punctuation (not a word character) is resolved."""
+    _mock_usergroups_and_users(
+        mock_cache,
+        usergroups=[SlackUsergroup(id="UG1", handle="oncall-team", name="On-Call")],
+    )
+
+    assert client._resolve_mentions("(@oncall-team)") == "(<!subteam^UG1>)"
+    assert client._resolve_mentions("alert:@oncall-team") == "alert:<!subteam^UG1>"
+
+
 def test_resolve_mentions_multiple_in_one_message(
     client: SlackWorkspaceClient, mock_cache: MagicMock
 ) -> None:
