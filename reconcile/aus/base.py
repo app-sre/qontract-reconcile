@@ -1180,9 +1180,7 @@ def _get_available_channels(
         return cache[version_id]
     try:
         data = ocm_api.get(api_path=build_cluster_url(cluster_id))
-        channels = set(
-            (data.get("version") or {}).get("available_channels") or []
-        )
+        channels = set((data.get("version") or {}).get("available_channels") or [])
     except HTTPError as e:
         detail = e.response.text if e.response is not None else ""
         logging.warning(
