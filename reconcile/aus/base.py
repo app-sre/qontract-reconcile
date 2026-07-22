@@ -88,6 +88,7 @@ from reconcile.utils.ocm.clusters import (
 )
 from reconcile.utils.ocm.upgrades import (
     OCMVersionGate,
+    build_cluster_url,
     create_control_plane_upgrade_policy,
     create_node_pool_upgrade_policy,
     create_upgrade_policy,
@@ -1162,25 +1163,29 @@ class ChannelSwitchAction(BaseModel):
 
 def _get_available_channels(
     ocm_api: OCMBaseClient,
+    cluster_id: str,
     version_id: str,
     cache: dict[str, set[str]],
 ) -> set[str]:
-    """Fetch available_channels from the versions API, cached by version ID.
+    """Fetch available_channels via individual cluster GET, cached by version ID.
 
-    The cluster list API omits available_channels (OCM-24287), so we fetch
-    from /api/clusters_mgmt/v1/versions/{version_id} instead. Since
-    available_channels is a property of the version (not the cluster),
-    multiple clusters on the same version share one API call.
+    The cluster list API omits available_channels (OCM-24287) and the
+    versions API returns 403 for org-less service accounts on non-stable
+    channel groups.  Individual cluster GET populates
+    version.available_channels without the 403 restriction.  Results are
+    cached by version_id so only the first cluster per version pays an
+    API call.
     """
     if version_id in cache:
         return cache[version_id]
     try:
-        data = ocm_api.get(api_path=f"/api/clusters_mgmt/v1/versions/{version_id}")
-        channels = set(data.get("available_channels") or [])
+        data = ocm_api.get(api_path=build_cluster_url(cluster_id))
+        channels = set((data.get("version") or {}).get("available_channels") or [])
     except HTTPError as e:
         detail = e.response.text if e.response is not None else ""
         logging.warning(
-            f"failed to fetch available_channels for version {version_id}: {e}: {detail}"
+            f"failed to fetch available_channels for cluster {cluster_id} "
+            f"(version {version_id}): {e}: {detail}"
         )
         channels = set()
     cache[version_id] = channels
@@ -1230,7 +1235,7 @@ def _try_channel_switch(
     available_channels = set(
         spec.cluster.version.available_channels
     ) or _get_available_channels(
-        ocm_api, spec.cluster.version.id, available_channels_cache
+        ocm_api, spec.cluster.id, spec.cluster.version.id, available_channels_cache
     )
     channel_switch = check_y_stream_channel_switch_needed(spec, available_channels)
     if channel_switch:
@@ -1440,6 +1445,16 @@ def act_channel_switches(
             update_cluster_channel(ocm_api, switch.cluster.id, switch.to_channel)
         except HTTPError as e:
             detail = e.response.text if e.response is not None else ""
+            if (
+                e.response is not None
+                and e.response.status_code == 400
+                and "could not locate organization" in detail.lower()
+            ):
+                # OCM returns 400 for org-less service accounts (ROSAENG-62340)
+                logging.warning(
+                    f"{switch.cluster.name}: channel switch failed: {e}: {detail}"
+                )
+                continue
             logging.error(
                 f"{switch.cluster.name}: channel switch failed: {e}: {detail}"
             )

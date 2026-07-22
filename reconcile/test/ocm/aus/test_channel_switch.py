@@ -154,24 +154,28 @@ def test_check_y1_blocked_still_switches() -> None:
 # --- _get_available_channels tests ---
 
 
-def test_get_available_channels_from_versions_api() -> None:
+def test_get_available_channels_from_cluster_api() -> None:
     ocm_api = MagicMock()
     ocm_api.get.return_value = {
-        "available_channels": ["stable-4.20", "stable-4.21"],
+        "version": {
+            "available_channels": ["stable-4.20", "stable-4.21"],
+        },
     }
     cache: dict[str, set[str]] = {}
-    result = aus_base._get_available_channels(ocm_api, "openshift-v4.20.10", cache)
-    assert result == {"stable-4.20", "stable-4.21"}
-    ocm_api.get.assert_called_once_with(
-        api_path="/api/clusters_mgmt/v1/versions/openshift-v4.20.10"
+    result = aus_base._get_available_channels(
+        ocm_api, "c1_id", "openshift-v4.20.10", cache
     )
+    assert result == {"stable-4.20", "stable-4.21"}
+    ocm_api.get.assert_called_once_with(api_path="/api/clusters_mgmt/v1/clusters/c1_id")
     assert cache["openshift-v4.20.10"] == {"stable-4.20", "stable-4.21"}
 
 
 def test_get_available_channels_cache_hit() -> None:
     ocm_api = MagicMock()
     cache = {"openshift-v4.20.10": {"stable-4.20", "stable-4.21"}}
-    result = aus_base._get_available_channels(ocm_api, "openshift-v4.20.10", cache)
+    result = aus_base._get_available_channels(
+        ocm_api, "c1_id", "openshift-v4.20.10", cache
+    )
     assert result == {"stable-4.20", "stable-4.21"}
     ocm_api.get.assert_not_called()
 
@@ -182,7 +186,9 @@ def test_get_available_channels_http_error() -> None:
     response.text = "not found"
     ocm_api.get.side_effect = HTTPError(response=response)
     cache: dict[str, set[str]] = {}
-    result = aus_base._get_available_channels(ocm_api, "openshift-v4.20.10", cache)
+    result = aus_base._get_available_channels(
+        ocm_api, "c1_id", "openshift-v4.20.10", cache
+    )
     assert result == set()
     assert cache["openshift-v4.20.10"] == set()
 
@@ -201,7 +207,7 @@ def test_try_channel_switch_skips_addon() -> None:
     assert switches == []
 
 
-def test_try_channel_switch_uses_versions_api_fallback() -> None:
+def test_try_channel_switch_uses_cluster_get_fallback() -> None:
     spec = build_cluster_upgrade_spec(
         name="c1",
         current_version="4.20.10",
@@ -209,7 +215,9 @@ def test_try_channel_switch_uses_versions_api_fallback() -> None:
     )
     ocm_api = MagicMock()
     ocm_api.get.return_value = {
-        "available_channels": ["stable-4.20", "stable-4.21"],
+        "version": {
+            "available_channels": ["stable-4.20", "stable-4.21"],
+        },
     }
     switches: list[ChannelSwitchAction] = []
     cache: dict[str, set[str]] = {}
@@ -272,11 +280,41 @@ def test_act_success_emits_gauge(
 
 @patch("reconcile.aus.base.update_cluster_channel")
 @patch("reconcile.aus.base.metrics")
-def test_act_http_error_skips_gauge_continues(
+def test_act_http_400_warns_and_continues(
     mock_metrics: MagicMock, mock_update: MagicMock
 ) -> None:
     response = MagicMock()
-    response.text = "error"
+    response.text = "Could not locate organization id"
+    response.status_code = 400
+    mock_update.side_effect = HTTPError(response=response)
+    cluster1 = build_ocm_cluster(name="c1", version="4.20.10", channel="stable-4.20")
+    cluster2 = build_ocm_cluster(name="c2", version="4.20.10", channel="stable-4.20")
+    switches = [
+        ChannelSwitchAction(
+            cluster=c,
+            from_channel="stable-4.20",
+            to_channel="stable-4.21",
+            org_id="org1",
+        )
+        for c in [cluster1, cluster2]
+    ]
+    act_channel_switches(
+        dry_run=False,
+        channel_switches=switches,
+        ocm_api=MagicMock(),
+    )
+    assert mock_update.call_count == 2
+    mock_metrics.set_gauge.assert_not_called()
+
+
+@patch("reconcile.aus.base.update_cluster_channel")
+@patch("reconcile.aus.base.metrics")
+def test_act_http_non_400_error_raises(
+    mock_metrics: MagicMock, mock_update: MagicMock
+) -> None:
+    response = MagicMock()
+    response.text = "forbidden"
+    response.status_code = 403
     mock_update.side_effect = HTTPError(response=response)
     cluster1 = build_ocm_cluster(name="c1", version="4.20.10", channel="stable-4.20")
     cluster2 = build_ocm_cluster(name="c2", version="4.20.10", channel="stable-4.20")
@@ -297,4 +335,31 @@ def test_act_http_error_skips_gauge_continues(
         )
     assert mock_update.call_count == 2
     assert len(exc_info.value.exceptions) == 2
+    mock_metrics.set_gauge.assert_not_called()
+
+
+@patch("reconcile.aus.base.update_cluster_channel")
+@patch("reconcile.aus.base.metrics")
+def test_act_http_400_unrelated_error_raises(
+    mock_metrics: MagicMock, mock_update: MagicMock
+) -> None:
+    response = MagicMock()
+    response.text = "invalid channel name"
+    response.status_code = 400
+    mock_update.side_effect = HTTPError(response=response)
+    cluster1 = build_ocm_cluster(name="c1", version="4.20.10", channel="stable-4.20")
+    switches = [
+        ChannelSwitchAction(
+            cluster=cluster1,
+            from_channel="stable-4.20",
+            to_channel="stable-4.21",
+            org_id="org1",
+        )
+    ]
+    with pytest.raises(ExceptionGroup, match="Channel switch errors"):
+        act_channel_switches(
+            dry_run=False,
+            channel_switches=switches,
+            ocm_api=MagicMock(),
+        )
     mock_metrics.set_gauge.assert_not_called()
