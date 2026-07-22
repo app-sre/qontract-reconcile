@@ -539,6 +539,188 @@ class TestBuildImages:
         assert source.password is None
 
 
+class TestImageClassParameter:
+    """The engine accepts an image_class parameter so callers can pass
+    InstrumentedImage (or any Image subclass) instead of the default."""
+
+    def test_uses_provided_image_class(self) -> None:
+        """When image_class is provided, _build_images should construct
+        instances of that class instead of sretoolbox's Image."""
+
+        class FakeImage:
+            def __init__(self, url: str, **kwargs: object) -> None:
+                self.url = url
+                self.kwargs = kwargs
+
+        engine = MirrorEngine(
+            skopeo=MagicMock(),
+            dry_run=False,
+            is_deep_sync=False,
+            image_class=FakeImage,
+        )
+        spec = _make_spec(
+            source_creds="user:pass",
+            destination_creds="dst:pass",
+        )
+
+        source, dest = engine._build_images(spec)
+
+        assert isinstance(source, FakeImage)
+        assert isinstance(dest, FakeImage)
+
+    def test_default_image_class_uses_sretoolbox(self) -> None:
+        """When image_class is None (default), _build_images should
+        use sretoolbox's Image."""
+        engine = MirrorEngine(skopeo=MagicMock(), dry_run=False, is_deep_sync=False)
+        spec = _make_spec(
+            source_creds="user:pass",
+            destination_creds="dst:pass",
+        )
+
+        source, dest = engine._build_images(spec)
+
+        from sretoolbox.container import Image
+
+        assert isinstance(source, Image)
+        assert isinstance(dest, Image)
+
+
+class TestResponseCacheParameter:
+    """The engine accepts a shared response_cache dict so that manifest
+    fetches are deduplicated across repos within a single sync run."""
+
+    def test_cache_passed_to_image_constructor(self) -> None:
+        """When response_cache is provided, it should be forwarded to
+        each Image constructor as a keyword argument."""
+        cache: dict = {}
+        calls: list[dict] = []
+
+        class SpyImage:
+            def __init__(self, url: str, **kwargs: object) -> None:
+                calls.append(kwargs)
+
+        engine = MirrorEngine(
+            skopeo=MagicMock(),
+            image_class=SpyImage,
+            response_cache=cache,
+        )
+        spec = _make_spec(
+            source_creds="user:pass",
+            destination_creds="dst:pass",
+        )
+
+        engine._build_images(spec)
+
+        # Both source and destination Image should receive the cache.
+        assert len(calls) == 2
+        assert calls[0]["response_cache"] is cache
+        assert calls[1]["response_cache"] is cache
+
+    def test_no_cache_when_not_provided(self) -> None:
+        """When response_cache is None, the keyword should not be
+        passed to Image constructors."""
+        calls: list[dict] = []
+
+        class SpyImage:
+            def __init__(self, url: str, **kwargs: object) -> None:
+                calls.append(kwargs)
+
+        engine = MirrorEngine(
+            skopeo=MagicMock(),
+            image_class=SpyImage,
+        )
+        spec = _make_spec(
+            source_creds="user:pass",
+            destination_creds="dst:pass",
+        )
+
+        engine._build_images(spec)
+
+        assert "response_cache" not in calls[0]
+        assert "response_cache" not in calls[1]
+
+
+class TestSessionParameter:
+    """The engine accepts a shared requests.Session for TCP connection
+    pooling across Image instances."""
+
+    def test_session_passed_to_image_constructor(self) -> None:
+        """When session is provided, it should be forwarded to each
+        Image constructor."""
+        session = MagicMock()
+        calls: list[dict] = []
+
+        class SpyImage:
+            def __init__(self, url: str, **kwargs: object) -> None:
+                calls.append(kwargs)
+
+        engine = MirrorEngine(
+            skopeo=MagicMock(),
+            image_class=SpyImage,
+            session=session,
+        )
+        spec = _make_spec(
+            source_creds="user:pass",
+            destination_creds="dst:pass",
+        )
+
+        engine._build_images(spec)
+
+        assert calls[0]["session"] is session
+        assert calls[1]["session"] is session
+
+    def test_no_session_when_not_provided(self) -> None:
+        """When session is None, the keyword should not be passed."""
+        calls: list[dict] = []
+
+        class SpyImage:
+            def __init__(self, url: str, **kwargs: object) -> None:
+                calls.append(kwargs)
+
+        engine = MirrorEngine(
+            skopeo=MagicMock(),
+            image_class=SpyImage,
+        )
+        spec = _make_spec(
+            source_creds="user:pass",
+            destination_creds="dst:pass",
+        )
+
+        engine._build_images(spec)
+
+        assert "session" not in calls[0]
+        assert "session" not in calls[1]
+
+    def test_cache_and_session_combined(self) -> None:
+        """When both response_cache and session are provided, both
+        should be forwarded together."""
+        cache: dict = {}
+        session = MagicMock()
+        calls: list[dict] = []
+
+        class SpyImage:
+            def __init__(self, url: str, **kwargs: object) -> None:
+                calls.append(kwargs)
+
+        engine = MirrorEngine(
+            skopeo=MagicMock(),
+            image_class=SpyImage,
+            response_cache=cache,
+            session=session,
+        )
+        spec = _make_spec(
+            source_creds="user:pass",
+            destination_creds="dst:pass",
+        )
+
+        engine._build_images(spec)
+
+        assert calls[0]["response_cache"] is cache
+        assert calls[0]["session"] is session
+        assert calls[1]["response_cache"] is cache
+        assert calls[1]["session"] is session
+
+
 class TestDeepSyncCopyAfterContainsError:
     """Verify the copy in the deep sync path (not the missing-tag path)
     is exercised when ImageContainsError triggers a re-mirror."""
