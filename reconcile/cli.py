@@ -3200,6 +3200,66 @@ def gitlab_fork_compliance(
 
 
 @integration.command(
+    short_help="Triggers release-confidence-score analysis on /rcs analyze MR comments."
+)
+@click.argument("gitlab-project-id")
+@click.argument("gitlab-merge-request-id")
+@click.option(
+    "--comparison-sha",
+    help="bundle sha to compare to to find changed component refs",
+    required=True,
+)
+@click.option(
+    "--job-controller-cluster",
+    help="The cluster holding the job-controller namespace",
+    required=True,
+    envvar="JOB_CONTROLLER_CLUSTER",
+)
+@click.option(
+    "--job-controller-namespace",
+    help="The namespace used to run RCS analysis jobs",
+    required=True,
+    envvar="JOB_CONTROLLER_NAMESPACE",
+)
+@click.option(
+    "--rcs-job-image",
+    help="The release-confidence-score container image to run",
+    required=True,
+    envvar="RCS_JOB_IMAGE",
+)
+@click.option(
+    "--rcs-secrets-path",
+    help="Vault path holding the RCS_* secrets passed to the RCS container",
+    required=True,
+    envvar="RCS_SECRETS_PATH",
+)
+@click.pass_context
+def rcs_analyze_trigger(
+    ctx: click.Context,
+    gitlab_project_id: str,
+    gitlab_merge_request_id: str,
+    comparison_sha: str,
+    job_controller_cluster: str,
+    job_controller_namespace: str,
+    rcs_job_image: str,
+    rcs_secrets_path: str,
+) -> None:
+    import reconcile.rcs_analyze_trigger
+
+    run_integration(
+        reconcile.rcs_analyze_trigger,
+        ctx,
+        gitlab_project_id,
+        gitlab_merge_request_id,
+        comparison_sha,
+        job_controller_cluster,
+        job_controller_namespace,
+        rcs_job_image,
+        rcs_secrets_path,
+    )
+
+
+@integration.command(
     short_help="Collects the DeploymentValidations from all the clusters "
     "and posts them to Dashdotdb."
 )
