@@ -1445,6 +1445,12 @@ def act_channel_switches(
             update_cluster_channel(ocm_api, switch.cluster.id, switch.to_channel)
         except HTTPError as e:
             detail = e.response.text if e.response is not None else ""
+            if e.response is not None and e.response.status_code == 400:
+                # OCM returns 400 for org-less service accounts (ROSAENG-62340)
+                logging.warning(
+                    f"{switch.cluster.name}: channel switch failed: {e}: {detail}"
+                )
+                continue
             logging.error(
                 f"{switch.cluster.name}: channel switch failed: {e}: {detail}"
             )
