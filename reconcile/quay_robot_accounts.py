@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from qontract_utils.differ import diff_mappings
+
 from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
     QuayRobotV1,
     query,
@@ -234,27 +236,33 @@ def calculate_diff(
             ])
 
             # Check repository permission differences
-            desired_repos = set(desired.repositories.keys())
-            current_repos = set(current.repositories.keys())
+            repo_diff = diff_mappings(current.repositories, desired.repositories)
 
-            # Repositories to add or update permissions
-            actions.extend(
-                RobotAccountAction(
-                    action=RobotAccountActionType.SET_REPO_PERMISSION,
-                    robot_name=desired.name,
-                    org_name=desired.org_name,
-                    instance_name=desired.instance_name,
-                    repo=repo,
-                    permission=desired.repositories[repo],
+            for repo, role in repo_diff.add.items():
+                actions.append(
+                    RobotAccountAction(
+                        action=RobotAccountActionType.SET_REPO_PERMISSION,
+                        robot_name=desired.name,
+                        org_name=desired.org_name,
+                        instance_name=desired.instance_name,
+                        repo=repo,
+                        permission=role,
+                    )
                 )
-                for repo in desired_repos
-                if repo not in current_repos
-                or desired.repositories[repo] != current.repositories.get(repo)
-            )
 
-            # Repositories to remove permissions from
-            repos_to_remove = current_repos - desired_repos
-            actions.extend([
+            for repo, pair in repo_diff.change.items():
+                actions.append(
+                    RobotAccountAction(
+                        action=RobotAccountActionType.SET_REPO_PERMISSION,
+                        robot_name=desired.name,
+                        org_name=desired.org_name,
+                        instance_name=desired.instance_name,
+                        repo=repo,
+                        permission=pair.desired,
+                    )
+                )
+
+            actions.extend(
                 RobotAccountAction(
                     action=RobotAccountActionType.REMOVE_REPO_PERMISSION,
                     robot_name=desired.name,
@@ -262,8 +270,8 @@ def calculate_diff(
                     instance_name=desired.instance_name,
                     repo=repo,
                 )
-                for repo in repos_to_remove
-            ])
+                for repo in repo_diff.delete
+            )
 
     # Robots in current state but not in desired state are intentionally ignored —
     # they may be managed outside of app-interface. Use delete: true to explicitly
