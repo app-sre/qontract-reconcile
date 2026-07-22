@@ -18,7 +18,7 @@ import logging
 import sys
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import BaseModel
 from qontract_api_client.client import (
@@ -85,6 +85,20 @@ if TYPE_CHECKING:
 QONTRACT_INTEGRATION = "slack-usergroups-api"
 INTEGRATION_VERSION = "0.1.0"
 DATE_FORMAT = "%Y-%m-%d %H:%M"
+
+
+class _UserWithSlackIdentity(Protocol):
+    org_username: str
+    gov_slack_username: str | None
+
+
+def slack_username(user: _UserWithSlackIdentity) -> str:
+    """Return the Slack identity for an app-interface user.
+
+    Prefer gov_slack_username when set (gov Slack email local-part), otherwise
+    fall back to org_username (commercial Slack / LDAP).
+    """
+    return user.gov_slack_username or user.org_username
 
 
 class SlackWorkspace(BaseModel, arbitrary_types_allowed=True):
@@ -210,7 +224,7 @@ class SlackUsergroupsIntegration(
             start = ensure_utc(datetime.strptime(entry.start, DATE_FORMAT))  # noqa: DTZ007
             end = ensure_utc(datetime.strptime(entry.end, DATE_FORMAT))  # noqa: DTZ007
             if start <= now <= end:
-                all_usernames.extend(u.org_username for u in entry.users)
+                all_usernames.extend(slack_username(u) for u in entry.users)
         return all_usernames
 
     @staticmethod
@@ -224,7 +238,9 @@ class SlackUsergroupsIntegration(
             List of usernames from roles
         """
 
-        return [user.org_username for role in roles or [] for user in role.users or []]
+        return [
+            slack_username(user) for role in roles or [] for user in role.users or []
+        ]
 
     async def fetch_owners(
         self,
@@ -260,7 +276,7 @@ class SlackUsergroupsIntegration(
             if org_username and org_username in users_map:
                 user = users_map[org_username]
                 if user.tag_on_merge_requests is not False:
-                    result.append(user.org_username)
+                    result.append(slack_username(user))
         return result
 
     async def compile_users_from_git_owners(
@@ -549,7 +565,7 @@ class SlackUsergroupsIntegration(
                     continue
 
                 cluster_users.setdefault(cluster_name, set()).update([
-                    user.org_username
+                    slack_username(user)
                     for user in role.users
                     if self.include_user_to_cluster_usergroup(user, role)
                 ])
