@@ -66,7 +66,13 @@ class SlackApi:
 
     def chat_post_message(self, text: str) -> None:
         """
-        Send a chat message into a channel via qontract-api.
+        Queue a chat message to be sent into a channel via qontract-api.
+
+        Fire-and-forget: qontract-api queues the actual send on a background
+        worker (see ADR-003) and this returns as soon as it's queued, without
+        waiting for the message to actually be delivered. There's nothing
+        useful a caller could do about a failed send anyway (e.g. Slack rate
+        limits) — the task result isn't checked.
 
         :param text: message to send to channel
         :raises ValueError: when Slack channel wasn't provided

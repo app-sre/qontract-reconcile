@@ -4,7 +4,7 @@ from typing import Self
 
 from pydantic import BaseModel, Field, model_validator
 
-from qontract_api.models import Secret
+from qontract_api.models import Secret, TaskResult, TaskStatus
 
 
 class ChatRequest(BaseModel, frozen=True):
@@ -111,26 +111,41 @@ class ConversationsHistoryParams(Secret):
     )
 
 
-class ChatResponse(BaseModel, frozen=True):
-    """Response model for a posted Slack message.
+class ChatTaskResponse(BaseModel, frozen=True):
+    """Response model for POST /chat.
 
-    Immutable model returning the Slack API response fields.
-
-    Attributes:
-        ts: Message timestamp
-        channel: Channel ID where the message was posted
-        thread_ts: Thread timestamp if this was a threaded reply
+    Returned immediately when the send is queued. Contains task_id and
+    status_url for retrieving the result via GET request (see ADR-003).
     """
 
-    ts: str = Field(
-        ...,
-        description="Message timestamp",
+    id: str = Field(..., description="Task ID")
+    status: TaskStatus = Field(
+        default=TaskStatus.PENDING,
+        description="Task status (always 'pending' initially)",
     )
-    channel: str = Field(
-        ...,
-        description="Channel ID where the message was posted",
+    status_url: str = Field(
+        ..., description="URL to retrieve task result (GET request)"
+    )
+
+
+class ChatTaskResult(TaskResult, frozen=True):
+    """Result model for the chat-post-message background task.
+
+    Returned by GET /chat/{task_id}.
+    """
+
+    actions: list[str] = Field(
+        default=[],
+        description="Unused for this task — present only to satisfy the shared task-result protocol.",
+    )
+    ts: str | None = Field(
+        default=None, description="Message timestamp (set on success)"
+    )
+    channel: str | None = Field(
+        default=None,
+        description="Channel ID where the message was posted (set on success)",
     )
     thread_ts: str | None = Field(
         default=None,
-        description="Thread timestamp if this was a threaded reply",
+        description="Thread timestamp if this was a threaded reply (set on success)",
     )

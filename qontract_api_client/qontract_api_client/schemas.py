@@ -20,10 +20,20 @@ class ChatRequest(pydantic.BaseModel):
     workspace_name: str
 
 
-class ChatResponse(pydantic.BaseModel):
-    channel: str
+class ChatTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class ChatTaskResult(pydantic.BaseModel):
+    actions: list[str] = []
+    applied_count: int = 0
+    channel: str | None = None
+    errors: list[str] = []
+    status: TaskStatus
     thread_ts: str | None = None
-    ts: str
+    ts: str | None = None
 
 
 class ClusterNamespaces(pydantic.BaseModel):
