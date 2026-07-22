@@ -12,6 +12,7 @@ from sretoolbox.container.image import (
 )
 from sretoolbox.container.skopeo import SkopeoCmdError
 
+from reconcile.container_registry_mirror.deep_sync_timer import DeepSyncTimer
 from reconcile.container_registry_mirror.engine import MirrorEngine
 from reconcile.container_registry_mirror.mirror_spec import MirrorSpec
 
@@ -751,3 +752,124 @@ class TestDeepSyncCopyAfterContainsError:
             dst_image="quay.io/org/image:v1.0",
             dest_creds="push:pass",
         )
+
+
+class TestDeepSyncTimerIntegration:
+    """The engine should consult a DeepSyncTimer to decide whether
+    deep sync runs, and record the timestamp after success."""
+
+    def test_timer_determines_deep_sync(self) -> None:
+        """When a DeepSyncTimer is provided with should_run=True,
+        the engine's is_deep_sync should be True."""
+        timer = MagicMock(spec=DeepSyncTimer)
+        timer.should_run = True
+
+        engine = MirrorEngine(
+            skopeo=MagicMock(),
+            dry_run=False,
+            deep_sync_timer=timer,
+        )
+
+        assert engine.is_deep_sync is True
+
+    def test_timer_disables_deep_sync(self) -> None:
+        """When a DeepSyncTimer is provided with should_run=False,
+        the engine's is_deep_sync should be False."""
+        timer = MagicMock(spec=DeepSyncTimer)
+        timer.should_run = False
+
+        engine = MirrorEngine(
+            skopeo=MagicMock(),
+            dry_run=False,
+            deep_sync_timer=timer,
+        )
+
+        assert engine.is_deep_sync is False
+
+    def test_timer_overrides_is_deep_sync_bool(self) -> None:
+        """When both deep_sync_timer and is_deep_sync are provided,
+        the timer takes precedence."""
+        timer = MagicMock(spec=DeepSyncTimer)
+        timer.should_run = False
+
+        engine = MirrorEngine(
+            skopeo=MagicMock(),
+            dry_run=False,
+            is_deep_sync=True,
+            deep_sync_timer=timer,
+        )
+
+        assert engine.is_deep_sync is False
+
+
+class TestTimerRecordOnSuccess:
+    """The engine should record the timestamp only after a successful
+    deep sync (no errors, not dry-run)."""
+
+    def test_records_timestamp_after_successful_deep_sync(self) -> None:
+        timer = MagicMock(spec=DeepSyncTimer)
+        timer.should_run = True
+        skopeo = MagicMock()
+        engine = MirrorEngine(
+            skopeo=skopeo,
+            dry_run=False,
+            deep_sync_timer=timer,
+        )
+        spec = _make_spec()
+        source = _make_source_image(["v1.0"])
+        dest = _make_dest_image(set())
+
+        with patch.object(engine, "_build_images", return_value=(source, dest)):
+            engine.sync([spec])
+
+        timer.record.assert_called_once()
+
+    def test_does_not_record_in_dry_run(self) -> None:
+        timer = MagicMock(spec=DeepSyncTimer)
+        timer.should_run = True
+        engine = MirrorEngine(
+            skopeo=MagicMock(),
+            dry_run=True,
+            deep_sync_timer=timer,
+        )
+
+        engine.sync([])
+
+        timer.record.assert_not_called()
+
+    def test_does_not_record_when_not_deep_sync(self) -> None:
+        timer = MagicMock(spec=DeepSyncTimer)
+        timer.should_run = False
+        engine = MirrorEngine(
+            skopeo=MagicMock(),
+            dry_run=False,
+            deep_sync_timer=timer,
+        )
+
+        engine.sync([])
+
+        timer.record.assert_not_called()
+
+    def test_does_not_record_on_copy_failure(self) -> None:
+        """When copies fail, the ExceptionGroup should be raised
+        before the timestamp is recorded."""
+        timer = MagicMock(spec=DeepSyncTimer)
+        timer.should_run = True
+        skopeo = MagicMock()
+        skopeo.copy.side_effect = SkopeoCmdError("failed")
+        engine = MirrorEngine(
+            skopeo=skopeo,
+            dry_run=False,
+            deep_sync_timer=timer,
+        )
+        spec = _make_spec()
+        source = _make_source_image(["v1.0"])
+        dest = _make_dest_image(set())
+
+        with (
+            patch.object(engine, "_build_images", return_value=(source, dest)),
+            pytest.raises(ExceptionGroup),
+        ):
+            engine.sync([spec])
+
+        timer.record.assert_not_called()

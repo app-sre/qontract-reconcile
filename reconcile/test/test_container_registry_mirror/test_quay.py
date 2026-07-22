@@ -353,3 +353,58 @@ class TestGetPushCredsEdgeCases:
         mock_gql.get_api.return_value.query.return_value = None
         mirror = QuayMirror()
         assert mirror.push_creds == {}
+
+
+class TestDiscoverMirrorsSkipsPublicDockerHub:
+    """discover_mirrors should skip docker.io sources targeting public
+    Quay repos and log a MIRROR_BLOCKED message."""
+
+    def test_docker_to_public_skipped(
+        self,
+        quay_mirror: QuayMirror,
+        mock_queries: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """A docker.io source mirrored to a public Quay repo should
+        not produce a MirrorSpec, and should emit MIRROR_BLOCKED."""
+        mock_queries.get_quay_repos.return_value = _quay_repos_fixture(
+            mirror_url="docker.io/library/nginx",
+            public=True,
+        )
+
+        specs = quay_mirror.discover_mirrors()
+
+        assert len(specs) == 0
+        assert "[MIRROR_BLOCKED]" in caplog.text
+
+    def test_docker_to_private_not_skipped(
+        self,
+        quay_mirror: QuayMirror,
+        mock_queries: MagicMock,
+    ) -> None:
+        """A docker.io source mirrored to a private Quay repo should
+        produce a MirrorSpec normally."""
+        mock_queries.get_quay_repos.return_value = _quay_repos_fixture(
+            mirror_url="docker.io/library/nginx",
+            public=False,
+        )
+
+        specs = quay_mirror.discover_mirrors()
+
+        assert len(specs) == 1
+
+    def test_non_docker_to_public_not_skipped(
+        self,
+        quay_mirror: QuayMirror,
+        mock_queries: MagicMock,
+    ) -> None:
+        """A non-docker.io source to a public repo should not be
+        skipped (the block is docker.io-specific)."""
+        mock_queries.get_quay_repos.return_value = _quay_repos_fixture(
+            mirror_url="gcr.io/project/image",
+            public=True,
+        )
+
+        specs = quay_mirror.discover_mirrors()
+
+        assert len(specs) == 1
