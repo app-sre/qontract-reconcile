@@ -317,6 +317,37 @@ def test_act_http_non_400_error_raises(
     response.status_code = 403
     mock_update.side_effect = HTTPError(response=response)
     cluster1 = build_ocm_cluster(name="c1", version="4.20.10", channel="stable-4.20")
+    cluster2 = build_ocm_cluster(name="c2", version="4.20.10", channel="stable-4.20")
+    switches = [
+        ChannelSwitchAction(
+            cluster=c,
+            from_channel="stable-4.20",
+            to_channel="stable-4.21",
+            org_id="org1",
+        )
+        for c in [cluster1, cluster2]
+    ]
+    with pytest.raises(ExceptionGroup, match="Channel switch errors") as exc_info:
+        act_channel_switches(
+            dry_run=False,
+            channel_switches=switches,
+            ocm_api=MagicMock(),
+        )
+    assert mock_update.call_count == 2
+    assert len(exc_info.value.exceptions) == 2
+    mock_metrics.set_gauge.assert_not_called()
+
+
+@patch("reconcile.aus.base.update_cluster_channel")
+@patch("reconcile.aus.base.metrics")
+def test_act_http_400_unrelated_error_raises(
+    mock_metrics: MagicMock, mock_update: MagicMock
+) -> None:
+    response = MagicMock()
+    response.text = "invalid channel name"
+    response.status_code = 400
+    mock_update.side_effect = HTTPError(response=response)
+    cluster1 = build_ocm_cluster(name="c1", version="4.20.10", channel="stable-4.20")
     switches = [
         ChannelSwitchAction(
             cluster=cluster1,
