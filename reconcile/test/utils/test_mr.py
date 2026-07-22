@@ -287,6 +287,113 @@ resourceTemplates:
     assert expected == result
 
 
+SAAS_QONTRACT_API_CONTENT = """---
+resourceTemplates:
+- name: qontract-api
+  url: https://github.com/app-sre/qontract-reconcile
+  path: /openshift/qontract-api.yaml
+  parameters:
+    REGISTRY_IMG: quay.io/redhat-services-prod/app-sre-tenant/qontract-reconcile-master/qontract-api-master
+    OPA_IMAGE_TAG: bef841a
+    OPA_IMAGE_DIGEST: sha256:be4eacddfd280a3b27a3cfc5da2877dbbdfb906d4abbb131dda97ffbdf0ee5e3
+  targets:
+  - name: qontract-api-production
+    ref: bce6d549314824beab7809cb8c0ae4127bbedaa3
+"""
+
+
+@pytest.fixture
+def saas_qontract_api_gitlab_cli_mock() -> MagicMock:
+    cli = MagicMock(spec=GitLabApi)
+    cli.project = MagicMock()
+    cli.get_raw_file.return_value = bytes(SAAS_QONTRACT_API_CONTENT, "utf-8")
+    return cli
+
+
+@patch("reconcile.utils.mr.promote_qontract.Image")
+def test_resolve_opa_image_pin_replacements_success(image_mock: MagicMock) -> None:
+    commit_sha = "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    image_mock.return_value.digest = "sha256:newdigest"
+    mr = PromoteQontractReconcileCommercial("1q2w3e4", commit_sha)
+
+    replacements = mr._resolve_opa_image_pin_replacements()
+
+    image_mock.assert_called_once_with(
+        f"quay.io/redhat-services-prod/app-sre-tenant/qontract-reconcile-master/opa-master:{commit_sha}",
+        timeout=60,
+    )
+    assert (
+        "$.resourceTemplates[?(@.name == 'qontract-api')].parameters.OPA_IMAGE_TAG",
+        commit_sha,
+    ) in replacements
+    assert (
+        "$.resourceTemplates[?(@.name == 'qontract-api')].parameters.OPA_IMAGE_DIGEST",
+        "sha256:newdigest",
+    ) in replacements
+
+
+@patch("reconcile.utils.mr.promote_qontract.Image")
+def test_resolve_opa_image_pin_replacements_skips_on_exception(
+    image_mock: MagicMock,
+) -> None:
+    image_mock.side_effect = Exception("boom")
+    mr = PromoteQontractReconcileCommercial(
+        "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    )
+
+    assert mr._resolve_opa_image_pin_replacements() == []
+
+
+@patch("reconcile.utils.mr.promote_qontract.Image")
+def test_resolve_opa_image_pin_replacements_skips_on_falsy_image(
+    image_mock: MagicMock,
+) -> None:
+    # Image() always returns an Image instance, never None - the realistic
+    # falsy case is Image.__bool__ returning False (manifest not found).
+    image_mock.return_value.__bool__.return_value = False
+    mr = PromoteQontractReconcileCommercial(
+        "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    )
+
+    assert mr._resolve_opa_image_pin_replacements() == []
+
+
+@patch("reconcile.utils.mr.promote_qontract.Image")
+def test_saas_qontract_api_ref_and_opa_pin_share_one_write(
+    image_mock: MagicMock, saas_qontract_api_gitlab_cli_mock: MagicMock
+) -> None:
+    """
+    Regression test: the qontract-api-production ref bump and the OPA pin
+    both target saas-qontract-api.yaml. _process_by/_process_file_with_json_paths
+    always read from main_branch, so writing them separately would have the
+    second write clobber the first (it never sees the first commit already
+    made to self.branch). They must be applied via a single read-modify-write.
+    """
+    commit_sha = "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    image_mock.return_value.digest = "sha256:newdigest"
+    mr = PromoteQontractReconcileCommercial("1q2w3e4", commit_sha)
+    gitlab_cli = saas_qontract_api_gitlab_cli_mock
+
+    mr._process_file_with_json_paths(
+        gitlab_cli=gitlab_cli,
+        path="data/services/app-interface/cicd/ci-int/saas-qontract-api.yaml",
+        replacements=[
+            (
+                "$.resourceTemplates[?(@.url == 'https://github.com/app-sre/qontract-reconcile')].targets[?(@.name == 'qontract-api-production')].ref",
+                commit_sha,
+            ),
+            *mr._resolve_opa_image_pin_replacements(),
+        ],
+    )
+
+    gitlab_cli.get_raw_file.assert_called_once()
+    gitlab_cli.update_file.assert_called_once()
+    new_content = gitlab_cli.update_file.call_args.kwargs["content"]
+    assert f"ref: {commit_sha}" in new_content
+    assert f"OPA_IMAGE_TAG: {commit_sha}" in new_content
+    assert "OPA_IMAGE_DIGEST: sha256:newdigest" in new_content
+
+
 @pytest.fixture
 def users() -> list[User]:
     return [
