@@ -36,9 +36,7 @@ def state(mocker: MockerFixture) -> MagicMock:
 
 @pytest.fixture
 def slack(mocker: MockerFixture) -> MagicMock:
-    return mocker.patch(
-        "reconcile.utils.slack_api.SlackApi", autospec=True
-    ).return_value
+    return mocker.patch("reconcile.slack_base.SlackApi", autospec=True).return_value
 
 
 cluster_name = "cluster1"

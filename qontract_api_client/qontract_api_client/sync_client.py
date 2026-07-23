@@ -8,7 +8,7 @@ client = clientele_api.APIClient(config=config.Config())
 
 
 @client.post("/api/v1/external/ldap/users/check")
-async def ldap_users_check(
+def ldap_users_check(
     result: schemas.LdapUsersCheckResponse, data: schemas.LdapUsersCheckRequest
 ) -> schemas.LdapUsersCheckResponse:
     """Check Users Exist
@@ -30,7 +30,7 @@ async def ldap_users_check(
 
 
 @client.get("/api/v1/external/pagerduty/escalation-policies/{policy_id}/users")
-async def pagerduty_escalation_policy_users(
+def pagerduty_escalation_policy_users(
     result: schemas.EscalationPolicyUsersResponse,
     policy_id: str,
     secret_manager_url: str,
@@ -70,7 +70,7 @@ async def pagerduty_escalation_policy_users(
 
 
 @client.get("/api/v1/external/pagerduty/schedules/{schedule_id}/users")
-async def pagerduty_schedule_users(
+def pagerduty_schedule_users(
     result: schemas.ScheduleUsersResponse,
     schedule_id: str,
     secret_manager_url: str,
@@ -110,7 +110,7 @@ async def pagerduty_schedule_users(
 
 
 @client.post("/api/v1/external/slack/chat")
-async def slack_chat_post_message(
+def slack_chat_post_message(
     result: schemas.ChatTaskResponse, data: schemas.ChatRequest
 ) -> schemas.ChatTaskResponse:
     """Post Chat
@@ -134,7 +134,7 @@ async def slack_chat_post_message(
 
 
 @client.get("/api/v1/external/slack/chat/{task_id}")
-async def slack_chat_post_message_task_status(
+def slack_chat_post_message_task_status(
     result: schemas.ChatTaskResult, task_id: str, timeout: int | None = None
 ) -> schemas.ChatTaskResult:
     """Get Chat Task Status
@@ -159,7 +159,7 @@ async def slack_chat_post_message_task_status(
 
 
 @client.get("/api/v1/external/slack/conversations/history")
-async def slack_conversations_history(
+def slack_conversations_history(
     result: schemas.SlackConversationHistoryResponse,
     secret_manager_url: str,
     path: str,
@@ -189,7 +189,7 @@ async def slack_conversations_history(
 
 
 @client.post("/api/v1/external/vcs/file-sync")
-async def vcs_file_sync(
+def vcs_file_sync(
     result: schemas.FileSyncResponse, data: schemas.FileSyncRequest
 ) -> schemas.FileSyncResponse:
     """File Sync
@@ -204,7 +204,7 @@ async def vcs_file_sync(
 
 
 @client.get("/api/v1/external/vcs/repos/file")
-async def vcs_get_file(
+def vcs_get_file(
     result: schemas.GetFileResponse,
     secret_manager_url: str,
     path: str,
@@ -222,7 +222,7 @@ async def vcs_get_file(
 
 
 @client.get("/api/v1/external/vcs/repos/owners")
-async def vcs_repo_owners(
+def vcs_repo_owners(
     result: schemas.RepoOwnersResponse,
     secret_manager_url: str,
     path: str,
@@ -243,7 +243,7 @@ async def vcs_repo_owners(
 
 
 @client.post("/api/v1/integrations/github-owners/reconcile")
-async def github_owners(
+def github_owners(
     result: schemas.GithubOwnersTaskResponse, data: schemas.GithubOwnersReconcileRequest
 ) -> schemas.GithubOwnersTaskResponse:
     """Github Owners
@@ -265,7 +265,7 @@ async def github_owners(
 
 
 @client.get("/api/v1/integrations/github-owners/reconcile/{task_id}")
-async def github_owners_task_status(
+def github_owners_task_status(
     result: schemas.GithubOwnersTaskResult,
     task_id: str,
     timeout: int | None = None,
@@ -294,7 +294,7 @@ async def github_owners_task_status(
 
 
 @client.post("/api/v1/integrations/glitchtip-project-alerts/reconcile")
-async def glitchtip_project_alerts(
+def glitchtip_project_alerts(
     result: schemas.GlitchtipProjectAlertsTaskResponse,
     data: schemas.GlitchtipProjectAlertsReconcileRequest,
 ) -> schemas.GlitchtipProjectAlertsTaskResponse:
@@ -317,7 +317,7 @@ async def glitchtip_project_alerts(
 
 
 @client.get("/api/v1/integrations/glitchtip-project-alerts/reconcile/{task_id}")
-async def glitchtip_project_alerts_task_status(
+def glitchtip_project_alerts_task_status(
     result: schemas.GlitchtipProjectAlertsTaskResult,
     task_id: str,
     timeout: int | None = None,
@@ -346,7 +346,7 @@ async def glitchtip_project_alerts_task_status(
 
 
 @client.post("/api/v1/integrations/glitchtip/reconcile")
-async def glitchtip(
+def glitchtip(
     result: schemas.GlitchtipTaskResponse, data: schemas.GlitchtipReconcileRequest
 ) -> schemas.GlitchtipTaskResponse:
     """Glitchtip Reconcile
@@ -368,7 +368,7 @@ async def glitchtip(
 
 
 @client.get("/api/v1/integrations/glitchtip/reconcile/{task_id}")
-async def glitchtip_task_status(
+def glitchtip_task_status(
     result: schemas.GlitchtipTaskResult,
     task_id: str,
     timeout: int | None = None,
@@ -392,7 +392,7 @@ async def glitchtip_task_status(
 
 
 @client.post("/api/v1/integrations/openshift-namespaces/reconcile")
-async def openshift_namespaces(
+def openshift_namespaces(
     result: schemas.OpenShiftNamespacesTaskResponse,
     data: schemas.OpenShiftNamespacesReconcileRequest,
 ) -> schemas.OpenShiftNamespacesTaskResponse:
@@ -404,7 +404,7 @@ async def openshift_namespaces(
 
 
 @client.get("/api/v1/integrations/openshift-namespaces/reconcile/{task_id}")
-async def openshift_namespaces_task_status(
+def openshift_namespaces_task_status(
     result: schemas.OpenShiftNamespacesTaskResult,
     task_id: str,
     timeout: int | None = None,
@@ -417,7 +417,7 @@ async def openshift_namespaces_task_status(
 
 
 @client.post("/api/v1/integrations/slack-usergroups/reconcile")
-async def slack_usergroups(
+def slack_usergroups(
     result: schemas.SlackUsergroupsTaskResponse,
     data: schemas.SlackUsergroupsReconcileRequest,
 ) -> schemas.SlackUsergroupsTaskResponse:
@@ -440,7 +440,7 @@ async def slack_usergroups(
 
 
 @client.get("/api/v1/integrations/slack-usergroups/reconcile/{task_id}")
-async def slack_usergroups_task_status(
+def slack_usergroups_task_status(
     result: schemas.SlackUsergroupsTaskResult,
     task_id: str,
     timeout: int | None = None,
@@ -469,7 +469,7 @@ async def slack_usergroups_task_status(
 
 
 @client.get("/health/live")
-async def liveness(result: schemas.ResponseLiveness) -> schemas.ResponseLiveness:
+def liveness(result: schemas.ResponseLiveness) -> schemas.ResponseLiveness:
     """Liveness
 
     Liveness probe - returns 200 if service is running.
@@ -478,7 +478,7 @@ async def liveness(result: schemas.ResponseLiveness) -> schemas.ResponseLiveness
 
 
 @client.get("/health/ready")
-async def readiness(result: schemas.HealthResponse) -> schemas.HealthResponse:
+def readiness(result: schemas.HealthResponse) -> schemas.HealthResponse:
     """Readiness
 
     Readiness probe - returns 200 if service is ready to accept requests.

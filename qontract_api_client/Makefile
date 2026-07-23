@@ -18,6 +18,10 @@ generate-client:
 	@rm -f $(OUTPUT_DIR)/config.py
 	clientele start-api -f $(OPENAPI) -o $(OUTPUT_DIR) --asyncio --regen
 	@rm -f $(OUTPUT_DIR)/pyproject.toml $(OUTPUT_DIR)/MANIFEST.md
+	@TEMP_DIR=$$(mktemp -d); \
+	trap "rm -rf $$TEMP_DIR" EXIT; \
+	clientele start-api -f $(OPENAPI) -o $$TEMP_DIR --regen; \
+	cp $$TEMP_DIR/client.py $(OUTPUT_DIR)/sync_client.py
 	@$(MAKE) format OUTPUT_DIR=$(OUTPUT_DIR)
 
 .PHONY: test

@@ -20,10 +20,20 @@ class ChatRequest(pydantic.BaseModel):
     workspace_name: str
 
 
-class ChatResponse(pydantic.BaseModel):
-    channel: str
+class ChatTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class ChatTaskResult(pydantic.BaseModel):
+    actions: list[str] = []
+    applied_count: int = 0
+    channel: str | None = None
+    errors: list[str] = []
+    status: TaskStatus
     thread_ts: str | None = None
-    ts: str
+    ts: str | None = None
 
 
 class ClusterNamespaces(pydantic.BaseModel):
@@ -540,6 +550,30 @@ class Secret(pydantic.BaseModel):
     path: str
     secret_manager_url: str
     version: int | None = None
+
+
+class SlackConversationHistoryResponse(pydantic.BaseModel):
+    messages: list[SlackMessageResponse]
+
+
+class SlackMessageAttachmentResponse(pydantic.BaseModel):
+    text: str | None
+    title: str | None
+
+
+class SlackMessageReactionResponse(pydantic.BaseModel):
+    count: int = 0
+    name: str
+
+
+class SlackMessageResponse(pydantic.BaseModel):
+    attachments: list[SlackMessageAttachmentResponse] | None = None
+    reactions: list[SlackMessageReactionResponse] | None = None
+    reply_count: int = 0
+    subtype: str | None = None
+    text: str = ""
+    ts: str
+    username: str | None = None
 
 
 class SlackUsergroup(pydantic.BaseModel):

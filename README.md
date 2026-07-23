@@ -138,8 +138,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   Manage External Configuration labels in OCM.
   ocm-groups                      Manage membership in OpenShift groups via
                                   OCM.
-  ocm-internal-notifications      Notifications to internal Red Hat users
-                                  based on conditions in OCM.
   ocm-labels                      Manage cluster OCM labels.
   ocm-machine-pools               Manage Machine Pools in OCM.
   ocm-oidc-idp                    Manage OIDC cluster configuration in OCM

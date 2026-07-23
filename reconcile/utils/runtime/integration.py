@@ -23,6 +23,9 @@ from qontract_api_client.client import (
 from qontract_api_client.config import (
     Config as QontractApiClientConfig,
 )
+from qontract_api_client.sync_client import (
+    client as qontract_api_sync_client,
+)
 
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -266,13 +269,13 @@ def setup_qontract_api_client() -> None:
     if "gitlabMergeRequestIid" in os.environ:
         environment_headers["X-GitLab-MR-ID"] = os.environ["gitlabMergeRequestIid"]  # noqa: SIM112
 
-    qontract_api_client.configure(
-        config=QontractApiClientConfig(
-            base_url=urlparse(config["qontract-api"]["server"]).geturl(),
-            headers=environment_headers,
-            timeout=None,
-        )
+    client_config = QontractApiClientConfig(
+        base_url=urlparse(config["qontract-api"]["server"]).geturl(),
+        headers=environment_headers,
+        timeout=None,
     )
+    qontract_api_client.configure(config=client_config)
+    qontract_api_sync_client.configure(config=client_config)
 
 
 class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):

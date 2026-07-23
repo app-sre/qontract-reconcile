@@ -32,18 +32,21 @@ if TYPE_CHECKING:
     )
 
     from reconcile.gql_definitions.common.clusters import ClusterV1
+    from reconcile.slack_base import SlackApi
     from reconcile.utils.ocm_base_client import OCMBaseClient
-    from reconcile.utils.slack_api import SlackApi
 
 QONTRACT_INTEGRATION = "openshift-upgrade-watcher"
 
 
-def cluster_slack_handle(cluster: str, slack: SlackApi | None) -> str:
-    usergroup = f"{cluster}-cluster"
-    usergroup_id = f"@{usergroup}"
-    if slack:
-        usergroup_id = slack.get_usergroup_id(usergroup) or usergroup_id
-    return f"<!subteam^{usergroup_id}>"
+def cluster_slack_handle(cluster: str) -> str:
+    """Build a mention for the cluster's usergroup.
+
+    Written as plain "@handle" text — qontract-api resolves it to a real
+    Slack usergroup mention server-side (see
+    SlackWorkspaceClient._resolve_mentions) if a usergroup with this handle
+    exists; otherwise it's posted as literal text.
+    """
+    return f"@{cluster}-cluster"
 
 
 def handle_slack_notification(
@@ -125,7 +128,7 @@ def notify_upgrades_start(
             # the upgrade at date time, we send a notification
             if upgrade_at_obj < now:
                 msg = (
-                    f"Heads up {cluster_slack_handle(cluster.name, slack)}! "
+                    f"Heads up {cluster_slack_handle(cluster.name)}! "
                     + f"cluster `{cluster.name}` is currently "
                     + f"being upgraded to version `{version}`"
                 )
@@ -147,7 +150,7 @@ def notify_cluster_new_version(
         if cluster.spec:
             state_key = f"{cluster.name}-{cluster.spec.version}"
             msg = (
-                f"{cluster_slack_handle(cluster.name, slack)}: "
+                f"{cluster_slack_handle(cluster.name)}: "
                 + f"cluster `{cluster.name}` is now running version `{cluster.spec.version}`"
             )
             handle_slack_notification(

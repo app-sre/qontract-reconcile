@@ -99,13 +99,74 @@
         "title": "ChatRequest",
         "type": "object"
       },
-      "ChatResponse": {
-        "description": "Response model for a posted Slack message.\n\nImmutable model returning the Slack API response fields.\n\nAttributes:\n    ts: Message timestamp\n    channel: Channel ID where the message was posted\n    thread_ts: Thread timestamp if this was a threaded reply",
+      "ChatTaskResponse": {
+        "description": "Response model for POST /chat.\n\nReturned immediately when the send is queued. Contains task_id and\nstatus_url for retrieving the result via GET request (see ADR-003).",
         "properties": {
-          "channel": {
-            "description": "Channel ID where the message was posted",
-            "title": "Channel",
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
             "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "ChatTaskResponse",
+        "type": "object"
+      },
+      "ChatTaskResult": {
+        "description": "Result model for the chat-post-message background task.\n\nReturned by GET /chat/{task_id}.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "Unused for this task \u2014 present only to satisfy the shared task-result protocol.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Channel ID where the message was posted (set on success)",
+            "title": "Channel"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
           },
           "thread_ts": {
             "anyOf": [
@@ -116,20 +177,26 @@
                 "type": "null"
               }
             ],
-            "description": "Thread timestamp if this was a threaded reply",
+            "description": "Thread timestamp if this was a threaded reply (set on success)",
             "title": "Thread Ts"
           },
           "ts": {
-            "description": "Message timestamp",
-            "title": "Ts",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Message timestamp (set on success)",
+            "title": "Ts"
           }
         },
         "required": [
-          "ts",
-          "channel"
+          "status"
         ],
-        "title": "ChatResponse",
+        "title": "ChatTaskResult",
         "type": "object"
       },
       "ClusterNamespaces": {
@@ -2517,6 +2584,138 @@
         "title": "Secret",
         "type": "object"
       },
+      "SlackConversationHistoryResponse": {
+        "description": "Response model for the conversation history endpoint.",
+        "properties": {
+          "messages": {
+            "description": "Messages in the requested time range, newest first",
+            "items": {
+              "$ref": "#/components/schemas/SlackMessageResponse"
+            },
+            "title": "Messages",
+            "type": "array"
+          }
+        },
+        "title": "SlackConversationHistoryResponse",
+        "type": "object"
+      },
+      "SlackMessageAttachmentResponse": {
+        "description": "A legacy attachment on a Slack message (e.g. alertmanager notifications).",
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Attachment text",
+            "title": "Text"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Attachment title",
+            "title": "Title"
+          }
+        },
+        "title": "SlackMessageAttachmentResponse",
+        "type": "object"
+      },
+      "SlackMessageReactionResponse": {
+        "description": "A reaction (emoji) on a Slack message.",
+        "properties": {
+          "count": {
+            "default": 0,
+            "description": "Number of users who reacted",
+            "title": "Count",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Reaction emoji name (e.g., 'eyes')",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SlackMessageReactionResponse",
+        "type": "object"
+      },
+      "SlackMessageResponse": {
+        "description": "A single message from a channel's conversation history.",
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/SlackMessageAttachmentResponse"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/SlackMessageReactionResponse"
+            },
+            "title": "Reactions",
+            "type": "array"
+          },
+          "reply_count": {
+            "default": 0,
+            "description": "Number of thread replies",
+            "title": "Reply Count",
+            "type": "integer"
+          },
+          "subtype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Message subtype",
+            "title": "Subtype"
+          },
+          "text": {
+            "default": "",
+            "description": "Message text",
+            "title": "Text",
+            "type": "string"
+          },
+          "ts": {
+            "description": "Message timestamp",
+            "title": "Ts",
+            "type": "string"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bot/app username that posted the message",
+            "title": "Username"
+          }
+        },
+        "required": [
+          "ts"
+        ],
+        "title": "SlackMessageResponse",
+        "type": "object"
+      },
       "SlackUsergroup": {
         "description": "A single Slack usergroup with its handle and configuration.",
         "properties": {
@@ -3213,7 +3412,7 @@
     },
     "/api/v1/external/slack/chat": {
       "post": {
-        "description": "Post a message to a Slack channel or send a DM to a user.\n\nExactly one of `channel` or `user` must be set in the request:\n- `channel`: post to a Slack channel by name\n- `user`: send a DM to a user by org_username\n\nArgs:\n    request: Chat request with channel/user, text, and credentials\n\nReturns:\n    ChatResponse with ts, channel, and optional thread_ts\n\nRaises:\n    HTTPException:\n        - 404 Not Found: Channel or user not found\n        - 502 Bad Gateway: If Slack API call fails",
+        "description": "Queue a Slack chat message or DM to be sent by a background worker.\n\nExactly one of `channel` or `user` must be set in the request:\n- `channel`: post to a Slack channel by name\n- `user`: send a DM to a user by org_username\n\nThis endpoint always queues a background task and returns immediately\nwith a task_id. Use GET /chat/{task_id} to retrieve the result.\n\nArgs:\n    request: Chat request with channel/user, text, and credentials\n\nReturns:\n    ChatTaskResponse with task_id and status_url",
         "operationId": "slack-chat-post-message",
         "requestBody": {
           "content": {
@@ -3226,11 +3425,11 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChatResponse"
+                  "$ref": "#/components/schemas/ChatTaskResponse"
                 }
               }
             },
@@ -3243,6 +3442,208 @@
           }
         ],
         "summary": "Post Chat",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/slack/chat/{task_id}": {
+      "get": {
+        "description": "Retrieve the chat-post-message result (blocking or non-blocking).\n\n**Non-blocking mode (default):** Returns immediate status (pending/success/failed)\n**Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending\n\nArgs:\n    task_id: Task ID from POST /chat response\n    timeout: Maximum seconds to wait (default: None = non-blocking)\n\nReturns:\n    ChatTaskResult with status and, on success, ts/channel/thread_ts\n\nRaises:\n    HTTPException:\n        - 408 Request Timeout: Task still pending after timeout (blocking mode only)",
+        "operationId": "slack-chat-post-message-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Chat Task Status",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/slack/conversations/history": {
+      "get": {
+        "description": "Get a channel's message history within a timestamp range.\n\nArgs:\n    params: workspace_name, channel, from_timestamp/to_timestamp, and secret\n\nReturns:\n    SlackConversationHistoryResponse with messages, newest first\n\nRaises:\n    HTTPException:\n        - 404 Not Found: Channel not found\n        - 502 Bad Gateway: If Slack API call fails",
+        "operationId": "slack-conversations-history",
+        "parameters": [
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "Slack workspace name",
+            "in": "query",
+            "name": "workspace_name",
+            "required": true,
+            "schema": {
+              "description": "Slack workspace name",
+              "title": "Workspace Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Channel name (e.g., 'sd-app-sre-reconcile')",
+            "in": "query",
+            "name": "channel",
+            "required": true,
+            "schema": {
+              "description": "Channel name (e.g., 'sd-app-sre-reconcile')",
+              "title": "Channel",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only return messages at or after this unix timestamp",
+            "in": "query",
+            "name": "from_timestamp",
+            "required": true,
+            "schema": {
+              "description": "Only return messages at or after this unix timestamp",
+              "title": "From Timestamp",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Only return messages at or before this unix timestamp",
+            "in": "query",
+            "name": "to_timestamp",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only return messages at or before this unix timestamp",
+              "title": "To Timestamp"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackConversationHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Channel not found"
+          },
+          "502": {
+            "description": "Slack API error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Conversations History",
         "tags": [
           "external"
         ]

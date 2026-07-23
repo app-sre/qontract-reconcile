@@ -4,7 +4,7 @@ from typing import Self
 
 from pydantic import BaseModel, Field, model_validator
 
-from qontract_api.models import Secret
+from qontract_api.models import Secret, TaskResult, TaskStatus
 
 
 class ChatRequest(BaseModel, frozen=True):
@@ -60,26 +60,92 @@ class ChatRequest(BaseModel, frozen=True):
         return self
 
 
-class ChatResponse(BaseModel, frozen=True):
-    """Response model for a posted Slack message.
+class SlackMessageReactionResponse(BaseModel, frozen=True):
+    """A reaction (emoji) on a Slack message."""
 
-    Immutable model returning the Slack API response fields.
+    name: str = Field(..., description="Reaction emoji name (e.g., 'eyes')")
+    count: int = Field(default=0, description="Number of users who reacted")
 
-    Attributes:
-        ts: Message timestamp
-        channel: Channel ID where the message was posted
-        thread_ts: Thread timestamp if this was a threaded reply
+
+class SlackMessageAttachmentResponse(BaseModel, frozen=True):
+    """A legacy attachment on a Slack message (e.g. alertmanager notifications)."""
+
+    title: str | None = Field(default=None, description="Attachment title")
+    text: str | None = Field(default=None, description="Attachment text")
+
+
+class SlackMessageResponse(BaseModel, frozen=True):
+    """A single message from a channel's conversation history."""
+
+    ts: str = Field(..., description="Message timestamp")
+    text: str = Field(default="", description="Message text")
+    subtype: str | None = Field(default=None, description="Message subtype")
+    username: str | None = Field(
+        default=None, description="Bot/app username that posted the message"
+    )
+    reply_count: int = Field(default=0, description="Number of thread replies")
+    reactions: list[SlackMessageReactionResponse] = Field(default_factory=list)
+    attachments: list[SlackMessageAttachmentResponse] = Field(default_factory=list)
+
+
+class SlackConversationHistoryResponse(BaseModel, frozen=True):
+    """Response model for the conversation history endpoint."""
+
+    messages: list[SlackMessageResponse] = Field(
+        default_factory=list,
+        description="Messages in the requested time range, newest first",
+    )
+
+
+class ConversationsHistoryParams(Secret):
+    """Query parameters for the conversation history endpoint."""
+
+    workspace_name: str = Field(..., description="Slack workspace name")
+    channel: str = Field(..., description="Channel name (e.g., 'sd-app-sre-reconcile')")
+    from_timestamp: int = Field(
+        ..., description="Only return messages at or after this unix timestamp"
+    )
+    to_timestamp: int | None = Field(
+        default=None,
+        description="Only return messages at or before this unix timestamp",
+    )
+
+
+class ChatTaskResponse(BaseModel, frozen=True):
+    """Response model for POST /chat.
+
+    Returned immediately when the send is queued. Contains task_id and
+    status_url for retrieving the result via GET request (see ADR-003).
     """
 
-    ts: str = Field(
-        ...,
-        description="Message timestamp",
+    id: str = Field(..., description="Task ID")
+    status: TaskStatus = Field(
+        default=TaskStatus.PENDING,
+        description="Task status (always 'pending' initially)",
     )
-    channel: str = Field(
-        ...,
-        description="Channel ID where the message was posted",
+    status_url: str = Field(
+        ..., description="URL to retrieve task result (GET request)"
+    )
+
+
+class ChatTaskResult(TaskResult, frozen=True):
+    """Result model for the chat-post-message background task.
+
+    Returned by GET /chat/{task_id}.
+    """
+
+    actions: list[str] = Field(
+        default=[],
+        description="Unused for this task — present only to satisfy the shared task-result protocol.",
+    )
+    ts: str | None = Field(
+        default=None, description="Message timestamp (set on success)"
+    )
+    channel: str | None = Field(
+        default=None,
+        description="Channel ID where the message was posted (set on success)",
     )
     thread_ts: str | None = Field(
         default=None,
-        description="Thread timestamp if this was a threaded reply",
+        description="Thread timestamp if this was a threaded reply (set on success)",
     )

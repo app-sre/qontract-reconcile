@@ -8,7 +8,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from qontract_utils.hooks import Hooks
-from qontract_utils.slack_api import SlackApi, SlackChannel, SlackUser, SlackUsergroup
+from qontract_utils.slack_api import (
+    SlackApi,
+    SlackChannel,
+    SlackMessage,
+    SlackUser,
+    SlackUsergroup,
+)
 from qontract_utils.slack_api.models import ChatPostMessageResponse
 from slack_sdk.errors import SlackApiError
 
@@ -477,6 +483,89 @@ def test_conversations_list_handles_pagination(
     channels = slack_api.conversations_list()
 
     assert len(channels) == 2
+    assert slack_api._sc.api_call.call_count == 2
+
+
+def test_conversations_history_returns_slack_message_objects(
+    slack_api: SlackApi, mock_webclient: MagicMock
+) -> None:
+    """Test conversations_history returns list of SlackMessage objects."""
+    mock_response = {
+        "messages": [
+            {
+                "ts": "1700000002.000000",
+                "text": "second",
+                "subtype": "bot_message",
+                "username": "alertbot",
+                "reply_count": 1,
+                "reactions": [{"name": "eyes", "count": 2}],
+                "attachments": [{"title": "Alert: Foo [FIRING:1]", "text": "bar"}],
+            },
+            {"ts": "1700000001.000000", "text": "first"},
+        ],
+        "response_metadata": {"next_cursor": ""},
+    }
+    slack_api._sc.api_call = MagicMock(return_value=mock_response)  # type: ignore[method-assign]
+
+    messages = slack_api.conversations_history(channel_id="C01234ABCD")
+
+    assert len(messages) == 2
+    assert all(isinstance(message, SlackMessage) for message in messages)
+    assert messages[0].ts == "1700000002.000000"
+    assert messages[0].subtype == "bot_message"
+    assert messages[0].username == "alertbot"
+    assert messages[0].reply_count == 1
+    assert messages[0].reactions[0].name == "eyes"
+    assert messages[0].attachments[0].title == "Alert: Foo [FIRING:1]"
+    assert messages[1].subtype is None
+    slack_api._sc.api_call.assert_called_once_with(
+        "conversations.history",
+        params={"channel": "C01234ABCD", "cursor": "", "inclusive": True},
+    )
+
+
+def test_conversations_history_passes_oldest_and_latest(
+    slack_api: SlackApi, mock_webclient: MagicMock
+) -> None:
+    """Test conversations_history forwards oldest/latest to the Slack API."""
+    mock_response = {"messages": [], "response_metadata": {"next_cursor": ""}}
+    slack_api._sc.api_call = MagicMock(return_value=mock_response)  # type: ignore[method-assign]
+
+    slack_api.conversations_history(
+        channel_id="C01234ABCD", oldest="1700000000", latest="1700000100"
+    )
+
+    slack_api._sc.api_call.assert_called_once_with(
+        "conversations.history",
+        params={
+            "channel": "C01234ABCD",
+            "cursor": "",
+            "inclusive": True,
+            "oldest": "1700000000",
+            "latest": "1700000100",
+        },
+    )
+
+
+def test_conversations_history_handles_pagination(
+    slack_api: SlackApi, mock_webclient: MagicMock
+) -> None:
+    """Test conversations_history handles pagination."""
+    mock_response_page1 = {
+        "messages": [{"ts": "1700000002.000000", "text": "second"}],
+        "response_metadata": {"next_cursor": "cursor789"},
+    }
+    mock_response_page2 = {
+        "messages": [{"ts": "1700000001.000000", "text": "first"}],
+        "response_metadata": {"next_cursor": ""},
+    }
+    slack_api._sc.api_call = MagicMock(  # type: ignore[method-assign]
+        side_effect=[mock_response_page1, mock_response_page2]
+    )
+
+    messages = slack_api.conversations_history(channel_id="C01234ABCD")
+
+    assert len(messages) == 2
     assert slack_api._sc.api_call.call_count == 2
 
 

@@ -1,4 +1,7 @@
 from statistics import median
+from typing import Any
+
+from qontract_api_client.schemas import SlackMessageResponse
 
 from reconcile.test.fixtures import Fixtures
 from tools.alert_report import (
@@ -6,13 +9,27 @@ from tools.alert_report import (
     group_alerts,
 )
 
+
+def _slack_message(data: dict[str, Any]) -> SlackMessageResponse:
+    """Build a SlackMessageResponse from a raw (possibly partial) message dict.
+
+    Attachment dicts must always carry both 'title' and 'text' keys, since the
+    generated SlackMessageAttachmentResponse client schema treats both as
+    required (though nullable) fields.
+    """
+    attachments = [
+        {"title": at.get("title"), "text": at.get("text")}
+        for at in data.get("attachments", [])
+    ]
+    return SlackMessageResponse(**{**data, "attachments": attachments})
+
+
 # Messages with cluster-name prefix in the attachment title, e.g.
 # "[appsrep11ue1]Alert: AlertName [FIRING:1]  message"
 # introduced when the Alertmanager Slack template was updated to include the cluster.
 CLUSTER_PREFIXED_MESSAGES = [
-    {
+    _slack_message({
         "subtype": "bot_message",
-        "bot_id": "BFYPB540Z",
         "ts": "1750000200.000000",
         "username": "app-sre-alerts (appsrep11ue1)",
         "attachments": [
@@ -20,10 +37,9 @@ CLUSTER_PREFIXED_MESSAGES = [
                 "title": "[appsrep11ue1]Alert: ClusterPrefixedAlert [RESOLVED]  some alert message"
             }
         ],
-    },
-    {
+    }),
+    _slack_message({
         "subtype": "bot_message",
-        "bot_id": "BFYPB540Z",
         "ts": "1750000100.000000",
         "username": "app-sre-alerts (appsrep11ue1)",
         "attachments": [
@@ -31,10 +47,15 @@ CLUSTER_PREFIXED_MESSAGES = [
                 "title": "[appsrep11ue1]Alert: ClusterPrefixedAlert [FIRING:1]  some alert message"
             }
         ],
-    },
+    }),
 ]
 
-messages = Fixtures("slack_api").get_anymarkup("conversations_history_messages.yaml")
+messages = [
+    _slack_message(message)
+    for message in Fixtures("slack_api").get_anymarkup(
+        "conversations_history_messages.yaml"
+    )
+]
 
 
 def test_group_alerts() -> None:

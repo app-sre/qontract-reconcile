@@ -60,7 +60,7 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
         binding_state: S3ComponentBindingState,
     ) -> None:
         now = utc_now()
-        slack = slackapi_from_queries(QONTRACT_INTEGRATION, init_usergroups=False)
+        slack = slackapi_from_queries(QONTRACT_INTEGRATION)
         for m in desired_state:
             scheduled_start = m.schedule_start
             if now <= scheduled_start <= now + timedelta(hours=1):

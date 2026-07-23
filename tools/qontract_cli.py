@@ -866,7 +866,6 @@ def alert_report(
 
     slack = slackapi_from_queries(
         integration_name=report.QONTRACT_INTEGRATION,
-        init_usergroups=False,
         channel=channel,
     )
     alerts = report.group_alerts(
@@ -3313,38 +3312,6 @@ def change_log_tracking(ctx: click.Context) -> None:
     ctx.obj["options"]["sort"] = False
     columns = ["commit", "merged_at", "apps", "changes"]
     print_output(ctx.obj["options"], data, columns)
-
-
-@root.group(name="set")
-@output
-@click.pass_context
-def set_command(ctx: click.Context, output: str) -> None:
-    ctx.obj["output"] = output
-
-
-@set_command.command()
-@click.argument("workspace")
-@click.argument("usergroup")
-@click.argument("username")
-@click.pass_context
-def slack_usergroup(
-    ctx: click.Context, workspace: str, usergroup: str, username: str
-) -> None:
-    """Update users in a slack usergroup.
-    Use an org_username as the username.
-    To empty a slack usergroup, pass '' (empty string) as the username.
-    """
-    settings = queries.get_app_interface_settings()
-    slack = slackapi_from_queries("qontract-cli")
-    ugid = slack.get_usergroup_id(usergroup)
-    if not ugid:
-        raise click.ClickException(f"Usergroup {usergroup} not found.")
-    if username:
-        mail_address = settings["smtp"]["mailAddress"]
-        users = [slack.get_user_id_by_name(username, mail_address)]
-    else:
-        users = [slack.get_random_deleted_user()]
-    slack.update_usergroup_users(ugid, users)
 
 
 @root.group()

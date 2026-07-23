@@ -1,7 +1,13 @@
+from __future__ import annotations
+
 import logging
 import re
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from qontract_api_client.schemas import SlackMessageResponse
 
 QONTRACT_INTEGRATION = "alert-report"
 
@@ -51,24 +57,23 @@ class AlertStat:
         return self._elapsed_times
 
 
-def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
+def group_alerts(messages: list[SlackMessageResponse]) -> dict[str, list[Alert]]:
     """Group list of alert messages from Slack in a dict indexed by alert_name"""
     alerts = defaultdict(list)
     for m in messages:
-        if "subtype" not in m or m["subtype"] != "bot_message":
-            logging.debug(
-                f"Skipping message '{m['text']}' as it does not come from a bot"
-            )
+        if m.subtype != "bot_message":
+            logging.debug(f"Skipping message '{m.text}' as it does not come from a bot")
             continue
 
-        timestamp = float(m["ts"])
-        responsed = bool(m.get("reply_count", 0) or m.get("reactions", []))
+        timestamp = float(m.ts)
+        responsed = bool(m.reply_count or m.reactions)
+        username = m.username or ""
 
-        for at in m.get("attachments", []):
-            if "title" not in at:
+        for at in m.attachments or []:
+            if at.title is None:
                 continue
 
-            mg = re.search(r"Alert: (.*) \[(FIRING:\d+|RESOLVED)\] *(.*)$", at["title"])
+            mg = re.search(r"Alert: (.*) \[(FIRING:\d+|RESOLVED)\] *(.*)$", at.title)
             if not mg:
                 continue
 
@@ -76,7 +81,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
             alert_message = mg.group(3)
 
             if not alert_name:
-                logging.debug(f"no alert name in title {at['title']}. Skipping")
+                logging.debug(f"no alert name in title {at.title}. Skipping")
                 continue
 
             # If there's only one alert related to the alert_name, message will be part
@@ -89,7 +94,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
                         state=alert_state,
                         message=alert_message,
                         timestamp=timestamp,
-                        username=m["username"],
+                        username=username,
                         responsed=responsed,
                     )
                 )
@@ -97,21 +102,21 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
                 # This may happen for alerts rules without "message". This can happen
                 # if schema cannot be validated for a certain alert rule because it
                 # is not valid yaml (go templates, jinja templates)
-                if "text" not in at:
+                if at.text is None:
                     alert_state = "FIRING" if "FIRING" in mg.group(2) else mg.group(2)
                     alerts[alert_name].append(
                         Alert(
                             state=alert_state,
                             message="placeholder",
                             timestamp=timestamp,
-                            username=m["username"],
+                            username=username,
                             responsed=responsed,
                         )
                     )
                     continue
 
                 alert_state = ""
-                for line in at["text"].split("\n"):
+                for line in at.text.split("\n"):
                     if "Alerts Firing" in line:
                         alert_state = "FIRING"
                     elif "Alerts Resolved" in line:
@@ -126,7 +131,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
                                 state=alert_state,
                                 message=alert_message,
                                 timestamp=timestamp,
-                                username=m["username"],
+                                username=username,
                                 responsed=responsed,
                             )
                         )
