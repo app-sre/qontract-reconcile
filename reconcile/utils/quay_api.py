@@ -1,5 +1,5 @@
 import contextlib
-from typing import Any
+from typing import Any, TypedDict
 
 import requests
 
@@ -8,6 +8,22 @@ from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth
 
 class QuayTeamNotFoundError(Exception):
     pass
+
+
+class RobotAccountDetails(TypedDict):
+    name: str
+    description: str | None
+    teams: list[dict[str, str]]
+    repositories: list[str]
+
+
+class RobotAccountRepository(TypedDict):
+    name: str
+
+
+class RobotAccountPermission(TypedDict):
+    repository: RobotAccountRepository
+    role: str
 
 
 class QuayApi(ApiBase):
@@ -240,3 +256,73 @@ class QuayApi(ApiBase):
         )
         body = {"role": role}
         self._put(url, data=body)
+
+    def list_robot_accounts(self) -> list[RobotAccountDetails]:
+        url = f"/api/v1/organization/{self.organization}/robots"
+        body = self._get(url, params={"permissions": "true"})
+        prefix = f"{self.organization}+"
+        return [
+            RobotAccountDetails(
+                name=robot["name"].removeprefix(prefix),
+                description=robot.get("description"),
+                teams=robot.get("teams", []),
+                repositories=robot.get("repositories", []),
+            )
+            for robot in body["robots"]
+        ]
+
+    def create_robot_account(self, name: str, description: str) -> None:
+        url = f"/api/v1/organization/{self.organization}/robots/{name}"
+        body = {"description": description}
+        self._put(url, data=body)
+
+    def delete_robot_account(self, name: str) -> None:
+        url = f"/api/v1/organization/{self.organization}/robots/{name}"
+        self._delete(url)
+
+    def get_robot_account_permissions(self, name: str) -> list[RobotAccountPermission]:
+        url = f"/api/v1/organization/{self.organization}/robots/{name}/permissions"
+        body = self._get(url)
+        return body["permissions"]
+
+    def set_robot_account_permissions(
+        self, name: str, permissions: list[RobotAccountPermission]
+    ) -> None:
+        url = f"/api/v1/organization/{self.organization}/robots/{name}/permissions"
+        body = {"permissions": permissions}
+        self._put(url, data=body)
+
+    def delete_robot_account_permissions(self, name: str) -> None:
+        url = f"/api/v1/organization/{self.organization}/robots/{name}/permissions"
+        self._delete(url)
+
+    def get_repo_robot_account_permissions(
+        self, repo_name: str, robot_name: str
+    ) -> str | None:
+        url = f"/api/v1/repository/{self.organization}/{repo_name}/permissions/user/{self.organization}+{robot_name}"
+        try:
+            body = self._get(url)
+            return body.get("role") or None
+        except requests.exceptions.HTTPError as e:
+            message = ""
+            if e.response is not None:
+                with contextlib.suppress(ValueError, AttributeError):
+                    message = e.response.json().get("message", "")
+
+            if message == "User does not have permission for repo.":
+                return None
+
+            raise
+
+    def set_repo_robot_account_permissions(
+        self, repo_name: str, robot_name: str, role: str
+    ) -> None:
+        url = f"/api/v1/repository/{self.organization}/{repo_name}/permissions/user/{self.organization}+{robot_name}"
+        body = {"role": role}
+        self._put(url, data=body)
+
+    def delete_repo_robot_account_permissions(
+        self, repo_name: str, robot_name: str
+    ) -> None:
+        url = f"/api/v1/repository/{self.organization}/{repo_name}/permissions/user/{self.organization}+{robot_name}"
+        self._delete(url)
