@@ -3,21 +3,17 @@ from __future__ import annotations
 import os
 import tempfile
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, create_autospec, patch
+from unittest.mock import patch
 
 import pytest
-import requests
 from sretoolbox.container.skopeo import SkopeoCmdError
 
-from reconcile.quay_mirror import (
+from reconcile.container_registry_mirror.deep_sync_timer import DeepSyncTimer
+from reconcile.container_registry_mirror.quay import (
     CONTROL_FILE_NAME,
-    OrgKey,
     QuayMirror,
-    queries,
 )
 from reconcile.utils.quay_mirror import sync_tag
-
-from .fixtures import Fixtures
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -27,92 +23,6 @@ if TYPE_CHECKING:
 
 NOW = 1662124612.995397
 
-fxt = Fixtures("quay_mirror")
-
-
-@patch("reconcile.utils.gql.get_api", autospec=True)
-@patch("reconcile.queries.get_app_interface_settings", return_value={})
-class TestControlFile:
-    def test_check_compare_tags_no_control_file(
-        self, mock_gql: Mock, mock_settings: Mock
-    ) -> None:
-        assert QuayMirror.check_compare_tags_elapsed_time("/no-such-file", 100)
-
-    @patch("time.time", return_value=NOW)
-    def test_check_compare_tags_with_file(
-        self, mock_gql: Mock, mock_settings: Mock, mock_time: Mock
-    ) -> None:
-        with tempfile.NamedTemporaryFile() as fp:
-            fp.write(str(NOW - 100.0).encode())
-            fp.seek(0)
-
-            assert QuayMirror.check_compare_tags_elapsed_time(fp.name, 10)
-            assert not QuayMirror.check_compare_tags_elapsed_time(fp.name, 1000)
-
-    def test_control_file_dir_does_not_exist(
-        self, mock_gql: Mock, mock_settings: Mock
-    ) -> None:
-        with pytest.raises(FileNotFoundError):
-            QuayMirror(control_file_dir="/no-such-dir")
-
-    def test_control_file_path_from_given_dir(
-        self, mock_gql: Mock, mock_settings: Mock
-    ) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            qm = QuayMirror(control_file_dir=tmp_dir_name)
-            assert qm.control_file_path == os.path.join(tmp_dir_name, CONTROL_FILE_NAME)
-
-
-@patch("reconcile.utils.gql.get_api", autospec=True)
-@patch("reconcile.queries.get_app_interface_settings", return_value={})
-@patch("time.time", return_value=NOW)
-class TestIsCompareTags:
-    def setup_method(self) -> None:
-        self.tmp_dir = tempfile.TemporaryDirectory()
-        with open(
-            os.path.join(self.tmp_dir.name, CONTROL_FILE_NAME), "w", encoding="locale"
-        ) as fh:
-            fh.write(str(NOW - 100.0))
-
-    def teardown_method(self) -> None:
-        self.tmp_dir.cleanup()
-
-    # Last run was in NOW - 100s, we run compare tags every 10s.
-    def test_is_compare_tags_elapsed(
-        self, mock_gql: Mock, mock_settings: Mock, mock_time: Mock
-    ) -> None:
-        qm = QuayMirror(control_file_dir=self.tmp_dir.name, compare_tags_interval=10)
-        assert qm.is_compare_tags
-
-    # Same as before, but now we force no compare with the option.
-    def test_is_compare_tags_force_no_compare(
-        self, mock_gql: Mock, mock_settings: Mock, mock_time: Mock
-    ) -> None:
-        qm = QuayMirror(
-            control_file_dir=self.tmp_dir.name,
-            compare_tags_interval=10,
-            compare_tags=False,
-        )
-        assert not qm.is_compare_tags
-
-    # Last run was in NOW - 100s, we run compare tags every 1000s.
-    def test_is_compare_tags_not_elapsed(
-        self, mock_gql: Mock, mock_settings: Mock, mock_time: Mock
-    ) -> None:
-        qm = QuayMirror(control_file_dir=self.tmp_dir.name, compare_tags_interval=1000)
-        assert not qm.is_compare_tags
-
-    # Same as before, but now we force compare with the option.
-    def test_is_compare_tags_force_compare(
-        self, mock_gql: Mock, mock_settings: Mock, mock_time: Mock
-    ) -> None:
-        qm = QuayMirror(
-            control_file_dir=self.tmp_dir.name,
-            compare_tags_interval=1000,
-            compare_tags=True,
-        )
-        assert qm.is_compare_tags
-
 
 @pytest.mark.parametrize(
     "tags, tags_exclude, candidate, result",
@@ -121,7 +31,7 @@ class TestIsCompareTags:
         (["^sha256-.+sig$", "^main-.+"], None, "main-755781cc", True),
         (["^sha256-.+sig$", "^main-.+"], None, "sha256-8b5.sig", True),
         (["^sha256-.+sig$", "^main-.+"], None, "1.2.3", False),
-        # # Tags exclude tests.
+        # Tags exclude tests.
         (None, ["^sha256-.+sig$", "^main-.+"], "main-755781cc", False),
         (None, ["^sha256-.+sig$", "^main-.+"], "sha256-8b5.sig", False),
         (None, ["^sha256-.+sig$", "^main-.+"], "1.2.3", True),
@@ -141,120 +51,130 @@ def test_sync_tag(
     assert sync_tag(tags, tags_exclude, candidate) == result
 
 
-def test_process_repos_query_ok(mocker: MockerFixture) -> None:
-    repos_query = mocker.patch.object(queries, "get_quay_repos")
-    repos_query.return_value = fxt.get_anymarkup("get_quay_repos_ok.yaml")
+class TestDeepSyncTimerIntegration:
+    """The module-level run() function constructs a DeepSyncTimer
+    from CLI parameters. These tests verify the timer integration."""
 
-    cloudservices = OrgKey(instance="quay.io", org_name="cloudservices")
-    app_sre = OrgKey(instance="quay.io", org_name="app-sre")
-    session = create_autospec(requests.Session)
-    timeout = 30
+    def test_control_file_dir_does_not_exist(self) -> None:
+        with pytest.raises(FileNotFoundError):
+            DeepSyncTimer.from_dir(
+                control_file_dir="/no-such-dir",
+                control_file_name=CONTROL_FILE_NAME,
+                interval=86400,
+            )
 
-    summary = QuayMirror.process_repos_query()
-    assert len(summary) == 2
-    assert len(summary[cloudservices]) == 2
-    assert len(summary[app_sre]) == 1
+    def test_control_file_path_from_given_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            timer = DeepSyncTimer.from_dir(
+                control_file_dir=tmp_dir_name,
+                control_file_name=CONTROL_FILE_NAME,
+                interval=86400,
+            )
+            assert timer.control_file_path == os.path.join(
+                tmp_dir_name, CONTROL_FILE_NAME
+            )
 
-    mosquitto = "docker.io/library/eclipse-mosquitto"
-    redis = "docker.io/redis"
+    @patch("time.time", return_value=NOW)
+    def test_timer_elapsed(self, _mock_time: Mock) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with open(
+                os.path.join(tmp_dir, CONTROL_FILE_NAME), "w", encoding="locale"
+            ) as fh:
+                fh.write(str(NOW - 100.0))
 
-    summary = QuayMirror.process_repos_query(
-        repository_urls=[mosquitto, redis],
-        session=session,
-        timeout=timeout,
-    )
-    cl = summary[cloudservices]
-    ap = summary[app_sre]
-    assert len(cl) == 2
-    assert len(ap) == 0
-    assert cl[0]["mirror"]["url"] == mosquitto
-    assert cl[1]["mirror"]["url"] == redis
+            timer = DeepSyncTimer.from_dir(
+                control_file_dir=tmp_dir,
+                control_file_name=CONTROL_FILE_NAME,
+                interval=10,
+            )
+            assert timer.should_run is True
 
-    summary = QuayMirror.process_repos_query(
-        exclude_repository_urls=[mosquitto, redis],
-        session=session,
-        timeout=timeout,
-    )
-    cl = summary[cloudservices]
-    ap = summary[app_sre]
-    assert len(cl) == 0
-    assert len(summary[app_sre]) == 1
+    @patch("time.time", return_value=NOW)
+    def test_timer_not_elapsed(self, _mock_time: Mock) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with open(
+                os.path.join(tmp_dir, CONTROL_FILE_NAME), "w", encoding="locale"
+            ) as fh:
+                fh.write(str(NOW - 100.0))
 
+            timer = DeepSyncTimer.from_dir(
+                control_file_dir=tmp_dir,
+                control_file_name=CONTROL_FILE_NAME,
+                interval=1000,
+            )
+            assert timer.should_run is False
 
-def test_process_repos_query_public_dockerhub(
-    mocker: MockerFixture, caplog: pytest.LogCaptureFixture
-) -> None:
-    repos_query = mocker.patch.object(queries, "get_quay_repos")
-    repos_query.return_value = fxt.get_anymarkup("get_quay_repos_public_dockerhub.yaml")
+    def test_force_compare(self) -> None:
+        timer = DeepSyncTimer.from_dir(
+            control_file_dir=None,
+            control_file_name=CONTROL_FILE_NAME,
+            interval=86400,
+            compare_tags_override=True,
+        )
+        assert timer.should_run is True
 
-    with pytest.raises(SystemExit):
-        QuayMirror.process_repos_query()
-
-    assert "can't be mirrored to a public quay repository" in caplog.text
-
-
-def test_quay_mirror_session(mocker: MockerFixture) -> None:
-    mocker.patch("reconcile.quay_mirror.gql")
-    mocker.patch("reconcile.quay_mirror.queries")
-    mocked_request = mocker.patch("reconcile.quay_mirror.requests")
-
-    with QuayMirror() as quay_mirror:
-        assert quay_mirror.session == mocked_request.Session.return_value
-
-    mocked_request.Session.return_value.close.assert_called_once_with()
-
-
-@pytest.fixture()
-def quay_mirror_instance(mocker: MockerFixture) -> tuple[QuayMirror, MagicMock]:
-    mocker.patch("reconcile.utils.gql.get_api", autospec=True)
-    mocker.patch("reconcile.queries.get_app_interface_settings", return_value={})
-    qm = QuayMirror(dry_run=True, compare_tags=False)
-    mock_skopeo: MagicMock = MagicMock()
-    qm.skopeo_cli = mock_skopeo
-    qm.push_creds = {}
-    return qm, mock_skopeo
+    def test_force_no_compare(self) -> None:
+        timer = DeepSyncTimer.from_dir(
+            control_file_dir=None,
+            control_file_name=CONTROL_FILE_NAME,
+            interval=86400,
+            compare_tags_override=False,
+        )
+        assert timer.should_run is False
 
 
-def test_run_succeeds_with_no_errors(
-    quay_mirror_instance: tuple[QuayMirror, MagicMock], mocker: MockerFixture
-) -> None:
-    qm, _ = quay_mirror_instance
-    org = OrgKey(instance="quay.io", org_name="test-org")
-    task = {
-        "mirror_url": "docker.io/foo:1",
-        "mirror_creds": None,
-        "image_url": "quay.io/test-org/foo:1",
-    }
-    mocker.patch.object(qm, "process_sync_tasks", return_value={org: [task]})
-    qm.push_creds[org] = "user:token"
+class TestModuleLevelRun:
+    """The module-level run() function wires together the QuayMirror
+    implementation, DeepSyncTimer, and MirrorEngine."""
 
-    qm.run()  # should not raise
+    def test_run_calls_engine_sync(self, mocker: MockerFixture) -> None:
+        mocker.patch("reconcile.container_registry_mirror.quay.gql")
+        mocker.patch("reconcile.container_registry_mirror.quay.queries")
+        mocker.patch("reconcile.container_registry_mirror.quay.SecretReader")
+        mock_engine = mocker.patch(
+            "reconcile.container_registry_mirror.quay.MirrorEngine", autospec=True
+        )
+        mocker.patch.object(QuayMirror, "discover_mirrors", return_value=[])
 
+        from reconcile.container_registry_mirror.quay import run
 
-def test_run_raises_exception_group_on_skopeo_error(
-    quay_mirror_instance: tuple[QuayMirror, MagicMock], mocker: MockerFixture
-) -> None:
-    qm, mock_skopeo = quay_mirror_instance
-    org = OrgKey(instance="quay.io", org_name="test-org")
-    tasks = [
-        {
-            "mirror_url": "docker.io/foo:1",
-            "mirror_creds": None,
-            "image_url": "quay.io/test-org/foo:1",
-        },
-        {
-            "mirror_url": "docker.io/foo:2",
-            "mirror_creds": None,
-            "image_url": "quay.io/test-org/foo:2",
-        },
-    ]
-    mocker.patch.object(qm, "process_sync_tasks", return_value={org: tasks})
-    qm.push_creds[org] = "user:token"
-    mock_skopeo.copy.side_effect = [SkopeoCmdError("exit code: 1"), None]
+        run(
+            dry_run=True,
+            control_file_dir=None,
+            compare_tags=False,
+            compare_tags_interval=86400,
+            repository_urls=None,
+            exclude_repository_urls=None,
+        )
 
-    with pytest.raises(ExceptionGroup) as exc_info:
-        qm.run()
+        mock_engine.return_value.sync.assert_called_once_with([])
 
-    assert mock_skopeo.copy.call_count == 2
-    assert len(exc_info.value.exceptions) == 1
-    assert isinstance(exc_info.value.exceptions[0], SkopeoCmdError)
+    def test_run_raises_exception_group_on_engine_error(
+        self, mocker: MockerFixture
+    ) -> None:
+        mocker.patch("reconcile.container_registry_mirror.quay.gql")
+        mocker.patch("reconcile.container_registry_mirror.quay.queries")
+        mocker.patch("reconcile.container_registry_mirror.quay.SecretReader")
+        mock_engine = mocker.patch(
+            "reconcile.container_registry_mirror.quay.MirrorEngine", autospec=True
+        )
+        mock_engine.return_value.sync.side_effect = ExceptionGroup(
+            "skopeo copy failures",
+            [SkopeoCmdError("exit code: 1")],
+        )
+        mocker.patch.object(QuayMirror, "discover_mirrors", return_value=[])
+
+        from reconcile.container_registry_mirror.quay import run
+
+        with pytest.raises(ExceptionGroup) as exc_info:
+            run(
+                dry_run=True,
+                control_file_dir=None,
+                compare_tags=False,
+                compare_tags_interval=86400,
+                repository_urls=None,
+                exclude_repository_urls=None,
+            )
+
+        assert len(exc_info.value.exceptions) == 1
+        assert isinstance(exc_info.value.exceptions[0], SkopeoCmdError)

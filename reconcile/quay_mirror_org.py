@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
-import tempfile
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Self
 
@@ -17,8 +15,8 @@ from sretoolbox.container.image import (
 )
 from sretoolbox.container.skopeo import SkopeoCmdError
 
+from reconcile.container_registry_mirror.deep_sync_timer import DeepSyncTimer
 from reconcile.quay_base import QuayApiStore
-from reconcile.quay_mirror import QuayMirror
 from reconcile.utils.quay_mirror import record_timestamp, sync_tag
 
 if TYPE_CHECKING:
@@ -39,31 +37,27 @@ class QuayMirrorOrg:
         dry_run: bool = False,
         control_file_dir: str | None = None,
         compare_tags: bool | None = None,
-        compare_tags_interval: int = 28800,  # 8 hours
+        # 28800 seconds = 8 hours.
+        compare_tags_interval: int = 28800,
         orgs: Iterable[str] | None = None,
         repositories: Iterable[str] | None = None,
     ) -> None:
         self.dry_run = dry_run
         self.skopeo_cli = Skopeo(dry_run)
         self.quay_api_store = QuayApiStore()
-        self.compare_tags = compare_tags
-        self.compare_tags_interval = compare_tags_interval
         self.orgs = orgs
         self.repositories = repositories
 
-        if control_file_dir:
-            if not os.path.isdir(control_file_dir):
-                raise FileNotFoundError(
-                    f"'{control_file_dir}' does not exist or it is not a directory"
-                )
+        self._deep_sync_timer = DeepSyncTimer.from_dir(
+            control_file_dir=control_file_dir,
+            control_file_name=CONTROL_FILE_NAME,
+            interval=compare_tags_interval,
+            compare_tags_override=compare_tags,
+        )
+        # Expose for backward compatibility with existing tests that
+        # check control_file_path directly.
+        self.control_file_path = self._deep_sync_timer.control_file_path
 
-            self.control_file_path = os.path.join(control_file_dir, CONTROL_FILE_NAME)
-        else:
-            self.control_file_path = os.path.join(
-                tempfile.gettempdir(), CONTROL_FILE_NAME
-            )
-
-        self._has_enough_time_passed_since_last_compare_tags: bool | None = None
         self.session = requests.Session()
 
     def __enter__(self) -> Self:
@@ -72,6 +66,10 @@ class QuayMirrorOrg:
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         self.session.close()
         self.quay_api_store.cleanup()
+
+    @property
+    def is_compare_tags(self) -> bool:
+        return self._deep_sync_timer.should_run
 
     def run(self) -> None:
         errors: list[Exception] = []
@@ -267,24 +265,6 @@ class QuayMirrorOrg:
                     })
 
         return sync_tasks
-
-    @property
-    def is_compare_tags(self) -> bool:
-        if self.compare_tags is not None:
-            return self.compare_tags
-
-        return self.has_enough_time_passed_since_last_compare_tags
-
-    @property
-    def has_enough_time_passed_since_last_compare_tags(self) -> bool:
-        if self._has_enough_time_passed_since_last_compare_tags is None:
-            self._has_enough_time_passed_since_last_compare_tags = (
-                QuayMirror.check_compare_tags_elapsed_time(
-                    self.control_file_path, self.compare_tags_interval
-                )
-            )
-
-        return self._has_enough_time_passed_since_last_compare_tags
 
     def get_push_creds(self, org_key: OrgKey) -> str:
         """returns username and password for the given org
