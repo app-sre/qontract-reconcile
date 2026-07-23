@@ -174,7 +174,6 @@ The integration scans infra YAML files for user lists with known name fields (`n
 - Safety check: if LDAP returns zero existing users while app-interface has users, the integration aborts with `RuntimeError` to prevent mass deletion
 - `auto_merge` defaults to `false` — controlled via Unleash feature toggle `ldap-users-api-allow-auto-merge-mrs`
 - MR deduplication: file-sync endpoint checks for existing open MRs by title before creating new ones
-- Original `reconcile/ldap_users.py` remains unchanged (rollback safety)
 
 **Caching:**
 
