@@ -1750,7 +1750,7 @@ APPS_QUERY = """
         enabled
         rebase
         days_interval
-        limit
+        rebase_limit
         merge_limit
         enable_closing
         pipeline_timeout
