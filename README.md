@@ -123,8 +123,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   jira-permissions-validator      Validate permissions in Jira.
   ldap-groups                     Manages LDAP groups based on App-Interface
                                   roles.
-  ldap-users                      Removes users which are not found in LDAP
-                                  search.
   ocm-additional-routers          Manage additional routers in OCM.
   ocm-addons                      Manages cluster Addons in OCM.
   ocm-addons-upgrade-scheduler-org

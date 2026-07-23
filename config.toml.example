@@ -15,14 +15,6 @@ server = "https://vaultserver"
 role_id = "<role_id>"
 secret_id = "<secret_id>"
 
-[ldap]
-# This section is required by `qontract-reconcile ldap-users`
-
-# (mandatory) ldap endpoint
-server = "ldap://ldap.example.com"
-# (optional) user search point
-base_dn = "ou=users,dc=example,dc=com"
-
 [smtp]
 # This section is required by `qontract-reconcile terraform-resources`
 
