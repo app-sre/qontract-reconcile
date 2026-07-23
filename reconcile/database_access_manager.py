@@ -339,10 +339,10 @@ def get_job_spec(job_data: JobData) -> OpenshiftResource:
                             "resources": {
                                 "requests": {
                                     "cpu": "100m",
-                                    "memory": "128Mi",
+                                    "memory": "512Mi",
                                 },
                                 "limits": {
-                                    "memory": "256Mi",
+                                    "memory": "512Mi",
                                 },
                             },
                             "volumeMounts": [
