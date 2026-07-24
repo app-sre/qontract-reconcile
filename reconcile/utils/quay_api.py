@@ -133,7 +133,10 @@ class QuayApi(ApiBase):
             if e.response is not None:
                 with contextlib.suppress(ValueError, AttributeError):
                     message = e.response.json().get("message", "")
-            if message != f"User {self.organization}+{robot_name} does not belong to team {team}":
+            if (
+                message
+                != f"User {self.organization}+{robot_name} does not belong to team {team}"
+            ):
                 raise
 
     def add_user_to_team(self, user: str, team: str) -> bool:

@@ -199,7 +199,9 @@ def test_delete_robot_account_raises_other_status_codes(
         quay_api.delete_robot_account("robot1")
 
 
-def test_get_robot_account_permissions(quay_api: QuayApi, httpserver: HTTPServer) -> None:
+def test_get_robot_account_permissions(
+    quay_api: QuayApi, httpserver: HTTPServer
+) -> None:
     httpserver.expect_request(
         f"/api/v1/organization/{ORG}/robots/robot1/permissions",
         method="GET",

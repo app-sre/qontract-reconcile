@@ -4,7 +4,6 @@ from typing import Any
 
 from reconcile.quay_base import (
     OrgKey,
-    QuayApiStore,
     get_quay_api_store,
 )
 from reconcile.status import ExitCodes

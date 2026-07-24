@@ -16,9 +16,7 @@ from sretoolbox.container.image import (
 from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile.container_registry_mirror.deep_sync_timer import DeepSyncTimer
-from reconcile.quay_base import QuayApiStore
 from reconcile.quay_base import get_quay_api_store
-from reconcile.quay_mirror import QuayMirror
 from reconcile.utils.quay_mirror import record_timestamp, sync_tag
 
 if TYPE_CHECKING:

@@ -298,7 +298,9 @@ def apply_action(
                 f"Creating robot account {action.robot_name} in {action.org_name}"
             )
             if not dry_run:
-                quay_api.create_robot_account(action.robot_name, action.description or "")
+                quay_api.create_robot_account(
+                    action.robot_name, action.description or ""
+                )
 
         case RobotAccountActionType.DELETE:
             logging.info(
