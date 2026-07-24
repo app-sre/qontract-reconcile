@@ -199,6 +199,40 @@ def test_delete_robot_account_raises_other_status_codes(
         quay_api.delete_robot_account("robot1")
 
 
+def test_get_robot_account_permissions(quay_api: QuayApi, httpserver: HTTPServer) -> None:
+    httpserver.expect_request(
+        f"/api/v1/organization/{ORG}/robots/robot1/permissions",
+        method="GET",
+    ).respond_with_json(
+        {
+            "permissions": [
+                {"repository": {"name": "repo1"}, "role": "read"},
+                {"repository": {"name": "repo2"}, "role": "write"},
+            ]
+        },
+        status=200,
+    )
+
+    result = quay_api.get_robot_account_permissions("robot1")
+
+    assert result == [
+        {"repository": {"name": "repo1"}, "role": "read"},
+        {"repository": {"name": "repo2"}, "role": "write"},
+    ]
+
+
+def test_get_robot_account_permissions_raises_other_status_codes(
+    quay_api: QuayApi, httpserver: HTTPServer
+) -> None:
+    httpserver.expect_request(
+        f"/api/v1/organization/{ORG}/robots/robot1/permissions",
+        method="GET",
+    ).respond_with_json({"error": "Unauthorized"}, status=401)
+
+    with pytest.raises(HTTPError):
+        quay_api.get_robot_account_permissions("robot1")
+
+
 def test_get_repo_robot_account_permissions(
     quay_api: QuayApi, httpserver: HTTPServer
 ) -> None:
