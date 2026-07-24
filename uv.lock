@@ -514,19 +514,6 @@ cli = [
 ]
 
 [[package]]
-name = "cloudevents"
-version = "2.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "deprecation" },
-    { name = "python-dateutil" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/71/ee/22614a29a1754e6abd979eebfb5f5ecc8ffb6e4e267f3879f017bc5d5531/cloudevents-2.0.0.tar.gz", hash = "sha256:3224851b2ac902b868ed4bc1aa10772ada8cdf85f180322b12968d90a1dceef2", size = 46940, upload-time = "2026-03-24T16:22:20.214Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/43/3a/4df9a7de0bbb30dc6c0f9f707602160ff269dd01a11127f237ef01232b13/cloudevents-2.0.0-py3-none-any.whl", hash = "sha256:babb257989a933b18312897c3bf3a7cc65e270831227822f2db10b50d1278546", size = 94592, upload-time = "2026-03-24T16:22:19.094Z" },
-]
-
-[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -705,18 +692,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/49/85/12f0a49a7c4ffb70572b6c2ef13c90c88fd190debda93b23f026b25f9634/deprecated-1.3.1.tar.gz", hash = "sha256:b1b50e0ff0c1fddaa5708a2c6b0a6588bb09b892825ab2b214ac9ea9d92a5223", size = 2932523, upload-time = "2025-10-30T08:19:02.757Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/84/d0/205d54408c08b13550c733c4b85429e7ead111c7f0014309637425520a9a/deprecated-1.3.1-py2.py3-none-any.whl", hash = "sha256:597bfef186b6f60181535a29fbe44865ce137a5079f295b479886c82729d5f3f", size = 11298, upload-time = "2025-10-30T08:19:00.758Z" },
-]
-
-[[package]]
-name = "deprecation"
-version = "2.1.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5a/d3/8ae2869247df154b64c1884d7346d412fed0c49df84db635aab2d1c40e62/deprecation-2.1.0.tar.gz", hash = "sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff", size = 173788, upload-time = "2020-04-20T14:23:38.738Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/c3/253a89ee03fc9b9682f1541728eb66db7db22148cd94f89ab22528cd1e1b/deprecation-2.1.0-py2.py3-none-any.whl", hash = "sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a", size = 11178, upload-time = "2020-04-20T14:23:36.581Z" },
 ]
 
 [[package]]
@@ -2550,7 +2525,6 @@ source = { editable = "qontract_utils" }
 dependencies = [
     { name = "boto3" },
     { name = "botocore" },
-    { name = "cloudevents" },
     { name = "faststream", extra = ["redis"] },
     { name = "httpx2" },
     { name = "hvac" },
@@ -2588,7 +2562,6 @@ dev = [
 requires-dist = [
     { name = "boto3", specifier = "==1.43.10" },
     { name = "botocore", specifier = "==1.43.10" },
-    { name = "cloudevents", specifier = "==2.0.0" },
     { name = "faststream", extras = ["redis"], specifier = "==0.6.7" },
     { name = "httpx2", specifier = "==2.5.0" },
     { name = "hvac", specifier = "==2.4.0" },

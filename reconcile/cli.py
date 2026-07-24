@@ -2008,20 +2008,6 @@ def quay_permissions(ctx: click.Context) -> None:
     run_integration(reconcile.quay_permissions, ctx)
 
 
-@integration.command(short_help="Removes users which are not found in LDAP search.")
-@click.argument("app-interface-project-id")
-@click.argument("infra-project-id")
-@click.pass_context
-def ldap_users(
-    ctx: click.Context, infra_project_id: str, app_interface_project_id: str
-) -> None:
-    import reconcile.ldap_users
-
-    run_integration(
-        reconcile.ldap_users, ctx, app_interface_project_id, infra_project_id
-    )
-
-
 @integration.command(
     short_help="Removes users which are not found in LDAP search (API)."
 )
