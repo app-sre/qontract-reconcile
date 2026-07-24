@@ -63,7 +63,7 @@ def mock_quay_api() -> QuayApi:
 @pytest.fixture
 def mock_quay_api_store(mock_quay_api: QuayApi) -> QuayApiStore:
     """Mock QuayApiStore"""
-    return {
+    return QuayApiStore({
         OrgKey("quay-instance", "test-org"): OrgInfo(
             url="quay.io",
             push_token=None,
@@ -73,7 +73,7 @@ def mock_quay_api_store(mock_quay_api: QuayApi) -> QuayApiStore:
             mirror_filters={},
             api=mock_quay_api,
         )
-    }
+    })
 
 
 def test_build_desired_state_single_robot(mock_robot_gql: QuayRobotV1) -> None:
@@ -168,7 +168,9 @@ def test_build_current_state_no_org_key(
 
 def test_build_current_state_empty_robots(mock_quay_api_store: QuayApiStore) -> None:
     """Test building current state with empty robot list"""
-    current_robots = {("quay-instance", "test-org"): []}
+    current_robots: dict[tuple[str, str], list[RobotAccountDetails]] = {
+        ("quay-instance", "test-org"): []
+    }
 
     current_state = build_current_state(current_robots, mock_quay_api_store)
     assert len(current_state) == 0
