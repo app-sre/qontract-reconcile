@@ -85,33 +85,30 @@ class TestQuayMembership:
         quay_org_catalog = fixture["quay_org_catalog"]
         quay_org_teams = fixture["quay_org_teams"]
 
-        # Patch get_quay_api_store to return empty dict, then create QuayApiStore
-        # This prevents GraphQL queries during initialization
-        with patch("reconcile.quay_base.get_quay_api_store", return_value={}):
-            store = QuayApiStore()
+        store = QuayApiStore()
 
-            # Populate store with test data
-            for org_data in quay_org_catalog:
-                name_str = org_data["name"]
-                name = OrgKey(instance="quay.io", org_name=name_str)
+        # Populate store with test data
+        for org_data in quay_org_catalog:
+            name_str = org_data["name"]
+            name = OrgKey(instance="quay.io", org_name=name_str)
 
-                # Create mock API instance
-                mock_api = QuayApiMock(quay_org_teams.get(name_str, {}))
+            # Create mock API instance
+            mock_api = QuayApiMock(quay_org_teams.get(name_str, {}))
 
-                # Store org metadata with api field (matching OrgInfo structure)
-                store[name] = OrgInfo(
-                    url="",
-                    teams=org_data["managedTeams"],
-                    push_token=None,
-                    managedRepos=False,
-                    mirror=None,
-                    mirror_filters={},
-                    api=mock_api,
-                )
+            # Store org metadata with api field (matching OrgInfo structure)
+            store[name] = OrgInfo(
+                url="",
+                teams=org_data["managedTeams"],
+                push_token=None,
+                managedRepos=False,
+                mirror=None,
+                mirror_filters={},
+                api=mock_api,
+            )
 
-            # Use the store in a context manager to ensure cleanup
-            with store:
-                current_state = quay_membership.fetch_current_state(store).dump()
+        # Use the store in a context manager to ensure cleanup
+        with store:
+            current_state = quay_membership.fetch_current_state(store).dump()
 
         expected_current_state = fixture["state"]
 

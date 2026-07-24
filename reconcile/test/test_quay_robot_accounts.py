@@ -494,8 +494,8 @@ def test_apply_action_remove_team(
 
     apply_action(action, mock_quay_api_store, dry_run=False)
 
-    mock_quay_api.remove_user_from_team.assert_called_once_with(  # type: ignore
-        "test-org+robot", "old-team"
+    mock_quay_api.remove_robot_from_team.assert_called_once_with(  # type: ignore
+        "robot", "old-team"
     )
 
 

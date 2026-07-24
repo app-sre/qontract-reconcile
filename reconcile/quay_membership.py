@@ -11,7 +11,7 @@ from reconcile.gql_definitions.quay_membership.quay_membership import (
     PermissionQuayOrgTeamV1,
     UserV1,
 )
-from reconcile.quay_base import OrgKey, QuayApiStore
+from reconcile.quay_base import OrgKey, QuayApiStore, get_quay_api_store
 from reconcile.status import ExitCodes
 from reconcile.utils import (
     expiration,
@@ -219,7 +219,7 @@ class RunnerAction:
 
 
 def run(dry_run: bool) -> None:
-    with QuayApiStore() as quay_api_store:
+    with get_quay_api_store() as quay_api_store:
         current_state = fetch_current_state(quay_api_store)
         desired_state = fetch_desired_state()
 

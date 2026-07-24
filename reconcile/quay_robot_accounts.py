@@ -292,47 +292,42 @@ def apply_action(
 
     quay_api = quay_api_store[org_key]["api"]
 
-    if dry_run:
-        logging.info(f"[DRY RUN] Would perform: {action}")
-        return
-
     match action.action:
         case RobotAccountActionType.CREATE:
             logging.info(
                 f"Creating robot account {action.robot_name} in {action.org_name}"
             )
-            quay_api.create_robot_account(action.robot_name, action.description or "")
+            if not dry_run:
+                quay_api.create_robot_account(action.robot_name, action.description or "")
 
         case RobotAccountActionType.DELETE:
             logging.info(
                 f"Deleting robot account {action.robot_name} from {action.org_name}"
             )
-            quay_api.delete_robot_account(action.robot_name)
+            if not dry_run:
+                quay_api.delete_robot_account(action.robot_name)
 
         case RobotAccountActionType.ADD_TEAM:
+            if not action.team:
+                raise ValueError(f"Team is required for add_team action: {action}")
             logging.info(
                 f"Adding robot {action.robot_name} to team {action.team} in {action.org_name}"
             )
-            if not action.team:
-                raise ValueError(f"Team is required for add_team action: {action}")
-            quay_api.add_user_to_team(
-                f"{action.org_name}+{action.robot_name}", action.team
-            )
+            if not dry_run:
+                quay_api.add_user_to_team(
+                    f"{action.org_name}+{action.robot_name}", action.team
+                )
 
         case RobotAccountActionType.REMOVE_TEAM:
+            if not action.team:
+                raise ValueError(f"Team is required for remove_team action: {action}")
             logging.info(
                 f"Removing robot {action.robot_name} from team {action.team} in {action.org_name}"
             )
-            if not action.team:
-                raise ValueError(f"Team is required for remove_team action: {action}")
-            quay_api.remove_user_from_team(
-                f"{action.org_name}+{action.robot_name}", action.team
-            )
+            if not dry_run:
+                quay_api.remove_robot_from_team(action.robot_name, action.team)
 
         case RobotAccountActionType.SET_REPO_PERMISSION:
-            logging.info(
-                f"Setting {action.permission} permission for robot {action.robot_name} on repo {action.repo}"
-            )
             if not action.repo:
                 raise ValueError(
                     f"Repo is required for set_repo_permission action: {action}"
@@ -341,21 +336,26 @@ def apply_action(
                 raise ValueError(
                     f"Permission is required for set_repo_permission action: {action}"
                 )
-            quay_api.set_repo_robot_account_permissions(
-                action.repo, action.robot_name, action.permission
+            logging.info(
+                f"Setting {action.permission} permission for robot {action.robot_name} on repo {action.repo}"
             )
+            if not dry_run:
+                quay_api.set_repo_robot_account_permissions(
+                    action.repo, action.robot_name, action.permission
+                )
 
         case RobotAccountActionType.REMOVE_REPO_PERMISSION:
+            if not action.repo:
+                raise ValueError(
+                    f"Repo is required for remove_repo_permission action: {action}"
+                )
             logging.info(
                 f"Removing permissions for robot {action.robot_name} from repo {action.repo}"
             )
-            if not action.repo:
-                raise ValueError(
-                    f"Repo is required for set_repo_permissions action: {action}"
+            if not dry_run:
+                quay_api.delete_repo_robot_account_permissions(
+                    action.repo, action.robot_name
                 )
-            quay_api.delete_repo_robot_account_permissions(
-                action.repo, action.robot_name
-            )
 
 
 def run(dry_run: bool = False) -> None:

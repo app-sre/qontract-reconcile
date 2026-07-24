@@ -119,6 +119,23 @@ class QuayApi(ApiBase):
 
         return True
 
+    def remove_robot_from_team(self, robot_name: str, team: str) -> None:
+        """Removes a robot account from a team without touching org membership.
+
+        Use this instead of remove_user_from_team for robot accounts — that
+        method also deletes the member from the whole organization.
+        """
+        url = f"/api/v1/organization/{self.organization}/team/{team}/members/{self.organization}+{robot_name}"
+        try:
+            self._delete(url)
+        except requests.exceptions.HTTPError as e:
+            message = ""
+            if e.response is not None:
+                with contextlib.suppress(ValueError, AttributeError):
+                    message = e.response.json().get("message", "")
+            if message != f"User {self.organization}+{robot_name} does not belong to team {team}":
+                raise
+
     def add_user_to_team(self, user: str, team: str) -> bool:
         """Adds an user to a team.
 

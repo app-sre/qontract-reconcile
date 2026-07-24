@@ -68,9 +68,7 @@ class TestQuayRepos:
             }
         }
 
-        # Patch get_quay_api_store to return test data, then create QuayApiStore
-        with patch("reconcile.quay_base.get_quay_api_store", return_value=test_data):
-            quay_api_store = QuayApiStore()
+        quay_api_store = QuayApiStore(test_data)
 
         dry_run = True
         act(dry_run, quay_api_store, current_state, desired_state)
