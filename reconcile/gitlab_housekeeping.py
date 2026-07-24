@@ -1505,7 +1505,13 @@ def run_error_healthcheck(
         terminal_pipelines = [
             p
             for p in pipelines
-            if p.status not in {PipelineStatus.RUNNING, PipelineStatus.PENDING}
+            if p.status
+            in {
+                PipelineStatus.SUCCESS,
+                PipelineStatus.FAILED,
+                PipelineStatus.CANCELED,
+                PipelineStatus.SKIPPED,
+            }
         ]
         if not terminal_pipelines:
             continue
