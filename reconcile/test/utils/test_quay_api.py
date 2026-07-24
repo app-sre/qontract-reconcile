@@ -134,7 +134,7 @@ def test_list_robot_accounts(quay_api: QuayApi, httpserver: HTTPServer) -> None:
         {
             "name": "robot1",
             "description": "robot1 description",
-            "teams": [{"name": "team1"}, {"name": "team2"}],
+            "teams": ["team1", "team2"],
             "repositories": ["repo1"],
         },
         {

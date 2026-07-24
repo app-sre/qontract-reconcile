@@ -13,7 +13,7 @@ class QuayTeamNotFoundError(Exception):
 class RobotAccountDetails(TypedDict):
     name: str
     description: str | None
-    teams: list[dict[str, str]]
+    teams: list[str]
     repositories: list[str]
 
 
@@ -265,7 +265,7 @@ class QuayApi(ApiBase):
             RobotAccountDetails(
                 name=robot["name"].removeprefix(prefix),
                 description=robot.get("description"),
-                teams=robot.get("teams", []),
+                teams=[t["name"] for t in robot.get("teams", [])],
                 repositories=robot.get("repositories", []),
             )
             for robot in body["robots"]

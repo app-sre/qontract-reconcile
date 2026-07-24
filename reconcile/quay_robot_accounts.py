@@ -127,8 +127,7 @@ def build_current_state(
             robot_name = robot_data["name"]  # already normalized to short name
             description = robot_data.get("description")
 
-            # Get team memberships — teams is a list of dicts with a "name" key
-            teams = {t["name"] for t in robot_data.get("teams", [])}
+            teams = set(robot_data.get("teams", []))
 
             # Get repository permissions via dedicated endpoint (the robots list
             # endpoint only returns repo names, not roles)

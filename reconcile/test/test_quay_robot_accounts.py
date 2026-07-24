@@ -49,7 +49,7 @@ def mock_current_robot() -> RobotAccountDetails:
     return RobotAccountDetails(
         name="existing-robot",  # already normalized to short name by list_robot_accounts
         description="Existing robot",
-        teams=[{"name": "team1"}],
+        teams=["team1"],  # already normalized to team names by list_robot_accounts
         repositories=["repo1"],  # robots list endpoint returns names only
     )
 
@@ -61,7 +61,7 @@ def mock_quay_api() -> QuayApi:
 
 
 @pytest.fixture
-def mock_quay_api_store(mock_quay_api: QuayApi) -> dict[OrgKey, OrgInfo]:
+def mock_quay_api_store(mock_quay_api: QuayApi) -> QuayApiStore:
     """Mock QuayApiStore"""
     return {
         OrgKey("quay-instance", "test-org"): OrgInfo(
@@ -168,9 +168,7 @@ def test_build_current_state_no_org_key(
 
 def test_build_current_state_empty_robots(mock_quay_api_store: QuayApiStore) -> None:
     """Test building current state with empty robot list"""
-    current_robots: dict[tuple[str, str], list[RobotAccountDetails]] = {
-        ("quay-instance", "test-org"): []
-    }
+    current_robots = {("quay-instance", "test-org"): []}
 
     current_state = build_current_state(current_robots, mock_quay_api_store)
     assert len(current_state) == 0
@@ -377,7 +375,16 @@ def test_calculate_diff_no_changes() -> None:
         repositories={"repo1": "read"},
     )
     desired_state = {("instance", "org", "robot"): state}
-    current_state = {("instance", "org", "robot"): state}
+    current_state = {
+        ("instance", "org", "robot"): RobotAccountState(
+            name="robot",
+            description="Robot",
+            org_name="org",
+            instance_name="instance",
+            teams={"team1"},
+            repositories={"repo1": "read"},
+        )
+    }
 
     actions = calculate_diff(desired_state, current_state)
     assert len(actions) == 0
@@ -391,13 +398,13 @@ def test_get_current_robot_accounts_success(
         RobotAccountDetails(
             name="robot1",
             description="Robot 1",
-            teams=[{"name": "team1"}],
+            teams=["team1"],
             repositories=["repo1"],
         ),
         RobotAccountDetails(
             name="robot2",
             description="Robot 2",
-            teams=[{"name": "team2"}],
+            teams=["team2"],
             repositories=["repo2"],
         ),
     ]
@@ -561,10 +568,11 @@ def test_apply_action_no_org_key(
     mock_quay_api.create_robot_account.assert_not_called()  # type: ignore
 
 
-def test_apply_action_exception_handling(mock_quay_api_store: QuayApiStore) -> None:
+def test_apply_action_exception_handling(
+    mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
+) -> None:
     """Test exception handling in apply_action"""
-    mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.create_robot_account.side_effect = Exception("API Error")  # type: ignore
+    mock_quay_api.create_robot_account.side_effect = Exception("API Error")  # type: ignore
 
     action = RobotAccountAction(
         action=RobotAccountActionType.CREATE,
