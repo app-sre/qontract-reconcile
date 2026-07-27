@@ -142,6 +142,11 @@ class TestVaultSecretBackendRead:
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
+            # Default to a KV v2 mount for detection (sys/internal/ui/mounts) -
+            # individual tests override this when they need different behavior.
+            mock_client.adapter.get.return_value = {
+                "data": {"options": {"version": "2"}}
+            }
             mock_client_class.return_value = mock_client
 
             settings = VaultSecretBackendSettings(
@@ -225,7 +230,9 @@ class TestVaultSecretBackendRead:
     def test_read_nonexistent_field_raises_error(self) -> None:
         """Test that reading non-existent field raises SecretNotFoundError."""
         # Mock KV version detection first
-        self.mock_client.secrets.kv.v2.read_configuration.return_value = {}
+        self.mock_client.adapter.get.return_value = {
+            "data": {"options": {"version": "2"}}
+        }
         self.mock_client.secrets.kv.v2.read_secret_version.return_value = {
             "data": {"data": {"token": "xoxb-test-token"}}
         }
@@ -256,8 +263,10 @@ class TestVaultSecretBackendRead:
 
     def test_read_with_kv_v2_detection(self) -> None:
         """Test that read() detects KV version correctly."""
-        # Mock KV v2 detection
-        self.mock_client.secrets.kv.v2.read_configuration.return_value = {}
+        # Mock KV v2 detection via sys/internal/ui/mounts
+        self.mock_client.adapter.get.return_value = {
+            "data": {"options": {"version": "2"}}
+        }
         self.mock_client.secrets.kv.v2.read_secret_version.return_value = {
             "data": {"data": {"token": "xoxb-test-token"}}
         }
@@ -265,8 +274,36 @@ class TestVaultSecretBackendRead:
         result = self.backend.read(Secret(path="secret/workspace-1/token"))
 
         assert result == "xoxb-test-token"
-        # Should call read_configuration once to detect KV version
-        self.mock_client.secrets.kv.v2.read_configuration.assert_called_once()
+        # Should call sys/internal/ui/mounts once to detect KV version
+        self.mock_client.adapter.get.assert_called_once_with(
+            "/v1/sys/internal/ui/mounts/secret"
+        )
+
+    def test_read_not_fooled_by_forbidden_on_mount_config(self) -> None:
+        """A token without the mount's `config` capability must still be detected.
+
+        Must be detected as KV v2 correctly via sys/internal/ui/mounts, not
+        misdetected as v1. secrets.kv.v2.read_configuration requires a separate, often-not-granted
+        capability from the one needed to actually read/write/list secret data - a
+        Forbidden there does NOT mean the mount is v1. sys/internal/ui/mounts is the
+        low-privilege endpoint Vault's own CLI uses instead, so detection must use it,
+        not read_configuration.
+        """
+        # Simulate: token lacks the mount's `config` capability (but the mount IS v2)
+        self.mock_client.secrets.kv.v2.read_configuration.side_effect = Forbidden()
+        self.mock_client.adapter.get.return_value = {
+            "data": {"options": {"version": "2"}}
+        }
+        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "data": {"data": {"token": "xoxb-test-token"}}
+        }
+
+        result = self.backend.read(Secret(path="secret/workspace-1/token"))
+
+        assert result == "xoxb-test-token"
+        # Must use the v2 API, not v1, since the mount really is v2
+        self.mock_client.secrets.kv.v2.read_secret_version.assert_called_once()
+        self.mock_client.secrets.kv.v1.read_secret.assert_not_called()
 
 
 class TestVaultSecretBackendReadAll:
@@ -277,6 +314,10 @@ class TestVaultSecretBackendReadAll:
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
+            # Default to a KV v2 mount for detection (sys/internal/ui/mounts).
+            mock_client.adapter.get.return_value = {
+                "data": {"options": {"version": "2"}}
+            }
             mock_client_class.return_value = mock_client
 
             settings = VaultSecretBackendSettings(
@@ -351,6 +392,228 @@ class TestVaultSecretBackendReadAll:
             SecretAccessForbiddenError, match="Access denied: secret/forbidden/path"
         ):
             self.backend.read_all(Secret(path="secret/forbidden/path"))
+
+
+class TestVaultSecretBackendWrite:
+    """Test Vault write operations."""
+
+    def setup_method(self) -> None:
+        """Create a mock VaultSecretBackend for each test."""
+        with patch("hvac.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.is_authenticated.return_value = True
+            # Default to a KV v2 mount for detection (sys/internal/ui/mounts) -
+            # individual tests override this when they need different behavior.
+            mock_client.adapter.get.return_value = {
+                "data": {"options": {"version": "2"}}
+            }
+            mock_client_class.return_value = mock_client
+
+            settings = VaultSecretBackendSettings(
+                server="https://vault.test",
+                role_id="test-role-id",
+                secret_id="test-secret-id",
+                auto_refresh=False,
+            )
+            self.backend = VaultSecretBackend(settings)
+            self.mock_client = mock_client
+
+    def test_write_kv_v2_secret(self) -> None:
+        """Test writing a secret to a KV v2 mount."""
+        self.mock_client.secrets.kv.v2.read_secret_version.side_effect = InvalidPath()
+
+        self.backend.write(
+            Secret(path="secret/workspace-1/token"), {"token": "new-token"}
+        )
+
+        self.mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
+            path="workspace-1/token",
+            mount_point="secret",
+            secret={"token": "new-token"},
+        )
+
+    def test_write_kv_v1_secret(self) -> None:
+        """Test writing a secret to a KV v1 mount."""
+        self.mock_client.adapter.get.return_value = {"data": {}}
+        self.mock_client.secrets.kv.v1.read_secret.side_effect = InvalidPath()
+
+        self.backend.write(
+            Secret(path="secret/workspace-1/token"), {"token": "new-token"}
+        )
+
+        self.mock_client.secrets.kv.v1.create_or_update_secret.assert_called_once_with(
+            path="workspace-1/token",
+            mount_point="secret",
+            secret={"token": "new-token"},
+        )
+
+    def test_write_skips_if_unchanged(self) -> None:
+        """Test that write() skips the actual write if data is identical."""
+        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "data": {"data": {"token": "same-token"}}
+        }
+
+        self.backend.write(
+            Secret(path="secret/workspace-1/token"), {"token": "same-token"}
+        )
+
+        self.mock_client.secrets.kv.v2.create_or_update_secret.assert_not_called()
+
+    def test_write_force_bypasses_skip(self) -> None:
+        """Test that force=True writes even if data is identical."""
+        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "data": {"data": {"token": "same-token"}}
+        }
+
+        self.backend.write(
+            Secret(path="secret/workspace-1/token"),
+            {"token": "same-token"},
+            force=True,
+        )
+
+        self.mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
+            path="workspace-1/token",
+            mount_point="secret",
+            secret={"token": "same-token"},
+        )
+
+    def test_write_forbidden_on_current_read_raises_error(self) -> None:
+        """Test that Forbidden while reading current data raises SecretAccessForbiddenError."""
+        self.mock_client.secrets.kv.v2.read_secret_version.side_effect = Forbidden()
+
+        with pytest.raises(
+            SecretAccessForbiddenError, match="Access denied: secret/forbidden/path"
+        ):
+            self.backend.write(Secret(path="secret/forbidden/path"), {"token": "x"})
+
+    def test_write_forbidden_on_write_raises_error(self) -> None:
+        """Test that Forbidden while writing raises SecretAccessForbiddenError."""
+        self.mock_client.secrets.kv.v2.read_secret_version.side_effect = InvalidPath()
+        self.mock_client.secrets.kv.v2.create_or_update_secret.side_effect = Forbidden()
+
+        with pytest.raises(
+            SecretAccessForbiddenError, match="Access denied: secret/forbidden/path"
+        ):
+            self.backend.write(Secret(path="secret/forbidden/path"), {"token": "x"})
+
+
+class TestVaultSecretBackendDelete:
+    """Test Vault delete operations."""
+
+    def setup_method(self) -> None:
+        """Create a mock VaultSecretBackend for each test."""
+        with patch("hvac.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.is_authenticated.return_value = True
+            mock_client.adapter.get.return_value = {
+                "data": {"options": {"version": "2"}}
+            }
+            mock_client_class.return_value = mock_client
+
+            settings = VaultSecretBackendSettings(
+                server="https://vault.test",
+                role_id="test-role-id",
+                secret_id="test-secret-id",
+                auto_refresh=False,
+            )
+            self.backend = VaultSecretBackend(settings)
+            self.mock_client = mock_client
+
+    def test_delete_kv_v1_secret(self) -> None:
+        """Test deleting a secret from a KV v1 mount."""
+        self.mock_client.adapter.get.return_value = {"data": {}}
+
+        self.backend.delete(Secret(path="secret/workspace-1/token"))
+
+        self.mock_client.secrets.kv.v1.delete_secret.assert_called_once_with(
+            path="workspace-1/token", mount_point="secret"
+        )
+
+    def test_delete_kv_v2_raises_not_implemented(self) -> None:
+        """Test that deleting a KV v2 secret raises NotImplementedError."""
+        with pytest.raises(
+            NotImplementedError, match="Deleting KV v2 secrets is not supported yet"
+        ):
+            self.backend.delete(Secret(path="secret/workspace-1/token"))
+
+        self.mock_client.secrets.kv.v1.delete_secret.assert_not_called()
+
+    def test_delete_forbidden_raises_error(self) -> None:
+        """Test that Forbidden while deleting raises SecretAccessForbiddenError."""
+        self.mock_client.adapter.get.return_value = {"data": {}}
+        self.mock_client.secrets.kv.v1.delete_secret.side_effect = Forbidden()
+
+        with pytest.raises(
+            SecretAccessForbiddenError, match="Access denied: secret/forbidden/path"
+        ):
+            self.backend.delete(Secret(path="secret/forbidden/path"))
+
+
+class TestVaultSecretBackendList:
+    """Test Vault list operations."""
+
+    def setup_method(self) -> None:
+        """Create a mock VaultSecretBackend for each test."""
+        with patch("hvac.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.is_authenticated.return_value = True
+            mock_client.adapter.get.return_value = {
+                "data": {"options": {"version": "2"}}
+            }
+            mock_client_class.return_value = mock_client
+
+            settings = VaultSecretBackendSettings(
+                server="https://vault.test",
+                role_id="test-role-id",
+                secret_id="test-secret-id",
+                auto_refresh=False,
+            )
+            self.backend = VaultSecretBackend(settings)
+            self.mock_client = mock_client
+
+    def test_list_kv_v2_returns_keys(self) -> None:
+        """Test listing keys under a KV v2 path."""
+        self.mock_client.secrets.kv.v2.list_secrets.return_value = {
+            "data": {"keys": ["client-1", "client-2"]}
+        }
+
+        result = self.backend.list(Secret(path="secret/sso-clients"))
+
+        assert result == ["client-1", "client-2"]
+        self.mock_client.secrets.kv.v2.list_secrets.assert_called_once_with(
+            path="sso-clients", mount_point="secret"
+        )
+
+    def test_list_kv_v1_returns_keys(self) -> None:
+        """Test listing keys under a KV v1 path."""
+        self.mock_client.adapter.get.return_value = {"data": {}}
+        self.mock_client.secrets.kv.v1.list_secrets.return_value = {
+            "data": {"keys": ["client-1", "client-2"]}
+        }
+
+        result = self.backend.list(Secret(path="secret/sso-clients"))
+
+        assert result == ["client-1", "client-2"]
+        self.mock_client.secrets.kv.v1.list_secrets.assert_called_once_with(
+            path="sso-clients", mount_point="secret"
+        )
+
+    def test_list_invalid_path_returns_empty(self) -> None:
+        """Test that listing a nonexistent path returns an empty list."""
+        self.mock_client.secrets.kv.v2.list_secrets.side_effect = InvalidPath()
+
+        result = self.backend.list(Secret(path="secret/nonexistent"))
+
+        assert result == []
+
+    def test_list_forbidden_raises_error(self) -> None:
+        """Test that Forbidden while listing raises SecretAccessForbiddenError."""
+        self.mock_client.secrets.kv.v2.list_secrets.side_effect = Forbidden()
+
+        with pytest.raises(
+            SecretAccessForbiddenError, match="Access denied: secret/forbidden/path"
+        ):
+            self.backend.list(Secret(path="secret/forbidden/path"))
 
 
 class TestVaultSecretBackendAutoRefresh:
@@ -531,6 +794,9 @@ class TestVaultSecretBackendCustomMountPoint:
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
+            mock_client.adapter.get.return_value = {
+                "data": {"options": {"version": "2"}}
+            }
             mock_client.secrets.kv.v2.read_secret_version.return_value = {
                 "data": {"data": {"token": "xoxb-test-token"}}
             }
@@ -640,6 +906,9 @@ class TestVaultSecretBackendHooks:
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
+            mock_client.adapter.get.return_value = {
+                "data": {"options": {"version": "2"}}
+            }
             mock_client.secrets.kv.v2.read_secret_version.return_value = {
                 "data": {"data": {"token": "xoxb-test-token"}}
             }
@@ -661,6 +930,9 @@ class TestVaultSecretBackendHooks:
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
+            mock_client.adapter.get.return_value = {
+                "data": {"options": {"version": "2"}}
+            }
             mock_client.secrets.kv.v2.read_secret_version.return_value = {
                 "data": {"data": {"token": "xoxb-test-token"}}
             }
@@ -680,6 +952,7 @@ def test_vault_retries_on_transient_errors(enable_retry: None) -> None:
     with patch("hvac.Client") as mock_client_class:
         mock_client = MagicMock()
         mock_client.is_authenticated.return_value = True
+        mock_client.adapter.get.return_value = {"data": {"options": {"version": "2"}}}
         mock_client_class.return_value = mock_client
 
         settings = VaultSecretBackendSettings(
@@ -714,6 +987,7 @@ def test_vault_gives_up_after_max_attempts(enable_retry: None) -> None:
     with patch("hvac.Client") as mock_client_class:
         mock_client = MagicMock()
         mock_client.is_authenticated.return_value = True
+        mock_client.adapter.get.return_value = {"data": {"options": {"version": "2"}}}
         mock_client_class.return_value = mock_client
 
         settings = VaultSecretBackendSettings(
@@ -974,6 +1248,9 @@ class TestVaultRetryConfiguration:
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
+            mock_client.adapter.get.return_value = {
+                "data": {"options": {"version": "2"}}
+            }
             mock_client_class.return_value = mock_client
 
             settings = VaultSecretBackendSettings(
@@ -1016,6 +1293,9 @@ class TestVaultRetryConfiguration:
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
+            mock_client.adapter.get.return_value = {
+                "data": {"options": {"version": "2"}}
+            }
             mock_client_class.return_value = mock_client
 
             settings = VaultSecretBackendSettings(

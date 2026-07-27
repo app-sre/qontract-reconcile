@@ -1,4 +1,5 @@
 import importlib
+import logging
 import os
 import time
 from unittest.mock import (
@@ -64,6 +65,41 @@ class TestVaultUtils:
             client._read_all_v2.assert_called_once_with(
                 "test/secret", vault.SECRET_VERSION_LATEST
             )
+
+
+def test_refresh_client_auth_collapses_multiline_exception_message(
+    tmp_path: os.PathLike[str], caplog: pytest.LogCaptureFixture
+) -> None:
+    """A multi-line exception message (e.g. an HTML error body with embedded
+    newlines, as returned by a gateway timeout) must be logged as a single
+    line rather than split across several physical log lines."""
+    token_path = os.path.join(tmp_path, "token")
+    with open(token_path, "w", encoding="locale") as f:
+        f.write("fake-token")
+
+    with patch("reconcile.utils.vault.VaultClient.__init__", return_value=None):
+        client = vault.VaultClient()
+
+    client.kube_auth_enabled = True
+    client.kube_sa_token_path = token_path
+    client.kube_auth_role = "qontract-reconcile"
+    client.kube_auth_mount = "kubernetes-appsres09ue1"
+    client._client = MagicMock()
+    client._client.url = "https://vault.devshift.net"
+    client._client.auth.kubernetes.login.side_effect = Exception(
+        "<html><body><h1>504 Gateway Time-out</h1>\n"
+        "The server didn't respond in time.\n"
+        "</body></html>\n"
+    )
+
+    with caplog.at_level(logging.ERROR):
+        client._refresh_client_auth()
+
+    assert len(caplog.records) == 1
+    logged_message = caplog.records[0].message
+    assert "\n" not in logged_message
+    assert "504 Gateway Time-out" in logged_message
+    assert "The server didn't respond in time." in logged_message
 
 
 @pytest.fixture
