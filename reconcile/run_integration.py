@@ -6,6 +6,7 @@ import contextlib
 import cProfile
 import logging
 import os
+import shlex
 import sys
 import time
 from importlib import metadata
@@ -131,7 +132,7 @@ def build_entry_point_args(
         args.append(integration_name)
 
     if extra_args is not None:
-        args.extend(extra_args.split())
+        args.extend(shlex.split(extra_args))
     return args
 
 
@@ -202,7 +203,8 @@ def main() -> None:
       used as name for the subcommand for command if present as a subcommand
       on the click command
     * INTEGRATION_EXTRA_ARGS (optional)
-      space separated list of arguments that will be passed to the command
+      shell-style (shlex) space separated list of arguments that will be
+      passed to the command
       or subcommand
     * CONFIG
       path to the config toml file
