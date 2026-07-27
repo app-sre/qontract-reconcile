@@ -1066,7 +1066,7 @@ def _process_omm_member(
     pipelines = [
         p
         for p in pipelines
-        if p.status != PipelineStatus.SKIPPED and p.source != "push"
+        if not (p.status == PipelineStatus.SKIPPED or p.source == "push")
     ]
 
     mr_is_rebased = is_rebased(mr, gl)
