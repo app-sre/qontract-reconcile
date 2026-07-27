@@ -1061,14 +1061,15 @@ def _process_omm_member(
             )
 
     # Filter noise pipelines caused by skip-ci rebase:
-    # SKIPPED: GitLab creates a skipped MR-event pipeline for skip_ci
-    # push at current SHA: fork CI fires on the new commit, and
-    # same-project MRs can also see a push pipeline despite skip_ci.
+    # SKIPPED: GitLab creates a skipped MR-event pipeline for skip_ci.
+    # PUSH: fork/same-project CI fires on the rebased commit despite
+    # skip_ci — these are empty shells (0 jobs) that eventually absorb
+    # the external CI status. Remove ALL push pipelines since they only
+    # ever appear as artifacts of rebase(skip_ci=True).
     pipelines = [
         p
         for p in pipelines
-        if p.status != PipelineStatus.SKIPPED
-        and not (p.sha == mr.sha and p.source == "push")
+        if p.status != PipelineStatus.SKIPPED and p.source != "push"
     ]
 
     mr_is_rebased = is_rebased(mr, gl)

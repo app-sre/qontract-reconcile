@@ -3032,9 +3032,9 @@ def test_omm_group_fork_pipeline_post_rebase_filtered_merges(
     merge_sha: str | None,
     squash_sha: str | None,
 ) -> None:
-    """After skip-ci rebase, fork pipelines matching the new MR SHA are
-    filtered out.  The pre-rebase fork SUCCESS pipeline (old SHA) should
-    drive the merge decision."""
+    """After skip-ci rebase, push-source pipelines are filtered out regardless
+    of sha.  The pre-rebase fork SUCCESS pipeline (old SHA, external source)
+    should drive the merge decision."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
         "reconcile.gitlab_housekeeping.is_rebased",
