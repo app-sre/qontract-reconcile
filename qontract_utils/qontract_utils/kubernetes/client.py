@@ -29,7 +29,12 @@ _Project = create_global_resource(
     kind="Project",
     plural="projects",
 )
-
+_ProjectRequest = create_global_resource(
+    group="project.openshift.io",
+    version="v1",
+    kind="ProjectRequest",
+    plural="projectrequests",
+)
 logger = structlog.get_logger(__name__)
 
 kubernetes_request = Counter(
@@ -258,10 +263,10 @@ class KubernetesApi:
         return self._create_namespace(name)
 
     def _create_project(self, name: str) -> Namespace:
-        """Create via OpenShift Project API, return as Namespace."""
-        project = _Project(metadata=ObjectMeta(name=name))
+        """Create via OpenShift ProjectRequest API, return as Namespace."""
+        project_request = _ProjectRequest(metadata=ObjectMeta(name=name))
         try:
-            self._client.create(project)
+            self._client.create(project_request)
         except ApiError as e:
             if e.status.code != _HTTP_CONFLICT:
                 raise from_api_error(e) from e

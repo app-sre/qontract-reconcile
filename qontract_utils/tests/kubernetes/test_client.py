@@ -359,7 +359,7 @@ def test_create_namespace_uses_project_on_openshift(
 ) -> None:
     """On OpenShift, create_namespace creates a Project then returns Namespace."""
     httpserver.expect_ordered_request(
-        "/apis/project.openshift.io/v1/projects",
+        "/apis/project.openshift.io/v1/projectrequests",
         method="POST",
     ).respond_with_json(k8s_project_json("new-ns"), status=201)
     httpserver.expect_ordered_request(
@@ -377,7 +377,7 @@ def test_create_namespace_project_idempotent_409(
 ) -> None:
     """On OpenShift, 409 on Project create is handled (idempotent)."""
     httpserver.expect_ordered_request(
-        "/apis/project.openshift.io/v1/projects",
+        "/apis/project.openshift.io/v1/projectrequests",
         method="POST",
     ).respond_with_json(
         k8s_status_json(409, "AlreadyExists", 'projects "exists" already exists'),
