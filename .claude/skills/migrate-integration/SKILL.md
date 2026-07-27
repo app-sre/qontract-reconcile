@@ -12,6 +12,12 @@ Successful migrations serve as reference implementations:
 - `slack_usergroups` -> `slack_usergroups_api` (Pattern 1: full server-side)
 - `glitchtip_project_alerts` -> `glitchtip_project_alerts_api` (Pattern 1: full server-side)
 - `glitchtip` -> `glitchtip_api` (Pattern 1: full server-side)
+- `rhidp/sso_client` -> `rhidp-sso-client-api` (Pattern 1 variant: needed two brand-new
+  Layer 1 clients (`ocm_api`, `keycloak_api`), a brand-new generic external endpoint
+  (`external/ocm`), and Vault write/delete/list support that didn't exist yet. Also the
+  first migration where the legacy package (`reconcile/rhidp/`) is meant to be deleted
+  entirely once done, not just the one integration inside it — see the "legacy package
+  slated for deletion" rule below, which is stricter than the normal ADR-007 rule.)
 
 ## Input
 
@@ -136,9 +142,12 @@ Following ADR-007 (no reconcile/ imports in qontract-api) and ADR-014 (three-lay
    - Use `Glob` on `qontract_utils/qontract_utils/**/*.py` and scan for relevant modules
    - Existing clients to be aware of:
      - `qontract_utils/qontract_utils/aws_api_typed/` - AWS APIs (Organizations, IAM, STS, S3, Support, Account, Service Quotas, etc.)
-     - `qontract_utils/qontract_utils/slack/` - Slack API
-     - `qontract_utils/qontract_utils/glitchtip/` - Glitchtip API
-     - `qontract_utils/qontract_utils/pagerduty/` - PagerDuty API
+     - `qontract_utils/qontract_utils/slack_api/` - Slack API
+     - `qontract_utils/qontract_utils/glitchtip_api/` - Glitchtip API
+     - `qontract_utils/qontract_utils/pagerduty_api/` - PagerDuty API
+     - `qontract_utils/qontract_utils/ldap_api/` - LDAP (FreeIPA) API
+     - `qontract_utils/qontract_utils/ocm_api/` - OCM (OpenShift Cluster Manager) API - labels, subscriptions, clusters
+     - `qontract_utils/qontract_utils/keycloak_api/` - Keycloak dynamic client registration API
    - If a client exists, check if it covers all needed methods. Only extend, never duplicate.
 
 2. **Layer 1 - Pure API Client** (`qontract_utils/<domain>/api.py`):
@@ -296,8 +305,12 @@ Register external routers in `qontract_api/qontract_api/routers/external.py`.
 - `qontract_api/qontract_api/external/pagerduty/` - PagerDuty schedule/escalation policy users
 - `qontract_api/qontract_api/external/vcs/` - VCS repo OWNERS
 - `qontract_api/qontract_api/external/slack/` - Slack API proxying
+- `qontract_api/qontract_api/external/ldap/` - LDAP user existence checks
+- `qontract_api/qontract_api/external/ocm/` - OCM cluster discovery by label prefix (`GET /external/ocm/clusters`, generic over `label_key_prefix` + optional `org_ids` — deliberately has zero knowledge of any specific integration's label semantics, so it's reusable by any OCM-label-driven integration, not just the one that created it)
 
-Reference: `qontract_api/qontract_api/external/pagerduty/`, `qontract_api/qontract_api/external/vcs/`
+Reference: `qontract_api/qontract_api/external/pagerduty/`, `qontract_api/qontract_api/external/vcs/`, `qontract_api/qontract_api/external/ocm/`
+
+**Design note for eager-authenticating Layer 1 clients:** if the Layer 1 API client performs a network call in `__init__` (e.g. an OAuth2 client-credentials token exchange - `OcmApi` does this), the external endpoint's caching workspace client must NOT be handed a live client instance. Have the factory pass a lazy `Callable[[], ClientType]` closure instead, invoked only on a cache miss - otherwise every request pays for the auth handshake even on a cache hit. Pair this with `is not None` cache-hit checks (not a truthy check) so a legitimate empty result (e.g. "no clusters match this filter", very common) gets cached too instead of being indistinguishable from a miss and re-fetched every time.
 
 ### Auto-Generated Client
 
@@ -485,5 +498,6 @@ Phases have dependencies. Document these in the migration plan so phases can be 
 - **Client compiles ALL desired state** - GraphQL + external data enrichment happens in reconcile client
 - **External API calls only via qontract-api external endpoints** (ADR-013) - client calls these, never external APIs directly
 - **Don't touch the old integration** - leave `reconcile/<name>/` as-is. The user can roll out the new `_api` integration via unleash feature toggles and decommission the old one later.
+- **If the legacy integration's whole containing package is slated for deletion** (not just the one integration - e.g. `reconcile/rhidp/` holds both `sso_client` and `ocm_oidc_idp`, and the user wants the entire package gone eventually), the new client-side code must have **zero imports from that package**, even for pure helper functions with no external calls. ADR-007 only forbids qontract-api importing from `reconcile/`, but this is a stricter, migration-specific constraint - port (duplicate) any still-needed helpers into the new `_api` package instead of importing them. Confirm with the user whether this stricter rule applies before assuming ADR-007 alone is sufficient. Auto-generated GraphQL query modules (`reconcile/gql_definitions/**`) are the one exception - they're pure codegen, not business logic, and safe to keep importing even from a namespaced-after-the-integration path like `gql_definitions/rhidp/`.
 - Read existing reference implementations before generating code - adapt patterns, don't copy blindly
 - Read all relevant ADRs from `docs/adr/` before starting
