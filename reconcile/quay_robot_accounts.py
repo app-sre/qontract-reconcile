@@ -1,4 +1,5 @@
 import logging
+import sys
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -10,6 +11,7 @@ from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
     query,
 )
 from reconcile.quay_base import OrgKey, QuayApiStore, get_quay_api_store
+from reconcile.status import ExitCodes
 from reconcile.utils import gql
 
 if TYPE_CHECKING:
@@ -113,7 +115,11 @@ def build_current_state(
     current_robots: dict[tuple[str, str], list[RobotAccountDetails]],
     quay_api_store: QuayApiStore,
 ) -> dict[tuple[str, str, str], RobotAccountState]:
-    """Build current state from Quay API data"""
+    """Build current state from Quay API data.
+
+    Only managedTeams memberships are tracked (same scope as quay-membership),
+    and repository permissions are only tracked when managedRepos is true.
+    """
     current_state = {}
 
     for (instance_name, org_name), robots in current_robots.items():
@@ -121,19 +127,24 @@ def build_current_state(
         if org_key not in quay_api_store:
             continue
 
-        quay_api = quay_api_store[org_key]["api"]
+        org_info = quay_api_store[org_key]
+        quay_api = org_info["api"]
+        managed_teams = set(org_info["teams"] or [])
 
         for robot_data in robots:
             robot_name = robot_data["name"]  # already normalized to short name
             description = robot_data.get("description")
 
-            teams = set(robot_data.get("teams", []))
+            # Only reconcile membership for teams declared as managedTeams
+            teams = set(robot_data.get("teams", [])) & managed_teams
 
             # Get repository permissions via dedicated endpoint (the robots list
-            # endpoint only returns repo names, not roles)
-            repositories = {}
-            for perm in quay_api.get_robot_account_permissions(robot_name):
-                repositories[perm["repository"]["name"]] = perm["role"]
+            # endpoint only returns repo names, not roles). Skip when the org
+            # does not manage repos (same gate as quay-permissions / quay-repos).
+            repositories: dict[str, str] = {}
+            if org_info["managedRepos"]:
+                for perm in quay_api.get_robot_account_permissions(robot_name):
+                    repositories[perm["repository"]["name"]] = perm["role"]
 
             state = RobotAccountState(
                 name=robot_name,
@@ -147,6 +158,55 @@ def build_current_state(
             current_state[instance_name, org_name, robot_name] = state
 
     return current_state
+
+
+def validate_desired_state(
+    desired_state: dict[tuple[str, str, str], RobotAccountState],
+    quay_api_store: QuayApiStore,
+) -> bool:
+    """Validate desired state against Quay org guardrails.
+
+    Mirrors quay-membership (managedTeams) and quay-permissions (managedRepos):
+    - org must have an automation token / API client in the store
+    - every desired team must be listed in the org's managedTeams
+    - repository permissions require managedRepos=true on the org
+
+    Returns True when valid; logs errors and returns False otherwise.
+    """
+    valid = True
+
+    for desired in desired_state.values():
+        org_key = OrgKey(desired.instance_name, desired.org_name)
+        if org_key not in quay_api_store:
+            logging.error(
+                f"No API found for {desired.instance_name}/{desired.org_name} "
+                f"(robot {desired.name}). Ensure the org has an automationToken."
+            )
+            valid = False
+            continue
+
+        if desired.delete:
+            continue
+
+        org_info = quay_api_store[org_key]
+        managed_teams = set(org_info["teams"] or [])
+
+        for team in desired.teams:
+            if team not in managed_teams:
+                logging.error(
+                    f"Quay team {team} is not defined as a managedTeam "
+                    f"in the {org_key.org_name} org (robot {desired.name})."
+                )
+                valid = False
+
+        if desired.repositories and not org_info["managedRepos"]:
+            logging.error(
+                f"Can not manage repo permissions for robot {desired.name} in "
+                f"{org_key.org_name} since managedRepos is set to false."
+            )
+            valid = False
+
+    return valid
 
 
 def calculate_diff(
@@ -283,12 +343,16 @@ def apply_action(
     action: RobotAccountAction,
     quay_api_store: QuayApiStore,
     dry_run: bool = False,
-) -> None:
-    """Apply a single action to Quay"""
+) -> bool:
+    """Apply a single action to Quay.
+
+    Returns True on success. Returns False (and logs) when the org API client
+    is missing so callers can fail closed without silently skipping work.
+    """
     org_key = OrgKey(action.instance_name, action.org_name)
     if org_key not in quay_api_store:
         logging.error(f"No API found for {action.instance_name}/{action.org_name}")
-        return
+        return False
 
     quay_api = quay_api_store[org_key]["api"]
 
@@ -359,11 +423,15 @@ def apply_action(
                     action.repo, action.robot_name
                 )
 
+    return True
+
 
 def run(dry_run: bool = False) -> None:
     """Main function to run the integration"""
     robot_accounts = get_robot_accounts_from_gql()
     logging.debug(f"Found {len(robot_accounts)} robot account definitions")
+
+    error = False
 
     with get_quay_api_store() as quay_api_store:
         current_robots = get_current_robot_accounts(quay_api_store)
@@ -373,6 +441,9 @@ def run(dry_run: bool = False) -> None:
 
         logging.debug(f"Desired robots: {len(desired_state)}")
         logging.debug(f"Current robots: {len(current_state)}")
+
+        if not validate_desired_state(desired_state, quay_api_store):
+            sys.exit(ExitCodes.ERROR)
 
         actions = calculate_diff(desired_state, current_state)
 
@@ -386,6 +457,20 @@ def run(dry_run: bool = False) -> None:
             logging.debug("Running in dry-run mode - no changes will be made")
 
         for action in actions:
-            apply_action(action, quay_api_store, dry_run)
+            try:
+                if not apply_action(action, quay_api_store, dry_run):
+                    error = True
+            except Exception:
+                logging.exception(
+                    "Failed to apply action %s for robot %s in %s/%s",
+                    action.action.value,
+                    action.robot_name,
+                    action.instance_name,
+                    action.org_name,
+                )
+                error = True
+
+    if error:
+        sys.exit(ExitCodes.ERROR)
 
     logging.debug("Integration completed successfully")

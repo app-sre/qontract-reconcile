@@ -19,6 +19,7 @@ from reconcile.quay_robot_accounts import (
     build_desired_state,
     calculate_diff,
     get_current_robot_accounts,
+    validate_desired_state,
 )
 from reconcile.utils.quay_api import QuayApi, RobotAccountDetails
 
@@ -62,13 +63,13 @@ def mock_quay_api() -> QuayApi:
 
 @pytest.fixture
 def mock_quay_api_store(mock_quay_api: QuayApi) -> QuayApiStore:
-    """Mock QuayApiStore"""
+    """Mock QuayApiStore with managed teams/repos enabled"""
     return QuayApiStore({
         OrgKey("quay-instance", "test-org"): OrgInfo(
             url="quay.io",
             push_token=None,
-            teams=[],
-            managedRepos=False,
+            teams=["team1", "team2"],
+            managedRepos=True,
             mirror=None,
             mirror_filters={},
             api=mock_quay_api,
@@ -431,6 +432,120 @@ def test_get_current_robot_accounts_propagates_exception(
         get_current_robot_accounts(mock_quay_api_store)
 
 
+def test_build_current_state_filters_unmanaged_teams(
+    mock_quay_api: QuayApi,
+    mock_quay_api_store: QuayApiStore,
+) -> None:
+    """Unmanaged team memberships are ignored (same scope as quay-membership)"""
+    robot = RobotAccountDetails(
+        name="robot",
+        description="Robot",
+        teams=["team1", "owners"],  # owners is not a managedTeam
+        repositories=["repo1"],
+    )
+    mock_quay_api.get_robot_account_permissions.return_value = [  # type: ignore
+        {"repository": {"name": "repo1"}, "role": "read"}
+    ]
+    current_robots = {("quay-instance", "test-org"): [robot]}
+
+    current_state = build_current_state(current_robots, mock_quay_api_store)
+
+    state = current_state["quay-instance", "test-org", "robot"]
+    assert state.teams == {"team1"}
+    assert state.repositories == {"repo1": "read"}
+
+
+def test_build_current_state_skips_repos_when_not_managed(
+    mock_quay_api: QuayApi,
+) -> None:
+    """Repository permissions are not tracked when managedRepos is false"""
+    store = QuayApiStore({
+        OrgKey("quay-instance", "test-org"): OrgInfo(
+            url="quay.io",
+            push_token=None,
+            teams=["team1"],
+            managedRepos=False,
+            mirror=None,
+            mirror_filters={},
+            api=mock_quay_api,
+        )
+    })
+    robot = RobotAccountDetails(
+        name="robot",
+        description="Robot",
+        teams=["team1"],
+        repositories=["repo1"],
+    )
+    current_robots = {("quay-instance", "test-org"): [robot]}
+
+    current_state = build_current_state(current_robots, store)
+
+    state = current_state["quay-instance", "test-org", "robot"]
+    assert state.teams == {"team1"}
+    assert state.repositories == {}
+    mock_quay_api.get_robot_account_permissions.assert_not_called()  # type: ignore
+
+
+def test_validate_desired_state_success(
+    mock_robot_gql: QuayRobotV1, mock_quay_api_store: QuayApiStore
+) -> None:
+    """Valid desired state with managed teams and managedRepos passes"""
+    desired_state = build_desired_state([mock_robot_gql])
+    assert validate_desired_state(desired_state, mock_quay_api_store) is True
+
+
+def test_validate_desired_state_missing_org(mock_robot_gql: QuayRobotV1) -> None:
+    """Org without an API client fails validation"""
+    desired_state = build_desired_state([mock_robot_gql])
+    assert validate_desired_state(desired_state, QuayApiStore()) is False
+
+
+def test_validate_desired_state_unmanaged_team(
+    mock_robot_gql: QuayRobotV1, mock_quay_api_store: QuayApiStore
+) -> None:
+    """Teams not listed in managedTeams fail validation"""
+    mock_robot_gql.teams = ["team1", "owners"]
+    desired_state = build_desired_state([mock_robot_gql])
+    assert validate_desired_state(desired_state, mock_quay_api_store) is False
+
+
+def test_validate_desired_state_repos_require_managed_repos(
+    mock_robot_gql: QuayRobotV1, mock_quay_api: QuayApi
+) -> None:
+    """Repository permissions require managedRepos=true"""
+    store = QuayApiStore({
+        OrgKey("quay-instance", "test-org"): OrgInfo(
+            url="quay.io",
+            push_token=None,
+            teams=["team1", "team2"],
+            managedRepos=False,
+            mirror=None,
+            mirror_filters={},
+            api=mock_quay_api,
+        )
+    })
+    desired_state = build_desired_state([mock_robot_gql])
+    assert validate_desired_state(desired_state, store) is False
+
+
+def test_validate_desired_state_delete_requires_org(
+    mock_quay_api_store: QuayApiStore,
+) -> None:
+    """delete: true still requires the org API client to exist"""
+    desired_state = {
+        ("unknown", "unknown-org", "robot"): RobotAccountState(
+            name="robot",
+            description=None,
+            org_name="unknown-org",
+            instance_name="unknown",
+            teams=set(),
+            repositories={},
+            delete=True,
+        )
+    }
+    assert validate_desired_state(desired_state, mock_quay_api_store) is False
+
+
 def test_apply_action_create_robot(
     mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
 ) -> None:
@@ -442,7 +557,7 @@ def test_apply_action_create_robot(
         instance_name="quay-instance",
     )
 
-    apply_action(action, mock_quay_api_store, dry_run=False)
+    assert apply_action(action, mock_quay_api_store, dry_run=False) is True
 
     mock_quay_api.create_robot_account.assert_called_once_with("new-robot", "")  # type: ignore
 
@@ -458,7 +573,7 @@ def test_apply_action_delete_robot(
         instance_name="quay-instance",
     )
 
-    apply_action(action, mock_quay_api_store, dry_run=False)
+    assert apply_action(action, mock_quay_api_store, dry_run=False) is True
 
     mock_quay_api.delete_robot_account.assert_called_once_with("old-robot")  # type: ignore
 
@@ -475,7 +590,7 @@ def test_apply_action_add_team(
         team="new-team",
     )
 
-    apply_action(action, mock_quay_api_store, dry_run=False)
+    assert apply_action(action, mock_quay_api_store, dry_run=False) is True
 
     mock_quay_api.add_user_to_team.assert_called_once_with("test-org+robot", "new-team")  # type: ignore
 
@@ -492,7 +607,7 @@ def test_apply_action_remove_team(
         team="old-team",
     )
 
-    apply_action(action, mock_quay_api_store, dry_run=False)
+    assert apply_action(action, mock_quay_api_store, dry_run=False) is True
 
     mock_quay_api.remove_robot_from_team.assert_called_once_with(  # type: ignore
         "robot", "old-team"
@@ -512,7 +627,7 @@ def test_apply_action_set_repo_permission(
         permission="write",
     )
 
-    apply_action(action, mock_quay_api_store, dry_run=False)
+    assert apply_action(action, mock_quay_api_store, dry_run=False) is True
 
     mock_quay_api.set_repo_robot_account_permissions.assert_called_once_with(  # type: ignore
         "repo1", "robot", "write"
@@ -531,7 +646,7 @@ def test_apply_action_remove_repo_permission(
         repo="repo1",
     )
 
-    apply_action(action, mock_quay_api_store, dry_run=False)
+    assert apply_action(action, mock_quay_api_store, dry_run=False) is True
 
     mock_quay_api.delete_repo_robot_account_permissions.assert_called_once_with(  # type: ignore
         "repo1", "robot"
@@ -549,7 +664,7 @@ def test_apply_action_dry_run(
         instance_name="quay-instance",
     )
 
-    apply_action(action, mock_quay_api_store, dry_run=True)
+    assert apply_action(action, mock_quay_api_store, dry_run=True) is True
 
     mock_quay_api.create_robot_account.assert_not_called()  # type: ignore
 
@@ -557,7 +672,7 @@ def test_apply_action_dry_run(
 def test_apply_action_no_org_key(
     mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
 ) -> None:
-    """Test applying action when org key is not found"""
+    """Missing org API client fails closed instead of silently skipping"""
     action = RobotAccountAction(
         action=RobotAccountActionType.CREATE,
         robot_name="new-robot",
@@ -565,7 +680,7 @@ def test_apply_action_no_org_key(
         instance_name="unknown-instance",
     )
 
-    apply_action(action, mock_quay_api_store, dry_run=False)
+    assert apply_action(action, mock_quay_api_store, dry_run=False) is False
 
     mock_quay_api.create_robot_account.assert_not_called()  # type: ignore
 
