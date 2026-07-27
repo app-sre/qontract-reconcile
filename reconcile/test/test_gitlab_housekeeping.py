@@ -1132,11 +1132,12 @@ def _make_healthcheck_mr(
 def test_pipeline_error_label_applied_on_consecutive_failures(
     project: Project,
 ) -> None:
-    """Consecutive pipeline failures apply pipeline-error label."""
+    """Consecutive pipeline failures apply pipeline-error label, even with a running pipeline."""
     mr = _make_healthcheck_mr(labels=["lgtm"])
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "running",
         "failed",
         "failed",
         "failed",
@@ -1156,11 +1157,12 @@ def test_pipeline_error_label_applied_on_consecutive_failures(
 def test_pipeline_error_label_auto_removed_on_recovery(
     project: Project,
 ) -> None:
-    """A successful pipeline removes the pipeline-error label."""
+    """A successful terminal pipeline removes the pipeline-error label, even with a running pipeline."""
     mr = _make_healthcheck_mr(labels=["lgtm", "pipeline-error"])
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "running",
         "success",
         "failed",
         "failed",
@@ -1174,6 +1176,31 @@ def test_pipeline_error_label_auto_removed_on_recovery(
     )
 
     mocked_gl.remove_label.assert_called_once_with(mr, "pipeline-error")
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_pipeline_error_not_removed_while_pipeline_running(
+    project: Project,
+) -> None:
+    """A running pipeline alone does not clear the label; terminal failures still dominate."""
+    mr = _make_healthcheck_mr(labels=["lgtm", "pipeline-error"])
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "running",
+        "failed",
+        "failed",
+        "failed",
+    ])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        consecutive_failure_limit=3,
+    )
+
+    mocked_gl.remove_label.assert_not_called()
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
