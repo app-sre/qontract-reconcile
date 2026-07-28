@@ -134,11 +134,11 @@ def reconcile_glitchtip_project_alerts_task(
 
         return result
 
-    except Exception as e:
+    except Exception as err:
         logger.exception(f"Task {request_id} failed with error")
         return GlitchtipProjectAlertsTaskResult(
             status=TaskStatus.FAILED,
             actions=[],
             applied_count=0,
-            errors=[str(e)],
+            errors=[f"Unexpected {err=}"],
         )

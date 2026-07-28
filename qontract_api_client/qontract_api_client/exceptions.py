@@ -1,3 +1,3 @@
-from clientele.api.exceptions import HTTPStatusError
+from clientele.api.exceptions import APIException, HTTPStatusError
 
-__all__ = ["HTTPStatusError"]
+__all__ = ["APIException", "HTTPStatusError"]

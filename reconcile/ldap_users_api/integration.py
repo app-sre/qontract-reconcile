@@ -17,7 +17,7 @@ from qontract_api_client.client import (
     vcs_file_sync,
     vcs_get_file,
 )
-from qontract_api_client.exceptions import HTTPStatusError
+from qontract_api_client.exceptions import APIException, HTTPStatusError
 from qontract_api_client.schemas import (
     FileSyncRequest,
     FileSyncStatus,
@@ -159,19 +159,23 @@ class LdapUsersApiIntegration(
         if not usernames:
             return
 
-        ldap_response = await check_ldap_users(
-            LdapUsersCheckRequest(
-                usernames=usernames,
-                secret=LdapDirectSecret(
-                    secret_manager_url=self.secret_manager_url,
-                    path=ldap_settings.credentials.path,
-                    field=ldap_settings.credentials.field,
-                    version=ldap_settings.credentials.version,
-                    server_url=ldap_settings.server_url,
-                    base_dn=ldap_settings.base_dn,
+        try:
+            ldap_response = await check_ldap_users(
+                LdapUsersCheckRequest(
+                    usernames=usernames,
+                    secret=LdapDirectSecret(
+                        secret_manager_url=self.secret_manager_url,
+                        path=ldap_settings.credentials.path,
+                        field=ldap_settings.credentials.field,
+                        version=ldap_settings.credentials.version,
+                        server_url=ldap_settings.server_url,
+                        base_dn=ldap_settings.base_dn,
+                    ),
                 ),
-            ),
-        )
+            )
+        except APIException as e:
+            logging.error(f"Error occurred: {e.reason}; Response details: {e.response}")
+            raise
 
         existing_users = {u.username for u in ldap_response.users or [] if u.exists}
 

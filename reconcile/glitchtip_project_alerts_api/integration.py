@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 from qontract_api_client.client import (
     glitchtip_project_alerts as reconcile_glitchtip_project_alerts,
 )
+from qontract_api_client.exceptions import APIException
 from qontract_api_client.schemas import (
     GlitchtipInstance,
     GlitchtipOrganization,
@@ -243,7 +244,11 @@ class GlitchtipProjectAlertsIntegration(
             dry_run=dry_run,
         )
 
-        response = await reconcile_glitchtip_project_alerts(request_data)
+        try:
+            response = await reconcile_glitchtip_project_alerts(request_data)
+        except APIException as e:
+            logging.error(f"Error occurred: {e.reason}; Response details: {e.response}")
+            raise
         logging.info(f"request_id: {response.id}")
         return response
 

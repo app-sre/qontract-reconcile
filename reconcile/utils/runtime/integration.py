@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import logging
 import os
 from abc import (
     ABC,
@@ -23,6 +24,7 @@ from qontract_api_client.client import (
 from qontract_api_client.config import (
     Config as QontractApiClientConfig,
 )
+from qontract_api_client.exceptions import APIException
 
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -318,12 +320,16 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
         Uses the status_url returned by POST endpoints to retrieve task results
         without requiring the caller to know about task IDs or URL construction.
         """
-        return await qontract_api_client.arequest(
-            method="get",
-            path=urlparse(status_url).path,
-            response_map={200: result_type},
-            query={"timeout": timeout},
-        )
+        try:
+            return await qontract_api_client.arequest(
+                method="get",
+                path=urlparse(status_url).path,
+                response_map={200: result_type},
+                query={"timeout": timeout},
+            )
+        except APIException as e:
+            logging.error(f"Error occurred: {e.reason}; Response details: {e.response}")
+            raise
 
     @abstractmethod
     async def async_run(self, dry_run: bool) -> None:
