@@ -3019,7 +3019,7 @@ def test_omm_group_unhandled_status_rebased_stays_active(
     clear_mock.assert_not_called()
 
 
-# --- Fork pipeline SHA filtering in OMM group ---
+# --- Push pipeline filtering in OMM group ---
 
 
 @pytest.mark.parametrize(
