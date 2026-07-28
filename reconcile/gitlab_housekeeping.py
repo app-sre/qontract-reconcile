@@ -321,7 +321,7 @@ def check_pipeline_health(
     """Return True if MR is healthy (should stay in queue).
 
     Return False if last `consecutive_failure_limit` pipelines all
-    ended in a non-success terminal state (FAILED).
+    ended in a non-success terminal state, (FAILED or CANCELLED).
     """
     pipeline_failure_window = pipelines[:consecutive_failure_limit]
     if len(pipeline_failure_window) < consecutive_failure_limit:
