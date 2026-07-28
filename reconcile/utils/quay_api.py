@@ -305,17 +305,6 @@ class QuayApi(ApiBase):
         body = self._get(url)
         return body["permissions"]
 
-    def set_robot_account_permissions(
-        self, name: str, permissions: list[RobotAccountPermission]
-    ) -> None:
-        url = f"/api/v1/organization/{self.organization}/robots/{name}/permissions"
-        body = {"permissions": permissions}
-        self._put(url, data=body)
-
-    def delete_robot_account_permissions(self, name: str) -> None:
-        url = f"/api/v1/organization/{self.organization}/robots/{name}/permissions"
-        self._delete(url)
-
     def get_repo_robot_account_permissions(
         self, repo_name: str, robot_name: str
     ) -> str | None:
@@ -324,13 +313,12 @@ class QuayApi(ApiBase):
             body = self._get(url)
             return body.get("role") or None
         except requests.exceptions.HTTPError as e:
-            message = ""
-            if e.response is not None:
+            if e.response is not None and e.response.status_code == 404:
+                message = ""
                 with contextlib.suppress(ValueError, AttributeError):
                     message = e.response.json().get("message", "")
-
-            if message == "User does not have permission for repo.":
-                return None
+                if message == "User does not have permission for repo.":
+                    return None
 
             raise
 

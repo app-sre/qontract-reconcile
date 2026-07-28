@@ -261,6 +261,21 @@ def test_get_repo_robot_account_permissions_returns_none_when_no_permission(
     assert result is None
 
 
+def test_get_repo_robot_account_permissions_raises_non_404_same_message(
+    quay_api: QuayApi, httpserver: HTTPServer
+) -> None:
+    """Same message on a non-404 must not be treated as missing permission."""
+    httpserver.expect_request(
+        f"/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
+        method="GET",
+    ).respond_with_json(
+        {"message": "User does not have permission for repo."}, status=403
+    )
+
+    with pytest.raises(HTTPError):
+        quay_api.get_repo_robot_account_permissions("some-repo", "robot1")
+
+
 def test_get_repo_robot_permissions_raises_other_status_codes(
     quay_api: QuayApi, httpserver: HTTPServer
 ) -> None:
@@ -271,6 +286,44 @@ def test_get_repo_robot_permissions_raises_other_status_codes(
 
     with pytest.raises(HTTPError):
         quay_api.get_repo_robot_account_permissions("some-repo", "robot1")
+
+
+def test_remove_robot_from_team(quay_api: QuayApi, httpserver: HTTPServer) -> None:
+    httpserver.expect_request(
+        f"/api/v1/organization/{ORG}/team/{TEAM_NAME}/members/{ORG}+robot1",
+        method="DELETE",
+    ).respond_with_json({}, status=204)
+
+    quay_api.remove_robot_from_team("robot1", TEAM_NAME)
+
+    assert len(httpserver.log) == 1
+    assert httpserver.log[0][0].method == "DELETE"
+
+
+def test_remove_robot_from_team_idempotent_when_not_in_team(
+    quay_api: QuayApi, httpserver: HTTPServer
+) -> None:
+    httpserver.expect_request(
+        f"/api/v1/organization/{ORG}/team/{TEAM_NAME}/members/{ORG}+robot1",
+        method="DELETE",
+    ).respond_with_json(
+        {"message": f"User {ORG}+robot1 does not belong to team {TEAM_NAME}"},
+        status=400,
+    )
+
+    quay_api.remove_robot_from_team("robot1", TEAM_NAME)
+
+
+def test_remove_robot_from_team_raises_other_errors(
+    quay_api: QuayApi, httpserver: HTTPServer
+) -> None:
+    httpserver.expect_request(
+        f"/api/v1/organization/{ORG}/team/{TEAM_NAME}/members/{ORG}+robot1",
+        method="DELETE",
+    ).respond_with_json({"error": "Unauthorized"}, status=401)
+
+    with pytest.raises(HTTPError):
+        quay_api.remove_robot_from_team("robot1", TEAM_NAME)
 
 
 def test_set_repo_robot_permissions(quay_api: QuayApi, httpserver: HTTPServer) -> None:
