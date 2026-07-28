@@ -3,7 +3,7 @@
 Tests the VaultSecretBackend implementation with python-hvac.
 """
 
-# ruff: noqa: ARG001
+# ruff: file-ignore[unused-function-argument]
 
 from typing import Any, NoReturn
 from unittest.mock import MagicMock, mock_open, patch
@@ -969,7 +969,7 @@ def test_vault_retries_on_transient_errors(enable_retry: None) -> None:
         def side_effect(*args: Any, **kwargs: Any) -> dict:
             call_count["count"] += 1
             if call_count["count"] < 3:
-                raise Exception("Vault error")  # noqa: TRY002
+                raise Exception("Vault error")  # ruff: ignore[raise-vanilla-class]
             return {"data": {"data": {"token": "xoxb-test-token"}}}
 
         mock_client.secrets.kv.v2.read_secret_version = MagicMock(
@@ -1003,7 +1003,7 @@ def test_vault_gives_up_after_max_attempts(enable_retry: None) -> None:
 
         def side_effect(*args: Any, **kwargs: Any) -> NoReturn:
             call_count["count"] += 1
-            raise Exception("always fails")  # noqa: TRY002
+            raise Exception("always fails")  # ruff: ignore[raise-vanilla-class]
 
         mock_client.secrets.kv.v2.read_secret_version = MagicMock(
             side_effect=side_effect
@@ -1242,7 +1242,7 @@ class TestVaultRetryConfiguration:
 
     def test_read_does_not_retry_on_forbidden(
         self,
-        enable_retry: None,  # noqa: ARG002
+        enable_retry: None,  # ruff: ignore[unused-method-argument]
     ) -> None:
         """Test that read operations fail fast on Forbidden without retrying."""
         with patch("hvac.Client") as mock_client_class:
@@ -1287,7 +1287,7 @@ class TestVaultRetryConfiguration:
 
     def test_read_retries_on_vault_error(
         self,
-        enable_retry: None,  # noqa: ARG002
+        enable_retry: None,  # ruff: ignore[unused-method-argument]
     ) -> None:
         """Test that read operations retry on non-Forbidden Vault errors."""
         with patch("hvac.Client") as mock_client_class:

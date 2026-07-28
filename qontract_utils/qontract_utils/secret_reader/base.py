@@ -128,7 +128,7 @@ class SecretBackend(ABC):
             if instance_key not in cls._instances:
                 match backend_type:
                     case "vault":
-                        from qontract_utils.secret_reader.providers.vault import (  # noqa: PLC0415
+                        from qontract_utils.secret_reader.providers.vault import (  # ruff: ignore[import-outside-top-level]
                             VaultSecretBackend,
                             VaultSecretBackendSettings,
                         )
@@ -260,7 +260,7 @@ class SecretBackend(ABC):
             SecretAccessForbiddenError: Access denied to path
         """
 
-    def close(self) -> None:  # noqa: B027
+    def close(self) -> None:  # ruff: ignore[empty-method-without-abstract-decorator]
         """Close backend connections and cleanup resources.
 
         Optional method for backends that need explicit cleanup

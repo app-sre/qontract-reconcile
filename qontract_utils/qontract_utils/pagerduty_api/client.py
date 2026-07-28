@@ -133,10 +133,10 @@ class PagerDutyApi:
 
     def __init__(
         self,
-        id: str,  # noqa: A002
+        id: str,  # ruff: ignore[builtin-argument-shadowing]
         token: str,
         timeout: int = TIMEOUT,
-        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
+        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
     ) -> None:
         """Initialize PagerDuty API client.
 

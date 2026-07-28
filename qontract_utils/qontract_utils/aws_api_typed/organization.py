@@ -81,7 +81,7 @@ class AWSAccountNotFoundError(Exception):
 class AWSApiOrganizations:
     _hooks: Hooks
 
-    def __init__(self, client: OrganizationsClient, hooks: Hooks | None = None) -> None:  # noqa: ARG002
+    def __init__(self, client: OrganizationsClient, hooks: Hooks | None = None) -> None:  # ruff: ignore[unused-method-argument]
         self.client = client
         self.get_organizational_units_tree = functools.lru_cache(maxsize=None)(
             self._get_organizational_units_tree

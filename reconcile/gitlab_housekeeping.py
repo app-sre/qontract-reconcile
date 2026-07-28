@@ -425,7 +425,7 @@ def handle_stale_items(
     items: Iterable[ProjectIssue | ProjectMergeRequest],
     item_type: str,
 ) -> None:
-    LABEL = "stale"  # noqa: N806
+    LABEL = "stale"  # ruff: ignore[non-lowercase-variable-in-function]
 
     now = utc_now()
     for item in items:
@@ -1580,7 +1580,7 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
     for pat in pats:
         if pat.active:
             expiration_date = ensure_utc(
-                datetime.strptime(pat.expires_at, EXPIRATION_DATE_FORMAT)  # noqa: DTZ007
+                datetime.strptime(pat.expires_at, EXPIRATION_DATE_FORMAT)  # ruff: ignore[call-datetime-strptime-without-zone]
             )
             days_until_expiration = expiration_date.date() - utc_now().date()
             gitlab_token_expiration.labels(pat.name).set(days_until_expiration.days)

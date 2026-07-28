@@ -1,6 +1,6 @@
 """Tests for qontract_utils.pagerduty_api module."""
 
-# ruff: noqa: ARG001
+# ruff: file-ignore[unused-function-argument]
 
 from collections.abc import Generator
 from unittest.mock import MagicMock, patch
@@ -496,7 +496,7 @@ def test_pagerduty_api_retries_on_transient_errors(
     def side_effect(path: str, **kwargs: dict) -> dict:
         call_count["count"] += 1
         if call_count["count"] < 3:
-            raise Exception("API error")  # noqa: TRY002
+            raise Exception("API error")  # ruff: ignore[raise-vanilla-class]
         return {"email": "alice@example.com", "name": "Alice Smith"}
 
     api._client.rget = MagicMock(side_effect=side_effect)
@@ -518,7 +518,7 @@ def test_pagerduty_api_gives_up_after_max_attempts(
 
     def side_effect(path: str, **kwargs: dict) -> dict:
         call_count["count"] += 1
-        raise Exception("always fails")  # noqa: TRY002
+        raise Exception("always fails")  # ruff: ignore[raise-vanilla-class]
 
     api._client.rget = MagicMock(side_effect=side_effect)
 

@@ -1,4 +1,4 @@
-# ruff: noqa: FBT001
+# ruff: file-ignore[boolean-type-hint-positional-argument]
 
 import json
 from dataclasses import dataclass

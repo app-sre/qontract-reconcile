@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class AWSApiS3:
     _hooks: Hooks
 
-    def __init__(self, client: S3Client, hooks: Hooks | None = None) -> None:  # noqa: ARG002
+    def __init__(self, client: S3Client, hooks: Hooks | None = None) -> None:  # ruff: ignore[unused-method-argument]
         self.client = client
 
     @invoke_with_hooks(lambda: AWSApiCallContext(method="create_bucket", service="s3"))

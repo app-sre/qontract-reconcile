@@ -275,7 +275,9 @@ class JJB:
 
     @staticmethod
     def get_jjb(args: Iterable[str]) -> Any:
-        from jenkins_jobs.cli.entry import JenkinsJobs  # noqa: PLC0415
+        from jenkins_jobs.cli.entry import (  # ruff: ignore[import-outside-top-level]
+            JenkinsJobs,
+        )
 
         return JenkinsJobs(args)
 

@@ -63,7 +63,7 @@ class OwnersParser:
             raw_owners = self._vcs_client.get_file(path=owners_file, ref=self._ref)
             if not raw_owners:
                 return RepoOwners(approvers=[], reviewers=[])
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # ruff: ignore[blind-except]
             logger.warning(
                 f"Non-parsable OWNERS file: {self._repo_url}/{owners_file} - {e}"
             )
@@ -79,7 +79,7 @@ class OwnersParser:
                 approvers=sorted(approvers),
                 reviewers=sorted(reviewers),
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # ruff: ignore[blind-except]
             logger.warning(
                 f"Non-parsable OWNERS_ALIAS file: {self._repo_url}/OWNERS_ALIASES - {e}"
             )

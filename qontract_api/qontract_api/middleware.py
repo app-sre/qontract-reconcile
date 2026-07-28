@@ -10,6 +10,9 @@ import structlog
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from qontract_api.auth import (
+    decode_token,
+)
 from qontract_api.constants import REQUEST_ID_HEADER
 from qontract_api.logger import get_logger
 
@@ -19,7 +22,7 @@ logger = get_logger(__name__)
 class RequestIDMiddleware(BaseHTTPMiddleware):
     """Add unique request ID to each request."""
 
-    async def dispatch(  # noqa: PLR6301 - Required instance method for Starlette middleware
+    async def dispatch(  # ruff: ignore[no-self-use] - Required instance method for Starlette middleware
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         """Process request and add request ID."""
@@ -39,7 +42,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Log all requests with timing information and structured fields."""
 
-    async def dispatch(  # noqa: PLR6301 - Required instance method for Starlette middleware
+    async def dispatch(  # ruff: ignore[no-self-use] - Required instance method for Starlette middleware
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         """Process request and log details."""
@@ -66,7 +69,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 token_type, token = auth_header.split(" ")
                 if token_type.lower() == "bearer":
                     # decode token to get username
-                    from qontract_api.auth import decode_token  # noqa: PLC0415
 
                     payload = decode_token(token)
                     context_vars["username"] = payload.sub
@@ -116,7 +118,7 @@ class GzipRequestMiddleware(BaseHTTPMiddleware):
         This ensures FastAPI receives the decompressed body correctly.
     """
 
-    async def dispatch(  # noqa: PLR6301 - Required instance method for Starlette middleware
+    async def dispatch(  # ruff: ignore[no-self-use] - Required instance method for Starlette middleware
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         """Decompress gzip request body if Content-Encoding header present."""
@@ -124,7 +126,7 @@ class GzipRequestMiddleware(BaseHTTPMiddleware):
             try:
                 # Read all chunks from original receive
                 compressed_chunks: list[bytes] = []
-                original_receive = request._receive  # noqa: SLF001
+                original_receive = request._receive  # ruff: ignore[private-member-access]
 
                 while True:
                     message = await original_receive()
@@ -140,14 +142,14 @@ class GzipRequestMiddleware(BaseHTTPMiddleware):
                 decompressed = gzip.decompress(compressed_body)
 
                 # Create new receive that returns decompressed body
-                async def receive() -> dict[str, str | bytes | bool]:  # noqa: RUF029
+                async def receive() -> dict[str, str | bytes | bool]:  # ruff: ignore[unused-async]
                     return {
                         "type": "http.request",
                         "body": decompressed,
                         "more_body": False,
                     }
 
-                request._receive = receive  # noqa: SLF001
+                request._receive = receive  # ruff: ignore[private-member-access]
 
                 logger.debug(
                     "Decompressed gzip request",

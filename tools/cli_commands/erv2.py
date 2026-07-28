@@ -37,7 +37,7 @@ from reconcile.utils import gql
 from reconcile.utils.exceptions import FetchResourceError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator, Iterator
     from pathlib import Path
 
     from reconcile.utils.secret_reader import SecretReaderBase
@@ -58,7 +58,7 @@ def progress_spinner() -> Progress:
 
 
 @contextmanager
-def pause_progress_spinner(progress: Progress | None) -> Iterator:
+def pause_progress_spinner(progress: Progress | None) -> Generator[None]:
     """Pause the progress spinner."""
     if progress:
         progress.stop()
@@ -66,19 +66,23 @@ def pause_progress_spinner(progress: Progress | None) -> Iterator:
             if task.finished:
                 continue
             print(UP + CLEAR + UP)
-    yield
-    if progress:
-        progress.start()
+    try:
+        yield
+    finally:
+        if progress:
+            progress.start()
 
 
 @contextmanager
-def task(progress: Progress | None, description: str) -> Iterator:
+def task(progress: Progress | None, description: str) -> Generator[None]:
     """Display a task in the progress spinner."""
     if progress:
         task = progress.add_task(description, total=1)
-    yield
-    if progress:
-        progress.advance(task)
+    try:
+        yield
+    finally:
+        if progress:
+            progress.advance(task)
 
 
 class Erv2Cli:
@@ -296,11 +300,13 @@ class Erv2Cli:
                     "/bin/bash",
                     self.image,
                     "-c",
-                    "mkdir -p $TERRAFORM_MODULE_WORK_DIR;"
-                    "cp -rf module/* $TERRAFORM_MODULE_WORK_DIR;"
-                    "generate-tf-config && "
-                    "terraform -chdir=$TERRAFORM_MODULE_WORK_DIR init && "
-                    f"terraform -chdir=$TERRAFORM_MODULE_WORK_DIR force-unlock -force '{lock_id}'",
+                    (
+                        "mkdir -p $TERRAFORM_MODULE_WORK_DIR;"
+                        "cp -rf module/* $TERRAFORM_MODULE_WORK_DIR;"
+                        "generate-tf-config && "
+                        "terraform -chdir=$TERRAFORM_MODULE_WORK_DIR init && "
+                        f"terraform -chdir=$TERRAFORM_MODULE_WORK_DIR force-unlock -force '{lock_id}'"
+                    ),
                 ],
                 check=True,
             )

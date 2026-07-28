@@ -195,6 +195,7 @@ List registered tasks:
 
 ```python
 from qontract_api.tasks import celery_app
+
 print(celery_app.tasks.keys())
 ```
 
@@ -202,6 +203,7 @@ Execute health check task:
 
 ```python
 from qontract_api.tasks.health import health_check
+
 result = health_check.delay()
 print(result.get())
 ```

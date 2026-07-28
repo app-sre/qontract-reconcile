@@ -39,7 +39,7 @@ class TestEventManager:
         sample_event: Event,
     ) -> None:
         event_manager.publish_event(sample_event)
-        mock_publisher.__enter__().publish.assert_called_once_with(  # noqa: PLC2801
+        mock_publisher.__enter__().publish.assert_called_once_with(  # ruff: ignore[unnecessary-dunder-call]
             sample_event, stream="test-stream", headers=ANY
         )
 
@@ -49,7 +49,7 @@ class TestEventManager:
         mock_publisher: MagicMock,
         sample_event: Event,
     ) -> None:
-        mock_publisher.__enter__().publish.side_effect = Exception("Redis error")  # noqa: PLC2801
+        mock_publisher.__enter__().publish.side_effect = Exception("Redis error")  # ruff: ignore[unnecessary-dunder-call]
         # Should not raise
         event_manager.publish_event(sample_event)
 

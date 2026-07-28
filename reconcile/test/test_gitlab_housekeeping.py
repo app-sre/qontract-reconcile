@@ -409,7 +409,7 @@ def state() -> Mock:
     return state
 
 
-class StatusMock:  # noqa: B903
+class StatusMock:  # ruff: ignore[class-as-data-structure]
     def __init__(self, name: str, status: str) -> None:
         self.name = name
         self.status = status

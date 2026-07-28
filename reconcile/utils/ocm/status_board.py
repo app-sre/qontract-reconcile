@@ -57,7 +57,7 @@ def get_product_applications(
             application.get("metadata", {}).get(METADATA_MANAGED_BY_KEY, "")
             == METADATA_MANAGED_BY_VALUE
         ):
-            results.append({  # noqa: PERF401
+            results.append({  # ruff: ignore[manual-list-comprehension]
                 k: v for k, v in application.items() if k in APPLICATION_DESIRED_KEYS
             })
 
@@ -76,7 +76,7 @@ def get_application_services(
             service.get("metadata", {}).get(METADATA_MANAGED_BY_KEY, "")
             == METADATA_MANAGED_BY_VALUE
         ):
-            results.append({  # noqa: PERF401
+            results.append({  # ruff: ignore[manual-list-comprehension]
                 k: v for k, v in service.items() if k in SERVICE_DESIRED_KEYS
             })
 
@@ -90,7 +90,7 @@ def get_managed_products(ocm_api: OCMBaseClient) -> list[dict[str, Any]]:
             product.get("metadata", {}).get(METADATA_MANAGED_BY_KEY, "")
             == METADATA_MANAGED_BY_VALUE
         ):
-            results.append({  # noqa: PERF401
+            results.append({  # ruff: ignore[manual-list-comprehension]
                 k: v for k, v in product.items() if k in PRODUCTS_DESIRED_KEYS
             })
     return results

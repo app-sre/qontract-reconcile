@@ -46,7 +46,7 @@ class GenericEventFormatter:
         json_data = json.dumps(event.data, indent=2, default=str)
         return (
             f"{emoji} *Event:* `{event.type}`\n"
-            f"ℹ️ *Source*: `{event.source}`\n"  # noqa: RUF001
+            f"ℹ️ *Source*: `{event.source}`\n"  # ruff: ignore[ambiguous-unicode-character-string]
             f"```\n{json_data}\n```"
         )
 

@@ -430,7 +430,7 @@ class TerraformClient:
         for da in deletion_approvals:
             try:
                 expiration = ensure_utc(
-                    datetime.strptime(da["expiration"], DATE_FORMAT)  # noqa: DTZ007
+                    datetime.strptime(da["expiration"], DATE_FORMAT)  # ruff: ignore[call-datetime-strptime-without-zone]
                 ) + timedelta(days=1)
             except ValueError:
                 raise DeletionApprovalExpirationValueError(

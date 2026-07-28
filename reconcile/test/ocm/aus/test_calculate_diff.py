@@ -12,7 +12,7 @@ from reconcile.aus.base import (
     ControlPlaneUpgradePolicy,
     NodePoolUpgradePolicy,
     UpgradePolicyHandler,
-    _calculate_node_pool_diffs,  # noqa: PLC2701
+    _calculate_node_pool_diffs,  # ruff: ignore[import-private-name]
 )
 from reconcile.aus.cluster_version_data import (
     VersionData,

@@ -162,10 +162,12 @@ def test_cache_key_string(
             False,
             CACHE_SOURCE,
             "",
-            f"--integration {INTEGRATION_NAME} "
-            f"--integration-version {INTEGRATION_VERSION} "
-            "--no-dry-run "
-            f"--cache-source-digest {CACHE_SOURCE_DIGEST}",
+            (
+                f"--integration {INTEGRATION_NAME} "
+                f"--integration-version {INTEGRATION_VERSION} "
+                "--no-dry-run "
+                f"--cache-source-digest {CACHE_SOURCE_DIGEST}"
+            ),
         ),
         (
             INTEGRATION_NAME,
@@ -173,11 +175,13 @@ def test_cache_key_string(
             False,
             CACHE_SOURCE,
             "shard-1",
-            f"--integration {INTEGRATION_NAME} "
-            f"--integration-version {INTEGRATION_VERSION} "
-            "--no-dry-run "
-            f"--cache-source-digest {CACHE_SOURCE_DIGEST} "
-            "--shard shard-1",
+            (
+                f"--integration {INTEGRATION_NAME} "
+                f"--integration-version {INTEGRATION_VERSION} "
+                "--no-dry-run "
+                f"--cache-source-digest {CACHE_SOURCE_DIGEST} "
+                "--shard shard-1"
+            ),
         ),
         (
             INTEGRATION_NAME,
@@ -185,10 +189,12 @@ def test_cache_key_string(
             True,
             CACHE_SOURCE,
             "",
-            f"--integration {INTEGRATION_NAME} "
-            f"--integration-version {INTEGRATION_VERSION} "
-            "--dry-run "
-            f"--cache-source-digest {CACHE_SOURCE_DIGEST}",
+            (
+                f"--integration {INTEGRATION_NAME} "
+                f"--integration-version {INTEGRATION_VERSION} "
+                "--dry-run "
+                f"--cache-source-digest {CACHE_SOURCE_DIGEST}"
+            ),
         ),
         (
             INTEGRATION_NAME,
@@ -196,11 +202,13 @@ def test_cache_key_string(
             True,
             CACHE_SOURCE,
             "shard-1",
-            f"--integration {INTEGRATION_NAME} "
-            f"--integration-version {INTEGRATION_VERSION} "
-            "--dry-run "
-            f"--cache-source-digest {CACHE_SOURCE_DIGEST} "
-            "--shard shard-1",
+            (
+                f"--integration {INTEGRATION_NAME} "
+                f"--integration-version {INTEGRATION_VERSION} "
+                "--dry-run "
+                f"--cache-source-digest {CACHE_SOURCE_DIGEST} "
+                "--shard shard-1"
+            ),
         ),
     ],
 )

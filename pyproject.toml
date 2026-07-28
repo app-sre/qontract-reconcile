@@ -204,45 +204,46 @@ extend-select = [
     "DTZ",
 ]
 ignore = [
-    "N811",    # Constant `xxx` imported as non-constant `xxx`
-    "N817",    # CamelCase `xxx` imported as acronym `xxx`
-    "PLR0904", # Too many public methods
-    "PLR0911", # Too many return statements
-    "PLR0912", # Too many branches
-    "PLR0913", # Too many arguments
-    "PLR0914", # Too many local variables
-    "PLR0915", # Too many statements
-    "PLR0917", # Too many positional arguments
-    "PLR1702", # Too many nested blocks
-    "PLR2004", # Magic value used in comparison
-    "PLR6301", # Method XXX could be a function, class method, or static method
-    "PLW1641", # Object does not implement `__hash__` method
-    "PLW2901", # `for` loop variable `v` overwritten by assignment target
-    "UP031",   # Use format specifiers instead of percent format
-    "SIM102",  # Use a single `if` statement instead of nested `if` statements
-    "B017",    #`pytest.raises(Exception)` should be considered evil
-    "RUF005",  # Consider "...."instead of concatenation
-    "RUF012",  # Mutable class attributes should be annotated with "typing.ClassVar"
-    "RUF067",  # `__init__` module should only contain docstrings and re-exports
+    "constant-imported-as-non-constant", # Constant `xxx` imported as non-constant `xxx`
+    "camelcase-imported-as-acronym",     # CamelCase `xxx` imported as acronym `xxx`
+    "too-many-public-methods",           # Too many public methods
+    "too-many-return-statements",        # Too many return statements
+    "too-many-branches",                 # Too many branches
+    "too-many-arguments",                # Too many arguments
+    "too-many-locals",                   # Too many local variables
+    "too-many-statements",               # Too many statements
+    "too-many-positional-arguments",     # Too many positional arguments
+    "too-many-nested-blocks",            # Too many nested blocks
+    "magic-value-comparison",            # Magic value used in comparison
+    "no-self-use",                       # Method XXX could be a function, class method, or static method
+    "eq-without-hash",                   # Object does not implement `__hash__` method
+    "redefined-loop-name",               # `for` loop variable `v` overwritten by assignment target
+    "printf-string-formatting",          # Use format specifiers instead of percent format
+    "collapsible-if",                    # Use a single `if` statement instead of nested `if` statements
+    "assert-raises-exception",           #`pytest.raises(Exception)` should be considered evil
+    "collection-literal-concatenation",  # Consider "...."instead of concatenation
+    "mutable-class-default",             # Mutable class attributes should be annotated with "typing.ClassVar"
+    "non-empty-init-module",             # `__init__` module should only contain docstrings and re-exports
+    "too-many-statements-in-try-clause",
     # Review later
-    "FURB101", # Replace `open` with `pathlib.Path`
-    "FURB103", # Replace `open` with `pathlib.Path`
-    "TRY002",  # Create your own exception class instead of raising `Exception`
-    "BLE001",  # Do not catch blind exception: `Exception`
-    "LOG015",  # call on root logger
+    "read-whole-file",     # Replace `open` with `pathlib.Path`
+    "write-whole-file",    # Replace `open` with `pathlib.Path`
+    "raise-vanilla-class", # Create your own exception class instead of raising `Exception`
+    "blind-except",        # Do not catch blind exception: `Exception`
+    "root-logger-call",    # call on root logger
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "reconcile/test/**" = [
-    "PLC0415", # Import not at top level (lazy imports in tests)
-    "PLR2004", # Magic value in comparison (acceptable in tests)
-    "PLR6301", # Method could be function/classmethod/staticmethod (pytest uses instance methods)
-    "PT012",   # pytest.raises with multiple statements (acceptable pattern)
-    "RUF043",  # Regex metacharacters in pytest.raises match (intentional in tests)
-    "RUF069",  # Unreliable floating point equality comparison
-    "S105",    # Possible hardcoded password assigned (test fixtures)
-    "S106",    # Possible hardcoded password (test fixtures use hardcoded values)
-    "SLF001",  # Private member access (testing internal state)
+    "import-outside-top-level",               # Import not at top level (lazy imports in tests)
+    "magic-value-comparison",                 # Magic value in comparison (acceptable in tests)
+    "no-self-use",                            # Method could be function/classmethod/staticmethod (pytest uses instance methods)
+    "pytest-raises-with-multiple-statements", # pytest.raises with multiple statements (acceptable pattern)
+    "pytest-raises-ambiguous-pattern",        # Regex metacharacters in pytest.raises match (intentional in tests)
+    "float-equality-comparison",              # Unreliable floating point equality comparison
+    "hardcoded-password-string",              # Possible hardcoded password assigned (test fixtures)
+    "hardcoded-password-func-arg",            # Possible hardcoded password (test fixtures use hardcoded values)
+    "private-member-access",                  # Private member access (testing internal state)
 ]
 [tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true

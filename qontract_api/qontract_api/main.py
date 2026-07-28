@@ -49,11 +49,13 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     - CacheBackend (Redis/Valkey for distributed cache and rate limiting)
     - SecretBackend (Vault for secret management)
     """
-    from qontract_api.cache.factory import get_cache  # noqa: PLC0415
-    from qontract_api.event_manager._factory import (  # noqa: PLC0415
+    from qontract_api.cache.factory import (  # ruff: ignore[import-outside-top-level]
+        get_cache,
+    )
+    from qontract_api.event_manager._factory import (  # ruff: ignore[import-outside-top-level]
         get_event_manager,
     )
-    from qontract_api.secret_manager._factory import (  # noqa: PLC0415
+    from qontract_api.secret_manager._factory import (  # ruff: ignore[import-outside-top-level]
         get_secret_manager,
     )
 
@@ -85,19 +87,23 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         _app.state.opa_client = None
         log.info("OPA authorization disabled")
 
-    yield
+    try:
+        yield
+    finally:
+        # Cleanup OPA client on shutdown
+        if opa_client := getattr(_app.state, "opa_client", None):
+            await opa_client.client.aclose()
 
-    # Cleanup OPA client on shutdown
-    if opa_client := getattr(_app.state, "opa_client", None):
-        await opa_client.client.aclose()
+        # Cleanup secret backend on shutdown
+        if (
+            hasattr(_app.state, "secret_manager")
+            and _app.state.secret_manager is not None
+        ):
+            _app.state.secret_manager.close()
 
-    # Cleanup secret backend on shutdown
-    if hasattr(_app.state, "secret_manager") and _app.state.secret_manager is not None:
-        _app.state.secret_manager.close()
-
-    # Cleanup cache backend on shutdown
-    if hasattr(_app.state, "cache") and _app.state.cache is not None:
-        _app.state.cache.close()
+        # Cleanup cache backend on shutdown
+        if hasattr(_app.state, "cache") and _app.state.cache is not None:
+            _app.state.cache.close()
 
 
 app = FastAPI(

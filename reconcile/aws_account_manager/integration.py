@@ -54,7 +54,7 @@ class AwsAccountMgmtIntegrationParams(PydanticRunParams):
     initial_user_name: str = "terraform"
     initial_user_policy_arn: str = "arn:aws:iam::aws:policy/AdministratorAccess"
     initial_user_secret_vault_path: str = (
-        "app-sre-v2/creds/terraform/{account_name}/config"  # noqa: RUF027
+        "app-sre-v2/creds/terraform/{account_name}/config"  # ruff: ignore[missing-f-string-syntax]
     )
     # To avoid the accidental deletion of the resource file, explicitly set the
     # qontract.cli option in the integration extraArgs!
