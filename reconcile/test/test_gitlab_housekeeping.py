@@ -3019,7 +3019,7 @@ def test_omm_group_unhandled_status_rebased_stays_active(
     clear_mock.assert_not_called()
 
 
-# --- Fork pipeline SHA filtering in OMM group ---
+# --- Push pipeline filtering in OMM group ---
 
 
 @pytest.mark.parametrize(
@@ -3027,14 +3027,14 @@ def test_omm_group_unhandled_status_rebased_stays_active(
     [("abc123", None), (None, "abc123")],
     ids=["merge-commit", "squash-commit"],
 )
-def test_omm_group_fork_pipeline_post_rebase_filtered_merges(
+def test_omm_group_push_pipeline_filtered_even_at_different_sha(
     mocker: MockerFixture,
     merge_sha: str | None,
     squash_sha: str | None,
 ) -> None:
-    """After skip-ci rebase, fork pipelines matching the new MR SHA are
-    filtered out.  The pre-rebase fork SUCCESS pipeline (old SHA) should
-    drive the merge decision."""
+    """Push pipelines from a prior skip-ci rebase (sha != mr.sha) must still
+    be filtered.  This covers stale list-API sha and cascading rebases where
+    push pipelines accumulate at old shas."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
         "reconcile.gitlab_housekeeping.is_rebased",
@@ -3050,14 +3050,14 @@ def test_omm_group_fork_pipeline_post_rebase_filtered_merges(
     lead.target_branch = "master"
 
     fork_id = 99
-    new_sha = "rebased-sha"
-    old_sha = "pre-rebase-sha"
+    current_sha = "current-sha"
+    prior_rebase_sha = "prior-rebase-sha"
 
     mr = _make_merge_mr(
         11,
         ["approved", "tenant-bar", "omm-pending"],
         source_project_id=fork_id,
-        sha=new_sha,
+        sha=current_sha,
     )
 
     mocker.patch(
@@ -3067,8 +3067,8 @@ def test_omm_group_fork_pipeline_post_rebase_filtered_merges(
 
     mocked_gl = _make_omm_gl(head_sha="abc123")
     mocked_gl.get_merge_request_pipelines.return_value = [
-        _running_pipeline(project_id=fork_id, sha=new_sha, source="push"),
-        _success_pipeline(project_id=fork_id, sha=old_sha),
+        _running_pipeline(project_id=fork_id, sha=prior_rebase_sha, source="push"),
+        _success_pipeline(project_id=fork_id, sha="original-sha", source="external"),
     ]
 
     merges = gl_h._process_omm_group(
