@@ -680,7 +680,7 @@ class OCCli:
 
     def delete_user(self, user_name: str) -> None:
         user = self.get(None, USER_KIND, user_name)
-        cmd = ["delete", "user", user_name]
+        cmd = ["delete", USER_KIND, user_name]
         self._run(cmd)
         for identity in user["identities"]:
             cmd = ["delete", "identity", identity]
