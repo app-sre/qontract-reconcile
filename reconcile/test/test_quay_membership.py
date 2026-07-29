@@ -14,7 +14,7 @@ from reconcile.utils import (
     config,
     gql,
 )
-from reconcile.utils.aggregated_list import AggregatedList
+from reconcile.utils.aggregated_list import AggregatedItem, AggregatedList
 from reconcile.utils.quay_api import QuayApi
 
 from .fixtures import Fixtures
@@ -23,7 +23,7 @@ fxt = Fixtures("quay_membership")
 
 
 def get_items_by_params(
-    state: list[dict[str, Any]], params: dict[str, str]
+    state: list[AggregatedItem], params: dict[str, str]
 ) -> list[str] | bool:
     h = AggregatedList.hash_params(params)
     for group in state:
@@ -100,7 +100,7 @@ def build_quay_api_store(fixture: dict[str, Any]) -> QuayApiStore:
 
 
 def assert_state_matches(
-    actual_state: list[dict[str, Any]], expected_state: list[dict[str, Any]]
+    actual_state: list[AggregatedItem], expected_state: list[AggregatedItem]
 ) -> None:
     assert len(actual_state) == len(expected_state)
     for group in actual_state:
