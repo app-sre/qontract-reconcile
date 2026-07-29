@@ -2556,6 +2556,65 @@ def test_omm_group_skip_ci_rebase_on_success_not_rebased(
     [("abc123", None), (None, "abc123")],
     ids=["merge-commit", "squash-commit"],
 )
+def test_omm_member_refreshes_mr_before_rebased_check(
+    mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
+) -> None:
+    """The stale list API sha would make is_rebased return False, but
+    after refreshing from the detail API the correct sha is used and
+    the member merges instead of triggering another skip-ci-rebase."""
+    _setup_omm_group_mocks(mocker)
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
+    lead.target_branch = "master"
+
+    stale_mr = _make_merge_mr(
+        11, ["approved", "tenant-bar", "omm-pending"], sha="stale-sha-old"
+    )
+    fresh_mr = _make_merge_mr(
+        11, ["approved", "tenant-bar", "omm-pending"], sha="fresh-sha-rebased"
+    )
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[stale_mr],
+    )
+
+    head_sha = "abc123"
+    mocked_gl = _make_omm_gl(head_sha=head_sha)
+    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+    mocked_gl.get_merge_request.return_value = fresh_mr
+
+    head_commit = Mock()
+    head_commit.id = head_sha
+    mocked_gl.project.commits.list.return_value = [head_commit]
+    mocked_gl.project.repository_compare.return_value = {"commits": []}
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 1
+    mocked_gl.get_merge_request.assert_called_once_with(11)
+    stale_mr.merge.assert_called_once()
+    stale_mr.rebase.assert_not_called()
+    clear_mock.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
 def test_omm_group_skip_ci_rebase_failure_ejects_member(
     mocker: MockerFixture,
     merge_sha: str | None,

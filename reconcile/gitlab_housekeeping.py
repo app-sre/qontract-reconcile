@@ -1071,7 +1071,8 @@ def _process_omm_member(
         and not (p.sha == mr.sha and p.source == "push")
     ]
 
-    mr_is_rebased = is_rebased(mr, gl)
+    fresh_mr = gl.get_merge_request(mr.iid)
+    mr_is_rebased = is_rebased(fresh_mr, gl)
 
     if not pipelines:
         if mr_is_rebased:
