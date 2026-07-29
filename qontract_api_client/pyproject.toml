@@ -5,16 +5,16 @@ description = "Auto-generated client for qontract-api"
 authors = [{ name = "Red Hat App-SRE Team", email = "sd-app-sre@redhat.com" }]
 license = { text = "Apache 2.0" }
 requires-python = ">=3.14"
-dependencies = ["clientele[core]==2.2.2"]
+dependencies = ["clientele[core]==2.3.0"]
 
 [dependency-groups]
 dev = [
-    "clientele[cli]==2.2.2",
+    "clientele[cli]==2.3.0",
     # development and testing tools
-    "mypy==2.1.0",
-    "pytest==9.0.3",
+    "mypy==2.3.0",
+    "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "ruff==0.15.13",
+    "ruff==0.16.0",
 ]
 
 [build-system]
