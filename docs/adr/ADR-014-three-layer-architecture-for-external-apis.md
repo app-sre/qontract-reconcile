@@ -122,6 +122,7 @@ Combine caching and business logic in one layer, separate from API client.
 class ApiClient:
     def list_resources(self): ...
 
+
 # Layer 2: Service (cache + business logic)
 class Service:
     def __init__(self, api_client, cache):
@@ -238,6 +239,7 @@ Lives in application code (e.g., `qontract_api/integrations/external_api/`).
 ```python
 T = TypeVar("T", bound=BaseModel)
 
+
 class RepositoryClient:
     """Cache + compute layer with distributed locking."""
 
@@ -287,7 +289,9 @@ class RepositoryClient:
             return {obj["id"]: cls(**obj) for obj in cached_list}
         return None
 
-    def _set_cached_dict(self, cache_key: str, obj_dict: dict[str, T], ttl: int) -> None:
+    def _set_cached_dict(
+        self, cache_key: str, obj_dict: dict[str, T], ttl: int
+    ) -> None:
         """Set cached dict with automatic serialization."""
         obj_list = [obj.model_dump() for obj in obj_dict.values()]
         self.cache.set(cache_key, json_dumps(obj_list), ttl)

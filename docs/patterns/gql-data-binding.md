@@ -50,16 +50,22 @@ This will create a `glitchtip_instance.py` file next to your `.gql` file, contai
 
 # ... imports ...
 
+
 class VaultSecretV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     # ... other fields ...
+
 
 class GlitchtipInstanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     read_token: VaultSecretV1 = Field(..., alias="readToken")
 
+
 class GlitchtipInstancesQueryData(ConfiguredBaseModel):
-    glitchtip_instances: Optional[list[GlitchtipInstanceV1]] = Field(..., alias="glitchtip_instances")
+    glitchtip_instances: Optional[list[GlitchtipInstanceV1]] = Field(
+        ..., alias="glitchtip_instances"
+    )
+
 
 def query(query_func: Callable, **kwargs: Any) -> GlitchtipInstancesQueryData:
     """
@@ -80,9 +86,13 @@ Finally, you can import and use the generated `query()` function in your integra
 from reconcile.gql_definitions.glitchtip import glitchtip_instance
 from reconcile.utils import gql
 
-def get_glitchtip_instances(query_func: Callable) -> list[glitchtip_instance.GlitchtipInstanceV1]:
+
+def get_glitchtip_instances(
+    query_func: Callable,
+) -> list[glitchtip_instance.GlitchtipInstanceV1]:
     data = glitchtip_instance.query(query_func)
     return data.glitchtip_instances or []
+
 
 # In the run method:
 instances = get_glitchtip_instances(gql.get_api().query)
@@ -91,7 +101,6 @@ for inst in instances:
     print(f"Processing Glitchtip instance: {inst.name}")
     # mypy will know that inst.read_token is a VaultSecretV1 object
     secret = get_secret(inst.read_token)
-
 ```
 
 This workflow is the standard and recommended way to fetch data for new integrations.

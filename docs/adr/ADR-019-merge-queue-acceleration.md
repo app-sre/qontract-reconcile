@@ -256,17 +256,18 @@ The schema must support an optional `merge_limit` field alongside the existing `
 ```python
 TENANT_LABEL_PREFIX = "tenant-"
 
+
 def get_tenant_labels(mr: ProjectMergeRequest) -> set[str]:
     """Extract tenant-* labels from an MR."""
     return {l for l in mr.labels if l.startswith(TENANT_LABEL_PREFIX)}
+
 
 def is_eligible_for_optimistic_merge(mr: ProjectMergeRequest) -> bool:
     """MRs with at least one tenant-* label are eligible."""
     return bool(get_tenant_labels(mr))
 
-def has_overlapping_labels(
-    mr_labels: set[str], merged_labels: set[str]
-) -> bool:
+
+def has_overlapping_labels(mr_labels: set[str], merged_labels: set[str]) -> bool:
     """Two MRs overlap if they share any tenant-* label."""
     return bool(mr_labels & merged_labels)
 ```
@@ -315,9 +316,7 @@ for merge_request in merge_requests:
     # Pipeline timeout cleanup (unchanged) ...
 
     if not first_merge_done and wait_for_pipeline:
-        running_pipelines = [
-            p for p in pipelines if p.status == PipelineStatus.RUNNING
-        ]
+        running_pipelines = [p for p in pipelines if p.status == PipelineStatus.RUNNING]
         if running_pipelines:
             if insist:
                 reload_toggle.reload = True
@@ -335,9 +334,7 @@ for merge_request in merge_requests:
 
     if not dry_run and merges < merge_limit:
         try:
-            squash = (
-                gl.project.squash_option == SQUASH_OPTION_ALWAYS
-            ) or mr.squash
+            squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
 
             if first_merge_done and rebase:
                 mr.rebase(skip_ci=True)
@@ -350,18 +347,14 @@ for merge_request in merge_requests:
             merges += 1
             # ... existing metrics (merged_merge_requests, time_to_merge) ...
         except gitlab.exceptions.GitlabMRRebaseError as e:
-            logging.warning(
-                f"optimistic rebase failed for {mr.iid}: {e}"
-            )
+            logging.warning(f"optimistic rebase failed for {mr.iid}: {e}")
             optimistic_merge_rejected.labels(
                 project_id=mr.target_project_id, reason="rebase_failed"
             ).inc()
         except gitlab.exceptions.GitlabMRClosedError as e:
             logging.error(f"unable to merge {mr.iid}: {e}")
         except gitlab.exceptions.GitlabOperationError as e:
-            logging.warning(
-                f"optimistic merge rejected for {mr.iid}: {e}"
-            )
+            logging.warning(f"optimistic merge rejected for {mr.iid}: {e}")
             optimistic_merge_rejected.labels(
                 project_id=mr.target_project_id, reason="merge_rejected"
             ).inc()
