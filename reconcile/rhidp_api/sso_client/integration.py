@@ -18,7 +18,6 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from qontract_api_client.client import ocm_clusters, sso_client
-from qontract_api_client.exceptions import APIException
 from qontract_api_client.schemas import (
     KeycloakInstanceSecret,
     Secret,
@@ -116,7 +115,7 @@ class SSOClientApiIntegration(
             org_ids = [
                 org.org_id for org in get_ocm_orgs_from_env(ocm_env.name, self.name)
             ]
-            try:
+            with self.log_api_exceptions():
                 clusters_response = await ocm_clusters(
                     ocm_url=ocm_env.url,
                     access_token_url=ocm_env.access_token_url,
@@ -128,11 +127,6 @@ class SSOClientApiIntegration(
                     label_key_prefix=RHIDP_NAMESPACE_LABEL_KEY,
                     org_ids=org_ids,
                 )
-            except APIException as e:
-                logging.error(
-                    f"Error occurred: {e.reason}; Response details: {e.response}"
-                )
-                raise
 
             clusters = build_clusters(
                 clusters_response.clusters,
@@ -154,13 +148,8 @@ class SSOClientApiIntegration(
                 dry_run=dry_run,
             )
 
-            try:
+            with self.log_api_exceptions():
                 task = await sso_client(request)
-            except APIException as e:
-                logging.error(
-                    f"Error occurred: {e.reason}; Response details: {e.response}"
-                )
-                raise
             # Always log the request id! It won't be forwarded to #reconcile channel
             # via fluentd filter!
             logging.info(f"request_id: {task.id}")

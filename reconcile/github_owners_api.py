@@ -25,7 +25,6 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from qontract_api_client.client import github_owners as reconcile_github_owners
-from qontract_api_client.exceptions import APIException
 from qontract_api_client.schemas import (
     GithubOrgDesiredState,
     GithubOwnersReconcileRequest,
@@ -170,11 +169,8 @@ class GithubOwnersIntegration(
             organizations=organizations,
             dry_run=dry_run,
         )
-        try:
+        with self.log_api_exceptions():
             response = await reconcile_github_owners(request)
-        except APIException as e:
-            logging.error(f"Error occurred: {e.reason}; Response details: {e.response}")
-            raise
         logging.info(f"request_id: {response.id}")
         return response
 

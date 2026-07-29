@@ -9,7 +9,6 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from qontract_api_client.client import glitchtip as reconcile_glitchtip
-from qontract_api_client.exceptions import APIException
 from qontract_api_client.schemas import (
     GIInstance,
     GIOrganization,
@@ -231,13 +230,10 @@ class GlitchtipApiIntegration(
             logging.warning("No Glitchtip instances to reconcile")
             return
 
-        try:
+        with self.log_api_exceptions():
             task = await reconcile_glitchtip(
                 GlitchtipReconcileRequest(instances=instances, dry_run=dry_run),
             )
-        except APIException as e:
-            logging.error(f"Error occurred: {e.reason}; Response details: {e.response}")
-            raise
         logging.info(f"request_id: {task.id}")
 
         if not dry_run:

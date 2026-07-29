@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import functools
 import logging
 import os
@@ -36,7 +37,11 @@ from reconcile.utils.secret_reader import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from types import ModuleType
+
+
+API_EXCEPTION_RESPONSE_TEXT_TRUNCATE_LENGTH = 500
 
 
 @dataclass
@@ -308,6 +313,21 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
             self._secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         return self._secret_reader
 
+    @contextlib.contextmanager
+    def log_api_exceptions(self) -> Generator[None]:
+        """Log qontract-api client errors with status code and truncated body, then re-raise."""
+        try:
+            yield
+        except APIException as e:
+            text = e.response.text
+            if len(text) > API_EXCEPTION_RESPONSE_TEXT_TRUNCATE_LENGTH:
+                text = f"{text[:API_EXCEPTION_RESPONSE_TEXT_TRUNCATE_LENGTH]}... (truncated)"
+            logging.error(
+                f"Error occurred: {e.reason}; "
+                f"status_code={e.response.status_code}; response={text}"
+            )
+            raise
+
     async def poll_task_status[T: BaseModel](
         self,
         status_url: str,
@@ -320,16 +340,13 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
         Uses the status_url returned by POST endpoints to retrieve task results
         without requiring the caller to know about task IDs or URL construction.
         """
-        try:
+        with self.log_api_exceptions():
             return await qontract_api_client.arequest(
                 method="get",
                 path=urlparse(status_url).path,
                 response_map={200: result_type},
                 query={"timeout": timeout},
             )
-        except APIException as e:
-            logging.error(f"Error occurred: {e.reason}; Response details: {e.response}")
-            raise
 
     @abstractmethod
     async def async_run(self, dry_run: bool) -> None:

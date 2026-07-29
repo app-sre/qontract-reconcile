@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 from qontract_api_client.client import (
     openshift_namespaces as openshift_namespaces_reconcile,
 )
-from qontract_api_client.exceptions import APIException
 from qontract_api_client.schemas import (
     ClusterNamespaces,
     DesiredNamespace,
@@ -118,11 +117,8 @@ class OpenShiftNamespacesIntegration(
             clusters=clusters,
             dry_run=dry_run,
         )
-        try:
+        with self.log_api_exceptions():
             response = await openshift_namespaces_reconcile(request)
-        except APIException as e:
-            logging.error(f"Error occurred: {e.reason}; Response details: {e.response}")
-            raise
         logging.info(f"request_id: {response.id}")
         return response
 

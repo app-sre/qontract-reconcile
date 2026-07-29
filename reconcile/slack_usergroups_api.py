@@ -27,7 +27,6 @@ from qontract_api_client.client import (
     slack_usergroups,
     vcs_repo_owners,
 )
-from qontract_api_client.exceptions import APIException
 from qontract_api_client.schemas import (
     EscalationPolicyUsersResponse,
     NotificationAddUser,
@@ -241,7 +240,7 @@ class SlackUsergroupsIntegration(
         if url.count(":") == 2:
             url, ref = url.rsplit(":", 1)
 
-        try:
+        with self.log_api_exceptions():
             response = await vcs_repo_owners(
                 repo_url=url,
                 ref=ref,
@@ -250,9 +249,6 @@ class SlackUsergroupsIntegration(
                 field=token.field,
                 version=token.version,
             )
-        except APIException as e:
-            logging.error(f"Error occurred: {e.reason}; Response details: {e.response}")
-            raise
         # Process owners inline
         result = []
         owners = (response.approvers or []) + (response.reviewers or [])
@@ -622,11 +618,8 @@ class SlackUsergroupsIntegration(
             ],
             dry_run=dry_run,
         )
-        try:
+        with self.log_api_exceptions():
             response = await slack_usergroups(request_data)
-        except APIException as e:
-            logging.error(f"Error occurred: {e.reason}; Response details: {e.response}")
-            raise
         # Always log the request id! It won't be forwarded to #reconcile channel via fluentd filter!
         logging.info(f"request_id: {response.id}")
         return response
