@@ -133,7 +133,10 @@ def _jsonpath_to_pointer(path: jsonpath_ng.JSONPath) -> str:
     segments: list[str] = []
     for part in jsonpath_parts(path, ignore_root=True):
         if isinstance(part, jsonpath_ng.Fields):
-            segments.extend(str(f) for f in part.fields)
+            # RFC 6901: escape ~ as ~0 and / as ~1, in that order, before joining
+            segments.extend(
+                str(f).replace("~", "~0").replace("/", "~1") for f in part.fields
+            )
         elif isinstance(part, jsonpath_ng.Index):
             segments.extend(str(i) for i in part.indices)
     return "/" + "/".join(segments)
