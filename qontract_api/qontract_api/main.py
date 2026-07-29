@@ -61,33 +61,33 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     log.info("Starting application lifespan setup")
 
-    # Startup: Initialize cache backend using factory (singleton pattern)
-    _app.state.cache = get_cache()
-
-    # Startup: Initialize secret backend using factory (singleton pattern)
-    # This creates the Vault client connection and starts token auto-refresh thread
-    _app.state.secret_manager = get_secret_manager(cache=_app.state.cache)
-
-    # Startup: Initialize event manager (None if events are disabled)
-    _app.state.event_manager = get_event_manager()
-
-    # Startup: Initialize OPA client if enabled
-    if settings.opa.enabled:
-        opa_http_client = httpx2.AsyncClient(
-            timeout=settings.opa.timeout,
-        )
-        _app.state.opa_client = OPAClient(
-            host=settings.opa.host,
-            package_name=settings.opa.package_name,
-            skip_endpoints=[re.compile(p) for p in settings.opa.skip_endpoints],
-            client=opa_http_client,
-        )
-        log.info("OPA authorization enabled", opa_url=_app.state.opa_client.opa_url)
-    else:
-        _app.state.opa_client = None
-        log.info("OPA authorization disabled")
-
     try:
+        # Startup: Initialize cache backend using factory (singleton pattern)
+        _app.state.cache = get_cache()
+
+        # Startup: Initialize secret backend using factory (singleton pattern)
+        # This creates the Vault client connection and starts token auto-refresh thread
+        _app.state.secret_manager = get_secret_manager(cache=_app.state.cache)
+
+        # Startup: Initialize event manager (None if events are disabled)
+        _app.state.event_manager = get_event_manager()
+
+        # Startup: Initialize OPA client if enabled
+        if settings.opa.enabled:
+            opa_http_client = httpx2.AsyncClient(
+                timeout=settings.opa.timeout,
+            )
+            _app.state.opa_client = OPAClient(
+                host=settings.opa.host,
+                package_name=settings.opa.package_name,
+                skip_endpoints=[re.compile(p) for p in settings.opa.skip_endpoints],
+                client=opa_http_client,
+            )
+            log.info("OPA authorization enabled", opa_url=_app.state.opa_client.opa_url)
+        else:
+            _app.state.opa_client = None
+            log.info("OPA authorization disabled")
+
         yield
     finally:
         # Cleanup OPA client on shutdown
