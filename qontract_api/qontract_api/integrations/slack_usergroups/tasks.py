@@ -166,11 +166,11 @@ def reconcile_slack_usergroups_task(
 
         return result
 
-    except Exception as e:
+    except Exception as err:
         logger.exception(f"Task {request_id} failed with error")
         return SlackUsergroupsTaskResult(
             status=TaskStatus.FAILED,
             actions=[],
             applied_count=0,
-            errors=[str(e)],
+            errors=[f"Unexpected {err=}"],
         )

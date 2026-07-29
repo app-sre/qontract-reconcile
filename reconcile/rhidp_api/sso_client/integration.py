@@ -115,17 +115,19 @@ class SSOClientApiIntegration(
             org_ids = [
                 org.org_id for org in get_ocm_orgs_from_env(ocm_env.name, self.name)
             ]
-            clusters_response = await ocm_clusters(
-                ocm_url=ocm_env.url,
-                access_token_url=ocm_env.access_token_url,
-                access_token_client_id=ocm_env.access_token_client_id,
-                secret_manager_url=self.secret_manager_url,
-                path=ocm_env.access_token_client_secret.path,
-                field=ocm_env.access_token_client_secret.field,
-                version=ocm_env.access_token_client_secret.version,
-                label_key_prefix=RHIDP_NAMESPACE_LABEL_KEY,
-                org_ids=org_ids,
-            )
+            with self.log_api_exceptions():
+                clusters_response = await ocm_clusters(
+                    ocm_url=ocm_env.url,
+                    access_token_url=ocm_env.access_token_url,
+                    access_token_client_id=ocm_env.access_token_client_id,
+                    secret_manager_url=self.secret_manager_url,
+                    path=ocm_env.access_token_client_secret.path,
+                    field=ocm_env.access_token_client_secret.field,
+                    version=ocm_env.access_token_client_secret.version,
+                    label_key_prefix=RHIDP_NAMESPACE_LABEL_KEY,
+                    org_ids=org_ids,
+                )
+
             clusters = build_clusters(
                 clusters_response.clusters,
                 self.params.default_auth_name,
@@ -146,7 +148,8 @@ class SSOClientApiIntegration(
                 dry_run=dry_run,
             )
 
-            task = await sso_client(request)
+            with self.log_api_exceptions():
+                task = await sso_client(request)
             # Always log the request id! It won't be forwarded to #reconcile channel
             # via fluentd filter!
             logging.info(f"request_id: {task.id}")

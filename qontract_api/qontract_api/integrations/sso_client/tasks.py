@@ -78,13 +78,13 @@ def reconcile_sso_client_task(
             vault_target=vault_target,
             dry_run=dry_run,
         )
-    except Exception as e:
+    except Exception as err:
         logger.exception(f"Task {request_id} failed with error")
         return SsoClientTaskResult(
             status=TaskStatus.FAILED,
             actions=[],
             applied_count=0,
-            errors=[str(e)],
+            errors=[f"Unexpected {err=}"],
         )
 
     logger.info(

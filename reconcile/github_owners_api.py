@@ -169,7 +169,8 @@ class GithubOwnersIntegration(
             organizations=organizations,
             dry_run=dry_run,
         )
-        response = await reconcile_github_owners(request)
+        with self.log_api_exceptions():
+            response = await reconcile_github_owners(request)
         logging.info(f"request_id: {response.id}")
         return response
 
