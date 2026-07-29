@@ -80,7 +80,7 @@ def reconcile_glitchtip_project_alerts_task(
     """
     request_id = self.request.id
 
-    try:
+    try:  # ruff: ignore[too-many-statements-in-try-clause]
         # Get shared dependencies
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)

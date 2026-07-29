@@ -99,7 +99,7 @@ def reconcile_openshift_namespaces_task(
     request_id = self.request.id
     secret_errors: list[str] = []
 
-    try:
+    try:  # ruff: ignore[too-many-statements-in-try-clause]
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
 

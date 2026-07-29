@@ -123,7 +123,7 @@ class GzipRequestMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         """Decompress gzip request body if Content-Encoding header present."""
         if request.headers.get("content-encoding") == "gzip":
-            try:
+            try:  # ruff: ignore[too-many-statements-in-try-clause]
                 # Read all chunks from original receive
                 compressed_chunks: list[bytes] = []
                 original_receive = request._receive  # ruff: ignore[private-member-access]
