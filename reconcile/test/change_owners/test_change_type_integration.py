@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import jsonpath_ng
 import pytest
 
 from reconcile.change_owners.self_service_roles import (
@@ -71,9 +72,9 @@ def test_change_coverage(
     for bc in bundle_changes:
         for d in bc.diff_coverage:
             expected_approver = None
-            if str(d.diff.path) == "roles.[0]":
+            if d.diff.path == jsonpath_ng.parse("roles.[0]"):
                 expected_approver = role_approver_user
-            elif str(d.diff.path) == "openshiftResources.[1].version":
+            elif d.diff.path == jsonpath_ng.parse("openshiftResources.[1].version"):
                 expected_approver = secret_approver_user
             else:
                 pytest.fail(f"unexpected change path {d.diff.path!s}")

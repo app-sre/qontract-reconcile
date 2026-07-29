@@ -209,35 +209,34 @@ def test_nested_splits() -> None:
     # split within the split tree
     bundle_change.cover_changes(sub)
 
-    diffs = {d.diff.path_str(): d for d in bundle_change.diff_coverage}
+    diffs = {d.diff.path: d for d in bundle_change.diff_coverage}
+    top_path = jsonpath_ng.parse("top")
+    sub_path = jsonpath_ng.parse("top.sub")
+    sub_sub_path = jsonpath_ng.parse("top.sub.sub-sub")
 
     # check that the `top` field has a split for `top.sub` and is covered
     # by the `top` change-type
-    assert [s.diff.path_str() for s in diffs["top"]._split_into] == ["top.sub"]
-    assert diffs["top"].is_directly_covered()
-    assert {ctx.change_type_processor.name for ctx in diffs["top"].coverage} == {
+    assert [s.diff.path for s in diffs[top_path]._split_into] == [sub_path]
+    assert diffs[top_path].is_directly_covered()
+    assert {ctx.change_type_processor.name for ctx in diffs[top_path].coverage} == {
         top.change_type_processor.name
     }
 
     # check that the `top.sub` field has a split for `top.sub.sub-sub` and is covered
     # by the `sub` and `top` change-types
-    assert [s.diff.path_str() for s in diffs["top.sub"]._split_into] == [
-        "top.sub.sub-sub"
-    ]
-    assert diffs["top.sub"].is_directly_covered()
-    assert {ctx.change_type_processor.name for ctx in diffs["top.sub"].coverage} == {
+    assert [s.diff.path for s in diffs[sub_path]._split_into] == [sub_sub_path]
+    assert diffs[sub_path].is_directly_covered()
+    assert {ctx.change_type_processor.name for ctx in diffs[sub_path].coverage} == {
         top.change_type_processor.name,
         sub.change_type_processor.name,
     }
 
     # check that the `top.sub.sub-sub` field is not split and is covered
     # by the `sub-sub`, `sub` and `top` change-types
-    assert [s.diff.path_str() for s in diffs["top.sub.sub-sub"]._split_into] == []
-    assert diffs["top.sub.sub-sub"].is_directly_covered()
-    assert not diffs["top.sub.sub-sub"].is_covered_by_splits()
-    assert {
-        ctx.change_type_processor.name for ctx in diffs["top.sub.sub-sub"].coverage
-    } == {
+    assert [s.diff.path for s in diffs[sub_sub_path]._split_into] == []
+    assert diffs[sub_sub_path].is_directly_covered()
+    assert not diffs[sub_sub_path].is_covered_by_splits()
+    assert {ctx.change_type_processor.name for ctx in diffs[sub_sub_path].coverage} == {
         top.change_type_processor.name,
         sub.change_type_processor.name,
         sub_sub.change_type_processor.name,
@@ -281,10 +280,17 @@ def test_diff_splitting_empty_parent_coverage() -> None:
     )
     bundle_change.cover_changes(role_change_type)
 
-    diffs = {d.diff.path_str(): d for d in bundle_change.diff_coverage}
-    assert len(diffs) == 2
-    assert diffs["roles.[0]"].is_directly_covered()
-    assert diffs["roles.[1]"].is_directly_covered()
+    coverages = bundle_change.diff_coverage
+    assert len(coverages) == 2
+    # jsonpath_ng.Index is not hashable in this version, so we can't key a dict by path
+    roles_0 = next(
+        c for c in coverages if c.diff.path == jsonpath_ng.parse("roles.[0]")
+    )
+    roles_1 = next(
+        c for c in coverages if c.diff.path == jsonpath_ng.parse("roles.[1]")
+    )
+    assert roles_0.is_directly_covered()
+    assert roles_1.is_directly_covered()
 
 
 def test_nested_diff_splitting_empty_parent_coverage() -> None:
@@ -335,10 +341,14 @@ def test_nested_diff_splitting_empty_parent_coverage() -> None:
     )
     bundle_change.cover_changes(role_change_type)
 
-    diffs = {d.diff.path_str(): d for d in bundle_change.diff_coverage}
+    diffs = {d.diff.path: d for d in bundle_change.diff_coverage}
     assert len(diffs) == 2
-    assert diffs["top.middle.self_serviceable.a"].is_directly_covered()
-    assert diffs["top.middle.self_serviceable.b"].is_directly_covered()
+    assert diffs[
+        jsonpath_ng.parse("top.middle.self_serviceable.a")
+    ].is_directly_covered()
+    assert diffs[
+        jsonpath_ng.parse("top.middle.self_serviceable.b")
+    ].is_directly_covered()
 
 
 def test_diff_splitting_two_contexts_on_same_split() -> None:
@@ -379,9 +389,12 @@ def test_diff_splitting_two_contexts_on_same_split() -> None:
     bundle_change.cover_changes(ctx_1)
     bundle_change.cover_changes(ctx_2)
 
-    diffs = {d.diff.path_str(): d for d in bundle_change.diff_coverage}
-    assert "roles.[0]" in diffs
-    assert {c.context for c in diffs["roles.[0]"].coverage} == {
+    coverages = bundle_change.diff_coverage
+    roles_0_path = jsonpath_ng.parse("roles.[0]")
+    # jsonpath_ng.Index is not hashable in this version, so we can't key a dict by path
+    roles_0 = next((c for c in coverages if c.diff.path == roles_0_path), None)
+    assert roles_0 is not None
+    assert {c.context for c in roles_0.coverage} == {
         ctx_1.context,
         ctx_2.context,
     }

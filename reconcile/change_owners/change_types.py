@@ -44,6 +44,7 @@ from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeV1,
 )
 from reconcile.utils.jsonpath import (
+    is_prefix_of,
     parse_jsonpath,
     remove_prefix_from_path,
     sortable_jsonpath_string_repr,
@@ -152,13 +153,10 @@ class DiffCoverage:
         return uncovered_data == {}
 
     def changed_path_covered_by_path(self, path: jsonpath_ng.JSONPath) -> bool:
-        return str(self.diff.path).startswith(str(path)) or path == jsonpath_ng.Root()
+        return is_prefix_of(path, self.diff.path)
 
     def path_under_changed_path(self, path: jsonpath_ng.JSONPath) -> bool:
-        return (
-            str(path).startswith(str(self.diff.path))
-            or str(self.diff.path) == JSON_PATH_ROOT
-        ) and str(path) != str(self.diff.path)
+        return is_prefix_of(self.diff.path, path) and path != self.diff.path
 
     def split(
         self, path: jsonpath_ng.JSONPath, ctx: ChangeTypeContext
@@ -184,7 +182,7 @@ class DiffCoverage:
             # consolidate existing splits. maybe they should go under the newly created one?
             consolidated_splits = [split_sub_coverage]
             for s in self._split_into:
-                if split_sub_coverage.path_under_changed_path(s.diff.path_str()):
+                if split_sub_coverage.path_under_changed_path(s.diff.path):
                     s.parent = split_sub_coverage
                     split_sub_coverage._split_into.append(s)
                 else:

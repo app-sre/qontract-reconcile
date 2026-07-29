@@ -12,7 +12,7 @@ from deepdiff.helper import CannotCompare
 from deepdiff.path import parse_path
 
 from reconcile.utils.json import json_dumps
-from reconcile.utils.jsonpath import parse_jsonpath
+from reconcile.utils.jsonpath import remove_prefix_from_path
 
 if TYPE_CHECKING:
     from deepdiff.model import DiffLevel
@@ -40,17 +40,13 @@ class Diff:
             # no need to subdiff ... this is the same path
             return self
 
-        sub_path_str = str(sub_path)
         if self.path == jsonpath_ng.Root():
             absolute_sub_path = sub_path
-        elif sub_path_str.startswith(self.path_str()):
-            absolute_sub_path = parse_jsonpath(
-                f"${sub_path_str[len(self.path_str()) :]}"
-            )
         else:
-            raise Exception(
-                f"sub_path {sub_path_str} is not prefixed by {self.path_str()}"
-            )
+            relative = remove_prefix_from_path(sub_path, self.path)
+            if relative is None:
+                raise Exception(f"sub_path {sub_path} is not prefixed by {self.path}")
+            absolute_sub_path = relative
         sub_old = absolute_sub_path.find(self.old)
         sub_new = absolute_sub_path.find(self.new)
         return Diff(
