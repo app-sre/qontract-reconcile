@@ -50,7 +50,7 @@ packages = ["qontract_api"]
 
 [tool.ruff]
 line-length = 88
-src = ["qontract_api"]
+src = ["qontract_api", "tests"]
 fix = true
 
 [tool.ruff.format]

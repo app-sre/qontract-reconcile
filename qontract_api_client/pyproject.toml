@@ -30,7 +30,7 @@ only-include = ["qontract_api_client"]
 # Ruff configuration
 [tool.ruff]
 line-length = 88
-src = ["qontract_api_client"]
+src = ["qontract_api_client", "tests"]
 fix = true
 
 [tool.ruff.lint]
@@ -47,7 +47,7 @@ preview = true
 known-first-party = ["qontract_api_client"]
 
 [tool.mypy]
-files = ["qontract_api_client"]
+files = ["qontract_api_client", "tests"]
 enable_error_code = ["truthy-bool", "redundant-expr"]
 no_implicit_optional = true
 check_untyped_defs = true

@@ -154,7 +154,7 @@ def test_get_schedule_users_returns_pagerduty_user_objects(
             return {"email": "bob@example.com", "name": "Bob Jones"}
         return {}
 
-    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)
+    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)  # type: ignore[method-assign]
 
     users = pagerduty_api.get_schedule_users("SCHEDULE123")
 
@@ -184,7 +184,7 @@ def test_get_schedule_users_deduplicates_users(
             return {"email": "alice@example.com", "name": "Alice Smith"}
         return {}
 
-    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)
+    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)  # type: ignore[method-assign]
 
     users = pagerduty_api.get_schedule_users("SCHEDULE123")
 
@@ -200,7 +200,7 @@ def test_get_schedule_users_handles_empty_schedule(
 ) -> None:
     """Test get_schedule_users handles empty schedule (no one on-call)."""
     mock_schedule: dict = {"final_schedule": {"rendered_schedule_entries": []}}
-    pagerduty_api._client.rget = MagicMock(return_value=mock_schedule)
+    pagerduty_api._client.rget = MagicMock(return_value=mock_schedule)  # type: ignore[method-assign]
 
     users = pagerduty_api.get_schedule_users("SCHEDULE123")
 
@@ -213,7 +213,7 @@ def test_get_schedule_users_calls_api_with_time_window(
 ) -> None:
     """Test get_schedule_users calls API with now to now+60s time window."""
     mock_schedule: dict = {"final_schedule": {"rendered_schedule_entries": []}}
-    pagerduty_api._client.rget = MagicMock(return_value=mock_schedule)
+    pagerduty_api._client.rget = MagicMock(return_value=mock_schedule)  # type: ignore[method-assign]
 
     pagerduty_api.get_schedule_users("SCHEDULE123")
 
@@ -234,7 +234,7 @@ def test_get_schedule_users_calls_pre_hooks(
     hook = MagicMock()
     pagerduty_api._hooks = Hooks(pre_hooks=[hook], retry_config=NO_RETRY_CONFIG)
     mock_schedule: dict = {"final_schedule": {"rendered_schedule_entries": []}}
-    pagerduty_api._client.rget = MagicMock(return_value=mock_schedule)
+    pagerduty_api._client.rget = MagicMock(return_value=mock_schedule)  # type: ignore[method-assign]
 
     pagerduty_api.get_schedule_users("SCHEDULE123")
 
@@ -252,7 +252,7 @@ def test_get_schedule_users_calls_post_hooks(
     post_hook = MagicMock()
     pagerduty_api._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
     mock_schedule: dict = {"final_schedule": {"rendered_schedule_entries": []}}
-    pagerduty_api._client.rget = MagicMock(return_value=mock_schedule)
+    pagerduty_api._client.rget = MagicMock(return_value=mock_schedule)  # type: ignore[method-assign]
 
     pagerduty_api.get_schedule_users("SCHEDULE123")
 
@@ -289,7 +289,7 @@ def test_get_escalation_policy_users_returns_pagerduty_user_objects(
             return {"email": "bob@example.com", "name": "Bob Jones"}
         return {}
 
-    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)
+    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)  # type: ignore[method-assign]
 
     users = pagerduty_api.get_escalation_policy_users("POLICY123")
 
@@ -319,7 +319,7 @@ def test_get_escalation_policy_users_handles_user_reference_type(
             return {"email": "charlie@example.com", "name": "Charlie Brown"}
         return {}
 
-    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)
+    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)  # type: ignore[method-assign]
 
     users = pagerduty_api.get_escalation_policy_users("POLICY123")
 
@@ -352,7 +352,7 @@ def test_get_escalation_policy_users_deduplicates_users(
             return {"email": "alice@example.com", "name": "Alice Smith"}
         return {}
 
-    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)
+    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)  # type: ignore[method-assign]
 
     users = pagerduty_api.get_escalation_policy_users("POLICY123")
 
@@ -393,7 +393,7 @@ def test_get_escalation_policy_users_handles_schedule_reference(
             return {"email": "bob@example.com", "name": "Bob Jones"}
         return {}
 
-    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)
+    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)  # type: ignore[method-assign]
 
     users = pagerduty_api.get_escalation_policy_users("POLICY123")
 
@@ -408,7 +408,7 @@ def test_get_escalation_policy_users_handles_empty_policy(
 ) -> None:
     """Test get_escalation_policy_users handles policy with no rules."""
     mock_policy: dict = {"escalation_rules": []}
-    pagerduty_api._client.rget = MagicMock(return_value=mock_policy)
+    pagerduty_api._client.rget = MagicMock(return_value=mock_policy)  # type: ignore[method-assign]
 
     users = pagerduty_api.get_escalation_policy_users("POLICY123")
 
@@ -423,7 +423,7 @@ def test_get_escalation_policy_users_calls_pre_hooks(
     hook = MagicMock()
     pagerduty_api._hooks = Hooks(pre_hooks=[hook], retry_config=NO_RETRY_CONFIG)
     mock_policy: dict = {"escalation_rules": []}
-    pagerduty_api._client.rget = MagicMock(return_value=mock_policy)
+    pagerduty_api._client.rget = MagicMock(return_value=mock_policy)  # type: ignore[method-assign]
 
     pagerduty_api.get_escalation_policy_users("POLICY123")
 
@@ -441,7 +441,7 @@ def test_get_escalation_policy_users_calls_post_hooks(
     post_hook = MagicMock()
     pagerduty_api._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
     mock_policy: dict = {"escalation_rules": []}
-    pagerduty_api._client.rget = MagicMock(return_value=mock_policy)
+    pagerduty_api._client.rget = MagicMock(return_value=mock_policy)  # type: ignore[method-assign]
 
     pagerduty_api.get_escalation_policy_users("POLICY123")
 
@@ -499,7 +499,7 @@ def test_pagerduty_api_retries_on_transient_errors(
             raise Exception("API error")  # ruff: ignore[raise-vanilla-class]
         return {"email": "alice@example.com", "name": "Alice Smith"}
 
-    api._client.rget = MagicMock(side_effect=side_effect)
+    api._client.rget = MagicMock(side_effect=side_effect)  # type: ignore[method-assign]
 
     user = api.get_user("USER1")
 
@@ -520,7 +520,7 @@ def test_pagerduty_api_gives_up_after_max_attempts(
         call_count["count"] += 1
         raise Exception("always fails")  # ruff: ignore[raise-vanilla-class]
 
-    api._client.rget = MagicMock(side_effect=side_effect)
+    api._client.rget = MagicMock(side_effect=side_effect)  # type: ignore[method-assign]
 
     with pytest.raises(Exception, match="always fails"):
         api.get_user("USER1")

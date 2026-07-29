@@ -50,7 +50,7 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 88
-src = ["qontract_utils"]
+src = ["qontract_utils", "tests"]
 fix = true
 
 [tool.ruff.lint]
@@ -129,7 +129,7 @@ runtime-evaluated-decorators = [
 split-on-trailing-comma = false
 
 [tool.mypy]
-files = ["qontract_utils"]
+files = ["qontract_utils", "tests"]
 plugins = ["pydantic.mypy"]
 # More context here: https://github.com/python/mypy/issues/9091
 # Ensure that methods without type definitions are still checked
