@@ -117,7 +117,8 @@ class OpenShiftNamespacesIntegration(
             clusters=clusters,
             dry_run=dry_run,
         )
-        response = await openshift_namespaces_reconcile(request)
+        with self.log_api_exceptions():
+            response = await openshift_namespaces_reconcile(request)
         logging.info(f"request_id: {response.id}")
         return response
 

@@ -240,14 +240,15 @@ class SlackUsergroupsIntegration(
         if url.count(":") == 2:
             url, ref = url.rsplit(":", 1)
 
-        response = await vcs_repo_owners(
-            repo_url=url,
-            ref=ref,
-            secret_manager_url=self.secret_manager_url,
-            path=token.path,
-            field=token.field,
-            version=token.version,
-        )
+        with self.log_api_exceptions():
+            response = await vcs_repo_owners(
+                repo_url=url,
+                ref=ref,
+                secret_manager_url=self.secret_manager_url,
+                path=token.path,
+                field=token.field,
+                version=token.version,
+            )
         # Process owners inline
         result = []
         owners = (response.approvers or []) + (response.reviewers or [])
@@ -617,7 +618,8 @@ class SlackUsergroupsIntegration(
             ],
             dry_run=dry_run,
         )
-        response = await slack_usergroups(request_data)
+        with self.log_api_exceptions():
+            response = await slack_usergroups(request_data)
         # Always log the request id! It won't be forwarded to #reconcile channel via fluentd filter!
         logging.info(f"request_id: {response.id}")
         return response

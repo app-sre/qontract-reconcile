@@ -1060,15 +1060,13 @@ def _process_omm_member(
                 pipelines=timed_out,
             )
 
-    # Filter noise pipelines caused by skip-ci rebase:
-    # SKIPPED: GitLab creates a skipped MR-event pipeline for skip_ci
-    # push at current SHA: fork CI fires on the new commit, and
-    # same-project MRs can also see a push pipeline despite skip_ci.
+    # Filter pipelines that carry no CI signal:
+    # - SKIPPED: placeholder from skip_ci rebase
+    # - PUSH: empty 0-job shells from skip_ci rebase (real CI is source=external)
     pipelines = [
         p
         for p in pipelines
-        if p.status != PipelineStatus.SKIPPED
-        and not (p.sha == mr.sha and p.source == "push")
+        if not (p.status == PipelineStatus.SKIPPED or p.source == "push")
     ]
 
     fresh_mr = gl.get_merge_request(mr.iid)
@@ -1596,8 +1594,7 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
 
 def run(dry_run: bool, wait_for_pipeline: bool) -> None:
     default_days_interval = 15
-    default_limit = 8
-    default_merge_limit = 8
+    default_rebase_limit = 8
     default_consecutive_failure_limit = 3
     default_enable_closing = False
     instance = queries.get_gitlab_instance()
@@ -1615,8 +1612,8 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
         project_url = repo["url"]
         days_interval = hk.get("days_interval") or default_days_interval
         enable_closing = hk.get("enable_closing") or default_enable_closing
-        limit = hk.get("limit") or default_limit
-        merge_limit = hk.get("merge_limit") or default_merge_limit
+        rebase_limit = hk.get("rebase_limit") or default_rebase_limit
+        merge_limit = hk.get("merge_limit") or rebase_limit
         consecutive_failure_limit = (
             hk.get("consecutive_failure_limit") or default_consecutive_failure_limit
         )
@@ -1712,7 +1709,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                 rebase_merge_requests(
                     dry_run=dry_run,
                     gl=gl,
-                    rebase_limit=limit,
+                    rebase_limit=rebase_limit,
                     state=state,
                     pipeline_timeout=pipeline_timeout,
                     wait_for_pipeline=wait_for_pipeline,
