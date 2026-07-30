@@ -2561,9 +2561,11 @@ def test_omm_member_refreshes_mr_before_rebased_check(
     merge_sha: str | None,
     squash_sha: str | None,
 ) -> None:
-    """The stale list API sha would make is_rebased return False, but
-    after refreshing from the detail API the correct sha is used and
-    the member merges instead of triggering another skip-ci-rebase."""
+    """The stale list-API sha makes is_rebased return False (commits
+    behind target), but after refreshing from the detail API the
+    correct sha is used and the member merges instead of triggering
+    another skip-ci-rebase.  repository_compare returns non-empty for
+    the stale sha so the test would fail if the refresh were removed."""
     _setup_omm_group_mocks(mocker)
     clear_mock = mocker.patch(
         "reconcile.gitlab_housekeeping.clear_omm_group",
@@ -2594,7 +2596,13 @@ def test_omm_member_refreshes_mr_before_rebased_check(
     head_commit = Mock()
     head_commit.id = head_sha
     mocked_gl.project.commits.list.return_value = [head_commit]
-    mocked_gl.project.repository_compare.return_value = {"commits": []}
+
+    def _compare(from_sha: str, to_sha: str) -> dict:
+        if from_sha == "stale-sha-old":
+            return {"commits": ["x"]}
+        return {"commits": []}
+
+    mocked_gl.project.repository_compare.side_effect = _compare
 
     merges = gl_h._process_omm_group(
         dry_run=False,
