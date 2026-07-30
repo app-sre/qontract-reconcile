@@ -30,7 +30,7 @@ dependencies = [
 dev = [
     # development and testing tools
     # keep in sync with project.dependencies.boto3
-    "boto3-stubs[account,cloudformation,dynamodb,iam,logs,organizations,s3,service-quotas,sts,support]==1.43.58",
+    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,iam,logs,organizations,s3,service-quotas,sts,support]==1.43.58",
     "mypy==2.3.0",
     "pytest-asyncio==1.4.0",
     "pytest-cov==7.1.0",

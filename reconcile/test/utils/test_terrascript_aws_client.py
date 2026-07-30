@@ -686,7 +686,7 @@ def s3_spec_with_bucket_policy() -> ExternalResourceSpec:
     resource = {
         "identifier": "s3-bucket",
         "provider": "s3",
-        "bucket_policy": "some-bucket-policy",
+        "bucket_policy": '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::s3-bucket/*"}]}',
         "region": "us-east-1",
     }
     return build_s3_spec(resource)
@@ -697,7 +697,7 @@ def expected_s3_bucket_policy() -> aws_s3_bucket_policy:
     return aws_s3_bucket_policy(
         "s3-bucket",
         bucket="s3-bucket",
-        policy="some-bucket-policy",
+        policy='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::s3-bucket/*"}]}',
         depends_on=["aws_s3_bucket.s3-bucket"],
     )
 
@@ -726,7 +726,7 @@ def s3_spec_with_bucket_policy_and_region() -> ExternalResourceSpec:
     resource = {
         "identifier": "s3-bucket",
         "provider": "s3",
-        "bucket_policy": "some-bucket-policy",
+        "bucket_policy": '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::s3-bucket/*"}]}',
         "region": "us-west-2",
     }
     return build_s3_spec(resource)
@@ -769,7 +769,7 @@ def expected_s3_bucket_policy_with_region() -> aws_s3_bucket_policy:
     return aws_s3_bucket_policy(
         "s3-bucket",
         bucket="s3-bucket",
-        policy="some-bucket-policy",
+        policy='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::s3-bucket/*"}]}',
         depends_on=["aws_s3_bucket.s3-bucket"],
         provider="aws.us-west-2",
     )

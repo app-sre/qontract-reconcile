@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -9,6 +10,7 @@ from reconcile.aws_saml_roles.integration import (
     AwsSamlRolesIntegration,
 )
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import AWSAccountV1
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.terrascript_aws_client import TerrascriptClient
 
 if TYPE_CHECKING:
@@ -305,7 +307,8 @@ def test_aws_saml_roles_populate_saml_iam_roles(
             },
         ),
     ]
-    intg.populate_saml_iam_roles(ts, roles)
+    unique_policies = intg._unique_policies(roles)
+    intg.populate_saml_iam_roles(ts, roles, unique_policies)
     ts.populate_iam_policy.assert_called_once_with(
         account="account-1",
         name="rds-read-only",
@@ -359,6 +362,153 @@ def test_aws_saml_roles_populate_saml_iam_roles(
             max_session_duration_hours=1,
         ),
     ])
+
+
+def test_validate_saml_iam_policies_valid(
+    gql_class_factory: Callable, intg: AwsSamlRolesIntegration
+) -> None:
+    mock_aa = MagicMock()
+    mock_aa.get_paginator.return_value.paginate.return_value = [{"findings": []}]
+    mock_aws_api = MagicMock(spec=AWSApi)
+    mock_aws_api._account_accessanalyzer_client.return_value = mock_aa
+    roles = [
+        gql_class_factory(
+            AwsRole,
+            {
+                "name": "role-1",
+                "account": "account-1",
+                "custom_policies": [
+                    {
+                        "name": "rds-read-only",
+                        "policy": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": "rds:Describe*",
+                                    "Resource": "*",
+                                }
+                            ],
+                        },
+                    }
+                ],
+                "managed_policies": [],
+            },
+        )
+    ]
+    intg._validate_saml_iam_policies(intg._unique_policies(roles), mock_aws_api)
+    mock_aa.get_paginator.assert_called_once()
+
+
+def test_validate_saml_iam_policies_invalid_raises(
+    gql_class_factory: Callable, intg: AwsSamlRolesIntegration
+) -> None:
+    mock_aa = MagicMock()
+    mock_aa.get_paginator.return_value.paginate.return_value = [
+        {
+            "findings": [
+                {
+                    "findingType": "ERROR",
+                    "issueCode": "MISSING_VERSION",
+                    "findingDetails": "The policy must include a Version element.",
+                }
+            ]
+        }
+    ]
+    mock_aws_api = MagicMock(spec=AWSApi)
+    mock_aws_api._account_accessanalyzer_client.return_value = mock_aa
+    roles = [
+        gql_class_factory(
+            AwsRole,
+            {
+                "name": "role-1",
+                "account": "account-1",
+                "custom_policies": [
+                    {
+                        "name": "bad-policy",
+                        "policy": {
+                            "Statement": [
+                                {"Effect": "Allow", "Action": "s3:*", "Resource": "*"}
+                            ]
+                        },
+                    }
+                ],
+                "managed_policies": [],
+            },
+        )
+    ]
+    with pytest.raises(RuntimeError) as exc_info:
+        intg._validate_saml_iam_policies(intg._unique_policies(roles), mock_aws_api)
+    assert "iam_policy-bad-policy" in str(exc_info.value)
+
+
+def test_validate_saml_iam_policies_multiple_errors_all_collected(
+    gql_class_factory: Callable, intg: AwsSamlRolesIntegration
+) -> None:
+    mock_aa = MagicMock()
+    mock_aa.get_paginator.return_value.paginate.return_value = [
+        {
+            "findings": [
+                {
+                    "findingType": "ERROR",
+                    "issueCode": "MISSING_VERSION",
+                    "findingDetails": "The policy must include a Version element.",
+                }
+            ]
+        }
+    ]
+    mock_aws_api = MagicMock(spec=AWSApi)
+    mock_aws_api._account_accessanalyzer_client.return_value = mock_aa
+    roles = [
+        gql_class_factory(
+            AwsRole,
+            {
+                "name": "role-1",
+                "account": "account-1",
+                "custom_policies": [
+                    {
+                        "name": "bad-policy-1",
+                        "policy": {
+                            "Statement": [
+                                {"Effect": "Allow", "Action": "s3:*", "Resource": "*"}
+                            ]
+                        },
+                    },
+                    {
+                        "name": "bad-policy-2",
+                        "policy": {
+                            "Statement": [
+                                {"Effect": "Allow", "Action": "ec2:*", "Resource": "*"}
+                            ]
+                        },
+                    },
+                ],
+                "managed_policies": [],
+            },
+        )
+    ]
+    with pytest.raises(RuntimeError, match="AWS policy validation failed"):
+        intg._validate_saml_iam_policies(intg._unique_policies(roles), mock_aws_api)
+    assert mock_aa.get_paginator.call_count == 2
+
+
+def test_validate_saml_iam_policies_no_custom_policies(
+    gql_class_factory: Callable, intg: AwsSamlRolesIntegration
+) -> None:
+    mock_aws_api = MagicMock(spec=AWSApi)
+    roles = [
+        gql_class_factory(
+            AwsRole,
+            {
+                "name": "role-1",
+                "account": "account-1",
+                "custom_policies": [],
+                "managed_policies": [{"name": "ReadOnlyAccess"}],
+            },
+        )
+    ]
+    intg._validate_saml_iam_policies(intg._unique_policies(roles), mock_aws_api)
+    mock_aws_api._account_accessanalyzer_client.assert_not_called()
 
 
 @pytest.mark.parametrize(
