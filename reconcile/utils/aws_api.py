@@ -33,7 +33,6 @@ if TYPE_CHECKING:
     )
 
     from botocore.client import BaseClient
-    from mypy_boto3_accessanalyzer import AccessAnalyzerClient
     from mypy_boto3_dynamodb import DynamoDBClient, DynamoDBServiceResource
     from mypy_boto3_ec2 import (
         EC2Client,
@@ -101,7 +100,6 @@ class AmiTag(BaseModel):
 
 
 SERVICE_NAME = Literal[
-    "accessanalyzer",
     "dynamodb",
     "ec2",
     "ecr",
@@ -323,22 +321,13 @@ class AWSApi:
         region_name: str | None = None,
     ) -> STSClient: ...
 
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["accessanalyzer"],
-        region_name: str | None = None,
-    ) -> AccessAnalyzerClient: ...
-
     def get_session_client(
         self,
         session: Session,
         service_name: SERVICE_NAME,
         region_name: str | None = None,
     ) -> (
-        AccessAnalyzerClient
-        | CloudWatchLogsClient
+        CloudWatchLogsClient
         | DynamoDBClient
         | EC2Client
         | ECRClient
@@ -449,12 +438,6 @@ class AWSApi:
     ) -> OrganizationsClient:
         session = self.get_session(account_name)
         return self.get_session_client(session, "organizations", region_name)
-
-    def _account_accessanalyzer_client(
-        self, account_name: str, region_name: str | None = None
-    ) -> AccessAnalyzerClient:
-        session = self.get_session(account_name)
-        return self.get_session_client(session, "accessanalyzer", region_name)
 
     def _account_s3_client(
         self, account_name: str, region_name: str | None = None
@@ -873,15 +856,6 @@ class AWSApi:
         client_type: Literal["support"],
     ) -> SupportClient: ...
 
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["accessanalyzer"],
-    ) -> AccessAnalyzerClient: ...
-
     def _get_assumed_role_client(
         self,
         account_name: str,
@@ -889,8 +863,7 @@ class AWSApi:
         assume_region: str,
         client_type: SERVICE_NAME = "ec2",
     ) -> (
-        AccessAnalyzerClient
-        | CloudWatchLogsClient
+        CloudWatchLogsClient
         | DynamoDBClient
         | EC2Client
         | ECRClient
