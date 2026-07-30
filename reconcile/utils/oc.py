@@ -754,7 +754,7 @@ class OCCli:
 
         output_file: TextIO
         if isinstance(output, str | pathlib.Path):
-            output_file = open(os.path.join(output, name), "w", encoding="locale")  # noqa: SIM115
+            output_file = open(os.path.join(output, name), "w", encoding="locale")  # ruff: ignore[open-file-with-context-handler]
         else:
             # assume it's a file-like object, e.g. sys.stdout, TextIO, ...
             output_file = output
@@ -1541,7 +1541,7 @@ class OC:
         )
 
 
-class OC_Map:  # noqa: N801
+class OC_Map:  # ruff: ignore[invalid-class-name]
     """
     DEPRECATED! Use reconcile.utils.oc_map.OCMap instead.
 
@@ -1773,7 +1773,7 @@ class OC_Map:  # noqa: N801
                 oc.cleanup()
 
 
-class OCLogMsg(Exception):  # noqa: N818
+class OCLogMsg(Exception):  # ruff: ignore[error-suffix-on-exception-name]
     """
     Track log messages associated with initializing OC clients in OC_Map.
     """

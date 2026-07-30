@@ -1,6 +1,6 @@
 """Unit tests for distributed cache locking."""
 
-# ruff: noqa: ARG002, SIM117, PT011
+# ruff: file-ignore[unused-method-argument, multiple-with-statements, pytest-raises-too-broad]
 
 from collections.abc import Generator
 from contextlib import contextmanager

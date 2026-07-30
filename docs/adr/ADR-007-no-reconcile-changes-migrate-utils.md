@@ -51,7 +51,7 @@ qontract-reconcile/
 ```python
 # qontract-api trying to import from reconcile/
 from reconcile.slack_usergroups import get_desired_state  # ❌ WRONG
-from reconcile.utils.sharding import is_in_shard          # ❌ WRONG
+from reconcile.utils.sharding import is_in_shard  # ❌ WRONG
 ```
 
 ## Decision
@@ -174,6 +174,7 @@ def run(dry_run: bool) -> None:
 ```python
 # New implementation for API context - DOES NOT IMPORT reconcile/
 from qontract_utils.slack_api import SlackApi  # ✓ Shared utility
+
 
 class SlackUsergroupsService:
     """Slack usergroups reconciliation service.

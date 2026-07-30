@@ -9,7 +9,7 @@ import reconcile.utils.unleash.client
 from reconcile.utils.unleash.client import (
     DisableClusterStrategy,
     EnableClusterStrategy,
-    _get_unleash_api_client,  # noqa: PLC2701
+    _get_unleash_api_client,  # ruff: ignore[import-private-name]
     get_feature_toggle_default,
     get_feature_toggle_state,
     get_feature_variant,
@@ -214,7 +214,7 @@ def test_get_feature_toggle_state_with_enable_cluster_strategy(
 def test_get_feature_variant_env_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("UNLEASH_API_URL", raising=False)
     monkeypatch.delenv("UNLEASH_CLIENT_ACCESS_TOKEN", raising=False)
-    assert get_feature_variant("foo") == ""  # noqa: PLC1901
+    assert get_feature_variant("foo") == ""  # ruff: ignore[compare-to-empty-string]
 
 
 def test_get_feature_variant_env_missing_custom_default(

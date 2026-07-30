@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# ruff: noqa: PLC0415 - `import` should be at the top-level of a file
+# ruff: file-ignore[import-outside-top-level] - `import` should be at the top-level of a file
 
 from __future__ import annotations
 
@@ -1934,7 +1934,7 @@ def rds_recommendations(ctx: click.Context) -> None:
             continue
         for spec in get_external_resource_specs(namespace_info):
             if spec.provider == "rds":
-                targetted_accounts.append(spec.provisioner_name)  # noqa: PERF401
+                targetted_accounts.append(spec.provisioner_name)  # ruff: ignore[manual-list-comprehension]
 
     accounts = [
         a for a in queries.get_aws_accounts() if a["name"] in targetted_accounts

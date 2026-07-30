@@ -1,6 +1,6 @@
 """Tests for GitLab Repository API client with hooks."""
 
-# ruff: noqa: ARG001
+# ruff: file-ignore[unused-function-argument]
 from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 

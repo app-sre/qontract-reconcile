@@ -319,7 +319,7 @@ def test_logger_with_exception() -> None:
         test_logger = structlog.get_logger("test.exception")
 
         try:
-            raise ValueError("Test error")  # noqa: TRY301
+            raise ValueError("Test error")  # ruff: ignore[raise-within-try]
         except ValueError:
             test_logger.exception("Test error occurred")
 

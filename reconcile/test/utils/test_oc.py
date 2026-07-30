@@ -655,7 +655,7 @@ OC_CLI_BASE_CMD = [
 @pytest.fixture
 def oc_cli(monkeypatch: pytest.MonkeyPatch) -> OCCli:
     monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
-    return OC("cluster", "server", "token", local=True)  # type: ignore[return-value]
+    return OC("cluster", "server", "token", local=True)
 
 
 @pytest.fixture
@@ -1078,7 +1078,7 @@ def oc_api_resources(
     monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
     get_api_resources = mocker.patch.object(OCCli, "get_api_resources", autospec=True)
     get_api_resources.return_value = api_resources
-    return OC("cluster", "server", "token", local=True, init_api_resources=True)  # type: ignore[return-value]
+    return OC("cluster", "server", "token", local=True, init_api_resources=True)
 
 
 def test_is_kind_supported(oc_api_resources: OCCli) -> None:

@@ -1,4 +1,4 @@
-# ruff: noqa: N801
+# ruff: file-ignore[invalid-class-name]
 from __future__ import annotations
 
 import base64

@@ -115,9 +115,9 @@ def test_partially_covered_change_one_file(
 
     saas_file_change.cover_changes(ctx)
     for coverage in saas_file_change.diff_coverage:
-        if coverage.diff.path_str() == "name":
+        if coverage.diff.path == jsonpath_ng.parse("name"):
             assert not coverage.is_covered()
-        elif coverage.diff.path_str() == ref_update_path:
+        elif coverage.diff.path == jsonpath_ng.parse(ref_update_path):
             assert coverage.is_covered()
             assert coverage.coverage == [ctx]
         else:

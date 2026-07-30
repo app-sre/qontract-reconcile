@@ -19,7 +19,7 @@ def _setup_client() -> None:
     Raises:
         RuntimeError: If subscriber settings not configured or token not set
     """
-    global _client_configured  # noqa: PLW0603
+    global _client_configured  # ruff: ignore[global-statement]
     if _client_configured:
         return
     if not settings.subscriber.qontract_api_token:

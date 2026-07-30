@@ -4,7 +4,7 @@ from prometheus_client.multiprocess import MultiProcessCollector
 from qontract_api.config import settings
 
 # import celery app to start the worker
-from qontract_api.tasks import celery_app  # noqa: F401
+from qontract_api.tasks import celery_app  # ruff: ignore[unused-import]
 from qontract_api.tasks.metrics import CELERY_REGISTRY
 
 MultiProcessCollector(CELERY_REGISTRY)

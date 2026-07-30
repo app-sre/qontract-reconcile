@@ -171,6 +171,7 @@ Client always fetches desired_state, API only fetches current_state.
 ```python
 # reconcile/slack_usergroups_api.py
 
+
 def run(dry_run: bool):
     # 1. Fetch desired state from qontract-server
     gqlapi = gql.get_api()
@@ -182,7 +183,7 @@ def run(dry_run: bool):
     # 3. Call qontract-api
     response = api_client.post(
         "/api/v1/integrations/slack-usergroups/reconcile",
-        json={"desired_state": desired_state, "dry_run": dry_run}
+        json={"desired_state": desired_state, "dry_run": dry_run},
     )
 
     # 4. Process response
@@ -195,6 +196,7 @@ def run(dry_run: bool):
 ```python
 # qontract_api/integrations/slack_usergroups/router.py
 
+
 @router.post("/reconcile")
 async def reconcile(request: ReconcileRequest):
     # desired_state already provided by client (from GraphQL)
@@ -202,8 +204,7 @@ async def reconcile(request: ReconcileRequest):
 
     service = SlackUsergroupsService(...)
     return await service.reconcile(
-        desired_state=request.desired_state,
-        dry_run=request.dry_run
+        desired_state=request.desired_state, dry_run=request.dry_run
     )
 ```
 

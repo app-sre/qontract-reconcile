@@ -229,6 +229,7 @@ async def wait_for_task_completion[T](
         await asyncio.sleep(0.5)  # Non-blocking
     return result
 
+
 # Endpoint: Async (uses async helper)
 @router.get("/reconcile/{task_id}")
 async def get_result(task_id: str, timeout: int | None):
@@ -248,6 +249,7 @@ class CacheBackend(ABC):
         """Sync - Valkey has no async client."""
         ...
 
+
 class RedisCacheBackend(CacheBackend):
     def __init__(self, redis: Valkey):  # Sync-only client
         self.client = redis
@@ -255,6 +257,7 @@ class RedisCacheBackend(CacheBackend):
     def get(self, key: str) -> Any | None:
         value = self.client.get(key)  # Cannot await
         return json.loads(value) if value else None
+
 
 # GitLab: Always sync (GitLab API is sync-only)
 class GitLabService:

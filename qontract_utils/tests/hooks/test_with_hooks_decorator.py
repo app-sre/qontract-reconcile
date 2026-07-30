@@ -4,12 +4,12 @@ Covers automatic hook initialization, merging of built-in and user hooks,
 hook execution order, retry config preservation, and error handling.
 """
 
-# ruff: noqa: ARG001
+# ruff: file-ignore[unused-function-argument]
 from typing import Any
 
 import pytest
 
-# ruff: noqa: ARG002
+# ruff: file-ignore[unused-method-argument]
 from qontract_utils.hooks import Hooks, RetryConfig, invoke_with_hooks, with_hooks
 
 

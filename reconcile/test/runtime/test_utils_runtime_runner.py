@@ -17,9 +17,9 @@ from reconcile.utils.runtime import runner
 from reconcile.utils.runtime.desired_state_diff import DesiredStateDiff
 from reconcile.utils.runtime.runner import (
     IntegrationRunConfiguration,
-    _integration_dry_run,  # noqa: PLC2701
-    _integration_wet_run,  # noqa: PLC2701
-    _is_task_result_an_error,  # noqa: PLC2701
+    _integration_dry_run,  # ruff: ignore[import-private-name]
+    _integration_wet_run,  # ruff: ignore[import-private-name]
+    _is_task_result_an_error,  # ruff: ignore[import-private-name]
     get_desired_state_diff,
     run_integration_cfg,
 )

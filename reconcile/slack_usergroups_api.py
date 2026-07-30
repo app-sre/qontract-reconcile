@@ -207,8 +207,8 @@ class SlackUsergroupsIntegration(
         now = utc_now()
         all_usernames: list[str] = []
         for entry in schedule.schedule:
-            start = ensure_utc(datetime.strptime(entry.start, DATE_FORMAT))  # noqa: DTZ007
-            end = ensure_utc(datetime.strptime(entry.end, DATE_FORMAT))  # noqa: DTZ007
+            start = ensure_utc(datetime.strptime(entry.start, DATE_FORMAT))  # ruff: ignore[call-datetime-strptime-without-zone]
+            end = ensure_utc(datetime.strptime(entry.end, DATE_FORMAT))  # ruff: ignore[call-datetime-strptime-without-zone]
             if start <= now <= end:
                 all_usernames.extend(u.org_username for u in entry.users)
         return all_usernames

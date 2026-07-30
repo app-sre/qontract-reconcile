@@ -14,7 +14,7 @@ from reconcile.utils.datetime_util import (
     ("dt", "expected"),
     [
         (
-            datetime.datetime(2025, 1, 1, 0, 0, 0, 0),  # noqa: DTZ001
+            datetime.datetime(2025, 1, 1, 0, 0, 0, 0),  # ruff: ignore[call-datetime-without-tzinfo]
             datetime.datetime(2025, 1, 1, 0, 0, 0, 0, tzinfo=datetime.UTC),
         ),
         (
@@ -47,11 +47,11 @@ def test_ensure_utc(dt: datetime.datetime, expected: datetime.datetime) -> None:
     ("dt", "expected"),
     [
         (
-            datetime.datetime(2025, 1, 1, 0, 0, 0, 0),  # noqa: DTZ001
+            datetime.datetime(2025, 1, 1, 0, 0, 0, 0),  # ruff: ignore[call-datetime-without-tzinfo]
             "2025-01-01T00:00:00Z",
         ),
         (
-            datetime.datetime(2025, 1, 1, 0, 0, 0, 1),  # noqa: DTZ001
+            datetime.datetime(2025, 1, 1, 0, 0, 0, 1),  # ruff: ignore[call-datetime-without-tzinfo]
             "2025-01-01T00:00:00Z",
         ),
         (
@@ -83,11 +83,11 @@ def test_to_utc_seconds_iso_format(dt: datetime.datetime, expected: str) -> None
     ("dt", "expected"),
     [
         (
-            datetime.datetime(2025, 1, 1, 0, 0, 0, 0),  # noqa: DTZ001
+            datetime.datetime(2025, 1, 1, 0, 0, 0, 0),  # ruff: ignore[call-datetime-without-tzinfo]
             "2025-01-01T00:00:00.000000Z",
         ),
         (
-            datetime.datetime(2025, 1, 1, 0, 0, 0, 1),  # noqa: DTZ001
+            datetime.datetime(2025, 1, 1, 0, 0, 0, 1),  # ruff: ignore[call-datetime-without-tzinfo]
             "2025-01-01T00:00:00.000001Z",
         ),
         (

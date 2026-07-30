@@ -1,3 +1,5 @@
+import jsonpath_ng
+import jsonpath_ng.ext
 import pytest
 import yaml
 
@@ -95,7 +97,7 @@ def test_normal_path_expression() -> None:
             ),
         )
     )
-    assert jsonpath_expression == str(jsonpath)
+    assert jsonpath == jsonpath_ng.parse(jsonpath_expression)
 
 
 def test_templated_path_expression() -> None:
@@ -114,9 +116,8 @@ def test_templated_path_expression() -> None:
             ),
         )
     )
-    assert (
-        str(jsonpath)
-        == "path.to.some.value.[?[Expression(Child(This(), Fields('name')) == 'some-file.yaml')]]"
+    assert jsonpath == jsonpath_ng.ext.parse(
+        "path.to.some.value[?(@.name == 'some-file.yaml')]"
     )
 
 

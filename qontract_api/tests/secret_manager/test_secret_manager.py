@@ -32,7 +32,7 @@ class InMemoryCacheBackend(CacheBackend):
     def get(self, key: str) -> str | None:
         return self.storage.get(key)
 
-    def set(self, key: str, value: str, ttl: int | None = None) -> None:  # noqa: ARG002
+    def set(self, key: str, value: str, ttl: int | None = None) -> None:  # ruff: ignore[unused-method-argument]
         self.storage[key] = value
 
     def _delete_from_backend(self, key: str) -> None:
@@ -48,7 +48,7 @@ class InMemoryCacheBackend(CacheBackend):
         self.storage.clear()
 
     @contextmanager
-    def lock(self, key: str, timeout: float = 300) -> Generator[None]:  # noqa: ARG002
+    def lock(self, key: str, timeout: float = 300) -> Generator[None]:  # ruff: ignore[unused-method-argument]
         self.lock_calls.append(key)
         yield
 

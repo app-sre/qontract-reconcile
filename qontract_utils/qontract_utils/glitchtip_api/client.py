@@ -177,7 +177,7 @@ class GlitchtipApi:
         token: str,
         timeout: int = TIMEOUT,
         max_retries: int = 3,
-        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
+        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
     ) -> None:
         """Initialize Glitchtip API client.
 

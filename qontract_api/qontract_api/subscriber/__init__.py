@@ -1,4 +1,4 @@
-import qontract_api.subscriber._subscriptions  # noqa: F401 - register subscriptions
+import qontract_api.subscriber._subscriptions  # ruff: ignore[unused-import] - register subscriptions
 
 from ._base import app
 

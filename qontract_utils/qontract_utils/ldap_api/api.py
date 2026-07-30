@@ -164,7 +164,7 @@ class LdapApi:
         *,
         start_tls: bool = True,
         timeout: int = _DEFAULT_TIMEOUT,
-        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
+        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
     ) -> None:
         self.base_dn = base_dn
         self._start_tls = start_tls

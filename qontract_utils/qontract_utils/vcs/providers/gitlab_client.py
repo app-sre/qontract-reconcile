@@ -121,7 +121,7 @@ class GitLabRepoApi:
         token: str,
         gitlab_url: str,
         timeout: int = 30,
-        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
+        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
     ) -> None:
         self.project_id = project_id
         self.repo_url = f"{gitlab_url}/{project_id}"
@@ -151,7 +151,7 @@ class GitLabRepoApi:
         try:
             file = self._project.files.get(file_path=path, ref=ref)
             return file.decode().decode("utf-8")
-        except Exception:  # noqa: BLE001
+        except Exception:  # ruff: ignore[blind-except]
             # File not found or other error - python-gitlab can raise various exceptions
             return None
 
@@ -217,7 +217,7 @@ class GitLabRepoApi:
             }
         )
 
-        try:
+        try:  # ruff: ignore[too-many-statements-in-try-clause]
             # Apply file operations
             for file_op in mr_input.file_operations:
                 match file_op.action:

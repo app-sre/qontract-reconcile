@@ -3,8 +3,8 @@ from __future__ import annotations
 import time
 from unittest.mock import patch
 
-from qontract_utils.aws_api_typed import _hooks  # noqa: PLC2701
-from qontract_utils.aws_api_typed._hooks import AWSApiCallContext  # noqa: PLC2701
+from qontract_utils.aws_api_typed import _hooks
+from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 
 
 def test_context_creation() -> None:

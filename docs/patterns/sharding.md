@@ -82,6 +82,7 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 
+
 class MyIntegration(QontractReconcileIntegration):
     def get_desired_state_shard_config(self) -> DesiredStateShardConfig:
         return DesiredStateShardConfig(

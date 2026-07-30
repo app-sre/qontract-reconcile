@@ -397,7 +397,7 @@ def process_jinja2_template(
     })
     if "_template_mocks" in vars:
         for k, v in vars["_template_mocks"].items():
-            vars[k] = lambda *args, **kwargs: v  # noqa: B023
+            vars[k] = lambda *args, **kwargs: v  # ruff: ignore[function-uses-loop-variable]
     try:
         template = compile_jinja2_template(body, extra_curly, template_render_options)
         r = template.render(vars)

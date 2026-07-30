@@ -120,13 +120,13 @@ class UsergroupNotFoundError(Exception):
 class ServerErrorRetryHandler(RetryHandler):
     """Retry handler for 5xx errors."""
 
-    def _can_retry(  # noqa: PLR6301 - Required instance method for RetryHandler protocol
+    def _can_retry(  # ruff: ignore[no-self-use] - Required instance method for RetryHandler protocol
         self,
         *,
-        state: RetryState,  # noqa: ARG002 - Required parameter for RetryHandler protocol
-        request: HttpRequest,  # noqa: ARG002 - Required parameter for RetryHandler protocol
+        state: RetryState,  # ruff: ignore[unused-method-argument] - Required parameter for RetryHandler protocol
+        request: HttpRequest,  # ruff: ignore[unused-method-argument] - Required parameter for RetryHandler protocol
         response: HttpResponse | None = None,
-        error: Exception | None = None,  # noqa: ARG002 - Required parameter for RetryHandler protocol
+        error: Exception | None = None,  # ruff: ignore[unused-method-argument] - Required parameter for RetryHandler protocol
     ) -> bool:
         # retry on all 5xx server errors (slack_sdk ServerErrorRetryHandler only retries on 500 and 503, 504)
         return (
@@ -174,7 +174,7 @@ class SlackApi:
         timeout: int,
         max_retries: int,
         method_configs: dict[str, dict[str, Any]] | None = None,
-        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
+        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
     ) -> None:
         """Initialize SlackApi wrapper.
 

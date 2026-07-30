@@ -120,7 +120,7 @@ class GitHubRepoApi:
         token: str,
         github_api_url: str = "https://api.github.com",
         timeout: int = 30,
-        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
+        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
     ) -> None:
         self.owner = owner
         self.repo = repo
@@ -152,7 +152,7 @@ class GitHubRepoApi:
                 # Path is a directory, not a file
                 return None
             return content_file.decoded_content.decode("utf-8")
-        except Exception:  # noqa: BLE001
+        except Exception:  # ruff: ignore[blind-except]
             # File not found or other error - PyGithub can raise various exceptions
             return None
 

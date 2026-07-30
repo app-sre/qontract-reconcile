@@ -1,4 +1,4 @@
-# ruff: noqa: PLC0415 - `import` should be at the top-level of a file
+# ruff: file-ignore[import-outside-top-level] - `import` should be at the top-level of a file
 from __future__ import annotations
 
 import faulthandler
@@ -967,7 +967,7 @@ def aws_saml_roles(
     "--initial-user-secret-vault-path",
     help="The path in Vault to store the initial user secret. Python format string with access to 'account_name' attribute.",
     required=True,
-    default="app-sre-v2/creds/terraform/{account_name}/config",  # noqa: RUF027
+    default="app-sre-v2/creds/terraform/{account_name}/config",  # ruff: ignore[missing-f-string-syntax]
 )
 @click.option(
     "--account-tmpl-resource",
