@@ -1005,7 +1005,11 @@ class AWSApi:
             if subnets:
                 vpc_subnets = self.get_vpc_subnets(vpc_id, assumed_ec2)
                 subnets_id_az = [
-                    {"id": s["SubnetId"], "az": s["AvailabilityZone"]}
+                    {
+                        "id": s["SubnetId"],
+                        "az": s["AvailabilityZone"],
+                        "az_id": s["AvailabilityZoneId"],
+                    }
                     for s in vpc_subnets
                 ]
             if hcp_vpc_endpoint_sg:

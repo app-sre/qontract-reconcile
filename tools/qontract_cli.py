@@ -120,6 +120,7 @@ from reconcile.utils import (
     promtool,
 )
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.aws_helper import get_account_uid_from_arn
 from reconcile.utils.binary import (
     binary,
     binary_version,
@@ -1013,10 +1014,12 @@ def clusters_network(ctx: click.Context, name: str) -> None:
 
     columns = [
         "name",
+        "aws_account_id",
         "vpc_id",
         "network.vpc",
         "network.service",
         "network.pod",
+        "availability_zone_ids",
         "egress_ips",
     ]
     ocm_map = OCMMap(clusters=clusters, settings=settings)
@@ -1039,6 +1042,7 @@ def clusters_network(ctx: click.Context, name: str) -> None:
                 "assume_region": cluster["spec"]["region"],
                 "assume_cidr": cluster["network"]["vpc"],
             })
+            cluster["aws_account_id"] = account["uid"]
         else:
             account = tfvpc._build_infrastructure_assume_role(
                 management_account,
@@ -1052,10 +1056,15 @@ def clusters_network(ctx: click.Context, name: str) -> None:
             account["resourcesDefaultRegion"] = management_account[
                 "resourcesDefaultRegion"
             ]
+            cluster["aws_account_id"] = get_account_uid_from_arn(account["assume_role"])
         with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
-            vpc_id, _, _, _ = aws_api.get_cluster_vpc_details(account)
+            vpc_id, _, subnets_id_az, _ = aws_api.get_cluster_vpc_details(
+                account, subnets=True
+            )
             assert vpc_id
             cluster["vpc_id"] = vpc_id
+            az_ids = sorted({s["az_id"] for s in subnets_id_az or [] if s["az_id"]})
+            cluster["availability_zone_ids"] = ", ".join(az_ids)
             egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account, vpc_id)
             cluster["egress_ips"] = ", ".join(sorted(egress_ips))
 
