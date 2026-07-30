@@ -37,7 +37,9 @@ from reconcile.test.change_owners.fixtures import (
 def test_deepdiff_path_to_jsonpath(
     deep_diff_path: str, expected_json_path: str
 ) -> None:
-    assert str(deepdiff_path_to_jsonpath(deep_diff_path)) == expected_json_path
+    assert deepdiff_path_to_jsonpath(deep_diff_path) == jsonpath_ng.parse(
+        expected_json_path
+    )
 
 
 def test_deepdiff_invalid() -> None:
@@ -46,9 +48,8 @@ def test_deepdiff_invalid() -> None:
 
 
 def test_deepdiff_path_element_with_dot() -> None:
-    assert (
-        str(deepdiff_path_to_jsonpath("root['data']['main.yaml']"))
-        == "data.'main.yaml'"
+    assert deepdiff_path_to_jsonpath("root['data']['main.yaml']") == jsonpath_ng.parse(
+        "data.'main.yaml'"
     )
 
 
@@ -89,7 +90,9 @@ def test_bundle_change_diff_value_changed_deep() -> None:
 
     assert bundle_change
     assert len(bundle_change.diff_coverage) == 1
-    assert str(bundle_change.diff_coverage[0].diff.path) == "parent.children.[0].age"
+    assert bundle_change.diff_coverage[0].diff.path == jsonpath_ng.parse(
+        "parent.children.[0].age"
+    )
     assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
     assert bundle_change.diff_coverage[0].diff.old == 1
     assert bundle_change.diff_coverage[0].diff.new == 2
@@ -704,7 +707,9 @@ def test_bundle_change_resource_file_dict_value_added() -> None:
 
     assert bundle_change
     assert len(bundle_change.diff_coverage) == 1
-    assert str(bundle_change.diff_coverage[0].diff.path) == "field.new_field"
+    assert bundle_change.diff_coverage[0].diff.path == jsonpath_ng.parse(
+        "field.new_field"
+    )
     assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.ADDED
     assert bundle_change.diff_coverage[0].diff.old is None
     assert bundle_change.diff_coverage[0].diff.new == "new_value"

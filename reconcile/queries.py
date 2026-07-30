@@ -587,7 +587,7 @@ def get_state_aws_accounts(reset_passwords: bool = False) -> list[dict[str, Any]
 
 def get_queue_aws_accounts() -> list[dict[str, Any]]:
     """Returns AWS accounts to use for queue management"""
-    uid = os.environ["gitlab_pr_submitter_queue_url"].split("/")[3]  # noqa: SIM112
+    uid = os.environ["gitlab_pr_submitter_queue_url"].split("/")[3]  # ruff: ignore[uncapitalized-environment-variables]
     return get_aws_accounts(uid=uid)
 
 

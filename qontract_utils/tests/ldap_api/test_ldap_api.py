@@ -1,6 +1,6 @@
 """Tests for LDAP API client (Layer 1)."""
 
-# ruff: noqa: ARG001
+# ruff: file-ignore[unused-function-argument]
 from collections.abc import Generator
 from unittest.mock import MagicMock, call, patch
 

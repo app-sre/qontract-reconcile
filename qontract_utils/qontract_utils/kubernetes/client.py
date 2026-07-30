@@ -126,7 +126,7 @@ class KubernetesApi:
         *,
         insecure_skip_tls_verify: bool = False,
         timeout: int = TIMEOUT,
-        hooks: Hooks | None = None,  # noqa: ARG002
+        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument]
     ) -> None:
         """Initialize Kubernetes API client.
 

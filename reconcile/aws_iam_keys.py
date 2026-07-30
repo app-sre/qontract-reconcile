@@ -54,7 +54,7 @@ def init_tf_working_dirs(
     settings: Mapping[str, Any],
 ) -> dict[str, str]:
     # Avoid circular import
-    import reconcile.terraform_resources  # noqa: PLC0415
+    import reconcile.terraform_resources  # ruff: ignore[import-outside-top-level]
 
     # if the terraform-resources integration is disabled
     # for an account, it means that Terrascript will not

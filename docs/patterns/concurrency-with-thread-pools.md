@@ -17,6 +17,7 @@ A common way to manage the thread pool is through the `defer` utility (`reconcil
 from concurrent.futures import ThreadPoolExecutor
 from reconcile.utils.defer import defer
 
+
 def run_integration(clusters, thread_pool_size):
     with ThreadPoolExecutor(max_workers=thread_pool_size) as executor:
         # Ensure the executor is shut down cleanly
@@ -25,6 +26,7 @@ def run_integration(clusters, thread_pool_size):
         # Submit a task for each cluster to the thread pool
         for cluster in clusters:
             executor.submit(apply_changes_to_cluster, cluster)
+
 
 def apply_changes_to_cluster(cluster):
     # This function contains the logic for a single cluster.

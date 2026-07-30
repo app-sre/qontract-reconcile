@@ -141,10 +141,13 @@ Response: 408 Request Timeout (if still pending after timeout)
 # reconcile/slack_usergroups_api.py (called from GitLab MR job)
 
 # 1. Queue task
-response = api_client.post("/reconcile", json={
-    "workspaces": desired_state,
-    "dry_run": True,
-})
+response = api_client.post(
+    "/reconcile",
+    json={
+        "workspaces": desired_state,
+        "dry_run": True,
+    },
+)
 
 task_id = response["task_id"]
 status_url = response["status_url"]
@@ -163,10 +166,13 @@ for action in result["actions"]:
 # reconcile/slack_usergroups_api.py (called from scheduled job)
 
 # Queue task
-response = api_client.post("/reconcile", json={
-    "workspaces": desired_state,
-    "dry_run": False,
-})
+response = api_client.post(
+    "/reconcile",
+    json={
+        "workspaces": desired_state,
+        "dry_run": False,
+    },
+)
 
 task_id = response["task_id"]
 logging.info(f"Queued reconciliation: {task_id}")
@@ -180,17 +186,22 @@ logging.info(f"Queued reconciliation: {task_id}")
 # reconcile/slack_usergroups_api.py (with result checking)
 
 # Queue task
-response = api_client.post("/reconcile", json={
-    "workspaces": desired_state,
-    "dry_run": False,
-})
+response = api_client.post(
+    "/reconcile",
+    json={
+        "workspaces": desired_state,
+        "dry_run": False,
+    },
+)
 
 # Wait up to 5 minutes for completion
 try:
     result = api_client.get(response["status_url"], params={"timeout": 300})
     logging.info(f"Applied {result['applied_count']} actions")
 except Timeout:
-    logging.warning(f"Task {response['task_id']} still running, will complete in background")
+    logging.warning(
+        f"Task {response['task_id']} still running, will complete in background"
+    )
 ```
 
 ## Alternatives Considered
@@ -299,22 +310,28 @@ POST always queues, GET blocks until complete.
 ```python
 from pydantic import BaseModel, Field
 
+
 # POST request (no execution_mode parameter)
 class SlackUsergroupsReconcileRequest(BaseModel):
     """Request model for reconciliation endpoint."""
+
     workspaces: list[SlackWorkspace]
     dry_run: bool = True
+
 
 # POST response
 class SlackUsergroupsTaskResponse(BaseModel):
     """Response when task is queued."""
+
     task_id: str
     status: str = "queued"
     status_url: str
 
+
 # GET response
 class SlackUsergroupsTaskResult(BaseModel):
     """Response when task is complete."""
+
     actions: list[SlackUsergroupAction] = []
     applied_count: int = 0
     errors: list[str] | None = None
@@ -394,10 +411,13 @@ def reconcile(
     """Reconcile Slack usergroups via qontract-api."""
 
     # Always queue task
-    response = api_client.post("/reconcile", json={
-        "workspaces": desired_state,
-        "dry_run": dry_run,
-    })
+    response = api_client.post(
+        "/reconcile",
+        json={
+            "workspaces": desired_state,
+            "dry_run": dry_run,
+        },
+    )
 
     task_id = response["task_id"]
 

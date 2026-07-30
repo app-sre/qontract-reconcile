@@ -30,7 +30,7 @@ class RawGithubApiMock:
         return []
 
 
-class AttrDict(dict):  # noqa: FURB189
+class AttrDict(dict):  # ruff: ignore[subclass-builtin]
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.__dict__ = self

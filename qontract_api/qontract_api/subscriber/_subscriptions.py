@@ -44,7 +44,7 @@ async def event_handler(event: Event) -> None:
     events_received.labels(event_type=event.type).inc()
     start_time = time.perf_counter()
 
-    try:
+    try:  # ruff: ignore[too-many-statements-in-try-clause]
         match event.type:
             case "qontract-api.slack-usergroups.dm-notification":
                 await _handle_dm_notifications(event)

@@ -22,7 +22,7 @@ def get_config() -> dict:
 
 
 def init(config: dict) -> dict:
-    global _config  # noqa: PLW0603
+    global _config  # ruff: ignore[global-statement]
     _config = config
     return _config
 

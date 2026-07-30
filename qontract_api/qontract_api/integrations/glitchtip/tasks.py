@@ -51,7 +51,7 @@ def reconcile_glitchtip_task(
     """
     request_id = self.request.id
 
-    try:
+    try:  # ruff: ignore[too-many-statements-in-try-clause]
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
         event_manager = get_event_manager()

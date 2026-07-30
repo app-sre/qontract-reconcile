@@ -271,7 +271,7 @@ def setup_qontract_api_client() -> None:
     if "BUILD_URL" in os.environ:
         environment_headers["X-Build-Url"] = os.environ["BUILD_URL"]
     if "gitlabMergeRequestIid" in os.environ:
-        environment_headers["X-GitLab-MR-ID"] = os.environ["gitlabMergeRequestIid"]  # noqa: SIM112
+        environment_headers["X-GitLab-MR-ID"] = os.environ["gitlabMergeRequestIid"]  # ruff: ignore[uncapitalized-environment-variables]
 
     qontract_api_client.configure(
         config=QontractApiClientConfig(

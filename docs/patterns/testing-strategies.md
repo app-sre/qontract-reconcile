@@ -22,14 +22,13 @@ A common pattern is to use the `mocker` fixture from `pytest-mock` to patch `gql
 ```python
 from reconcile.gql_definitions.my_integration import my_query
 
+
 def test_my_integration(mocker):
     # 1. Create mock data that matches the Pydantic models
-    mock_data = my_query.MyQueryData(
-        my_resources=[...]
-    )
+    mock_data = my_query.MyQueryData(my_resources=[...])
 
     # 2. Patch the generated query function
-    mock_query = mocker.patch.object(my_query, 'query', return_value=mock_data)
+    mock_query = mocker.patch.object(my_query, "query", return_value=mock_data)
 
     # 3. Run the integration's data fetching logic
     # This will now receive the mock_data instead of calling the real API
@@ -47,18 +46,18 @@ When an integration interacts with an external API (like AWS, GitHub, or Quay), 
 ```python
 def test_user_reconciliation(mocker):
     # Mock the GitHub API client
-    mock_github_client = mocker.patch('reconcile.my_integration.github.get_client')
+    mock_github_client = mocker.patch("reconcile.my_integration.github.get_client")
     mock_add_user = mock_github_client.return_value.add_user
 
     # Define desired state (e.g., a new user) and current state (empty)
-    desired_users = [{'name': 'new-user'}]
+    desired_users = [{"name": "new-user"}]
     current_users = []
 
     # Run the reconciliation logic
     reconcile_users(desired_users, current_users, dry_run=False)
 
     # Assert that the 'add_user' method was called with the correct arguments
-    mock_add_user.assert_called_once_with('new-user')
+    mock_add_user.assert_called_once_with("new-user")
 ```
 
 **3. Testing the `dry-run` Behavior**
@@ -67,7 +66,7 @@ Every integration must respect the `--dry-run` flag. Tests should cover both `dr
 
 ```python
 def test_user_reconciliation_dry_run(mocker):
-    mock_github_client = mocker.patch('reconcile.my_integration.github.get_client')
+    mock_github_client = mocker.patch("reconcile.my_integration.github.get_client")
     mock_add_user = mock_github_client.return_value.add_user
 
     # ... define desired and current state ...
@@ -95,6 +94,7 @@ The test sets up mock clients and data, bundles them into a `Dependencies` objec
 
 ```python
 # from reconcile/test/dynatrace_token_provider/test_create_syncset.py
+
 
 def test_single_non_hcp_cluster_create_tokens(
     secret_reader: SecretReaderBase,

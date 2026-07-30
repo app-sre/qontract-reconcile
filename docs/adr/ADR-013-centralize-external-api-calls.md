@@ -67,6 +67,7 @@ Each reconcile integration calls external APIs directly.
 # In reconcile/slack_usergroups.py
 from pagerduty_client import PagerDutyClient
 
+
 def build_desired_state(permissions):
     """Build desired state with PagerDuty data."""
     pd_client = PagerDutyClient(token=get_pagerduty_token())
@@ -104,14 +105,17 @@ Create shared library with in-memory caching for external API calls.
 # In qontract_utils/pagerduty.py
 from functools import lru_cache
 
+
 @lru_cache(maxsize=100)
 def get_schedule_users(schedule_id: str) -> list[str]:
     """Get users from PagerDuty schedule (cached in memory)."""
     client = PagerDutyClient(token=get_token())
     return client.get_schedule_users(schedule_id)
 
+
 # In reconcile/slack_usergroups.py
 from qontract_utils.pagerduty import get_schedule_users
+
 
 def build_desired_state(permissions):
     for permission in permissions:
@@ -161,6 +165,7 @@ def get_schedule_users(
     # Cache with TTL
     cache.set(cache_key, json.dumps(users), ttl=300)  # 5 minutes
     return users
+
 
 # In reconcile/slack_usergroups_api.py
 def build_desired_state(permissions):
@@ -241,6 +246,7 @@ from qontract_api.integrations.pagerduty.client import PagerDutyClient
 
 router = APIRouter(prefix="/api/v1/pagerduty", tags=["pagerduty"])
 
+
 @router.get("/schedules/{schedule_id}/users")
 def get_schedule_users(
     schedule_id: str,
@@ -281,6 +287,7 @@ Call qontract-api endpoint from integration:
 import requests
 from reconcile.config import get_qontract_api_url, get_qontract_api_token
 
+
 def get_pagerduty_schedule_users(schedule_id: str) -> list[str]:
     """Get users from PagerDuty schedule via qontract-api.
 
@@ -298,14 +305,13 @@ def get_pagerduty_schedule_users(schedule_id: str) -> list[str]:
 
     return response.json()
 
+
 def build_desired_state(permissions):
     """Build desired state with PagerDuty data."""
     for permission in permissions:
         if permission.pagerduty:
             # Call qontract-api (cached, rate-limited)
-            users = get_pagerduty_schedule_users(
-                permission.pagerduty.schedule_id
-            )
+            users = get_pagerduty_schedule_users(permission.pagerduty.schedule_id)
             # Use users...
 ```
 

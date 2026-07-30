@@ -124,6 +124,12 @@ def test_json_pointers() -> None:
     assert json_pointers(input, "items[?@.name=='c']") == []
 
 
+def test_json_pointers_escapes_rfc6901_special_characters() -> None:
+    input = {"a/b": "slash", "a~b": "tilde"}
+    assert json_pointers(input, "'a/b'") == ["/a~1b"]
+    assert json_pointers(input, "'a~b'") == ["/a~0b"]
+
+
 def test_str_format() -> None:
     value = "path/to/object"
     format = "s3://%s"

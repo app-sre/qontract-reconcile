@@ -1,6 +1,6 @@
 """Tests for OwnersParser.get_owners() method."""
 
-# ruff: noqa: ARG001
+# ruff: file-ignore[unused-function-argument]
 
 from unittest.mock import Mock
 

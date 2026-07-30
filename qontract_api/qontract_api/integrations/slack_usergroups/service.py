@@ -215,7 +215,7 @@ class SlackUsergroupsService:
         # Process each workspace
         for workspace in workspaces:
             logger.info(f"Reconciling workspace: {workspace.name}")
-            try:
+            try:  # ruff: ignore[too-many-statements-in-try-clause]
                 slack = self._create_slack_client(workspace.name, workspace.token)
                 logger.info(
                     f"Fetching current usergroups for workspace: {workspace.name}"

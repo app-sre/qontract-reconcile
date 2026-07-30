@@ -179,7 +179,7 @@ class LabelInventory:
                 raise TypeError(
                     f"Expected dict for current labels, got {type(current)}"
                 )
-            changed = self.setdefault(cluster, ns, CHANGED, {})  # noqa: B909
+            changed = self.setdefault(cluster, ns, CHANGED, {})  # ruff: ignore[loop-iterator-mutation]
             if not isinstance(changed, dict):
                 raise TypeError(
                     f"Expected dict for changed labels, got {type(changed)}"

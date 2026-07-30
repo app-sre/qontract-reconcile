@@ -281,7 +281,7 @@ class SaasFileList:
         if name is None and env_name is None and app_name is None:
             return self.saas_files
 
-        if name == "" or env_name == "" or app_name == "":  # noqa: PLC1901
+        if name == "" or env_name == "" or app_name == "":  # ruff: ignore[compare-to-empty-string]
             return []
 
         filtered: list[SaasFile] = []

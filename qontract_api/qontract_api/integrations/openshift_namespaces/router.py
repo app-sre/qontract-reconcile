@@ -36,7 +36,7 @@ router = APIRouter(prefix="/openshift-namespaces")
 )
 def openshift_namespaces_reconcile(
     reconcile_request: OpenShiftNamespacesReconcileRequest,
-    current_user: UserDep,  # noqa: ARG001
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
     request: Request,
 ) -> OpenShiftNamespacesTaskResponse:
     """Queue openshift-namespaces reconciliation task."""
@@ -67,7 +67,7 @@ def openshift_namespaces_reconcile(
 )
 async def openshift_namespaces_reconcile_task_status(
     task_id: str,
-    current_user: UserDep,  # noqa: ARG001
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
     timeout: Annotated[
         int | None,
         Query(

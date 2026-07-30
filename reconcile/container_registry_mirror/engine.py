@@ -58,7 +58,9 @@ class MirrorEngine:
         Exists as a separate method so tests can patch it without
         needing to mock the Image constructor import path."""
         if self._image_class is None:
-            from sretoolbox.container import Image  # noqa: PLC0415
+            from sretoolbox.container import (  # ruff: ignore[import-outside-top-level]
+                Image,
+            )
 
             image_cls: Any = Image
         else:

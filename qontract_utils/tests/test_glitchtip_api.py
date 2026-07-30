@@ -174,7 +174,7 @@ def test_project_alert_recipient_eq(
 def test_project_alert_recipient_eq_non_recipient_raises() -> None:
     """Comparing recipient with non-recipient raises NotImplementedError."""
     with pytest.raises(NotImplementedError):
-        _EMAIL == "not-a-recipient"  # noqa: B015
+        _EMAIL == "not-a-recipient"  # ruff: ignore[useless-comparison]
 
 
 @pytest.mark.parametrize(
@@ -234,7 +234,7 @@ def test_project_alert_eq_non_alert_raises() -> None:
     """Comparing alert with non-alert raises NotImplementedError."""
     a = ProjectAlert(name="alert", timespan_minutes=5, quantity=100)
     with pytest.raises(NotImplementedError):
-        a == "not-an-alert"  # noqa: B015
+        a == "not-an-alert"  # ruff: ignore[useless-comparison]
 
 
 # --- Link Header Parsing Tests ---

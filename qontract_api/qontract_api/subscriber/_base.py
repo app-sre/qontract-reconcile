@@ -1,4 +1,4 @@
-# ruff: noqa: RUF029
+# ruff: file-ignore[unused-async]
 from typing import Any
 
 import structlog
@@ -38,7 +38,7 @@ class StructlogContextMiddleware(BaseMiddleware[Any, Any]):
     (e.g. request_id) before each handler runs.
     """
 
-    async def consume_scope(  # noqa: PLR6301
+    async def consume_scope(  # ruff: ignore[no-self-use]
         self,
         call_next: AsyncFuncAny,
         msg: StreamMessage[Any],

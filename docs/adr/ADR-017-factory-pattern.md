@@ -404,7 +404,9 @@ class ProviderFactory[T: ProviderProtocol]:
             hooks.append(self._create_rate_limit_hook(provider.name, provider_config))
 
         # 5. Build provider-specific settings
-        provider_settings = self._build_provider_settings(provider.name, provider_config)
+        provider_settings = self._build_provider_settings(
+            provider.name, provider_config
+        )
 
         # 6. Provider creates client with all configuration
         client = provider.create_client(
@@ -427,7 +429,9 @@ class ProviderFactory[T: ProviderProtocol]:
         """Create rate limiting hook for provider."""
         ...
 
-    def _build_provider_settings(self, provider_name: str, settings: Any) -> GitHubProviderSettings | VaultProviderSettings | ...:
+    def _build_provider_settings(
+        self, provider_name: str, settings: Any
+    ) -> GitHubProviderSettings | VaultProviderSettings | ...:
         """Build provider-specific settings."""
         ...
 ```
@@ -449,7 +453,7 @@ class GenericClient:
     def __init__(
         self,
         provider_client: Any,  # Provider-specific client
-        provider_name: str,     # For logging/metrics
+        provider_name: str,  # For logging/metrics
         config: Any | None = None,  # Additional configuration
     ) -> None:
         """Initialize with injected provider client (ADR-011).
@@ -478,6 +482,7 @@ Provider-specific settings with clear namespacing:
 ```python
 from pydantic import BaseModel, Field
 
+
 # Example: VCS Provider Settings
 class GitHubProviderSettings(BaseModel):
     api_url: str = Field(default="https://api.github.com")
@@ -487,14 +492,17 @@ class GitHubProviderSettings(BaseModel):
     rate_limit_tokens: int = Field(default=20)
     rate_limit_refill_rate: float = Field(default=1.0)
 
+
 class GitLabProviderSettings(BaseModel):
     api_timeout: int = Field(default=30)
     credential_path: str = Field(default="secret/gitlab-token")
     rate_limit_tier: str = Field(default="tier2")
 
+
 class VCSProvidersSettings(BaseModel):
     github: GitHubProviderSettings = Field(default_factory=GitHubProviderSettings)
     gitlab: GitLabProviderSettings = Field(default_factory=GitLabProviderSettings)
+
 
 class VCSSettings(BaseModel):
     providers: VCSProvidersSettings = Field(default_factory=VCSProvidersSettings)
@@ -507,13 +515,16 @@ class VaultProviderSettings(BaseModel):
     api_timeout: int = Field(default=10)
     namespace: str | None = Field(default=None)
 
+
 class AWSSecretsManagerSettings(BaseModel):
     region: str = Field(default="us-east-1")
     api_timeout: int = Field(default=10)
 
+
 class SecretProvidersSettings(BaseModel):
     vault: VaultProviderSettings = Field(default_factory=VaultProviderSettings)
     aws: AWSSecretsManagerSettings = Field(default_factory=AWSSecretsManagerSettings)
+
 
 class SecretsSettings(BaseModel):
     providers: SecretProvidersSettings = Field(default_factory=SecretProvidersSettings)
@@ -782,6 +793,7 @@ Let's add Gitea VCS provider as example:
 from urllib.parse import urlparse
 from qontract_utils.vcs.provider_protocol import VCSProviderProtocol
 
+
 class GiteaProvider:
     """Gitea VCS provider implementation."""
 
@@ -825,6 +837,7 @@ class GiteaProviderSettings(BaseModel):
     api_timeout: int = Field(default=30)
     credential_path: str = Field(default="secret/gitea-token")
     rate_limit_tier: str = Field(default="tier2")
+
 
 class VCSProvidersSettings(BaseModel):
     github: GitHubProviderSettings = Field(default_factory=GitHubProviderSettings)
@@ -879,6 +892,7 @@ def test_gitea_provider_detection():
     assert provider.detect("https://gitea.example.com/owner/repo")
     assert not provider.detect("https://github.com/owner/repo")
 
+
 def test_gitea_provider_parsing():
     """Test Gitea URL parsing."""
     provider = GiteaProvider()
@@ -887,6 +901,7 @@ def test_gitea_provider_parsing():
 
     assert parsed["owner"] == "myorg"
     assert parsed["repo"] == "myrepo"
+
 
 def test_provider_registry():
     """Test provider registry."""

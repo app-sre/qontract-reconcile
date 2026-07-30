@@ -100,7 +100,7 @@ class CacheBackend(ABC):
                 # Factory: Create backend based on type
                 # Import moved inside to avoid circular imports
                 if backend_type == "redis":
-                    from qontract_api.cache.redis import (  # noqa: PLC0415
+                    from qontract_api.cache.redis import (  # ruff: ignore[import-outside-top-level]
                         RedisCacheBackend,
                     )
 
@@ -273,22 +273,21 @@ class CacheBackend(ABC):
             value = self.get(key)
             if value is None:
                 return None
-
-            data = self.deserializer(value)
-            obj = cls.model_validate(data)
-
-            # Warm memory cache for next access
-            if self._memory_cache is not None:
-                self._memory_cache[key] = obj
-
-            return obj
-
         except (ConnectionError, TimeoutError) as e:
             logger.warning(
                 f"Cache backend unavailable, memory-only mode: {e}",
                 cache_key=key,
             )
             return None
+
+        data = self.deserializer(value)
+        obj = cls.model_validate(data)
+
+        # Warm memory cache for next access
+        if self._memory_cache is not None:
+            self._memory_cache[key] = obj
+
+        return obj
 
     def set_obj(self, key: str, value: Any, ttl: int | None = None) -> None:
         """Set object in cache (both tiers: memory + Redis).
