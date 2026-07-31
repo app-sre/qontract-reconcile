@@ -18,6 +18,13 @@ Successful migrations serve as reference implementations:
   first migration where the legacy package (`reconcile/rhidp/`) is meant to be deleted
   entirely once done, not just the one integration inside it — see the "legacy package
   slated for deletion" rule below, which is stricter than the normal ADR-007 rule.)
+- `rhidp/ocm_oidc_idp` -> `ocm-oidc-idp-api` (Pattern 1 variant, second half of the
+  RHIDP migration alongside sso_client above: added OCM Identity Provider CRUD to the
+  existing `ocm_api` Layer 1/2 clients (new surface, not a new client), reused the
+  existing `/external/ocm/clusters` endpoint as-is with zero changes, and consumed
+  sso_client's Vault secret schema by moving it to a new shared `qontract_api/rhidp/`
+  domain layer. See "Naming: don't assume every RHIDP integration gets an rhidp-
+  prefix" and "Cacheable read + invalidating mutations" below.)
 
 ## Input
 
@@ -146,7 +153,7 @@ Following ADR-007 (no reconcile/ imports in qontract-api) and ADR-014 (three-lay
      - `qontract_utils/qontract_utils/glitchtip_api/` - Glitchtip API
      - `qontract_utils/qontract_utils/pagerduty_api/` - PagerDuty API
      - `qontract_utils/qontract_utils/ldap_api/` - LDAP (FreeIPA) API
-     - `qontract_utils/qontract_utils/ocm_api/` - OCM (OpenShift Cluster Manager) API - labels, subscriptions, clusters
+     - `qontract_utils/qontract_utils/ocm_api/` - OCM (OpenShift Cluster Manager) API - labels, subscriptions, clusters, identity providers (get/create/update/delete, parameterized by `cluster_id`/`idp_id` rather than the `Filter` DSL used for the collection-search methods, since IDPs are a per-cluster nested resource)
      - `qontract_utils/qontract_utils/keycloak_api/` - Keycloak dynamic client registration API
    - If a client exists, check if it covers all needed methods. Only extend, never duplicate.
 
@@ -501,3 +508,58 @@ Phases have dependencies. Document these in the migration plan so phases can be 
 - **If the legacy integration's whole containing package is slated for deletion** (not just the one integration - e.g. `reconcile/rhidp/` holds both `sso_client` and `ocm_oidc_idp`, and the user wants the entire package gone eventually), the new client-side code must have **zero imports from that package**, even for pure helper functions with no external calls. ADR-007 only forbids qontract-api importing from `reconcile/`, but this is a stricter, migration-specific constraint - port (duplicate) any still-needed helpers into the new `_api` package instead of importing them. Confirm with the user whether this stricter rule applies before assuming ADR-007 alone is sufficient. Auto-generated GraphQL query modules (`reconcile/gql_definitions/**`) are the one exception - they're pure codegen, not business logic, and safe to keep importing even from a namespaced-after-the-integration path like `gql_definitions/rhidp/`.
 - Read existing reference implementations before generating code - adapt patterns, don't copy blindly
 - Read all relevant ADRs from `docs/adr/` before starting
+- **Naming: don't assume every integration in a shared package gets the same prefix.**
+  When migrating one of several sibling integrations from a shared legacy package
+  (e.g. `reconcile/rhidp/` holds both `sso_client` and `ocm_oidc_idp`), check each
+  sibling's OWN legacy `QONTRACT_INTEGRATION`/CLI command name individually - don't
+  assume symmetry with an already-migrated sibling. `rhidp/sso_client`'s own legacy
+  name was `rhidp_sso_client` (so the migrated version became `rhidp-sso-client-api`),
+  but `rhidp/ocm_oidc_idp`'s own legacy name was just `ocm_oidc_idp` (no "rhidp_"
+  prefix) - the correct migrated name is `ocm-oidc-idp-api`, not
+  `rhidp-ocm-oidc-idp-api`. This matters beyond code style: the integration's own name
+  becomes `self.name` (used for app-interface integration-enablement checks), while
+  the *metrics* `INTEGRATION_NAME` label constant must match the **legacy** integration's
+  exact name (not the new `-api`-suffixed one) so existing dashboards/alerts built
+  against the old integration's metric label keep aggregating correctly - these are
+  two deliberately different constants, don't collapse them into one.
+- **Cacheable read + invalidating mutations (Layer 2 pattern).** When a Layer 2
+  workspace client needs both a cacheable list/read operation AND mutations on the
+  same resource (e.g. `get_identity_providers` + `create/update/delete_identity_provider`),
+  cache the read with the same double-checked-locking pattern as other cached reads,
+  and have every mutation call `cache.delete(cache_key)` on success so the next read
+  reflects the change instead of serving stale state. Don't skip Layer 2 entirely just
+  because "mutations aren't cacheable" - the read half often still benefits from caching.
+- **Extract a narrower base params class when a second integration needs the same
+  connection setup but not the first integration's domain-specific fields.** E.g.
+  `OcmClusterQueryParams` (used by the `/external/ocm/clusters` endpoint) bundled
+  connection fields (`ocm_url`, `access_token_url`, `access_token_client_id`, plus the
+  inherited `Secret` fields) together with cluster-discovery-specific ones
+  (`label_key_prefix`, `org_ids`). When `ocm_oidc_idp` needed the same connection setup
+  for identity-provider CRUD but not the discovery-specific fields, the fix was to
+  extract a base `OcmConnectionParams` (just the connection fields) and have
+  `OcmClusterQueryParams` extend it, then generalize the shared factory
+  (`create_ocm_workspace_client`) to accept the narrower base type. Don't force a second
+  integration to fill in irrelevant required fields on an existing overly-specific type.
+- **Custom `__eq__` without `__hash__` needs an explicit, typed declaration.** If a
+  domain model overrides `__eq__` to ignore certain fields for diffing purposes (e.g.
+  ignoring a server-assigned `id`, or a secret value never returned on read), ruff's
+  `eq-without-hash` (PLW1641) wants an explicit `__hash__ = None` to document the
+  resulting unhashability. mypy has no clean way to type this outside of `@dataclass`,
+  so it flags that exact line - the accepted fix in this codebase is
+  `__hash__ = None  # type: ignore[assignment]` with a one-line comment explaining why
+  (get explicit user approval before adding any such suppression - don't do it silently).
+- **Prefer the API client's context-manager protocol over manual try/finally + close().**
+  If a Layer 1 client implements `__enter__`/`__exit__` (as `OcmApi` does), use
+  `with self._api_factory() as api:` in the Layer 2 workspace client instead of
+  `api = self._api_factory(); try: ... finally: api.close()`. When mocking such a client
+  in tests, remember `MagicMock(spec=SomeClient)` does NOT make `__enter__` return
+  `self` by default - set `mock.__enter__.return_value = mock` explicitly in the fixture,
+  and assert `mock.__exit__.assert_called_once()` instead of `mock.close.assert_called_once()`.
+- **Pydantic's "smart" union mode correctly discriminates without an explicit
+  discriminator field**, as long as each union member is a genuinely better/lossless
+  match for a given payload (e.g. `OcmIdentityProviderOidc` has an `open_id` field that
+  a generic `OcmIdentityProvider` fallback model lacks) - pydantic won't pick the model
+  that would silently drop fields. This means a plain `list[Specific | Generic]` field
+  can safely replace a `Field(discriminator=...)` union when the discriminator values
+  form an open-ended set (e.g. arbitrary external-system resource types) rather than a
+  small closed enum - verify empirically with a quick script before trusting it, though.

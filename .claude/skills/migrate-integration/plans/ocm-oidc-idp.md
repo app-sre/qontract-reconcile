@@ -3,7 +3,13 @@
 JIRA: [APPSRE-13595](https://redhat.atlassian.net/browse/APPSRE-13595) — Part 2 of the RHIDP capability migration.
 Part 1 (`rhidp/sso_client` → `rhidp-sso-client-api`) shipped in [PR #5689](https://github.com/app-sre/qontract-reconcile/pull/5689) (JIRA APPSRE-13596) and is the primary reference implementation for this migration.
 
-## Status: Phase 0 (Discovery) complete — awaiting design decisions before Phase 1
+## Status: Migration complete (all phases 1-6 shipped)
+
+Final naming correction applied post-implementation: the new integration's own name
+is `ocm-oidc-idp-api` (not `rhidp-ocm-oidc-idp-api`) and `metrics.INTEGRATION_NAME` is
+`ocm-oidc-idp` (not `rhidp-ocm-oidc-idp`) — the legacy `reconcile/rhidp/ocm_oidc_idp`
+integration's own name never had an "rhidp-" prefix (only `sso_client` did). See the
+skill's "Naming" lesson for the general rule this established.
 
 ## What this integration does (current state, `reconcile/rhidp/ocm_oidc_idp`)
 
