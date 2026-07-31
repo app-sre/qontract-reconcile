@@ -299,6 +299,10 @@ class OcmSettings(BaseModel):
         default=60 * 10,
         description="OCM cluster discovery cache TTL in seconds (10 minutes)",
     )
+    identity_providers_cache_ttl: int = Field(
+        default=60 * 5,
+        description="OCM identity provider list cache TTL in seconds (5 minutes)",
+    )
 
 
 class VaultSettings(BaseModel):

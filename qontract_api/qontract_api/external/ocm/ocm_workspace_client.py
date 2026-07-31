@@ -16,6 +16,8 @@ from pydantic import BaseModel, Field
 from qontract_utils.ocm_api import (
     ACTIVE_SUBSCRIPTION_STATES,
     Filter,
+    OcmIdentityProvider,
+    OcmIdentityProviderOidc,
     OcmOrganizationLabel,
     OcmSubscriptionLabel,
     build_subscription_filter,
@@ -62,6 +64,14 @@ class CachedOcmClusters(BaseModel, frozen=True):
     items: list[OcmClusterRecord] = Field(default_factory=list)
 
 
+class CachedOcmIdentityProviders(BaseModel, frozen=True):
+    """Cached list of identity providers for one (environment, cluster_id) pair."""
+
+    items: list[OcmIdentityProvider | OcmIdentityProviderOidc] = Field(
+        default_factory=list
+    )
+
+
 class OcmWorkspaceClient:
     """Caching + compute layer for OCM label-based cluster discovery.
 
@@ -88,9 +98,12 @@ class OcmWorkspaceClient:
         self.settings = settings
         self._environment_key = environment_key
 
-    # CACHE KEY HELPER
+    # CACHE KEY HELPERS
     def _cache_key(self, label_key_prefix: str) -> str:
         return f"ocm:clusters:{self._environment_key}:{label_key_prefix}"
+
+    def _idp_cache_key(self, cluster_id: str) -> str:
+        return f"ocm:idps:{self._environment_key}:{cluster_id}"
 
     # CACHE OPERATIONS
     def _get_cached_clusters(self, cache_key: str) -> list[OcmClusterRecord] | None:
@@ -145,8 +158,7 @@ class OcmWorkspaceClient:
         and flattening straight to merged str labels (label interpretation stays
         client-side, so no LabelContainer type is needed here).
         """
-        ocm_api = self._ocm_api_factory()
-        try:
+        with self._ocm_api_factory() as ocm_api:
             label_filter = subscription_label_filter().like(
                 "key", f"{label_key_prefix}%"
             ) | organization_label_filter().like("key", f"{label_key_prefix}%")
@@ -215,5 +227,65 @@ class OcmWorkspaceClient:
                         )
                     )
             return records
-        finally:
-            ocm_api.close()
+
+    # IDENTITY PROVIDERS (cached read, invalidating mutations)
+    def get_identity_providers(
+        self, cluster_id: str
+    ) -> list[OcmIdentityProvider | OcmIdentityProviderOidc]:
+        """List identity providers configured on a cluster.
+
+        Cached with distributed locking, same double-checked-locking pattern as
+        get_clusters - identity providers change rarely relative to how often they're
+        read during reconciliation.
+        """
+        cache_key = self._idp_cache_key(cluster_id)
+
+        cached = self._get_cached_identity_providers(cache_key)
+        if cached is None:
+            with self.cache.lock(cache_key):
+                cached = self._get_cached_identity_providers(cache_key)
+                if cached is None:
+                    with self._ocm_api_factory() as ocm_api:
+                        cached = ocm_api.get_identity_providers(cluster_id)
+                    self.cache.set_obj(
+                        cache_key,
+                        CachedOcmIdentityProviders(items=cached),
+                        self.settings.ocm.identity_providers_cache_ttl,
+                    )
+        return cached
+
+    def _get_cached_identity_providers(
+        self, cache_key: str
+    ) -> list[OcmIdentityProvider | OcmIdentityProviderOidc] | None:
+        """Get cached identity providers.
+
+        Uses `is not None` (not a truthy check) so a genuinely empty result (a
+        cluster with no identity providers configured yet) is a cache hit, not
+        indistinguishable from a miss.
+        """
+        cached = self.cache.get_obj(cache_key, CachedOcmIdentityProviders)
+        return cached.items if cached is not None else None
+
+    def create_identity_provider(
+        self, cluster_id: str, idp: OcmIdentityProviderOidc
+    ) -> OcmIdentityProviderOidc:
+        """Create an OIDC identity provider on a cluster, invalidating its IDP cache."""
+        with self._ocm_api_factory() as ocm_api:
+            created = ocm_api.create_identity_provider(cluster_id, idp)
+        self.cache.delete(self._idp_cache_key(cluster_id))
+        return created
+
+    def update_identity_provider(
+        self, cluster_id: str, idp_id: str, idp: OcmIdentityProviderOidc
+    ) -> OcmIdentityProviderOidc:
+        """Update an OIDC identity provider on a cluster, invalidating its IDP cache."""
+        with self._ocm_api_factory() as ocm_api:
+            updated = ocm_api.update_identity_provider(cluster_id, idp_id, idp)
+        self.cache.delete(self._idp_cache_key(cluster_id))
+        return updated
+
+    def delete_identity_provider(self, cluster_id: str, idp_id: str) -> None:
+        """Delete an identity provider from a cluster, invalidating its IDP cache."""
+        with self._ocm_api_factory() as ocm_api:
+            ocm_api.delete_identity_provider(cluster_id, idp_id)
+        self.cache.delete(self._idp_cache_key(cluster_id))
