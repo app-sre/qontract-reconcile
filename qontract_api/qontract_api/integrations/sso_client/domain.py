@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from urllib.parse import urlparse
-
 from pydantic import BaseModel, Field
 
 from qontract_api.models import Secret
@@ -66,33 +64,3 @@ class SsoClientCluster(BaseModel, frozen=True):
         ..., description="Whether this cluster should have an SSO client reconciled"
     )
     auth: SsoClientAuth = Field(..., description="SSO client auth configuration")
-
-
-class SsoClientSecret(BaseModel, frozen=True):
-    """Vault secret schema for a registered SSO client.
-
-    Must stay byte-compatible with reconcile/utils/keycloak.py::SSOClient - the
-    not-yet-migrated ocm_oidc_idp integration reads this exact shape via
-    SSOClient(**secret_reader.read_all_secret(secret)).
-    """
-
-    client_id: str
-    client_name: str
-    client_secret: str
-    redirect_uris: list[str]
-    registration_access_token: str
-    registration_client_uri: str
-    issuer: str
-    attributes: dict[str, str] = Field(default_factory=dict)
-
-
-def cluster_vault_secret_id(
-    org_id: str, cluster_name: str, auth_name: str, issuer_url: str
-) -> str:
-    """Return the vault secret id for the given cluster.
-
-    Format must stay exactly as-is - it's the diff key used to detect existing vs
-    desired SSO clients across reconcile runs.
-    """
-    url = urlparse(issuer_url)
-    return f"{cluster_name}-{org_id}-{auth_name}-{url.hostname}"
