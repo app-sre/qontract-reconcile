@@ -137,7 +137,7 @@ data:
                 "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
-              "expr": "sum(rhidp_managed_clusters{integration=~\"rhidp-sso-client.*\"})",
+              "expr": "sum(max by (org_id, ocm_environment) (rhidp_managed_clusters{integration=~\"rhidp-sso-client.*\"}))",
               "interval": "10m",
               "legendFormat": "rhidp-sso-client integration",
               "range": true,
@@ -149,7 +149,7 @@ data:
                 "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
-              "expr": "sum(rhidp_managed_clusters{integration=~\"ocm-oidc-idp.*\"})",
+              "expr": "sum(max by (org_id, ocm_environment) (rhidp_managed_clusters{integration=~\"ocm-oidc-idp.*\"}))",
               "hide": false,
               "interval": "10m",
               "legendFormat": "ocm-oidc-idp integration",
@@ -248,7 +248,7 @@ data:
                 "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
-              "expr": "sum(rhidp_sso_client_number_of_clients{integration=~\"rhidp-sso-client.*\"})",
+              "expr": "sum(max by (ocm_environment) (rhidp_sso_client_number_of_clients{integration=~\"rhidp-sso-client.*\"}))",
               "interval": "10m",
               "legendFormat": "__auto",
               "range": true,
@@ -263,7 +263,7 @@ data:
             "type": "prometheus",
             "uid": "P7B77307D2CE073BC"
           },
-          "description": "Expiration date for auth.stage.redhat.com initial-access-token (IAT)",
+          "description": "Expiration date for prod initial-access-token (IAT)",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -315,14 +315,14 @@ data:
                 "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
-              "expr": "rhidp_sso_client_inital_access_token_expiration{integration=\"rhidp-sso-client\", path=\"app-sre/creds/rhidp/auth.redhat.com\"} * 1000",
+              "expr": "max(rhidp_sso_client_inital_access_token_expiration{integration=\"rhidp-sso-client\", path=\"apps/sso-iat/share-with/app/ai-app-sre/iat\"}) * 1000",
               "interval": "5m",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "IAT Expiration Date (auth.redhat.com)",
+          "title": "IAT Expiration Date (keycloak prod)",
           "type": "stat"
         },
         {
@@ -330,7 +330,7 @@ data:
             "type": "prometheus",
             "uid": "P7B77307D2CE073BC"
           },
-          "description": "Expiration date for auth.stage.redhat.com initial-access-token (IAT)",
+          "description": "Expiration date for stage initial-access-token (IAT)",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -382,14 +382,14 @@ data:
                 "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
-              "expr": "rhidp_sso_client_inital_access_token_expiration{integration=\"rhidp-sso-client\", path=\"app-sre/creds/rhidp/auth.stage.redhat.com\"} * 1000",
+              "expr": "max(rhidp_sso_client_inital_access_token_expiration{integration=\"rhidp-sso-client\", path=\"apps/sso-iat/share-with/app/ai-app-sre/iat-stage\"}) * 1000",
               "interval": "5m",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "IAT Expiration Date (auth.stage.redhat.com)",
+          "title": "IAT Expiration Date (keycloak stage)",
           "type": "stat"
         }
       ],
@@ -406,6 +406,6 @@ data:
       "timezone": "",
       "title": "RedHat SSO IDP Overview",
       "uid": "0lZiDarVz",
-      "version": 5,
+      "version": 6,
       "weekStart": ""
     }
