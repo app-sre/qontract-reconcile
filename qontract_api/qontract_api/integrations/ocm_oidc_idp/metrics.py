@@ -11,8 +11,10 @@ from qontract_api.rhidp.metrics import rhidp_managed_clusters
 
 __all__ = ["rhidp_managed_clusters"]
 
-# Matches the legacy integration name label so existing dashboards/alerts keep working.
-INTEGRATION_NAME = "rhidp-ocm-oidc-idp"
+# Matches the legacy integration name label so existing dashboards/alerts keep
+# working. The legacy reconcile/rhidp/ocm_oidc_idp integration's own name is
+# "ocm-oidc-idp" (no "rhidp-" prefix, unlike sso_client's "rhidp-sso-client").
+INTEGRATION_NAME = "ocm-oidc-idp"
 
 rhidp_ocm_oidc_idp_reconciled = Counter(
     "rhidp_ocm_oidc_idp_reconciled",

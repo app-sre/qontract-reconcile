@@ -423,7 +423,7 @@ def test_reconcile_exposes_cluster_metrics(
 
     assert (
         rhidp_managed_clusters.labels(
-            "rhidp-ocm-oidc-idp", "test-env-metrics", "metrics-org"
+            "ocm-oidc-idp", "test-env-metrics", "metrics-org"
         )._value.get()
         == 1
     )
@@ -439,7 +439,7 @@ def test_reconcile_increments_error_counter_on_failure(
     mock_workspace_client.create_identity_provider.side_effect = RuntimeError("boom")
 
     before = rhidp_ocm_oidc_idp_reconcile_errors.labels(
-        "rhidp-ocm-oidc-idp", "error-env"
+        "ocm-oidc-idp", "error-env"
     )._value.get()
 
     service.reconcile(
@@ -447,6 +447,6 @@ def test_reconcile_increments_error_counter_on_failure(
     )
 
     after = rhidp_ocm_oidc_idp_reconcile_errors.labels(
-        "rhidp-ocm-oidc-idp", "error-env"
+        "ocm-oidc-idp", "error-env"
     )._value.get()
     assert after == before + 1
