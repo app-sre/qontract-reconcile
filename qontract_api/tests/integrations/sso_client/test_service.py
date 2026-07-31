@@ -14,7 +14,6 @@ from qontract_api.integrations.sso_client.domain import (
     KeycloakInstanceSecret,
     SsoClientAuth,
     SsoClientCluster,
-    SsoClientSecret,
 )
 from qontract_api.integrations.sso_client.schemas import (
     SsoClientActionCreate,
@@ -22,6 +21,7 @@ from qontract_api.integrations.sso_client.schemas import (
 )
 from qontract_api.integrations.sso_client.service import SsoClientService
 from qontract_api.models import Secret, TaskStatus
+from qontract_api.rhidp.domain import SsoClientSecret
 
 ISSUER_URL = "https://issuer.example.com"
 KEYCLOAK_SECRET = KeycloakInstanceSecret(

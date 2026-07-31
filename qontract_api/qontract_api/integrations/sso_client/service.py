@@ -9,11 +9,7 @@ from urllib.parse import urljoin, urlparse, urlunparse
 import httpx2
 from jose import jwt
 
-from qontract_api.integrations.sso_client.domain import (
-    KeycloakInstanceIat,
-    SsoClientSecret,
-    cluster_vault_secret_id,
-)
+from qontract_api.integrations.sso_client.domain import KeycloakInstanceIat
 from qontract_api.integrations.sso_client.keycloak_client_factory import (
     build_keycloak_instances,
 )
@@ -33,6 +29,7 @@ from qontract_api.integrations.sso_client.schemas import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import Secret, TaskStatus
+from qontract_api.rhidp.domain import SsoClientSecret, cluster_vault_secret_id
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
