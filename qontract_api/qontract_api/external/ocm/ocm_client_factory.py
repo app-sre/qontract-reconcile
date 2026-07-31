@@ -15,12 +15,12 @@ from qontract_api.external.ocm.ocm_workspace_client import OcmWorkspaceClient
 if TYPE_CHECKING:
     from qontract_api.cache import CacheBackend
     from qontract_api.config import Settings
-    from qontract_api.external.ocm.schemas import OcmClusterQueryParams
+    from qontract_api.external.ocm.schemas import OcmConnectionParams
     from qontract_api.secret_manager import SecretManager
 
 
 def create_ocm_workspace_client(
-    params: OcmClusterQueryParams,
+    params: OcmConnectionParams,
     cache: CacheBackend,
     secret_manager: SecretManager,
     settings: Settings,
@@ -30,9 +30,11 @@ def create_ocm_workspace_client(
     The Vault read for access_token_client_secret and the OAuth2 token exchange
     with Red Hat SSO that OcmApi.__init__ performs eagerly are both deferred behind
     a factory closure, so a cache hit in OcmWorkspaceClient never triggers either.
+    Deliberately generic over OcmConnectionParams (not the cluster-discovery-specific
+    OcmClusterQueryParams subclass) - any OCM-backed integration can reuse this.
 
     Args:
-        params: OCM connection + cluster discovery query parameters
+        params: OCM connection parameters
         cache: Cache backend for distributed cache
         secret_manager: Secret backend for retrieving the OCM client secret
         settings: Application settings with OCM configuration
