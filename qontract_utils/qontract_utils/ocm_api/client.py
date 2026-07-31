@@ -19,12 +19,18 @@ from prometheus_client import Counter, Histogram
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.ocm_api._raw_client import (
+    RawIdentityProvider,
+    RawIdentityProviderOidc,
     RawOcmClient,
     RawOrganizationLabel,
     RawSubscriptionLabel,
 )
 from qontract_utils.ocm_api.models import (
     OcmCluster,
+    OcmIdentityProvider,
+    OcmIdentityProviderOidc,
+    OcmIdentityProviderOidcOpenId,
+    OcmIdentityProviderOidcOpenIdClaims,
     OcmOrganizationLabel,
     OcmSubscription,
     OcmSubscriptionLabel,
@@ -262,6 +268,71 @@ class OcmApi:
             )
         ]
 
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="identity_providers.list",
+            verb="GET",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def get_identity_providers(
+        self, cluster_id: str
+    ) -> list[OcmIdentityProvider | OcmIdentityProviderOidc]:
+        """List identity providers configured on a cluster."""
+        return [
+            _identity_provider_from_raw(item)
+            for item in self._raw.get_identity_providers(cluster_id=cluster_id)
+        ]
+
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="identity_providers.create",
+            verb="POST",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def create_identity_provider(
+        self, cluster_id: str, idp: OcmIdentityProviderOidc
+    ) -> OcmIdentityProviderOidc:
+        """Create an OIDC identity provider on a cluster."""
+        raw = self._raw.create_identity_provider(
+            cluster_id=cluster_id,
+            body=idp.model_dump(exclude_none=True, exclude={"id"}),
+        )
+        return _oidc_identity_provider_from_raw(raw)
+
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="identity_providers.update",
+            verb="PATCH",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def update_identity_provider(
+        self, cluster_id: str, idp_id: str, idp: OcmIdentityProviderOidc
+    ) -> OcmIdentityProviderOidc:
+        """Update an existing OIDC identity provider.
+
+        Name is immutable on OCM, so it is excluded from the request body.
+        """
+        raw = self._raw.update_identity_provider(
+            cluster_id=cluster_id,
+            idp_id=idp_id,
+            body=idp.model_dump(exclude_none=True, exclude={"id", "name"}),
+        )
+        return _oidc_identity_provider_from_raw(raw)
+
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="identity_providers.delete",
+            verb="DELETE",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def delete_identity_provider(self, cluster_id: str, idp_id: str) -> None:
+        """Delete an identity provider from a cluster."""
+        self._raw.delete_identity_provider(cluster_id=cluster_id, idp_id=idp_id)
+
 
 def _label_from_raw(
     label: RawSubscriptionLabel | RawOrganizationLabel,
@@ -296,5 +367,34 @@ def _cluster_from_raw(cluster: RawCluster) -> OcmCluster:
             cluster.external_auth_config.enabled
             if cluster.external_auth_config
             else False
+        ),
+    )
+
+
+def _identity_provider_from_raw(
+    raw: RawIdentityProviderOidc | RawIdentityProvider,
+) -> OcmIdentityProvider | OcmIdentityProviderOidc:
+    if isinstance(raw, RawIdentityProviderOidc):
+        return _oidc_identity_provider_from_raw(raw)
+    return OcmIdentityProvider(type=raw.type, name=raw.name, id=raw.id)
+
+
+def _oidc_identity_provider_from_raw(
+    raw: RawIdentityProviderOidc,
+) -> OcmIdentityProviderOidc:
+    return OcmIdentityProviderOidc(
+        name=raw.name,
+        id=raw.id,
+        mapping_method=raw.mapping_method,
+        open_id=OcmIdentityProviderOidcOpenId(
+            client_id=raw.open_id.client_id,
+            client_secret=raw.open_id.client_secret,
+            issuer=raw.open_id.issuer,
+            claims=OcmIdentityProviderOidcOpenIdClaims(
+                email=raw.open_id.claims.email,
+                name=raw.open_id.claims.name,
+                preferred_username=raw.open_id.claims.preferred_username,
+                groups=raw.open_id.claims.groups,
+            ),
         ),
     )
