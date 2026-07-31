@@ -11,6 +11,7 @@ from reconcile.test.change_owners.fixtures import (
     build_bundle_datafile_change,
     build_bundle_resourcefile_change,
 )
+from reconcile.utils.output import format_table
 
 #
 # deep diff path translation
@@ -45,6 +46,90 @@ def test_deepdiff_path_to_jsonpath(
 def test_deepdiff_invalid() -> None:
     with pytest.raises(ValueError):
         deepdiff_path_to_jsonpath("something_invalid")
+
+
+@pytest.mark.parametrize(
+    "jsonpath_expression,expected_path_str",
+    [
+        ("field", "field"),
+        ("resourceTemplates.[0]", "resourceTemplates.[0]"),
+        (
+            "resourceTemplates.[0].targets.[0].parameters.A",
+            "resourceTemplates.[0].targets.[0].parameters.A",
+        ),
+        ("$", "$"),
+    ],
+)
+def test_diff_path_str_no_parentheses(
+    jsonpath_expression: str, expected_path_str: str
+) -> None:
+    """
+    jsonpath_ng 1.8.0 introduced parentheses into `Child.__str__`, e.g.
+    `(((a.b).c).d)`, to disambiguate operator precedence when re-parsing.
+    Diff.path_str() is used for display purposes (e.g. MR check output)
+    and must keep rendering plain dotted paths without parentheses.
+    """
+    diff = Diff(
+        path=jsonpath_ng.parse(jsonpath_expression),
+        diff_type=DiffType.CHANGED,
+        old="old",
+        new="new",
+    )
+    assert diff.path_str() == expected_path_str
+    # the underlying path object must render correctly by itself too, since
+    # e.g. change_owners.py puts raw Diff.path objects into report dicts
+    # that get stringified implicitly (via tabulate), never calling
+    # path_str() explicitly.
+    assert str(diff.path) == expected_path_str
+
+
+def test_diff_path_from_jsonpath_find_traversal_renders_without_parens() -> None:
+    """
+    jsonpath_ng's own `find()` traversal builds `Child` chains internally
+    (e.g. when a change-type's self-service path containing a wildcard gets
+    resolved against actual file content while splitting a diff for partial
+    coverage). Diff must normalize such externally-constructed paths too,
+    not just the ones it builds itself via deepdiff_path_to_jsonpath.
+    """
+    content = {"openshiftResources": [{"a": 1}, {"variables": {"var2": "x"}}]}
+    resolved_path = (
+        jsonpath_ng
+        .parse("openshiftResources.[*].variables.var2")
+        .find(content)[0]
+        .full_path
+    )
+    # sanity check: the raw, library-constructed path does have parens
+    assert "(" in str(resolved_path)
+
+    diff = Diff(
+        path=resolved_path,
+        diff_type=DiffType.CHANGED,
+        old="old",
+        new="new",
+    )
+    assert diff.path_str() == "openshiftResources.[1].variables.var2"
+    assert str(diff.path) == "openshiftResources.[1].variables.var2"
+
+
+def test_diff_path_renders_without_parens_in_mr_report_table() -> None:
+    """
+    change_owners.add_coverage_report_to_merge_request() and
+    write_coverage_report_to_stdout() put raw Diff.path objects into dicts
+    that reconcile.utils.output.format_table() renders via tabulate, without
+    ever calling path_str(). This must render cleanly without any change to
+    that display code.
+    """
+    diff = Diff(
+        path=deepdiff_path_to_jsonpath(
+            "root['resourceTemplates'][0]['targets'][0]['parameters']['A']"
+        ),
+        diff_type=DiffType.CHANGED,
+        old="old",
+        new="new",
+    )
+    table = format_table([{"change": diff.path}], ["change"])
+    assert "(" not in table
+    assert "resourceTemplates.[0].targets.[0].parameters.A" in table
 
 
 def test_deepdiff_path_element_with_dot() -> None:
