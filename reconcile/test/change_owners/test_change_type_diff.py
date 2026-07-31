@@ -58,6 +58,9 @@ def test_deepdiff_invalid() -> None:
             "resourceTemplates.[0].targets.[0].parameters.A",
         ),
         ("$", "$"),
+        # an explicit "$." prefix is intentionally dropped too, for consistency
+        # with every other displayed path never showing a leading "$"
+        ("$.field", "field"),
     ],
 )
 def test_diff_path_str_no_parentheses(
