@@ -362,7 +362,10 @@ def test_reconcile_desired_state_malformed_secret_isolated(
 
     Regression test for the legacy fragility this migration deliberately fixes: the
     old integration let a pydantic ValidationError from a malformed secret propagate
-    and abort the entire OCM-environment run.
+    and abort the entire OCM-environment run. It's still surfaced as a reconcile
+    error (not silently swallowed) since desired state genuinely couldn't be
+    determined - see test_reconcile_unresolvable_desired_state_does_not_delete_existing_idp
+    for why it must NOT be treated as "not desired" for diffing purposes.
     """
     cluster = _cluster()
     mock_secret_manager.read_all.return_value = {"client_id": "only-one-field"}
@@ -371,8 +374,10 @@ def test_reconcile_desired_state_malformed_secret_isolated(
         "prod", OCM_CONNECTION, [cluster], VAULT_TARGET, dry_run=True
     )
 
-    assert result.status == TaskStatus.SUCCESS
+    assert result.status == TaskStatus.FAILED
     assert result.actions == []
+    assert len(result.errors) == 1
+    assert "unable to read or parse" in result.errors[0]
 
 
 def test_reconcile_desired_state_issuer_mismatch_skipped(
@@ -387,8 +392,40 @@ def test_reconcile_desired_state_issuer_mismatch_skipped(
         "prod", OCM_CONNECTION, [cluster], VAULT_TARGET, dry_run=True
     )
 
-    assert result.status == TaskStatus.SUCCESS
+    assert result.status == TaskStatus.FAILED
     assert result.actions == []
+    assert len(result.errors) == 1
+    assert "does not match configured cluster issuer" in result.errors[0]
+
+
+def test_reconcile_unresolvable_desired_state_does_not_delete_existing_idp(
+    service: OcmOidcIdpService,
+    mock_secret_manager: MagicMock,
+    mock_workspace_client: MagicMock,
+) -> None:
+    """A cluster with a live, managed identity provider must not have it deleted
+
+    just because its Vault secret became transiently unreadable this run. Before the
+    fix, an unresolvable desired state looked identical to "not desired" to the diff,
+    so the existing identity provider (name matches cluster.auth.name) would land in
+    the delete bucket and be removed - a transient Vault hiccup silently destroying a
+    working configuration. Regression test for that bug.
+    """
+    cluster = _cluster()
+    mock_secret_manager.read_all.return_value = {"client_id": "only-one-field"}
+    mock_workspace_client.get_identity_providers.return_value = [
+        _current_oidc_idp(idp_id="idp-1", name="redhat-sso")
+    ]
+
+    result = service.reconcile(
+        "prod", OCM_CONNECTION, [cluster], VAULT_TARGET, dry_run=False
+    )
+
+    assert result.status == TaskStatus.FAILED
+    assert result.actions == []
+    assert result.applied_actions == []
+    assert len(result.errors) == 1
+    mock_workspace_client.delete_identity_provider.assert_not_called()
 
 
 def test_process_adds_skips_non_oidc_desired_idp(

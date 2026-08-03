@@ -125,20 +125,46 @@ class OcmOidcIdpService:
 
     def _fetch_desired_state(
         self, clusters: list[OcmOidcIdpCluster], vault_target: Secret
-    ) -> list[_IdpState]:
-        """Compile desired OIDC identity providers from sso_client's Vault secrets."""
+    ) -> tuple[list[_IdpState], set[tuple[str, str, str, str]], list[str]]:
+        """Compile desired OIDC identity providers from sso_client's Vault secrets.
+
+        Returns (desired_state, unresolved_keys, errors). unresolved_keys are diff
+        keys (see reconcile()) whose desired state could not be determined because of
+        an error, as opposed to the cluster legitimately not wanting OIDC configured.
+        The caller must exclude any matching current-state entry from the diff -
+        otherwise an unresolved cluster looks identical to "not desired" and its
+        existing, working identity provider would be deleted on e.g. a transient
+        Vault read failure.
+        """
         desired_state: list[_IdpState] = []
+        unresolved_keys: set[tuple[str, str, str, str]] = set()
+        errors: list[str] = []
         for cluster in clusters:
-            idp = self._desired_idp_for_cluster(cluster, vault_target)
-            if idp is not None:
+            idp, error = self._desired_idp_for_cluster(cluster, vault_target)
+            if error is not None:
+                unresolved_keys.add((
+                    cluster.organization_id,
+                    cluster.name,
+                    "OpenIDIdentityProvider",
+                    cluster.auth.name,
+                ))
+                errors.append(error)
+            elif idp is not None:
                 desired_state.append(_IdpState(cluster=cluster, idp=idp))
-        return desired_state
+        return desired_state, unresolved_keys, errors
 
     def _desired_idp_for_cluster(
         self, cluster: OcmOidcIdpCluster, vault_target: Secret
-    ) -> OcmIdentityProviderOidc | None:
+    ) -> tuple[OcmIdentityProviderOidc | None, str | None]:
+        """Return (desired_idp, error).
+
+        error is set only when the desired state could not be determined (unreadable
+        secret, or a stored issuer that doesn't match the cluster's configured one) -
+        never for the cluster legitimately not wanting OIDC configured. See
+        _fetch_desired_state for why this distinction matters.
+        """
         if not cluster.auth.oidc_enabled:
-            return None
+            return None, None
 
         secret_id = cluster_vault_secret_id(
             cluster.organization_id,
@@ -157,35 +183,38 @@ class OcmOidcIdpService:
         # a routine, expected condition (sso_client may not have created the secret
         # yet) - not worth an error-level stack trace.
         except Exception as e:  # ruff: ignore[blind-except]
-            logger.warning(
-                f"Unable to read or parse SSO client secret at {secret.path}: {e}. "
-                f"Maybe not created yet? Skipping OIDC config for cluster "
-                f"{cluster.name}"
+            error = (
+                f"{cluster.name}: unable to read or parse SSO client secret at "
+                f"{secret.path}: {e}. Maybe not created yet?"
             )
-            return None
+            logger.warning(error)
+            return None, error
 
         if sso_client.issuer != cluster.auth.issuer:
             # Can only happen if someone manually changed or copied the secret.
-            logger.error(
-                f"SSO client issuer {sso_client.issuer} does not match configured "
-                f"cluster issuer {cluster.auth.issuer}. Skipping OIDC config for "
-                f"cluster {cluster.name}"
+            error = (
+                f"{cluster.name}: SSO client issuer {sso_client.issuer} does not "
+                f"match configured cluster issuer {cluster.auth.issuer}"
             )
-            return None
+            logger.error(error)
+            return None, error
 
         claims = OcmIdentityProviderOidcOpenIdClaims(
             groups=["filtered_groups"]
             if sso_client.attributes.get("group-filter-regex")
             else [],
         )
-        return OcmIdentityProviderOidc(
-            name=cluster.auth.name,
-            open_id=OcmIdentityProviderOidcOpenId(
-                client_id=sso_client.client_id,
-                client_secret=sso_client.client_secret,
-                issuer=cluster.auth.issuer,
-                claims=claims,
+        return (
+            OcmIdentityProviderOidc(
+                name=cluster.auth.name,
+                open_id=OcmIdentityProviderOidcOpenId(
+                    client_id=sso_client.client_id,
+                    client_secret=sso_client.client_secret,
+                    issuer=cluster.auth.issuer,
+                    claims=claims,
+                ),
             ),
+            None,
         )
 
     @staticmethod
@@ -327,6 +356,15 @@ class OcmOidcIdpService:
 
         return actions, applied, errors
 
+    @staticmethod
+    def _diff_key(state: _IdpState) -> tuple[str, str, str, str]:
+        return (
+            state.cluster.organization_id,
+            state.cluster.name,
+            state.idp.type,
+            state.idp.name,
+        )
+
     def reconcile(
         self,
         ocm_environment: str,
@@ -343,23 +381,26 @@ class OcmOidcIdpService:
         )
 
         current_state = self._fetch_current_state(workspace_client, clusters)
-        desired_state = self._fetch_desired_state(clusters, vault_target)
+        desired_state, unresolved_keys, errors = self._fetch_desired_state(
+            clusters, vault_target
+        )
+        # A cluster whose desired state couldn't be resolved must never look like
+        # "not desired" to the diff below - that would delete a live, working
+        # identity provider on e.g. a transient Vault read failure. Excluding its
+        # current-state entry entirely means no add/delete/change action is ever
+        # computed for it this run.
+        current_state = [
+            state
+            for state in current_state
+            if self._diff_key(state) not in unresolved_keys
+        ]
 
         diff_result = diff_iterables(
-            current_state,
-            desired_state,
-            key=lambda s: (
-                s.cluster.organization_id,
-                s.cluster.name,
-                s.idp.type,
-                s.idp.name,
-            ),
-            equal=operator.eq,
+            current_state, desired_state, key=self._diff_key, equal=operator.eq
         )
 
         actions: list[OcmOidcIdpAction] = []
         applied_actions: list[OcmOidcIdpAction] = []
-        errors: list[str] = []
         for category_actions, category_applied, category_errors in (
             self._process_deletes(
                 workspace_client, diff_result.delete.values(), dry_run=dry_run
