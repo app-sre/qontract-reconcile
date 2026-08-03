@@ -10,12 +10,12 @@ from typing import TYPE_CHECKING
 
 from qontract_utils.ocm_api import OcmApi
 
-from qontract_api.external.ocm.ocm_workspace_client import OcmWorkspaceClient
+from qontract_api.ocm.ocm_workspace_client import OcmWorkspaceClient
 
 if TYPE_CHECKING:
     from qontract_api.cache import CacheBackend
     from qontract_api.config import Settings
-    from qontract_api.external.ocm.schemas import OcmConnectionParams
+    from qontract_api.ocm.domain import OcmConnectionParams
     from qontract_api.secret_manager import SecretManager
 
 

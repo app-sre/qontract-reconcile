@@ -23,9 +23,9 @@ from qontract_api.tasks import celery_app, deduplicated_task
 if TYPE_CHECKING:
     from celery import Task
 
-    from qontract_api.external.ocm.schemas import OcmConnectionParams
     from qontract_api.integrations.ocm_oidc_idp.domain import OcmOidcIdpCluster
     from qontract_api.models import Secret
+    from qontract_api.ocm.domain import OcmConnectionParams
 
 logger = get_logger(__name__)
 

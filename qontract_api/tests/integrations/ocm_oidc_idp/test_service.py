@@ -12,7 +12,6 @@ from qontract_utils.ocm_api.models import (
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import Settings
-from qontract_api.external.ocm.schemas import OcmConnectionParams
 from qontract_api.integrations.ocm_oidc_idp.domain import (
     OcmOidcIdpAuth,
     OcmOidcIdpCluster,
@@ -22,6 +21,7 @@ from qontract_api.integrations.ocm_oidc_idp.metrics import (
 )
 from qontract_api.integrations.ocm_oidc_idp.service import OcmOidcIdpService, _IdpState
 from qontract_api.models import Secret, TaskStatus
+from qontract_api.ocm.domain import OcmConnectionParams
 from qontract_api.rhidp.domain import SsoClientSecret
 from qontract_api.rhidp.metrics import rhidp_managed_clusters
 
@@ -114,8 +114,11 @@ def settings() -> Settings:
 
 @pytest.fixture
 def mock_workspace_client() -> MagicMock:
+    """Mock OcmWorkspaceClient, with __enter__ returning self like the real client."""
     m = MagicMock()
     m.get_identity_providers.return_value = []
+    m.__enter__.return_value = m
+    m.__exit__.return_value = False
     return m
 
 

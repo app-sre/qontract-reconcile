@@ -6,9 +6,9 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-from qontract_api.external.ocm.schemas import OcmConnectionParams
 from qontract_api.integrations.ocm_oidc_idp.domain import OcmOidcIdpCluster
 from qontract_api.models import Secret, TaskResult, TaskStatus
+from qontract_api.ocm.domain import OcmConnectionParams
 
 
 class OcmOidcIdpReconcileRequest(BaseModel, frozen=True):
