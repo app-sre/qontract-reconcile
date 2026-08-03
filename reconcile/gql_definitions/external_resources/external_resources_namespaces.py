@@ -18,7 +18,6 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.aws_vpc import AWSVPC
-from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.external_resources.fragments.external_resources_module_overrides import ExternalResourcesModuleOverrides
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -40,17 +39,6 @@ fragment AWSVPC on AWSVPC_v1 {
   cidr_block
   subnets {
     id
-  }
-}
-
-fragment CommonJumphostFields on ClusterJumpHost_v1 {
-  hostname
-  knownHosts
-  user
-  port
-  remotePort
-  identity {
-    ...VaultSecret
   }
 }
 
@@ -677,9 +665,6 @@ query ExternalResourcesNamespaces {
       name
       serverUrl
       insecureSkipTLSVerify
-      jumpHost {
-        ...CommonJumphostFields
-      }
       automationToken {
         ...VaultSecret
       }
@@ -1390,7 +1375,6 @@ class NamespaceV1_ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     server_url: str = Field(..., alias="serverUrl")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
-    jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
     cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
     spec: Optional[NamespaceV1_ClusterV1_ClusterSpecV1] = Field(..., alias="spec")

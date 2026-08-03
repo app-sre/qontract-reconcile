@@ -14,6 +14,7 @@ Structure:
 from fastapi import APIRouter
 
 from qontract_api.external.ldap import router as ldap_router
+from qontract_api.external.ocm import router as ocm_router
 from qontract_api.external.pagerduty import router as pagerduty_router
 from qontract_api.external.slack import router as slack_router
 from qontract_api.external.vcs import router as vcs_router
@@ -28,6 +29,7 @@ api_v1_router.include_router(pagerduty_router.router)
 api_v1_router.include_router(slack_router.router)
 api_v1_router.include_router(vcs_router.router)
 api_v1_router.include_router(ldap_router.router)
+api_v1_router.include_router(ocm_router.router)
 
 # Future routers will be added here:
 # - tasks_router for Celery task status/management

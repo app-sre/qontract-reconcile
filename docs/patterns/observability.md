@@ -57,9 +57,9 @@ user_count = len(users)
 
 # Set a gauge to the current number of users
 metrics.set_gauge(
-    name='my_integration_managed_users',
+    name="my_integration_managed_users",
     integration=QONTRACT_INTEGRATION,
-    value=user_count
+    value=user_count,
 )
 ```
 

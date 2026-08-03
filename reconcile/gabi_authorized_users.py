@@ -71,7 +71,7 @@ def fetch_desired_state(
 ) -> None:
     for g in gabi_instances:
         expiration_date = ensure_utc(
-            datetime.strptime(g["expirationDate"], "%Y-%m-%d")  # noqa: DTZ007
+            datetime.strptime(g["expirationDate"], "%Y-%m-%d")  # ruff: ignore[call-datetime-strptime-without-zone]
         ).date()
         if (expiration_date - utc_now().date()).days > EXPIRATION_DAYS_MAX:
             raise RunnerError(
@@ -120,7 +120,6 @@ def run(
     dry_run: bool,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     defer: Callable | None = None,
 ) -> None:
     gabi_instances = queries.get_gabi_instances()
@@ -137,7 +136,6 @@ def run(
         integration_version=QONTRACT_INTEGRATION_VERSION,
         override_managed_types=["ConfigMap"],
         internal=internal,
-        use_jump_host=use_jump_host,
     )
     if defer:
         defer(oc_map.cleanup)

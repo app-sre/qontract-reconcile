@@ -128,7 +128,9 @@ def test_calculate_diff_no_lock(
             ),
         ],
     )
-    diffs = base.calculate_diff([], org_upgrade_spec, ocm_api, VersionData())
+    diffs = base.calculate_diff(
+        [], org_upgrade_spec, ocm_api, VersionData()
+    ).upgrade_policies
     assert diffs == [
         UpgradePolicyHandler(
             action="create",
@@ -178,7 +180,9 @@ def test_calculate_diff_locked_out(
             (cluster_2, upgrade_policy_spec, build_cluster_health(), []),
         ],
     )
-    diffs = base.calculate_diff(current_state, org_upgrade_spec, ocm_api, VersionData())
+    diffs = base.calculate_diff(
+        current_state, org_upgrade_spec, ocm_api, VersionData()
+    ).upgrade_policies
 
     assert not diffs
 
@@ -208,7 +212,9 @@ def test_calculate_diff_inter_lock(
             (cluster_2, upgrade_policy_spec, build_cluster_health(), []),
         ],
     )
-    diffs = base.calculate_diff([], org_upgrade_spec, ocm_api, VersionData())
+    diffs = base.calculate_diff(
+        [], org_upgrade_spec, ocm_api, VersionData()
+    ).upgrade_policies
 
     assert diffs == [
         UpgradePolicyHandler(

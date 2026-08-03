@@ -115,7 +115,7 @@ class GithubOrgApi:
         self,
         token: str,
         base_url: str = "https://api.github.com",
-        hooks: Hooks | None = None,  # noqa: ARG002 - handled by @with_hooks
+        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - handled by @with_hooks
     ) -> None:
         """Initialize GithubOrgApi.
 
@@ -156,7 +156,7 @@ class GithubOrgApi:
         return items
 
     @invoke_with_hooks(
-        lambda self, org_name: GithubOrgApiCallContext(  # noqa: ARG005
+        lambda self, org_name: GithubOrgApiCallContext(  # ruff: ignore[unused-lambda-argument]
             method="org.get_admin_members", verb="GET", org=org_name
         )
     )
@@ -175,7 +175,7 @@ class GithubOrgApi:
         return sorted(m.login.lower() for m in org.get_members(role="admin"))
 
     @invoke_with_hooks(
-        lambda self, org_name: GithubOrgApiCallContext(  # noqa: ARG005
+        lambda self, org_name: GithubOrgApiCallContext(  # ruff: ignore[unused-lambda-argument]
             method="org.get_pending_invitations", verb="GET", org=org_name
         )
     )
@@ -197,7 +197,7 @@ class GithubOrgApi:
         )
 
     @invoke_with_hooks(
-        lambda self, org_name, username: GithubOrgApiCallContext(  # noqa: ARG005
+        lambda self, org_name, username: GithubOrgApiCallContext(  # ruff: ignore[unused-lambda-argument]
             method="org.add_member_as_admin", verb="PUT", org=org_name
         )
     )

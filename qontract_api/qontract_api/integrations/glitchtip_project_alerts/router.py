@@ -21,7 +21,11 @@ from qontract_api.integrations.glitchtip_project_alerts.tasks import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
-from qontract_api.tasks import get_celery_task_result, wait_for_task_completion
+from qontract_api.tasks import (
+    get_celery_task_result,
+    queue_for,
+    wait_for_task_completion,
+)
 
 logger = get_logger(__name__)
 
@@ -37,7 +41,7 @@ router = APIRouter(
 )
 def glitchtip_project_alerts(
     reconcile_request: GlitchtipProjectAlertsReconcileRequest,
-    current_user: UserDep,  # noqa: ARG001
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
     request: Request,
 ) -> GlitchtipProjectAlertsTaskResponse:
     """Queue Glitchtip project alerts reconciliation task.
@@ -55,6 +59,7 @@ def glitchtip_project_alerts(
     """
     reconcile_glitchtip_project_alerts_task.apply_async(
         task_id=request.state.request_id,
+        queue=queue_for(dry_run=reconcile_request.dry_run),
         kwargs={
             "instances": reconcile_request.instances,
             "dry_run": reconcile_request.dry_run,
@@ -79,7 +84,7 @@ def glitchtip_project_alerts(
 )
 async def glitchtip_project_alerts_task_status(
     task_id: str,
-    current_user: UserDep,  # noqa: ARG001
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
     timeout: Annotated[
         int | None,
         Query(

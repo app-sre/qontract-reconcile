@@ -1,8 +1,11 @@
 import copy
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from unittest.mock import create_autospec
+from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock, create_autospec
 
-from pytest import fixture
+import pytest
+from pytest import MonkeyPatch, fixture
 
 from reconcile.external_resources.meta import (
     QONTRACT_INTEGRATION,
@@ -10,12 +13,157 @@ from reconcile.external_resources.meta import (
 )
 from reconcile.external_resources.secrets_sync import (
     SECRET_UPDATED_AT,
+    ClusterNamespace,
     SecretHelper,
     VaultSecretsReconciler,
 )
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
 from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+
+@dataclass
+class _FakeCluster:
+    name: str
+
+
+@fixture
+def reconciler() -> VaultSecretsReconciler:
+    return VaultSecretsReconciler(
+        ri=ResourceInventory(),
+        secrets_reader=create_autospec(SecretReaderBase),
+        vault_path="test-path",
+        thread_pool_size=1,
+        dry_run=True,
+    )
+
+
+def _spec(cluster: str, namespace: str, cluster_admin: bool) -> ExternalResourceSpec:
+    namespace_data: dict = {"name": namespace, "cluster": {"name": cluster}}
+    if cluster_admin:
+        namespace_data["clusterAdmin"] = True
+    return ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": "provisioner"},
+        resource={"identifier": f"{namespace}-id", "provider": "vpc-endpoint-service"},
+        namespace=namespace_data,
+    )
+
+
+def test_init_ocmap_requests_privileged_client_for_cluster_admin_namespace(
+    monkeypatch: MonkeyPatch,
+    reconciler: VaultSecretsReconciler,
+) -> None:
+    """A namespace with clusterAdmin: true (e.g. a protected namespace like
+    openshift-ingress) must get a privileged OC client - otherwise the
+    secret sync 403s, since the standard dedicated-admin token is forbidden
+    there."""
+    specs = [
+        _spec("cluster-a", "protected-ns", cluster_admin=True),
+        _spec("cluster-b", "regular-ns", cluster_admin=False),
+    ]
+
+    captured_namespaces: list[Any] = []
+
+    def fake_get_clusters_minimal() -> list[_FakeCluster]:
+        return [_FakeCluster("cluster-a"), _FakeCluster("cluster-b")]
+
+    def fake_init_oc_map_from_namespaces(namespaces: Any, **_kwargs: Any) -> str:
+        captured_namespaces.extend(namespaces)
+        return "fake-ocmap"
+
+    monkeypatch.setattr(
+        "reconcile.external_resources.secrets_sync.get_clusters_minimal",
+        fake_get_clusters_minimal,
+    )
+    monkeypatch.setattr(
+        "reconcile.external_resources.secrets_sync.init_oc_map_from_namespaces",
+        fake_init_oc_map_from_namespaces,
+    )
+
+    ocmap = reconciler._init_ocmap(specs)
+
+    assert ocmap == "fake-ocmap"
+    assert reconciler._privileged_namespaces == {
+        ClusterNamespace("cluster-a", "protected-ns")
+    }
+    admin_by_cluster = {ns.cluster.name: ns.cluster_admin for ns in captured_namespaces}
+    assert admin_by_cluster == {"cluster-a": True, "cluster-b": False}
+
+
+def test_apply_action_threads_privileged_flag_into_apply_options(
+    monkeypatch: MonkeyPatch,
+    reconciler: VaultSecretsReconciler,
+) -> None:
+    captured_options: list[Any] = []
+
+    def fake_apply_action(
+        oc_map: Any,
+        ri: Any,
+        cluster: Any,
+        namespace: Any,
+        resource_type: Any,
+        resource: Any,
+        options: Any,
+    ) -> None:
+        captured_options.append(options)
+
+    monkeypatch.setattr(
+        "reconcile.external_resources.secrets_sync.apply_action",
+        fake_apply_action,
+    )
+
+    fake_item = MagicMock(spec=OpenshiftResource)
+    fake_item.name = "secret-a"
+
+    reconciler.apply_action(
+        ocmap=MagicMock(),
+        cluster="cluster-a",
+        namespace="protected-ns",
+        items=[fake_item],
+        privileged=True,
+    )
+
+    assert captured_options[-1].privileged is True
+
+
+@pytest.mark.parametrize(
+    ("privileged_namespaces", "expected_privileged"),
+    [
+        ({ClusterNamespace("cluster-a", "protected-ns")}, True),
+        (set(), False),
+    ],
+)
+def test_reconcile_data_threads_privileged_flag_from_lookup(
+    reconciler: VaultSecretsReconciler,
+    privileged_namespaces: set[ClusterNamespace],
+    expected_privileged: bool,
+) -> None:
+    """reconcile_data() must look up the (cluster, namespace) pair set by
+    _init_ocmap() and thread it through to both ocmap.get_cluster() and
+    apply_action(), otherwise the privileged client computed at init time
+    never reaches the code that actually talks to the cluster."""
+    reconciler._privileged_namespaces = privileged_namespaces
+    reconciler.apply_action = MagicMock()  # type: ignore[method-assign]
+
+    ocmap = MagicMock()
+    ocmap.get_cluster.return_value.get_items.return_value = []
+
+    ri_item: tuple[str, str, str, Mapping[str, Any]] = (
+        "cluster-a",
+        "protected-ns",
+        "Secret",
+        {"desired": {}, "current": {}},
+    )
+    reconciler.reconcile_data(ri_item, ocmap)
+
+    ocmap.get_cluster.assert_called_once_with("cluster-a", expected_privileged)
+    reconciler.apply_action.assert_called_once_with(
+        ocmap, "cluster-a", "protected-ns", [], expected_privileged
+    )
 
 
 @fixture

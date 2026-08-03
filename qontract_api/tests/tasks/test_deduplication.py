@@ -19,27 +19,27 @@ def mock_cache() -> MagicMock:
 
 
 def test_deduplicated_task_success(mock_cache: MagicMock) -> None:
-    """Test task executes when lock is acquired."""
+    """Test production task executes when lock is acquired."""
 
-    @deduplicated_task(lock_key_fn=lambda x: x, timeout=60)
-    def test_task(x: str) -> str:
+    @deduplicated_task(lock_key_fn=lambda x, **_: x, timeout=60)
+    def test_task(x: str, *, dry_run: bool = False) -> str:
         return f"processed-{x}"
 
     with patch("qontract_api.tasks._deduplication.get_cache", return_value=mock_cache):
-        result = test_task("workspace-1")
+        result = test_task("workspace-1", dry_run=False)
 
     assert result == "processed-workspace-1"
     # Verify lock was attempted with correct key
     mock_cache.lock.assert_called_once_with(
-        "task_lock:test_task:dry_run=true:workspace-1", timeout=60
+        "task_lock:test_task:dry_run=false:workspace-1", timeout=60
     )
 
 
 def test_deduplicated_task_skips_duplicate(mock_cache: MagicMock) -> None:
-    """Test task skips execution when lock cannot be acquired (duplicate)."""
+    """Test production task skips execution when lock cannot be acquired (duplicate)."""
 
-    @deduplicated_task(lock_key_fn=lambda x: x, timeout=60)
-    def test_task(x: str) -> str:
+    @deduplicated_task(lock_key_fn=lambda x, **_: x, timeout=60)
+    def test_task(x: str, *, dry_run: bool = False) -> str:
         return f"processed-{x}"
 
     # Mock: lock acquisition fails (RuntimeError)
@@ -48,7 +48,7 @@ def test_deduplicated_task_skips_duplicate(mock_cache: MagicMock) -> None:
     )
 
     with patch("qontract_api.tasks._deduplication.get_cache", return_value=mock_cache):
-        result = test_task("workspace-1")
+        result = test_task("workspace-1", dry_run=False)
 
     # Should return TaskResult with SKIPPED status, not a raw dict
     assert isinstance(result, TaskResult)
@@ -64,8 +64,8 @@ def test_deduplicated_task_preserves_concrete_subclass_on_skip(
     class CustomTaskResult(TaskResult):
         pass
 
-    @deduplicated_task(lock_key_fn=lambda x: x, timeout=60)
-    def test_task(x: str) -> CustomTaskResult:
+    @deduplicated_task(lock_key_fn=lambda x, **_: x, timeout=60)
+    def test_task(x: str, *, dry_run: bool = False) -> CustomTaskResult:
         return CustomTaskResult(status=TaskStatus.SUCCESS)
 
     mock_cache.lock.return_value.__enter__.side_effect = RuntimeError(
@@ -73,7 +73,7 @@ def test_deduplicated_task_preserves_concrete_subclass_on_skip(
     )
 
     with patch("qontract_api.tasks._deduplication.get_cache", return_value=mock_cache):
-        result = test_task("workspace-1")
+        result = test_task("workspace-1", dry_run=False)
 
     assert isinstance(result, CustomTaskResult)
     assert result.status == TaskStatus.SKIPPED
@@ -87,32 +87,32 @@ def test_deduplicated_task_with_multiple_args(mock_cache: MagicMock) -> None:
         lock_key_fn=lambda x, y, **_: f"{x}-{y}",
         timeout=120,
     )
-    def test_task(x: str, y: str, z: int = 0) -> str:
+    def test_task(x: str, y: str, z: int = 0, *, dry_run: bool = False) -> str:
         return f"result-{x}-{y}-{z}"
 
     with patch("qontract_api.tasks._deduplication.get_cache", return_value=mock_cache):
-        result = test_task("a", "b", z=10)
+        result = test_task("a", "b", z=10, dry_run=False)
 
     assert result == "result-a-b-10"
     # Verify lock key includes both x and y
     mock_cache.lock.assert_called_once_with(
-        "task_lock:test_task:dry_run=true:a-b", timeout=120
+        "task_lock:test_task:dry_run=false:a-b", timeout=120
     )
 
 
 def test_deduplicated_task_lock_timeout(mock_cache: MagicMock) -> None:
     """Test task uses custom timeout for lock."""
 
-    @deduplicated_task(lock_key_fn=lambda x: x, timeout=300)
-    def test_task(x: str) -> str:
+    @deduplicated_task(lock_key_fn=lambda x, **_: x, timeout=300)
+    def test_task(x: str, *, dry_run: bool = False) -> str:
         return f"result-{x}"
 
     with patch("qontract_api.tasks._deduplication.get_cache", return_value=mock_cache):
-        test_task("workspace-1")
+        test_task("workspace-1", dry_run=False)
 
     # Verify custom timeout was used
     mock_cache.lock.assert_called_once_with(
-        "task_lock:test_task:dry_run=true:workspace-1", timeout=300
+        "task_lock:test_task:dry_run=false:workspace-1", timeout=300
     )
 
 
@@ -121,15 +121,15 @@ def test_deduplicated_task_releases_lock_on_exception(
 ) -> None:
     """Test lock is released even when task raises exception."""
 
-    @deduplicated_task(lock_key_fn=lambda x: x, timeout=60)
-    def test_task(x: str) -> str:
+    @deduplicated_task(lock_key_fn=lambda x, **_: x, timeout=60)
+    def test_task(x: str, *, dry_run: bool = False) -> str:
         raise ValueError("Task failed")
 
     with (
         patch("qontract_api.tasks._deduplication.get_cache", return_value=mock_cache),
         pytest.raises(ValueError, match="Task failed"),
     ):
-        test_task("workspace-1")
+        test_task("workspace-1", dry_run=False)
 
     # Lock context manager should still be entered and exited
     mock_cache.lock.return_value.__enter__.assert_called_once()
@@ -155,23 +155,65 @@ def test_deduplicated_task_with_kwargs(mock_cache: MagicMock) -> None:
     )
 
 
-def test_deduplicated_task_dry_run_and_production_use_separate_keys(
-    mock_cache: MagicMock,
-) -> None:
-    """dry_run=true and dry_run=false tasks must not share a lock key."""
+def test_deduplicated_task_dry_run_never_locks(mock_cache: MagicMock) -> None:
+    """Dry-run tasks must bypass locking entirely - they never write anything."""
 
     @deduplicated_task(lock_key_fn=lambda workspace, **_: workspace, timeout=60)
     def test_task(workspace: str, *, dry_run: bool = True) -> str:
         return workspace
 
     with patch("qontract_api.tasks._deduplication.get_cache", return_value=mock_cache):
-        test_task(workspace="ws-1", dry_run=True)
-        test_task(workspace="ws-1", dry_run=False)
+        first = test_task(workspace="ws-1", dry_run=True)
+        second = test_task(workspace="ws-1", dry_run=True)
 
-    calls = [call.args[0] for call in mock_cache.lock.call_args_list]
-    assert calls[0] == "task_lock:test_task:dry_run=true:ws-1"
-    assert calls[1] == "task_lock:test_task:dry_run=false:ws-1"
-    assert calls[0] != calls[1]
+    # Both calls executed - no serialization for read-only dry runs.
+    assert first == "ws-1"
+    assert second == "ws-1"
+    mock_cache.lock.assert_not_called()
+
+
+def test_deduplicated_task_dry_run_bypasses_lock_even_when_contended(
+    mock_cache: MagicMock,
+) -> None:
+    """A held production lock must not block a concurrent dry-run for the same resource."""
+
+    @deduplicated_task(lock_key_fn=lambda workspace, **_: workspace, timeout=60)
+    def test_task(workspace: str, *, dry_run: bool = True) -> str:
+        return workspace
+
+    # Even if the cache would refuse a lock, dry-run must never ask for one.
+    mock_cache.lock.return_value.__enter__.side_effect = RuntimeError(
+        "Lock not acquired"
+    )
+
+    with patch("qontract_api.tasks._deduplication.get_cache", return_value=mock_cache):
+        result = test_task(workspace="ws-1", dry_run=True)
+
+    assert result == "ws-1"
+    mock_cache.lock.assert_not_called()
+
+
+def test_deduplicated_task_production_still_dedupes_concurrent_same_resource(
+    mock_cache: MagicMock,
+) -> None:
+    """Concurrent dry_run=False calls for the same resource must still dedupe."""
+
+    @deduplicated_task(lock_key_fn=lambda workspace, **_: workspace, timeout=60)
+    def test_task(workspace: str, *, dry_run: bool = True) -> str:
+        return workspace
+
+    mock_cache.lock.return_value.__enter__.side_effect = RuntimeError(
+        "Lock not acquired"
+    )
+
+    with patch("qontract_api.tasks._deduplication.get_cache", return_value=mock_cache):
+        result = test_task(workspace="ws-1", dry_run=False)
+
+    assert isinstance(result, TaskResult)
+    assert result.status == TaskStatus.SKIPPED
+    mock_cache.lock.assert_called_once_with(
+        "task_lock:test_task:dry_run=false:ws-1", timeout=60
+    )
 
 
 def test_deduplicated_task_preserves_function_name() -> None:
@@ -193,7 +235,7 @@ def test_deduplicated_task_with_complex_lock_key(mock_cache: MagicMock) -> None:
         ),
         timeout=600,
     )
-    def test_task(workspaces: list[dict[str, str]]) -> int:
+    def test_task(workspaces: list[dict[str, str]], *, dry_run: bool = False) -> int:
         return len(workspaces)
 
     workspaces = [
@@ -202,10 +244,10 @@ def test_deduplicated_task_with_complex_lock_key(mock_cache: MagicMock) -> None:
     ]
 
     with patch("qontract_api.tasks._deduplication.get_cache", return_value=mock_cache):
-        result = test_task(workspaces)
+        result = test_task(workspaces, dry_run=False)
 
     assert result == 2
     # Lock key should be sorted workspace names
     mock_cache.lock.assert_called_once_with(
-        "task_lock:test_task:dry_run=true:ws-a,ws-b", timeout=600
+        "task_lock:test_task:dry_run=false:ws-a,ws-b", timeout=600
     )

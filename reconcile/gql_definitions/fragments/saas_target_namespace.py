@@ -17,7 +17,6 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -85,7 +84,6 @@ class ClusterV1(ConfiguredBaseModel):
     internal: Optional[bool] = Field(..., alias="internal")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     labels: Optional[Json] = Field(..., alias="labels")
-    jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
     cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")

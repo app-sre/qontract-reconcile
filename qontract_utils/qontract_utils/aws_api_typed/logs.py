@@ -19,7 +19,7 @@ class AWSApiLogs:
     def __init__(
         self,
         client: CloudWatchLogsClient,
-        hooks: Hooks | None = None,  # noqa: ARG002
+        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument]
     ) -> None:
         self.client = client
 

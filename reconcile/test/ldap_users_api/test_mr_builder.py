@@ -238,7 +238,7 @@ deleted_users:
 async def test_build_infra_operations_playbook_only() -> None:
     """Test infra operations - user in bastion playbook only."""
 
-    async def mock_get_file(*, path: str) -> str | None:  # noqa: RUF029
+    async def mock_get_file(*, path: str) -> str | None:  # ruff: ignore[unused-async]
         if path == INFRA_PLAYBOOK_PATH:
             return INFRA_PLAYBOOK
         if path == INFRA_ADMINS_PATH:
@@ -276,7 +276,7 @@ async def test_build_infra_operations_playbook_only() -> None:
 async def test_build_infra_operations_no_match() -> None:
     """Test infra operations when user doesn't exist in either file."""
 
-    async def mock_get_file(*, path: str) -> str | None:  # noqa: RUF029
+    async def mock_get_file(*, path: str) -> str | None:  # ruff: ignore[unused-async]
         if path == INFRA_PLAYBOOK_PATH:
             return INFRA_PLAYBOOK
         if path == INFRA_ADMINS_PATH:
@@ -306,7 +306,7 @@ admins_list:
 deleted_users: []
 """
 
-    async def mock_get_file(*, path: str) -> str | None:  # noqa: RUF029
+    async def mock_get_file(*, path: str) -> str | None:  # ruff: ignore[unused-async]
         if path == INFRA_PLAYBOOK_PATH:
             return INFRA_PLAYBOOK
         if path == INFRA_ADMINS_PATH:

@@ -266,12 +266,38 @@ class GlitchtipSettings(BaseModel):
     )
 
 
+class KubernetesSettings(BaseModel):
+    """Kubernetes namespace cache configuration."""
+
+    namespace_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Kubernetes namespace existence cache TTL in seconds (one hour)",
+    )
+
+
 class LdapSettings(BaseModel):
     """LDAP external integration configuration."""
 
     users_cache_ttl: int = Field(
         default=6 * 60 * 60,
         description="LDAP users check cache TTL in seconds (six hours)",
+    )
+
+
+class OcmSettings(BaseModel):
+    """OCM API and integration configuration."""
+
+    api_timeout: int = Field(
+        default=60,
+        description="OCM API timeout in seconds",
+    )
+    api_max_retries: int = Field(
+        default=3,
+        description="OCM API max transport-level retries for failed requests",
+    )
+    clusters_cache_ttl: int = Field(
+        default=60 * 10,
+        description="OCM cluster discovery cache TTL in seconds (10 minutes)",
     )
 
 
@@ -492,10 +518,22 @@ class Settings(BaseSettings):
         description="Glitchtip API and integration configuration",
     )
 
+    # Kubernetes Configuration (nested)
+    kubernetes: KubernetesSettings = Field(
+        default_factory=KubernetesSettings,
+        description="Kubernetes namespace cache configuration",
+    )
+
     # LDAP Configuration (nested)
     ldap: LdapSettings = Field(
         default_factory=LdapSettings,
         description="LDAP external integration configuration",
+    )
+
+    # OCM Configuration (nested)
+    ocm: OcmSettings = Field(
+        default_factory=OcmSettings,
+        description="OCM API and integration configuration",
     )
 
     # VCS Configuration (nested)

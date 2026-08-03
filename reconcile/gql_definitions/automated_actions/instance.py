@@ -21,25 +21,11 @@ from reconcile.gql_definitions.fragments.oc_connection_cluster import OcConnecti
 
 
 DEFINITION = """
-fragment CommonJumphostFields on ClusterJumpHost_v1 {
-  hostname
-  knownHosts
-  user
-  port
-  remotePort
-  identity {
-    ...VaultSecret
-  }
-}
-
 fragment OcConnectionCluster on Cluster_v1 {
   name
   serverUrl
   internal
   insecureSkipTLSVerify
-  jumpHost {
-    ...CommonJumphostFields
-  }
   automationToken {
     ...VaultSecret
   }

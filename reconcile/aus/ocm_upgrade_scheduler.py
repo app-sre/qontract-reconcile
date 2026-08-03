@@ -80,7 +80,7 @@ class OCMClusterUpgradeSchedulerIntegration(
                 ),
             )
 
-            diffs = aus.calculate_diff(
+            diff_result = aus.calculate_diff(
                 current_state,
                 org_upgrade_spec,
                 ocm_api,
@@ -90,10 +90,18 @@ class OCMClusterUpgradeSchedulerIntegration(
 
             aus.act(
                 dry_run,
-                diffs,
+                diff_result.upgrade_policies,
                 ocm_api,
                 self.params.rosa_role_upgrade_handler_params,
                 self.secret_reader,
+            )
+
+            aus.act_channel_switches(
+                dry_run,
+                diff_result.channel_switches,
+                ocm_api,
+                ocm_env=org_upgrade_spec.org.environment.name,
+                integration=self.name,
             )
 
     def expose_version_data_metrics(

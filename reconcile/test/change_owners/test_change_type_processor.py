@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import jsonpath_ng
 import pytest
 from jsonpath_ng.exceptions import JsonPathParserError
 
@@ -83,7 +84,9 @@ def test_change_type_processor_allowed_paths_conditions(
         ),
     )
 
-    assert {str(p) for p in paths} == {"openshiftResources.[1].version"}
+    # jsonpath_ng.Index is not hashable in this version, so we can't compare sets
+    assert len(paths) == 1
+    assert paths[0] == jsonpath_ng.parse("openshiftResources.[1].version")
 
 
 @pytest.fixture

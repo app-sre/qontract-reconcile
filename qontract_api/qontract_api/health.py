@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-import httpxyz as httpx
+import httpx2
 from fastapi import Depends, Request
 from pydantic import BaseModel, Field
 
@@ -74,14 +74,14 @@ def check_opa_health(opa_client: OPAClient | None) -> HealthStatus:
         return HealthStatus(status="healthy", message="OPA authorization disabled")
 
     try:
-        response = httpx.get(opa_client.health_url, timeout=2)
-        if httpx.codes.is_success(response.status_code):
+        response = httpx2.get(opa_client.health_url, timeout=2)
+        if httpx2.codes.is_success(response.status_code):
             return HealthStatus(status="healthy", message="OPA sidecar reachable")
         return HealthStatus(
             status="unhealthy",
             message=f"OPA returned {response.status_code}",
         )
-    except (OSError, httpx.TimeoutException) as e:
+    except (OSError, httpx2.RequestError) as e:
         return HealthStatus(
             status="unhealthy",
             message=f"OPA health check failed: {e}",

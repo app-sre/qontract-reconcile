@@ -95,13 +95,12 @@ Use a full DI framework like `dependency-injector` or `injector`.
 ```python
 from dependency_injector import containers, providers
 
+
 class Container(containers.DeclarativeContainer):
     config = providers.Configuration()
     vault = providers.Singleton(VaultClient, ...)
-    slack_service = providers.Factory(
-        SlackService,
-        get_secret=vault.provided.read
-    )
+    slack_service = providers.Factory(SlackService, get_secret=vault.provided.read)
+
 
 # Usage
 container = Container()
@@ -130,6 +129,7 @@ Inject dependencies as concrete classes via constructor, using Protocol types fo
 
 ```python
 from qontract_utils.secret_reader.base import SecretBackend
+
 
 class SlackUsergroupsService:
     """Service for reconciling Slack usergroups.
@@ -166,6 +166,7 @@ class SlackUsergroupsService:
         )
 
         # Business logic...
+
 
 # Router provides concrete implementations
 from qontract_utils.secret_reader.vault import VaultSecretReader
@@ -234,6 +235,7 @@ For most dependencies, inject concrete class instances typed with Protocol:
 from qontract_utils.secret_reader.base import SecretBackend
 from qontract_api.config import Settings
 
+
 class SlackUsergroupsService:
     """Service for reconciling Slack usergroups.
 
@@ -286,6 +288,7 @@ For multi-method dependencies, use `typing.Protocol`:
 ```python
 from typing import Protocol
 
+
 class CacheBackend(Protocol):
     """Protocol for cache implementations."""
 
@@ -296,6 +299,7 @@ class CacheBackend(Protocol):
     def set(self, key: str, value: str, ttl: int) -> None:
         """Set value in cache with TTL."""
         ...
+
 
 class MyService:
     """Service with protocol dependency."""
@@ -331,6 +335,7 @@ from qontract_api.dependencies import (
     get_settings,
 )
 
+
 @router.post("/api/integrations/slack-usergroups/reconcile")
 async def reconcile_slack_usergroups(
     request: SlackUsergroupsReconcileRequest,
@@ -365,9 +370,11 @@ async def reconcile_slack_usergroups(
 from qontract_api.config import get_settings
 from qontract_utils.secret_reader import create_secret_reader
 
+
 def get_secret_reader() -> SecretBackend:
     """FastAPI dependency for secret reader."""
     return create_secret_reader(use_vault=get_settings().vault.enabled)
+
 
 def get_slack_client_factory(
     cache: CacheBackend = Depends(get_cache_backend),
@@ -387,6 +394,7 @@ Inject mocks for unit testing:
 ```python
 from unittest.mock import MagicMock
 from qontract_utils.secret_reader.base import SecretBackend
+
 
 def test_slack_usergroups_service_reconcile():
     """Test service with mocked dependencies."""
@@ -447,6 +455,7 @@ Don't inject business data or simple values:
 class UserService:
     def __init__(self, user_id: str):  # Business data, not dependency
         self.user_id = user_id
+
 
 # ✅ DO: Pass business data to methods
 class UserService:

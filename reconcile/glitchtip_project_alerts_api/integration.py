@@ -243,7 +243,8 @@ class GlitchtipProjectAlertsIntegration(
             dry_run=dry_run,
         )
 
-        response = await reconcile_glitchtip_project_alerts(request_data)
+        with self.log_api_exceptions():
+            response = await reconcile_glitchtip_project_alerts(request_data)
         logging.info(f"request_id: {response.id}")
         return response
 

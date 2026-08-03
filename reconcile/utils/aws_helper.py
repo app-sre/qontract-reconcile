@@ -31,7 +31,7 @@ def get_account_uid_from_arn(arn: str) -> str:
 
 def get_role_name_from_arn(arn: str) -> str:
     # arn:aws:iam::12345:role/role-1 --> role-1
-    return arn.split("/")[-1]  # noqa: PLC0207
+    return arn.split("/")[-1]  # ruff: ignore[missing-maxsplit-arg]
 
 
 def is_aws_managed_resource(arn: str) -> bool:
@@ -78,7 +78,7 @@ def get_account(accounts: Iterable[Account], account_name: str) -> Account:
     raise AccountNotFoundError(account_name)
 
 
-def get_region_from_availability_zone(availability_zone: str) -> str:  # noqa: FURB118
+def get_region_from_availability_zone(availability_zone: str) -> str:  # ruff: ignore[reimplemented-operator]
     return availability_zone[:-1]
 
 

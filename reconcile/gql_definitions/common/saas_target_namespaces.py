@@ -21,17 +21,6 @@ from reconcile.gql_definitions.fragments.saas_target_namespace import SaasTarget
 
 
 DEFINITION = """
-fragment CommonJumphostFields on ClusterJumpHost_v1 {
-  hostname
-  knownHosts
-  user
-  port
-  remotePort
-  identity {
-    ...VaultSecret
-  }
-}
-
 fragment SaasTargetNamespace on Namespace_v1 {
   name
   labels
@@ -73,9 +62,6 @@ fragment SaasTargetNamespace on Namespace_v1 {
     internal
     insecureSkipTLSVerify
     labels
-    jumpHost {
-      ...CommonJumphostFields
-    }
     automationToken {
       ...VaultSecret
     }

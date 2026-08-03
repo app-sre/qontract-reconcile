@@ -5,48 +5,44 @@ description = "Shared utilities for qontract-reconcile and qontract-api"
 requires-python = ">=3.14"
 dependencies = [
     # keep in sync with boto3-stubs in dependency-groups.type
-    "boto3==1.43.10",
-    "botocore==1.43.10",
-    "cloudevents==2.0.0",
-    "faststream[redis]==0.6.7",
-    "httpxyz==0.31.2",
+    "boto3==1.43.58",
+    "botocore==1.43.58",
+    "dateparser==1.4.1",
+    "faststream[redis]==0.7.3",
+    "httpx2==2.9.1",
     "hvac==2.4.0",
     "ldap3>=2.9.1,<2.10.0",
-    "pagerduty==6.2.1",
-    "prometheus-client==0.25.0",
+    "lightkube==0.22.0",
+    "pagerduty==7.0.0",
+    "prometheus-client==0.26.0",
     "pydantic==2.13.4",
     "pygithub==1.58.2",
     "python-gitlab==6.0.0",
-    "redis==7.4.0",
+    "redis==8.0.1",
     "requests==2.34.2",
     "ruamel-yaml==0.19.1",
-    "slack_sdk==3.42.0",
+    "slack_sdk==3.43.0",
     "stamina==26.1.0",
-    "structlog==25.5.0",
+    "structlog==26.1.0",
 ]
 
 [dependency-groups]
 dev = [
     # development and testing tools
     # keep in sync with project.dependencies.boto3
-    "boto3-stubs[account,cloudformation,dynamodb,iam,logs,organizations,s3,service-quotas,sts,support]==1.43.10",
-    "mypy==2.1.0",
-    "pytest-asyncio==1.3.0",
+    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,iam,logs,organizations,s3,service-quotas,sts,support]==1.43.58",
+    "mypy==2.3.0",
+    "pytest-asyncio==1.4.0",
     "pytest-cov==7.1.0",
+    "pytest-httpserver==1.1.5",
     "pytest-mock==3.15.1",
-    "pytest==9.0.3",
-    "ruff==0.15.13",
-    "types-hvac>=2.4.0.20260518",
+    "pytest==9.1.1",
+    "ruff==0.16.0",
+    "types-dateparser",
+    "types-hvac==2.4.0.20260728",
     "types-ldap3",
-    "tzdata==2026.2",
+    "tzdata==2026.3",
 ]
-
-[[tool.uv.dependency-metadata]]
-name = "pagerduty"
-requires-dist = ["httpxyz>=0.31"]
-
-[tool.ruff.lint.pyflakes]
-allowed-unused-imports = ["httpxyz"]
 
 [build-system]
 requires = ["hatchling"]
@@ -54,70 +50,71 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 88
-src = ["qontract_utils"]
+src = ["qontract_utils", "tests"]
 fix = true
 
 [tool.ruff.lint]
 preview = true
 select = ["ALL"]
 ignore = [
-    "ANN401",  # allow typings.Any
-    "CPY",     # Missing copyright header
-    "D100",    # Missing docstring in public module
-    "D101",    # Missing docstring in public class
-    "D102",    # Missing docstring in public method
-    "D103",    # Missing docstring in public function
-    "D104",    # Missing docstring in public package
-    "D105",    # Missing docstring in magic method
-    "D106",    # Missing docstring in nested public class
-    "D107",    # Missing docstring in __init__
-    "D203",    # 1 blank line required before class docstring
-    "D211",    # No blank lines allowed before class docstring
-    "D212",    # multi-line-summary-first-line
-    "D213",    # multi-line-summary-second-line
-    "D4",      # Doc string style
-    "E501",    # Line too long
-    "FIX002",  # TODO comment found
-    "G004",    # Logging statement uses f-string
-    "PLR0904", # Too many public methods
-    "PLR0913", # Too many arguments
-    "PLR0917", # Too many positional arguments
-    "S101",    # Use of assert detected. Pytest uses assert
-    "S404",    # subprocess import
-    "EM101",   # Exception must not use a string literal, assign to variable first
-    "EM102",   # Exception must not use an f-string literal, assign to variable first
-    "TRY003",  # Avoid specifying long messages outside the exception class
-    "TRY300",  # try-consider-else
-    "TC002",   # type-checking-block
-    "TC003",   # type-checking-block
+    "any-type",                            # allow typings.Any
+    "CPY",                                 # Missing copyright header
+    "undocumented-public-module",          # Missing docstring in public module
+    "undocumented-public-class",           # Missing docstring in public class
+    "undocumented-public-method",          # Missing docstring in public method
+    "undocumented-public-function",        # Missing docstring in public function
+    "undocumented-public-package",         # Missing docstring in public package
+    "undocumented-magic-method",           # Missing docstring in magic method
+    "undocumented-public-nested-class",    # Missing docstring in nested public class
+    "undocumented-public-init",            # Missing docstring in __init__
+    "incorrect-blank-line-before-class",   # 1 blank line required before class docstring
+    "blank-line-before-class",             # No blank lines allowed before class docstring
+    "multi-line-summary-first-line",       # multi-line-summary-first-line
+    "multi-line-summary-second-line",      # multi-line-summary-second-line
+    "D4",                                  # Doc string style
+    "line-too-long",                       # Line too long
+    "line-contains-todo",                  # TODO comment found
+    "logging-f-string",                    # Logging statement uses f-string
+    "too-many-public-methods",             # Too many public methods
+    "too-many-arguments",                  # Too many arguments
+    "too-many-positional-arguments",       # Too many positional arguments
+    "assert",                              # Use of assert detected. Pytest uses assert
+    "suspicious-subprocess-import",        # subprocess import
+    "raw-string-in-exception",             # Exception must not use a string literal, assign to variable first
+    "f-string-in-exception",               # Exception must not use an f-string literal, assign to variable first
+    "raise-vanilla-args",                  # Avoid specifying long messages outside the exception class
+    "try-consider-else",                   # try-consider-else
+    "typing-only-third-party-import",      # type-checking-block
+    "typing-only-standard-library-import", # type-checking-block
     # pydoclint
     "DOC",
     # May conflict with the formatter, https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
-    "W191",
-    "E111",
-    "E114",
-    "E117",
-    "D206",
-    "D300",
+    "tab-indentation",
+    "indentation-with-invalid-multiple",
+    "indentation-with-invalid-multiple-comment",
+    "over-indented",
+    "docstring-tab-indentation",
+    "triple-single-quotes",
     "Q",
-    "COM812",
-    "COM819",
-    "ISC001",
+    "missing-trailing-comma",
+    "prohibited-trailing-comma",
+    "single-line-implicit-string-concatenation",
     # remove me
     "TD", # TODO found
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
-    "PLC0415", # Import not at top level (lazy imports in tests)
-    "PLR2004", # Magic value in comparison (acceptable in tests)
-    "PLR6301", # Method could be function/classmethod/staticmethod (pytest uses instance methods)
-    "PT012",   # pytest.raises with multiple statements (acceptable pattern)
-    "RUF043",  # Regex metacharacters in pytest.raises match (intentional in tests)
-    "RUF069",  # Unreliable floating point equality comparison
-    "S105",    # Possible hardcoded password assigned (test fixtures)
-    "S106",    # Possible hardcoded password (test fixtures use hardcoded values)
-    "SLF001",  # Private member access (testing internal state)
+    "import-outside-top-level",               # Import not at top level (lazy imports in tests)
+    "magic-value-comparison",                 # Magic value in comparison (acceptable in tests)
+    "no-self-use",                            # Method could be function/classmethod/staticmethod (pytest uses instance methods)
+    "pytest-raises-with-multiple-statements", # pytest.raises with multiple statements (acceptable pattern)
+    "pytest-raises-ambiguous-pattern",        # Regex metacharacters in pytest.raises match (intentional in tests)
+    "float-equality-comparison",              # Unreliable floating point equality comparison
+    "hardcoded-password-string",              # Possible hardcoded password assigned (test fixtures)
+    "hardcoded-password-func-arg",            # Possible hardcoded password (test fixtures use hardcoded values)
+    "private-member-access",                  # Private member access (testing internal state)
+    "import-private-name",                    # Import from private module (testing internal state)
 ]
 
 [tool.ruff.lint.flake8-type-checking]
@@ -132,7 +129,7 @@ runtime-evaluated-decorators = [
 split-on-trailing-comma = false
 
 [tool.mypy]
-files = ["qontract_utils"]
+files = ["qontract_utils", "tests"]
 plugins = ["pydantic.mypy"]
 # More context here: https://github.com/python/mypy/issues/9091
 # Ensure that methods without type definitions are still checked

@@ -88,7 +88,6 @@ HOLD_LABELS = [
 ERROR_LABELS = frozenset({MERGE_ERROR, PIPELINE_ERROR, REBASE_ERROR})
 
 TENANT_LABEL_PREFIX = "tenant-"
-MIN_OMM_GROUP_SIZE = 3  # 1 lead + 2 pending MRs
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
@@ -426,7 +425,7 @@ def handle_stale_items(
     items: Iterable[ProjectIssue | ProjectMergeRequest],
     item_type: str,
 ) -> None:
-    LABEL = "stale"  # noqa: N806
+    LABEL = "stale"  # ruff: ignore[non-lowercase-variable-in-function]
 
     now = utc_now()
     for item in items:
@@ -751,6 +750,12 @@ def apply_omm_pending(
         if not dry_run:
             gl.add_label_to_merge_request(mr, OMM_PENDING)
             try:
+                logging.info([
+                    "omm-group",
+                    "skip-ci-rebase-at-formation",
+                    gl.project.name,
+                    mr.iid,
+                ])
                 mr.rebase(skip_ci=True)
             except gitlab.exceptions.GitlabMRRebaseError:
                 logging.warning([
@@ -760,6 +765,7 @@ def apply_omm_pending(
                     mr.iid,
                 ])
                 gl.remove_label(mr, OMM_PENDING)
+                gl.add_label_to_merge_request(mr, REBASE_ERROR)
                 optimistic_merge_rejected.labels(
                     project_id=mr.target_project_id,
                     reason="rebase_failed",
@@ -1054,18 +1060,17 @@ def _process_omm_member(
                 pipelines=timed_out,
             )
 
-    # Filter noise pipelines caused by skip-ci rebase:
-    # SKIPPED: GitLab creates a skipped MR-event pipeline for skip_ci
-    # push at current SHA: fork CI fires on the new commit, and
-    # same-project MRs can also see a push pipeline despite skip_ci.
+    # Filter pipelines that carry no CI signal:
+    # - SKIPPED: placeholder from skip_ci rebase
+    # - PUSH: empty 0-job shells from skip_ci rebase (real CI is source=external)
     pipelines = [
         p
         for p in pipelines
-        if p.status != PipelineStatus.SKIPPED
-        and not (p.sha == mr.sha and p.source == "push")
+        if not (p.status == PipelineStatus.SKIPPED or p.source == "push")
     ]
 
-    mr_is_rebased = is_rebased(mr, gl)
+    fresh_mr = gl.get_merge_request(mr.iid)
+    mr_is_rebased = is_rebased(fresh_mr, gl)
 
     if not pipelines:
         if mr_is_rebased:
@@ -1411,15 +1416,18 @@ def merge_merge_requests(
         merges += 1
 
         if rebase and merges == 1:
-            if multi_merge:
+            if multi_merge and is_eligible_for_optimistic_merge(mr):
                 candidates = _form_omm_group(
                     gl=gl,
                     merge_requests=merge_requests,
                     merged_labels=merged_labels,
                 )
-                if len(candidates) >= MIN_OMM_GROUP_SIZE - 1:  # -1 for the lead
+                if candidates:
                     apply_omm_group_lead(dry_run, gl, mr)
                     apply_omm_pending(dry_run, gl, candidates)
+            elif multi_merge:
+                # lead has no tenant labels — fall back to serial merge
+                logging.info(["omm-group", "lead-ineligible", gl.project.name, mr.iid])
             break
 
     merge_batch_size_histogram.labels(project_id=gl.project.id).observe(merges)
@@ -1432,7 +1440,7 @@ def run_error_healthcheck(
     consecutive_failure_limit: int = 3,
 ) -> None:
     """Check error labels for queue-eligible MRs. Apply/remove
-    rebase-error based on merge_error field and detailed_merge_status,
+    rebase-error based on merge_error field from .get(),
     pipeline-error based on consecutive failure count, and remove
     merge-error if any new notes have been posted since the label was applied."""
     for mr in project_merge_requests:
@@ -1451,13 +1459,22 @@ def run_error_healthcheck(
         labels = set(mr.labels)
 
         has_rebase_error = REBASE_ERROR in labels
-        mr_merge_error = getattr(mr, "merge_error", None)
-        mr_detailed = getattr(mr, "detailed_merge_status", None)
-        rebase_failed = bool(
-            mr_merge_error
-            and "Rebase failed" in mr_merge_error
-            and mr_detailed == "need_rebase"
-        )
+        try:
+            fresh = gl.get_merge_request(mr.iid)
+        except gitlab.exceptions.GitlabGetError as e:
+            logging.warning([
+                "error-healthcheck",
+                "rebase-status-refresh-failed",
+                gl.project.name,
+                mr.iid,
+                str(e),
+            ])
+            rebase_failed = has_rebase_error
+        else:
+            fresh_merge_error = getattr(fresh, "merge_error", None)
+            rebase_failed = bool(
+                fresh_merge_error and "Rebase failed" in fresh_merge_error
+            )
 
         if rebase_failed and not has_rebase_error:
             logging.warning([
@@ -1465,7 +1482,7 @@ def run_error_healthcheck(
                 REBASE_ERROR,
                 gl.project.name,
                 mr.iid,
-                mr_merge_error,
+                fresh_merge_error,
             ])
             if not dry_run:
                 gl.add_label_to_merge_request(mr, REBASE_ERROR)
@@ -1484,8 +1501,24 @@ def run_error_healthcheck(
         if not pipelines:
             continue
 
+        terminal_pipelines = [
+            p
+            for p in pipelines
+            if p.status
+            in {
+                PipelineStatus.SUCCESS,
+                PipelineStatus.FAILED,
+                PipelineStatus.CANCELED,
+                PipelineStatus.SKIPPED,
+            }
+        ]
+        if not terminal_pipelines:
+            continue
+
         has_pipeline_error = PIPELINE_ERROR in labels
-        is_healthy = check_pipeline_health(pipelines, consecutive_failure_limit)
+        is_healthy = check_pipeline_health(
+            terminal_pipelines, consecutive_failure_limit
+        )
 
         if not is_healthy and not has_pipeline_error:
             logging.warning([
@@ -1548,7 +1581,7 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
     for pat in pats:
         if pat.active:
             expiration_date = ensure_utc(
-                datetime.strptime(pat.expires_at, EXPIRATION_DATE_FORMAT)  # noqa: DTZ007
+                datetime.strptime(pat.expires_at, EXPIRATION_DATE_FORMAT)  # ruff: ignore[call-datetime-strptime-without-zone]
             )
             days_until_expiration = expiration_date.date() - utc_now().date()
             gitlab_token_expiration.labels(pat.name).set(days_until_expiration.days)
@@ -1561,8 +1594,7 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
 
 def run(dry_run: bool, wait_for_pipeline: bool) -> None:
     default_days_interval = 15
-    default_limit = 8
-    default_merge_limit = 8
+    default_rebase_limit = 8
     default_consecutive_failure_limit = 3
     default_enable_closing = False
     instance = queries.get_gitlab_instance()
@@ -1580,8 +1612,8 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
         project_url = repo["url"]
         days_interval = hk.get("days_interval") or default_days_interval
         enable_closing = hk.get("enable_closing") or default_enable_closing
-        limit = hk.get("limit") or default_limit
-        merge_limit = hk.get("merge_limit") or default_merge_limit
+        rebase_limit = hk.get("rebase_limit") or default_rebase_limit
+        merge_limit = hk.get("merge_limit") or rebase_limit
         consecutive_failure_limit = (
             hk.get("consecutive_failure_limit") or default_consecutive_failure_limit
         )
@@ -1677,7 +1709,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                 rebase_merge_requests(
                     dry_run=dry_run,
                     gl=gl,
-                    rebase_limit=limit,
+                    rebase_limit=rebase_limit,
                     state=state,
                     pipeline_timeout=pipeline_timeout,
                     wait_for_pipeline=wait_for_pipeline,

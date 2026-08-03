@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# ruff: noqa: PLC0415 - `import` should be at the top-level of a file
+# ruff: file-ignore[import-outside-top-level] - `import` should be at the top-level of a file
 
 from __future__ import annotations
 
@@ -68,7 +68,6 @@ from reconcile.cli import (
     cluster_name,
     config_file,
     namespace_name,
-    use_jump_host,
 )
 from reconcile.cli import (
     threaded as thread_pool_size,
@@ -121,6 +120,7 @@ from reconcile.utils import (
     promtool,
 )
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.aws_helper import get_account_uid_from_arn
 from reconcile.utils.binary import (
     binary,
     binary_version,
@@ -1014,10 +1014,12 @@ def clusters_network(ctx: click.Context, name: str) -> None:
 
     columns = [
         "name",
+        "aws_account_id",
         "vpc_id",
         "network.vpc",
         "network.service",
         "network.pod",
+        "availability_zone_ids",
         "egress_ips",
     ]
     ocm_map = OCMMap(clusters=clusters, settings=settings)
@@ -1040,6 +1042,7 @@ def clusters_network(ctx: click.Context, name: str) -> None:
                 "assume_region": cluster["spec"]["region"],
                 "assume_cidr": cluster["network"]["vpc"],
             })
+            cluster["aws_account_id"] = account["uid"]
         else:
             account = tfvpc._build_infrastructure_assume_role(
                 management_account,
@@ -1053,10 +1056,15 @@ def clusters_network(ctx: click.Context, name: str) -> None:
             account["resourcesDefaultRegion"] = management_account[
                 "resourcesDefaultRegion"
             ]
+            cluster["aws_account_id"] = get_account_uid_from_arn(account["assume_role"])
         with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
-            vpc_id, _, _, _ = aws_api.get_cluster_vpc_details(account)
+            vpc_id, _, subnets_id_az, _ = aws_api.get_cluster_vpc_details(
+                account, subnets=True
+            )
             assert vpc_id
             cluster["vpc_id"] = vpc_id
+            az_ids = sorted({s["az_id"] for s in subnets_id_az or [] if s["az_id"]})
+            cluster["availability_zone_ids"] = ", ".join(az_ids)
             egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account, vpc_id)
             cluster["egress_ips"] = ", ".join(sorted(egress_ips))
 
@@ -1935,7 +1943,7 @@ def rds_recommendations(ctx: click.Context) -> None:
             continue
         for spec in get_external_resource_specs(namespace_info):
             if spec.provider == "rds":
-                targetted_accounts.append(spec.provisioner_name)  # noqa: PERF401
+                targetted_accounts.append(spec.provisioner_name)  # ruff: ignore[manual-list-comprehension]
 
     accounts = [
         a for a in queries.get_aws_accounts() if a["name"] in targetted_accounts
@@ -2593,9 +2601,8 @@ def app_interface_merge_history(ctx: click.Context) -> None:
     short_help="obtain a list of all resources that are managed "
     "on a customer cluster via a Hive SelectorSyncSet."
 )
-@use_jump_host()
 @click.pass_context
-def selectorsyncset_managed_resources(ctx: click.Context, use_jump_host: bool) -> None:
+def selectorsyncset_managed_resources(ctx: click.Context) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = get_clusters()
@@ -2605,7 +2612,6 @@ def selectorsyncset_managed_resources(ctx: click.Context, use_jump_host: bool) -
         integration="qontract-cli",
         thread_pool_size=1,
         init_api_resources=True,
-        use_jump_host=use_jump_host,
     )
     columns = [
         "cluster",
@@ -2651,11 +2657,8 @@ def selectorsyncset_managed_resources(ctx: click.Context, use_jump_host: bool) -
     short_help="obtain a list of all resources that are managed "
     "on a customer cluster via an ACM Policy via a Hive SelectorSyncSet."
 )
-@use_jump_host()
 @click.pass_context
-def selectorsyncset_managed_hypershift_resources(
-    ctx: click.Context, use_jump_host: bool
-) -> None:
+def selectorsyncset_managed_hypershift_resources(ctx: click.Context) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = get_clusters()
@@ -2665,7 +2668,6 @@ def selectorsyncset_managed_hypershift_resources(
         integration="qontract-cli",
         thread_pool_size=1,
         init_api_resources=True,
-        use_jump_host=use_jump_host,
     )
     columns = [
         "cluster",
@@ -4673,7 +4675,6 @@ def force_unlock(ctx: click.Context, lock_id: str) -> None:
 @cluster_name
 @namespace_name
 @thread_pool_size()
-@use_jump_host()
 @click.option("--exclude-pattern", help="Exclude images that match this pattern")
 @click.option("--include-pattern", help="Only include images that match this pattern")
 @click.pass_context
@@ -4682,7 +4683,6 @@ def container_images(
     cluster_name: str,
     namespace_name: str,
     thread_pool_size: int,
-    use_jump_host: bool,
     exclude_pattern: str,
     include_pattern: str,
 ) -> None:
@@ -4692,7 +4692,6 @@ def container_images(
         cluster_name=cluster_name,
         namespace_name=namespace_name,
         thread_pool_size=thread_pool_size,
-        use_jump_host=use_jump_host,
         exclude_pattern=exclude_pattern,
         include_pattern=include_pattern,
     )

@@ -1,4 +1,4 @@
-# ruff: noqa: SIM114
+# ruff: file-ignore[if-with-same-arms]
 from __future__ import annotations
 
 import base64
@@ -542,7 +542,7 @@ class OpenshiftResource:
 
 def fully_qualified_kind(kind: str, api_version: str) -> str:
     if "/" in api_version:
-        group = api_version.split("/")[0]  # noqa: PLC0207
+        group = api_version.split("/")[0]  # ruff: ignore[missing-maxsplit-arg]
         return f"{kind}.{group}"
     return kind
 

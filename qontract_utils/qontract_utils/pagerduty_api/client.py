@@ -133,10 +133,10 @@ class PagerDutyApi:
 
     def __init__(
         self,
-        id: str,  # noqa: A002
+        id: str,  # ruff: ignore[builtin-argument-shadowing]
         token: str,
         timeout: int = TIMEOUT,
-        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
+        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
     ) -> None:
         """Initialize PagerDuty API client.
 
@@ -171,7 +171,7 @@ class PagerDutyApi:
             >>> print(user.org_username)
             jsmith
         """
-        user_data = self._client.rget(f"/users/{user_id}")  # type: ignore[misc]
+        user_data = self._client.rget(f"/users/{user_id}")
         return PagerDutyUser(
             id=user_id,
             email=user_data["email"],
@@ -206,7 +206,7 @@ class PagerDutyApi:
         until = now + timedelta(seconds=TIME_WINDOW_SECONDS)
 
         # Fetch schedule with on-call users in time window
-        schedule = self._client.rget(  # type: ignore[misc]
+        schedule = self._client.rget(
             f"/schedules/{schedule_id}",
             params={
                 "since": now.isoformat(),
@@ -256,7 +256,7 @@ class PagerDutyApi:
                 "until": until.isoformat(),
                 "timezone_zone": "UTC",
             },
-        )  # type: ignore[misc]
+        )
 
         users = []
         for rule in policy["escalation_rules"]:

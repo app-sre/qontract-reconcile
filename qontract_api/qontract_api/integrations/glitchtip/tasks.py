@@ -51,7 +51,7 @@ def reconcile_glitchtip_task(
     """
     request_id = self.request.id
 
-    try:
+    try:  # ruff: ignore[too-many-statements-in-try-clause]
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
         event_manager = get_event_manager()
@@ -102,11 +102,11 @@ def reconcile_glitchtip_task(
 
         return result
 
-    except Exception as e:
+    except Exception as err:
         logger.exception(f"Task {request_id} failed with error")
         return GlitchtipTaskResult(
             status=TaskStatus.FAILED,
             actions=[],
             applied_count=0,
-            errors=[str(e)],
+            errors=[f"Unexpected {err=}"],
         )

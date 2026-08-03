@@ -22,25 +22,11 @@ from reconcile.gql_definitions.fragments.serviceaccount_token import ServiceAcco
 
 
 DEFINITION = """
-fragment CommonJumphostFields on ClusterJumpHost_v1 {
-  hostname
-  knownHosts
-  user
-  port
-  remotePort
-  identity {
-    ...VaultSecret
-  }
-}
-
 fragment OcConnectionCluster on Cluster_v1 {
   name
   serverUrl
   internal
   insecureSkipTLSVerify
-  jumpHost {
-    ...CommonJumphostFields
-  }
   automationToken {
     ...VaultSecret
   }

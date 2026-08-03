@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-# ruff: noqa: ARG001
+# ruff: file-ignore[unused-function-argument]
 from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, RetryConfig
 
 

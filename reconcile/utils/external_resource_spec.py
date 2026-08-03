@@ -119,6 +119,10 @@ class ExternalResourceSpec:
         return self.namespace["cluster"]["name"]
 
     @property
+    def cluster_admin(self) -> bool:
+        return bool(self.namespace.get("clusterAdmin"))
+
+    @property
     def environment_type(self) -> str:
         labels = json.loads(self.namespace["environment"]["labels"])
         return labels.get("type", "production")

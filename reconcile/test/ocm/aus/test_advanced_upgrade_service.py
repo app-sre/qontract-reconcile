@@ -12,12 +12,12 @@ from reconcile.aus.advanced_upgrade_service import (
     OrganizationLabelSet,
     OrgRef,
     VersionDataInheritance,
-    _build_org_upgrade_spec,  # noqa: PLC2701
-    _build_org_upgrade_specs_for_ocm_env,  # noqa: PLC2701
-    _build_policy_from_labels,  # noqa: PLC2701
-    _expose_cluster_validation_errors_as_service_log,  # noqa: PLC2701
-    _get_org_labels,  # noqa: PLC2701
-    _signal_validation_issues_for_org,  # noqa: PLC2701
+    _build_org_upgrade_spec,  # ruff: ignore[import-private-name]
+    _build_org_upgrade_specs_for_ocm_env,  # ruff: ignore[import-private-name]
+    _build_policy_from_labels,  # ruff: ignore[import-private-name]
+    _expose_cluster_validation_errors_as_service_log,  # ruff: ignore[import-private-name]
+    _get_org_labels,  # ruff: ignore[import-private-name]
+    _signal_validation_issues_for_org,  # ruff: ignore[import-private-name]
     aus_label_key,
     build_version_data_inheritance_network,
     discover_clusters,

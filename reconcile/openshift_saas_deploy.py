@@ -158,7 +158,6 @@ def run(
     dry_run: bool,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     io_dir: str = "throughput/",
-    use_jump_host: bool = True,
     saas_file_name: str | None = None,
     env_name: str | None = None,
     trigger_integration: str | None = None,
@@ -301,7 +300,6 @@ def run(
         integration_version=QONTRACT_INTEGRATION_VERSION,
         init_api_resources=True,
         cluster_admin=bool(saasherder.cluster_admin),
-        use_jump_host=use_jump_host,
         init_projects=enable_init_projects,
     )
     if defer:  # defer is provided by the method decorator. this makes just mypy happy

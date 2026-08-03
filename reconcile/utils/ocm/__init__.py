@@ -1,5 +1,5 @@
 from reconcile.utils.ocm.ocm import *
-from reconcile.utils.ocm.products import (  # noqa: F401
+from reconcile.utils.ocm.products import (  # ruff: ignore[unused-import]
     BYTES_IN_GIGABYTE,
     CS_API_BASE,
     DEFAULT_OCM_MACHINE_POOL_ID,

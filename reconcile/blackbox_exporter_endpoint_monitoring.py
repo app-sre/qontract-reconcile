@@ -22,9 +22,7 @@ MANAGED_TYPES = ["Probe.monitoring.coreos.com", "Probe.monitoring.rhobs"]
 LOG = logging.getLogger(__name__)
 
 
-def run(
-    dry_run: bool, thread_pool_size: int, internal: bool, use_jump_host: bool
-) -> None:
+def run(dry_run: bool, thread_pool_size: int, internal: bool) -> None:
     # verify that only allowed blackbox-exporter modules are used
     settings = queries.get_app_interface_settings()
     allowed_modules = set(settings["endpointMonitoringBlackboxExporterModules"])
@@ -51,7 +49,6 @@ def run(
             dry_run=dry_run,
             thread_pool_size=thread_pool_size,
             internal=internal,
-            use_jump_host=use_jump_host,
             managed_types=MANAGED_TYPES,
         )
     except Exception as e:

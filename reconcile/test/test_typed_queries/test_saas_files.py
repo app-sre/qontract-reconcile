@@ -650,7 +650,6 @@ def test_export_model(
                         "serverUrl": "https://cluster-url",
                         "internal": False,
                         "insecureSkipTLSVerify": None,
-                        "jumpHost": None,
                         "automationToken": {
                             "path": "creds",
                             "field": "token",
@@ -724,7 +723,6 @@ def test_export_model(
                                     "serverUrl": "https://cluster-url",
                                     "internal": False,
                                     "insecureSkipTLSVerify": None,
-                                    "jumpHost": None,
                                     "automationToken": {
                                         "path": "creds",
                                         "field": "token",
@@ -776,7 +774,6 @@ def test_export_model(
                                     "serverUrl": "https://cluster-url",
                                     "internal": False,
                                     "insecureSkipTLSVerify": None,
-                                    "jumpHost": None,
                                     "automationToken": {
                                         "path": "creds",
                                         "field": "token",
@@ -828,7 +825,6 @@ def test_export_model(
                         "serverUrl": "https://cluster-url",
                         "internal": False,
                         "insecureSkipTLSVerify": None,
-                        "jumpHost": None,
                         "automationToken": {
                             "path": "creds",
                             "field": "token",
@@ -902,7 +898,6 @@ def test_export_model(
                                     "serverUrl": "https://cluster-url",
                                     "internal": False,
                                     "insecureSkipTLSVerify": None,
-                                    "jumpHost": None,
                                     "automationToken": {
                                         "path": "creds",
                                         "field": "token",
@@ -954,7 +949,6 @@ def test_export_model(
                                     "serverUrl": "https://cluster-url",
                                     "internal": False,
                                     "insecureSkipTLSVerify": None,
-                                    "jumpHost": None,
                                     "automationToken": {
                                         "path": "creds",
                                         "field": "token",
@@ -1006,7 +1000,6 @@ def test_export_model(
                         "serverUrl": "https://cluster-url",
                         "internal": False,
                         "insecureSkipTLSVerify": None,
-                        "jumpHost": None,
                         "automationToken": {
                             "path": "creds",
                             "field": "token",
@@ -1080,7 +1073,6 @@ def test_export_model(
                                     "serverUrl": "https://cluster-url",
                                     "internal": False,
                                     "insecureSkipTLSVerify": None,
-                                    "jumpHost": None,
                                     "automationToken": {
                                         "path": "creds",
                                         "field": "token",
@@ -1132,7 +1124,6 @@ def test_export_model(
                                     "serverUrl": "https://cluster-url",
                                     "internal": False,
                                     "insecureSkipTLSVerify": None,
-                                    "jumpHost": None,
                                     "automationToken": {
                                         "path": "creds",
                                         "field": "token",

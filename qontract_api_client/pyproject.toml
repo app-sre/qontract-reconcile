@@ -5,16 +5,16 @@ description = "Auto-generated client for qontract-api"
 authors = [{ name = "Red Hat App-SRE Team", email = "sd-app-sre@redhat.com" }]
 license = { text = "Apache 2.0" }
 requires-python = ">=3.14"
-dependencies = ["clientele[core]==2.2.2"]
+dependencies = ["clientele[core]==2.3.0"]
 
 [dependency-groups]
 dev = [
-    "clientele[cli]==2.2.2",
+    "clientele[cli]==2.3.0",
     # development and testing tools
-    "mypy==2.1.0",
-    "pytest==9.0.3",
+    "mypy==2.3.0",
+    "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "ruff==0.15.13",
+    "ruff==0.16.0",
 ]
 
 [build-system]
@@ -30,7 +30,7 @@ only-include = ["qontract_api_client"]
 # Ruff configuration
 [tool.ruff]
 line-length = 88
-src = ["qontract_api_client"]
+src = ["qontract_api_client", "tests"]
 fix = true
 
 [tool.ruff.lint]
@@ -47,7 +47,7 @@ preview = true
 known-first-party = ["qontract_api_client"]
 
 [tool.mypy]
-files = ["qontract_api_client"]
+files = ["qontract_api_client", "tests"]
 enable_error_code = ["truthy-bool", "redundant-expr"]
 no_implicit_optional = true
 check_untyped_defs = true

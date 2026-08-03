@@ -16,6 +16,7 @@ from unittest.mock import (
 import pytest
 from gitlab import Gitlab
 from gitlab.exceptions import (
+    GitlabGetError,
     GitlabMRClosedError,
     GitlabMRRebaseError,
 )
@@ -408,7 +409,7 @@ def state() -> Mock:
     return state
 
 
-class StatusMock:  # noqa: B903
+class StatusMock:  # ruff: ignore[class-as-data-structure]
     def __init__(self, name: str, status: str) -> None:
         self.name = name
         self.status = status
@@ -1131,11 +1132,12 @@ def _make_healthcheck_mr(
 def test_pipeline_error_label_applied_on_consecutive_failures(
     project: Project,
 ) -> None:
-    """Consecutive pipeline failures apply pipeline-error label."""
+    """Consecutive pipeline failures apply pipeline-error label, even with a running pipeline."""
     mr = _make_healthcheck_mr(labels=["lgtm"])
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "running",
         "failed",
         "failed",
         "failed",
@@ -1155,11 +1157,12 @@ def test_pipeline_error_label_applied_on_consecutive_failures(
 def test_pipeline_error_label_auto_removed_on_recovery(
     project: Project,
 ) -> None:
-    """A successful pipeline removes the pipeline-error label."""
+    """A successful terminal pipeline removes the pipeline-error label, even with a running pipeline."""
     mr = _make_healthcheck_mr(labels=["lgtm", "pipeline-error"])
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "running",
         "success",
         "failed",
         "failed",
@@ -1173,6 +1176,31 @@ def test_pipeline_error_label_auto_removed_on_recovery(
     )
 
     mocked_gl.remove_label.assert_called_once_with(mr, "pipeline-error")
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_pipeline_error_not_removed_while_pipeline_running(
+    project: Project,
+) -> None:
+    """A running pipeline alone does not clear the label; terminal failures still dominate."""
+    mr = _make_healthcheck_mr(labels=["lgtm", "pipeline-error"])
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "running",
+        "failed",
+        "failed",
+        "failed",
+    ])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        consecutive_failure_limit=3,
+    )
+
+    mocked_gl.remove_label.assert_not_called()
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
@@ -1342,17 +1370,27 @@ def test_healthcheck_skips_non_queue_eligible_mrs(project: Project) -> None:
     mocked_gl.remove_label.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "list_status",
+    ["need_rebase", "ci_must_pass", "unchecked"],
+)
 def test_healthcheck_applies_rebase_error_on_merge_error_field(
     project: Project,
+    list_status: str,
 ) -> None:
-    """MR with merge_error='Rebase failed: ...' gets rebase-error label."""
+    """.get() confirms merge_error regardless of detailed_merge_status from .list()."""
     mr = _make_healthcheck_mr(
         labels=["lgtm"],
-        merge_error="Rebase failed: Rebase locally, resolve all conflicts, then push the branch.",
-        detailed_merge_status="need_rebase",
+        detailed_merge_status=list_status,
     )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.merge_error = (
+        "Rebase failed: Rebase locally, resolve all conflicts, then push the branch."
+    )
+
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.get_merge_request.return_value = fresh_mr
 
     gl_h.run_error_healthcheck(
         dry_run=False,
@@ -1360,20 +1398,30 @@ def test_healthcheck_applies_rebase_error_on_merge_error_field(
         project_merge_requests=[mr],
     )
 
+    mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
     mocked_gl.add_label_to_merge_request.assert_called_once_with(mr, "rebase-error")
     mocked_gl.get_merge_request_pipelines.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "resolved_status",
+    ["mergeable", "ci_must_pass"],
+)
 def test_healthcheck_removes_rebase_error_when_merge_error_cleared(
     project: Project,
+    resolved_status: str,
 ) -> None:
-    """rebase-error is removed when merge_error is None (author rebased)."""
+    """rebase-error is removed when .get() confirms merge_error is cleared."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
-        merge_error=None,
+        detailed_merge_status=resolved_status,
     )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.merge_error = None
+
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
@@ -1382,6 +1430,7 @@ def test_healthcheck_removes_rebase_error_when_merge_error_cleared(
         project_merge_requests=[mr],
     )
 
+    mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
     mocked_gl.remove_label.assert_called_once_with(mr, "rebase-error")
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
@@ -1392,11 +1441,14 @@ def test_healthcheck_skips_rebase_error_if_already_labeled(
     """No duplicate add_label when rebase-error is already present."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
-        merge_error="Rebase failed: conflict",
         detailed_merge_status="need_rebase",
     )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.merge_error = "Rebase failed: conflict"
+
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
@@ -1409,16 +1461,65 @@ def test_healthcheck_skips_rebase_error_if_already_labeled(
     mocked_gl.remove_label.assert_not_called()
 
 
+def test_healthcheck_no_rebase_error_when_resolved_despite_stale_detailed_status(
+    project: Project,
+) -> None:
+    """detailed_merge_status='need_rebase' is stale but .get() shows merge_error cleared."""
+    mr = _make_healthcheck_mr(
+        labels=["lgtm"],
+        detailed_merge_status="need_rebase",
+    )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.merge_error = None
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request.return_value = fresh_mr
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+    )
+
+    mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_apply_omm_pending_rebase_error_applies_label(
+    project: Project,
+) -> None:
+    """GitlabMRRebaseError at formation applies rebase-error label."""
+    mr = create_autospec(ProjectMergeRequest)
+    mr.iid = 100
+    mr.target_project_id = 1
+    mr.rebase.side_effect = GitlabMRRebaseError
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+
+    gl_h.apply_omm_pending(dry_run=False, gl=mocked_gl, mrs=[mr])
+
+    mocked_gl.add_label_to_merge_request.assert_any_call(mr, "omm-pending")
+    mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
+    mocked_gl.add_label_to_merge_request.assert_any_call(mr, "rebase-error")
+
+
 def test_healthcheck_ignores_non_rebase_merge_error(
     project: Project,
 ) -> None:
-    """merge_error='Merge failed' does not trigger rebase-error label."""
+    """detailed_merge_status='need_rebase' but .get() merge_error is not a rebase failure."""
     mr = _make_healthcheck_mr(
         labels=["lgtm"],
-        merge_error="Merge failed",
+        detailed_merge_status="need_rebase",
     )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.merge_error = "Merge failed"
+
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
@@ -1427,20 +1528,27 @@ def test_healthcheck_ignores_non_rebase_merge_error(
         project_merge_requests=[mr],
     )
 
+    mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
-def test_healthcheck_removes_rebase_error_when_detailed_status_resolved(
+@pytest.mark.parametrize(
+    "list_status",
+    ["unchecked", "need_rebase"],
+)
+def test_healthcheck_preserves_rebase_error_on_api_failure(
     project: Project,
+    list_status: str,
 ) -> None:
-    """rebase-error is removed when detailed_merge_status is no longer need_rebase."""
+    """rebase-error label is preserved when fresh .get() raises GitlabGetError."""
     mr = _make_healthcheck_mr(
         labels=["lgtm", "rebase-error"],
-        merge_error="Rebase failed: Rebase locally, resolve all conflicts, then push the branch.",
-        detailed_merge_status="ci_must_pass",
+        detailed_merge_status=list_status,
     )
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.project.name = "test-project"
+    mocked_gl.get_merge_request.side_effect = GitlabGetError("500 Server Error")
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
     gl_h.run_error_healthcheck(
@@ -1449,8 +1557,9 @@ def test_healthcheck_removes_rebase_error_when_detailed_status_resolved(
         project_merge_requests=[mr],
     )
 
-    mocked_gl.remove_label.assert_called_once_with(mr, "rebase-error")
     mocked_gl.add_label_to_merge_request.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
+    mocked_gl.get_merge_request_pipelines.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -2011,38 +2120,13 @@ def test_multi_merge_overlapping_tenants_serialized(
     mr2.merge.assert_not_called()
 
 
-def test_multi_merge_below_min_group_size_no_omm(
-    mocker: MockerFixture,
-) -> None:
-    """With only 1 non-overlapping candidate, group size < MIN_OMM_GROUP_SIZE
-    so no OMM group should form."""
-    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
-    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
-    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
-
-    mocked_gl = _call_merge(
-        mocker,
-        items,
-        rebase=True,
-        rebased_iids={10},
-        pipelines_by_iid={
-            10: [_success_pipeline()],
-            11: [_success_pipeline()],
-        },
-    )
-
-    mr1.merge.assert_called_once()
-    mr2.merge.assert_not_called()
-    mr2.rebase.assert_not_called()
-    for call in mocked_gl.add_label_to_merge_request.call_args_list:
-        assert call.args[1] not in {"omm-group-lead", "omm-pending"}
-
-
 def test_multi_merge_no_tenant_labels_falls_back_serial(
     mocker: MockerFixture,
 ) -> None:
-    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
-    mr2 = _make_merge_mr(11, ["approved"])
+    # Lead has no tenant labels → ineligible for OMM, falls back to serial merge.
+    # Candidate has a tenant label but must not be rebased or merged.
+    mr1 = _make_merge_mr(10, ["approved"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
     items = [_make_merge_item(mr1), _make_merge_item(mr2)]
 
     _call_merge(
@@ -2058,6 +2142,37 @@ def test_multi_merge_no_tenant_labels_falls_back_serial(
 
     mr1.merge.assert_called_once()
     mr2.merge.assert_not_called()
+    mr2.rebase.assert_not_called()
+
+
+def test_multi_merge_candidate_no_tenant_labels_excluded(
+    mocker: MockerFixture,
+) -> None:
+    """Candidate without tenant labels is skipped by _form_omm_group's eligibility filter."""
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved"])
+    mr3 = _make_merge_mr(12, ["approved", "tenant-bar"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2), _make_merge_item(mr3)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+            12: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    # mr2 has no tenant labels — excluded from OMM group, not rebased
+    mr2.merge.assert_not_called()
+    mr2.rebase.assert_not_called()
+    # mr3 is eligible and non-overlapping — included in OMM group
+    mr3.merge.assert_not_called()
+    mr3.rebase.assert_called_once_with(skip_ci=True)
 
 
 def test_multi_merge_three_mrs_partial_overlap(
@@ -2434,6 +2549,73 @@ def test_omm_group_skip_ci_rebase_on_success_not_rebased(
     mr.rebase.assert_called_once_with(skip_ci=True)
     mr.merge.assert_not_called()
     clear_mock.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
+def test_omm_member_refreshes_mr_before_rebased_check(
+    mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
+) -> None:
+    """The stale list-API sha makes is_rebased return False (commits
+    behind target), but after refreshing from the detail API the
+    correct sha is used and the member merges instead of triggering
+    another skip-ci-rebase.  repository_compare returns non-empty for
+    the stale sha so the test would fail if the refresh were removed."""
+    _setup_omm_group_mocks(mocker)
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
+    lead.target_branch = "master"
+
+    stale_mr = _make_merge_mr(
+        11, ["approved", "tenant-bar", "omm-pending"], sha="stale-sha-old"
+    )
+    fresh_mr = _make_merge_mr(
+        11, ["approved", "tenant-bar", "omm-pending"], sha="fresh-sha-rebased"
+    )
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[stale_mr],
+    )
+
+    head_sha = "abc123"
+    mocked_gl = _make_omm_gl(head_sha=head_sha)
+    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+    mocked_gl.get_merge_request.return_value = fresh_mr
+
+    head_commit = Mock()
+    head_commit.id = head_sha
+    mocked_gl.project.commits.list.return_value = [head_commit]
+
+    def _compare(from_sha: str, to_sha: str) -> dict:
+        if from_sha == "stale-sha-old":
+            return {"commits": ["x"]}
+        return {"commits": []}
+
+    mocked_gl.project.repository_compare.side_effect = _compare
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 1
+    mocked_gl.get_merge_request.assert_called_once_with(11)
+    stale_mr.merge.assert_called_once()
+    stale_mr.rebase.assert_not_called()
+    clear_mock.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -2904,7 +3086,7 @@ def test_omm_group_unhandled_status_rebased_stays_active(
     clear_mock.assert_not_called()
 
 
-# --- Fork pipeline SHA filtering in OMM group ---
+# --- Push pipeline filtering in OMM group ---
 
 
 @pytest.mark.parametrize(
@@ -2912,14 +3094,14 @@ def test_omm_group_unhandled_status_rebased_stays_active(
     [("abc123", None), (None, "abc123")],
     ids=["merge-commit", "squash-commit"],
 )
-def test_omm_group_fork_pipeline_post_rebase_filtered_merges(
+def test_omm_group_push_pipeline_filtered_even_at_different_sha(
     mocker: MockerFixture,
     merge_sha: str | None,
     squash_sha: str | None,
 ) -> None:
-    """After skip-ci rebase, fork pipelines matching the new MR SHA are
-    filtered out.  The pre-rebase fork SUCCESS pipeline (old SHA) should
-    drive the merge decision."""
+    """Push pipelines from a prior skip-ci rebase (sha != mr.sha) must still
+    be filtered.  This covers stale list-API sha and cascading rebases where
+    push pipelines accumulate at old shas."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
         "reconcile.gitlab_housekeeping.is_rebased",
@@ -2935,14 +3117,14 @@ def test_omm_group_fork_pipeline_post_rebase_filtered_merges(
     lead.target_branch = "master"
 
     fork_id = 99
-    new_sha = "rebased-sha"
-    old_sha = "pre-rebase-sha"
+    current_sha = "current-sha"
+    prior_rebase_sha = "prior-rebase-sha"
 
     mr = _make_merge_mr(
         11,
         ["approved", "tenant-bar", "omm-pending"],
         source_project_id=fork_id,
-        sha=new_sha,
+        sha=current_sha,
     )
 
     mocker.patch(
@@ -2952,8 +3134,8 @@ def test_omm_group_fork_pipeline_post_rebase_filtered_merges(
 
     mocked_gl = _make_omm_gl(head_sha="abc123")
     mocked_gl.get_merge_request_pipelines.return_value = [
-        _running_pipeline(project_id=fork_id, sha=new_sha, source="push"),
-        _success_pipeline(project_id=fork_id, sha=old_sha),
+        _running_pipeline(project_id=fork_id, sha=prior_rebase_sha, source="push"),
+        _success_pipeline(project_id=fork_id, sha="original-sha", source="external"),
     ]
 
     merges = gl_h._process_omm_group(

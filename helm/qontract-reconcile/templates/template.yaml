@@ -368,7 +368,7 @@ objects:
             value: {{ $integration.name }}
           {{- with $shard.extra_args }}
           - name: INTEGRATION_EXTRA_ARGS
-            value: "{{ $shard.extra_args }}"
+            value: {{ $shard.extra_args | quote }}
           {{- end }}
           - name: SLEEP_DURATION_SECS
             {{- if $integration.sleepDurationSecs }}
@@ -693,7 +693,7 @@ objects:
                 value: {{ $integration.name }}
               {{- with $integration.extraArgs }}
               - name: INTEGRATION_EXTRA_ARGS
-                value: "{{ $integration.extraArgs }}"
+                value: {{ $integration.extraArgs | quote }}
               {{- end }}
               - name: GITHUB_API
                 valueFrom:
@@ -884,7 +884,7 @@ parameters:
 - name: USE_NATIVE_CLIENT
   value: ""
 - name: INTERNAL_CERTIFICATES_IMAGE
-  value: quay.io/app-sre/internal-redhat-ca
+  value: quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master
 - name: INTERNAL_CERTIFICATES_IMAGE_TAG
   value: latest
 - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY

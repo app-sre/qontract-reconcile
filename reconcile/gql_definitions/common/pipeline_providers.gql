@@ -43,9 +43,6 @@ query PipelineProviders {
           name
           serverUrl
           insecureSkipTLSVerify
-          jumpHost {
-            ...CommonJumphostFields
-          }
           automationToken {
             ...VaultSecret
           }

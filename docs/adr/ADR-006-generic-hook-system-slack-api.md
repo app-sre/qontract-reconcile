@@ -49,9 +49,9 @@ All API wrappers should follow this pattern:
 ```python
 @dataclass(frozen=True)
 class SlackApiCallContext:
-    method: str      # e.g., "chat.postMessage"
-    verb: str        # e.g., "GET", "POST"
-    workspace: str   # Service-specific field
+    method: str  # e.g., "chat.postMessage"
+    verb: str  # e.g., "GET", "POST"
+    workspace: str  # Service-specific field
 ```
 
 **2. Hook Signature**: `Callable[[<Service>ApiCallContext], None]`
@@ -61,6 +61,7 @@ class SlackApiCallContext:
 ```python
 from qontract_utils.hooks import Hooks
 
+
 class Hooks(BaseModel, frozen=True):
     """Hook configuration for API clients."""
 
@@ -68,7 +69,7 @@ class Hooks(BaseModel, frozen=True):
     post_hooks: list[Callable[..., None]] = Field(default_factory=list)
     error_hooks: list[Callable[..., None]] = Field(default_factory=list)
     retry_hooks: list[Callable[..., None]] = Field(default_factory=list)
-    retry_config: RetryConfig | None = None # No retries by default
+    retry_config: RetryConfig | None = None  # No retries by default
 ```
 
 **Why Hooks Dataclass:**
@@ -114,9 +115,7 @@ Instance methods (retrieves hooks from `self._hooks`):
 ```python
 @invoke_with_hooks(
     lambda self: SlackApiCallContext(
-        method="chat.postMessage",
-        verb="POST",
-        workspace=self.workspace_name
+        method="chat.postMessage", verb="POST", workspace=self.workspace_name
     )
 )
 def chat_post_message(self, text: str) -> None:
@@ -131,7 +130,7 @@ Standalone functions and static methods (hooks passed directly in decorator):
     hooks=Hooks(
         pre_hooks=[logging_hook],
         retry_config=RetryConfig(on=Exception, attempts=3),
-    )
+    ),
 )
 def process_data(data: dict) -> dict:
     # Process data with automatic hooks and retry support
@@ -145,7 +144,7 @@ class DataProcessor:
     @staticmethod
     @invoke_with_hooks(
         context_factory=lambda: ProcessContext(operation="validate"),
-        hooks=Hooks(pre_hooks=[metrics_hook], retry_config=NO_RETRY_CONFIG)
+        hooks=Hooks(pre_hooks=[metrics_hook], retry_config=NO_RETRY_CONFIG),
     )
     def validate(data: dict) -> bool:
         return schema.validate(data)
@@ -162,10 +161,13 @@ Use `@with_hooks` class decorator to define built-in hooks and `@invoke_with_hoo
 ```python
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 
-@with_hooks(hooks=Hooks(
-    pre_hooks=[_metrics_hook, _latency_start_hook],
-    post_hooks=[_latency_end_hook],
-))
+
+@with_hooks(
+    hooks=Hooks(
+        pre_hooks=[_metrics_hook, _latency_start_hook],
+        post_hooks=[_latency_end_hook],
+    )
+)
 class SlackApi:
     def __init__(self, workspace_name: str, token: str, hooks: Hooks | None = None):
         # self._hooks automatically set by @with_hooks decorator (built-in + user hooks merged)
@@ -174,9 +176,7 @@ class SlackApi:
 
     @invoke_with_hooks(
         lambda self: SlackApiCallContext(
-            method="chat.postMessage",
-            verb="POST",
-            workspace=self.workspace_name
+            method="chat.postMessage", verb="POST", workspace=self.workspace_name
         )
     )
     def chat_post_message(self, text: str) -> None:
@@ -192,15 +192,17 @@ Use `@invoke_with_hooks(context_factory, hooks=...)` decorator on standalone fun
 ```python
 from qontract_utils.hooks import Hooks, invoke_with_hooks
 
+
 @invoke_with_hooks(
     context_factory=lambda: {"operation": "transform"},
     hooks=Hooks(
         pre_hooks=[logging_hook],
         retry_config=RetryConfig(on=TransformError, attempts=3),
-    )
+    ),
 )
 def transform_data(data: dict) -> dict:
     return process(data)
+
 
 # Direct call - hooks execute automatically
 result = transform_data({"key": "value"})
@@ -220,10 +222,11 @@ class DataValidator:
         hooks=Hooks(
             pre_hooks=[metrics_hook],
             retry_config=NO_RETRY_CONFIG,
-        )
+        ),
     )
     def validate_schema(data: dict) -> bool:
         return schema.validate(data)
+
 
 # Call via class or instance
 DataValidator.validate_schema(data)
@@ -238,6 +241,7 @@ Use `hooks.invoke()` or `hooks.with_context().invoke()` for one-off function cal
 ```python
 def fetch_data(url: str) -> dict:
     return requests.get(url).json()
+
 
 hooks = Hooks(
     pre_hooks=[rate_limit_hook],
@@ -262,30 +266,38 @@ result = hooks.with_context(context).invoke(fetch_data, "https://api.example.com
 from dataclasses import dataclass
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 
+
 @dataclass(frozen=True)
 class SlackApiCallContext:
     """Context for Slack API calls."""
+
     method: str
     verb: str
     workspace: str
+
 
 def _metrics_hook(context: SlackApiCallContext) -> None:
     """Built-in Prometheus metrics hook."""
     slack_request.labels(context.method, context.verb).inc()
 
+
 def _latency_start_hook(context: SlackApiCallContext) -> None:
     """Built-in latency tracking hook."""
     _latency_tracker.set(time.perf_counter())
+
 
 def _latency_end_hook(context: SlackApiCallContext) -> None:
     """Built-in latency tracking hook."""
     duration = time.perf_counter() - _latency_tracker.get()
     slack_request_duration.labels(context.method, context.verb).observe(duration)
 
-@with_hooks(hooks=Hooks(
-    pre_hooks=[_metrics_hook, _request_log_hook, _latency_start_hook],
-    post_hooks=[_latency_end_hook],
-))
+
+@with_hooks(
+    hooks=Hooks(
+        pre_hooks=[_metrics_hook, _request_log_hook, _latency_start_hook],
+        post_hooks=[_latency_end_hook],
+    )
+)
 class SlackApi:
     def __init__(
         self,
@@ -300,9 +312,7 @@ class SlackApi:
 
     @invoke_with_hooks(
         lambda self: SlackApiCallContext(
-            method="chat.postMessage",
-            verb="POST",
-            workspace=self.workspace_name
+            method="chat.postMessage", verb="POST", workspace=self.workspace_name
         )
     )
     def chat_post_message(self, text: str) -> None:
@@ -337,6 +347,7 @@ Real-world scenario demonstrating composition of multiple hooks for comprehensiv
 from qontract_api.logger import get_logger
 
 logger = get_logger(__name__)
+
 
 def create_slack_api_with_full_observability(
     workspace_name: str,
@@ -387,12 +398,12 @@ def create_slack_api_with_full_observability(
         token,
         hooks=Hooks(
             pre_hooks=[
-                rate_limit_hook,    # Executed after built-in pre_hooks
-                logging_hook,       # Executed next
-                tracing_hook,       # Executed next
+                rate_limit_hook,  # Executed after built-in pre_hooks
+                logging_hook,  # Executed next
+                tracing_hook,  # Executed next
             ],
-            post_hooks=[post_api_call_hook], # Executed after built-in post_hooks
-            error_hooks=[error_handling_hook], # Executed on API call errors
+            post_hooks=[post_api_call_hook],  # Executed after built-in post_hooks
+            error_hooks=[error_handling_hook],  # Executed on API call errors
         ),
     )
 ```
@@ -432,12 +443,12 @@ from slack_sdk.errors import SlackApiError
 # Retry on HTTP errors up to 5 times with 30s timeout
 retry_config = RetryConfig(
     on=(SlackApiError, TimeoutError),  # Exception types to retry
-    attempts=5,                         # Max 5 attempts
-    timeout=30.0,                       # Max 30 seconds total
-    wait_initial=0.5,                   # Start with 0.5s wait
-    wait_max=10.0,                      # Max 10s between retries
-    wait_jitter=2.0,                    # Add up to 2s jitter
-    wait_exp_base=2,                    # Exponential backoff base
+    attempts=5,  # Max 5 attempts
+    timeout=30.0,  # Max 30 seconds total
+    wait_initial=0.5,  # Start with 0.5s wait
+    wait_max=10.0,  # Max 10s between retries
+    wait_jitter=2.0,  # Add up to 2s jitter
+    wait_exp_base=2,  # Exponential backoff base
 )
 ```
 
@@ -491,6 +502,7 @@ class CircuitBreaker:
                 failures=self.failure_count,
             )
             raise CircuitBreakerOpenError("Too many failures")
+
 
 breaker = CircuitBreaker()
 api = SlackApi(
@@ -614,8 +626,9 @@ Context factories can now receive the decorated method's arguments by declaring 
         id=self._settings.server,
     )
 )
-def _read_kv_v2_secret(self, path: str, mount_point: str, version: int | None) -> dict:
-    ...
+def _read_kv_v2_secret(
+    self, path: str, mount_point: str, version: int | None
+) -> dict: ...
 ```
 
 Context is static — hooks cannot access `path` or `mount_point` values passed to the method at runtime.
@@ -631,8 +644,9 @@ Context is static — hooks cannot access `path` or `mount_point` values passed 
         mount_point=mount_point,
     )
 )
-def _read_kv_v2_secret(self, path: str, mount_point: str, version: int | None) -> dict:
-    ...
+def _read_kv_v2_secret(
+    self, path: str, mount_point: str, version: int | None
+) -> dict: ...
 ```
 
 Context is dynamic — the factory receives actual `path` and `mount_point` values at call time, enabling hooks to produce meaningful output like `"Slow Vault request: path=secret/app1/token, mount_point=app-sre, duration=2.3s"`.
@@ -689,8 +703,8 @@ def _metrics_hook(context: SlackApiCallContext) -> None:
         repo=repo_name,
     )
 )
-def get_repo(self, repo_owner: str, repo_name: str) -> dict:
-    ...
+def get_repo(self, repo_owner: str, repo_name: str) -> dict: ...
+
 
 def rate_limit_hook(context: GitHubApiCallContext) -> None:
     """Apply rate limits per repository."""
@@ -742,6 +756,7 @@ def timeout_metrics_hook(context: SlackApiCallContext, timeout_duration: float) 
         workspace=context.workspace,
         timeout_duration=timeout_duration,
     )
+
 
 SlackApi(
     workspace_name,

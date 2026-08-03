@@ -175,3 +175,17 @@ def get_version_gates(ocm_api: OCMBaseClient) -> list[OCMVersionGate]:
         OCMVersionGate(**g)
         for g in ocm_api.get_paginated("/api/clusters_mgmt/v1/version_gates")
     ]
+
+
+#
+# VERSION CHANNELS
+#
+
+
+def update_cluster_channel(
+    ocm_api: OCMBaseClient, cluster_id: str, channel: str
+) -> None:
+    ocm_api.patch(
+        build_cluster_url(cluster_id),
+        {"channel": channel},
+    )

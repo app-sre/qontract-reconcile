@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-def create_pagerduty_api(id: str, token: str, timeout: int) -> PagerDutyApi:  # noqa: A002
+def create_pagerduty_api(id: str, token: str, timeout: int) -> PagerDutyApi:  # ruff: ignore[builtin-argument-shadowing]
     """Create PagerDutyApi instance with config from settings.
 
     Attention: PagerDuty REST Client implementation does have built-in rate limiting.

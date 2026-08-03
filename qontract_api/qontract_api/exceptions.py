@@ -54,7 +54,7 @@ class UnauthorizedError(APIError):
         super().__init__(message, status_code=status.HTTP_401_UNAUTHORIZED)
 
 
-async def api_error_handler(  # noqa: RUF029 - FastAPI requires async exception handlers
+async def api_error_handler(  # ruff: ignore[unused-async] - FastAPI requires async exception handlers
     request: Request, exc: APIError
 ) -> JSONResponse:
     """Handle APIError exceptions."""
@@ -70,7 +70,7 @@ async def api_error_handler(  # noqa: RUF029 - FastAPI requires async exception 
     )
 
 
-async def not_implemented_handler(  # noqa: RUF029 - FastAPI requires async exception handlers
+async def not_implemented_handler(  # ruff: ignore[unused-async] - FastAPI requires async exception handlers
     request: Request, exc: NotImplementedError
 ) -> JSONResponse:
     """Handle NotImplementedError as 501 Not Implemented."""
@@ -86,7 +86,7 @@ async def not_implemented_handler(  # noqa: RUF029 - FastAPI requires async exce
     )
 
 
-async def general_exception_handler(  # noqa: RUF029 - FastAPI requires async exception handlers
+async def general_exception_handler(  # ruff: ignore[unused-async] - FastAPI requires async exception handlers
     request: Request, exc: Exception
 ) -> JSONResponse:
     """Handle unexpected exceptions including HTTPException."""
@@ -109,7 +109,7 @@ async def general_exception_handler(  # noqa: RUF029 - FastAPI requires async ex
     )
 
 
-async def validation_exception_handler(  # noqa: RUF029 - FastAPI requires async exception handlers
+async def validation_exception_handler(  # ruff: ignore[unused-async] - FastAPI requires async exception handlers
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     request_id = getattr(request.state, "request_id", None)

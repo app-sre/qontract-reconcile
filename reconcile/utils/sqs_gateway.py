@@ -23,7 +23,7 @@ class SQSGateway:
     def __init__(
         self, accounts: Iterable[Mapping[str, Any]], secret_reader: SecretReader
     ) -> None:
-        queue_url = os.environ.get("gitlab_pr_submitter_queue_url")  # noqa: SIM112
+        queue_url = os.environ.get("gitlab_pr_submitter_queue_url")  # ruff: ignore[uncapitalized-environment-variables]
         if not queue_url:
             raise SQSGatewayInitError(
                 "when /app-interface/app-interface-settings-1.yml#mergeRequestGateway "

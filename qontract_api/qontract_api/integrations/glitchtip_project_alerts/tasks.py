@@ -80,7 +80,7 @@ def reconcile_glitchtip_project_alerts_task(
     """
     request_id = self.request.id
 
-    try:
+    try:  # ruff: ignore[too-many-statements-in-try-clause]
         # Get shared dependencies
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
@@ -134,11 +134,11 @@ def reconcile_glitchtip_project_alerts_task(
 
         return result
 
-    except Exception as e:
+    except Exception as err:
         logger.exception(f"Task {request_id} failed with error")
         return GlitchtipProjectAlertsTaskResult(
             status=TaskStatus.FAILED,
             actions=[],
             applied_count=0,
-            errors=[str(e)],
+            errors=[f"Unexpected {err=}"],
         )

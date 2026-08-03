@@ -89,7 +89,6 @@ def test_run(mocker: MockerFixture, dry_run: bool) -> None:
         integration="openshift-namespaces",
         secret_reader=mocks["create_secret_reader"].return_value,
         internal=None,
-        use_jump_host=True,
         thread_pool_size=1,
         init_projects=True,
     )

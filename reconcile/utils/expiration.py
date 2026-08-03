@@ -19,7 +19,7 @@ DictsOrRoles = TypeVar("DictsOrRoles", bound=Iterable[FilterableRole] | Iterable
 
 
 def date_expired(date: str) -> bool:
-    exp_date = ensure_utc(datetime.datetime.strptime(date, DATE_FORMAT)).date()  # noqa: DTZ007
+    exp_date = ensure_utc(datetime.datetime.strptime(date, DATE_FORMAT)).date()  # ruff: ignore[call-datetime-strptime-without-zone]
     current_date = utc_now().date()
     return current_date >= exp_date
 

@@ -24,19 +24,26 @@ FileSyncFileOp = FileSyncCreate | FileSyncDelete | FileSyncUpdate
 
 
 def remove_user_from_gabi(raw_yaml: str, username: str) -> str:
-    """Remove user from GABI users list.
+    """Remove user from GABI users and signoffManagers lists.
 
-    Removes entries from content["users"] where $ref contains the username.
+    Removes entries from content["users"] and content["signoffManagers"]
+    where $ref contains the username.
     """
     yaml = create_ruamel_instance(explicit_start=True)
     content = yaml.load(raw_yaml)
 
-    original_length = len(content["users"])
-    content["users"] = [
-        user for user in content["users"] if Path(user["$ref"]).stem != username
-    ]
+    changed = False
+    for field in ("users", "signoffManagers"):
+        if field not in content:
+            continue
+        original_length = len(content[field])
+        content[field] = [
+            entry for entry in content[field] if Path(entry["$ref"]).stem != username
+        ]
+        if len(content[field]) != original_length:
+            changed = True
 
-    if len(content["users"]) == original_length:
+    if not changed:
         return raw_yaml
 
     return dump_yaml(yaml, content)

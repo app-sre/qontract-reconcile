@@ -171,7 +171,11 @@ def data_default_none(
             case "default":
                 # If no data provided, use the field's default value
                 if data is None:
-                    return field_info["default"]
+                    if "default" in field_info:
+                        return field_info["default"]
+                    if "default_factory" in field_info:
+                        return field_info["default_factory"]()
+                    return None
 
                 # Data exists - recursively process it in case it's a complex type
                 return _process_field_with_alias(
@@ -325,7 +329,7 @@ class CSV(UserList[str]):
     """
 
     @classmethod
-    def __get_pydantic_core_schema__(  # noqa: PLW3201
+    def __get_pydantic_core_schema__(  # ruff: ignore[bad-dunder-method-name]
         cls, source: type[Any], handler: GetCoreSchemaHandler
     ) -> core_schema.CoreSchema:
         return core_schema.with_info_before_validator_function(
@@ -333,7 +337,7 @@ class CSV(UserList[str]):
         )
 
     @classmethod
-    def _validate(cls, __input_value: str, _: Any) -> list[str]:  # noqa: PYI063
+    def _validate(cls, __input_value: str, _: Any) -> list[str]:  # ruff: ignore[pep484-style-positional-only-parameter]
         return [] if not __input_value else __input_value.split(",")
 
 

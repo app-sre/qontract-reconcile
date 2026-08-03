@@ -80,7 +80,6 @@ def get_cluster_users(
 def fetch_current_state(
     thread_pool_size: int,
     internal: bool | None,
-    use_jump_host: bool,
 ) -> tuple[OCMap, list[Any]]:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -91,7 +90,6 @@ def fetch_current_state(
         secret_reader=secret_reader,
         integration=QONTRACT_INTEGRATION,
         internal=internal,
-        use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
     results = threaded.run(
@@ -220,12 +218,9 @@ def run(
     dry_run: bool,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     defer: Callable | None = None,
 ) -> None:
-    oc_map, current_state = fetch_current_state(
-        thread_pool_size, internal, use_jump_host
-    )
+    oc_map, current_state = fetch_current_state(thread_pool_size, internal)
     if defer:
         defer(oc_map.cleanup)
     desired_state = fetch_desired_state(oc_map)

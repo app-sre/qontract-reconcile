@@ -37,7 +37,6 @@ def get_all_pods_images(
     cluster_name: Sequence[str] | None = None,
     namespace_name: Sequence[str] | None = None,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
-    use_jump_host: bool = True,
     include_pattern: str | None = None,
     exclude_pattern: str | None = None,
 ) -> list[dict[str, Any]]:
@@ -59,7 +58,6 @@ def get_all_pods_images(
         namespaces=namespaces,
         integration="qontract-cli-get-namespace_images",
         secret_reader=secret_reader,
-        use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
         init_projects=True,
     )
@@ -151,7 +149,7 @@ def _get_namespace_images(ns: NamespaceV1, oc_map: OCMap) -> NamespaceImages:
 
             for c in containers:
                 if m := IMAGE_NAME_REGEX.match(c["image"]):
-                    image_names.append(m.group("name"))  # noqa: PERF401
+                    image_names.append(m.group("name"))  # ruff: ignore[manual-list-comprehension]
     except Exception as exc:
         return NamespaceImages(
             namespace_name=ns.name,

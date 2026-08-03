@@ -191,7 +191,8 @@ class VaultClient:
                 except Exception as e:
                     LOG.error(
                         f"Failed to authenticate to Vault server {self._client.url} "
-                        f"using role '{self.kube_auth_role}' on mount '{self.kube_auth_mount}': {e}"
+                        f"using role '{self.kube_auth_role}' on mount '{self.kube_auth_mount}': "
+                        f"{' '.join(str(e).split())}"
                     )
         else:
             self._client.auth.approle.login(

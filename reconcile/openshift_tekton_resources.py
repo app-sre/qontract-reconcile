@@ -428,7 +428,6 @@ def run(
     dry_run: bool,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     saas_file_name: str | None = None,
 ) -> None:
     tkn_providers = fetch_tkn_providers(saas_file_name)
@@ -453,7 +452,6 @@ def run(
         integration_version=QONTRACT_INTEGRATION_VERSION,
         override_managed_types=["Pipeline", "Task"],
         internal=internal,
-        use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
     defer(oc_map.cleanup)

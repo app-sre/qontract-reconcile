@@ -9,6 +9,7 @@ To be eligible for early exit, an integration must implement a function that ret
 ```python
 # in my_integration.py
 
+
 def get_early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     """
     Fetches and returns a dictionary representing the desired state

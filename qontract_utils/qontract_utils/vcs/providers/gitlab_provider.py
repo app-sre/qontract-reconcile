@@ -98,7 +98,7 @@ class GitLabProvider:
         token: str,
         timeout: int,
         hooks: Hooks,
-        provider_settings: GitLabProviderSettings,  # noqa: ARG002
+        provider_settings: GitLabProviderSettings,  # ruff: ignore[unused-method-argument]
     ) -> VCSApiProtocol:
         """Create GitLabRepoApi instance.
 

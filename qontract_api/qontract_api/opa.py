@@ -4,7 +4,7 @@ import re
 import time
 from typing import Any
 
-import httpxyz as httpx
+import httpx2
 from fastapi import HTTPException, status
 from prometheus_client import Counter, Histogram
 
@@ -56,7 +56,7 @@ class OPAClient:
         host: str,
         package_name: str,
         skip_endpoints: list[re.Pattern[str]],
-        client: httpx.AsyncClient,
+        client: httpx2.AsyncClient,
     ) -> None:
         self.host = host.rstrip("/")
         self.opa_url = f"{self.host}/v1/data/{package_name.replace('.', '/')}"

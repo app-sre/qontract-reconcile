@@ -17,24 +17,12 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.fragments.deploy_resources import DeployResourcesFields
 from reconcile.gql_definitions.fragments.minimal_ocm_organization import MinimalOCMOrganization
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
-fragment CommonJumphostFields on ClusterJumpHost_v1 {
-  hostname
-  knownHosts
-  user
-  port
-  remotePort
-  identity {
-    ...VaultSecret
-  }
-}
-
 fragment DeployResourcesFields on DeployResources_v1 {
   requests {
     cpu
@@ -75,9 +63,6 @@ query Integrations {
           labels
           serverUrl
           insecureSkipTLSVerify
-          jumpHost {
-            ...CommonJumphostFields
-          }
           automationToken {
             ...VaultSecret
           }
@@ -199,7 +184,6 @@ class ClusterV1(ConfiguredBaseModel):
     labels: Optional[Json] = Field(..., alias="labels")
     server_url: str = Field(..., alias="serverUrl")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
-    jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
 
 

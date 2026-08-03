@@ -43,7 +43,7 @@ def fx() -> Fixtures:
 @pytest.fixture
 def intg() -> AutomatedActionsConfigIntegration:
     return AutomatedActionsConfigIntegration(
-        AutomatedActionsConfigIntegrationParams(thread_pool_size=1, use_jump_host=False)
+        AutomatedActionsConfigIntegrationParams(thread_pool_size=1)
     )
 
 
@@ -227,7 +227,6 @@ def instance() -> AutomatedActionsInstanceV1:
                 internal=None,
                 automationToken=None,
                 insecureSkipTLSVerify=None,
-                jumpHost=None,
                 clusterAdminAutomationToken=None,
                 disable=None,
             ),

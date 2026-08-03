@@ -14,7 +14,6 @@ def run(
     dry_run: bool,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     include_trigger_trace: bool = False,
 ) -> None:
     error = osdt_base.run(
@@ -24,7 +23,6 @@ def run(
         integration_version=QONTRACT_INTEGRATION_VERSION,
         thread_pool_size=thread_pool_size,
         internal=internal,
-        use_jump_host=use_jump_host,
         include_trigger_trace=include_trigger_trace,
     )
 

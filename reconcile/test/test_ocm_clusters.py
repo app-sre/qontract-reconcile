@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# ruff: noqa: SIM117
+# ruff: file-ignore[multiple-with-statements]
 from typing import TYPE_CHECKING, Any
 from unittest.mock import (
     Mock,

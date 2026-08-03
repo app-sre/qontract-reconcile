@@ -22,7 +22,6 @@ elbFQDN: elb-url
 externalConfiguration: null
 insecureSkipTLSVerify: null
 internal: false
-jumpHost: null
 machinePools:
 - id: worker
   instance_type: m5.xlarge

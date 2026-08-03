@@ -275,9 +275,9 @@ def test_remove_prefix_from_path(path: str, prefix: str, expected: str | None) -
     "path, rendered",
     [
         # simple path for the regular parser
-        ("a.b.c", "a.b.c"),
+        ("a.b.c", "((a.b).c)"),
         # this one requires the extended parser
-        ("a[?(@.b=='b')]", "a.[?[Expression(Child(This(), Fields('b')) == 'b')]]"),
+        ("a[?(@.b=='b')]", "(a.[?[Expression(Child(This(), Fields('b')) == 'b')]])"),
     ],
 )
 def test_parse_jsonpath(path: str, rendered: str) -> None:

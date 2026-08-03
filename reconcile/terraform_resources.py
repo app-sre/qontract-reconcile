@@ -130,7 +130,6 @@ def fetch_current_state(
     namespaces: Iterable[NamespaceV1],
     thread_pool_size: int,
     internal: bool | None,
-    use_jump_host: bool,
     account_names: Iterable[str] | None,
     secret_reader: SecretReaderBase,
 ) -> tuple[ResourceInventory, OCMap]:
@@ -140,7 +139,6 @@ def fetch_current_state(
         integration=QONTRACT_INTEGRATION,
         secret_reader=secret_reader,
         internal=internal,
-        use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
     namespaces_dicts = [ns.model_dump(by_alias=True) for ns in namespaces]
@@ -384,7 +382,6 @@ def run(
     enable_deletion: bool = False,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     light: bool = False,
     vault_output_path: str = "",
     account_name: Sequence[str] | None = None,
@@ -431,7 +428,6 @@ def run(
         "enable_deletion": enable_deletion,
         "thread_pool_size": thread_pool_size,
         "internal": internal,
-        "use_jump_host": use_jump_host,
         "light": light,
         "vault_output_path": vault_output_path,
         "defer": defer,
@@ -473,7 +469,6 @@ class RunnerParams(TypedDict):
     enable_deletion: bool
     thread_pool_size: int
     internal: bool | None
-    use_jump_host: bool
     light: bool
     vault_output_path: str
     defer: Callable | None
@@ -490,7 +485,6 @@ def runner(
     enable_deletion: bool = False,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     light: bool = False,
     vault_output_path: str = "",
     defer: Callable | None = None,
@@ -532,7 +526,6 @@ def runner(
         tf_namespaces,
         thread_pool_size,
         internal,
-        use_jump_host,
         account_names,
         secret_reader=secret_reader,
     )

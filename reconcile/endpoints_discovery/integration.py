@@ -56,7 +56,6 @@ QONTRACT_INTEGRATION_VERSION = make_semver(1, 1, 0)
 class EndpointsDiscoveryIntegrationParams(PydanticRunParams):
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE
     internal: bool | None = None
-    use_jump_host: bool = True
     cluster_name: set[str] | None = None
     app_name: str | None = None
     # To avoid the accidental deletion of the resource file, explicitly set the
@@ -358,7 +357,6 @@ class EndpointsDiscoveryIntegration(
             ],
             secret_reader=self.secret_reader,
             integration=QONTRACT_INTEGRATION,
-            use_jump_host=self.params.use_jump_host,
             thread_pool_size=self.params.thread_pool_size,
             internal=self.params.internal,
             init_projects=True,

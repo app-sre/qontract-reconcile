@@ -355,7 +355,7 @@ def test_expose_org_upgrade_spec_metrics_for_hypershift_node_pool(
         cluster_uuid=cluster.external_id,
         org_id=org_id,
         org_name=org.name,
-        channel=cluster.version.channel_group,
+        channel=cluster.channel,
         current_version="4.12.16",
         cluster_name=cluster_name,
         schedule=upgrade_policy.schedule,

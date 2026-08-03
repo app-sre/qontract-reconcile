@@ -17,7 +17,6 @@ cluster:
   disable: null
   insecureSkipTLSVerify: null
   internal: false
-  jumpHost: null
   name: cluster-without-admin
   serverUrl: server-url
 clusterAdmin: null

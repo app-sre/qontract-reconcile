@@ -14,7 +14,6 @@ skupper_networks:
           name: small-1
           serverUrl: "https://api.small-1"
           insecureSkipTLSVerify: null
-          jumpHost: null
           spec:
             private: false
           automationToken:

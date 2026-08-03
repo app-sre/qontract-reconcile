@@ -381,7 +381,7 @@ class _ExecutionWrapper:
         self._hooks = hooks or Hooks()
 
 
-class invoke_with_hooks:  # noqa: N801 - lowercase for decorator API aesthetics
+class invoke_with_hooks:  # ruff: ignore[invalid-class-name] - lowercase for decorator API aesthetics
     """Method decorator for API calls with hook and retry support.
 
     Args:
@@ -610,7 +610,7 @@ class InvokeWithHooksMethod:
 
         # Get hook config from instance (or use override from decorator)
         # If decorator has explicit hooks, use those; otherwise use instance._hooks
-        hooks: Hooks = self.hooks or instance._hooks  # noqa: SLF001
+        hooks: Hooks = self.hooks or instance._hooks  # ruff: ignore[private-member-access]
 
         prepend_args: tuple[Any, ...] = ()
 

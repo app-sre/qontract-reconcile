@@ -159,19 +159,20 @@ class LdapUsersApiIntegration(
         if not usernames:
             return
 
-        ldap_response = await check_ldap_users(
-            LdapUsersCheckRequest(
-                usernames=usernames,
-                secret=LdapDirectSecret(
-                    secret_manager_url=self.secret_manager_url,
-                    path=ldap_settings.credentials.path,
-                    field=ldap_settings.credentials.field,
-                    version=ldap_settings.credentials.version,
-                    server_url=ldap_settings.server_url,
-                    base_dn=ldap_settings.base_dn,
+        with self.log_api_exceptions():
+            ldap_response = await check_ldap_users(
+                LdapUsersCheckRequest(
+                    usernames=usernames,
+                    secret=LdapDirectSecret(
+                        secret_manager_url=self.secret_manager_url,
+                        path=ldap_settings.credentials.path,
+                        field=ldap_settings.credentials.field,
+                        version=ldap_settings.credentials.version,
+                        server_url=ldap_settings.server_url,
+                        base_dn=ldap_settings.base_dn,
+                    ),
                 ),
-            ),
-        )
+            )
 
         existing_users = {u.username for u in ldap_response.users or [] if u.exists}
 

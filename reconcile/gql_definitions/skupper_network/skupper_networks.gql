@@ -20,9 +20,6 @@ query SkupperNetworks {
         name
         serverUrl
         insecureSkipTLSVerify
-        jumpHost {
-          ...CommonJumphostFields
-        }
         spec {
           private
         }

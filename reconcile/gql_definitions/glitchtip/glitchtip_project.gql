@@ -38,9 +38,6 @@ query Projects {
         name
         serverUrl
         insecureSkipTLSVerify
-        jumpHost {
-          ...CommonJumphostFields
-        }
         spec {
           private
         }

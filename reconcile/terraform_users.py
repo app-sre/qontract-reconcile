@@ -7,6 +7,11 @@ from typing import (
     Any,
 )
 
+from qontract_utils.aws_policy_validator import (
+    AWSPolicyValidationError,
+    validate_aws_policy,
+)
+
 from reconcile import (
     queries,
     typed_queries,
@@ -115,6 +120,45 @@ def _filter_participating_aws_accounts(
     return [a for a in accounts if a["name"] in participating_aws_account_names]
 
 
+def _validate_aws_policies_in_roles(
+    roles: Iterable[Mapping[str, Any]],
+    accounts: Iterable[Mapping[str, Any]],
+    aws_api: AWSApi,
+) -> None:
+    participating_account_names = {acc["name"] for acc in accounts}
+    errors: list[AWSPolicyValidationError] = []
+    for role in roles:
+        user_policies: Iterable[Mapping[str, Any]] = role.get("user_policies") or []
+        for user_policy in user_policies:
+            policy_name = user_policy.get("name", "unknown")
+            policy_document = user_policy.get("policy")
+            account_name = user_policy.get("account", {}).get("name")
+
+            if user_policy.get("account", {}).get("sso") is True:
+                continue
+            if not account_name or account_name not in participating_account_names:
+                continue
+
+            if policy_document is not None and (
+                isinstance(policy_document, dict)
+                or (isinstance(policy_document, str) and policy_document.strip())
+            ):
+                client = aws_api._account_accessanalyzer_client(account_name)
+                try:
+                    validate_aws_policy(
+                        client,
+                        policy_document,
+                        f"user_policy-{policy_name}",
+                        "IDENTITY_POLICY",
+                    )
+                except AWSPolicyValidationError as e:
+                    errors.append(e)
+    if errors:
+        raise RuntimeError(
+            "AWS policy validation failed:\n" + "\n".join(str(e) for e in errors)
+        )
+
+
 def setup(
     print_to_file: str | None,
     thread_pool_size: int,
@@ -132,6 +176,12 @@ def setup(
     participating_aws_accounts = _filter_participating_aws_accounts(accounts, roles)
 
     settings = queries.get_app_interface_settings()
+    aws_api = AWSApi(1, participating_aws_accounts, settings=settings, init_users=False)
+    try:
+        _validate_aws_policies_in_roles(roles, participating_aws_accounts, aws_api)
+    except Exception:
+        aws_api.cleanup()
+        raise
     try:
         default_tags = get_settings().default_tags
     except ValueError:
@@ -151,8 +201,6 @@ def setup(
         appsre_pgp_key=appsre_pgp_key,
     )
     working_dirs = ts.dump(print_to_file)
-    aws_api = AWSApi(1, participating_aws_accounts, settings=settings, init_users=False)
-
     return participating_aws_accounts, working_dirs, err, aws_api
 
 

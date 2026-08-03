@@ -75,7 +75,6 @@ def run(
     integration_version: str,
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     include_trigger_trace: bool,
     defer: Callable | None = None,
 ) -> bool:
@@ -89,7 +88,6 @@ def run(
         integration_version (string): Version of calling integration
         thread_pool_size (int): Thread pool size to use
         internal (bool): Should run for internal/extrenal/all clusters
-        use_jump_host (bool): Should use jump host to reach clusters
         include_trigger_trace (bool): Should include traces of the triggering integration and reason
 
     Returns:
@@ -98,7 +96,6 @@ def run(
     saasherder, oc_map = setup(
         thread_pool_size=thread_pool_size,
         internal=internal,
-        use_jump_host=use_jump_host,
         integration=integration,
         integration_version=integration_version,
         include_trigger_trace=include_trigger_trace,
@@ -131,7 +128,6 @@ def run(
 def setup(
     thread_pool_size: int,
     internal: bool,
-    use_jump_host: bool,
     integration: str,
     integration_version: str,
     include_trigger_trace: bool,
@@ -141,7 +137,6 @@ def setup(
     Args:
         thread_pool_size (int): Thread pool size to use
         internal (bool): Should run for internal/extrenal/all clusters
-        use_jump_host (bool): Should use jump host to reach clusters
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
         include_trigger_trace (bool): Should include traces of the triggering integration and reason
@@ -176,7 +171,6 @@ def setup(
         integration=integration,
         secret_reader=secret_reader,
         internal=internal,
-        use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
 

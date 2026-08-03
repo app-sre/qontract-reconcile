@@ -82,7 +82,7 @@ def get_tokens_for_service_account(
             == service_account
             and token["type"] == "kubernetes.io/service-account-token"
         ):
-            result.append(token)  # noqa: PERF401
+            result.append(token)  # ruff: ignore[manual-list-comprehension]
     return result
 
 
@@ -214,7 +214,6 @@ def run(
     dry_run: bool,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
-    use_jump_host: bool = True,
     vault_output_path: str = "",
     defer: Callable | None = None,
 ) -> None:
@@ -229,7 +228,6 @@ def run(
         integration_version=QONTRACT_INTEGRATION_VERSION,
         override_managed_types=["Secret"],
         internal=internal,
-        use_jump_host=use_jump_host,
     )
     if defer:
         defer(oc_map.cleanup)

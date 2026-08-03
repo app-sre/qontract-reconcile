@@ -29,6 +29,31 @@ async def ldap_users_check(
     return result
 
 
+@client.get("/api/v1/external/ocm/clusters")
+async def ocm_clusters(
+    result: schemas.OcmClustersResponse,
+    secret_manager_url: str,
+    path: str,
+    ocm_url: str,
+    access_token_url: str,
+    access_token_client_id: str,
+    label_key_prefix: str,
+    field: str | None = None,
+    version: int | None = None,
+    org_ids: list[str] | None = None,
+) -> schemas.OcmClustersResponse:
+    """Get Clusters
+
+        Discover OCM clusters with subscription/organization labels matching a prefix.
+
+    Returns raw cluster info plus a flat dict of matching labels, merged with
+    subscription-level labels winning over organization-level labels on key
+    collisions. Label *interpretation* is left entirely to the caller. Results
+    are cached (TTL configured in settings).
+    """
+    return result
+
+
 @client.get("/api/v1/external/pagerduty/escalation-policies/{policy_id}/users")
 async def pagerduty_escalation_policy_users(
     result: schemas.EscalationPolicyUsersResponse,
@@ -338,6 +363,31 @@ async def glitchtip_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/openshift-namespaces/reconcile")
+async def openshift_namespaces(
+    result: schemas.OpenShiftNamespacesTaskResponse,
+    data: schemas.OpenShiftNamespacesReconcileRequest,
+) -> schemas.OpenShiftNamespacesTaskResponse:
+    """Openshift Namespaces Reconcile
+
+    Queue openshift-namespaces reconciliation task.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/openshift-namespaces/reconcile/{task_id}")
+async def openshift_namespaces_task_status(
+    result: schemas.OpenShiftNamespacesTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.OpenShiftNamespacesTaskResult:
+    """Openshift Namespaces Reconcile Task Status
+
+    Retrieve reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
 @client.post("/api/v1/integrations/slack-usergroups/reconcile")
 async def slack_usergroups(
     result: schemas.SlackUsergroupsTaskResponse,
@@ -386,6 +436,33 @@ async def slack_usergroups_task_status(
         HTTPException:
             - 404 Not Found: Task ID not found
             - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/sso-client/reconcile")
+async def sso_client(
+    result: schemas.SsoClientTaskResponse, data: schemas.SsoClientReconcileRequest
+) -> schemas.SsoClientTaskResponse:
+    """Sso Client
+
+        Queue RHIDP SSO client reconciliation task.
+
+    This endpoint always queues a background task and returns immediately with a
+    task_id. Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/sso-client/reconcile/{task_id}")
+async def sso_client_task_status(
+    result: schemas.SsoClientTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.SsoClientTaskResult:
+    """Sso Client Task Status
+
+    Retrieve reconciliation result (blocking or non-blocking).
     """
     return result
 

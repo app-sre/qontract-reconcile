@@ -1,8 +1,14 @@
 """Tests for health check endpoints."""
 
 from http import HTTPStatus
+from unittest.mock import Mock
 
+import httpx2
+import pytest
 from fastapi.testclient import TestClient
+
+from qontract_api.health import check_opa_health
+from qontract_api.opa import OPAClient
 
 
 def test_root_endpoint(client: TestClient) -> None:
@@ -37,3 +43,20 @@ def test_readiness_probe_with_cache(client_with_cache: TestClient) -> None:
     data = response.json()
     assert data["status"] == "healthy"
     assert data["components"]["cache"]["status"] == "healthy"
+
+
+def test_check_opa_health_connection_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A refused OPA connection should report unhealthy, not raise."""
+
+    def raise_connect_error(*args: object, **kwargs: object) -> None:
+        raise httpx2.ConnectError("connection refused")
+
+    monkeypatch.setattr(httpx2, "get", raise_connect_error)
+    opa_client = Mock(spec=OPAClient)
+    opa_client.health_url = "http://opa:8181/health"
+
+    result = check_opa_health(opa_client)
+
+    assert result.status == "unhealthy"
+    assert result.message is not None
+    assert "connection refused" in result.message

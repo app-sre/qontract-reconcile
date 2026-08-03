@@ -29,7 +29,7 @@ ri, oc_map = ob.fetch_current_state(
     thread_pool_size=thread_pool_size,
     integration=QONTRACT_INTEGRATION,
     # Specify which resource types to fetch
-    override_managed_types=['Deployment', 'Service', 'Route']
+    override_managed_types=["Deployment", "Service", "Route"],
 )
 ```
 
@@ -50,15 +50,15 @@ for deployment_body in desired_deployments:
     resource = OpenshiftResource(
         body=deployment_body,
         integration=QONTRACT_INTEGRATION,
-        integration_version=QONTRACT_INTEGRATION_VERSION
+        integration_version=QONTRACT_INTEGRATION_VERSION,
     )
     # Add it to the inventory
     ri.add_desired(
-        cluster='my-cluster',
-        namespace='my-namespace',
+        cluster="my-cluster",
+        namespace="my-namespace",
         kind=resource.kind,
         name=resource.name,
-        value=resource
+        value=resource,
     )
 ```
 
@@ -78,10 +78,7 @@ It compares the desired and current states for every resource and automatically 
 
 ```python
 ob.realize_data(
-    dry_run=dry_run,
-    oc_map=oc_map,
-    ri=ri,
-    thread_pool_size=thread_pool_size
+    dry_run=dry_run, oc_map=oc_map, ri=ri, thread_pool_size=thread_pool_size
 )
 ```
 

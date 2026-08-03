@@ -24,103 +24,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 
-@pytest.mark.parametrize(
-    "cluster, use_jump_host, expected_parameters",
-    [
-        # No jumphost settings and --no-jump-host flag
-        (
-            "cluster_no_jumphost",
-            False,
-            OCConnectionParameters(
-                cluster_name="test-cluster",
-                server_url="server-url",
-                automation_token="secret1",
-                cluster_admin_automation_token=None,
-                disabled_integrations=[],
-                jumphost_port=None,
-                jumphost_hostname=None,
-                jumphost_key=None,
-                jumphost_known_hosts=None,
-                jumphost_user=None,
-                jumphost_remote_port=None,
-                jumphost_local_port=None,
-                is_cluster_admin=False,
-                is_internal=False,
-                skip_tls_verify=None,
-            ),
-        ),
-        # No jumphost settings and --use-jump-host flag
-        (
-            "cluster_no_jumphost",
-            True,
-            OCConnectionParameters(
-                cluster_name="test-cluster",
-                server_url="server-url",
-                automation_token="secret1",
-                cluster_admin_automation_token=None,
-                disabled_integrations=[],
-                jumphost_port=None,
-                jumphost_hostname=None,
-                jumphost_key=None,
-                jumphost_known_hosts=None,
-                jumphost_user=None,
-                jumphost_remote_port=None,
-                jumphost_local_port=None,
-                is_cluster_admin=False,
-                is_internal=False,
-                skip_tls_verify=None,
-            ),
-        ),
-        # Jumphost settings and --use-jump-host flag
-        (
-            "cluster_with_jumphost",
-            True,
-            OCConnectionParameters(
-                cluster_name="test-cluster",
-                server_url="server-url",
-                automation_token="secret1",
-                cluster_admin_automation_token=None,
-                disabled_integrations=[],
-                jumphost_port=None,
-                jumphost_hostname="jumphost",
-                jumphost_key="secret2",
-                jumphost_known_hosts="/path/to/file",
-                jumphost_user="jumphost-user",
-                jumphost_remote_port=8888,
-                jumphost_local_port=None,
-                is_cluster_admin=False,
-                is_internal=True,
-                skip_tls_verify=None,
-            ),
-        ),
-        # Jumphost settings, but --no-jump-host flag given
-        (
-            "cluster_with_jumphost",
-            False,
-            OCConnectionParameters(
-                cluster_name="test-cluster",
-                server_url="server-url",
-                automation_token="secret1",
-                cluster_admin_automation_token=None,
-                disabled_integrations=[],
-                jumphost_port=None,
-                jumphost_hostname=None,
-                jumphost_key=None,
-                jumphost_known_hosts=None,
-                jumphost_user=None,
-                jumphost_remote_port=None,
-                jumphost_local_port=None,
-                is_cluster_admin=False,
-                is_internal=True,
-                skip_tls_verify=None,
-            ),
-        ),
-    ],
-)
-def test_from_cluster(
-    cluster: str, expected_parameters: OCConnectionParameters, use_jump_host: bool
-) -> None:
-    test_cluster = load_cluster_for_connection_parameters(f"{cluster}.yml")
+def test_from_cluster() -> None:
+    test_cluster = load_cluster_for_connection_parameters("cluster_no_jumphost.yml")
     secret_reader = create_autospec(SecretReaderBase)
     secret_reader.read_secret.side_effect = ["secret2"]
     secret_reader.read_all_secret.side_effect = [
@@ -131,9 +36,17 @@ def test_from_cluster(
         secret_reader=secret_reader,
         cluster=test_cluster,
         cluster_admin=False,
-        use_jump_host=use_jump_host,
     )
-    assert parameters == expected_parameters
+    assert parameters == OCConnectionParameters(
+        cluster_name="test-cluster",
+        server_url="server-url",
+        automation_token="secret1",
+        cluster_admin_automation_token=None,
+        disabled_integrations=[],
+        is_cluster_admin=False,
+        is_internal=False,
+        skip_tls_verify=None,
+    )
 
 
 def test_wrong_server_url() -> None:
@@ -149,7 +62,6 @@ def test_wrong_server_url() -> None:
             secret_reader=secret_reader,
             cluster=test_cluster,
             cluster_admin=False,
-            use_jump_host=False,
         )
 
         assert parameters is None
@@ -168,7 +80,6 @@ def test_custom_token_field() -> None:
         secret_reader=secret_reader,
         cluster=test_cluster,
         cluster_admin=False,
-        use_jump_host=False,
     )
     assert parameters.automation_token == "secret1"
 
@@ -187,13 +98,6 @@ class ExpectedConnection:
             automation_token=self.automation_token,
             cluster_admin_automation_token=self.cluster_admin_automation_token,
             disabled_integrations=[],
-            jumphost_port=None,
-            jumphost_hostname=None,
-            jumphost_key=None,
-            jumphost_known_hosts=None,
-            jumphost_user=None,
-            jumphost_remote_port=None,
-            jumphost_local_port=None,
             is_cluster_admin=self.is_cluster_admin,
             is_internal=False,
             skip_tls_verify=None,
@@ -372,7 +276,6 @@ def test_from_namespaces(
         secret_reader=secret_reader,
         namespaces=parsed_namespaces,
         cluster_admin=is_cluster_admin,
-        use_jump_host=False,
         thread_pool_size=1,
     )
 

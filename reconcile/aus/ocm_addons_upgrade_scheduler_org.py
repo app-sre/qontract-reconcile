@@ -225,7 +225,7 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                     cluster_uuid=cluster_upgrade_spec.cluster_uuid,
                     org_id=cluster_upgrade_spec.org.org_id,
                     org_name=org_upgrade_spec.org.name,
-                    channel=cluster_upgrade_spec.cluster.version.channel_group,
+                    channel=cluster_upgrade_spec.cluster.channel,
                     current_version=cluster_upgrade_spec.current_version,
                     cluster_name=cluster_upgrade_spec.name,
                     schedule=cluster_upgrade_spec.upgrade_policy.schedule,
@@ -249,7 +249,7 @@ def calculate_diff(
     version_data: VersionData,
     addon_id: str = "",
 ) -> list[aus.UpgradePolicyHandler]:
-    diffs = aus.calculate_diff(
+    diff_result = aus.calculate_diff(
         addon_current_state,
         org_upgrade_spec,
         ocm_api,
@@ -257,6 +257,7 @@ def calculate_diff(
         addon_id,
         integration=QONTRACT_INTEGRATION,
     )
+    diffs = diff_result.upgrade_policies
     for current in addon_current_state:
         if addon_id == current.addon_id and (
             current.schedule_type == "automatic" or current.state == "completed"

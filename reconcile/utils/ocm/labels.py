@@ -20,19 +20,6 @@ if TYPE_CHECKING:
     from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
-def get_subscription_labels(
-    ocm_api: OCMBaseClient, filter: Filter
-) -> Generator[OCMSubscriptionLabel]:
-    """
-    Finds all subscription labels that match the given filter.
-    """
-    for subscription_label in get_labels(
-        ocm_api=ocm_api, filter=filter & subscription_label_filter()
-    ):
-        if isinstance(subscription_label, OCMSubscriptionLabel):
-            yield subscription_label
-
-
 def add_subscription_label(
     ocm_api: OCMBaseClient,
     ocm_cluster: OCMCluster,
@@ -61,18 +48,6 @@ def add_label(
     )
 
 
-def update_ocm_label(
-    ocm_api: OCMBaseClient,
-    ocm_label: OCMLabel,
-    value: str,
-) -> None:
-    """Update the label value in the given OCM label."""
-    ocm_api.patch(
-        api_path=ocm_label.href,
-        data={"kind": "Label", "key": ocm_label.key, "value": value},
-    )
-
-
 def update_label(
     ocm_api: OCMBaseClient,
     label_container_href: str,
@@ -84,11 +59,6 @@ def update_label(
         api_path=f"{label_container_href}/{label}",
         data={"kind": "Label", "key": label, "value": value},
     )
-
-
-def delete_ocm_label(ocm_api: OCMBaseClient, ocm_label: OCMLabel) -> None:
-    """Delete the given OCM label."""
-    ocm_api.delete(api_path=ocm_label.href)
 
 
 def delete_label(ocm_api: OCMBaseClient, label_container_href: str, label: str) -> None:

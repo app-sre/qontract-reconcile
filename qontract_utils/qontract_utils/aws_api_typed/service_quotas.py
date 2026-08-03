@@ -49,7 +49,7 @@ class AWSResourceAlreadyExistsError(Exception):
 class AWSApiServiceQuotas:
     _hooks: Hooks
 
-    def __init__(self, client: ServiceQuotasClient, hooks: Hooks | None = None) -> None:  # noqa: ARG002
+    def __init__(self, client: ServiceQuotasClient, hooks: Hooks | None = None) -> None:  # ruff: ignore[unused-method-argument]
         self.client = client
 
     @invoke_with_hooks(

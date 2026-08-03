@@ -41,9 +41,6 @@ fragment SaasTargetNamespace on Namespace_v1 {
     internal
     insecureSkipTLSVerify
     labels
-    jumpHost {
-      ...CommonJumphostFields
-    }
     automationToken {
       ...VaultSecret
     }

@@ -6,7 +6,7 @@ import re
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
-import httpxyz as httpx
+import httpx2
 from fastapi import FastAPI, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.utils import get_openapi
@@ -49,55 +49,61 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     - CacheBackend (Redis/Valkey for distributed cache and rate limiting)
     - SecretBackend (Vault for secret management)
     """
-    from qontract_api.cache.factory import get_cache  # noqa: PLC0415
-    from qontract_api.event_manager._factory import (  # noqa: PLC0415
+    from qontract_api.cache.factory import (  # ruff: ignore[import-outside-top-level]
+        get_cache,
+    )
+    from qontract_api.event_manager._factory import (  # ruff: ignore[import-outside-top-level]
         get_event_manager,
     )
-    from qontract_api.secret_manager._factory import (  # noqa: PLC0415
+    from qontract_api.secret_manager._factory import (  # ruff: ignore[import-outside-top-level]
         get_secret_manager,
     )
 
     log.info("Starting application lifespan setup")
 
-    # Startup: Initialize cache backend using factory (singleton pattern)
-    _app.state.cache = get_cache()
+    try:
+        # Startup: Initialize cache backend using factory (singleton pattern)
+        _app.state.cache = get_cache()
 
-    # Startup: Initialize secret backend using factory (singleton pattern)
-    # This creates the Vault client connection and starts token auto-refresh thread
-    _app.state.secret_manager = get_secret_manager(cache=_app.state.cache)
+        # Startup: Initialize secret backend using factory (singleton pattern)
+        # This creates the Vault client connection and starts token auto-refresh thread
+        _app.state.secret_manager = get_secret_manager(cache=_app.state.cache)
 
-    # Startup: Initialize event manager (None if events are disabled)
-    _app.state.event_manager = get_event_manager()
+        # Startup: Initialize event manager (None if events are disabled)
+        _app.state.event_manager = get_event_manager()
 
-    # Startup: Initialize OPA client if enabled
-    if settings.opa.enabled:
-        opa_http_client = httpx.AsyncClient(
-            timeout=settings.opa.timeout,
-        )
-        _app.state.opa_client = OPAClient(
-            host=settings.opa.host,
-            package_name=settings.opa.package_name,
-            skip_endpoints=[re.compile(p) for p in settings.opa.skip_endpoints],
-            client=opa_http_client,
-        )
-        log.info("OPA authorization enabled", opa_url=_app.state.opa_client.opa_url)
-    else:
-        _app.state.opa_client = None
-        log.info("OPA authorization disabled")
+        # Startup: Initialize OPA client if enabled
+        if settings.opa.enabled:
+            opa_http_client = httpx2.AsyncClient(
+                timeout=settings.opa.timeout,
+            )
+            _app.state.opa_client = OPAClient(
+                host=settings.opa.host,
+                package_name=settings.opa.package_name,
+                skip_endpoints=[re.compile(p) for p in settings.opa.skip_endpoints],
+                client=opa_http_client,
+            )
+            log.info("OPA authorization enabled", opa_url=_app.state.opa_client.opa_url)
+        else:
+            _app.state.opa_client = None
+            log.info("OPA authorization disabled")
 
-    yield
+        yield
+    finally:
+        # Cleanup OPA client on shutdown
+        if opa_client := getattr(_app.state, "opa_client", None):
+            await opa_client.client.aclose()
 
-    # Cleanup OPA client on shutdown
-    if opa_client := getattr(_app.state, "opa_client", None):
-        await opa_client.client.aclose()
+        # Cleanup secret backend on shutdown
+        if (
+            hasattr(_app.state, "secret_manager")
+            and _app.state.secret_manager is not None
+        ):
+            _app.state.secret_manager.close()
 
-    # Cleanup secret backend on shutdown
-    if hasattr(_app.state, "secret_manager") and _app.state.secret_manager is not None:
-        _app.state.secret_manager.close()
-
-    # Cleanup cache backend on shutdown
-    if hasattr(_app.state, "cache") and _app.state.cache is not None:
-        _app.state.cache.close()
+        # Cleanup cache backend on shutdown
+        if hasattr(_app.state, "cache") and _app.state.cache is not None:
+            _app.state.cache.close()
 
 
 app = FastAPI(

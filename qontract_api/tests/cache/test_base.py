@@ -45,7 +45,7 @@ class ConcreteCacheBackend(CacheBackend):
         """Get string value from cache."""
         return self.storage.get(key)
 
-    def set(self, key: str, value: str, ttl: int | None = None) -> None:  # noqa: ARG002
+    def set(self, key: str, value: str, ttl: int | None = None) -> None:  # ruff: ignore[unused-method-argument]
         """Set string value in cache (TTL ignored for in-memory)."""
         self.storage[key] = value
 
@@ -66,7 +66,7 @@ class ConcreteCacheBackend(CacheBackend):
         self.storage.clear()
 
     @contextmanager
-    def lock(self, key: str, timeout: float = 300) -> Generator[None]:  # noqa: ARG002
+    def lock(self, key: str, timeout: float = 300) -> Generator[None]:  # ruff: ignore[unused-method-argument]
         """Mock lock implementation (no-op for base tests)."""
         yield
 
