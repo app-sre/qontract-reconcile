@@ -66,6 +66,8 @@ urllib3.disable_warnings()
 GET_REPLICASET_MAX_ATTEMPTS = 20
 DEFAULT_GROUP = ""
 PROJECT_KIND = "Project.project.openshift.io"
+USER_KIND = "User.user.openshift.io"
+GROUP_KIND = "Group.user.openshift.io"
 POD_RECYCLE_SUPPORTED_TRIGGER_KINDS = [
     "ConfigMap",
     "Secret",
@@ -657,7 +659,7 @@ class OCCli:
 
     def get_group_if_exists(self, name: str) -> dict[str, Any] | None:
         try:
-            return self.get(None, "Group", name)
+            return self.get(None, GROUP_KIND, name)
         except StatusCodeError as e:
             if "NotFound" in str(e):
                 return None
@@ -674,11 +676,11 @@ class OCCli:
         self._run(cmd)
 
     def get_users(self) -> Iterable[dict[str, Any]]:
-        return self.get_all("User")["items"]
+        return self.get_all(USER_KIND)["items"]
 
     def delete_user(self, user_name: str) -> None:
-        user = self.get(None, "User", user_name)
-        cmd = ["delete", "user", user_name]
+        user = self.get(None, USER_KIND, user_name)
+        cmd = ["delete", USER_KIND, user_name]
         self._run(cmd)
         for identity in user["identities"]:
             cmd = ["delete", "identity", identity]
