@@ -516,6 +516,26 @@ def test_create_identity_provider_invalidates_cache(
     mock_ocm_api_factory.assert_called_once()
 
 
+def test_create_identity_provider_invalidation_holds_lock(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Cache invalidation must hold the same lock get_identity_providers fills under.
+
+    Otherwise a concurrent reader's fill can race the invalidation and overwrite it
+    with stale data right after this delete runs - see
+    qontract_api/secret_manager/_base.py for the same established pattern.
+    """
+    idp = _oidc_idp()
+    mock_ocm_api.create_identity_provider.return_value = idp
+
+    client.create_identity_provider("cluster-1", idp)
+
+    mock_cache.lock.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
+    mock_cache.delete.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
+
+
 def test_update_identity_provider_invalidates_cache(
     client: OcmWorkspaceClient,
     mock_ocm_api: MagicMock,
@@ -531,6 +551,7 @@ def test_update_identity_provider_invalidates_cache(
         "cluster-1", "idp-1", idp
     )
     mock_ocm_api.__exit__.assert_called_once()
+    mock_cache.lock.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
     mock_cache.delete.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
 
 
@@ -543,6 +564,7 @@ def test_delete_identity_provider_invalidates_cache(
 
     mock_ocm_api.delete_identity_provider.assert_called_once_with("cluster-1", "idp-1")
     mock_ocm_api.__exit__.assert_called_once()
+    mock_cache.lock.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
     mock_cache.delete.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
 
 

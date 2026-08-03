@@ -272,7 +272,9 @@ class OcmWorkspaceClient:
         """Create an OIDC identity provider on a cluster, invalidating its IDP cache."""
         with self._ocm_api_factory() as ocm_api:
             created = ocm_api.create_identity_provider(cluster_id, idp)
-        self.cache.delete(self._idp_cache_key(cluster_id))
+        cache_key = self._idp_cache_key(cluster_id)
+        with self.cache.lock(cache_key):
+            self.cache.delete(cache_key)
         return created
 
     def update_identity_provider(
@@ -281,11 +283,15 @@ class OcmWorkspaceClient:
         """Update an OIDC identity provider on a cluster, invalidating its IDP cache."""
         with self._ocm_api_factory() as ocm_api:
             updated = ocm_api.update_identity_provider(cluster_id, idp_id, idp)
-        self.cache.delete(self._idp_cache_key(cluster_id))
+        cache_key = self._idp_cache_key(cluster_id)
+        with self.cache.lock(cache_key):
+            self.cache.delete(cache_key)
         return updated
 
     def delete_identity_provider(self, cluster_id: str, idp_id: str) -> None:
         """Delete an identity provider from a cluster, invalidating its IDP cache."""
         with self._ocm_api_factory() as ocm_api:
             ocm_api.delete_identity_provider(cluster_id, idp_id)
-        self.cache.delete(self._idp_cache_key(cluster_id))
+        cache_key = self._idp_cache_key(cluster_id)
+        with self.cache.lock(cache_key):
+            self.cache.delete(cache_key)
