@@ -10,7 +10,7 @@ see ADR-013/ADR-014).
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 from pydantic import BaseModel, Field
 from qontract_utils.ocm_api import (
@@ -84,6 +84,12 @@ class OcmWorkspaceClient:
         environment_key: Stable, non-secret identifier for the OCM environment +
             calling identity (see ocm_client_factory.py), used as a cache-key
             component.
+
+    The underlying OcmApi is built at most once (on first use that isn't a pure
+    cache hit) and reused for every subsequent call - reads and mutations alike -
+    for this workspace client's lifetime, instead of paying for a fresh OAuth2
+    token exchange on every single call. Use as a context manager (or call
+    close() explicitly) to release the connection when done.
     """
 
     def __init__(
@@ -97,6 +103,30 @@ class OcmWorkspaceClient:
         self.cache = cache
         self.settings = settings
         self._environment_key = environment_key
+        self._ocm_api_instance: OcmApi | None = None
+
+    @property
+    def _ocm_api(self) -> OcmApi:
+        """Return a single authenticated OcmApi, reused for this workspace client.
+
+        Built at most once, on first access - avoids a fresh OAuth2 token exchange
+        on every call.
+        """
+        if self._ocm_api_instance is None:
+            self._ocm_api_instance = self._ocm_api_factory()
+        return self._ocm_api_instance
+
+    def close(self) -> None:
+        """Close the underlying OcmApi connection, if one was ever built."""
+        if self._ocm_api_instance is not None:
+            self._ocm_api_instance.close()
+            self._ocm_api_instance = None
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
 
     # CACHE KEY HELPERS
     def _cache_key(self, label_key_prefix: str) -> str:
@@ -158,75 +188,66 @@ class OcmWorkspaceClient:
         and flattening straight to merged str labels (label interpretation stays
         client-side, so no LabelContainer type is needed here).
         """
-        with self._ocm_api_factory() as ocm_api:
-            label_filter = subscription_label_filter().like(
-                "key", f"{label_key_prefix}%"
-            ) | organization_label_filter().like("key", f"{label_key_prefix}%")
+        label_filter = subscription_label_filter().like(
+            "key", f"{label_key_prefix}%"
+        ) | organization_label_filter().like("key", f"{label_key_prefix}%")
 
-            subscription_labels: dict[str, list[OcmSubscriptionLabel]] = defaultdict(
-                list
-            )
-            organization_labels: dict[str, list[OcmOrganizationLabel]] = defaultdict(
-                list
-            )
-            for label in ocm_api.get_labels(label_filter):
-                if isinstance(label, OcmSubscriptionLabel):
-                    subscription_labels[label.subscription_id].append(label)
-                else:
-                    organization_labels[label.organization_id].append(label)
+        subscription_labels: dict[str, list[OcmSubscriptionLabel]] = defaultdict(list)
+        organization_labels: dict[str, list[OcmOrganizationLabel]] = defaultdict(list)
+        for label in self._ocm_api.get_labels(label_filter):
+            if isinstance(label, OcmSubscriptionLabel):
+                subscription_labels[label.subscription_id].append(label)
+            else:
+                organization_labels[label.organization_id].append(label)
 
-            if not subscription_labels and not organization_labels:
-                return []
+        if not subscription_labels and not organization_labels:
+            return []
 
-            subscription_filter = (
-                Filter().is_in("id", subscription_labels.keys())
-                | Filter().is_in("organization_id", organization_labels.keys())
-            ) & build_subscription_filter(
-                states=ACTIVE_SUBSCRIPTION_STATES, managed=True
-            )
+        subscription_filter = (
+            Filter().is_in("id", subscription_labels.keys())
+            | Filter().is_in("organization_id", organization_labels.keys())
+        ) & build_subscription_filter(states=ACTIVE_SUBSCRIPTION_STATES, managed=True)
 
-            subscriptions = ocm_api.get_subscriptions(subscription_filter)
-            if not subscriptions:
-                return []
+        subscriptions = self._ocm_api.get_subscriptions(subscription_filter)
+        if not subscriptions:
+            return []
 
-            cluster_search_filter = cluster_ready_for_app_interface().is_in(
-                "subscription.id", subscriptions.keys()
-            )
+        cluster_search_filter = cluster_ready_for_app_interface().is_in(
+            "subscription.id", subscriptions.keys()
+        )
 
-            records: list[OcmClusterRecord] = []
-            for filter_chunk in cluster_search_filter.chunk_by(
-                "subscription.id", CLUSTER_FILTER_CHUNK_SIZE, ignore_missing=True
-            ):
-                for cluster in ocm_api.get_clusters(filter_chunk):
-                    subscription = subscriptions.get(cluster.subscription_id)
-                    if subscription is None:
-                        # Defensive: shouldn't happen given the filter above.
-                        logger.warning(
-                            "Cluster returned with unknown subscription",
-                            cluster_id=cluster.id,
-                            subscription_id=cluster.subscription_id,
-                        )
-                        continue
-
-                    merged_labels: dict[str, str] = {}
-                    for label in organization_labels.get(
-                        subscription.organization_id, []
-                    ):
-                        merged_labels[label.key] = label.value
-                    for label in subscription_labels.get(cluster.subscription_id, []):
-                        merged_labels[label.key] = label.value  # subscription wins
-
-                    records.append(
-                        OcmClusterRecord(
-                            id=cluster.id,
-                            name=cluster.name,
-                            organization_id=subscription.organization_id,
-                            console_url=cluster.console_url,
-                            external_auth_enabled=cluster.external_auth_enabled,
-                            labels=merged_labels,
-                        )
+        records: list[OcmClusterRecord] = []
+        for filter_chunk in cluster_search_filter.chunk_by(
+            "subscription.id", CLUSTER_FILTER_CHUNK_SIZE, ignore_missing=True
+        ):
+            for cluster in self._ocm_api.get_clusters(filter_chunk):
+                subscription = subscriptions.get(cluster.subscription_id)
+                if subscription is None:
+                    # Defensive: shouldn't happen given the filter above.
+                    logger.warning(
+                        "Cluster returned with unknown subscription",
+                        cluster_id=cluster.id,
+                        subscription_id=cluster.subscription_id,
                     )
-            return records
+                    continue
+
+                merged_labels: dict[str, str] = {}
+                for label in organization_labels.get(subscription.organization_id, []):
+                    merged_labels[label.key] = label.value
+                for label in subscription_labels.get(cluster.subscription_id, []):
+                    merged_labels[label.key] = label.value  # subscription wins
+
+                records.append(
+                    OcmClusterRecord(
+                        id=cluster.id,
+                        name=cluster.name,
+                        organization_id=subscription.organization_id,
+                        console_url=cluster.console_url,
+                        external_auth_enabled=cluster.external_auth_enabled,
+                        labels=merged_labels,
+                    )
+                )
+        return records
 
     # IDENTITY PROVIDERS (cached read, invalidating mutations)
     def get_identity_providers(
@@ -245,8 +266,7 @@ class OcmWorkspaceClient:
             with self.cache.lock(cache_key):
                 cached = self._get_cached_identity_providers(cache_key)
                 if cached is None:
-                    with self._ocm_api_factory() as ocm_api:
-                        cached = ocm_api.get_identity_providers(cluster_id)
+                    cached = self._ocm_api.get_identity_providers(cluster_id)
                     self.cache.set_obj(
                         cache_key,
                         CachedOcmIdentityProviders(items=cached),
@@ -270,8 +290,7 @@ class OcmWorkspaceClient:
         self, cluster_id: str, idp: OcmIdentityProviderOidc
     ) -> OcmIdentityProviderOidc:
         """Create an OIDC identity provider on a cluster, invalidating its IDP cache."""
-        with self._ocm_api_factory() as ocm_api:
-            created = ocm_api.create_identity_provider(cluster_id, idp)
+        created = self._ocm_api.create_identity_provider(cluster_id, idp)
         cache_key = self._idp_cache_key(cluster_id)
         with self.cache.lock(cache_key):
             self.cache.delete(cache_key)
@@ -281,8 +300,7 @@ class OcmWorkspaceClient:
         self, cluster_id: str, idp_id: str, idp: OcmIdentityProviderOidc
     ) -> OcmIdentityProviderOidc:
         """Update an OIDC identity provider on a cluster, invalidating its IDP cache."""
-        with self._ocm_api_factory() as ocm_api:
-            updated = ocm_api.update_identity_provider(cluster_id, idp_id, idp)
+        updated = self._ocm_api.update_identity_provider(cluster_id, idp_id, idp)
         cache_key = self._idp_cache_key(cluster_id)
         with self.cache.lock(cache_key):
             self.cache.delete(cache_key)
@@ -290,8 +308,7 @@ class OcmWorkspaceClient:
 
     def delete_identity_provider(self, cluster_id: str, idp_id: str) -> None:
         """Delete an identity provider from a cluster, invalidating its IDP cache."""
-        with self._ocm_api_factory() as ocm_api:
-            ocm_api.delete_identity_provider(cluster_id, idp_id)
+        self._ocm_api.delete_identity_provider(cluster_id, idp_id)
         cache_key = self._idp_cache_key(cluster_id)
         with self.cache.lock(cache_key):
             self.cache.delete(cache_key)

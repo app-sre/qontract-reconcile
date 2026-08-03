@@ -14,7 +14,6 @@ from qontract_utils.ocm_api.models import (
     OcmIdentityProviderOidcOpenIdClaims,
 )
 
-from qontract_api.external.ocm.ocm_client_factory import create_ocm_workspace_client
 from qontract_api.integrations.ocm_oidc_idp.domain import OcmOidcIdpCluster
 from qontract_api.integrations.ocm_oidc_idp.metrics import (
     INTEGRATION_NAME,
@@ -31,6 +30,7 @@ from qontract_api.integrations.ocm_oidc_idp.schemas import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import Secret, TaskStatus
+from qontract_api.ocm.ocm_client_factory import create_ocm_workspace_client
 from qontract_api.rhidp.domain import SsoClientSecret, cluster_vault_secret_id
 
 if TYPE_CHECKING:
@@ -38,8 +38,8 @@ if TYPE_CHECKING:
 
     from qontract_api.cache import CacheBackend
     from qontract_api.config import Settings
-    from qontract_api.external.ocm.ocm_workspace_client import OcmWorkspaceClient
-    from qontract_api.external.ocm.schemas import OcmConnectionParams
+    from qontract_api.ocm.domain import OcmConnectionParams
+    from qontract_api.ocm.ocm_workspace_client import OcmWorkspaceClient
     from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
@@ -395,45 +395,48 @@ class OcmOidcIdpService:
     ) -> OcmOidcIdpTaskResult:
         """Reconcile OCM OIDC identity providers for one OCM environment."""
         self._expose_cluster_metrics(ocm_environment, clusters)
-        workspace_client = create_ocm_workspace_client(
-            ocm_connection, self.cache, self.secret_manager, self.settings
-        )
-
-        current_state = self._fetch_current_state(workspace_client, clusters)
         desired_state, unresolved_keys, errors = self._fetch_desired_state(
             clusters, vault_target
-        )
-        # A cluster whose desired state couldn't be resolved must never look like
-        # "not desired" to the diff below - that would delete a live, working
-        # identity provider on e.g. a transient Vault read failure. Excluding its
-        # current-state entry entirely means no add/delete/change action is ever
-        # computed for it this run.
-        current_state = [
-            state
-            for state in current_state
-            if self._diff_key(state) not in unresolved_keys
-        ]
-
-        diff_result = diff_iterables(
-            current_state, desired_state, key=self._diff_key, equal=operator.eq
         )
 
         actions: list[OcmOidcIdpAction] = []
         applied_actions: list[OcmOidcIdpAction] = []
-        for category_actions, category_applied, category_errors in (
-            self._process_deletes(
-                workspace_client, diff_result.delete.values(), dry_run=dry_run
-            ),
-            self._process_adds(
-                workspace_client, diff_result.add.values(), dry_run=dry_run
-            ),
-            self._process_changes(
-                workspace_client, diff_result.change.values(), dry_run=dry_run
-            ),
-        ):
-            actions.extend(category_actions)
-            applied_actions.extend(category_applied)
-            errors.extend(category_errors)
+        # A single OcmWorkspaceClient (and the OcmApi connection it lazily builds)
+        # is reused for every cluster's current-state fetch and every mutation below,
+        # instead of re-authenticating with OCM on every single call.
+        with create_ocm_workspace_client(
+            ocm_connection, self.cache, self.secret_manager, self.settings
+        ) as workspace_client:
+            current_state = self._fetch_current_state(workspace_client, clusters)
+            # A cluster whose desired state couldn't be resolved must never look
+            # like "not desired" to the diff below - that would delete a live,
+            # working identity provider on e.g. a transient Vault read failure.
+            # Excluding its current-state entry entirely means no add/delete/change
+            # action is ever computed for it this run.
+            current_state = [
+                state
+                for state in current_state
+                if self._diff_key(state) not in unresolved_keys
+            ]
+
+            diff_result = diff_iterables(
+                current_state, desired_state, key=self._diff_key, equal=operator.eq
+            )
+
+            for category_actions, category_applied, category_errors in (
+                self._process_deletes(
+                    workspace_client, diff_result.delete.values(), dry_run=dry_run
+                ),
+                self._process_adds(
+                    workspace_client, diff_result.add.values(), dry_run=dry_run
+                ),
+                self._process_changes(
+                    workspace_client, diff_result.change.values(), dry_run=dry_run
+                ),
+            ):
+                actions.extend(category_actions)
+                applied_actions.extend(category_applied)
+                errors.extend(category_errors)
 
         if errors:
             rhidp_ocm_oidc_idp_reconcile_errors.labels(
