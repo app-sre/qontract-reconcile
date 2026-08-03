@@ -533,6 +533,8 @@ def _call_rebase(
     gitlab_api.get_merge_request_pipelines.side_effect = lambda mr: pipelines_map.get(
         mr.iid, []
     )
+    mr_by_iid = {mr.iid: mr for mr in merge_requests}
+    gitlab_api.get_merge_request.side_effect = lambda iid: mr_by_iid[iid]
     mocker.patch(
         "reconcile.gitlab_housekeeping.get_merge_requests",
         return_value=[

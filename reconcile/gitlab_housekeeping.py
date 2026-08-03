@@ -927,7 +927,8 @@ def _rebase_merge_requests_active_cap(
     for mr in merge_requests:
         pipelines = gl.get_merge_request_pipelines(mr)
         pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
-        if is_rebased(mr, gl):
+        fresh_mr = gl.get_merge_request(mr.iid)
+        if is_rebased(fresh_mr, gl):
             if pipelines and pipelines[0].status in {
                 PipelineStatus.RUNNING,
                 PipelineStatus.PENDING,
@@ -989,7 +990,8 @@ def _rebase_merge_requests_old_burst(
         if not item["error"]
     ]
     for mr in merge_requests:
-        if is_rebased(mr, gl):
+        fresh_mr = gl.get_merge_request(mr.iid)
+        if is_rebased(fresh_mr, gl):
             continue
 
         pipelines = gl.get_merge_request_pipelines(mr)
