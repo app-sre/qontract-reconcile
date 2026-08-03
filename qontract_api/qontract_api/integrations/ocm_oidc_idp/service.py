@@ -45,6 +45,25 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+class _UnresolvedDesiredStateError(Exception):
+    """Raised when a cluster's desired OIDC identity provider cannot be determined.
+
+    Any current identity provider for this cluster must be excluded from the diff
+    entirely - never treated as "not desired", which would delete a live, working
+    configuration on e.g. a transient Vault read failure.
+
+    `fatal` controls whether this also counts as a reconcile error: a not-yet-created
+    Vault secret (sso_client hasn't reconciled this cluster yet) is a routine,
+    extremely common condition and must never fail the reconcile - only a genuine
+    misconfiguration (e.g. a stored issuer that doesn't match the cluster's
+    configured one) should.
+    """
+
+    def __init__(self, message: str, *, fatal: bool) -> None:
+        super().__init__(message)
+        self.fatal = fatal
+
+
 class _IdpState(pydantic.BaseModel):
     """Internal diffing unit: one identity provider + the cluster it belongs to.
 
@@ -129,42 +148,44 @@ class OcmOidcIdpService:
         """Compile desired OIDC identity providers from sso_client's Vault secrets.
 
         Returns (desired_state, unresolved_keys, errors). unresolved_keys are diff
-        keys (see reconcile()) whose desired state could not be determined because of
-        an error, as opposed to the cluster legitimately not wanting OIDC configured.
-        The caller must exclude any matching current-state entry from the diff -
-        otherwise an unresolved cluster looks identical to "not desired" and its
-        existing, working identity provider would be deleted on e.g. a transient
-        Vault read failure.
+        keys (see reconcile()) whose desired state could not be determined - the
+        caller must exclude any matching current-state entry from the diff, otherwise
+        an unresolved cluster looks identical to "not desired" and its existing,
+        working identity provider would be deleted. errors only ever contains
+        *fatal* unresolved-state failures (see _UnresolvedDesiredStateError) - a
+        not-yet-created Vault secret is routine and never ends up here.
         """
         desired_state: list[_IdpState] = []
         unresolved_keys: set[tuple[str, str, str, str]] = set()
         errors: list[str] = []
         for cluster in clusters:
-            idp, error = self._desired_idp_for_cluster(cluster, vault_target)
-            if error is not None:
+            try:
+                idp = self._desired_idp_for_cluster(cluster, vault_target)
+            except _UnresolvedDesiredStateError as e:
                 unresolved_keys.add((
                     cluster.organization_id,
                     cluster.name,
                     "OpenIDIdentityProvider",
                     cluster.auth.name,
                 ))
-                errors.append(error)
-            elif idp is not None:
+                if e.fatal:
+                    errors.append(str(e))
+                continue
+            if idp is not None:
                 desired_state.append(_IdpState(cluster=cluster, idp=idp))
         return desired_state, unresolved_keys, errors
 
     def _desired_idp_for_cluster(
         self, cluster: OcmOidcIdpCluster, vault_target: Secret
-    ) -> tuple[OcmIdentityProviderOidc | None, str | None]:
-        """Return (desired_idp, error).
+    ) -> OcmIdentityProviderOidc | None:
+        """Return the desired identity provider, or None if OIDC isn't desired.
 
-        error is set only when the desired state could not be determined (unreadable
-        secret, or a stored issuer that doesn't match the cluster's configured one) -
-        never for the cluster legitimately not wanting OIDC configured. See
-        _fetch_desired_state for why this distinction matters.
+        Raises _UnresolvedDesiredStateError (never for the cluster legitimately not
+        wanting OIDC configured) if the desired state could not be determined - see
+        that class's docstring for the fatal/non-fatal distinction.
         """
         if not cluster.auth.oidc_enabled:
-            return None, None
+            return None
 
         secret_id = cluster_vault_secret_id(
             cluster.organization_id,
@@ -180,41 +201,39 @@ class OcmOidcIdpService:
             sso_client = SsoClientSecret(**self.secret_manager.read_all(secret))
         # Intentionally broad: the secret backend (pluggable per ADR-017) and
         # pydantic validation can raise open-ended exception types here, and this is
-        # a routine, expected condition (sso_client may not have created the secret
-        # yet) - not worth an error-level stack trace.
-        except Exception as e:  # ruff: ignore[blind-except]
-            error = (
+        # a routine, extremely common condition (sso_client hasn't reconciled this
+        # cluster yet) - not fatal, not worth an error-level stack trace.
+        except Exception as e:
+            message = (
                 f"{cluster.name}: unable to read or parse SSO client secret at "
                 f"{secret.path}: {e}. Maybe not created yet?"
             )
-            logger.warning(error)
-            return None, error
+            logger.warning(message)
+            raise _UnresolvedDesiredStateError(message, fatal=False) from e
 
         if sso_client.issuer != cluster.auth.issuer:
-            # Can only happen if someone manually changed or copied the secret.
-            error = (
+            # Can only happen if someone manually changed or copied the secret - a
+            # genuine misconfiguration, unlike the routine "not created yet" above.
+            message = (
                 f"{cluster.name}: SSO client issuer {sso_client.issuer} does not "
                 f"match configured cluster issuer {cluster.auth.issuer}"
             )
-            logger.error(error)
-            return None, error
+            logger.error(message)
+            raise _UnresolvedDesiredStateError(message, fatal=True)
 
         claims = OcmIdentityProviderOidcOpenIdClaims(
             groups=["filtered_groups"]
             if sso_client.attributes.get("group-filter-regex")
             else [],
         )
-        return (
-            OcmIdentityProviderOidc(
-                name=cluster.auth.name,
-                open_id=OcmIdentityProviderOidcOpenId(
-                    client_id=sso_client.client_id,
-                    client_secret=sso_client.client_secret,
-                    issuer=cluster.auth.issuer,
-                    claims=claims,
-                ),
+        return OcmIdentityProviderOidc(
+            name=cluster.auth.name,
+            open_id=OcmIdentityProviderOidcOpenId(
+                client_id=sso_client.client_id,
+                client_secret=sso_client.client_secret,
+                issuer=cluster.auth.issuer,
+                claims=claims,
             ),
-            None,
         )
 
     @staticmethod

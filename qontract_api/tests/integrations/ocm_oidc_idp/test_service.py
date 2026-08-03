@@ -362,10 +362,10 @@ def test_reconcile_desired_state_malformed_secret_isolated(
 
     Regression test for the legacy fragility this migration deliberately fixes: the
     old integration let a pydantic ValidationError from a malformed secret propagate
-    and abort the entire OCM-environment run. It's still surfaced as a reconcile
-    error (not silently swallowed) since desired state genuinely couldn't be
-    determined - see test_reconcile_unresolvable_desired_state_does_not_delete_existing_idp
-    for why it must NOT be treated as "not desired" for diffing purposes.
+    and abort the entire OCM-environment run. This is NOT a reconcile error, though -
+    it's the routine, extremely common state while sso_client hasn't reconciled this
+    cluster yet (e.g. right after a cluster becomes RHIDP-enabled), so it must only be
+    a warning, never fail the run or increment the error counter.
     """
     cluster = _cluster()
     mock_secret_manager.read_all.return_value = {"client_id": "only-one-field"}
@@ -374,15 +374,19 @@ def test_reconcile_desired_state_malformed_secret_isolated(
         "prod", OCM_CONNECTION, [cluster], VAULT_TARGET, dry_run=True
     )
 
-    assert result.status == TaskStatus.FAILED
+    assert result.status == TaskStatus.SUCCESS
     assert result.actions == []
-    assert len(result.errors) == 1
-    assert "unable to read or parse" in result.errors[0]
+    assert result.errors == []
 
 
 def test_reconcile_desired_state_issuer_mismatch_skipped(
     service: OcmOidcIdpService, mock_secret_manager: MagicMock
 ) -> None:
+    """Unlike a not-yet-created secret, an issuer mismatch can only happen if someone
+
+    manually changed or copied the secret - a genuine misconfiguration, so it IS a
+    reconcile error.
+    """
     cluster = _cluster()
     mock_secret_manager.read_all.return_value = _stored_secret(
         cluster, issuer="https://different-issuer.example.com"
@@ -398,7 +402,7 @@ def test_reconcile_desired_state_issuer_mismatch_skipped(
     assert "does not match configured cluster issuer" in result.errors[0]
 
 
-def test_reconcile_unresolvable_desired_state_does_not_delete_existing_idp(
+def test_reconcile_unreadable_secret_does_not_delete_existing_idp(
     service: OcmOidcIdpService,
     mock_secret_manager: MagicMock,
     mock_workspace_client: MagicMock,
@@ -409,10 +413,39 @@ def test_reconcile_unresolvable_desired_state_does_not_delete_existing_idp(
     fix, an unresolvable desired state looked identical to "not desired" to the diff,
     so the existing identity provider (name matches cluster.auth.name) would land in
     the delete bucket and be removed - a transient Vault hiccup silently destroying a
-    working configuration. Regression test for that bug.
+    working configuration. Regression test for that bug. Non-fatal (routine), so the
+    run still succeeds overall - only the delete must not happen.
     """
     cluster = _cluster()
     mock_secret_manager.read_all.return_value = {"client_id": "only-one-field"}
+    mock_workspace_client.get_identity_providers.return_value = [
+        _current_oidc_idp(idp_id="idp-1", name="redhat-sso")
+    ]
+
+    result = service.reconcile(
+        "prod", OCM_CONNECTION, [cluster], VAULT_TARGET, dry_run=False
+    )
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.actions == []
+    assert result.applied_actions == []
+    mock_workspace_client.delete_identity_provider.assert_not_called()
+
+
+def test_reconcile_issuer_mismatch_does_not_delete_existing_idp(
+    service: OcmOidcIdpService,
+    mock_secret_manager: MagicMock,
+    mock_workspace_client: MagicMock,
+) -> None:
+    """Same protection as the unreadable-secret case above, but for the fatal
+
+    (issuer-mismatch) branch - a real misconfiguration must still be reported as an
+    error, but must not cause the existing identity provider to be deleted either.
+    """
+    cluster = _cluster()
+    mock_secret_manager.read_all.return_value = _stored_secret(
+        cluster, issuer="https://different-issuer.example.com"
+    )
     mock_workspace_client.get_identity_providers.return_value = [
         _current_oidc_idp(idp_id="idp-1", name="redhat-sso")
     ]
