@@ -9,6 +9,7 @@ see ADR-013/ADR-014).
 
 from __future__ import annotations
 
+import threading
 from collections import defaultdict
 from typing import TYPE_CHECKING, Self
 
@@ -89,7 +90,11 @@ class OcmWorkspaceClient:
     cache hit) and reused for every subsequent call - reads and mutations alike -
     for this workspace client's lifetime, instead of paying for a fresh OAuth2
     token exchange on every single call. Use as a context manager (or call
-    close() explicitly) to release the connection when done.
+    close() explicitly) to release the connection when done. Safe to call from
+    multiple threads concurrently (e.g. a thread pool fetching several clusters'
+    identity providers at once) - httpx2.Client itself is thread-safe, and the
+    lazy build below is guarded so concurrent first-callers can't each build (and
+    leak) their own OcmApi.
     """
 
     def __init__(
@@ -104,16 +109,20 @@ class OcmWorkspaceClient:
         self.settings = settings
         self._environment_key = environment_key
         self._ocm_api_instance: OcmApi | None = None
+        self._ocm_api_build_lock = threading.Lock()
 
     @property
     def _ocm_api(self) -> OcmApi:
         """Return a single authenticated OcmApi, reused for this workspace client.
 
         Built at most once, on first access - avoids a fresh OAuth2 token exchange
-        on every call.
+        on every call. Double-checked locking so concurrent first-callers block on
+        the same build instead of each starting their own OAuth2 exchange.
         """
         if self._ocm_api_instance is None:
-            self._ocm_api_instance = self._ocm_api_factory()
+            with self._ocm_api_build_lock:
+                if self._ocm_api_instance is None:
+                    self._ocm_api_instance = self._ocm_api_factory()
         return self._ocm_api_instance
 
     def close(self) -> None:

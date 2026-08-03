@@ -1,6 +1,7 @@
 """Unit tests for OcmOidcIdpService."""
 
 from collections.abc import Generator
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,7 +12,7 @@ from qontract_utils.ocm_api.models import (
 )
 
 from qontract_api.cache.base import CacheBackend
-from qontract_api.config import Settings
+from qontract_api.config import OcmSettings, Settings
 from qontract_api.integrations.ocm_oidc_idp.domain import (
     OcmOidcIdpAuth,
     OcmOidcIdpCluster,
@@ -146,6 +147,30 @@ def test_reconcile_no_op_when_no_clusters(service: OcmOidcIdpService) -> None:
     result = service.reconcile("prod", OCM_CONNECTION, [], VAULT_TARGET, dry_run=True)
     assert result.status == TaskStatus.SUCCESS
     assert result.actions == []
+
+
+def test_fetch_current_state_uses_configured_concurrency(
+    mock_cache: MagicMock,
+    mock_secret_manager: MagicMock,
+    mock_workspace_client: MagicMock,
+) -> None:
+    """Current-state fetches must run with the configured worker count - fetching
+
+    them serially would make wall-clock time scale linearly with cluster count.
+    """
+    settings = Settings(ocm=OcmSettings(identity_providers_fetch_concurrency=3))
+    service = OcmOidcIdpService(
+        cache=mock_cache, secret_manager=mock_secret_manager, settings=settings
+    )
+    cluster = _cluster(oidc_enabled=False)
+
+    with patch(
+        "qontract_api.integrations.ocm_oidc_idp.service.ThreadPoolExecutor",
+        wraps=ThreadPoolExecutor,
+    ) as mock_executor:
+        service.reconcile("prod", OCM_CONNECTION, [cluster], VAULT_TARGET, dry_run=True)
+
+    mock_executor.assert_called_once_with(max_workers=3)
 
 
 def test_reconcile_no_changes(
