@@ -1087,12 +1087,13 @@ def _process_omm_member(
 
     latest_status = pipelines[0].status
 
-    if latest_status == PipelineStatus.FAILED:
+    if latest_status in {PipelineStatus.FAILED, PipelineStatus.CANCELED}:
         logging.info([
             "omm-group",
             "eject-failed",
             gl.project.name,
             mr.iid,
+            latest_status,
         ])
         if not dry_run:
             gl.remove_label(mr, OMM_PENDING)
