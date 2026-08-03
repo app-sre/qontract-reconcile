@@ -3045,13 +3045,13 @@ def _canceled_pipeline(
     [("abc123", None), (None, "abc123")],
     ids=["merge-commit", "squash-commit"],
 )
-def test_omm_group_unhandled_status_rebased_stays_active(
+def test_omm_group_canceled_pipeline_ejects_member(
     mocker: MockerFixture,
     merge_sha: str | None,
     squash_sha: str | None,
 ) -> None:
-    """An unexpected pipeline status (e.g. 'canceled') on a rebased MR
-    should keep the group active rather than triggering adaptive-close."""
+    """A canceled pipeline ejects the member (same as failed). With no
+    active members remaining, adaptive-close fires."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
         "reconcile.gitlab_housekeeping.is_rebased",
@@ -3075,6 +3075,59 @@ def test_omm_group_unhandled_status_rebased_stays_active(
 
     mocked_gl = _make_omm_gl(head_sha="abc123")
     mocked_gl.get_merge_request_pipelines.return_value = [_canceled_pipeline()]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
+    mocked_gl.remove_label.assert_called_once_with(mr, gl_h.OMM_PENDING)
+    clear_mock.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
+def test_omm_group_unhandled_status_rebased_stays_active(
+    mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
+) -> None:
+    """An unexpected pipeline status (e.g. 'manual') on a rebased MR
+    should keep the group active rather than triggering adaptive-close."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=True,
+    )
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
+    lead.target_branch = "master"
+
+    mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    unhandled = create_autospec(ProjectMergeRequestPipeline, status="manual")
+    unhandled.project_id = 1
+    unhandled.sha = "pipeline-sha"
+    unhandled.source = "external"
+    mocked_gl.get_merge_request_pipelines.return_value = [unhandled]
 
     merges = gl_h._process_omm_group(
         dry_run=False,
