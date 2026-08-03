@@ -15,6 +15,7 @@ from unittest.mock import (
 
 import pytest
 from gitlab import Gitlab
+from gitlab.const import PipelineStatus
 from gitlab.exceptions import (
     GitlabGetError,
     GitlabMRClosedError,
@@ -900,6 +901,50 @@ def test_rebase_stale_success_pipeline_does_not_block_rebase(
 
     assert merge_requests[0].rebase.call_count == 1
     assert merge_requests[1].rebase.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "strategy",
+    [RebaseStrategy.ACTIVE_CAP, RebaseStrategy.OLD_BURST],
+    ids=["active-cap", "old-burst"],
+)
+def test_rebase_uses_refreshed_mr_not_stale_batch_object(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock, strategy: RebaseStrategy
+) -> None:
+    """Regression: is_rebased must receive the refreshed MR from
+    get_merge_request, not the stale batch-fetched object.  The stale
+    object has an old SHA that would make is_rebased return False
+    (triggering a redundant rebase), but the fresh object is up-to-date."""
+    stale_mr = _make_rebase_mr(1)
+    fresh_mr = _make_rebase_mr(1)
+
+    gitlab_api.get_merge_request_pipelines.return_value = []
+    gitlab_api.get_merge_request.return_value = fresh_mr
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_merge_requests",
+        return_value=[{"mr": stale_mr, "error": False}],
+    )
+
+    def _is_rebased(mr, gl):
+        return mr is fresh_mr
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        side_effect=_is_rebased,
+    )
+
+    gl_h.rebase_merge_requests(
+        dry_run=False,
+        gl=gitlab_api,
+        rebase_limit=2,
+        state=state,
+        pipeline_timeout=None,
+        wait_for_pipeline=False,
+        strategy=strategy,
+    )
+
+    gitlab_api.get_merge_request.assert_called_once_with(1)
+    stale_mr.rebase.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -3033,7 +3078,7 @@ def test_omm_group_all_skipped_pipelines_rebased_stays_active(
 def _canceled_pipeline(
     project_id: int = 1, sha: str = "pipeline-sha", source: str = "external"
 ) -> Mock:
-    p = create_autospec(ProjectMergeRequestPipeline, status="canceled")
+    p = create_autospec(ProjectMergeRequestPipeline, status=PipelineStatus.CANCELED)
     p.project_id = project_id
     p.sha = sha
     p.source = source
@@ -3138,6 +3183,7 @@ def test_omm_group_unhandled_status_rebased_stays_active(
 
     assert merges == 0
     mr.merge.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
     clear_mock.assert_not_called()
 
 

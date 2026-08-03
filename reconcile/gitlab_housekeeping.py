@@ -1098,7 +1098,8 @@ def _process_omm_member(
         if not dry_run:
             gl.remove_label(mr, OMM_PENDING)
         optimistic_merge_rejected.labels(
-            project_id=mr.target_project_id, reason="pipeline_failed"
+            project_id=mr.target_project_id,
+            reason=f"pipeline_{latest_status.value}",
         ).inc()
         return _MemberResult()
 
