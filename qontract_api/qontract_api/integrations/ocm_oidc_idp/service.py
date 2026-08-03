@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import operator
 from collections import Counter as CollectionCounter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
 import pydantic
@@ -121,25 +122,41 @@ class OcmOidcIdpService:
 
     @staticmethod
     def _fetch_current_state(
-        workspace_client: OcmWorkspaceClient, clusters: list[OcmOidcIdpCluster]
+        workspace_client: OcmWorkspaceClient,
+        clusters: list[OcmOidcIdpCluster],
+        *,
+        max_workers: int,
     ) -> list[_IdpState]:
-        """Fetch existing identity providers for every cluster.
+        """Fetch existing identity providers for every cluster, concurrently.
 
-        A single cluster's OCM query failing does not abort the whole run - it is
-        logged and that cluster is skipped for this reconcile, matching the
+        Each cluster's OCM query is an independent HTTP round-trip - fetching them
+        serially would make wall-clock time scale linearly with cluster count, for
+        no benefit (OcmWorkspaceClient already shares one OcmApi connection across
+        threads). A single cluster's OCM query failing does not abort the whole run
+        - it is logged and that cluster is skipped for this reconcile, matching the
         per-cluster error isolation used for desired-state secret reads below.
         """
         current_state: list[_IdpState] = []
-        for cluster in clusters:
-            try:
-                idps = workspace_client.get_identity_providers(cluster.cluster_id)
-            except Exception:
-                logger.exception(
-                    f"Failed to fetch identity providers for cluster {cluster.name}; "
-                    "skipping for this reconcile"
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_cluster = {
+                executor.submit(
+                    workspace_client.get_identity_providers, cluster.cluster_id
+                ): cluster
+                for cluster in clusters
+            }
+            for future in as_completed(future_to_cluster):
+                cluster = future_to_cluster[future]
+                try:
+                    idps = future.result()
+                except Exception:
+                    logger.exception(
+                        f"Failed to fetch identity providers for cluster "
+                        f"{cluster.name}; skipping for this reconcile"
+                    )
+                    continue
+                current_state.extend(
+                    _IdpState(cluster=cluster, idp=idp) for idp in idps
                 )
-                continue
-            current_state.extend(_IdpState(cluster=cluster, idp=idp) for idp in idps)
         return current_state
 
     def _fetch_desired_state(
@@ -407,7 +424,11 @@ class OcmOidcIdpService:
         with create_ocm_workspace_client(
             ocm_connection, self.cache, self.secret_manager, self.settings
         ) as workspace_client:
-            current_state = self._fetch_current_state(workspace_client, clusters)
+            current_state = self._fetch_current_state(
+                workspace_client,
+                clusters,
+                max_workers=self.settings.ocm.identity_providers_fetch_concurrency,
+            )
             # A cluster whose desired state couldn't be resolved must never look
             # like "not desired" to the diff below - that would delete a live,
             # working identity provider on e.g. a transient Vault read failure.

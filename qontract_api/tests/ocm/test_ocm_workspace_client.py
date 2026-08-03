@@ -1,5 +1,7 @@
 """Tests for OcmWorkspaceClient caching + composition layer."""
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock
 
 import pytest
@@ -508,6 +510,33 @@ def test_ocm_api_is_built_lazily_and_reused_across_calls(
     client.get_clusters("sre-capabilities.rhidp")
     client.get_identity_providers("cluster-1")
     client.get_identity_providers("cluster-2")
+
+    mock_ocm_api_factory.assert_called_once()
+
+
+def test_ocm_api_lazy_build_is_thread_safe(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+) -> None:
+    """Concurrent first-callers (e.g. a thread pool fetching several clusters'
+
+    identity providers at once) must block on the same OcmApi build instead of each
+    racing to build (and leak) their own. Uses a barrier to maximize the chance of
+    triggering the race if the double-checked locking were missing or broken.
+    """
+    mock_ocm_api.get_identity_providers.return_value = []
+    thread_count = 16
+    barrier = threading.Barrier(thread_count)
+
+    def _fetch(cluster_id: str) -> None:
+        barrier.wait(timeout=5)
+        client.get_identity_providers(cluster_id)
+
+    with ThreadPoolExecutor(max_workers=thread_count) as executor:
+        futures = [executor.submit(_fetch, f"cluster-{i}") for i in range(thread_count)]
+        for future in futures:
+            future.result(timeout=5)
 
     mock_ocm_api_factory.assert_called_once()
 
