@@ -925,7 +925,7 @@ def test_rebase_uses_refreshed_mr_not_stale_batch_object(
         return_value=[{"mr": stale_mr, "error": False}],
     )
 
-    def _is_rebased(mr, gl):
+    def _is_rebased(mr: Mock, gl: Mock) -> bool:
         return mr is fresh_mr
 
     mocker.patch(
