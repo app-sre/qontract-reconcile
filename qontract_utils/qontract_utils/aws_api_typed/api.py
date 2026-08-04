@@ -14,6 +14,7 @@ from qontract_utils.aws_api_typed.cloudformation import AWSApiCloudFormation
 from qontract_utils.aws_api_typed.dynamodb import AWSApiDynamoDB
 from qontract_utils.aws_api_typed.iam import AWSApiIam
 from qontract_utils.aws_api_typed.logs import AWSApiLogs
+from qontract_utils.aws_api_typed.marketplace import AWSApiMarketplace
 from qontract_utils.aws_api_typed.organization import AWSApiOrganizations
 from qontract_utils.aws_api_typed.s3 import AWSApiS3
 from qontract_utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
@@ -212,6 +213,23 @@ class AWSApi:
         client = self.session.client("sts", config=DEFAULT_CONFIG)
         self._session_clients.append(client)
         return AWSApiSts(client)
+
+    @cached_property
+    def marketplace(self) -> AWSApiMarketplace:
+        """Return an AWS Marketplace Api client for agreement and discovery."""
+        agreement_client = self.session.client(
+            "marketplace-agreement",
+            config=DEFAULT_CONFIG,
+            region_name="us-east-1",
+        )
+        discovery_client = self.session.client(
+            "marketplace-discovery",
+            config=DEFAULT_CONFIG,
+            region_name="us-east-1",
+        )
+        self._session_clients.append(agreement_client)
+        self._session_clients.append(discovery_client)
+        return AWSApiMarketplace(agreement_client, discovery_client)
 
     @cached_property
     def support(self) -> AWSApiSupport:
