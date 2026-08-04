@@ -927,7 +927,8 @@ def _rebase_merge_requests_active_cap(
     for mr in merge_requests:
         pipelines = gl.get_merge_request_pipelines(mr)
         pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
-        if is_rebased(mr, gl):
+        fresh_mr = gl.get_merge_request(mr.iid)
+        if is_rebased(fresh_mr, gl):
             if pipelines and pipelines[0].status in {
                 PipelineStatus.RUNNING,
                 PipelineStatus.PENDING,
@@ -989,7 +990,8 @@ def _rebase_merge_requests_old_burst(
         if not item["error"]
     ]
     for mr in merge_requests:
-        if is_rebased(mr, gl):
+        fresh_mr = gl.get_merge_request(mr.iid)
+        if is_rebased(fresh_mr, gl):
             continue
 
         pipelines = gl.get_merge_request_pipelines(mr)
@@ -1085,17 +1087,19 @@ def _process_omm_member(
 
     latest_status = pipelines[0].status
 
-    if latest_status == PipelineStatus.FAILED:
+    if latest_status in {PipelineStatus.FAILED, PipelineStatus.CANCELED}:
         logging.info([
             "omm-group",
             "eject-failed",
             gl.project.name,
             mr.iid,
+            latest_status,
         ])
         if not dry_run:
             gl.remove_label(mr, OMM_PENDING)
         optimistic_merge_rejected.labels(
-            project_id=mr.target_project_id, reason="pipeline_failed"
+            project_id=mr.target_project_id,
+            reason=f"pipeline_{latest_status.value}",
         ).inc()
         return _MemberResult()
 

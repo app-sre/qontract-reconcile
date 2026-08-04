@@ -15,6 +15,7 @@ from unittest.mock import (
 
 import pytest
 from gitlab import Gitlab
+from gitlab.const import PipelineStatus
 from gitlab.exceptions import (
     GitlabGetError,
     GitlabMRClosedError,
@@ -533,6 +534,8 @@ def _call_rebase(
     gitlab_api.get_merge_request_pipelines.side_effect = lambda mr: pipelines_map.get(
         mr.iid, []
     )
+    mr_by_iid = {mr.iid: mr for mr in merge_requests}
+    gitlab_api.get_merge_request.side_effect = lambda iid: mr_by_iid[iid]
     mocker.patch(
         "reconcile.gitlab_housekeeping.get_merge_requests",
         return_value=[
@@ -898,6 +901,50 @@ def test_rebase_stale_success_pipeline_does_not_block_rebase(
 
     assert merge_requests[0].rebase.call_count == 1
     assert merge_requests[1].rebase.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "strategy",
+    [RebaseStrategy.ACTIVE_CAP, RebaseStrategy.OLD_BURST],
+    ids=["active-cap", "old-burst"],
+)
+def test_rebase_uses_refreshed_mr_not_stale_batch_object(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock, strategy: RebaseStrategy
+) -> None:
+    """Regression: is_rebased must receive the refreshed MR from
+    get_merge_request, not the stale batch-fetched object.  The stale
+    object has an old SHA that would make is_rebased return False
+    (triggering a redundant rebase), but the fresh object is up-to-date."""
+    stale_mr = _make_rebase_mr(1)
+    fresh_mr = _make_rebase_mr(1)
+
+    gitlab_api.get_merge_request_pipelines.return_value = []
+    gitlab_api.get_merge_request.return_value = fresh_mr
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_merge_requests",
+        return_value=[{"mr": stale_mr, "error": False}],
+    )
+
+    def _is_rebased(mr: Mock, gl: Mock) -> bool:
+        return mr is fresh_mr
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        side_effect=_is_rebased,
+    )
+
+    gl_h.rebase_merge_requests(
+        dry_run=False,
+        gl=gitlab_api,
+        rebase_limit=2,
+        state=state,
+        pipeline_timeout=None,
+        wait_for_pipeline=False,
+        strategy=strategy,
+    )
+
+    gitlab_api.get_merge_request.assert_called_once_with(1)
+    stale_mr.rebase.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -3031,7 +3078,7 @@ def test_omm_group_all_skipped_pipelines_rebased_stays_active(
 def _canceled_pipeline(
     project_id: int = 1, sha: str = "pipeline-sha", source: str = "external"
 ) -> Mock:
-    p = create_autospec(ProjectMergeRequestPipeline, status="canceled")
+    p = create_autospec(ProjectMergeRequestPipeline, status=PipelineStatus.CANCELED)
     p.project_id = project_id
     p.sha = sha
     p.source = source
@@ -3043,13 +3090,13 @@ def _canceled_pipeline(
     [("abc123", None), (None, "abc123")],
     ids=["merge-commit", "squash-commit"],
 )
-def test_omm_group_unhandled_status_rebased_stays_active(
+def test_omm_group_canceled_pipeline_ejects_member(
     mocker: MockerFixture,
     merge_sha: str | None,
     squash_sha: str | None,
 ) -> None:
-    """An unexpected pipeline status (e.g. 'canceled') on a rebased MR
-    should keep the group active rather than triggering adaptive-close."""
+    """A canceled pipeline ejects the member (same as failed). With no
+    active members remaining, adaptive-close fires."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
         "reconcile.gitlab_housekeeping.is_rebased",
@@ -3083,6 +3130,60 @@ def test_omm_group_unhandled_status_rebased_stays_active(
 
     assert merges == 0
     mr.merge.assert_not_called()
+    mocked_gl.remove_label.assert_called_once_with(mr, gl_h.OMM_PENDING)
+    clear_mock.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
+def test_omm_group_unhandled_status_rebased_stays_active(
+    mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
+) -> None:
+    """An unexpected pipeline status (e.g. 'manual') on a rebased MR
+    should keep the group active rather than triggering adaptive-close."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=True,
+    )
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
+    lead.target_branch = "master"
+
+    mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    unhandled = create_autospec(ProjectMergeRequestPipeline, status="manual")
+    unhandled.project_id = 1
+    unhandled.sha = "pipeline-sha"
+    unhandled.source = "external"
+    mocked_gl.get_merge_request_pipelines.return_value = [unhandled]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
     clear_mock.assert_not_called()
 
 
