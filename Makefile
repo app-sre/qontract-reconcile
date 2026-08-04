@@ -1,4 +1,4 @@
-.PHONY: help build push rc build-test test-app test clean
+.PHONY: help build push rc build-test test-app test clean all-tests uv-lock-test linter-test types-test qenerate-test helm-test unittest
 
 CONTAINER_ENGINE ?= $(shell which podman >/dev/null 2>&1 && echo podman || echo docker)
 CONTAINER_UID ?= $(shell id -u)
@@ -86,7 +86,10 @@ qenerate: gql-introspection gql-query-classes
 localstack:
 	@$(CONTAINER_ENGINE) compose -f dev/localstack/docker-compose.yml up
 
-all-tests: linter-test types-test qenerate-test helm-test unittest
+all-tests: uv-lock-test linter-test types-test qenerate-test helm-test unittest
+
+uv-lock-test:
+	uv lock --check
 
 linter-test:
 	uv run ruff check --no-fix
