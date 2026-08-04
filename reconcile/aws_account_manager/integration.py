@@ -198,6 +198,14 @@ class AwsAccountMgmtIntegration(
                 ):
                     self.save_access_key(account_request.name, access_key)
 
+                if (
+                    account_request.additional_features
+                    and account_request.additional_features.get("rosa")
+                ):
+                    reconciler.enable_rosa_marketplace(
+                        aws_api=account_role_api, name=account_request.name
+                    )
+
             merge_request_manager.create_account_file(
                 title=f"{account_request.name}: AWS account template collection file",
                 account_tmpl_file_path=f"{self.params.template_collection_root_path}/{account_request.name}.yml",
