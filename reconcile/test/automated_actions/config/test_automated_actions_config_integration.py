@@ -129,6 +129,44 @@ def test_automated_actions_config_get_automated_actions_instances(
                             }
                         ],
                     },
+                    {
+                        "type": "action-detail",
+                        "permissions": [
+                            {
+                                "roles": [
+                                    {
+                                        "name": "app-sre",
+                                        "users": [
+                                            {"org_username": "user1"},
+                                            {"org_username": "user2"},
+                                        ],
+                                        "bots": [{"org_username": "bot1"}],
+                                    }
+                                ]
+                            }
+                        ],
+                        "maxOps": 0,
+                        "action_detail_arguments": [{"owner": ".*"}],
+                    },
+                    {
+                        "type": "action-cancel",
+                        "permissions": [
+                            {
+                                "roles": [
+                                    {
+                                        "name": "app-sre",
+                                        "users": [
+                                            {"org_username": "user1"},
+                                            {"org_username": "user2"},
+                                        ],
+                                        "bots": [{"org_username": "bot1"}],
+                                    }
+                                ]
+                            }
+                        ],
+                        "maxOps": 0,
+                        "action_cancel_arguments": [{"owner": ".*"}],
+                    },
                 ],
             },
         )
