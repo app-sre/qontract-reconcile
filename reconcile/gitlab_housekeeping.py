@@ -1050,6 +1050,23 @@ def _process_omm_member(
         ).inc()
         return _MemberResult()
 
+    hold_labels = set(HOLD_LABELS).intersection(mr.labels)
+    if hold_labels:
+        logging.info([
+            "omm-group",
+            "eject-hold-label",
+            gl.project.name,
+            mr.iid,
+            sorted(hold_labels),
+        ])
+        if not dry_run:
+            gl.remove_label(mr, OMM_PENDING)
+        optimistic_merge_rejected.labels(
+            project_id=mr.target_project_id,
+            reason="hold_label",
+        ).inc()
+        return _MemberResult()
+
     pipelines = gl.get_merge_request_pipelines(mr)
 
     if pipeline_timeout is not None and pipelines:

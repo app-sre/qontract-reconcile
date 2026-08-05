@@ -2382,6 +2382,55 @@ def test_omm_group_ejects_error_labeled_mr(
 
 
 @pytest.mark.parametrize(
+    "hold_label",
+    [
+        "awaiting-approval",
+        "blocked/bot-access",
+        "changes-requested",
+        "do-not-merge/hold",
+        "do-not-merge/pending-review",
+        "bot/hold",
+        "needs-rebase",
+    ],
+)
+def test_omm_group_ejects_hold_labeled_mr(
+    mocker: MockerFixture,
+    hold_label: str,
+) -> None:
+    """MRs with any hold label added after group formation are ejected
+    from OMM groups without pipeline fetches or merge attempts."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch("reconcile.gitlab_housekeeping.clear_omm_group")
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = "abc123"
+    lead.squash_commit_sha = None
+    lead.target_branch = "master"
+
+    mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending", hold_label])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
+    mocked_gl.get_merge_request_pipelines.assert_not_called()
+    mr.merge.assert_not_called()
+    mr.rebase.assert_not_called()
+
+
+@pytest.mark.parametrize(
     "merge_sha, squash_sha",
     [("abc123", None), (None, "abc123")],
     ids=["merge-commit", "squash-commit"],
