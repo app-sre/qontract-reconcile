@@ -873,7 +873,7 @@ def _is_omm_window_open(lead: ProjectMergeRequest, max_interval: timedelta) -> b
 
 
 def _check_post_merge_ci(gl: GitLabApi, lead: ProjectMergeRequest) -> bool:
-    """Return True if post-merge CI is healthy (not failed).
+    """Return True if post-merge CI is healthy (not failed or canceled).
 
     Only considers pipelines created after the lead was merged so that
     a stale pre-merge failure doesn't cancel a new OMM group.
@@ -1149,26 +1149,18 @@ def _process_omm_member(
             try:
                 squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
                 mr.merge(squash=squash)
-                labels = mr.labels
-                merged_merge_requests.labels(
-                    project_id=mr.target_project_id,
-                    self_service=SELF_SERVICEABLE in labels,
-                    auto_merge=AUTO_MERGE in labels,
-                    app_sre=mr.author["username"] in app_sre_usernames,
-                    onboarding=ONBOARDING in labels,
-                ).inc()
-                optimistic_merges.labels(project_id=mr.target_project_id).inc()
-                gl.remove_label(mr, OMM_PENDING)
-                approval_info = _get_approval_info(gl, mr)
-                if approval_info:
-                    priority, approved_at = approval_info
-                    time_to_merge.labels(
-                        project_id=mr.target_project_id, priority=priority
-                    ).observe(_calculate_time_since_approval(approved_at))
             except gitlab.exceptions.GitlabMRClosedError as e:
                 logging.error(f"unable to merge {mr.iid}: {e}")
-                gl.add_label_to_merge_request(mr, MERGE_ERROR)
-                gl.remove_label(mr, OMM_PENDING)
+                try:
+                    gl.add_label_to_merge_request(mr, MERGE_ERROR)
+                    gl.remove_label(mr, OMM_PENDING)
+                except gitlab.exceptions.GitlabError:
+                    logging.warning([
+                        "omm-group",
+                        "label-cleanup-failed",
+                        gl.project.name,
+                        mr.iid,
+                    ])
                 optimistic_merge_rejected.labels(
                     project_id=mr.target_project_id, reason="merge_rejected"
                 ).inc()
@@ -1181,11 +1173,44 @@ def _process_omm_member(
                     mr.iid,
                     str(e),
                 ])
-                gl.remove_label(mr, OMM_PENDING)
+                try:
+                    gl.remove_label(mr, OMM_PENDING)
+                except gitlab.exceptions.GitlabError:
+                    logging.warning([
+                        "omm-group",
+                        "label-cleanup-failed",
+                        gl.project.name,
+                        mr.iid,
+                    ])
                 optimistic_merge_rejected.labels(
                     project_id=mr.target_project_id, reason="merge_error"
                 ).inc()
                 return _MemberResult()
+
+            labels = mr.labels
+            merged_merge_requests.labels(
+                project_id=mr.target_project_id,
+                self_service=SELF_SERVICEABLE in labels,
+                auto_merge=AUTO_MERGE in labels,
+                app_sre=mr.author["username"] in app_sre_usernames,
+                onboarding=ONBOARDING in labels,
+            ).inc()
+            optimistic_merges.labels(project_id=mr.target_project_id).inc()
+            try:
+                gl.remove_label(mr, OMM_PENDING)
+            except gitlab.exceptions.GitlabError:
+                logging.warning([
+                    "omm-group",
+                    "label-cleanup-failed",
+                    gl.project.name,
+                    mr.iid,
+                ])
+            approval_info = _get_approval_info(gl, mr)
+            if approval_info:
+                priority, approved_at = approval_info
+                time_to_merge.labels(
+                    project_id=mr.target_project_id, priority=priority
+                ).observe(_calculate_time_since_approval(approved_at))
         return _MemberResult(merged=True)
 
     # Not rebased + SUCCESS: skip-ci rebase to bring MR up to date
