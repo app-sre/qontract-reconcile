@@ -14,13 +14,13 @@ from fastapi import APIRouter, Query
 
 from qontract_api.config import settings
 from qontract_api.dependencies import CacheDep, SecretManagerDep, UserDep
-from qontract_api.external.ocm.ocm_client_factory import create_ocm_workspace_client
 from qontract_api.external.ocm.schemas import (
     OcmClusterInfo,
     OcmClusterQueryParams,
     OcmClustersResponse,
 )
 from qontract_api.logger import get_logger
+from qontract_api.ocm.ocm_client_factory import create_ocm_workspace_client
 
 logger = get_logger(__name__)
 
@@ -50,19 +50,18 @@ def get_clusters(
     collisions. Label *interpretation* is left entirely to the caller. Results
     are cached (TTL configured in settings).
     """
-    client = create_ocm_workspace_client(
+    with create_ocm_workspace_client(
         params=params,
         cache=cache,
         secret_manager=secret_manager,
         settings=settings,
-    )
-
-    # Treat an omitted or empty org_ids as "no filter" - HTTP query strings can't
-    # cleanly distinguish "absent" from "explicitly empty".
-    org_ids = set(params.org_ids) if params.org_ids else None
-    clusters = client.get_clusters(
-        label_key_prefix=params.label_key_prefix, org_ids=org_ids
-    )
+    ) as client:
+        # Treat an omitted or empty org_ids as "no filter" - HTTP query strings
+        # can't cleanly distinguish "absent" from "explicitly empty".
+        org_ids = set(params.org_ids) if params.org_ids else None
+        clusters = client.get_clusters(
+            label_key_prefix=params.label_key_prefix, org_ids=org_ids
+        )
 
     logger.info(
         f"Found {len(clusters)} clusters matching label prefix {params.label_key_prefix}",

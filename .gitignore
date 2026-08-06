@@ -25,4 +25,5 @@ GIT_VERSION
 .env*
 !.env.example
 .claude/settings.local.json
+.claude/skills/migrate-integration/plans/
 tmp/

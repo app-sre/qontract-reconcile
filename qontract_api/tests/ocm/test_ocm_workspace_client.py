@@ -1,11 +1,16 @@
 """Tests for OcmWorkspaceClient caching + composition layer."""
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock
 
 import pytest
 from qontract_utils.ocm_api import OcmApi
 from qontract_utils.ocm_api.models import (
     OcmCluster,
+    OcmIdentityProvider,
+    OcmIdentityProviderOidc,
+    OcmIdentityProviderOidcOpenId,
     OcmOrganizationLabel,
     OcmSubscription,
     OcmSubscriptionLabel,
@@ -13,8 +18,9 @@ from qontract_utils.ocm_api.models import (
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import OcmSettings, Settings
-from qontract_api.external.ocm.ocm_workspace_client import (
+from qontract_api.ocm.ocm_workspace_client import (
     CachedOcmClusters,
+    CachedOcmIdentityProviders,
     OcmClusterRecord,
     OcmWorkspaceClient,
 )
@@ -22,8 +28,11 @@ from qontract_api.external.ocm.ocm_workspace_client import (
 
 @pytest.fixture
 def mock_ocm_api() -> MagicMock:
-    """Create mock OcmApi."""
-    return MagicMock(spec=OcmApi)
+    """Create mock OcmApi, with __enter__ returning self like the real client."""
+    mock = MagicMock(spec=OcmApi)
+    mock.__enter__.return_value = mock
+    mock.__exit__.return_value = False
+    return mock
 
 
 @pytest.fixture
@@ -321,27 +330,31 @@ def test_get_clusters_double_check_after_lock(
     mock_ocm_api.get_labels.assert_not_called()
 
 
-def test_discover_clusters_closes_ocm_api_after_use(
+def test_discover_clusters_does_not_close_ocm_api_after_use(
     client: OcmWorkspaceClient, mock_ocm_api: MagicMock
 ) -> None:
-    """Test that OcmApi.close() is called after a cache-miss discovery."""
+    """The OcmApi is reused for this workspace client's lifetime - a single
+
+    cache-miss discovery must not close it, otherwise a later call (e.g. an
+    identity-provider fetch) would fail against a closed connection.
+    """
     mock_ocm_api.get_labels.return_value = []
 
     client.get_clusters("sre-capabilities.rhidp")
 
-    mock_ocm_api.close.assert_called_once()
+    mock_ocm_api.__exit__.assert_not_called()
+    mock_ocm_api.close.assert_not_called()
 
 
-def test_discover_clusters_closes_ocm_api_even_on_error(
+def test_discover_clusters_does_not_close_ocm_api_on_error(
     client: OcmWorkspaceClient, mock_ocm_api: MagicMock
 ) -> None:
-    """Test that OcmApi.close() is called even when discovery raises."""
     mock_ocm_api.get_labels.side_effect = RuntimeError("boom")
 
     with pytest.raises(RuntimeError, match="boom"):
         client.get_clusters("sre-capabilities.rhidp")
 
-    mock_ocm_api.close.assert_called_once()
+    mock_ocm_api.close.assert_not_called()
 
 
 def test_discover_clusters_ignores_cluster_with_unknown_subscription(
@@ -371,3 +384,281 @@ def test_discover_clusters_ignores_cluster_with_unknown_subscription(
     result = client.get_clusters("sre-capabilities.rhidp")
 
     assert result == []
+
+
+#
+# identity providers
+#
+
+
+def _oidc_idp(idp_id: str = "idp-1") -> OcmIdentityProviderOidc:
+    return OcmIdentityProviderOidc(
+        name="redhat-sso",
+        id=idp_id,
+        open_id=OcmIdentityProviderOidcOpenId(
+            client_id="client-1", issuer="https://issuer.example.com"
+        ),
+    )
+
+
+def test_idp_cache_key_format(client: OcmWorkspaceClient) -> None:
+    cache_key = client._idp_cache_key("cluster-1")
+    assert cache_key == "ocm:idps:env-abc123:cluster-1"
+
+
+def test_get_identity_providers_cache_hit_returns_without_calling_factory(
+    client: OcmWorkspaceClient,
+    mock_cache: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+) -> None:
+    idp = _oidc_idp()
+    mock_cache.get_obj.return_value = CachedOcmIdentityProviders(items=[idp])
+
+    result = client.get_identity_providers("cluster-1")
+
+    assert result == [idp]
+    mock_ocm_api_factory.assert_not_called()
+
+
+def test_get_identity_providers_cache_hit_empty_list_is_respected(
+    client: OcmWorkspaceClient,
+    mock_cache: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+) -> None:
+    """A genuinely empty cached result (no IDPs on the cluster yet) must be a hit."""
+    mock_cache.get_obj.return_value = CachedOcmIdentityProviders(items=[])
+
+    result = client.get_identity_providers("cluster-1")
+
+    assert result == []
+    mock_ocm_api_factory.assert_not_called()
+    mock_cache.lock.assert_not_called()
+
+
+def test_get_identity_providers_cache_miss_fetches_and_caches(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+    settings: Settings,
+) -> None:
+    idp = _oidc_idp()
+    mock_ocm_api.get_identity_providers.return_value = [idp]
+
+    result = client.get_identity_providers("cluster-1")
+
+    assert result == [idp]
+    mock_ocm_api.get_identity_providers.assert_called_once_with("cluster-1")
+    mock_cache.set_obj.assert_called_once_with(
+        "ocm:idps:env-abc123:cluster-1",
+        CachedOcmIdentityProviders(items=[idp]),
+        settings.ocm.identity_providers_cache_ttl,
+    )
+
+
+def test_get_identity_providers_acquires_lock_on_cache_miss(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    mock_ocm_api.get_identity_providers.return_value = []
+
+    client.get_identity_providers("cluster-1")
+
+    mock_cache.lock.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
+
+
+def test_get_identity_providers_double_check_after_lock(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    idp = _oidc_idp()
+    mock_cache.get_obj.side_effect = [None, CachedOcmIdentityProviders(items=[idp])]
+
+    result = client.get_identity_providers("cluster-1")
+
+    assert result == [idp]
+    mock_ocm_api_factory.assert_not_called()
+    mock_ocm_api.get_identity_providers.assert_not_called()
+
+
+def test_get_identity_providers_does_not_close_ocm_api_after_use(
+    client: OcmWorkspaceClient, mock_ocm_api: MagicMock
+) -> None:
+    mock_ocm_api.get_identity_providers.return_value = []
+
+    client.get_identity_providers("cluster-1")
+
+    mock_ocm_api.close.assert_not_called()
+
+
+def test_ocm_api_is_built_lazily_and_reused_across_calls(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+) -> None:
+    """The whole point of the fix: reads and mutations share ONE authenticated
+
+    OcmApi for this workspace client's lifetime, instead of a fresh OAuth2 token
+    exchange on every single call.
+    """
+    mock_ocm_api.get_labels.return_value = []
+    mock_ocm_api.get_identity_providers.return_value = []
+    mock_ocm_api_factory.assert_not_called()
+
+    client.get_clusters("sre-capabilities.rhidp")
+    client.get_identity_providers("cluster-1")
+    client.get_identity_providers("cluster-2")
+
+    mock_ocm_api_factory.assert_called_once()
+
+
+def test_ocm_api_lazy_build_is_thread_safe(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+) -> None:
+    """Concurrent first-callers (e.g. a thread pool fetching several clusters'
+
+    identity providers at once) must block on the same OcmApi build instead of each
+    racing to build (and leak) their own. Uses a barrier to maximize the chance of
+    triggering the race if the double-checked locking were missing or broken.
+    """
+    mock_ocm_api.get_identity_providers.return_value = []
+    thread_count = 16
+    barrier = threading.Barrier(thread_count)
+
+    def _fetch(cluster_id: str) -> None:
+        barrier.wait(timeout=5)
+        client.get_identity_providers(cluster_id)
+
+    with ThreadPoolExecutor(max_workers=thread_count) as executor:
+        futures = [executor.submit(_fetch, f"cluster-{i}") for i in range(thread_count)]
+        for future in futures:
+            future.result(timeout=5)
+
+    mock_ocm_api_factory.assert_called_once()
+
+
+def test_close_closes_ocm_api_if_built(
+    client: OcmWorkspaceClient, mock_ocm_api: MagicMock
+) -> None:
+    client.get_identity_providers("cluster-1")
+
+    client.close()
+
+    mock_ocm_api.close.assert_called_once()
+
+
+def test_close_is_noop_if_ocm_api_never_built(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+) -> None:
+    """A pure cache hit never builds an OcmApi - closing must not build one either."""
+    client.close()
+
+    mock_ocm_api_factory.assert_not_called()
+    mock_ocm_api.close.assert_not_called()
+
+
+def test_context_manager_closes_ocm_api(
+    client: OcmWorkspaceClient, mock_ocm_api: MagicMock
+) -> None:
+    with client:
+        client.get_identity_providers("cluster-1")
+
+    mock_ocm_api.close.assert_called_once()
+
+
+def test_get_identity_providers_classifies_foreign_types(
+    client: OcmWorkspaceClient, mock_ocm_api: MagicMock
+) -> None:
+    github_idp = OcmIdentityProvider(type="GithubIdentityProvider", name="github")
+    mock_ocm_api.get_identity_providers.return_value = [github_idp]
+
+    result = client.get_identity_providers("cluster-1")
+
+    assert result == [github_idp]
+
+
+def test_create_identity_provider_invalidates_cache(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    idp = _oidc_idp()
+    mock_ocm_api.create_identity_provider.return_value = idp
+
+    result = client.create_identity_provider("cluster-1", idp)
+
+    assert result == idp
+    mock_ocm_api.create_identity_provider.assert_called_once_with("cluster-1", idp)
+    mock_cache.delete.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
+    mock_ocm_api_factory.assert_called_once()
+
+
+def test_create_identity_provider_invalidation_holds_lock(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Cache invalidation must hold the same lock get_identity_providers fills under.
+
+    Otherwise a concurrent reader's fill can race the invalidation and overwrite it
+    with stale data right after this delete runs - see
+    qontract_api/secret_manager/_base.py for the same established pattern.
+    """
+    idp = _oidc_idp()
+    mock_ocm_api.create_identity_provider.return_value = idp
+
+    client.create_identity_provider("cluster-1", idp)
+
+    mock_cache.lock.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
+    mock_cache.delete.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
+
+
+def test_update_identity_provider_invalidates_cache(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    idp = _oidc_idp()
+    mock_ocm_api.update_identity_provider.return_value = idp
+
+    result = client.update_identity_provider("cluster-1", "idp-1", idp)
+
+    assert result == idp
+    mock_ocm_api.update_identity_provider.assert_called_once_with(
+        "cluster-1", "idp-1", idp
+    )
+    mock_cache.lock.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
+    mock_cache.delete.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
+
+
+def test_delete_identity_provider_invalidates_cache(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    client.delete_identity_provider("cluster-1", "idp-1")
+
+    mock_ocm_api.delete_identity_provider.assert_called_once_with("cluster-1", "idp-1")
+    mock_cache.lock.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
+    mock_cache.delete.assert_called_once_with("ocm:idps:env-abc123:cluster-1")
+
+
+def test_create_identity_provider_closes_ocm_api_even_on_error(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Cache must not be invalidated if the OCM API call itself failed."""
+    mock_ocm_api.create_identity_provider.side_effect = RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        client.create_identity_provider("cluster-1", _oidc_idp())
+
+    mock_cache.delete.assert_not_called()

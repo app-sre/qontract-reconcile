@@ -17,6 +17,7 @@ Available integrations:
 - [Glitchtip](glitchtip.md) - Manage Glitchtip organizations, teams, projects, and users across instances with LDAP group enrichment
 - [Glitchtip Project Alerts](glitchtip-project-alerts.md) - Manage Glitchtip project alert configurations across instances with email/webhook recipients and Jira integration
 - [LDAP Users](ldap-users.md) - Remove orphaned users from app-interface and infra repos when no longer in LDAP (client-orchestrated pattern)
+- [OCM OIDC Identity Provider](ocm-oidc-idp.md) - Reconcile OCM OIDC identity providers for RHIDP-enabled clusters against the SSO client secrets sso-client-api writes to Vault
 - [OpenShift Namespaces](openshift-namespaces.md) - Reconcile Kubernetes/OpenShift namespaces across clusters with cached existence checks and idempotent create/delete
 - [RHIDP SSO Client](rhidp-sso-client.md) - Manage Keycloak SSO clients for RHIDP-enabled OCM clusters, discovered via OCM labels and qontract-api's external OCM endpoint
 - [Slack Usergroups](slack-usergroups.md) - Manage Slack usergroups across workspaces with automatic membership from roles, schedules, git ownership, and PagerDuty

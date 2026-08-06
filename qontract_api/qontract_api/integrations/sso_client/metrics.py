@@ -10,12 +10,6 @@ from prometheus_client import Counter, Gauge
 # Matches the legacy integration name label so existing dashboards/alerts keep working.
 INTEGRATION_NAME = "rhidp-sso-client"
 
-rhidp_managed_clusters = Gauge(
-    "rhidp_managed_clusters",
-    "Number of managed clusters per organization.",
-    ["integration", "ocm_environment", "org_id"],
-)
-
 rhidp_sso_client_number_of_clients = Gauge(
     "rhidp_sso_client_number_of_clients",
     "Number of existing SSO clients.",

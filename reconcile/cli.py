@@ -3142,6 +3142,60 @@ def rhidp_sso_client_api(
 
 
 @integration.command(
+    short_help="Manage OCM OIDC identity providers for OCM clusters via qontract-api. Part of RHIDP."
+)
+@click.option(
+    "--vault-input-path",
+    help="path in Vault to find input resources.",
+    required=True,
+)
+@click.option(
+    "--ocm-env",
+    help="The OCM environment RHIDP should operator on. If none is specified, all environments will be operated on.",
+    required=False,
+    envvar="RHIDP_OCM_ENV",
+)
+@click.option(
+    "--default-auth-name",
+    default="redhat-sso",
+    help="The authentication name must match that one used in the redirect URL.",
+    required=True,
+    envvar="RHIDP_DEFAULT_AUTH_NAME",
+)
+@click.option(
+    "--default-auth-issuer-url",
+    default="https://auth.redhat.com/auth/realms/EmployeeIDP",
+    help="Use this Issuer (SSO server) URL if nothing else is specified for a cluster in the OCM cluster labels.",
+    required=True,
+    envvar="RHIDP_DEFAULT_AUTH_ISSUER_URL",
+)
+@click.pass_context
+def ocm_oidc_idp_api(
+    ctx: click.Context,
+    vault_input_path: str,
+    ocm_env: str | None,
+    default_auth_name: str,
+    default_auth_issuer_url: str,
+) -> None:
+    from reconcile.rhidp_api.ocm_oidc_idp.integration import (
+        OCMOidcIdpApiIntegration,
+        OCMOidcIdpApiIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=OCMOidcIdpApiIntegration(
+            OCMOidcIdpApiIntegrationParams(
+                vault_input_path=vault_input_path,
+                ocm_environment=ocm_env,
+                default_auth_name=default_auth_name,
+                default_auth_issuer_url=default_auth_issuer_url,
+            )
+        ),
+        ctx=ctx,
+    )
+
+
+@integration.command(
     short_help="Manages the OCM subscription labels for clusters with RHIDP authentication. Part of RHIDP."
 )
 @click.pass_context
