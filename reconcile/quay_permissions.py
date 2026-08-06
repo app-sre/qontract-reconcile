@@ -4,7 +4,7 @@ from typing import Any
 
 from reconcile.quay_base import (
     OrgKey,
-    QuayApiStore,
+    get_quay_api_store,
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
@@ -62,7 +62,7 @@ def run(dry_run: bool) -> None:
     apps: list[dict[str, Any]] = result.get("apps") or []
     error = False
 
-    with QuayApiStore() as quay_api_store:
+    with get_quay_api_store() as quay_api_store:
         for app in apps:
             quay_repo_configs = app.get("quayRepos")
             if not quay_repo_configs:

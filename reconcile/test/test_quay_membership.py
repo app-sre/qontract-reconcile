@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Self
+from typing import Any, Self
 from unittest.mock import (
     MagicMock,
     patch,
 )
+
+import pytest
 
 from reconcile import quay_membership
 from reconcile.quay_base import OrgInfo, OrgKey, QuayApiStore
@@ -12,19 +14,16 @@ from reconcile.utils import (
     config,
     gql,
 )
-from reconcile.utils.aggregated_list import AggregatedList
+from reconcile.utils.aggregated_list import AggregatedItem, AggregatedList
 from reconcile.utils.quay_api import QuayApi
 
 from .fixtures import Fixtures
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 fxt = Fixtures("quay_membership")
 
 
 def get_items_by_params(
-    state: list[dict[str, Any]], params: dict[str, str]
+    state: list[AggregatedItem], params: dict[str, str]
 ) -> list[str] | bool:
     h = AggregatedList.hash_params(params)
     for group in state:
@@ -72,74 +71,59 @@ class QuayApiMock(QuayApi):
         pass
 
 
-class TestQuayMembership:
-    @staticmethod
-    def setup_method(method: Callable) -> None:
-        config.init_from_toml(fxt.path("config.toml"))
-        gql.init_from_config(autodetect_sha=False)
+@pytest.fixture(autouse=True)
+def quay_membership_config() -> None:
+    config.init_from_toml(fxt.path("config.toml"))
+    gql.init_from_config(autodetect_sha=False)
 
-    @staticmethod
-    def do_current_state_test(path: str) -> None:
-        fixture = fxt.get_anymarkup(path)
 
-        quay_org_catalog = fixture["quay_org_catalog"]
-        quay_org_teams = fixture["quay_org_teams"]
+def build_quay_api_store(fixture: dict[str, Any]) -> QuayApiStore:
+    quay_org_catalog = fixture["quay_org_catalog"]
+    quay_org_teams = fixture["quay_org_teams"]
+    store = QuayApiStore()
 
-        # Patch get_quay_api_store to return empty dict, then create QuayApiStore
-        # This prevents GraphQL queries during initialization
-        with patch("reconcile.quay_base.get_quay_api_store", return_value={}):
-            store = QuayApiStore()
+    for org_data in quay_org_catalog:
+        name_str = org_data["name"]
+        name = OrgKey(instance="quay.io", org_name=name_str)
+        mock_api = QuayApiMock(quay_org_teams.get(name_str, {}))
+        store[name] = OrgInfo(
+            url="",
+            teams=org_data["managedTeams"],
+            push_token=None,
+            managedRepos=False,
+            mirror=None,
+            mirror_filters={},
+            api=mock_api,
+        )
 
-            # Populate store with test data
-            for org_data in quay_org_catalog:
-                name_str = org_data["name"]
-                name = OrgKey(instance="quay.io", org_name=name_str)
+    return store
 
-                # Create mock API instance
-                mock_api = QuayApiMock(quay_org_teams.get(name_str, {}))
 
-                # Store org metadata with api field (matching OrgInfo structure)
-                store[name] = OrgInfo(
-                    url="",
-                    teams=org_data["managedTeams"],
-                    push_token=None,
-                    managedRepos=False,
-                    mirror=None,
-                    mirror_filters={},
-                    api=mock_api,
-                )
+def assert_state_matches(
+    actual_state: list[AggregatedItem], expected_state: list[AggregatedItem]
+) -> None:
+    assert len(actual_state) == len(expected_state)
+    for group in actual_state:
+        params = group["params"]
+        items = sorted(group["items"])
+        assert items == get_items_by_params(expected_state, params)
 
-            # Use the store in a context manager to ensure cleanup
-            with store:
-                current_state = quay_membership.fetch_current_state(store).dump()
 
-        expected_current_state = fixture["state"]
+def test_current_state_simple() -> None:
+    fixture = fxt.get_anymarkup("current_state_simple.yml")
+    store = build_quay_api_store(fixture)
 
-        assert len(current_state) == len(expected_current_state)
-        for group in current_state:
-            params = group["params"]
-            items = sorted(group["items"])
-            assert items == get_items_by_params(expected_current_state, params)
+    with store:
+        current_state = quay_membership.fetch_current_state(store).dump()
 
-    @staticmethod
-    def do_desired_state_test(path: str) -> None:
-        fixture = fxt.get_anymarkup(path)
+    assert_state_matches(current_state, fixture["state"])
 
-        with patch("reconcile.utils.gql.GqlApi.query") as m_gql:
-            m_gql.return_value = fixture["gql_response"]
 
-            desired_state = quay_membership.fetch_desired_state().dump()
+def test_desired_state_simple() -> None:
+    fixture = fxt.get_anymarkup("desired_state_simple.yml")
 
-            expected_desired_state = fixture["state"]
+    with patch("reconcile.utils.gql.GqlApi.query") as m_gql:
+        m_gql.return_value = fixture["gql_response"]
+        desired_state = quay_membership.fetch_desired_state().dump()
 
-            assert len(desired_state) == len(expected_desired_state)
-            for group in desired_state:
-                params = group["params"]
-                items = sorted(group["items"])
-                assert items == get_items_by_params(expected_desired_state, params)
-
-    def test_current_state_simple(self) -> None:
-        self.do_current_state_test("current_state_simple.yml")
-
-    def test_desired_state_simple(self) -> None:
-        self.do_desired_state_test("desired_state_simple.yml")
+    assert_state_matches(desired_state, fixture["state"])

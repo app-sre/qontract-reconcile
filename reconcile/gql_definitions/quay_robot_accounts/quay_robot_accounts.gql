@@ -1,0 +1,26 @@
+# qenerate: plugin=pydantic_v2
+
+query QuayRobotAccounts {
+  robot_accounts: quay_robots_v1 {
+    name
+    description
+    quay_org {
+      name
+      instance {
+        name
+        url
+      }
+      automationToken {
+        path
+        field
+        version
+      }
+    }
+    teams
+    repositories {
+      name
+      permission
+    }
+    delete
+  }
+}

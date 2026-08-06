@@ -285,6 +285,9 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+accessanalyzer = [
+    { name = "mypy-boto3-accessanalyzer" },
+]
 account = [
     { name = "mypy-boto3-account" },
 ]
@@ -1578,6 +1581,15 @@ wheels = [
 ]
 
 [[package]]
+name = "mypy-boto3-accessanalyzer"
+version = "1.43.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/75/27/3c6e74386c336aedc57a994fdec5dd8191e35519fdf152ca362468cf24e3/mypy_boto3_accessanalyzer-1.43.10.tar.gz", hash = "sha256:a01dafdc374a17186dc09f7be3fbeae54209f5455608f302009683365db14ed3", size = 35398, upload-time = "2026-05-18T20:46:39.113Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/78/c1/27a5573611fd3c5791d5d82a98aea0fe4cd00bfc21af08c15800d405a922/mypy_boto3_accessanalyzer-1.43.10-py3-none-any.whl", hash = "sha256:543b6985b0791301222374c33975e8d43d61981f60a083bba5485aa223e754a9", size = 41514, upload-time = "2026-05-18T20:46:37.08Z" },
+]
+
+[[package]]
 name = "mypy-boto3-account"
 version = "1.43.57"
 source = { registry = "https://pypi.org/simple" }
@@ -2516,7 +2528,7 @@ debugger = [
     { name = "debugpy" },
 ]
 dev = [
-    { name = "boto3-stubs", extra = ["account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"] },
+    { name = "boto3-stubs", extra = ["accessanalyzer", "account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"] },
     { name = "moto", extra = ["s3"] },
     { name = "mypy" },
     { name = "pyfakefs" },
@@ -2599,7 +2611,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 debugger = [{ name = "debugpy", specifier = "~=1.8.17" }]
 dev = [
-    { name = "boto3-stubs", extras = ["account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"], specifier = "==1.43.58" },
+    { name = "boto3-stubs", extras = ["accessanalyzer", "account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"], specifier = "==1.43.58" },
     { name = "moto", extras = ["ec2", "iam", "logs", "s3", "route53"], specifier = "==5.2.2" },
     { name = "mypy", specifier = "==2.3.0" },
     { name = "pyfakefs", specifier = "==6.2.0" },
@@ -2658,7 +2670,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "boto3-stubs", extra = ["account", "cloudformation", "dynamodb", "iam", "logs", "organizations", "s3", "service-quotas", "sts", "support"] },
+    { name = "boto3-stubs", extra = ["accessanalyzer", "account", "cloudformation", "dynamodb", "iam", "logs", "organizations", "s3", "service-quotas", "sts", "support"] },
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -2697,7 +2709,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "boto3-stubs", extras = ["account", "cloudformation", "dynamodb", "iam", "logs", "organizations", "s3", "service-quotas", "sts", "support"], specifier = "==1.43.58" },
+    { name = "boto3-stubs", extras = ["accessanalyzer", "account", "cloudformation", "dynamodb", "iam", "logs", "organizations", "s3", "service-quotas", "sts", "support"], specifier = "==1.43.58" },
     { name = "mypy", specifier = "==2.3.0" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = "==1.4.0" },
