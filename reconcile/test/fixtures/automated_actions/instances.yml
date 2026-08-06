@@ -78,6 +78,32 @@ automated_actions_instances_v1:
     action_list_arguments:
     - action_user: user1
 
+  - type: action-detail
+    maxOps: 0
+    permissions:
+    - roles:
+      - name: app-sre
+        users:
+        - org_username: user1
+        - org_username: user2
+        bots:
+        - org_username: bot1
+    action_detail_arguments:
+    - owner: .*
+
+  - type: action-cancel
+    maxOps: 0
+    permissions:
+    - roles:
+      - name: app-sre
+        users:
+        - org_username: user1
+        - org_username: user2
+        bots:
+        - org_username: bot1
+    action_cancel_arguments:
+    - owner: .*
+
   # no permissions
   - type: create-token
     maxOps: 0

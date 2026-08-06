@@ -13,6 +13,8 @@ from pydantic import BaseModel
 
 import reconcile.openshift_base as ob
 from reconcile.gql_definitions.automated_actions.instance import (
+    AutomatedActionActionCancelV1,
+    AutomatedActionActionDetailV1,
     AutomatedActionActionListV1,
     AutomatedActionExternalResourceFlushElastiCacheV1,
     AutomatedActionExternalResourceRdsRebootV1,
@@ -171,6 +173,18 @@ class AutomatedActionsConfigIntegration(
         for action in actions:
             parameters: list[dict[str, str]] = []
             match action:
+                case AutomatedActionActionCancelV1():
+                    # no special handling needed, just dump the values
+                    parameters.extend(
+                        arg.model_dump(exclude_none=True, exclude_defaults=True)
+                        for arg in action.action_cancel_arguments or []
+                    )
+                case AutomatedActionActionDetailV1():
+                    # no special handling needed, just dump the values
+                    parameters.extend(
+                        arg.model_dump(exclude_none=True, exclude_defaults=True)
+                        for arg in action.action_detail_arguments or []
+                    )
                 case AutomatedActionActionListV1():
                     # no special handling needed, just dump the values
                     parameters.extend(
