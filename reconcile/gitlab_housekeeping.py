@@ -889,7 +889,7 @@ def _check_post_merge_ci(gl: GitLabApi, lead: ProjectMergeRequest) -> bool:
     for pipeline in pipelines:
         if from_utc_iso_format(pipeline.created_at) < merged_at:
             break
-        return pipeline.status != PipelineStatus.FAILED
+        return pipeline.status not in {PipelineStatus.FAILED, PipelineStatus.CANCELED}
     return True
 
 
@@ -1171,6 +1171,19 @@ def _process_omm_member(
                 gl.remove_label(mr, OMM_PENDING)
                 optimistic_merge_rejected.labels(
                     project_id=mr.target_project_id, reason="merge_rejected"
+                ).inc()
+                return _MemberResult()
+            except gitlab.exceptions.GitlabError as e:
+                logging.warning([
+                    "omm-group",
+                    "eject-merge-error",
+                    gl.project.name,
+                    mr.iid,
+                    str(e),
+                ])
+                gl.remove_label(mr, OMM_PENDING)
+                optimistic_merge_rejected.labels(
+                    project_id=mr.target_project_id, reason="merge_error"
                 ).inc()
                 return _MemberResult()
         return _MemberResult(merged=True)

@@ -17,6 +17,7 @@ import pytest
 from gitlab import Gitlab
 from gitlab.const import PipelineStatus
 from gitlab.exceptions import (
+    GitlabError,
     GitlabGetError,
     GitlabMRClosedError,
     GitlabMRRebaseError,
@@ -2478,6 +2479,57 @@ def test_omm_group_merge_rejected_applies_merge_error(
     mr.merge.assert_called_once()
     mocked_gl.add_label_to_merge_request.assert_called_once_with(mr, "merge-error")
     mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
+def test_omm_group_transient_merge_error_ejects_without_merge_error_label(
+    mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
+) -> None:
+    """A generic GitlabError (e.g. 500) on merge ejects the member from the
+    OMM group but does NOT apply merge-error label, allowing retry via serial path."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=True,
+    )
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
+    lead.target_branch = "master"
+
+    mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
+    mr.merge.side_effect = GitlabError("500 Internal Server Error")
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mr.merge.assert_called_once()
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+    mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
+    clear_mock.assert_called_once()
 
 
 @pytest.mark.parametrize(
