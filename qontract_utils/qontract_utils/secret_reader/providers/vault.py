@@ -69,7 +69,7 @@ KV_VERSION_1 = 1
 KV_VERSION_2 = 2
 
 # Kubernetes service account token path (standard location in K8s pods)
-DEFAULT_KUBE_SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"  # noqa: S105
+DEFAULT_KUBE_SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"  # ruff: ignore[hardcoded-password-string]
 
 
 class VaultSecret(BaseModel):
@@ -260,7 +260,7 @@ class VaultSecretBackend(SecretBackend):
     def __init__(
         self,
         settings: VaultSecretBackendSettings,
-        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
+        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
     ) -> None:
         """Initialize Vault secret backend.
 
@@ -426,7 +426,7 @@ class VaultSecretBackend(SecretBackend):
                         logger.debug("Attempting to renew Vault token")
                         # Try to renew the existing token first to avoid GC churn
                         self._renew_self()
-                    except Exception:  # noqa: BLE001
+                    except Exception:  # ruff: ignore[blind-except]
                         try:
                             logger.debug("Token renewal failed, re-authenticating")
                             # If renewal fails (e.g. token expired), get a new one

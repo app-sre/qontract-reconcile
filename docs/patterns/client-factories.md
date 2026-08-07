@@ -51,7 +51,7 @@ aws_api = AWSApi(thread_pool_size)
 session = aws_api.get_session(account_name, region)
 
 # Get a low-level client from the session
-s3_client = session.client('s3')
+s3_client = session.client("s3")
 ```
 
 ### `github_api` for GitHub Clients

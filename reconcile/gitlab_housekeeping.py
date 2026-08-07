@@ -425,7 +425,7 @@ def handle_stale_items(
     items: Iterable[ProjectIssue | ProjectMergeRequest],
     item_type: str,
 ) -> None:
-    LABEL = "stale"  # noqa: N806
+    LABEL = "stale"  # ruff: ignore[non-lowercase-variable-in-function]
 
     now = utc_now()
     for item in items:
@@ -934,7 +934,8 @@ def _rebase_merge_requests_active_cap(
     for mr in merge_requests:
         pipelines = gl.get_merge_request_pipelines(mr)
         pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
-        if is_rebased(mr, gl):
+        fresh_mr = gl.get_merge_request(mr.iid)
+        if is_rebased(fresh_mr, gl):
             if pipelines and pipelines[0].status in {
                 PipelineStatus.RUNNING,
                 PipelineStatus.PENDING,
@@ -996,7 +997,8 @@ def _rebase_merge_requests_old_burst(
         if not item["error"]
     ]
     for mr in merge_requests:
-        if is_rebased(mr, gl):
+        fresh_mr = gl.get_merge_request(mr.iid)
+        if is_rebased(fresh_mr, gl):
             continue
 
         pipelines = gl.get_merge_request_pipelines(mr)
@@ -1055,6 +1057,23 @@ def _process_omm_member(
         ).inc()
         return _MemberResult()
 
+    hold_labels = set(HOLD_LABELS).intersection(mr.labels)
+    if hold_labels:
+        logging.info([
+            "omm-group",
+            "eject-hold-label",
+            gl.project.name,
+            mr.iid,
+            sorted(hold_labels),
+        ])
+        if not dry_run:
+            gl.remove_label(mr, OMM_PENDING)
+        optimistic_merge_rejected.labels(
+            project_id=mr.target_project_id,
+            reason="hold_label",
+        ).inc()
+        return _MemberResult()
+
     pipelines = gl.get_merge_request_pipelines(mr)
 
     if pipeline_timeout is not None and pipelines:
@@ -1067,18 +1086,17 @@ def _process_omm_member(
                 pipelines=timed_out,
             )
 
-    # Filter noise pipelines caused by skip-ci rebase:
-    # SKIPPED: GitLab creates a skipped MR-event pipeline for skip_ci
-    # push at current SHA: fork CI fires on the new commit, and
-    # same-project MRs can also see a push pipeline despite skip_ci.
+    # Filter pipelines that carry no CI signal:
+    # - SKIPPED: placeholder from skip_ci rebase
+    # - PUSH: empty 0-job shells from skip_ci rebase (real CI is source=external)
     pipelines = [
         p
         for p in pipelines
-        if p.status != PipelineStatus.SKIPPED
-        and not (p.sha == mr.sha and p.source == "push")
+        if not (p.status == PipelineStatus.SKIPPED or p.source == "push")
     ]
 
-    mr_is_rebased = is_rebased(mr, gl)
+    fresh_mr = gl.get_merge_request(mr.iid)
+    mr_is_rebased = is_rebased(fresh_mr, gl)
 
     if not pipelines:
         if mr_is_rebased:
@@ -1093,17 +1111,19 @@ def _process_omm_member(
 
     latest_status = pipelines[0].status
 
-    if latest_status == PipelineStatus.FAILED:
+    if latest_status in {PipelineStatus.FAILED, PipelineStatus.CANCELED}:
         logging.info([
             "omm-group",
             "eject-failed",
             gl.project.name,
             mr.iid,
+            latest_status,
         ])
         if not dry_run:
             gl.remove_label(mr, OMM_PENDING)
         optimistic_merge_rejected.labels(
-            project_id=mr.target_project_id, reason="pipeline_failed"
+            project_id=mr.target_project_id,
+            reason=f"pipeline_{latest_status.value}",
         ).inc()
         return _MemberResult()
 
@@ -1596,7 +1616,7 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
     for pat in pats:
         if pat.active:
             expiration_date = ensure_utc(
-                datetime.strptime(pat.expires_at, EXPIRATION_DATE_FORMAT)  # noqa: DTZ007
+                datetime.strptime(pat.expires_at, EXPIRATION_DATE_FORMAT)  # ruff: ignore[call-datetime-strptime-without-zone]
             )
             days_until_expiration = expiration_date.date() - utc_now().date()
             gitlab_token_expiration.labels(pat.name).set(days_until_expiration.days)
@@ -1609,8 +1629,7 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
 
 def run(dry_run: bool, wait_for_pipeline: bool) -> None:
     default_days_interval = 15
-    default_limit = 8
-    default_merge_limit = 8
+    default_rebase_limit = 8
     default_consecutive_failure_limit = 3
     default_enable_closing = False
     instance = queries.get_gitlab_instance()
@@ -1628,8 +1647,8 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
         project_url = repo["url"]
         days_interval = hk.get("days_interval") or default_days_interval
         enable_closing = hk.get("enable_closing") or default_enable_closing
-        limit = hk.get("limit") or default_limit
-        merge_limit = hk.get("merge_limit") or default_merge_limit
+        rebase_limit = hk.get("rebase_limit") or default_rebase_limit
+        merge_limit = hk.get("merge_limit") or rebase_limit
         consecutive_failure_limit = (
             hk.get("consecutive_failure_limit") or default_consecutive_failure_limit
         )
@@ -1725,7 +1744,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                 rebase_merge_requests(
                     dry_run=dry_run,
                     gl=gl,
-                    rebase_limit=limit,
+                    rebase_limit=rebase_limit,
                     state=state,
                     pipeline_timeout=pipeline_timeout,
                     wait_for_pipeline=wait_for_pipeline,

@@ -1,6 +1,6 @@
 """Utilities for background task management."""
 
-# ruff: noqa: PLR6301, ARG002
+# ruff: file-ignore[no-self-use, unused-method-argument]
 import asyncio
 import time
 from collections.abc import Callable

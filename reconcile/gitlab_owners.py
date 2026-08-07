@@ -201,9 +201,11 @@ class MRApproval:
             ):
                 # Deleting stale comments
                 _LOG.info([
-                    f"Project:{self.gitlab.project.id} "
-                    f"Merge Request:{self.mr.iid} "
-                    f"- removing stale comment"
+                    (
+                        f"Project:{self.gitlab.project.id} "
+                        f"Merge Request:{self.mr.iid} "
+                        f"- removing stale comment"
+                    )
                 ])
                 if not self.dry_run:
                     self.gitlab.delete_comment(comment.note)
@@ -380,15 +382,19 @@ def act(
         if approval_status["approved"]:
             if mr_approval.has_approval_label():
                 _LOG.info([
-                    f"Project:{gitlab_cli.project.id} "
-                    f"Merge Request:{mr.iid} "
-                    f"- already approved"
+                    (
+                        f"Project:{gitlab_cli.project.id} "
+                        f"Merge Request:{mr.iid} "
+                        f"- already approved"
+                    )
                 ])
                 continue
             _LOG.info([
-                f"Project:{gitlab_cli.project.id} "
-                f"Merge Request:{mr.iid} "
-                f"- approving now"
+                (
+                    f"Project:{gitlab_cli.project.id} "
+                    f"Merge Request:{mr.iid} "
+                    f"- approving now"
+                )
             ])
             if not dry_run:
                 gitlab_cli.add_label_to_merge_request(mr, APPROVED)
@@ -397,17 +403,21 @@ def act(
         if not dry_run:
             if mr_approval.has_approval_label():
                 _LOG.info([
-                    f"Project:{gitlab_cli.project.id} "
-                    f"Merge Request:{mr.iid} "
-                    f"- removing approval"
+                    (
+                        f"Project:{gitlab_cli.project.id} "
+                        f"Merge Request:{mr.iid} "
+                        f"- removing approval"
+                    )
                 ])
                 gitlab_cli.remove_label(mr, APPROVED)
 
         if approval_status["report"] is not None:
             _LOG.info([
-                f"Project:{gitlab_cli.project.id} "
-                f"Merge Request:{mr.iid} "
-                f"- publishing approval report"
+                (
+                    f"Project:{gitlab_cli.project.id} "
+                    f"Merge Request:{mr.iid} "
+                    f"- publishing approval report"
+                )
             ])
 
             if not dry_run:
@@ -416,9 +426,11 @@ def act(
             continue
 
         _LOG.info([
-            f"Project:{gitlab_cli.project.id} "
-            f"Merge Request:{mr.iid} "
-            f"- not fully approved"
+            (
+                f"Project:{gitlab_cli.project.id} "
+                f"Merge Request:{mr.iid} "
+                f"- not fully approved"
+            )
         ])
 
 

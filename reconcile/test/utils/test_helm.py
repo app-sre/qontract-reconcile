@@ -118,6 +118,22 @@ def test_template_extra_args(
     assert template == expected
 
 
+def test_template_extra_args_with_embedded_quotes(
+    helm_integration_specs: Sequence[HelmIntegrationSpec],
+) -> None:
+    """extra_args values containing literal double quotes (e.g. embedded JSON, as used
+    by --keycloak-instances) must not break the rendered YAML."""
+    extra_args = (
+        '--keycloak-instances \'[{"url": "https://sso.example.com", '
+        '"secret": {"secret_manager_url": "https://vault.example.com:8200", '
+        '"path": "some/path"}}]\''
+    )
+    helm_integration_specs[0].shard_specs[0].extra_args = extra_args
+    template = helm.template(build_helm_values(helm_integration_specs))
+    expected = yaml.safe_load(fxt.get("extra_args_with_embedded_quotes.yml"))
+    assert template == expected
+
+
 def test_template_extra_env(
     helm_integration_specs: Sequence[HelmIntegrationSpec],
 ) -> None:

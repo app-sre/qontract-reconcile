@@ -70,6 +70,7 @@ class ReconcileRequest(BaseModel):
     workspaces: dict[str, dict[str, UsergroupConfig]]
     dry_run: bool = True
 
+
 # Usage - no type safety inside dicts!
 request = ReconcileRequest(
     workspaces={
@@ -109,14 +110,17 @@ Use `TypedDict` for structured dictionaries.
 ```python
 from typing import TypedDict
 
+
 class UsergroupDict(TypedDict):
     handle: str
     users: list[str]
     channels: list[str]
 
+
 class WorkspaceDict(TypedDict):
     name: str
     usergroups: list[UsergroupDict]
+
 
 class ReconcileRequest(BaseModel):
     workspaces: list[WorkspaceDict]
@@ -148,18 +152,22 @@ class UsergroupConfig(BaseModel):
     channels: list[str]
     description: str = ""
 
+
 class Usergroup(BaseModel):
     handle: str
     config: UsergroupConfig
+
 
 class Workspace(BaseModel):
     name: str
     vault_token_path: str
     usergroups: list[Usergroup]
 
+
 class ReconcileRequest(BaseModel):
     workspaces: list[Workspace]
     dry_run: bool = True
+
 
 # Usage - full type safety and IDE support!
 request = ReconcileRequest(
@@ -173,9 +181,9 @@ request = ReconcileRequest(
                     config=UsergroupConfig(
                         users=["user1", "user2"],
                         channels=["#alerts"],
-                    )
+                    ),
                 )
-            ]
+            ],
         )
     ]
 )
@@ -243,35 +251,43 @@ Build models from bottom-up (leaf to root) with `frozen=True` for immutability:
 ```python
 from pydantic import BaseModel, ConfigDict, Field
 
+
 # Leaf level - configuration
 class SlackUsergroupConfig(BaseModel):
     """Configuration for a Slack usergroup."""
+
     model_config = ConfigDict(frozen=True)  # ← Immutable
 
     users: list[str] = Field(default_factory=list)
     channels: list[str] = Field(default_factory=list)
     description: str = ""
 
+
 # Mid level - usergroup
 class SlackUsergroup(BaseModel):
     """A Slack usergroup with its configuration."""
+
     model_config = ConfigDict(frozen=True)  # ← Immutable
 
     handle: str
     config: SlackUsergroupConfig  # ← Nested model
 
+
 # Mid level - workspace
 class SlackWorkspace(BaseModel):
     """A Slack workspace with usergroups."""
+
     model_config = ConfigDict(frozen=True)  # ← Immutable
 
     name: str
     vault_token_path: str
     usergroups: list[SlackUsergroup]  # ← List of nested models
 
+
 # Root level - request
 class SlackUsergroupsReconcileRequest(BaseModel):
     """Request to reconcile Slack usergroups."""
+
     model_config = ConfigDict(frozen=True)  # ← Immutable
 
     workspaces: list[SlackWorkspace]  # ← Fully typed hierarchy
@@ -293,11 +309,13 @@ Use `.model_copy()` to create modified copies:
 ```python
 from pydantic import BaseModel, ConfigDict
 
+
 class UserConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     name: str
     age: int
+
 
 # Create original
 config = UserConfig(name="Alice", age=25)
@@ -336,16 +354,19 @@ class UsergroupConfig(BaseModel):
     handle: str  # ← Redundant!
     users: list[str]
 
+
 class Usergroup(BaseModel):
     model_config = ConfigDict(frozen=True)
     handle: str  # ← Already here
     config: UsergroupConfig  # ← Contains handle again!
+
 
 # ✅ PREFER: Single source of truth
 class UsergroupConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
     users: list[str]
     # No handle - it's in parent Usergroup
+
 
 class Usergroup(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -360,8 +381,10 @@ Provide sensible defaults with `Field`:
 ```python
 from pydantic import BaseModel, ConfigDict, Field
 
+
 class MyConfig(BaseModel):
     """Configuration with defaults."""
+
     model_config = ConfigDict(frozen=True)
 
     # Required field
@@ -392,11 +415,12 @@ class UserConfig(BaseModel):
     age: int
     active: bool
 
+
 # Pydantic validates and coerces types
 config = UserConfig(
     username="alice",
     age="25",  # ← String coerced to int
-    active=1,   # ← Int coerced to bool
+    active=1,  # ← Int coerced to bool
 )
 
 assert config.age == 25
@@ -421,10 +445,10 @@ data = {
         {
             "name": "app-sre",
             "vault_token_path": "slack/app-sre/token",
-            "usergroups": [...]
+            "usergroups": [...],
         }
     ],
-    "dry_run": True
+    "dry_run": True,
 }
 
 request = ReconcileRequest.model_validate(data)
@@ -482,11 +506,13 @@ class Resource(BaseModel):
     name: str
     labels: dict[str, str]  # ← Unknown keys, OK for dicts
 
+
 # ✅ OK: Dynamic configuration (varies by type)
 class Plugin(BaseModel):
     model_config = ConfigDict(frozen=True)
     type: str
     config: dict[str, Any]  # ← Varies by type, OK for dicts
+
 
 # ❌ AVOID: Known structure
 class Usergroup(BaseModel):
@@ -532,6 +558,7 @@ Example:
 def process_data(data: dict[str, Any]) -> None:
     name = data["name"]  # Runtime error if missing!
     items = data.get("items", [])
+
 
 # After
 def process_data(data: MyModel) -> None:

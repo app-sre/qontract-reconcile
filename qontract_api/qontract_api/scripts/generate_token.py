@@ -3,7 +3,7 @@
 This script will be replace by a proper management CLI in the future.
 """
 
-# ruff: noqa: PLC0415 - local import in main
+# ruff: file-ignore[import-outside-top-level] - local import in main
 
 import argparse
 import os

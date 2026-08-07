@@ -46,8 +46,7 @@ from reconcile.utils.mr.base import MergeRequestBase
 
 
 class CreateDeleteUser(MergeRequestBase):
-
-    name = 'create_delete_user_mr'
+    name = "create_delete_user_mr"
 
     def __init__(self, username, paths):
         self.username = username
@@ -60,17 +59,17 @@ class CreateDeleteUser(MergeRequestBase):
 
     @property
     def title(self) -> str:
-        return f'[{self.name}] delete user {self.username}'
+        return f"[{self.name}] delete user {self.username}"
 
     @property
     def description(self) -> str:
-        return f'delete user {self.username}'
+        return f"delete user {self.username}"
 
     def process(self, gitlab_cli):
         for path in self.paths:
-            gitlab_cli.delete_file(branch_name=self.branch,
-                                   file_path=path,
-                                   commit_message=self.title)
+            gitlab_cli.delete_file(
+                branch_name=self.branch, file_path=path, commit_message=self.title
+            )
 ```
 
 ## Sending MRs to SQS
@@ -82,13 +81,12 @@ from reconcile.utils.mr import CreateAppInterfaceNotificator
 
 
 notification = {
-    'notification_type': 'Outage',
-    'description': 'The AppSRE team is currently investigating an outage',
-    'short_description': 'Short Description',
+    "notification_type": "Outage",
+    "description": "The AppSRE team is currently investigating an outage",
+    "short_description": "Short Description",
 }
 
 merge_request = CreateAppInterfaceNotificator(notification=notification)
-
 ```
 
 then create the SQS Client instance:
@@ -139,8 +137,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 
 instance = queries.get_gitlab_instance()
 saas_files = queries.get_saas_files_minimal()
-gitlab_cli = GitLabApi(instance, project_id=gitlab_project_id,
-                       settings=settings)
+gitlab_cli = GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
 ```
 
 and then loop the messages, creating the MergeRequest objects and submitting
@@ -178,7 +175,7 @@ def run(dry_run, gitlab_project_id):
     ...
     mr = CreateDeleteAwsAccessKey(...)
     with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
-      mr.submit(cli=mr_cli)
+        mr.submit(cli=mr_cli)
 ```
 
 If we want to override what's set in App Interface and get a specific client,
@@ -192,7 +189,8 @@ from reconcile.utils.mr import CreateDeleteAwsAccessKey
 def run(dry_run, gitlab_project_id):
     ...
     mr = CreateDeleteAwsAccessKey(...)
-    with mr_client_gateway.init(sqs_or_gitlab='gitlab',
-                           gitlab_project_id=gitlab_project_id) as mr_cli:
-      mr.submit(cli=mr_cli)
+    with mr_client_gateway.init(
+        sqs_or_gitlab="gitlab", gitlab_project_id=gitlab_project_id
+    ) as mr_cli:
+        mr.submit(cli=mr_cli)
 ```

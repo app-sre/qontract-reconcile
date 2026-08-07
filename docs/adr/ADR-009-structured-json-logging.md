@@ -76,9 +76,7 @@ We adopt **dual-mode structured logging** with JSON format for production and st
 Use Python's standard logging with text format for all environments.
 
 ```python
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 ```
 
 **Pros:**
@@ -193,7 +191,6 @@ Setup logging with dual-mode support. See `qontract_api/logger.py` for implement
 Log with arbitrary extra fields:
 
 ```python
-
 from qontract_api.logger import get_logger
 
 logger = get_logger(__name__)

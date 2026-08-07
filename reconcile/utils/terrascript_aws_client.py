@@ -1,4 +1,4 @@
-# ruff: noqa: N801
+# ruff: file-ignore[invalid-class-name]
 from __future__ import annotations
 
 import base64
@@ -6224,7 +6224,7 @@ class TerrascriptClient:
                         "route53:Get*",
                         "route53:List*",
                     ],
-                    "Resource": "arn:aws:route53:::hostedzone/"
+                    "Resource": f"arn:{self._get_partition(account)}:route53:::hostedzone/"
                     + f"${{{zone_tf_resource.zone_id}}}",
                 },
                 {"Effect": "Allow", "Action": ["route53:List*"], "Resource": "*"},

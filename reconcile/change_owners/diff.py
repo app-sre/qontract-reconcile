@@ -12,7 +12,7 @@ from deepdiff.helper import CannotCompare
 from deepdiff.path import parse_path
 
 from reconcile.utils.json import json_dumps
-from reconcile.utils.jsonpath import parse_jsonpath
+from reconcile.utils.jsonpath import jsonpath_parts, remove_prefix_from_path
 
 if TYPE_CHECKING:
     from deepdiff.model import DiffLevel
@@ -22,6 +22,46 @@ class DiffType(Enum):
     ADDED = "added"
     REMOVED = "removed"
     CHANGED = "changed"
+
+
+class _DottedChild(jsonpath_ng.Child):
+    """
+    Same as `jsonpath_ng.Child`, but renders as a plain dotted path, e.g.
+    `resourceTemplates.[0].targets.[0].parameters.A`.
+
+    jsonpath_ng 1.8.0 wraps every `Child` in parentheses when stringified
+    (e.g. `(((a.b).c).d)`) to disambiguate operator precedence for
+    re-parsing. `Diff.path` is only ever rendered for display (MR check
+    output, logs, error messages), never re-parsed, so the parens just
+    hurt readability.
+    """
+
+    def __str__(self) -> str:
+        return f"{self.left}.{self.right}"
+
+
+def _join_for_display(
+    left: jsonpath_ng.JSONPath, right: jsonpath_ng.JSONPath
+) -> jsonpath_ng.JSONPath:
+    if isinstance(left, jsonpath_ng.This | jsonpath_ng.Root):
+        return right
+    if isinstance(right, jsonpath_ng.This):
+        return left
+    if isinstance(right, jsonpath_ng.Root):
+        return right
+    return _DottedChild(left, right)
+
+
+def _normalize_for_display(path: jsonpath_ng.JSONPath) -> jsonpath_ng.JSONPath:
+    """
+    Rebuild `path` using `_DottedChild` so it always renders as a plain
+    dotted string, regardless of how it was originally constructed. This
+    matters because jsonpath_ng's own `find()` traversal also builds
+    `Child` chains internally (e.g. when resolving a change-type's
+    self-service path against actual file content), so we can't rely on
+    controlling every path's construction site.
+    """
+    return reduce(_join_for_display, jsonpath_parts(path))
 
 
 @dataclass
@@ -35,22 +75,21 @@ class Diff:
     old: Any | None
     new: Any | None
 
+    def __post_init__(self) -> None:
+        self.path = _normalize_for_display(self.path)
+
     def create_subdiff(self, sub_path: jsonpath_ng.JSONPath) -> Diff:
         if sub_path == self.path:
             # no need to subdiff ... this is the same path
             return self
 
-        sub_path_str = str(sub_path)
         if self.path == jsonpath_ng.Root():
             absolute_sub_path = sub_path
-        elif sub_path_str.startswith(self.path_str()):
-            absolute_sub_path = parse_jsonpath(
-                f"${sub_path_str[len(self.path_str()) :]}"
-            )
         else:
-            raise Exception(
-                f"sub_path {sub_path_str} is not prefixed by {self.path_str()}"
-            )
+            relative = remove_prefix_from_path(sub_path, self.path)
+            if relative is None:
+                raise Exception(f"sub_path {sub_path} is not prefixed by {self.path}")
+            absolute_sub_path = relative
         sub_old = absolute_sub_path.find(self.old)
         sub_new = absolute_sub_path.find(self.new)
         return Diff(

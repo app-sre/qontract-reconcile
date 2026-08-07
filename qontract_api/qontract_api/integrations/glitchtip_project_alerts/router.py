@@ -41,7 +41,7 @@ router = APIRouter(
 )
 def glitchtip_project_alerts(
     reconcile_request: GlitchtipProjectAlertsReconcileRequest,
-    current_user: UserDep,  # noqa: ARG001
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
     request: Request,
 ) -> GlitchtipProjectAlertsTaskResponse:
     """Queue Glitchtip project alerts reconciliation task.
@@ -84,7 +84,7 @@ def glitchtip_project_alerts(
 )
 async def glitchtip_project_alerts_task_status(
     task_id: str,
-    current_user: UserDep,  # noqa: ARG001
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
     timeout: Annotated[
         int | None,
         Query(

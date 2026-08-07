@@ -76,6 +76,7 @@ This is the original implementation that executes business logic directly.
 DO NOT MODIFY - kept as fallback for rollback.
 """
 
+
 def run(dry_run: bool) -> None:
     """Reconcile Slack usergroups - direct execution."""
     # Original business logic - UNCHANGED
@@ -109,6 +110,7 @@ QONTRACT_INTEGRATION = "slack-usergroups-api"
 
 class SlackUsergroupsIntegrationParams(PydanticRunParams):
     """Parameters for slack-usergroups-api integration."""
+
     workspace_name: str | None
     usergroup_name: str | None
 
@@ -179,6 +181,7 @@ def slack_usergroups(
     log_cached_log_output: bool,
 ) -> None:
     import reconcile.slack_usergroups
+
     run_integration(
         reconcile.slack_usergroups,
         ctx,
@@ -188,6 +191,7 @@ def slack_usergroups(
         extended_early_exit_cache_ttl_seconds,
         log_cached_log_output,
     )
+
 
 # NEW: API client integration command
 @integration.command(short_help="Manage Slack User Groups via qontract-api.")

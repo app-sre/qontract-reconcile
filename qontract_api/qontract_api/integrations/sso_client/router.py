@@ -39,7 +39,7 @@ router = APIRouter(
 )
 def sso_client(
     reconcile_request: SsoClientReconcileRequest,
-    current_user: UserDep,  # noqa: ARG001
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
     request: Request,
 ) -> SsoClientTaskResponse:
     """Queue RHIDP SSO client reconciliation task.
@@ -74,7 +74,7 @@ def sso_client(
 )
 async def sso_client_task_status(
     task_id: str,
-    current_user: UserDep,  # noqa: ARG001
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
     timeout: Annotated[
         int | None,
         Query(

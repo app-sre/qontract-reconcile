@@ -172,7 +172,7 @@ def integ_params() -> dict[str, Any]:
     }
 
 
-class Mocks:  # noqa: B903
+class Mocks:  # ruff: ignore[class-as-data-structure]
     def __init__(self, oc: MagicMock, vault: MagicMock, submit_mr: MagicMock) -> None:
         self.oc = oc
         self.vault = vault

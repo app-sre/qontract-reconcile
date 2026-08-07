@@ -89,7 +89,7 @@ def sortable_jsonpath_string_repr(
         if isinstance(p, jsonpath_ng.Fields):
             sortable_parts.append(p.fields[0])
         elif isinstance(p, jsonpath_ng.Index):
-            sortable_parts.append(f"[{str(p.index).zfill(index_padding)}]")
+            sortable_parts.append(f"[{str(p.indices[0]).zfill(index_padding)}]")
         elif isinstance(p, jsonpath_ng.Slice):
             sortable_parts.append("*")
     return ".".join(sortable_parts)
@@ -163,3 +163,20 @@ def remove_prefix_from_path(
     if suffix:
         return reduce(lambda a, b: a.child(b), suffix)
     return None
+
+
+def is_prefix_of(prefix: jsonpath_ng.JSONPath, path: jsonpath_ng.JSONPath) -> bool:
+    """
+    Structurally checks whether `path` starts with `prefix`, including when they
+    are equal. Root is a prefix of everything.
+
+    This is a structural equivalent to comparing string representations of
+    JSONPath objects with `str.startswith()`, which is not reliable because the
+    string representation of a JSONPath is an internal implementation detail of
+    jsonpath-ng that is not guaranteed to be a flat, prefix-comparable string.
+    """
+    prefix_parts = jsonpath_parts(prefix, ignore_root=True)
+    path_parts = jsonpath_parts(path, ignore_root=True)
+    if len(path_parts) < len(prefix_parts):
+        return False
+    return path_parts[: len(prefix_parts)] == prefix_parts

@@ -66,6 +66,8 @@ urllib3.disable_warnings()
 GET_REPLICASET_MAX_ATTEMPTS = 20
 DEFAULT_GROUP = ""
 PROJECT_KIND = "Project.project.openshift.io"
+USER_KIND = "User.user.openshift.io"
+GROUP_KIND = "Group.user.openshift.io"
 POD_RECYCLE_SUPPORTED_TRIGGER_KINDS = [
     "ConfigMap",
     "Secret",
@@ -657,7 +659,7 @@ class OCCli:
 
     def get_group_if_exists(self, name: str) -> dict[str, Any] | None:
         try:
-            return self.get(None, "Group", name)
+            return self.get(None, GROUP_KIND, name)
         except StatusCodeError as e:
             if "NotFound" in str(e):
                 return None
@@ -674,11 +676,11 @@ class OCCli:
         self._run(cmd)
 
     def get_users(self) -> Iterable[dict[str, Any]]:
-        return self.get_all("User")["items"]
+        return self.get_all(USER_KIND)["items"]
 
     def delete_user(self, user_name: str) -> None:
-        user = self.get(None, "User", user_name)
-        cmd = ["delete", "user", user_name]
+        user = self.get(None, USER_KIND, user_name)
+        cmd = ["delete", USER_KIND, user_name]
         self._run(cmd)
         for identity in user["identities"]:
             cmd = ["delete", "identity", identity]
@@ -754,7 +756,7 @@ class OCCli:
 
         output_file: TextIO
         if isinstance(output, str | pathlib.Path):
-            output_file = open(os.path.join(output, name), "w", encoding="locale")  # noqa: SIM115
+            output_file = open(os.path.join(output, name), "w", encoding="locale")  # ruff: ignore[open-file-with-context-handler]
         else:
             # assume it's a file-like object, e.g. sys.stdout, TextIO, ...
             output_file = output
@@ -1541,7 +1543,7 @@ class OC:
         )
 
 
-class OC_Map:  # noqa: N801
+class OC_Map:  # ruff: ignore[invalid-class-name]
     """
     DEPRECATED! Use reconcile.utils.oc_map.OCMap instead.
 
@@ -1773,7 +1775,7 @@ class OC_Map:  # noqa: N801
                 oc.cleanup()
 
 
-class OCLogMsg(Exception):  # noqa: N818
+class OCLogMsg(Exception):  # ruff: ignore[error-suffix-on-exception-name]
     """
     Track log messages associated with initializing OC clients in OC_Map.
     """

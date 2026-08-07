@@ -733,7 +733,7 @@ class SaasHerder:
         saas_file: SaasFile,
         trigger_reason: str,
     ) -> tuple[str, str]:
-        [url, sha] = trigger_reason.split(" ")[0].split("/commit/")  # noqa: PLC0207
+        [url, sha] = trigger_reason.split(" ")[0].split("/commit/")  # ruff: ignore[missing-maxsplit-arg]
         repo_info = VCS.parse_repo_url(url)
         repo_name = repo_info.name
         file_name = f"{repo_name.replace('/', '-')}-{sha}.tar.gz"
@@ -2357,7 +2357,7 @@ class SaasHerder:
     @staticmethod
     def resolve_templated_parameters(saas_files: Iterable[SaasFile]) -> None:
         """Resolve templated target parameters in saas files."""
-        from reconcile.utils.jinja2.utils import (  # noqa: PLC0415 - # avoid circular import
+        from reconcile.utils.jinja2.utils import (  # ruff: ignore[import-outside-top-level] - # avoid circular import
             compile_jinja2_template,
         )
 

@@ -21,6 +21,7 @@ class Action:
         self.user = user
         self.role = role
 
+
 # ... inside the reconciliation logic ...
 plan = []
 if user_should_be_added:

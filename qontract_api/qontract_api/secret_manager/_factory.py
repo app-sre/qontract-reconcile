@@ -19,7 +19,7 @@ def get_secret_manager(cache: CacheBackend) -> SecretManager:
     for provider in settings.secrets.providers:
         match provider.backend_type:
             case "vault":
-                from qontract_utils.secret_reader.providers.vault import (  # noqa: PLC0415
+                from qontract_utils.secret_reader.providers.vault import (  # ruff: ignore[import-outside-top-level]
                     VaultSecretBackendSettings,
                 )
 

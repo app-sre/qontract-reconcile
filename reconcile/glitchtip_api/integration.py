@@ -230,9 +230,10 @@ class GlitchtipApiIntegration(
             logging.warning("No Glitchtip instances to reconcile")
             return
 
-        task = await reconcile_glitchtip(
-            GlitchtipReconcileRequest(instances=instances, dry_run=dry_run),
-        )
+        with self.log_api_exceptions():
+            task = await reconcile_glitchtip(
+                GlitchtipReconcileRequest(instances=instances, dry_run=dry_run),
+            )
         logging.info(f"request_id: {task.id}")
 
         if not dry_run:

@@ -1,4 +1,4 @@
-# ruff: noqa: N815
+# ruff: file-ignore[mixed-case-variable-in-class-scope]
 from __future__ import annotations
 
 import json

@@ -110,7 +110,7 @@ class OCMap:
             )
         else:
             try:
-                oc_client: OCCli | OCLogMsg = self._oc_cls(  # type: ignore[assignment]
+                oc_client: OCCli | OCLogMsg = self._oc_cls(
                     connection_parameters=connection_parameters,
                     init_projects=self._init_projects,
                     init_api_resources=self._init_api_resources,

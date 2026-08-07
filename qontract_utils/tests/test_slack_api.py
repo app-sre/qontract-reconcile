@@ -1,6 +1,6 @@
 """Tests for qontract_utils.slack_api module."""
 
-# ruff: noqa: ARG001
+# ruff: file-ignore[unused-function-argument]
 
 from collections.abc import Generator
 from typing import Any
@@ -497,7 +497,7 @@ def test_slack_api_retries_on_transient_errors(
     # Mock: first 2 calls fail, 3rd succeeds
     call_count = {"count": 0}
 
-    def side_effect(*args, **kwargs):  # type: ignore[no-untyped-def]  # noqa: ANN002, ANN003, ANN202
+    def side_effect(*args, **kwargs):  # type: ignore[no-untyped-def]  # ruff: ignore[missing-type-args, missing-type-kwargs, missing-return-type-private-function]
         call_count["count"] += 1
         if call_count["count"] < 3:
             raise SlackApiError("rate_limited", response=MagicMock())
@@ -539,7 +539,7 @@ def test_slack_api_gives_up_after_max_attempts(
     # Mock: always fails
     call_count = {"count": 0}
 
-    def side_effect(*args, **kwargs):  # type: ignore[no-untyped-def]  # noqa: ANN002, ANN003, ANN202
+    def side_effect(*args, **kwargs):  # type: ignore[no-untyped-def]  # ruff: ignore[missing-type-args, missing-type-kwargs, missing-return-type-private-function]
         call_count["count"] += 1
         raise SlackApiError("always fails", response=MagicMock())
 

@@ -41,7 +41,7 @@ router = APIRouter(
 )
 def github_owners(
     reconcile_request: GithubOwnersReconcileRequest,
-    current_user: UserDep,  # noqa: ARG001
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
     request: Request,
 ) -> GithubOwnersTaskResponse:
     """Queue a GitHub owners reconciliation task.
@@ -84,7 +84,7 @@ def github_owners(
 )
 async def github_owners_task_status(
     task_id: str,
-    current_user: UserDep,  # noqa: ARG001
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
     timeout: Annotated[
         int | None,
         Query(

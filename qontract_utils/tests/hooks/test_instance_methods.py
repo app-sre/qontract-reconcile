@@ -619,8 +619,8 @@ def _run_mypy(code: str, tmp_path: Path) -> subprocess.CompletedProcess[str]:
     """Run mypy --strict on a code snippet via temp file."""
     test_file = tmp_path / "test_snippet.py"
     test_file.write_text(textwrap.dedent(code))
-    return subprocess.run(  # noqa: S603
-        ["uv", "run", "mypy", "--strict", str(test_file)],  # noqa: S607
+    return subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
+        ["uv", "run", "mypy", "--strict", str(test_file)],  # ruff: ignore[start-process-with-partial-path]
         capture_output=True,
         text=True,
         check=False,

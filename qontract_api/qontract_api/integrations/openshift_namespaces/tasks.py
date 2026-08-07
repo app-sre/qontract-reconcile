@@ -99,7 +99,7 @@ def reconcile_openshift_namespaces_task(
     request_id = self.request.id
     secret_errors: list[str] = []
 
-    try:
+    try:  # ruff: ignore[too-many-statements-in-try-clause]
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
 
@@ -160,13 +160,13 @@ def reconcile_openshift_namespaces_task(
         _publish_result_events(result, dry_run=dry_run)
         return result
 
-    except Exception as e:
+    except Exception as err:
         logger.exception(f"Task {request_id} failed with error")
         result = OpenShiftNamespacesTaskResult(
             status=TaskStatus.FAILED,
             actions=[],
             applied_count=0,
-            errors=[*secret_errors, str(e)],
+            errors=[*secret_errors, f"Unexpected {err=}"],
         )
         _publish_result_events(result, dry_run=dry_run)
         return result

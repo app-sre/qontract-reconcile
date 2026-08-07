@@ -41,7 +41,7 @@ router = APIRouter(
 )
 def slack_usergroups(
     reconcile_request: SlackUsergroupsReconcileRequest,
-    current_user: UserDep,  # noqa: ARG001
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
     request: Request,
 ) -> SlackUsergroupsTaskResponse:
     """Queue Slack usergroups reconciliation task.
@@ -85,7 +85,7 @@ def slack_usergroups(
 )
 async def slack_usergroups_task_status(
     task_id: str,
-    current_user: UserDep,  # noqa: ARG001
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
     timeout: Annotated[
         int | None,
         Query(
