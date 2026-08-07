@@ -538,6 +538,94 @@ class PagerDutyUser(pydantic.BaseModel):
     username: str
 
 
+class QuayOrgConfig(pydantic.BaseModel):
+    automation_token: Secret
+    base_url: str
+    instance: str
+    managed_repos: bool
+    mirror: QuayOrgKey | None | None = None
+    org_name: str
+    repos: list[QuayRepoConfig] | None = None
+
+
+class QuayOrgKey(pydantic.BaseModel):
+    instance: str
+    org_name: str
+
+
+class QuayRepoActionCreate(pydantic.BaseModel):
+    action_type: typing.Literal["create"] = "create"
+    description: str
+    instance: str
+    org_name: str
+    public: bool
+    repo_name: str
+
+
+class QuayRepoActionDelete(pydantic.BaseModel):
+    action_type: typing.Literal["delete"] = "delete"
+    instance: str
+    org_name: str
+    repo_name: str
+
+
+class QuayRepoActionUpdateDescription(pydantic.BaseModel):
+    action_type: typing.Literal["update_description"] = "update_description"
+    description: str
+    instance: str
+    org_name: str
+    repo_name: str
+
+
+class QuayRepoActionUpdateVisibility(pydantic.BaseModel):
+    action_type: typing.Literal["update_visibility"] = "update_visibility"
+    instance: str
+    org_name: str
+    public: bool
+    repo_name: str
+
+
+class QuayRepoConfig(pydantic.BaseModel):
+    description: str = ""
+    name: str
+    public: bool
+
+
+class QuayReposReconcileRequest(pydantic.BaseModel):
+    dry_run: bool = True
+    orgs: list[QuayOrgConfig]
+
+
+class QuayReposTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class QuayReposTaskResult(pydantic.BaseModel):
+    actions: (
+        list[
+            QuayRepoActionCreate
+            | QuayRepoActionDelete
+            | QuayRepoActionUpdateDescription
+            | QuayRepoActionUpdateVisibility
+        ]
+        | None
+    ) = None
+    applied_actions: (
+        list[
+            QuayRepoActionCreate
+            | QuayRepoActionDelete
+            | QuayRepoActionUpdateDescription
+            | QuayRepoActionUpdateVisibility
+        ]
+        | None
+    ) = None
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
+
+
 class RecipientType(str, enum.Enum):
     EMAIL = "email"
     WEBHOOK = "webhook"
