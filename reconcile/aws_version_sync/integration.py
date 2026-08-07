@@ -451,10 +451,10 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
             if (
                 aws_resource.resource_engine_version
                 <= app_interface_resource.resource_engine_version
-                and aws_resource.resource_engine
-                == app_interface_resource.resource_engine
+                or aws_resource.resource_engine
+                != app_interface_resource.resource_engine
             ):
-                # do not downgrade the version
+                # do not downgrade the version or change engine
                 continue
             # make mypy happy
             assert app_interface_resource.namespace_file
