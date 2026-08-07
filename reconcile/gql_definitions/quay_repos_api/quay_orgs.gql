@@ -1,0 +1,22 @@
+# qenerate: plugin=pydantic_v2
+query QuayReposApiOrgs {
+  quay_orgs: quay_orgs_v1 {
+    name
+    managedRepos
+    instance {
+      name
+      url
+    }
+    automationToken {
+      path
+      field
+      version
+    }
+    mirror {
+      name
+      instance {
+        name
+      }
+    }
+  }
+}

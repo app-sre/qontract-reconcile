@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "clientele_api_client"
+version = "0.1.0"
+dependencies = [
+    "clientele",
+]
+
+[tool.mypy]
+plugins = ["clientele.mypy"]
