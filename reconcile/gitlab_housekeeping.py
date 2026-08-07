@@ -531,6 +531,7 @@ def preprocess_merge_requests(
             MRStatus.CANNOT_BE_MERGED,
             MRStatus.CANNOT_BE_MERGED_RECHECK,
         }:
+            logging.info(["preprocess", gl.project.name, mr.iid, "skip-cannot-be-merged", mr.merge_status])
             continue
         if mr.draft:
             continue
@@ -1452,6 +1453,7 @@ def run_error_healthcheck(
             MRStatus.CANNOT_BE_MERGED,
             MRStatus.CANNOT_BE_MERGED_RECHECK,
         }:
+            logging.info(["error-healthcheck", gl.project.name, mr.iid, "skip-cannot-be-merged", mr.merge_status])
             continue
 
         if not is_good_to_merge(mr.labels):
