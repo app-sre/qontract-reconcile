@@ -439,11 +439,11 @@ class OCMServiceLogSeverity(StrEnum):
     Represents the severity of a service log.
     """
 
+    Low = "Low"
+    Moderate = "Moderate"
+    Important = "Important"
+    Critical = "Critical"
     Debug = "Debug"
-    Info = "Info"
-    Warning = "Warning"
-    Error = "Error"
-    Fatal = "Fatal"
 
 
 class OCMClusterServiceLogCreateModel(BaseModel):

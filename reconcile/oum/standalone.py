@@ -70,7 +70,7 @@ class OCMStandaloneUserManagementIntegration(OCMUserManagementIntegration):
             ocm_api=ocm_api,
             service_log=OCMClusterServiceLogCreateModel(
                 cluster_uuid=spec.cluster.ocm_cluster.external_id,
-                severity=OCMServiceLogSeverity.Info,
+                severity=OCMServiceLogSeverity.Low,
                 summary="Reconciled cluster groups",
                 description=message,
                 service_name=self.name,
@@ -101,7 +101,7 @@ class OCMStandaloneUserManagementIntegration(OCMUserManagementIntegration):
             ocm_api=ocm_api,
             service_log=OCMClusterServiceLogCreateModel(
                 cluster_uuid=spec.cluster.ocm_cluster.external_id,
-                severity=OCMServiceLogSeverity.Error,
+                severity=OCMServiceLogSeverity.Critical,
                 summary="Failed to reconcile cluster user group configuration",
                 description=str(error),
                 service_name=self.name,
