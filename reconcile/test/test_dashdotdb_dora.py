@@ -257,9 +257,7 @@ def test_get_repo_changes(mocker: MockerFixture) -> None:
 def test_post_deployments_skips_when_get_token_fails(
     mocker: MockerFixture,
 ) -> None:
-    mocker.patch(
-        "reconcile.dashdotdb_dora.DashdotdbDORA.__init__"
-    ).return_value = None
+    mocker.patch("reconcile.dashdotdb_dora.DashdotdbDORA.__init__").return_value = None
     d = DashdotdbDORA(False, "1", 1)
     d.dry_run = False
     d.dashdotdb_token = None
