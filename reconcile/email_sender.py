@@ -11,7 +11,6 @@ from reconcile.gql_definitions.email_sender.emails import (
     AppInterfaceEmailV1,
 )
 from reconcile.gql_definitions.email_sender.emails import query as emails_query
-from reconcile.gql_definitions.email_sender.users import query as users_query
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -29,21 +28,18 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from reconcile.gql_definitions.fragments.email_service import EmailServiceOwners
-    from reconcile.gql_definitions.fragments.email_user import EmailUser
 
 QONTRACT_INTEGRATION = "email-sender"
 
 
 def collect_to(
     to: AppInterfaceEmailAudienceV1,
-    all_users: list[EmailUser],
     all_services: list[EmailServiceOwners],
 ) -> set[str]:
     """Collect audience to send email to from to object
 
     Arguments:
         to -- AppInterfaceEmailAudience_v1 object
-        all_users -- List of all app-interface users
         all_services -- List of all app-interface apps/services with owners
 
     Raises:
@@ -57,7 +53,11 @@ def collect_to(
     for alias in to.aliases or []:
         match alias:
             case "all-users":
-                to.users = all_users
+                raise AttributeError(
+                    "the 'all-users' alias is disabled: the app-interface user "
+                    "list is too large to send in a single email. See "
+                    "https://redhat.atlassian.net/browse/APPSRE-15051"
+                )
             case "all-service-owners":
                 to.services = all_services
             case _:
@@ -102,7 +102,6 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
         logging.info("no emails to send")
         sys.exit(0)
 
-    all_users = users_query(gql_api.query).users or []
     all_services = apps_query(gql_api.query).apps or []
     smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
@@ -124,8 +123,6 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
         logging.info(["send_email", email.name, email.subject])
 
         if not dry_run:
-            names = collect_to(
-                email.q_to, all_users=all_users, all_services=all_services
-            )
+            names = collect_to(email.q_to, all_services=all_services)
             smtp_client.send_mail(names, email.subject, email.body)
             state.add(email.name)
