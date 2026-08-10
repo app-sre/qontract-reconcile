@@ -2365,6 +2365,376 @@
         "title": "OcmClustersResponse",
         "type": "object"
       },
+      "OcmConnectionParams": {
+        "description": "OCM environment connection details, shared by every OCM-backed integration.\n\nDeliberately generic - carries no notion of \"rhidp\" or any other consumer. The\ninherited Secret fields (secret_manager_url, path, field, version) resolve\naccess_token_client_secret.",
+        "properties": {
+          "access_token_client_id": {
+            "description": "OAuth2 client id",
+            "title": "Access Token Client Id",
+            "type": "string"
+          },
+          "access_token_url": {
+            "description": "OAuth2 token endpoint (client-credentials grant)",
+            "title": "Access Token Url",
+            "type": "string"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Specific field within the secret",
+            "title": "Field"
+          },
+          "ocm_url": {
+            "description": "OCM environment base URL",
+            "title": "Ocm Url",
+            "type": "string"
+          },
+          "path": {
+            "description": "Path to the secret",
+            "title": "Path",
+            "type": "string"
+          },
+          "secret_manager_url": {
+            "description": "Secret Manager URL",
+            "title": "Secret Manager Url",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version of the secret",
+            "title": "Version"
+          }
+        },
+        "required": [
+          "secret_manager_url",
+          "path",
+          "ocm_url",
+          "access_token_url",
+          "access_token_client_id"
+        ],
+        "title": "OcmConnectionParams",
+        "type": "object"
+      },
+      "OcmOidcIdpActionCreate": {
+        "description": "Action: create a new OIDC identity provider on a cluster.",
+        "properties": {
+          "action_type": {
+            "const": "create",
+            "default": "create",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "auth_name": {
+            "description": "Identity provider name",
+            "title": "Auth Name",
+            "type": "string"
+          },
+          "cluster_name": {
+            "description": "Cluster name",
+            "title": "Cluster Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster_name",
+          "auth_name"
+        ],
+        "title": "OcmOidcIdpActionCreate",
+        "type": "object"
+      },
+      "OcmOidcIdpActionDelete": {
+        "description": "Action: delete an identity provider from a cluster.",
+        "properties": {
+          "action_type": {
+            "const": "delete",
+            "default": "delete",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "cluster_name": {
+            "description": "Cluster name",
+            "title": "Cluster Name",
+            "type": "string"
+          },
+          "idp_name": {
+            "description": "Identity provider name",
+            "title": "Idp Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster_name",
+          "idp_name"
+        ],
+        "title": "OcmOidcIdpActionDelete",
+        "type": "object"
+      },
+      "OcmOidcIdpActionUpdate": {
+        "description": "Action: update an existing OIDC identity provider on a cluster.",
+        "properties": {
+          "action_type": {
+            "const": "update",
+            "default": "update",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "auth_name": {
+            "description": "Identity provider name",
+            "title": "Auth Name",
+            "type": "string"
+          },
+          "cluster_name": {
+            "description": "Cluster name",
+            "title": "Cluster Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster_name",
+          "auth_name"
+        ],
+        "title": "OcmOidcIdpActionUpdate",
+        "type": "object"
+      },
+      "OcmOidcIdpAuth": {
+        "description": "Auth configuration for a cluster's OIDC identity provider.\n\nLabel interpretation stays client-side (see reconcile/rhidp_api/ocm_oidc_idp) -\noidc_enabled/enforced are booleans computed from OCM labels by the client, not the\nraw StatusValue enum, so this service has zero knowledge of label semantics.",
+        "properties": {
+          "enforced": {
+            "description": "If True, ALL foreign identity providers on this cluster are removed, not just ones matching this auth name",
+            "title": "Enforced",
+            "type": "boolean"
+          },
+          "group_filter_regex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional group filter regex for the SSO client",
+            "title": "Group Filter Regex"
+          },
+          "issuer": {
+            "description": "Keycloak instance URL (must match the stored SSO secret)",
+            "title": "Issuer",
+            "type": "string"
+          },
+          "name": {
+            "description": "IDP name, must match the SSO client auth name",
+            "title": "Name",
+            "type": "string"
+          },
+          "oidc_enabled": {
+            "description": "Whether an OIDC identity provider should exist for this cluster",
+            "title": "Oidc Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "issuer",
+          "oidc_enabled",
+          "enforced"
+        ],
+        "title": "OcmOidcIdpAuth",
+        "type": "object"
+      },
+      "OcmOidcIdpCluster": {
+        "description": "A single cluster considered for RHIDP OIDC, compiled client-side from OCM labels.\n\nSent for every RHIDP-managed cluster (not just oidc_enabled ones), so the current\nstate (existing OCM identity providers) can still be diffed and cleaned up for\nclusters that became disabled since the last reconcile.",
+        "properties": {
+          "auth": {
+            "$ref": "#/components/schemas/OcmOidcIdpAuth",
+            "description": "OIDC auth configuration"
+          },
+          "cluster_id": {
+            "description": "OCM cluster id",
+            "title": "Cluster Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Cluster name",
+            "title": "Name",
+            "type": "string"
+          },
+          "organization_id": {
+            "description": "OCM organization id",
+            "title": "Organization Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster_id",
+          "name",
+          "organization_id",
+          "auth"
+        ],
+        "title": "OcmOidcIdpCluster",
+        "type": "object"
+      },
+      "OcmOidcIdpReconcileRequest": {
+        "description": "Request model for OCM OIDC identity provider reconciliation.\n\nPOST requests always queue a background task (async execution).",
+        "properties": {
+          "clusters": {
+            "description": "All RHIDP-labeled clusters discovered for this environment",
+            "items": {
+              "$ref": "#/components/schemas/OcmOidcIdpCluster"
+            },
+            "title": "Clusters",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "ocm_connection": {
+            "$ref": "#/components/schemas/OcmConnectionParams",
+            "description": "OCM connection details, needed for identity provider CRUD"
+          },
+          "ocm_environment": {
+            "description": "OCM environment name (metric label only)",
+            "title": "Ocm Environment",
+            "type": "string"
+          },
+          "vault_target": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Vault location sso_client stores per-cluster SSO client secrets under (field/version unused)"
+          }
+        },
+        "required": [
+          "ocm_environment",
+          "ocm_connection",
+          "clusters",
+          "vault_target"
+        ],
+        "title": "OcmOidcIdpReconcileRequest",
+        "type": "object"
+      },
+      "OcmOidcIdpTaskResponse": {
+        "description": "Response model for POST /reconcile endpoint.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "OcmOidcIdpTaskResponse",
+        "type": "object"
+      },
+      "OcmOidcIdpTaskResult": {
+        "description": "Result model for a completed reconciliation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "All actions calculated (desired - current), including any that failed to apply.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create": "#/components/schemas/OcmOidcIdpActionCreate",
+                  "delete": "#/components/schemas/OcmOidcIdpActionDelete",
+                  "update": "#/components/schemas/OcmOidcIdpActionUpdate"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/OcmOidcIdpActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmOidcIdpActionUpdate"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmOidcIdpActionDelete"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (non-dry-run only).",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create": "#/components/schemas/OcmOidcIdpActionCreate",
+                  "delete": "#/components/schemas/OcmOidcIdpActionDelete",
+                  "update": "#/components/schemas/OcmOidcIdpActionUpdate"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/OcmOidcIdpActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmOidcIdpActionUpdate"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmOidcIdpActionDelete"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "OcmOidcIdpTaskResult",
+        "type": "object"
+      },
       "OpenShiftNamespacesReconcileRequest": {
         "description": "Request to reconcile namespaces across clusters.",
         "properties": {
@@ -4324,6 +4694,101 @@
           }
         ],
         "summary": "Glitchtip Reconcile Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/ocm-oidc-idp/reconcile": {
+      "post": {
+        "description": "Queue OCM OIDC identity provider reconciliation task.\n\nThis endpoint always queues a background task and returns immediately with a\ntask_id. Use GET /reconcile/{task_id} to retrieve the result.",
+        "operationId": "ocm-oidc-idp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OcmOidcIdpReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OcmOidcIdpTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ocm Oidc Idp",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/ocm-oidc-idp/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation result (blocking or non-blocking).",
+        "operationId": "ocm-oidc-idp-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OcmOidcIdpTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ocm Oidc Idp Task Status",
         "tags": [
           "integrations"
         ]

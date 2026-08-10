@@ -26,6 +26,10 @@ Example:
 from qontract_utils.ocm_api.client import TIMEOUT, OcmApi, OcmApiCallContext
 from qontract_utils.ocm_api.models import (
     OcmCluster,
+    OcmIdentityProvider,
+    OcmIdentityProviderOidc,
+    OcmIdentityProviderOidcOpenId,
+    OcmIdentityProviderOidcOpenIdClaims,
     OcmOrganizationLabel,
     OcmSubscription,
     OcmSubscriptionLabel,
@@ -54,6 +58,10 @@ __all__ = [
     "OcmApi",
     "OcmApiCallContext",
     "OcmCluster",
+    "OcmIdentityProvider",
+    "OcmIdentityProviderOidc",
+    "OcmIdentityProviderOidcOpenId",
+    "OcmIdentityProviderOidcOpenIdClaims",
     "OcmOrganizationLabel",
     "OcmSubscription",
     "OcmSubscriptionLabel",

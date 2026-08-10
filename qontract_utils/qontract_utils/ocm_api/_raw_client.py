@@ -14,7 +14,7 @@ httpx2.Client by qontract_utils.ocm_api.client.OcmApi, which owns that client's 
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import httpx2
 from pydantic import BaseModel, Field
@@ -89,6 +89,61 @@ class RawClusterList(BaseModel):
     page: int = 1
     size: int = 0
     total: int = 0
+
+
+class RawIdentityProviderOidcOpenIdClaims(BaseModel):
+    email: list[str] = Field(default_factory=lambda: ["email"])
+    name: list[str] = Field(default_factory=lambda: ["name"])
+    preferred_username: list[str] = Field(
+        default_factory=lambda: ["preferred_username"]
+    )
+    groups: list[str] = Field(default_factory=list)
+
+
+class RawIdentityProviderOidcOpenId(BaseModel):
+    client_id: str
+    client_secret: str | None = None
+    issuer: str
+    claims: RawIdentityProviderOidcOpenIdClaims = Field(
+        default_factory=RawIdentityProviderOidcOpenIdClaims
+    )
+
+
+class RawIdentityProviderOidc(BaseModel):
+    type: Literal["OpenIDIdentityProvider"] = "OpenIDIdentityProvider"
+    id: str | None = None
+    name: str
+    mapping_method: str = "add"
+    open_id: RawIdentityProviderOidcOpenId
+
+
+class RawIdentityProvider(BaseModel):
+    """Generic wire model for identity provider types this client does not manage.
+
+    Covers types like GithubIdentityProvider, LDAPIdentityProvider, etc. - only enough
+    fields to classify and delete IDPs this integration does not manage.
+    """
+
+    type: str
+    id: str | None = None
+    name: str
+
+
+class RawIdentityProviderList(BaseModel):
+    items: list[dict[str, Any]] = Field(default_factory=list)
+    page: int = 1
+    size: int = 0
+    total: int = 0
+
+
+def _parse_raw_identity_provider(
+    data: dict[str, Any],
+) -> RawIdentityProviderOidc | RawIdentityProvider:
+    match data.get("type"):
+        case "OpenIDIdentityProvider":
+            return RawIdentityProviderOidc.model_validate(data)
+        case _:
+            return RawIdentityProvider.model_validate(data)
 
 
 class RawOcmClient:
@@ -181,3 +236,46 @@ class RawOcmClient:
             return raw_list.items, raw_list.size
 
         return self._fetch_all_pages(fetch_page)
+
+    def get_identity_providers(
+        self, *, cluster_id: str
+    ) -> list[RawIdentityProviderOidc | RawIdentityProvider]:
+        def fetch_page(page: int) -> tuple[list[dict[str, Any]], int]:
+            response = self._client.get(
+                f"/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers",
+                params={"page": page, "size": MAX_PAGE_SIZE},
+            )
+            response.raise_for_status()
+            raw_list = RawIdentityProviderList.model_validate(response.json())
+            return raw_list.items, raw_list.size
+
+        return [
+            _parse_raw_identity_provider(item)
+            for item in self._fetch_all_pages(fetch_page)
+        ]
+
+    def create_identity_provider(
+        self, *, cluster_id: str, body: dict[str, Any]
+    ) -> RawIdentityProviderOidc:
+        response = self._client.post(
+            f"/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers",
+            json=body,
+        )
+        response.raise_for_status()
+        return RawIdentityProviderOidc.model_validate(response.json())
+
+    def update_identity_provider(
+        self, *, cluster_id: str, idp_id: str, body: dict[str, Any]
+    ) -> RawIdentityProviderOidc:
+        response = self._client.patch(
+            f"/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers/{idp_id}",
+            json=body,
+        )
+        response.raise_for_status()
+        return RawIdentityProviderOidc.model_validate(response.json())
+
+    def delete_identity_provider(self, *, cluster_id: str, idp_id: str) -> None:
+        response = self._client.delete(
+            f"/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers/{idp_id}"
+        )
+        response.raise_for_status()

@@ -9,17 +9,12 @@ from urllib.parse import urljoin, urlparse, urlunparse
 import httpx2
 from jose import jwt
 
-from qontract_api.integrations.sso_client.domain import (
-    KeycloakInstanceIat,
-    SsoClientSecret,
-    cluster_vault_secret_id,
-)
+from qontract_api.integrations.sso_client.domain import KeycloakInstanceIat
 from qontract_api.integrations.sso_client.keycloak_client_factory import (
     build_keycloak_instances,
 )
 from qontract_api.integrations.sso_client.metrics import (
     INTEGRATION_NAME,
-    rhidp_managed_clusters,
     rhidp_sso_client_inital_access_token_expiration,
     rhidp_sso_client_number_of_clients,
     rhidp_sso_client_reconcile_errors,
@@ -33,6 +28,8 @@ from qontract_api.integrations.sso_client.schemas import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import Secret, TaskStatus
+from qontract_api.rhidp.domain import SsoClientSecret, cluster_vault_secret_id
+from qontract_api.rhidp.metrics import rhidp_managed_clusters
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
