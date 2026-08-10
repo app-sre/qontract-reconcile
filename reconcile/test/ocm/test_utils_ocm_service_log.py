@@ -41,7 +41,7 @@ def build_service_log(
     description: str = "",
     cluster_uuid: str = "",
     service_name: str = "some-service",
-    severity: OCMServiceLogSeverity = OCMServiceLogSeverity.Info,
+    severity: OCMServiceLogSeverity = OCMServiceLogSeverity.Low,
     timestamp: datetime = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC),
 ) -> OCMClusterServiceLog:
     return OCMClusterServiceLog(
@@ -67,7 +67,7 @@ def example_service_log(
         "some error",
         "description",
         "cluster_uuid",
-        severity=OCMServiceLogSeverity.Error,
+        severity=OCMServiceLogSeverity.Critical,
     )
     register_ocm_url_responses([
         OcmUrl(method="GET", uri=CLUSTER_SERVICE_LOGS_LIST_ENDPOINT).add_list_response([
@@ -133,7 +133,7 @@ def test_create_service_log(
                     summary="something happened",
                     description="something happenes",
                     service_name="some-service",
-                    severity=OCMServiceLogSeverity.Info,
+                    severity=OCMServiceLogSeverity.Low,
                     timestamp=timestamp,
                 ),
             ],
@@ -146,7 +146,7 @@ def test_create_service_log(
             summary="something happened",
             description="something happenes",
             service_name="some-service",
-            severity=OCMServiceLogSeverity.Info,
+            severity=OCMServiceLogSeverity.Low,
         ),
     )
     assert result is not None
@@ -165,7 +165,7 @@ def test_create_service_log_dedup_timedelta_filter(
             "some error",
             "description",
             "cluster_uuid",
-            severity=OCMServiceLogSeverity.Error,
+            severity=OCMServiceLogSeverity.Critical,
         )
     ])
 
@@ -177,7 +177,7 @@ def test_create_service_log_dedup_timedelta_filter(
             summary="something happened",
             description="something happenes",
             service_name="some-service",
-            severity=OCMServiceLogSeverity.Info,
+            severity=OCMServiceLogSeverity.Low,
         ),
         dedup_interval=dedup_interval,
     )
@@ -207,7 +207,7 @@ def test_create_service_log_dedup(
             summary="something happened",
             description="something happenes",
             service_name="some-service",
-            severity=OCMServiceLogSeverity.Info,
+            severity=OCMServiceLogSeverity.Low,
         ),
         dedup_interval=timedelta(days=1),
     )
@@ -238,7 +238,7 @@ def test_create_service_log_dedup_no_dup(
             summary="SOMETHING ELSE HAPPENED",
             description="something happenes",
             service_name="some-service",
-            severity=OCMServiceLogSeverity.Info,
+            severity=OCMServiceLogSeverity.Low,
         ),
         dedup_interval=timedelta(days=1),
     )

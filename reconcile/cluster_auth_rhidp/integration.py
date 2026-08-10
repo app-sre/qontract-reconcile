@@ -14,7 +14,7 @@ from reconcile.gql_definitions.cluster_auth_rhidp.clusters import query as clust
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
-from reconcile.rhidp.common import (
+from reconcile.rhidp_api.common import (
     AUTH_NAME_LABEL_KEY,
     ISSUER_LABEL_KEY,
     RHIDP_NAMESPACE_LABEL_KEY,

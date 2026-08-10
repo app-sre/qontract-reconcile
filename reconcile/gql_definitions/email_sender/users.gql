@@ -1,7 +1,0 @@
-# qenerate: plugin=pydantic_v2
-
-query EmailUsers {
-  users: users_v1 {
-    ...EmailUser
-  }
-}

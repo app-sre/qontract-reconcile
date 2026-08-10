@@ -4,25 +4,17 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from qontract_api.models import Secret
+from qontract_api.ocm.domain import OcmConnectionParams
 
 
-class OcmClusterQueryParams(Secret):
+class OcmClusterQueryParams(OcmConnectionParams):
     """Query parameters for OCM label-based cluster discovery.
 
     Deliberately generic - this endpoint has no notion of "rhidp" or any other
     consumer. Callers own their label_key_prefix so other OCM-label-based
-    integrations can reuse it. The inherited Secret fields (secret_manager_url,
-    path, field, version) resolve access_token_client_secret.
+    integrations can reuse it.
     """
 
-    # Named ocm_url, not url, to avoid shadowing Secret.url (a property returning
-    # secret_manager_url, used by SecretManager to route to the correct backend).
-    ocm_url: str = Field(..., description="OCM environment base URL")
-    access_token_url: str = Field(
-        ..., description="OAuth2 token endpoint (client-credentials grant)"
-    )
-    access_token_client_id: str = Field(..., description="OAuth2 client id")
     label_key_prefix: str = Field(
         ...,
         description=(
