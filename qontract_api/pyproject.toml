@@ -7,22 +7,22 @@ license = { text = "Apache 2.0" }
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "cachetools==7.1.6",
+    "cachetools==7.1.7",
     "celery==5.6.3",
-    "fastapi==0.140.13",
-    "faststream[cli,redis,prometheus]==0.7.3",
-    "httpx2==2.9.1",
+    "fastapi==0.141.1",
+    "faststream[cli,redis,prometheus]==0.7.4",
+    "httpx2==2.10.0",
     "prometheus-client==0.26.0",
     "prometheus-fastapi-instrumentator==8.1.0",
-    "pydantic-settings==2.14.2",
+    "pydantic-settings==2.15.0",
     "pydantic==2.13.4",
     "python-jose[cryptography]==3.5.0",
     "qontract-api-client",
     "qontract-utils",
-    "redis==8.0.1",
+    "redis==8.1.0",
     "sentry-sdk==2.66.1",
     "structlog==26.1.0",
-    "uvicorn[standard]==0.51.0",
+    "uvicorn[standard]==0.52.1",
 ]
 
 
@@ -35,9 +35,9 @@ dev = [
     "pytest-mock==3.15.1",
     "pytest==9.1.1",
     "rich==15.0.0",
-    "ruff==0.16.0",
+    "ruff==0.16.2",
     "types-cachetools==7.0.0.20260713",
-    "types-hvac==2.4.0.20260728",
+    "types-hvac==2.4.0.20260731",
     "types-python-jose==3.5.0.20260408",
 ]
 
