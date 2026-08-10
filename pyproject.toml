@@ -15,14 +15,14 @@ classifiers = [
 dependencies = [
     "anymarkup==0.8.1",
     # keep in sync with boto3-stubs in dependency-groups.type
-    "boto3==1.43.58",
-    "botocore==1.43.58",
+    "boto3==1.43.66",
+    "botocore==1.43.66",
     "Click>=7.0,<9.0",
     "croniter==6.2.4",
-    "dateparser==1.4.1",
+    "dateparser==1.4.2",
     "deepdiff==9.1.0",
     "dnspython~=2.1",
-    "dt==1.1.73",
+    "dt==1.2.1",
     "filetype~=1.2.0",
     "gql==4.0.0",
     "hvac==2.4.0",
@@ -38,11 +38,11 @@ dependencies = [
     "prometheus-client==0.26.0",
     "psycopg2-binary~=2.9",
     "pydantic~=2.13.0",
-    "PyGithub>=1.58,<1.59",
+    "PyGithub>=1.59,<1.60",
     "pyjwt~=2.7",
     "pyOpenSSL~=26.2",
     "pypd>=1.1.0,<1.2.0",
-    "python-gitlab==6.0.0",
+    "python-gitlab==6.5.0",
     "requests-oauthlib~=2.0",
     "requests~=2.32",
     "rich==15.0.0",
@@ -52,7 +52,7 @@ dependencies = [
     # jenkins-job-builder uses pkg_resources from setuptools. pkg_resources is being deprecated and will be removed
     # in setuptools 81.
     # setuptools 80.9.0 set a deadline for the removal and started showing warnings when pkg_resources is used.
-    "setuptools==80.8.0",
+    "setuptools==80.10.2",
     "slack_sdk>=3.10,<4.0",
     "sretoolbox==4.0.1",
     "tabulate==0.10.0",
@@ -68,7 +68,7 @@ dependencies = [
 debugger = ["debugpy ~=1.8.17"]
 dev = [
     # keep in sync project.dependencies.boto3
-    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.43.58",
+    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.43.66",
     "moto[ec2,iam,logs,s3,route53]==5.2.2",
     "mypy==2.3.0",
     "pyfakefs==6.2.0",
@@ -79,7 +79,7 @@ dev = [
     "pytest-mock==3.15.1",
     "qenerate==0.10.0",
     "responses==0.26.2",
-    "ruff==0.16.0",
+    "ruff==0.16.1",
     "smtpdfix==0.5.3",
     "snakeviz==2.2.2",
     "types-click",

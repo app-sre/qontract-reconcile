@@ -5,9 +5,9 @@ description = "Shared utilities for qontract-reconcile and qontract-api"
 requires-python = ">=3.14"
 dependencies = [
     # keep in sync with boto3-stubs in dependency-groups.type
-    "boto3==1.43.58",
-    "botocore==1.43.58",
-    "dateparser==1.4.1",
+    "boto3==1.43.66",
+    "botocore==1.43.66",
+    "dateparser==1.4.2",
     "faststream[redis]==0.7.3",
     "httpx2==2.9.1",
     "hvac==2.4.0",
@@ -16,9 +16,9 @@ dependencies = [
     "pagerduty==7.0.0",
     "prometheus-client==0.26.0",
     "pydantic==2.13.4",
-    "pygithub==1.58.2",
-    "python-gitlab==6.0.0",
-    "redis==8.0.1",
+    "pygithub==1.59.1",
+    "python-gitlab==6.5.0",
+    "redis==8.1.0",
     "requests==2.34.2",
     "ruamel-yaml==0.19.1",
     "slack_sdk==3.43.0",
@@ -30,16 +30,16 @@ dependencies = [
 dev = [
     # development and testing tools
     # keep in sync with project.dependencies.boto3
-    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,iam,logs,organizations,s3,service-quotas,sts,support]==1.43.58",
+    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,iam,logs,organizations,s3,service-quotas,sts,support]==1.43.66",
     "mypy==2.3.0",
     "pytest-asyncio==1.4.0",
     "pytest-cov==7.1.0",
     "pytest-httpserver==1.1.5",
     "pytest-mock==3.15.1",
     "pytest==9.1.1",
-    "ruff==0.16.0",
+    "ruff==0.16.1",
     "types-dateparser",
-    "types-hvac==2.4.0.20260728",
+    "types-hvac==2.4.0.20260731",
     "types-ldap3",
     "tzdata==2026.3",
 ]
