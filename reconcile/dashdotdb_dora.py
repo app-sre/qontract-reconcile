@@ -339,7 +339,11 @@ class DashdotdbDORA(DashdotdbBase):
         ]
 
         if deployments:
-            self.post({"deployments": deployments})
+            self._get_token()
+            try:
+                self.post({"deployments": deployments})
+            finally:
+                self._close_token()
 
     def get_saastargets(self) -> list[SaasTarget]:
         targets = []
