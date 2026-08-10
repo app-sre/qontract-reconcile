@@ -1,4 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>app-sre/shared-pipelines//renovate/default.json"]
+  "extends": ["github>app-sre/shared-pipelines//renovate/default.json"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update uv version in .tool-versions",
+      "fileMatch": ["(^|/)\\.tool-versions$"],
+      "matchStrings": ["uv (?<currentValue>[\\d.]+)"],
+      "depNameTemplate": "ghcr.io/astral-sh/uv",
+      "datasourceTemplate": "docker"
+    }
+  ]
 }
