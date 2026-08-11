@@ -8,6 +8,7 @@ rate limiting via hooks (ADR-006).
 import contextvars
 import time
 from dataclasses import dataclass
+from typing import Self
 
 import httpx2
 import structlog
@@ -77,7 +78,9 @@ def _latency_end_hook(context: QuayApiCallContext) -> None:
 
 
 def _request_log_hook(context: QuayApiCallContext) -> None:
-    logger.debug("API request", method=context.method, verb=context.verb, org=context.org)
+    logger.debug(
+        "API request", method=context.method, verb=context.verb, org=context.org
+    )
 
 
 @with_hooks(
@@ -105,7 +108,7 @@ class QuayApi:
         >>> api = QuayApi(org="my-org", token="...", base_url="https://quay.io")
         >>> repos = api.list_images()
         >>> for repo in repos:
-        ...     print(repo["name"], repo["is_public"])
+        ...     print(repo.name, repo.is_public)
     """
 
     # Set by @with_hooks decorator
@@ -136,7 +139,9 @@ class QuayApi:
         )
 
     @invoke_with_hooks(
-        lambda self: QuayApiCallContext(method="repository.list", verb="GET", org=self.org)
+        lambda self: QuayApiCallContext(
+            method="repository.list", verb="GET", org=self.org
+        )
     )
     def list_images(self) -> list[QuayRepo]:
         """List all repositories in the organization.
@@ -181,9 +186,11 @@ class QuayApi:
         return repos
 
     @invoke_with_hooks(
-        lambda self: QuayApiCallContext(method="repository.create", verb="POST", org=self.org)
+        lambda self: QuayApiCallContext(
+            method="repository.create", verb="POST", org=self.org
+        )
     )
-    def repo_create(self, repo_name: str, description: str, public: bool) -> None:
+    def repo_create(self, repo_name: str, description: str, *, public: bool) -> None:
         """Create a repository in the organization.
 
         Args:
@@ -207,7 +214,9 @@ class QuayApi:
         response.raise_for_status()
 
     @invoke_with_hooks(
-        lambda self: QuayApiCallContext(method="repository.delete", verb="DELETE", org=self.org)
+        lambda self: QuayApiCallContext(
+            method="repository.delete", verb="DELETE", org=self.org
+        )
     )
     def repo_delete(self, repo_name: str) -> None:
         """Delete a repository from the organization.
@@ -222,7 +231,9 @@ class QuayApi:
         response.raise_for_status()
 
     @invoke_with_hooks(
-        lambda self: QuayApiCallContext(method="repository.update_description", verb="PUT", org=self.org)
+        lambda self: QuayApiCallContext(
+            method="repository.update_description", verb="PUT", org=self.org
+        )
     )
     def repo_update_description(self, repo_name: str, description: str) -> None:
         """Update a repository's description.
@@ -241,7 +252,9 @@ class QuayApi:
         response.raise_for_status()
 
     @invoke_with_hooks(
-        lambda self: QuayApiCallContext(method="repository.make_public", verb="POST", org=self.org)
+        lambda self: QuayApiCallContext(
+            method="repository.make_public", verb="POST", org=self.org
+        )
     )
     def repo_make_public(self, repo_name: str) -> None:
         """Make a repository publicly visible.
@@ -255,7 +268,9 @@ class QuayApi:
         self._repo_change_visibility(repo_name, "public")
 
     @invoke_with_hooks(
-        lambda self: QuayApiCallContext(method="repository.make_private", verb="POST", org=self.org)
+        lambda self: QuayApiCallContext(
+            method="repository.make_private", verb="POST", org=self.org
+        )
     )
     def repo_make_private(self, repo_name: str) -> None:
         """Make a repository private.
@@ -274,3 +289,13 @@ class QuayApi:
             json={"visibility": visibility},
         )
         response.raise_for_status()
+
+    def close(self) -> None:
+        """Close the underlying HTTP client and release connections."""
+        self._client.close()
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()

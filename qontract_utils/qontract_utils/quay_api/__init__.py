@@ -14,16 +14,12 @@ Hook System (ADR-006):
 Example:
     >>> from qontract_utils.quay_api import QuayApi
     >>> api = QuayApi(org="my-org", token="...", base_url="https://quay.io")
-    >>> repos = api.list_repos()
+    >>> repos = api.list_images()
     >>> for repo in repos:
-    ...     print(repo["name"], repo["is_public"])
+    ...     print(repo.name, repo.is_public)
 """
 
-from qontract_utils.quay_api.client import (
-    TIMEOUT,
-    QuayApi,
-    QuayApiCallContext,
-)
+from qontract_utils.quay_api.client import TIMEOUT, QuayApi, QuayApiCallContext
 from qontract_utils.quay_api.models import QuayRepo
 
 __all__ = [

@@ -7,7 +7,6 @@ ensuring they are isolated under /integrations/* and can share common policies.
 from fastapi import APIRouter
 
 from qontract_api.integrations.github_owners import router as github_owners_router
-from qontract_api.integrations.quay_repos import router as quay_repos_router
 from qontract_api.integrations.glitchtip import router as glitchtip_router
 from qontract_api.integrations.glitchtip_project_alerts import (
     router as glitchtip_project_alerts_router,
@@ -15,6 +14,7 @@ from qontract_api.integrations.glitchtip_project_alerts import (
 from qontract_api.integrations.openshift_namespaces import (
     router as openshift_namespaces_router,
 )
+from qontract_api.integrations.quay_repos import router as quay_repos_router
 from qontract_api.integrations.slack_usergroups import router as slack_usergroups_router
 from qontract_api.integrations.sso_client import router as sso_client_router
 

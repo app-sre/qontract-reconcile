@@ -1,5 +1,6 @@
 """Tests for qontract_utils.quay_api module."""
 
+from dataclasses import FrozenInstanceError
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -7,7 +8,6 @@ import httpx2
 import pytest
 from qontract_utils.hooks import Hooks
 from qontract_utils.quay_api import TIMEOUT, QuayApi, QuayApiCallContext, QuayRepo
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -83,13 +83,17 @@ def test_quay_api_custom_hooks_merged() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_list_images_single_page(quay_api: QuayApi, mock_httpx_client: MagicMock) -> None:
-    mock_httpx_client.get.return_value = _ok_response({
-        "repositories": [
-            {"name": "repo-a", "is_public": True, "description": "first"},
-            {"name": "repo-b", "is_public": False, "description": ""},
-        ]
-    })
+def test_list_images_single_page(
+    quay_api: QuayApi, mock_httpx_client: MagicMock
+) -> None:
+    mock_httpx_client.get.return_value = _ok_response(
+        {
+            "repositories": [
+                {"name": "repo-a", "is_public": True, "description": "first"},
+                {"name": "repo-b", "is_public": False, "description": ""},
+            ]
+        }
+    )
 
     repos = quay_api.list_images()
 
@@ -103,15 +107,25 @@ def test_list_images_single_page(quay_api: QuayApi, mock_httpx_client: MagicMock
     )
 
 
-def test_list_images_follows_pagination(quay_api: QuayApi, mock_httpx_client: MagicMock) -> None:
+def test_list_images_follows_pagination(
+    quay_api: QuayApi, mock_httpx_client: MagicMock
+) -> None:
     mock_httpx_client.get.side_effect = [
-        _ok_response({
-            "repositories": [{"name": "repo-a", "is_public": True, "description": ""}],
-            "next_page": "cursor-abc",
-        }),
-        _ok_response({
-            "repositories": [{"name": "repo-b", "is_public": False, "description": ""}],
-        }),
+        _ok_response(
+            {
+                "repositories": [
+                    {"name": "repo-a", "is_public": True, "description": ""}
+                ],
+                "next_page": "cursor-abc",
+            }
+        ),
+        _ok_response(
+            {
+                "repositories": [
+                    {"name": "repo-b", "is_public": False, "description": ""}
+                ],
+            }
+        ),
     ]
 
     repos = quay_api.list_images()
@@ -133,10 +147,12 @@ def test_list_images_empty_org(quay_api: QuayApi, mock_httpx_client: MagicMock) 
 def test_list_images_raises_on_too_many_pages(
     quay_api: QuayApi, mock_httpx_client: MagicMock
 ) -> None:
-    mock_httpx_client.get.return_value = _ok_response({
-        "repositories": [],
-        "next_page": "forever",
-    })
+    mock_httpx_client.get.return_value = _ok_response(
+        {
+            "repositories": [],
+            "next_page": "forever",
+        }
+    )
     with pytest.raises(ValueError, match="page follows"):
         quay_api.list_images()
 
@@ -205,7 +221,9 @@ def test_repo_delete(quay_api: QuayApi, mock_httpx_client: MagicMock) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_repo_update_description(quay_api: QuayApi, mock_httpx_client: MagicMock) -> None:
+def test_repo_update_description(
+    quay_api: QuayApi, mock_httpx_client: MagicMock
+) -> None:
     mock_httpx_client.put.return_value = _ok_response()
 
     quay_api.repo_update_description("my-repo", "new description")
@@ -244,11 +262,39 @@ def test_repo_make_private(quay_api: QuayApi, mock_httpx_client: MagicMock) -> N
 
 
 # ---------------------------------------------------------------------------
+# Connection management
+# ---------------------------------------------------------------------------
+
+
+def test_close_closes_httpx_client(
+    quay_api: QuayApi, mock_httpx_client: MagicMock
+) -> None:
+    quay_api.close()
+    mock_httpx_client.close.assert_called_once()
+
+
+def test_context_manager_closes_on_exit(
+    quay_api: QuayApi, mock_httpx_client: MagicMock
+) -> None:
+    with quay_api as api:
+        assert api.org == "test-org"
+    mock_httpx_client.close.assert_called_once()
+
+
+def test_context_manager_closes_on_exception(
+    quay_api: QuayApi, mock_httpx_client: MagicMock
+) -> None:
+    with pytest.raises(ValueError, match="boom"), quay_api:
+        raise ValueError("boom")
+    mock_httpx_client.close.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
 # QuayApiCallContext
 # ---------------------------------------------------------------------------
 
 
 def test_call_context_is_frozen() -> None:
     ctx = QuayApiCallContext(method="repository.list", verb="GET", org="my-org")
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         ctx.method = "other"  # type: ignore[misc]

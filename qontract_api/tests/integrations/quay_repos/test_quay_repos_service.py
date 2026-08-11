@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from qontract_utils.quay_api import QuayRepo
 
 from qontract_api.integrations.quay_repos.schemas import (
     QuayOrgConfig,
@@ -18,8 +19,6 @@ from qontract_api.integrations.quay_repos.service import (
     QuayReposService,
 )
 from qontract_api.models import Secret, TaskStatus
-from qontract_utils.quay_api import QuayRepo
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -41,6 +40,7 @@ def service(mock_secret_manager: MagicMock) -> QuayReposService:
 def _org(
     instance: str = "quay.io",
     org_name: str = "myorg",
+    *,
     managed_repos: bool = True,
     mirror: QuayOrgKey | None = None,
     repos: list[QuayRepoConfig] | None = None,
@@ -59,11 +59,13 @@ def _org(
     )
 
 
-def _repo(name: str, public: bool = True, description: str = "") -> QuayRepoConfig:
+def _repo(name: str, *, public: bool = True, description: str = "") -> QuayRepoConfig:
     return QuayRepoConfig(name=name, public=public, description=description)
 
 
-def _current_repo(name: str, is_public: bool = True, description: str = "") -> QuayRepo:
+def _current_repo(
+    name: str, *, is_public: bool = True, description: str = ""
+) -> QuayRepo:
     return QuayRepo(name=name, is_public=is_public, description=description)
 
 
@@ -73,43 +75,47 @@ def _current_repo(name: str, is_public: bool = True, description: str = "") -> Q
 
 
 def test_validate_org_configs_valid_managed() -> None:
-    orgs = [_org(managed_repos=True)]
-    QuayReposService._validate_org_configs(orgs)  # No exception
+    QuayReposService._validate_org_configs(_org_map(_org(managed_repos=True)))
 
 
 def test_validate_org_configs_valid_mirror() -> None:
     upstream_key = QuayOrgKey(instance="quay.io", org_name="upstream")
-    orgs = [
-        _org(org_name="upstream", managed_repos=True),
-        _org(org_name="mirror", managed_repos=False, mirror=upstream_key),
-    ]
-    QuayReposService._validate_org_configs(orgs)  # No exception
+    QuayReposService._validate_org_configs(
+        _org_map(
+            _org(org_name="upstream", managed_repos=True),
+            _org(org_name="mirror", managed_repos=False, mirror=upstream_key),
+        )
+    )
 
 
 def test_validate_org_configs_mirror_and_managed_repos_raises() -> None:
     upstream_key = QuayOrgKey(instance="quay.io", org_name="upstream")
-    orgs = [
-        _org(org_name="upstream", managed_repos=True),
-        _org(org_name="bad", managed_repos=True, mirror=upstream_key),
-    ]
     with pytest.raises(QuayReposConfigError, match="both mirror and managed_repos"):
-        QuayReposService._validate_org_configs(orgs)
+        QuayReposService._validate_org_configs(
+            _org_map(
+                _org(org_name="upstream", managed_repos=True),
+                _org(org_name="bad", managed_repos=True, mirror=upstream_key),
+            )
+        )
 
 
 def test_validate_org_configs_chained_mirror_raises() -> None:
     middle_key = QuayOrgKey(instance="quay.io", org_name="middle")
     upstream_key = QuayOrgKey(instance="quay.io", org_name="upstream")
-    orgs = [
-        _org(org_name="upstream", managed_repos=True),
-        _org(org_name="middle", managed_repos=False, mirror=upstream_key),
-        _org(org_name="leaf", managed_repos=False, mirror=middle_key),
-    ]
-    with pytest.raises(QuayReposConfigError, match="cannot have mirrors and be a mirror itself"):
-        QuayReposService._validate_org_configs(orgs)
+    with pytest.raises(
+        QuayReposConfigError, match="cannot have mirrors and be a mirror itself"
+    ):
+        QuayReposService._validate_org_configs(
+            _org_map(
+                _org(org_name="upstream", managed_repos=True),
+                _org(org_name="middle", managed_repos=False, mirror=upstream_key),
+                _org(org_name="leaf", managed_repos=False, mirror=middle_key),
+            )
+        )
 
 
-def test_validate_org_configs_empty_list() -> None:
-    QuayReposService._validate_org_configs([])  # No exception
+def test_validate_org_configs_empty_map() -> None:
+    QuayReposService._validate_org_configs({})  # No exception
 
 
 def test_org_config_duplicate_repo_names_raises() -> None:
@@ -122,48 +128,56 @@ def test_org_config_duplicate_repo_names_raises() -> None:
 # ---------------------------------------------------------------------------
 
 
+def _org_map(*orgs: QuayOrgConfig) -> dict[QuayOrgKey, QuayOrgConfig]:
+    return {org.key: org for org in orgs}
+
+
 def test_expand_desired_state_skips_unmanaged_org(service: QuayReposService) -> None:
-    orgs = [_org(managed_repos=False, mirror=None)]
-    result = service._expand_desired_state(orgs)
+    org = _org(managed_repos=False, mirror=None)
+    result = service._expand_desired_state(_org_map(org))
     assert result == {}
 
 
 def test_expand_desired_state_managed_org(service: QuayReposService) -> None:
     repo = _repo("myrepo")
     org = _org(managed_repos=True, repos=[repo])
-    result = service._expand_desired_state([org])
+    result = service._expand_desired_state(_org_map(org))
     assert org.key in result
     assert result[org.key] == [repo]
 
 
-def test_expand_desired_state_propagates_repos_to_mirror(service: QuayReposService) -> None:
+def test_expand_desired_state_propagates_repos_to_mirror(
+    service: QuayReposService,
+) -> None:
     upstream = _org(org_name="upstream", managed_repos=True, repos=[_repo("shared")])
     mirror = _org(
         org_name="mirror",
         managed_repos=False,
         mirror=QuayOrgKey(instance="quay.io", org_name="upstream"),
     )
-    result = service._expand_desired_state([upstream, mirror])
+    result = service._expand_desired_state(_org_map(upstream, mirror))
     assert mirror.key in result
     assert any(r.name == "shared" for r in result[mirror.key])
 
 
 def test_expand_desired_state_mirror_org_own_repos(service: QuayReposService) -> None:
-    upstream = _org(org_name="upstream", managed_repos=True, repos=[_repo("upstream-repo")])
+    upstream = _org(
+        org_name="upstream", managed_repos=True, repos=[_repo("upstream-repo")]
+    )
     mirror = _org(
         org_name="mirror",
         managed_repos=False,
         mirror=QuayOrgKey(instance="quay.io", org_name="upstream"),
         repos=[_repo("mirror-only")],
     )
-    result = service._expand_desired_state([upstream, mirror])
+    result = service._expand_desired_state(_org_map(upstream, mirror))
     mirror_repos = {r.name for r in result[mirror.key]}
     assert "upstream-repo" in mirror_repos
     assert "mirror-only" in mirror_repos
 
 
 def test_expand_desired_state_empty_orgs(service: QuayReposService) -> None:
-    assert service._expand_desired_state([]) == {}
+    assert service._expand_desired_state({}) == {}
 
 
 # ---------------------------------------------------------------------------
@@ -248,6 +262,13 @@ def test_calculate_actions_mixed() -> None:
     assert create_action.repo_name == "create-me"
 
 
+def _make_mock_api() -> MagicMock:
+    """Create a MagicMock QuayApi that works as a context manager."""
+    mock = MagicMock()
+    mock.__enter__.return_value = mock
+    return mock
+
+
 # ---------------------------------------------------------------------------
 # reconcile() — dry_run=True
 # ---------------------------------------------------------------------------
@@ -258,7 +279,7 @@ def test_reconcile_dry_run_calculates_actions_only(
     mock_quay_api_cls: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_api = MagicMock()
+    mock_api = _make_mock_api()
     mock_api.list_images.return_value = []
     mock_quay_api_cls.return_value = mock_api
 
@@ -279,7 +300,7 @@ def test_reconcile_dry_run_no_changes(
     mock_quay_api_cls: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_api = MagicMock()
+    mock_api = _make_mock_api()
     mock_api.list_images.return_value = [_current_repo("repo1")]
     mock_quay_api_cls.return_value = mock_api
 
@@ -301,18 +322,20 @@ def test_reconcile_apply_creates_repo(
     mock_quay_api_cls: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_api = MagicMock()
+    mock_api = _make_mock_api()
     mock_api.list_images.return_value = []
     mock_quay_api_cls.return_value = mock_api
 
-    org = _org(managed_repos=True, repos=[_repo("new-repo", public=True, description="desc")])
+    org = _org(
+        managed_repos=True, repos=[_repo("new-repo", public=True, description="desc")]
+    )
     result = service.reconcile(orgs=[org], dry_run=False)
 
     assert result.status == TaskStatus.SUCCESS
     assert len(result.applied_actions) == 1
     assert result.applied_count == 1
     assert result.errors == []
-    mock_api.repo_create.assert_called_once_with("new-repo", "desc", True)
+    mock_api.repo_create.assert_called_once_with("new-repo", "desc", public=True)
 
 
 @patch("qontract_api.integrations.quay_repos.service.QuayApi")
@@ -320,7 +343,7 @@ def test_reconcile_apply_deletes_repo(
     mock_quay_api_cls: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_api = MagicMock()
+    mock_api = _make_mock_api()
     mock_api.list_images.return_value = [_current_repo("stale")]
     mock_quay_api_cls.return_value = mock_api
 
@@ -337,7 +360,7 @@ def test_reconcile_apply_makes_repo_private(
     mock_quay_api_cls: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_api = MagicMock()
+    mock_api = _make_mock_api()
     mock_api.list_images.return_value = [_current_repo("repo1", is_public=True)]
     mock_quay_api_cls.return_value = mock_api
 
@@ -354,7 +377,7 @@ def test_reconcile_apply_makes_repo_public(
     mock_quay_api_cls: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_api = MagicMock()
+    mock_api = _make_mock_api()
     mock_api.list_images.return_value = [_current_repo("repo1", is_public=False)]
     mock_quay_api_cls.return_value = mock_api
 
@@ -371,7 +394,7 @@ def test_reconcile_apply_updates_description(
     mock_quay_api_cls: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_api = MagicMock()
+    mock_api = _make_mock_api()
     mock_api.list_images.return_value = [_current_repo("repo1", description="old")]
     mock_quay_api_cls.return_value = mock_api
 
@@ -409,7 +432,7 @@ def test_reconcile_per_action_exception_captured(
     mock_quay_api_cls: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_api = MagicMock()
+    mock_api = _make_mock_api()
     mock_api.list_images.return_value = []
     mock_api.repo_create.side_effect = Exception("Quay API 500")
     mock_quay_api_cls.return_value = mock_api
@@ -441,7 +464,7 @@ def test_reconcile_multiple_orgs_partial_failure(
     service: QuayReposService,
     mock_secret_manager: MagicMock,
 ) -> None:
-    good_api = MagicMock()
+    good_api = _make_mock_api()
     good_api.list_images.return_value = []
 
     call_count = 0
@@ -450,7 +473,7 @@ def test_reconcile_multiple_orgs_partial_failure(
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            raise Exception("first org failed")
+            raise RuntimeError("first org failed")
         return good_api
 
     mock_quay_api_cls.side_effect = api_factory
@@ -465,3 +488,14 @@ def test_reconcile_multiple_orgs_partial_failure(
     assert len(result.errors) == 1
     assert "org1" in result.errors[0]
     assert len(result.actions) == 1  # org2 succeeded
+
+
+def test_reconcile_mirror_with_absent_upstream_raises(
+    service: QuayReposService,
+) -> None:
+    """Mirror org whose upstream is absent from the payload must fail the entire task."""
+    upstream_key = QuayOrgKey(instance="quay.io", org_name="upstream")
+    mirror = _org(org_name="mirror", managed_repos=False, mirror=upstream_key)
+
+    with pytest.raises(QuayReposConfigError, match="absent from the payload"):
+        service.reconcile(orgs=[mirror], dry_run=True)

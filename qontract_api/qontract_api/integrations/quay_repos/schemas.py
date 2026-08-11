@@ -32,7 +32,9 @@ class QuayOrgConfig(BaseModel, frozen=True):
     org_name: str = Field(..., description="Quay organization name")
     base_url: str = Field(..., description="Quay instance base URL")
     automation_token: Secret = Field(..., description="Secret reference for API token")
-    managed_repos: bool = Field(..., description="Whether repos are managed by app-interface")
+    managed_repos: bool = Field(
+        ..., description="Whether repos are managed by app-interface"
+    )
     mirror: QuayOrgKey | None = Field(
         default=None, description="Upstream org this org mirrors (if any)"
     )
@@ -64,8 +66,6 @@ class QuayReposReconcileRequest(BaseModel, frozen=True):
         default=True,
         description="If True, only calculate actions without executing. Default: True (safety first!)",
     )
-
-
 
 
 class QuayRepoActionCreate(BaseModel, frozen=True):

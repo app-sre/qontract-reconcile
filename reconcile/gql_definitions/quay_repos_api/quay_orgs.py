@@ -44,7 +44,7 @@ class QuayInstanceV1(ConfiguredBaseModel):
 class VaultSecretV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     field: str = Field(..., alias="field")
-    version: Optional[str] = Field(None, alias="version")
+    version: Optional[int] = Field(None, alias="version")
 
 
 class QuayMirrorOrgInstanceV1(ConfiguredBaseModel):

@@ -1,6 +1,7 @@
 """Unit tests for Quay repos router endpoints."""
 
 from http import HTTPStatus
+from typing import TypedDict
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,11 +11,35 @@ from qontract_api.auth import create_access_token
 from qontract_api.constants import REQUEST_ID_HEADER
 from qontract_api.integrations.quay_repos.schemas import (
     QuayRepoActionCreate,
-    QuayReposReconcileRequest,
     QuayReposTaskResult,
 )
-from qontract_api.models import Secret, TaskStatus, TokenData
+from qontract_api.models import TaskStatus, TokenData
 from qontract_api.tasks import QUEUE_MR_CHECK, QUEUE_PROD
+
+
+class _AutomationTokenPayload(TypedDict):
+    secret_manager_url: str
+    path: str
+
+
+class _RepoPayload(TypedDict):
+    name: str
+    public: bool
+    description: str
+
+
+class _OrgPayload(TypedDict):
+    instance: str
+    org_name: str
+    base_url: str
+    automation_token: _AutomationTokenPayload
+    managed_repos: bool
+    repos: list[_RepoPayload]
+
+
+class ReconcileRequestPayload(TypedDict):
+    orgs: list[_OrgPayload]
+    dry_run: bool
 
 
 @pytest.fixture
@@ -25,7 +50,7 @@ def auth_headers() -> dict[str, str]:
 
 
 @pytest.fixture
-def sample_reconcile_request() -> dict:
+def sample_reconcile_request() -> ReconcileRequestPayload:
     return {
         "orgs": [
             {
@@ -56,7 +81,7 @@ def test_post_reconcile_queues_task(
     mock_task: MagicMock,
     client: TestClient,
     auth_headers: dict[str, str],
-    sample_reconcile_request: dict,
+    sample_reconcile_request: ReconcileRequestPayload,
 ) -> None:
     response = client.post(
         "/api/v1/integrations/quay-repos/reconcile",
@@ -83,7 +108,7 @@ def test_post_reconcile_dry_run_true_uses_mr_check_queue(
     mock_task: MagicMock,
     client: TestClient,
     auth_headers: dict[str, str],
-    sample_reconcile_request: dict,
+    sample_reconcile_request: ReconcileRequestPayload,
 ) -> None:
     sample_reconcile_request["dry_run"] = True
     response = client.post(
@@ -101,7 +126,7 @@ def test_post_reconcile_dry_run_false_uses_prod_queue(
     mock_task: MagicMock,
     client: TestClient,
     auth_headers: dict[str, str],
-    sample_reconcile_request: dict,
+    sample_reconcile_request: ReconcileRequestPayload,
 ) -> None:
     sample_reconcile_request["dry_run"] = False
     response = client.post(
@@ -116,7 +141,7 @@ def test_post_reconcile_dry_run_false_uses_prod_queue(
 
 def test_post_reconcile_requires_auth(
     client: TestClient,
-    sample_reconcile_request: dict,
+    sample_reconcile_request: ReconcileRequestPayload,
 ) -> None:
     response = client.post(
         "/api/v1/integrations/quay-repos/reconcile",
@@ -152,7 +177,7 @@ def test_post_reconcile_invalid_request_missing_orgs(
 def test_post_reconcile_duplicate_repo_names_rejected(
     client: TestClient,
     auth_headers: dict[str, str],
-    sample_reconcile_request: dict,
+    sample_reconcile_request: ReconcileRequestPayload,
 ) -> None:
     sample_reconcile_request["orgs"][0]["repos"] = [
         {"name": "myrepo", "public": True, "description": "first"},
@@ -168,7 +193,7 @@ def test_post_reconcile_duplicate_repo_names_rejected(
 
 
 # ---------------------------------------------------------------------------
-# GET /reconcile/{task_id}
+# GET /reconcile/{task_id}  # ruff: ignore[commented-out-code]
 # ---------------------------------------------------------------------------
 
 
