@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from typing import Any
 
 from pydantic import BaseModel
@@ -27,8 +28,8 @@ class AWSApiMarketplace:
         self,
         agreement_client: Any,
         discovery_client: Any,
-        hooks: Hooks | None = None,
-    ) -> None:  # ruff: ignore[unused-method-argument]
+        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument]
+    ) -> None:
         self.agreement_client = agreement_client
         self.discovery_client = discovery_client
 
@@ -41,7 +42,9 @@ class AWSApiMarketplace:
         resp = self.agreement_client.search_agreements(
             catalog="AWSMarketplace",
             filters=[
-                {"name": "ResourceIdentifier", "values": [ROSA_HCP_PRODUCT_ID]}
+                {"name": "PartyType", "values": ["Acceptor"]},
+                {"name": "AgreementType", "values": ["PurchaseAgreement"]},
+                {"name": "ResourceIdentifier", "values": [ROSA_HCP_PRODUCT_ID]},
             ],
         )
         return bool(resp.get("agreementViewSummaries"))
@@ -65,25 +68,31 @@ class AWSApiMarketplace:
             msg = "No purchase options found for ROSA HCP product"
             raise RuntimeError(msg)
 
-        offer_id = None
-        for entity in options[0].get("associatedEntities", []):
-            if oid := entity.get("offer", {}).get("offerId"):
-                offer_id = oid
-                break
-        if not offer_id:
-            offer_id = options[0].get("purchaseOptionId")
+        offer_id = next(
+            (
+                entity["offer"]["offerId"]
+                for entity in options[0].get("associatedEntities", [])
+                if entity.get("offer", {}).get("offerId")
+            ),
+            options[0].get("purchaseOptionId"),
+        )
         if not offer_id:
             msg = "Could not determine offer ID for ROSA HCP product"
             raise RuntimeError(msg)
 
         offer = self.discovery_client.get_offer(offerId=offer_id)
-        agreement_proposal_id = offer.get("agreementProposalIdentifier")
+        agreement_proposal_id = offer.get("agreementProposalId")
         if not agreement_proposal_id:
-            msg = f"No agreementProposalIdentifier found for offer {offer_id}"
+            msg = f"No agreementProposalId found for offer {offer_id}"
             raise RuntimeError(msg)
 
         terms_resp = self.discovery_client.get_offer_terms(offerId=offer_id)
-        term_ids = [term["termId"] for term in terms_resp.get("terms", [])]
+        term_ids = [
+            term_data["id"]
+            for term_wrapper in terms_resp.get("offerTerms", [])
+            for term_data in term_wrapper.values()
+            if isinstance(term_data, dict) and "id" in term_data
+        ]
         if not term_ids:
             msg = f"No terms found for ROSA HCP offer {offer_id}"
             raise RuntimeError(msg)
@@ -100,11 +109,11 @@ class AWSApiMarketplace:
         )
     )
     def subscribe_rosa(
-        self, agreement_proposal_id: str, term_ids: list[str]
+        self, agreement_proposal_id: str, term_ids: Iterable[str]
     ) -> str:
         create_resp = self.agreement_client.create_agreement_request(
             catalog="AWSMarketplace",
-            agreementProposalIdentifier=agreement_proposal_id,
+            agreementProposalId=agreement_proposal_id,
             intent="NEW",
             requestedTerms=[{"termId": tid} for tid in term_ids],
         )

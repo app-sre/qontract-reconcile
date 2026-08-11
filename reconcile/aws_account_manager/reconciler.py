@@ -387,19 +387,17 @@ class AWSReconciler:
 
             state.value = regions
 
-    def _enable_rosa_marketplace(
-        self, aws_api: AWSApi, name: str
-    ) -> str | None:
+    def _enable_rosa_marketplace(self, aws_api: AWSApi, name: str) -> None:
         with self.state.transaction(
             state_key(name, TASK_ENABLE_ROSA_MARKETPLACE)
         ) as state:
             if state.exists:
-                return state.value
+                return
 
             if aws_api.marketplace.has_rosa_subscription():
                 logging.info(f"{name}: ROSA HCP marketplace already subscribed")
                 state.value = "already-subscribed"
-                return None
+                return
 
             logging.info(f"{name}: Enabling ROSA HCP marketplace subscription")
             if self.dry_run:
@@ -411,7 +409,6 @@ class AWSReconciler:
                 term_ids=offer.term_ids,
             )
             state.value = agreement_id
-            return agreement_id
 
     #
     # Public methods

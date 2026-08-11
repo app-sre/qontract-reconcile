@@ -45,16 +45,18 @@ def test_has_rosa_subscription_true(
     assert marketplace_api.has_rosa_subscription() is True
     agreement_client.search_agreements.assert_called_once_with(
         catalog="AWSMarketplace",
-        filters=[{"name": "ResourceIdentifier", "values": [ROSA_HCP_PRODUCT_ID]}],
+        filters=[
+            {"name": "PartyType", "values": ["Acceptor"]},
+            {"name": "AgreementType", "values": ["PurchaseAgreement"]},
+            {"name": "ResourceIdentifier", "values": [ROSA_HCP_PRODUCT_ID]},
+        ],
     )
 
 
 def test_has_rosa_subscription_false(
     marketplace_api: AWSApiMarketplace, agreement_client: MagicMock
 ) -> None:
-    agreement_client.search_agreements.return_value = {
-        "agreementViewSummaries": []
-    }
+    agreement_client.search_agreements.return_value = {"agreementViewSummaries": []}
     assert marketplace_api.has_rosa_subscription() is False
 
 
@@ -65,17 +67,23 @@ def test_discover_rosa_offer(
         "purchaseOptions": [
             {
                 "purchaseOptionId": "po-123",
-                "associatedEntities": [
-                    {"offer": {"offerId": "offer-abc"}}
-                ],
+                "associatedEntities": [{"offer": {"offerId": "offer-abc"}}],
             }
         ]
     }
     discovery_client.get_offer.return_value = {
-        "agreementProposalIdentifier": "prop-xyz",
+        "agreementProposalId": "prop-xyz",
     }
     discovery_client.get_offer_terms.return_value = {
-        "terms": [{"termId": "term-1"}, {"termId": "term-2"}]
+        "offerTerms": [
+            {
+                "usageBasedPricingTerm": {
+                    "id": "term-1",
+                    "type": "UsageBasedPricingTerm",
+                }
+            },
+            {"legalTerm": {"id": "term-2", "type": "LegalTerm"}},
+        ]
     }
 
     offer = marketplace_api.discover_rosa_offer()
@@ -102,10 +110,12 @@ def test_discover_rosa_offer_fallback_to_purchase_option_id(
         ]
     }
     discovery_client.get_offer.return_value = {
-        "agreementProposalIdentifier": "prop-xyz",
+        "agreementProposalId": "prop-xyz",
     }
     discovery_client.get_offer_terms.return_value = {
-        "terms": [{"termId": "term-1"}]
+        "offerTerms": [
+            {"supportTerm": {"id": "term-1", "type": "SupportTerm"}},
+        ]
     }
 
     offer = marketplace_api.discover_rosa_offer()
@@ -125,12 +135,10 @@ def test_discover_rosa_offer_no_proposal_id(
     marketplace_api: AWSApiMarketplace, discovery_client: MagicMock
 ) -> None:
     discovery_client.list_purchase_options.return_value = {
-        "purchaseOptions": [
-            {"purchaseOptionId": "po-1", "associatedEntities": []}
-        ]
+        "purchaseOptions": [{"purchaseOptionId": "po-1", "associatedEntities": []}]
     }
     discovery_client.get_offer.return_value = {}
-    with pytest.raises(RuntimeError, match="No agreementProposalIdentifier"):
+    with pytest.raises(RuntimeError, match="No agreementProposalId found"):
         marketplace_api.discover_rosa_offer()
 
 
@@ -138,14 +146,12 @@ def test_discover_rosa_offer_no_terms(
     marketplace_api: AWSApiMarketplace, discovery_client: MagicMock
 ) -> None:
     discovery_client.list_purchase_options.return_value = {
-        "purchaseOptions": [
-            {"purchaseOptionId": "po-1", "associatedEntities": []}
-        ]
+        "purchaseOptions": [{"purchaseOptionId": "po-1", "associatedEntities": []}]
     }
     discovery_client.get_offer.return_value = {
-        "agreementProposalIdentifier": "prop-1",
+        "agreementProposalId": "prop-1",
     }
-    discovery_client.get_offer_terms.return_value = {"terms": []}
+    discovery_client.get_offer_terms.return_value = {"offerTerms": []}
     with pytest.raises(RuntimeError, match="No terms found"):
         marketplace_api.discover_rosa_offer()
 
@@ -156,9 +162,7 @@ def test_subscribe_rosa(
     agreement_client.create_agreement_request.return_value = {
         "agreementRequestId": "req-123"
     }
-    agreement_client.accept_agreement_request.return_value = {
-        "agreementId": "agr-456"
-    }
+    agreement_client.accept_agreement_request.return_value = {"agreementId": "agr-456"}
 
     result = marketplace_api.subscribe_rosa(
         agreement_proposal_id="prop-xyz",
@@ -168,7 +172,7 @@ def test_subscribe_rosa(
     assert result == "agr-456"
     agreement_client.create_agreement_request.assert_called_once_with(
         catalog="AWSMarketplace",
-        agreementProposalIdentifier="prop-xyz",
+        agreementProposalId="prop-xyz",
         intent="NEW",
         requestedTerms=[{"termId": "term-1"}, {"termId": "term-2"}],
     )

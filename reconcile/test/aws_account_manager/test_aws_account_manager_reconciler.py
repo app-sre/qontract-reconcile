@@ -18,6 +18,7 @@ from qontract_utils.aws_api_typed.iam import (
     AWSAccessKey,
     AWSEntityAlreadyExistsError,
 )
+from qontract_utils.aws_api_typed.marketplace import RosaOffer
 from qontract_utils.aws_api_typed.organization import (
     AWSAccountStatus,
     AwsOrganizationOU,
@@ -27,8 +28,6 @@ from qontract_utils.aws_api_typed.service_quotas import (
     AWSRequestedServiceQuotaChange,
 )
 from qontract_utils.aws_api_typed.support import AWSCase, SupportPlan
-
-from qontract_utils.aws_api_typed.marketplace import RosaOffer
 
 from reconcile.aws_account_manager.reconciler import (
     TASK_ACCOUNT_ALIAS,
@@ -896,7 +895,7 @@ def test_aws_account_manager_reconcile_enable_rosa_marketplace(
     )
     aws_api.marketplace.subscribe_rosa.return_value = "agr-123"
 
-    assert reconciler._enable_rosa_marketplace(aws_api, "account") == "agr-123"
+    reconciler._enable_rosa_marketplace(aws_api, "account")
     aws_api.marketplace.has_rosa_subscription.assert_called_once()
     aws_api.marketplace.discover_rosa_offer.assert_called_once()
     aws_api.marketplace.subscribe_rosa.assert_called_once_with(
@@ -910,7 +909,7 @@ def test_aws_account_manager_reconcile_enable_rosa_marketplace_already_subscribe
 ) -> None:
     aws_api.marketplace.has_rosa_subscription.return_value = True
 
-    assert reconciler._enable_rosa_marketplace(aws_api, "account") is None
+    reconciler._enable_rosa_marketplace(aws_api, "account")
     aws_api.marketplace.discover_rosa_offer.assert_not_called()
     aws_api.marketplace.subscribe_rosa.assert_not_called()
 
@@ -920,7 +919,7 @@ def test_aws_account_manager_reconcile_enable_rosa_marketplace_state_exists(
 ) -> None:
     state_exists(state_key("account", TASK_ENABLE_ROSA_MARKETPLACE), "agr-123")
 
-    assert reconciler._enable_rosa_marketplace(aws_api, "account") == "agr-123"
+    reconciler._enable_rosa_marketplace(aws_api, "account")
     aws_api.marketplace.has_rosa_subscription.assert_not_called()
     aws_api.marketplace.subscribe_rosa.assert_not_called()
 
@@ -930,13 +929,13 @@ def test_aws_account_manager_reconcile_enable_rosa_marketplace_dry_run(
 ) -> None:
     aws_api.marketplace.has_rosa_subscription.return_value = False
 
-    assert reconciler_dry_run._enable_rosa_marketplace(aws_api, "account") is None
+    reconciler_dry_run._enable_rosa_marketplace(aws_api, "account")
     aws_api.marketplace.subscribe_rosa.assert_not_called()
 
 
 def test_aws_account_manager_reconcile_enable_rosa_marketplace_public(
     aws_api: MagicMock, reconciler: AWSReconciler
 ) -> None:
-    reconciler._enable_rosa_marketplace = MagicMock(return_value="agr-123")  # type: ignore
+    reconciler._enable_rosa_marketplace = MagicMock(return_value=None)  # type: ignore
     reconciler.enable_rosa_marketplace(aws_api, "account")
     reconciler._enable_rosa_marketplace.assert_called_once_with(aws_api, "account")
