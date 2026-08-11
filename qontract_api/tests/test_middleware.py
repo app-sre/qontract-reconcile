@@ -7,6 +7,7 @@ from http import HTTPStatus
 import pytest
 from fastapi.testclient import TestClient
 
+import qontract_api.middleware as middleware_module
 from qontract_api.auth import create_access_token
 from qontract_api.constants import REQUEST_ID_HEADER
 from qontract_api.models import TokenData
@@ -98,6 +99,51 @@ def test_gzip_request_with_invalid_data(client_with_cache: TestClient) -> None:
     # Should return 400 Bad Request
     assert response.status_code == HTTPStatus.BAD_REQUEST
     assert "gzip" in response.text.lower()
+
+
+def test_gzip_request_exceeds_max_compressed_size(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that an oversized compressed request body is rejected before decompression."""
+    monkeypatch.setattr(middleware_module, "MAX_GZIP_COMPRESSED_SIZE", 1_000)
+
+    # Body itself doesn't need to be valid gzip - the size check runs
+    # while collecting chunks, before gzip decompression is attempted.
+    oversized_body = b"x" * 2_000
+
+    response = client.post(
+        "/api/v1/integrations/slack-usergroups/reconcile",
+        content=oversized_body,
+        headers={
+            "Content-Type": "application/json",
+            "Content-Encoding": "gzip",
+        },
+    )
+
+    assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+    assert "compressed" in response.text.lower()
+
+
+def test_gzip_bomb_exceeds_max_decompressed_size(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that a gzip bomb (small compressed, huge decompressed) is rejected."""
+    monkeypatch.setattr(middleware_module, "MAX_GZIP_DECOMPRESSED_SIZE", 1_024)
+
+    # Highly compressible payload: tiny compressed size, large decompressed size.
+    bomb = gzip.compress(b"A" * 100_000)
+
+    response = client.post(
+        "/api/v1/integrations/slack-usergroups/reconcile",
+        content=bomb,
+        headers={
+            "Content-Type": "application/json",
+            "Content-Encoding": "gzip",
+        },
+    )
+
+    assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+    assert "decompress" in response.text.lower()
 
 
 def test_uncompressed_request_still_works(
