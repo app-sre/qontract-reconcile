@@ -11,6 +11,7 @@ import structlog
 from fastapi import Request, Response
 from starlette import status
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import ClientDisconnect
 from starlette.types import Receive
 
 from qontract_api.auth import (
@@ -55,6 +56,8 @@ async def _read_compressed_body(
     compressed_size = 0
     while True:
         message = await original_receive()
+        if message["type"] == "http.disconnect":
+            raise ClientDisconnect
         if message["type"] == "http.request":
             body_chunk = message.get("body", b"")
             if body_chunk:
@@ -74,22 +77,35 @@ def _decompress_gzip_bounded(
 
     Uses zlib's streaming API (rather than gzip.decompress()) so an oversized
     (gzip bomb) payload is rejected without fully materializing the decompressed
-    output in memory.
+    output in memory. Like gzip.decompress(), concatenated gzip members are all
+    decompressed; a stream that doesn't end with a complete member (truncated
+    input) raises gzip.BadGzipFile instead of silently returning partial data.
     """
-    decompressor = zlib.decompressobj(wbits=zlib.MAX_WBITS | 16)
     output = bytearray()
     pending = compressed_body
     while pending:
+        decompressor = zlib.decompressobj(wbits=zlib.MAX_WBITS | 16)
         chunk = decompressor.decompress(
             pending, max_decompressed_size + 1 - len(output)
         )
         output.extend(chunk)
         if len(output) > max_decompressed_size:
             raise GzipDecompressedSizeExceededError(max_decompressed_size)
-        pending = decompressor.unconsumed_tail
-    output.extend(decompressor.flush(max_decompressed_size + 1 - len(output)))
-    if len(output) > max_decompressed_size:
-        raise GzipDecompressedSizeExceededError(max_decompressed_size)
+        while decompressor.unconsumed_tail:
+            chunk = decompressor.decompress(
+                decompressor.unconsumed_tail, max_decompressed_size + 1 - len(output)
+            )
+            output.extend(chunk)
+            if len(output) > max_decompressed_size:
+                raise GzipDecompressedSizeExceededError(max_decompressed_size)
+        output.extend(decompressor.flush(max_decompressed_size + 1 - len(output)))
+        if len(output) > max_decompressed_size:
+            raise GzipDecompressedSizeExceededError(max_decompressed_size)
+        if not decompressor.eof:
+            raise gzip.BadGzipFile(
+                "Compressed file ended before the end-of-stream marker was reached"
+            )
+        pending = decompressor.unused_data
     return bytes(output)
 
 
@@ -231,6 +247,9 @@ class GzipRequestMiddleware(BaseHTTPMiddleware):
                     compressed_body, MAX_GZIP_DECOMPRESSED_SIZE
                 )
                 _install_decompressed_body(request, compressed_body, decompressed)
+            except ClientDisconnect:
+                # Client is gone; propagate so no response is wasted building one.
+                raise
             except GzipCompressedSizeExceededError as e:
                 logger.warning(
                     "Compressed gzip request exceeds size limit",
