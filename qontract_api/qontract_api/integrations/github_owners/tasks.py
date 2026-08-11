@@ -76,16 +76,15 @@ def reconcile_github_owners_task(
     """
     request_id = self.request.id
 
-    try:  # ruff: ignore[too-many-statements-in-try-clause]
+    try:
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
         event_manager = get_event_manager()
 
-        github_org_client_factory = GithubOrgClientFactory(
-            cache=cache, settings=settings
-        )
         service = GithubOwnersService(
-            github_org_client_factory=github_org_client_factory,
+            github_org_client_factory=GithubOrgClientFactory(
+                cache=cache, settings=settings
+            ),
             secret_manager=secret_manager,
             settings=settings,
         )
@@ -94,17 +93,26 @@ def reconcile_github_owners_task(
             organizations=organizations,
             dry_run=dry_run,
         )
-
-        logger.info(
-            f"Task {request_id} completed",
-            status=result.status,
-            total_actions=len(result.actions),
-            applied_count=len(result.applied_actions),
-            actions=[action.model_dump() for action in result.actions],
-            errors=result.errors,
+    except Exception as err:
+        logger.exception(f"Task {request_id} failed with error")
+        return GithubOwnersTaskResult(
+            status=TaskStatus.FAILED,
+            actions=[],
+            applied_count=0,
+            errors=[f"Unexpected {err=}"],
         )
 
-        if not dry_run and event_manager:
+    logger.info(
+        f"Task {request_id} completed",
+        status=result.status,
+        total_actions=len(result.actions),
+        applied_count=len(result.applied_actions),
+        actions=[action.model_dump() for action in result.actions],
+        errors=result.errors,
+    )
+
+    if not dry_run and event_manager:
+        try:
             # Publish one event per successfully applied action.
             # result.applied_actions excludes actions that failed to execute,
             # preventing spurious success events for partial failures.
@@ -131,14 +139,7 @@ def reconcile_github_owners_task(
                         datacontenttype="application/json",
                     )
                 )
+        except Exception:
+            logger.exception(f"Task {request_id} failed to publish events")
 
-        return result
-
-    except Exception as err:
-        logger.exception(f"Task {request_id} failed with error")
-        return GithubOwnersTaskResult(
-            status=TaskStatus.FAILED,
-            actions=[],
-            applied_count=0,
-            errors=[f"Unexpected {err=}"],
-        )
+    return result

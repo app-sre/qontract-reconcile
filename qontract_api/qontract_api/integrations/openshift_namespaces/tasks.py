@@ -99,38 +99,49 @@ def reconcile_openshift_namespaces_task(
     request_id = self.request.id
     secret_errors: list[str] = []
 
-    try:  # ruff: ignore[too-many-statements-in-try-clause]
+    try:
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
+    except Exception as err:
+        logger.exception(f"Task {request_id} failed with error")
+        result = OpenShiftNamespacesTaskResult(
+            status=TaskStatus.FAILED,
+            actions=[],
+            applied_count=0,
+            errors=[f"Unexpected {err=}"],
+        )
+        _publish_result_events(result, dry_run=dry_run)
+        return result
 
-        connection_params: list[ClusterConnectionParams] = []
-        for cluster in clusters:
-            try:
-                params = _resolve_cluster_connection(cluster, secret_manager)
-            except Exception:
-                error_msg = f"Failed to read token for cluster {cluster.cluster_name}"
-                logger.exception(error_msg)
-                secret_errors.append(error_msg)
-            else:
-                connection_params.append(params)
+    connection_params: list[ClusterConnectionParams] = []
+    for cluster in clusters:
+        try:
+            params = _resolve_cluster_connection(cluster, secret_manager)
+        except Exception:
+            error_msg = f"Failed to read token for cluster {cluster.cluster_name}"
+            logger.exception(error_msg)
+            secret_errors.append(error_msg)
+        else:
+            connection_params.append(params)
 
-        connected_clusters = {p.cluster_name for p in connection_params}
-        cluster_namespaces: dict[str, list[DesiredNamespace]] = {
-            cluster.cluster_name: list(cluster.namespaces)
-            for cluster in clusters
-            if cluster.cluster_name in connected_clusters
-        }
+    connected_clusters = {p.cluster_name for p in connection_params}
+    cluster_namespaces: dict[str, list[DesiredNamespace]] = {
+        cluster.cluster_name: list(cluster.namespaces)
+        for cluster in clusters
+        if cluster.cluster_name in connected_clusters
+    }
 
-        if not connection_params:
-            result = OpenShiftNamespacesTaskResult(
-                status=TaskStatus.FAILED,
-                actions=[],
-                applied_count=0,
-                errors=secret_errors,
-            )
-            _publish_result_events(result, dry_run=dry_run)
-            return result
+    if not connection_params:
+        result = OpenShiftNamespacesTaskResult(
+            status=TaskStatus.FAILED,
+            actions=[],
+            applied_count=0,
+            errors=secret_errors,
+        )
+        _publish_result_events(result, dry_run=dry_run)
+        return result
 
+    try:
         with ClusterClientMap(connection_params, cache, settings) as cluster_map:
             service = OpenShiftNamespacesService()
             result = service.reconcile(
@@ -138,28 +149,6 @@ def reconcile_openshift_namespaces_task(
                 cluster_namespaces=cluster_namespaces,
                 dry_run=dry_run,
             )
-
-        if secret_errors:
-            result = OpenShiftNamespacesTaskResult(
-                status=TaskStatus.FAILED,
-                actions=result.actions,
-                applied_actions=result.applied_actions,
-                applied_count=result.applied_count,
-                errors=[*secret_errors, *result.errors],
-            )
-
-        logger.info(
-            f"Task {request_id} completed",
-            status=result.status,
-            total_actions=len(result.actions),
-            applied_count=result.applied_count,
-            actions=[action.model_dump() for action in result.actions],
-            errors=result.errors,
-        )
-
-        _publish_result_events(result, dry_run=dry_run)
-        return result
-
     except Exception as err:
         logger.exception(f"Task {request_id} failed with error")
         result = OpenShiftNamespacesTaskResult(
@@ -170,3 +159,24 @@ def reconcile_openshift_namespaces_task(
         )
         _publish_result_events(result, dry_run=dry_run)
         return result
+
+    if secret_errors:
+        result = OpenShiftNamespacesTaskResult(
+            status=TaskStatus.FAILED,
+            actions=result.actions,
+            applied_actions=result.applied_actions,
+            applied_count=result.applied_count,
+            errors=[*secret_errors, *result.errors],
+        )
+
+    logger.info(
+        f"Task {request_id} completed",
+        status=result.status,
+        total_actions=len(result.actions),
+        applied_count=result.applied_count,
+        actions=[action.model_dump() for action in result.actions],
+        errors=result.errors,
+    )
+
+    _publish_result_events(result, dry_run=dry_run)
+    return result
