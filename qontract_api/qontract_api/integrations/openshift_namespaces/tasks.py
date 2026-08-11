@@ -53,32 +53,41 @@ def _publish_result_events(
     result: OpenShiftNamespacesTaskResult,
     *,
     dry_run: bool,
+    request_id: str,
 ) -> None:
-    """Publish CloudEvents for applied actions and errors."""
+    """Publish CloudEvents for applied actions and errors.
+
+    Publication failures are logged and swallowed so a broken event manager
+    never prevents the caller from returning its already-computed result.
+    """
     if dry_run:
         return
-    event_manager = get_event_manager()
-    if not event_manager:
-        return
 
-    for action in result.applied_actions:
-        event_manager.publish_event(
-            Event(
-                source=__name__,
-                type=f"qontract-api.openshift-namespaces.{action.action_type}",
-                data=action.model_dump(mode="json"),
-                datacontenttype="application/json",
+    try:
+        event_manager = get_event_manager()
+        if not event_manager:
+            return
+
+        for action in result.applied_actions:
+            event_manager.publish_event(
+                Event(
+                    source=__name__,
+                    type=f"qontract-api.openshift-namespaces.{action.action_type}",
+                    data=action.model_dump(mode="json"),
+                    datacontenttype="application/json",
+                )
             )
-        )
-    for error in result.errors:
-        event_manager.publish_event(
-            Event(
-                source=__name__,
-                type="qontract-api.openshift-namespaces.error",
-                data={"error": error},
-                datacontenttype="application/json",
+        for error in result.errors:
+            event_manager.publish_event(
+                Event(
+                    source=__name__,
+                    type="qontract-api.openshift-namespaces.error",
+                    data={"error": error},
+                    datacontenttype="application/json",
+                )
             )
-        )
+    except Exception:
+        logger.exception(f"Task {request_id} failed to publish events")
 
 
 def generate_lock_key(_self: Task, clusters: list[ClusterNamespaces], **_: Any) -> str:
@@ -110,7 +119,7 @@ def reconcile_openshift_namespaces_task(
             applied_count=0,
             errors=[f"Unexpected {err=}"],
         )
-        _publish_result_events(result, dry_run=dry_run)
+        _publish_result_events(result, dry_run=dry_run, request_id=request_id)
         return result
 
     connection_params: list[ClusterConnectionParams] = []
@@ -138,7 +147,7 @@ def reconcile_openshift_namespaces_task(
             applied_count=0,
             errors=secret_errors,
         )
-        _publish_result_events(result, dry_run=dry_run)
+        _publish_result_events(result, dry_run=dry_run, request_id=request_id)
         return result
 
     try:
@@ -157,7 +166,7 @@ def reconcile_openshift_namespaces_task(
             applied_count=0,
             errors=[*secret_errors, f"Unexpected {err=}"],
         )
-        _publish_result_events(result, dry_run=dry_run)
+        _publish_result_events(result, dry_run=dry_run, request_id=request_id)
         return result
 
     if secret_errors:
@@ -178,5 +187,5 @@ def reconcile_openshift_namespaces_task(
         errors=result.errors,
     )
 
-    _publish_result_events(result, dry_run=dry_run)
+    _publish_result_events(result, dry_run=dry_run, request_id=request_id)
     return result
