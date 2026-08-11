@@ -11,7 +11,7 @@ from qontract_api.external.vcs.schemas import (
     GetFileParams,
 )
 
-TRAVERSAL_PATHS = [
+TRAVERSAL_PATHS: list[str] = [
     "../etc/passwd",
     "../../etc/passwd",
     "data/../../etc/passwd",
@@ -19,7 +19,7 @@ TRAVERSAL_PATHS = [
     "..",
 ]
 
-VALID_PATHS = [
+VALID_PATHS: list[str] = [
     "OWNERS",
     "/OWNERS",
     "data/users/alice.yml",
