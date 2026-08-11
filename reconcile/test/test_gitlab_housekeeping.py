@@ -2477,7 +2477,7 @@ def test_omm_group_merge_rejected_applies_merge_error(
     assert merges == 0
     mr.merge.assert_called_once()
     mocked_gl.add_label_to_merge_request.assert_called_once_with(mr, "merge-error")
-    mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
+    mocked_gl.remove_label.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -2584,6 +2584,14 @@ def test_omm_group_head_advanced_but_reachable_continues(
     mocked_gl.project.repository_compare.return_value = {"commits": []}
     mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
 
+    merged_member = Mock()
+    merged_member.iid = 99
+    mocked_gl.project.mergerequests.list.return_value = [merged_member]
+    fresh_mr = Mock()
+    fresh_mr.merge_commit_sha = "advanced-sha"
+    fresh_mr.squash_commit_sha = None
+    mocked_gl.get_merge_request.return_value = fresh_mr
+
     merges = gl_h._process_omm_group(
         dry_run=False,
         gl=mocked_gl,
@@ -2596,6 +2604,151 @@ def test_omm_group_head_advanced_but_reachable_continues(
     mocked_gl.project.repository_compare.assert_called_once_with(
         "advanced-sha", "abc123"
     )
+
+
+def test_omm_group_external_merge_dissolves_group(
+    mocker: MockerFixture,
+) -> None:
+    """When HEAD advanced to a SHA that doesn't match any OMM member's
+    merge commit, the group is dissolved (external merge detected)."""
+    _setup_omm_group_mocks(mocker)
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = "lead-sha"
+    lead.squash_commit_sha = None
+    lead.target_branch = "master"
+
+    mocked_gl = _make_omm_gl(head_sha="external-sha")
+    mocked_gl.project.repository_compare.return_value = {"commits": []}
+
+    merged_member = Mock()
+    merged_member.iid = 50
+    mocked_gl.project.mergerequests.list.return_value = [merged_member]
+    fresh_mr = Mock()
+    fresh_mr.merge_commit_sha = "omm-member-sha"
+    fresh_mr.squash_commit_sha = None
+    mocked_gl.get_merge_request.return_value = fresh_mr
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    clear_mock.assert_called_once_with(False, mocked_gl, lead=lead)
+
+
+def test_omm_group_omm_member_merge_does_not_dissolve(
+    mocker: MockerFixture,
+) -> None:
+    """When HEAD matches a merged OMM member's merge_commit_sha,
+    the group continues (no external merge)."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=True,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = "lead-sha"
+    lead.squash_commit_sha = None
+    lead.target_branch = "master"
+
+    mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="member-merge-sha")
+    mocked_gl.project.repository_compare.return_value = {"commits": []}
+    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+
+    merged_member = Mock()
+    merged_member.iid = 50
+    mocked_gl.project.mergerequests.list.return_value = [merged_member]
+    fresh_mr = Mock()
+    fresh_mr.merge_commit_sha = "member-merge-sha"
+    fresh_mr.squash_commit_sha = None
+    mocked_gl.get_merge_request.return_value = fresh_mr
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 1
+    mr.merge.assert_called_once()
+
+
+def test_omm_group_multiple_members_sha_match(
+    mocker: MockerFixture,
+) -> None:
+    """When multiple OMM members have merged, HEAD matching any of their
+    SHAs means the group is safe."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=True,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = "lead-sha"
+    lead.squash_commit_sha = None
+    lead.target_branch = "master"
+
+    mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="second-member-sha")
+    mocked_gl.project.repository_compare.return_value = {"commits": []}
+    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+
+    merged_1 = Mock()
+    merged_1.iid = 50
+    merged_2 = Mock()
+    merged_2.iid = 51
+    mocked_gl.project.mergerequests.list.return_value = [merged_1, merged_2]
+
+    def _fresh_mr(iid):
+        m = Mock()
+        if iid == 50:
+            m.merge_commit_sha = "first-member-sha"
+            m.squash_commit_sha = None
+        else:
+            m.merge_commit_sha = "second-member-sha"
+            m.squash_commit_sha = None
+        return m
+
+    mocked_gl.get_merge_request.side_effect = _fresh_mr
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 1
+    mr.merge.assert_called_once()
 
 
 @pytest.mark.parametrize(
