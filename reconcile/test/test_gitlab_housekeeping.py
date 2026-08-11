@@ -2728,7 +2728,7 @@ def test_omm_group_multiple_members_sha_match(
     merged_2.iid = 51
     mocked_gl.project.mergerequests.list.return_value = [merged_1, merged_2]
 
-    def _fresh_mr(iid):
+    def _fresh_mr(iid: int) -> Mock:
         m = Mock()
         if iid == 50:
             m.merge_commit_sha = "first-member-sha"
