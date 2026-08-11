@@ -152,8 +152,13 @@ def test_gzip_bomb_exceeds_max_decompressed_size(
 @pytest.mark.asyncio
 async def test_read_compressed_body_raises_on_client_disconnect() -> None:
     """Test that an http.disconnect message raises ClientDisconnect instead of looping forever."""
+    calls = 0
 
     async def fake_receive() -> dict[str, object]:  # ruff: ignore[unused-async]
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            raise AssertionError("reader did not stop after disconnect")
         return {"type": "http.disconnect"}
 
     with pytest.raises(ClientDisconnect):
