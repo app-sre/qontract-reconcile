@@ -154,7 +154,7 @@ objects:
                 - --server
                 - --log-level=info
                 - --disable-telemetry
-                - --addr=0.0.0.0:8181
+                - --addr=127.0.0.1:8181
                 - --set=decision_logs.console=true
                 - --watch
                 - /authz
@@ -169,21 +169,39 @@ objects:
                       - sh
                       - "-c"
                       - sleep 2
+              # httpGet/tcpSocket probes can't reach a loopback-only port from
+              # the kubelet (outside the pod's network namespace), so probes
+              # exec curl from inside the container instead.
               livenessProbe:
-                httpGet:
-                  path: /health
-                  port: 8181
+                exec:
+                  command:
+                    - curl
+                    - -sf
+                    - --max-time
+                    - "4"
+                    - http://127.0.0.1:8181/health
                 initialDelaySeconds: 5
                 periodSeconds: 60
+                timeoutSeconds: 5
               readinessProbe:
-                httpGet:
-                  path: /health?bundle=true
-                  port: 8181
+                exec:
+                  command:
+                    - curl
+                    - -sf
+                    - --max-time
+                    - "4"
+                    - http://127.0.0.1:8181/health?bundle=true
                 initialDelaySeconds: 5
                 periodSeconds: 10
+                timeoutSeconds: 5
               startupProbe:
-                tcpSocket:
-                  port: 8181
+                exec:
+                  command:
+                    - curl
+                    - -sf
+                    - --max-time
+                    - "4"
+                    - http://127.0.0.1:8181/health
                 initialDelaySeconds: 1
                 periodSeconds: 5
                 timeoutSeconds: 5
