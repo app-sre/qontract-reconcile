@@ -30,11 +30,21 @@ class DisableClusterAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
 
 
+class AutomationTokenEntryV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    namespace: str = Field(..., alias="namespace")
+    active: Optional[bool] = Field(..., alias="active")
+    delete: Optional[bool] = Field(..., alias="delete")
+    secret: Optional[VaultSecret] = Field(..., alias="secret")
+
+
 class OcConnectionCluster(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     server_url: str = Field(..., alias="serverUrl")
     internal: Optional[bool] = Field(..., alias="internal")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
+    automation_tokens: Optional[list[AutomationTokenEntryV1]] = Field(..., alias="automationTokens")
     cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
+    cluster_admin_automation_tokens: Optional[list[AutomationTokenEntryV1]] = Field(..., alias="clusterAdminAutomationTokens")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
 from unittest.mock import create_autospec
 
 import pytest
@@ -13,6 +13,7 @@ from reconcile.test.oc.fixtures import (
 from reconcile.utils.oc_connection_parameters import (
     OCConnectionError,
     OCConnectionParameters,
+    _find_active_list_token,
     get_oc_connection_parameters_from_namespaces,
 )
 from reconcile.utils.secret_reader import (
@@ -22,6 +23,145 @@ from reconcile.utils.secret_reader import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+
+# ---------------------------------------------------------------------------
+# Helpers for list-token tests
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _FakeSecret:
+    path: str
+    field: str = "token"
+    version: int | None = None
+    format: str | None = None
+
+
+@dataclass
+class _FakeTokenEntry:
+    active: bool | None = None
+    delete: bool | None = None
+    secret: _FakeSecret | None = None
+
+
+@dataclass
+class _FakeCluster:
+    name: str = "test-cluster"
+    server_url: str = "https://api.example.com"
+    internal: bool | None = False
+    insecure_skip_tls_verify: bool | None = None
+    automation_token: _FakeSecret | None = None
+    cluster_admin_automation_token: _FakeSecret | None = None
+    automation_tokens: list[_FakeTokenEntry] | None = None
+    cluster_admin_automation_tokens: list[_FakeTokenEntry] | None = None
+    disable: Any = None
+
+
+_ACTIVE_SECRET = _FakeSecret(path="vault/active")
+_FALLBACK_SECRET = _FakeSecret(path="vault/fallback")
+_VAULT_RESPONSE = {"server": "https://api.example.com", "token": "tok", "username": "u"}
+
+
+# ---------------------------------------------------------------------------
+# _find_active_list_token unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_find_active_list_token_returns_none_for_empty() -> None:
+    assert _find_active_list_token(None) is None
+    assert _find_active_list_token([]) is None
+
+
+def test_find_active_list_token_skips_inactive() -> None:
+    entries = [_FakeTokenEntry(active=False, secret=_ACTIVE_SECRET)]
+    assert _find_active_list_token(entries) is None
+
+
+def test_find_active_list_token_skips_delete_flagged() -> None:
+    entries = [_FakeTokenEntry(active=True, delete=True, secret=_ACTIVE_SECRET)]
+    assert _find_active_list_token(entries) is None
+
+
+def test_find_active_list_token_skips_no_secret() -> None:
+    entries = [_FakeTokenEntry(active=True, secret=None)]
+    assert _find_active_list_token(entries) is None
+
+
+def test_find_active_list_token_returns_first_active() -> None:
+    second = _FakeSecret(path="vault/second")
+    entries = [
+        _FakeTokenEntry(active=False, secret=_ACTIVE_SECRET),
+        _FakeTokenEntry(active=True, secret=second),
+    ]
+    assert _find_active_list_token(entries) is second
+
+
+# ---------------------------------------------------------------------------
+# from_cluster: list token takes priority over singular automationToken
+# ---------------------------------------------------------------------------
+
+
+def test_from_cluster_prefers_list_token_over_singular() -> None:
+    cluster = _FakeCluster(
+        automation_tokens=[_FakeTokenEntry(active=True, secret=_ACTIVE_SECRET)],
+        automation_token=_FALLBACK_SECRET,
+    )
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_all_secret.return_value = _VAULT_RESPONSE
+
+    params = OCConnectionParameters.from_cluster(
+        cluster=cluster, secret_reader=secret_reader, cluster_admin=False
+    )
+
+    assert params.automation_token == "tok"
+    secret_reader.read_all_secret.assert_called_once_with(_ACTIVE_SECRET)
+
+
+def test_from_cluster_falls_back_to_singular_when_no_active_list_entry() -> None:
+    cluster = _FakeCluster(
+        automation_tokens=[_FakeTokenEntry(active=False, secret=_ACTIVE_SECRET)],
+        automation_token=_FALLBACK_SECRET,
+    )
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_all_secret.return_value = _VAULT_RESPONSE
+
+    params = OCConnectionParameters.from_cluster(
+        cluster=cluster, secret_reader=secret_reader, cluster_admin=False
+    )
+
+    assert params.automation_token == "tok"
+    secret_reader.read_all_secret.assert_called_once_with(_FALLBACK_SECRET)
+
+
+def test_from_cluster_admin_prefers_list_token() -> None:
+    cluster = _FakeCluster(
+        cluster_admin_automation_tokens=[_FakeTokenEntry(active=True, secret=_ACTIVE_SECRET)],
+        cluster_admin_automation_token=_FALLBACK_SECRET,
+    )
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_all_secret.return_value = _VAULT_RESPONSE
+
+    params = OCConnectionParameters.from_cluster(
+        cluster=cluster, secret_reader=secret_reader, cluster_admin=True
+    )
+
+    assert params.cluster_admin_automation_token == "tok"
+    secret_reader.read_all_secret.assert_called_once_with(_ACTIVE_SECRET)
+
+
+def test_from_cluster_without_list_attr_uses_singular() -> None:
+    """Clusters from GQL queries that don't include automationTokens still work."""
+    test_cluster = load_cluster_for_connection_parameters("cluster_no_jumphost.yml")
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_all_secret.return_value = {
+        "server": "server-url", "token": "secret1", "username": "foo"
+    }
+
+    params = OCConnectionParameters.from_cluster(
+        secret_reader=secret_reader, cluster=test_cluster, cluster_admin=False
+    )
+    assert params.automation_token == "secret1"
 
 
 def test_from_cluster() -> None:

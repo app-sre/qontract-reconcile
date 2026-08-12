@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.error import URLError
 
@@ -15,6 +16,9 @@ from sretoolbox.utils import retry
 
 import reconcile.gql_definitions.openshift_cluster_bots.clusters as clusters_gql
 from reconcile import mr_client_gateway, queries
+from reconcile.gql_definitions.openshift_cluster_bots.clusters import (
+    AutomationTokenEntryV1,
+)
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -34,6 +38,11 @@ if TYPE_CHECKING:
 QONTRACT_INTEGRATION = "openshift-cluster-bots"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
+# Label identifying a K8s secret as managed by this integration (value is the SA name).
+MANAGED_LABEL_KEY = "qontract.integration/serviceaccount"
+# Annotation recording the Vault path a managed secret has been written to.
+VAULT_PATH_ANNOTATION_KEY = "qontract.integration/vault-path"
+
 
 class Config(BaseModel):
     gitlab_project_id: str
@@ -45,10 +54,25 @@ class Config(BaseModel):
     dry_run: bool
 
 
+def _has_active_token_with_secret(entries: list[AutomationTokenEntryV1] | None) -> bool:
+    if not entries:
+        return False
+    return any(e.active and not e.delete and e.secret is not None for e in entries)
+
+
 def cluster_misses_bot_tokens(cluster: ClusterV1) -> bool:
-    return cluster.automation_token is None or (
-        cluster.cluster_admin is True and cluster.cluster_admin_automation_token is None
+    # TODO(APPSRE-13941): simplify to just _has_active_token_with_secret() once all clusters migrated
+    has_da_token = cluster.automation_token is not None or _has_active_token_with_secret(
+        cluster.automation_tokens
     )
+    if not has_da_token:
+        return True
+    if cluster.cluster_admin is True:
+        # TODO(APPSRE-13941): simplify once clusterAdminAutomationToken singular field is removed
+        return cluster.cluster_admin_automation_token is None and not _has_active_token_with_secret(
+            cluster.cluster_admin_automation_tokens
+        )
+    return False
 
 
 def cluster_is_reachable(cluster: ClusterV1) -> bool:
@@ -89,19 +113,44 @@ def vault_data(
     }
 
 
+def get_sa_name(config: Config, cluster_admin: bool) -> str:
+    return config.cluster_admin_sa if cluster_admin else config.dedicated_admin_sa
+
+
+def vault_secret_for_entry(
+    cluster_name: str, config: Config, entry: AutomationTokenEntryV1
+) -> dict[str, str]:
+    return {
+        "path": f"{config.vault_creds_path}/{cluster_name}/{entry.namespace}/{entry.name}",
+        "field": "token",
+    }
+
+
+def vault_data_for_entry(
+    cluster: ClusterV1, token: str, sa_name: str, namespace: str
+) -> dict[str, str]:
+    return {
+        "server": cluster.server_url,
+        "token": token,
+        "username": f"{namespace}/{sa_name} # not used by automation",
+    }
+
+
 # We're not using the generic OC classes here because we use a kubeconfig instead of a token
 # Since that is very exceptional and should be done only in this context, it is preferable to
 # not update the generic client implementations.
 def oc(
-    kubeconfig: str, namespace: str, command: list[str], stdin: bytes | None = None
+    kubeconfig: str, namespace: str, command: list[str], stdin: bytes | None = None,
+    output_json: bool = True,
 ) -> dict | None:
+    output_flags = ["-o", "json"] if output_json else []
     ret = subprocess.run(
-        ["oc", "--kubeconfig", kubeconfig, "-n", namespace, "-o", "json", *command],
+        ["oc", "--kubeconfig", kubeconfig, "-n", namespace, *output_flags, *command],
         input=stdin,
         check=True,
         capture_output=True,
     )
-    if not ret.stdout:
+    if not ret.stdout or not output_json:
         return None
     return json.loads(ret.stdout.decode())
 
@@ -110,6 +159,43 @@ def oc_apply(kubeconfig: str, namespace: str, items: list[dict]) -> None:
     for item in items:
         stdin = json_dumps(item).encode()
         oc(kubeconfig, namespace, ["apply", "-f", "-"], stdin)
+
+
+def oc_get_secret(kubeconfig: str, namespace: str, secret_name: str) -> dict | None:
+    try:
+        return oc(kubeconfig, namespace, ["get", "secret", secret_name])
+    except subprocess.CalledProcessError:
+        return None
+
+
+def oc_delete_secret(kubeconfig: str, namespace: str, secret_name: str) -> None:
+    oc(kubeconfig, namespace, ["delete", "secret", secret_name], output_json=False)
+
+
+def oc_annotate_secret(
+    kubeconfig: str, namespace: str, secret_name: str, vault_path: str
+) -> None:
+    oc(
+        kubeconfig,
+        namespace,
+        [
+            "annotate",
+            "secret",
+            secret_name,
+            f"{VAULT_PATH_ANNOTATION_KEY}={vault_path}",
+            "--overwrite",
+        ],
+    )
+
+
+def is_managed_secret(secret: dict, sa_name: str) -> bool:
+    labels = secret.get("metadata", {}).get("labels") or {}
+    return labels.get(MANAGED_LABEL_KEY) == sa_name
+
+
+def secret_has_vault_annotation(secret: dict) -> bool:
+    annotations = secret.get("metadata", {}).get("annotations") or {}
+    return VAULT_PATH_ANNOTATION_KEY in annotations
 
 
 def sa_secret_name(sa: str) -> str:
@@ -122,8 +208,11 @@ class TokenNotReadyError(Exception):
 
 # retry allows to let the kube API the time to generate the token and fill the secret
 @retry()
-def retrieve_token(kubeconfig: str, namespace: str, sa: str) -> str:
-    secret = oc(kubeconfig, namespace, ["get", "secret", sa_secret_name(sa)])
+def retrieve_token(
+    kubeconfig: str, namespace: str, sa: str, secret_name: str | None = None
+) -> str:
+    actual_secret_name = secret_name or sa_secret_name(sa)
+    secret = oc(kubeconfig, namespace, ["get", "secret", actual_secret_name])
     if not secret or "token" not in secret.get("data", {}):
         raise TokenNotReadyError()
     b64_token = secret["data"]["token"]
@@ -134,9 +223,11 @@ def create_sa(
     kubeconfig: str,
     namespace: str,
     sa: str,
+    secret_name: str | None = None,
     create_namespace: bool = False,
     cluster_admin: bool = False,
 ) -> str:
+    actual_secret_name = secret_name or sa_secret_name(sa)
     items: list[dict] = []
     if create_namespace:
         items.append({
@@ -165,7 +256,10 @@ def create_sa(
                     QONTRACT_ANNOTATION_INTEGRATION: QONTRACT_INTEGRATION,
                     QONTRACT_ANNOTATION_INTEGRATION_VERSION: QONTRACT_INTEGRATION_VERSION,
                 },
-                "name": sa_secret_name(sa),
+                "labels": {
+                    MANAGED_LABEL_KEY: sa,
+                },
+                "name": actual_secret_name,
             },
             "type": "kubernetes.io/service-account-token",
         },
@@ -192,7 +286,7 @@ def create_sa(
         })
 
     oc_apply(kubeconfig, namespace, items)
-    token = retrieve_token(kubeconfig, namespace, sa)
+    token = retrieve_token(kubeconfig, namespace, sa, secret_name=actual_secret_name)
     return token
 
 
@@ -279,6 +373,294 @@ def submit_mr(clusters: list[ClusterV1], config: Config) -> None:
         mr.submit(cli=mr_cli)
 
 
+@dataclass
+class EntryResult:
+    entry: AutomationTokenEntryV1
+    cluster_admin: bool
+    vault_secret: dict[str, str] | None
+    action: str
+
+
+def _read_token_from_secret(secret: dict) -> str:
+    b64_token = secret.get("data", {}).get("token")
+    if not b64_token:
+        raise TokenNotReadyError()
+    return base64.b64decode(b64_token).decode()
+
+
+def _process_delete_entry(
+    kubeconfig: str,
+    cluster: ClusterV1,
+    config: Config,
+    entry: AutomationTokenEntryV1,
+    sa_name: str,
+    cluster_admin: bool,
+) -> EntryResult:
+    existing_secret = oc_get_secret(kubeconfig, entry.namespace, entry.name)
+    if existing_secret is not None:
+        if not is_managed_secret(existing_secret, sa_name):
+            logging.warning(
+                f"[{cluster.name}] secret {entry.namespace}/{entry.name} is not managed "
+                f"by this integration (missing label {MANAGED_LABEL_KEY}={sa_name}), "
+                "skipping delete"
+            )
+            return EntryResult(
+                entry=entry,
+                cluster_admin=cluster_admin,
+                vault_secret=None,
+                action="skipped",
+            )
+        logging.info(f"[{cluster.name}] deleting secret {entry.namespace}/{entry.name}")
+        if not config.dry_run:
+            oc_delete_secret(kubeconfig, entry.namespace, entry.name)
+
+    if entry.secret is not None:
+        logging.info(f"[{cluster.name}] deleting vault secret {entry.secret.path}")
+        if not config.dry_run:
+            VaultClient.get_instance().delete(entry.secret.path)
+
+    return EntryResult(
+        entry=entry, cluster_admin=cluster_admin, vault_secret=None, action="deleted"
+    )
+
+
+def _process_create_entry(
+    kubeconfig: str,
+    cluster: ClusterV1,
+    config: Config,
+    entry: AutomationTokenEntryV1,
+    sa_name: str,
+    cluster_admin: bool,
+) -> EntryResult:
+    vault_ref = vault_secret_for_entry(cluster.name, config, entry)
+    vault_path = vault_ref["path"]
+    existing_secret = oc_get_secret(kubeconfig, entry.namespace, entry.name)
+
+    if existing_secret is None:
+        logging.info(
+            f"[{cluster.name}] creating {sa_name} service account and secret "
+            f"{entry.namespace}/{entry.name}"
+        )
+        if config.dry_run:
+            return EntryResult(
+                entry=entry,
+                cluster_admin=cluster_admin,
+                vault_secret=None,
+                action="skipped",
+            )
+        token = create_sa(
+            kubeconfig,
+            entry.namespace,
+            sa_name,
+            secret_name=entry.name,
+            create_namespace=cluster_admin,
+            cluster_admin=cluster_admin,
+        )
+        VaultClient.get_instance().write(
+            {
+                "path": vault_path,
+                "data": vault_data_for_entry(cluster, token, sa_name, entry.namespace),
+            },
+            decode_base64=False,
+        )
+        oc_annotate_secret(kubeconfig, entry.namespace, entry.name, vault_path)
+        return EntryResult(
+            entry=entry,
+            cluster_admin=cluster_admin,
+            vault_secret=vault_ref,
+            action="created",
+        )
+
+    if not is_managed_secret(existing_secret, sa_name):
+        logging.warning(
+            f"[{cluster.name}] secret {entry.namespace}/{entry.name} exists but is not "
+            f"managed by this integration (missing label {MANAGED_LABEL_KEY}={sa_name}), "
+            "skipping"
+        )
+        return EntryResult(
+            entry=entry,
+            cluster_admin=cluster_admin,
+            vault_secret=None,
+            action="skipped",
+        )
+
+    if entry.secret is not None and secret_has_vault_annotation(existing_secret):
+        return EntryResult(
+            entry=entry,
+            cluster_admin=cluster_admin,
+            vault_secret=None,
+            action="skipped",
+        )
+
+    logging.info(
+        f"[{cluster.name}] syncing existing secret {entry.namespace}/{entry.name} to vault"
+    )
+    if config.dry_run:
+        return EntryResult(
+            entry=entry,
+            cluster_admin=cluster_admin,
+            vault_secret=None,
+            action="skipped",
+        )
+
+    token = _read_token_from_secret(existing_secret)
+    VaultClient.get_instance().write(
+        {
+            "path": vault_path,
+            "data": vault_data_for_entry(cluster, token, sa_name, entry.namespace),
+        },
+        decode_base64=False,
+    )
+    if not secret_has_vault_annotation(existing_secret):
+        oc_annotate_secret(kubeconfig, entry.namespace, entry.name, vault_path)
+
+    return EntryResult(
+        entry=entry,
+        cluster_admin=cluster_admin,
+        vault_secret=vault_ref,
+        action="synced",
+    )
+
+
+def process_entry(
+    kubeconfig: str,
+    cluster: ClusterV1,
+    config: Config,
+    entry: AutomationTokenEntryV1,
+    cluster_admin: bool,
+) -> EntryResult:
+    sa_name = get_sa_name(config, cluster_admin)
+    if entry.delete:
+        return _process_delete_entry(
+            kubeconfig, cluster, config, entry, sa_name, cluster_admin
+        )
+    return _process_create_entry(
+        kubeconfig, cluster, config, entry, sa_name, cluster_admin
+    )
+
+
+def process_cluster_entries(
+    cluster: ClusterV1, ocm: OCM, config: Config
+) -> list[EntryResult]:
+    entries: list[tuple[AutomationTokenEntryV1, bool]] = [
+        (entry, False) for entry in (cluster.automation_tokens or [])
+    ] + [(entry, True) for entry in (cluster.cluster_admin_automation_tokens or [])]
+    if not entries:
+        return []
+
+    kubeconfig_content = ocm.get_kubeconfig(cluster.name)
+    if not kubeconfig_content:
+        logging.error(
+            f"[{cluster.name}] Could not get cluster credentials from OCM (kubeconfig)"
+        )
+        return []
+
+    results: list[EntryResult] = []
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w+", encoding="locale", delete=True
+        ) as kc:
+            kc.write(kubeconfig_content)
+            kc.flush()
+            for entry, cluster_admin in entries:
+                results.append(
+                    process_entry(kc.name, cluster, config, entry, cluster_admin)
+                )
+    except subprocess.CalledProcessError as e:
+        logging.error(e.stderr)
+        raise
+
+    return results
+
+
+def _entry_to_dict(entry: AutomationTokenEntryV1) -> dict:
+    entry_dict: dict = {"name": entry.name, "namespace": entry.namespace}
+    if entry.active is not None:
+        entry_dict["active"] = entry.active
+    if entry.delete is not None:
+        entry_dict["delete"] = entry.delete
+    if entry.secret is not None:
+        entry_dict["secret"] = entry.secret.model_dump(by_alias=True, exclude_none=True)
+    return entry_dict
+
+
+def _merge_entry_updates(
+    existing_entries: list[AutomationTokenEntryV1], results: list[EntryResult]
+) -> list[dict] | None:
+    result_by_key = {
+        (r.entry.name, r.entry.namespace): r
+        for r in results
+        if r.vault_secret is not None
+    }
+    if not result_by_key:
+        return None
+
+    merged: list[dict] = []
+    for entry in existing_entries:
+        entry_dict = _entry_to_dict(entry)
+        key = (entry.name, entry.namespace)
+        if key in result_by_key:
+            entry_dict["secret"] = result_by_key[key].vault_secret
+        merged.append(entry_dict)
+    return merged
+
+
+def submit_list_mr(
+    cluster_results: dict[str, list[EntryResult]],
+    clusters: list[ClusterV1],
+    config: Config,
+) -> None:
+    cluster_updates: dict[str, dict] = {}
+    for cluster in clusters:
+        results = cluster_results.get(cluster.name, [])
+        if not results:
+            continue
+
+        root: dict = {}
+        da_results = [r for r in results if not r.cluster_admin]
+        ca_results = [r for r in results if r.cluster_admin]
+
+        if da_results:
+            merged = _merge_entry_updates(cluster.automation_tokens or [], da_results)
+            if merged is not None:
+                root["automationTokens"] = merged
+        if ca_results:
+            merged = _merge_entry_updates(
+                cluster.cluster_admin_automation_tokens or [], ca_results
+            )
+            if merged is not None:
+                root["clusterAdminAutomationTokens"] = merged
+
+        if root:
+            cluster_updates[cluster.name] = {
+                "path": "data" + cluster.path,
+                "root": root,
+                "spec": {},
+            }
+
+    if not cluster_updates:
+        return
+
+    mr = clusters_updates.CreateClustersUpdates(cluster_updates)
+    with mr_client_gateway.init(gitlab_project_id=config.gitlab_project_id) as mr_cli:
+        mr.submit(cli=mr_cli)
+
+
+def process_all_list_entries(
+    clusters: list[ClusterV1], ocm_map: OCMMap, config: Config
+) -> None:
+    cluster_results: dict[str, list[EntryResult]] = {}
+    for cluster in clusters:
+        ocm = ocm_map.get(cluster.name)
+        results = process_cluster_entries(cluster, ocm, config)
+        if results:
+            cluster_results[cluster.name] = results
+
+    if not config.dry_run:
+        submit_list_mr(cluster_results, clusters, config)
+
+
+# TODO(APPSRE-13941): remove create_all_bots and all call sites once all clusters migrated to automationTokens
 def create_all_bots(
     clusters: list[ClusterV1],
     ocm_map: OCMMap,
@@ -293,15 +675,47 @@ def create_all_bots(
         submit_mr(clusters, config)
 
 
-def filter_clusters(clusters: list[ClusterV1]) -> list[ClusterV1]:
-    return [
-        cluster
-        for cluster in clusters
-        if integration_is_enabled(QONTRACT_INTEGRATION, cluster)
-        and cluster.ocm is not None
-        and cluster_misses_bot_tokens(cluster)
-        and cluster_is_reachable(cluster)
-    ]
+def _entry_needs_processing(entry: AutomationTokenEntryV1) -> bool:
+    return bool(entry.delete) or entry.secret is None
+
+
+def cluster_needs_list_processing(cluster: ClusterV1) -> bool:
+    entries = list(cluster.automation_tokens or []) + list(
+        cluster.cluster_admin_automation_tokens or []
+    )
+    return any(_entry_needs_processing(entry) for entry in entries)
+
+
+def filter_clusters(
+    clusters: list[ClusterV1],
+) -> tuple[list[ClusterV1], list[ClusterV1]]:
+    """Split clusters into (legacy, list_based) clusters needing work.
+
+    Legacy clusters use the singular automationToken/clusterAdminAutomationToken
+    fields. List-based clusters declare automationTokens/clusterAdminAutomationTokens
+    entries and take precedence when both are present, since the entries are the
+    declared source of truth for rotation.
+    """
+    legacy: list[ClusterV1] = []
+    list_based: list[ClusterV1] = []
+    for cluster in clusters:
+        if not integration_is_enabled(QONTRACT_INTEGRATION, cluster):
+            continue
+        if cluster.ocm is None:
+            continue
+        if not cluster_is_reachable(cluster):
+            continue
+
+        has_list_entries = bool(cluster.automation_tokens) or bool(
+            cluster.cluster_admin_automation_tokens
+        )
+        if has_list_entries:
+            if cluster_needs_list_processing(cluster):
+                list_based.append(cluster)
+        elif cluster_misses_bot_tokens(cluster):  # TODO(APPSRE-13941): remove elif branch once all clusters migrated; filter_clusters returns only list_based
+            legacy.append(cluster)
+
+    return legacy, list_based
 
 
 def get_ocm_map(clusters: list[ClusterV1]) -> OCMMap:
@@ -339,11 +753,15 @@ def run(
         logging.debug("No cluster definitions found in app-interface")
         sys.exit(ExitCodes.SUCCESS)
 
-    clusters = filter_clusters(clusters)
-    if not clusters:
+    legacy_clusters, list_clusters = filter_clusters(clusters)
+    if not legacy_clusters and not list_clusters:
         logging.debug("Nothing to do")
         sys.exit(ExitCodes.SUCCESS)
 
-    ocm_map = get_ocm_map(clusters)
+    ocm_map = get_ocm_map(legacy_clusters + list_clusters)
 
-    create_all_bots(clusters, ocm_map, config)
+    if legacy_clusters:  # TODO(APPSRE-13941): remove block once all clusters migrated to automationTokens
+        create_all_bots(legacy_clusters, ocm_map, config)
+
+    if list_clusters:
+        process_all_list_entries(list_clusters, ocm_map, config)
