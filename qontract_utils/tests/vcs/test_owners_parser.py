@@ -304,6 +304,29 @@ def test_get_owners_aliases_file_error(mock_vcs_client: Mock) -> None:
     assert owners == RepoOwners(approvers=[], reviewers=[])
 
 
+def test_get_owners_rejects_unsafe_yaml_tags(mock_vcs_client: Mock) -> None:
+    """Test that OWNERS files with YAML Python-object tags are rejected, not silently parsed.
+
+    APPSRE-14304: OWNERS file content comes from an arbitrary attacker-controlled
+    repository, so it must be parsed with a safe YAML loader that rejects
+    non-standard tags instead of treating them as loadable content.
+    """
+
+    def get_file_side_effect(path: str, ref: str) -> str | None:
+        if path == "OWNERS":
+            return "approvers: !!python/object/apply:os.system ['echo pwned']"
+        if path == "OWNERS_ALIASES":
+            return None
+        return None
+
+    mock_vcs_client.get_file.side_effect = get_file_side_effect
+
+    parser = OwnersParser(vcs_client=mock_vcs_client, ref="master")
+    owners = parser.get_owners()
+
+    assert owners == RepoOwners(approvers=[], reviewers=[])
+
+
 def test_get_owners_deduplicates_after_alias_expansion(mock_vcs_client: Mock) -> None:
     """Test that duplicate usernames are handled after alias expansion."""
 
