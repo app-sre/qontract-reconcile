@@ -2441,7 +2441,7 @@ def test_omm_group_merge_rejected_applies_merge_error(
     squash_sha: str | None,
 ) -> None:
     """When a pending MR's merge raises GitlabMRClosedError during OMM
-    group processing, merge-error is applied and omm-pending is removed."""
+    group processing, merge-error is applied and omm-pending is retained."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
         "reconcile.gitlab_housekeeping.is_rebased",
