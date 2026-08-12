@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Any
 
 from qontract_api_client.client import quay_repos as quay_repos_reconcile
 from qontract_api_client.schemas import (
@@ -59,10 +60,7 @@ QONTRACT_INTEGRATION_UPSTREAM = "quay-repos"
 
 
 class QuayReposIntegrationParams(PydanticRunParams):
-    """Filter parameters for quay-repos-api integration."""
-
-    org_name: str | None = None
-    instance_name: str | None = None
+    pass
 
 
 class QuayReposIntegration(QontractReconcileApiIntegration[QuayReposIntegrationParams]):
@@ -79,12 +77,12 @@ class QuayReposIntegration(QontractReconcileApiIntegration[QuayReposIntegrationP
         return QONTRACT_INTEGRATION
 
     @staticmethod
-    def get_quay_orgs(query_func: Callable) -> list[QuayOrgV1]:
+    def get_quay_orgs(query_func: Callable[..., dict[Any, Any]]) -> list[QuayOrgV1]:
         data = quay_orgs_query(query_func=query_func)
         return list(data.quay_orgs or [])
 
     @staticmethod
-    def get_apps(query_func: Callable) -> list[AppV1]:
+    def get_apps(query_func: Callable[..., dict[Any, Any]]) -> list[AppV1]:
         data = apps_query(query_func=query_func)
         return list(data.apps or [])
 
@@ -121,14 +119,6 @@ class QuayReposIntegration(QontractReconcileApiIntegration[QuayReposIntegrationP
                 logging.warning(
                     f"No automationToken for {org.instance.name}/{org.name} — skipping"
                 )
-                continue
-
-            if (
-                self.params.instance_name
-                and org.instance.name != self.params.instance_name
-            ):
-                continue
-            if self.params.org_name and org.name != self.params.org_name:
                 continue
 
             key = OrgKey(instance=org.instance.name, org_name=org.name)

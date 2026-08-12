@@ -63,6 +63,13 @@ def test_quay_api_base_url_trailing_slash_stripped() -> None:
     assert kwargs["base_url"] == "https://quay.example.com"
 
 
+def test_quay_api_base_url_no_protocol_gets_https() -> None:
+    with patch("qontract_utils.quay_api.client.httpx2.Client") as mock_cls:
+        QuayApi(org="my-org", token="tok", base_url="quay.io")
+    _, kwargs = mock_cls.call_args
+    assert kwargs["base_url"] == "https://quay.io"
+
+
 def test_quay_api_default_timeout() -> None:
     with patch("qontract_utils.quay_api.client.httpx2.Client") as mock_cls:
         QuayApi(org="my-org", token="tok")

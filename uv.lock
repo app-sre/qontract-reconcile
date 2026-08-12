@@ -1680,11 +1680,11 @@ wheels = [
 
 [[package]]
 name = "mypy-boto3-organizations"
-version = "1.43.64"
+version = "1.43.69"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e6/54/b76f699bd42ed4257cea4b57e976186679f71f2f59fd77a1483382dbba60/mypy_boto3_organizations-1.43.64.tar.gz", hash = "sha256:932522791eed6185066c43a2e9fb421030f4efe41f73227670e5aaae4d85540b", size = 36208, upload-time = "2026-08-04T21:37:45.665Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/16/ee/43fb8b78ac5145d94c1a48aa5282e052093e1206b76bc1b1cc5e2e0cbe3d/mypy_boto3_organizations-1.43.69.tar.gz", hash = "sha256:a5a05ee60572df3c055a7ac594c264485b137b3a3cada7053e8723ee8b3122cb", size = 36332, upload-time = "2026-08-11T19:25:36.19Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/59/96/879cde67f793a70a80f4fdd29f6aa14464786124fa97889762654c193d24/mypy_boto3_organizations-1.43.64-py3-none-any.whl", hash = "sha256:83f3c766bc28a7b190b19d0e32e17b009ca00badf9621607c8954e3080a640f8", size = 42632, upload-time = "2026-08-04T21:37:43.493Z" },
+    { url = "https://files.pythonhosted.org/packages/a1/bf/8639851fce1551fd29c1554c0ae7542d4dc5f99ecc09815b74364142ab38/mypy_boto3_organizations-1.43.69-py3-none-any.whl", hash = "sha256:740f22f207ca6d2f797237ba927edc215e29c2fefae2303867c5c08657e80259", size = 42661, upload-time = "2026-08-11T19:25:33.365Z" },
 ]
 
 [[package]]
@@ -3354,11 +3354,11 @@ wheels = [
 
 [[package]]
 name = "types-setuptools"
-version = "83.0.0.20260807"
+version = "84.0.0.20260812"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/90/45/49789d4b7424504c99c33bcc0cbd50d84de4a905cd540f1f3eab32a04380/types_setuptools-83.0.0.20260807.tar.gz", hash = "sha256:1ed1a446914afe91658868a8fe8806d1e34ba89f8c3bf8926c7165a428b117a6", size = 45884, upload-time = "2026-08-07T04:16:58.048Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4f/cd/3b2a3362a526f91c33f785a291462b2ec448ae531101c62372fc30a21f53/types_setuptools-84.0.0.20260812.tar.gz", hash = "sha256:09bedc248ebbb7a232c9419dfcdca329706e61bf2aa5743e9424d027f1d956b4", size = 46545, upload-time = "2026-08-12T03:52:42.316Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/26/4b/810b27aa79700bf7e44c0e4415c221906138b50754d80d65a96f253442bd/types_setuptools-83.0.0.20260807-py3-none-any.whl", hash = "sha256:a3b07bc820b397a64f660bbbef5b3738296cac619a0b1ccab261b9ce9325f9b2", size = 68819, upload-time = "2026-08-07T04:16:56.954Z" },
+    { url = "https://files.pythonhosted.org/packages/8a/e5/3a41cab4066465593facd660b2683c017f3d88d3297cdd26db0677b8e479/types_setuptools-84.0.0.20260812-py3-none-any.whl", hash = "sha256:799c08e4bc6a288e8a0b538afb5f5ff320a08927ba8dbedb30c74ee3ba5d867b", size = 70320, upload-time = "2026-08-12T03:52:41.154Z" },
 ]
 
 [[package]]

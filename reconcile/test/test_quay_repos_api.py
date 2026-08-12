@@ -28,13 +28,8 @@ class _TestableIntegration(QuayReposIntegration):
         return SECRET_MANAGER_URL
 
 
-def _make_integration(
-    org_name: str | None = None,
-    instance_name: str | None = None,
-) -> _TestableIntegration:
-    return _TestableIntegration(
-        QuayReposIntegrationParams(org_name=org_name, instance_name=instance_name)
-    )
+def _make_integration() -> _TestableIntegration:
+    return _TestableIntegration(QuayReposIntegrationParams())
 
 
 def _make_org(
@@ -91,7 +86,7 @@ def test_compile_desired_state_duplicate_includes_org_context() -> None:
     app1 = _make_app("myorg", "quay.io", ["conflict"])
     app2 = _make_app("myorg", "quay.io", ["conflict"])
 
-    with pytest.raises(IntegrationError, match="quay.io/myorg"):
+    with pytest.raises(IntegrationError, match=r"quay\.io/myorg"):
         integration.compile_desired_state(orgs=[org], apps=[app1, app2])
 
 

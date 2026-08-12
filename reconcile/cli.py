@@ -2001,15 +2001,9 @@ def quay_repos(ctx: click.Context) -> None:
 
 
 @integration.command(short_help="Creates and Manages Quay Repos (via qontract-api).")
-@click.option("--org-name", default=None, help="Limit to a specific Quay org name.")
-@click.option(
-    "--instance-name", default=None, help="Limit to a specific Quay instance."
-)
 @click.pass_context
 def quay_repos_api(
     ctx: click.Context,
-    org_name: str | None,
-    instance_name: str | None,
 ) -> None:
     from reconcile.quay_repos_api import (
         QuayReposIntegration,
@@ -2017,12 +2011,7 @@ def quay_repos_api(
     )
 
     run_class_integration(
-        integration=QuayReposIntegration(
-            QuayReposIntegrationParams(
-                org_name=org_name,
-                instance_name=instance_name,
-            )
-        ),
+        integration=QuayReposIntegration(QuayReposIntegrationParams()),
         ctx=ctx,
     )
 

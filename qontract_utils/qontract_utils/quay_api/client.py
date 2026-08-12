@@ -132,6 +132,8 @@ class QuayApi:
             hooks: Optional custom hooks merged with built-in hooks
         """
         self.org = org
+        if not base_url.startswith(("http://", "https://")):
+            base_url = f"https://{base_url}"
         self._client = httpx2.Client(
             base_url=base_url.rstrip("/"),
             headers={"Authorization": f"Bearer {token}"},

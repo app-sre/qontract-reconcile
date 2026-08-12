@@ -156,6 +156,7 @@ celery_app = Celery(
         "qontract_api.integrations.openshift_namespaces.tasks",
         "qontract_api.integrations.sso_client.tasks",
         "qontract_api.integrations.ocm_oidc_idp.tasks",
+        "qontract_api.integrations.quay_repos.tasks",
     ],
 )
 
