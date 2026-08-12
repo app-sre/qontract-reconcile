@@ -15,11 +15,11 @@ classifiers = [
 dependencies = [
     "anymarkup==0.8.1",
     # keep in sync with boto3-stubs in dependency-groups.type
-    "boto3==1.43.58",
-    "botocore==1.43.58",
+    "boto3==1.43.67",
+    "botocore==1.43.67",
     "Click>=7.0,<9.0",
     "croniter==6.2.4",
-    "dateparser==1.4.1",
+    "dateparser==1.4.2",
     "deepdiff==9.1.0",
     "dnspython~=2.1",
     "dt==1.1.73",
@@ -68,7 +68,7 @@ dependencies = [
 debugger = ["debugpy ~=1.8.17"]
 dev = [
     # keep in sync project.dependencies.boto3
-    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.43.58",
+    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.43.67",
     "moto[ec2,iam,logs,s3,route53]==5.2.2",
     "mypy==2.3.0",
     "pyfakefs==6.2.0",
@@ -79,7 +79,7 @@ dev = [
     "pytest-mock==3.15.1",
     "qenerate==0.10.0",
     "responses==0.26.2",
-    "ruff==0.16.0",
+    "ruff==0.16.2",
     "smtpdfix==0.5.3",
     "snakeviz==2.2.2",
     "types-click",

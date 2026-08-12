@@ -622,7 +622,7 @@ def _signal_validation_issues_for_org(
                 ocm_api=ocm_api,
                 service_log=OCMClusterServiceLogCreateModel(
                     cluster_uuid=cluster.cluster_uuid,
-                    severity=OCMServiceLogSeverity.Warning,
+                    severity=OCMServiceLogSeverity.Moderate,
                     summary="AUS configuration error on organization",
                     description=org_error_msg,
                     service_name=QONTRACT_INTEGRATION,
@@ -643,7 +643,7 @@ def _expose_cluster_validation_errors_as_service_log(
         ocm_api=ocm_api,
         service_log=OCMClusterServiceLogCreateModel(
             cluster_uuid=cluster_uuid,
-            severity=OCMServiceLogSeverity.Warning,
+            severity=OCMServiceLogSeverity.Moderate,
             summary="Cluster upgrade policy validation errors",
             description=description,
             service_name=QONTRACT_INTEGRATION,

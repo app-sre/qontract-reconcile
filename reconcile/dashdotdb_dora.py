@@ -339,7 +339,7 @@ class DashdotdbDORA(DashdotdbBase):
         ]
 
         if deployments:
-            self.post({"deployments": deployments})
+            self._post_deployments(deployments)
 
     def get_saastargets(self) -> list[SaasTarget]:
         targets = []
@@ -478,6 +478,20 @@ class DashdotdbDORA(DashdotdbBase):
             Commit(rc.repo_url, commit.sha, commit.commit.committer.date)
             for commit in self.gh_api(repo).compare(rc.ref_from, rc.ref_to)
         ]
+
+    def _post_deployments(self, deployments: list[dict[str, Any]]) -> None:
+        self._get_token()
+        if not self.dry_run and not self.dashdotdb_token:
+            LOG.error(
+                "%s failed to acquire token for %s data, skipping POST",
+                self.logmarker,
+                self.scope,
+            )
+            return
+        try:
+            self.post({"deployments": deployments})
+        finally:
+            self._close_token()
 
     def post(self, data: Mapping[str, Any]) -> None:
         endpoint = f"{self.dashdotdb_url}/api/v1/dora"

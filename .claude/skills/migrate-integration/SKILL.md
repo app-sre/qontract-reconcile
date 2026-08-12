@@ -18,6 +18,13 @@ Successful migrations serve as reference implementations:
   first migration where the legacy package (`reconcile/rhidp/`) is meant to be deleted
   entirely once done, not just the one integration inside it — see the "legacy package
   slated for deletion" rule below, which is stricter than the normal ADR-007 rule.)
+- `rhidp/ocm_oidc_idp` -> `ocm-oidc-idp-api` (Pattern 1 variant, second half of the
+  RHIDP migration alongside sso_client above: added OCM Identity Provider CRUD to the
+  existing `ocm_api` Layer 1/2 clients (new surface, not a new client), reused the
+  existing `/external/ocm/clusters` endpoint as-is with zero changes, and consumed
+  sso_client's Vault secret schema by moving it to a new shared `qontract_api/rhidp/`
+  domain layer. See "Naming: don't assume every RHIDP integration gets an rhidp-
+  prefix" and "Cacheable read + invalidating mutations" below.)
 
 ## Input
 
@@ -29,7 +36,7 @@ The discovery phase is critical to ensure a smooth migration. Never skip it, and
 
 ## Migration Plans
 
-Migration plans are stored in `.claude/skills/migrate-integration/plans/<name>.md`. These persist across sessions and allow resuming work after context clears.
+Migration plans are stored in `.claude/skills/migrate-integration/plans/<name>.md`. These persist across sessions and allow resuming work after context clears. This directory is gitignored - plan files are working scratch state for the migration, not something to commit.
 
 **Before starting any phase**, always read the migration plan for the integration to understand current status, decisions, and resumption context. Update the plan's status and checkboxes as you complete tasks.
 
@@ -146,7 +153,7 @@ Following ADR-007 (no reconcile/ imports in qontract-api) and ADR-014 (three-lay
      - `qontract_utils/qontract_utils/glitchtip_api/` - Glitchtip API
      - `qontract_utils/qontract_utils/pagerduty_api/` - PagerDuty API
      - `qontract_utils/qontract_utils/ldap_api/` - LDAP (FreeIPA) API
-     - `qontract_utils/qontract_utils/ocm_api/` - OCM (OpenShift Cluster Manager) API - labels, subscriptions, clusters
+     - `qontract_utils/qontract_utils/ocm_api/` - OCM (OpenShift Cluster Manager) API - labels, subscriptions, clusters, identity providers (get/create/update/delete, parameterized by `cluster_id`/`idp_id` rather than the `Filter` DSL used for the collection-search methods, since IDPs are a per-cluster nested resource)
      - `qontract_utils/qontract_utils/keycloak_api/` - Keycloak dynamic client registration API
    - If a client exists, check if it covers all needed methods. Only extend, never duplicate.
 
@@ -501,3 +508,33 @@ Phases have dependencies. Document these in the migration plan so phases can be 
 - **If the legacy integration's whole containing package is slated for deletion** (not just the one integration - e.g. `reconcile/rhidp/` holds both `sso_client` and `ocm_oidc_idp`, and the user wants the entire package gone eventually), the new client-side code must have **zero imports from that package**, even for pure helper functions with no external calls. ADR-007 only forbids qontract-api importing from `reconcile/`, but this is a stricter, migration-specific constraint - port (duplicate) any still-needed helpers into the new `_api` package instead of importing them. Confirm with the user whether this stricter rule applies before assuming ADR-007 alone is sufficient. Auto-generated GraphQL query modules (`reconcile/gql_definitions/**`) are the one exception - they're pure codegen, not business logic, and safe to keep importing even from a namespaced-after-the-integration path like `gql_definitions/rhidp/`.
 - Read existing reference implementations before generating code - adapt patterns, don't copy blindly
 - Read all relevant ADRs from `docs/adr/` before starting
+- **Naming: verify each integration's own legacy name individually.** Don't assume a
+  sibling integration from the same legacy package follows the same naming pattern as
+  one already migrated - check its own `QONTRACT_INTEGRATION`/CLI name. Keep two
+  constants distinct: the new integration's own identity (`self.name`, used for
+  app-interface enablement checks) may get a `-api` suffix, but a Prometheus
+  `INTEGRATION_NAME` label constant must match the **legacy** integration's exact name
+  so existing dashboards/alerts keep aggregating correctly across old and new.
+- **Cacheable read + invalidating mutations.** A Layer 2 workspace client can mix a
+  cached read (double-checked-locking, like other cached reads) with mutations on the
+  same resource - just have each successful mutation call `cache.delete(cache_key)` so
+  the next read isn't stale. Don't skip caching for the read side just because the
+  mutations themselves aren't cacheable.
+- **Extract a narrower base params class when a second consumer needs the same
+  connection/auth setup but not the first consumer's domain-specific fields**, rather
+  than forcing it to fill in irrelevant required fields on an existing type.
+- **Custom `__eq__` without `__hash__` needs an explicit, typed declaration** if the
+  model overrides `__eq__` to ignore certain fields for diffing (e.g. a server-assigned
+  id, or a secret never returned on read). Ruff's `eq-without-hash` wants
+  `__hash__ = None`; mypy has no clean way to type that outside `@dataclass` and flags
+  it, so the accepted fix is `__hash__ = None  # type: ignore[assignment]` with a
+  comment - get explicit user approval before adding it, don't do it silently.
+- **Prefer an API client's context-manager protocol over manual try/finally + close()**
+  when it implements `__enter__`/`__exit__`. When mocking such a client,
+  `MagicMock(spec=...)` does NOT make `__enter__` return `self` by default - set
+  `mock.__enter__.return_value = mock` explicitly, and assert `__exit__` was called
+  instead of `close()`.
+- **Pydantic's "smart" union mode can discriminate without an explicit discriminator
+  field**, as long as each member is a genuinely lossless match for a given payload
+  (pydantic won't pick a model that would silently drop fields). Verify empirically
+  with a quick script before relying on it instead of an explicit discriminator.

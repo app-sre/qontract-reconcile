@@ -8,8 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from qontract_api.auth import create_access_token
-from qontract_api.external.ocm.ocm_workspace_client import OcmClusterRecord
 from qontract_api.models import TokenData
+from qontract_api.ocm.ocm_workspace_client import OcmClusterRecord
 
 
 @pytest.fixture
@@ -36,6 +36,14 @@ def auth_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {test_token}"}
 
 
+def _mock_workspace_client() -> MagicMock:
+    """Mock OcmWorkspaceClient, with __enter__ returning self like the real client."""
+    m = MagicMock()
+    m.__enter__.return_value = m
+    m.__exit__.return_value = False
+    return m
+
+
 OCM_CLUSTERS_ENDPOINT = "/api/v1/external/ocm/clusters"
 
 BASE_PARAMS = {
@@ -56,7 +64,7 @@ def test_get_clusters_returns_response(
     auth_headers: dict[str, str],
 ) -> None:
     """Test GET /clusters returns discovered clusters."""
-    mock_client = MagicMock()
+    mock_client = _mock_workspace_client()
     mock_client.get_clusters.return_value = [
         OcmClusterRecord(
             id="cluster-1",
@@ -89,7 +97,7 @@ def test_get_clusters_passes_query_params_to_factory(
     auth_headers: dict[str, str],
 ) -> None:
     """Test GET /clusters passes query params to the factory correctly."""
-    mock_client = MagicMock()
+    mock_client = _mock_workspace_client()
     mock_client.get_clusters.return_value = []
     mock_factory.return_value = mock_client
 
@@ -109,7 +117,7 @@ def test_get_clusters_org_ids_query_param_roundtrip(
     auth_headers: dict[str, str],
 ) -> None:
     """Test org_ids list query param round-trips correctly to get_clusters()."""
-    mock_client = MagicMock()
+    mock_client = _mock_workspace_client()
     mock_client.get_clusters.return_value = []
     mock_factory.return_value = mock_client
 
@@ -131,7 +139,7 @@ def test_get_clusters_org_ids_omitted_passes_none(
     auth_headers: dict[str, str],
 ) -> None:
     """Test org_ids omitted from the request passes None to get_clusters()."""
-    mock_client = MagicMock()
+    mock_client = _mock_workspace_client()
     mock_client.get_clusters.return_value = []
     mock_factory.return_value = mock_client
 
@@ -148,7 +156,7 @@ def test_get_clusters_empty_result(
     auth_headers: dict[str, str],
 ) -> None:
     """Test GET /clusters with no matching clusters returns an empty list."""
-    mock_client = MagicMock()
+    mock_client = _mock_workspace_client()
     mock_client.get_clusters.return_value = []
     mock_factory.return_value = mock_client
 

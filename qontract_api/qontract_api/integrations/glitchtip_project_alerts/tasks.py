@@ -80,18 +80,17 @@ def reconcile_glitchtip_project_alerts_task(
     """
     request_id = self.request.id
 
-    try:  # ruff: ignore[too-many-statements-in-try-clause]
+    try:
         # Get shared dependencies
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
         event_manager = get_event_manager()
 
-        # Create factory and service
-        glitchtip_client_factory = GlitchtipClientFactory(
-            cache=cache, settings=settings
-        )
+        # Create service
         service = GlitchtipProjectAlertsService(
-            glitchtip_client_factory=glitchtip_client_factory,
+            glitchtip_client_factory=GlitchtipClientFactory(
+                cache=cache, settings=settings
+            ),
             secret_manager=secret_manager,
             settings=settings,
         )
@@ -101,17 +100,26 @@ def reconcile_glitchtip_project_alerts_task(
             instances=instances,
             dry_run=dry_run,
         )
-
-        logger.info(
-            f"Task {request_id} completed",
-            status=result.status,
-            total_actions=len(result.actions),
-            applied_count=result.applied_count,
-            actions=[action.model_dump() for action in result.actions],
-            errors=result.errors,
+    except Exception as err:
+        logger.exception(f"Task {request_id} failed with error")
+        return GlitchtipProjectAlertsTaskResult(
+            status=TaskStatus.FAILED,
+            actions=[],
+            applied_count=0,
+            errors=[f"Unexpected {err=}"],
         )
 
-        if not dry_run and event_manager:
+    logger.info(
+        f"Task {request_id} completed",
+        status=result.status,
+        total_actions=len(result.actions),
+        applied_count=result.applied_count,
+        actions=[action.model_dump() for action in result.actions],
+        errors=result.errors,
+    )
+
+    if not dry_run and event_manager:
+        try:
             for action in result.applied_actions:
                 event_manager.publish_event(
                     Event(
@@ -131,14 +139,7 @@ def reconcile_glitchtip_project_alerts_task(
                         datacontenttype="application/json",
                     )
                 )
+        except Exception:
+            logger.exception(f"Task {request_id} failed to publish events")
 
-        return result
-
-    except Exception as err:
-        logger.exception(f"Task {request_id} failed with error")
-        return GlitchtipProjectAlertsTaskResult(
-            status=TaskStatus.FAILED,
-            actions=[],
-            applied_count=0,
-            errors=[f"Unexpected {err=}"],
-        )
+    return result

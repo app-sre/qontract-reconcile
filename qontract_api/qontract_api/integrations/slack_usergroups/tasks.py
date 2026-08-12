@@ -110,7 +110,7 @@ def reconcile_slack_usergroups_task(
     """
     request_id = self.request.id
 
-    try:  # ruff: ignore[too-many-statements-in-try-clause]
+    try:
         # Get shared dependencies
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
@@ -128,17 +128,26 @@ def reconcile_slack_usergroups_task(
             workspaces=workspaces,
             dry_run=dry_run,
         )
-
-        logger.info(
-            f"Task {request_id} completed",
-            status=result.status,
-            total_actions=len(result.actions),
-            applied_count=result.applied_count,
-            actions=[action.model_dump() for action in result.actions],
-            errors=result.errors,
+    except Exception as err:
+        logger.exception(f"Task {request_id} failed with error")
+        return SlackUsergroupsTaskResult(
+            status=TaskStatus.FAILED,
+            actions=[],
+            applied_count=0,
+            errors=[f"Unexpected {err=}"],
         )
 
-        if not dry_run and event_manager:
+    logger.info(
+        f"Task {request_id} completed",
+        status=result.status,
+        total_actions=len(result.actions),
+        applied_count=result.applied_count,
+        actions=[action.model_dump() for action in result.actions],
+        errors=result.errors,
+    )
+
+    if not dry_run and event_manager:
+        try:
             for action in result.applied_actions:
                 event_manager.publish_event(
                     Event(
@@ -163,14 +172,7 @@ def reconcile_slack_usergroups_task(
                         datacontenttype="application/json",
                     )
                 )
+        except Exception:
+            logger.exception(f"Task {request_id} failed to publish events")
 
-        return result
-
-    except Exception as err:
-        logger.exception(f"Task {request_id} failed with error")
-        return SlackUsergroupsTaskResult(
-            status=TaskStatus.FAILED,
-            actions=[],
-            applied_count=0,
-            errors=[f"Unexpected {err=}"],
-        )
+    return result

@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass
 from typing import Self
 
-import httpx
+import httpx2
 import structlog
 from lightkube import ApiError, Client
 from lightkube.config.kubeconfig import Cluster, KubeConfig, User
@@ -142,7 +142,7 @@ class KubernetesApi:
             cluster=Cluster(server=self._server, insecure=insecure_skip_tls_verify),
             user=User(token=token),
         )
-        self._client = Client(config=config, timeout=httpx.Timeout(timeout))
+        self._client = Client(config=config, timeout=httpx2.Timeout(timeout))
         self._has_projects: bool | None = None
 
     def _supports_projects(self) -> bool:
