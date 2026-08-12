@@ -98,6 +98,7 @@ def test_compile_desired_state_no_duplicate_succeeds() -> None:
 
     result = integration.compile_desired_state(orgs=[org], apps=[app1, app2])
     assert len(result) == 1
+    assert result[0].repos is not None
     repo_names = {r.name for r in result[0].repos}
     assert repo_names == {"repo-a", "repo-b"}
 
