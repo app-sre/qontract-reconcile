@@ -1,6 +1,7 @@
 from unittest.mock import create_autospec
 
 import pytest
+import requests
 
 from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
     QuayInstanceV1,
@@ -425,11 +426,71 @@ def test_get_current_robot_accounts_propagates_exception(
     mock_quay_api: QuayApi,
     mock_quay_api_store: QuayApiStore,
 ) -> None:
-    """Test that API errors propagate instead of being swallowed"""
+    """Test that non-auth API errors propagate instead of being swallowed"""
     mock_quay_api.list_robot_accounts.side_effect = Exception("API Error")  # type: ignore
 
     with pytest.raises(Exception, match="API Error"):
         get_current_robot_accounts(mock_quay_api_store)
+
+
+@pytest.mark.parametrize("status_code", [401, 403])
+def test_get_current_robot_accounts_skips_auth_errors(
+    mock_quay_api: QuayApi,
+    mock_quay_api_store: QuayApiStore,
+    status_code: int,
+) -> None:
+    """Orgs that return 401/403 when listing robots are skipped with a warning"""
+    response = create_autospec(requests.Response, instance=True)
+    response.status_code = status_code
+    mock_quay_api.list_robot_accounts.side_effect = requests.exceptions.HTTPError(  # type: ignore
+        f"{status_code} Client Error",
+        response=response,
+    )
+
+    result = get_current_robot_accounts(mock_quay_api_store)
+
+    assert result == {}
+
+
+def test_get_current_robot_accounts_propagates_non_auth_http_error(
+    mock_quay_api: QuayApi,
+    mock_quay_api_store: QuayApiStore,
+) -> None:
+    """Non-auth HTTP errors still fail the integration"""
+    response = create_autospec(requests.Response, instance=True)
+    response.status_code = 500
+    mock_quay_api.list_robot_accounts.side_effect = requests.exceptions.HTTPError(  # type: ignore
+        "500 Server Error",
+        response=response,
+    )
+
+    with pytest.raises(requests.exceptions.HTTPError, match="500 Server Error"):
+        get_current_robot_accounts(mock_quay_api_store)
+
+
+def test_build_current_state_skips_unauthorized_robot_permissions(
+    mock_quay_api: QuayApi,
+    mock_quay_api_store: QuayApiStore,
+) -> None:
+    """401/403 on get_robot_account_permissions soft-skips repo state for that robot"""
+    robot = RobotAccountDetails(
+        name="robot",
+        description="Robot",
+        teams=["team1"],
+        repositories=["repo1"],
+    )
+    response = create_autospec(requests.Response, instance=True)
+    response.status_code = 403
+    mock_quay_api.get_robot_account_permissions.side_effect = (  # type: ignore
+        requests.exceptions.HTTPError("403 Client Error", response=response)
+    )
+    current_robots = {("quay-instance", "test-org"): [robot]}
+
+    current_state = build_current_state(current_robots, mock_quay_api_store)
+
+    state = current_state["quay-instance", "test-org", "robot"]
+    assert state.teams == {"team1"}
+    assert state.repositories == {}
 
 
 def test_build_current_state_filters_unmanaged_teams(

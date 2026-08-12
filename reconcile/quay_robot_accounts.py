@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
+import requests
 from qontract_utils.differ import diff_mappings
 
 from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
@@ -18,6 +19,15 @@ if TYPE_CHECKING:
     from reconcile.utils.quay_api import RobotAccountDetails
 
 QONTRACT_INTEGRATION = "quay-robot-accounts"
+
+# Quay org tokens in app-interface sometimes lack robot-account scope. Soft-skip
+# these auth failures so one under-privileged org does not block the rest.
+_AUTH_SKIP_HTTP_STATUSES = frozenset({401, 403})
+
+
+def _is_robot_auth_http_error(exc: requests.exceptions.HTTPError) -> bool:
+    status = exc.response.status_code if exc.response is not None else None
+    return status in _AUTH_SKIP_HTTP_STATUSES
 
 
 class RobotAccountActionType(Enum):
@@ -65,11 +75,27 @@ def get_robot_accounts_from_gql() -> list[QuayRobotV1]:
 def get_current_robot_accounts(
     quay_api_store: QuayApiStore,
 ) -> dict[tuple[str, str], list[RobotAccountDetails]]:
-    """Fetch current robot accounts from Quay API for all organizations"""
-    current_state = {}
+    """Fetch current robot accounts from Quay API for all organizations.
+
+    Organizations that return HTTP 401/403 when listing robots are skipped with
+    a warning. Some Quay org tokens in app-interface lack robot-account scope;
+    failing closed on those would block reconciliation for every other org.
+    """
+    current_state: dict[tuple[str, str], list[RobotAccountDetails]] = {}
 
     for org_key, org_info in quay_api_store.items():
-        robots = org_info["api"].list_robot_accounts()
+        try:
+            robots = org_info["api"].list_robot_accounts()
+        except requests.exceptions.HTTPError as e:
+            if _is_robot_auth_http_error(e):
+                logging.warning(
+                    "Skipping org %s/%s: unauthorized to list robot accounts (%s)",
+                    org_key.instance,
+                    org_key.org_name,
+                    e.response.status_code if e.response is not None else "unknown",
+                )
+                continue
+            raise
         current_state[org_key.instance, org_key.org_name] = robots or []
 
     return current_state
@@ -143,7 +169,24 @@ def build_current_state(
             # does not manage repos (same gate as quay-permissions / quay-repos).
             repositories: dict[str, str] = {}
             if org_info["managedRepos"]:
-                for perm in quay_api.get_robot_account_permissions(robot_name):
+                try:
+                    permissions = quay_api.get_robot_account_permissions(robot_name)
+                except requests.exceptions.HTTPError as e:
+                    if _is_robot_auth_http_error(e):
+                        logging.warning(
+                            "Skipping repo permissions for robot %s in %s/%s: "
+                            "unauthorized (%s)",
+                            robot_name,
+                            instance_name,
+                            org_name,
+                            e.response.status_code
+                            if e.response is not None
+                            else "unknown",
+                        )
+                        permissions = []
+                    else:
+                        raise
+                for perm in permissions:
                     repositories[perm["repository"]["name"]] = perm["role"]
 
             state = RobotAccountState(
@@ -436,7 +479,31 @@ def run(dry_run: bool = False) -> None:
     with get_quay_api_store() as quay_api_store:
         current_robots = get_current_robot_accounts(quay_api_store)
 
+        # Orgs present in the store but missing from current_robots were soft-skipped
+        # on 401/403. Drop matching desired robots so we do not invent CREATE plans.
+        unauthorized_orgs = {
+            (org_key.instance, org_key.org_name)
+            for org_key in quay_api_store
+            if (org_key.instance, org_key.org_name) not in current_robots
+        }
+
         desired_state = build_desired_state(robot_accounts)
+        if unauthorized_orgs:
+            filtered_desired: dict[tuple[str, str, str], RobotAccountState] = {}
+            for key, state in desired_state.items():
+                org = (state.instance_name, state.org_name)
+                if org in unauthorized_orgs:
+                    logging.warning(
+                        "Skipping desired robot %s for %s/%s: unauthorized to list "
+                        "robot accounts",
+                        state.name,
+                        state.instance_name,
+                        state.org_name,
+                    )
+                    continue
+                filtered_desired[key] = state
+            desired_state = filtered_desired
+
         current_state = build_current_state(current_robots, quay_api_store)
 
         logging.debug(f"Desired robots: {len(desired_state)}")
