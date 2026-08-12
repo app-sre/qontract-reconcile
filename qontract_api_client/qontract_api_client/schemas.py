@@ -505,6 +505,81 @@ class OcmClustersResponse(pydantic.BaseModel):
     clusters: list[OcmClusterInfo]
 
 
+class OcmConnectionParams(pydantic.BaseModel):
+    access_token_client_id: str
+    access_token_url: str
+    field: str | None = None
+    ocm_url: str
+    path: str
+    secret_manager_url: str
+    version: int | None = None
+
+
+class OcmOidcIdpActionCreate(pydantic.BaseModel):
+    action_type: typing.Literal["create"] = "create"
+    auth_name: str
+    cluster_name: str
+
+
+class OcmOidcIdpActionDelete(pydantic.BaseModel):
+    action_type: typing.Literal["delete"] = "delete"
+    cluster_name: str
+    idp_name: str
+
+
+class OcmOidcIdpActionUpdate(pydantic.BaseModel):
+    action_type: typing.Literal["update"] = "update"
+    auth_name: str
+    cluster_name: str
+
+
+class OcmOidcIdpAuth(pydantic.BaseModel):
+    enforced: bool
+    group_filter_regex: str | None = None
+    issuer: str
+    name: str
+    oidc_enabled: bool
+
+
+class OcmOidcIdpCluster(pydantic.BaseModel):
+    auth: OcmOidcIdpAuth
+    cluster_id: str
+    name: str
+    organization_id: str
+
+
+class OcmOidcIdpReconcileRequest(pydantic.BaseModel):
+    clusters: list[OcmOidcIdpCluster]
+    dry_run: bool = True
+    ocm_connection: OcmConnectionParams
+    ocm_environment: str
+    vault_target: Secret
+
+
+class OcmOidcIdpTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class OcmOidcIdpTaskResult(pydantic.BaseModel):
+    actions: list[
+        typing.Annotated[
+            OcmOidcIdpActionCreate | OcmOidcIdpActionUpdate | OcmOidcIdpActionDelete,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_actions: list[
+        typing.Annotated[
+            OcmOidcIdpActionCreate | OcmOidcIdpActionUpdate | OcmOidcIdpActionDelete,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
+
+
 class OpenShiftNamespacesReconcileRequest(pydantic.BaseModel):
     clusters: list[ClusterNamespaces]
     dry_run: bool = True

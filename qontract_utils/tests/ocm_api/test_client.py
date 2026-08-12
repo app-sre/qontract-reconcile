@@ -8,6 +8,10 @@ import pytest
 from pytest_httpserver import HTTPServer
 from qontract_utils.hooks import Hooks
 from qontract_utils.ocm_api import OcmApi
+from qontract_utils.ocm_api.models import (
+    OcmIdentityProviderOidc,
+    OcmIdentityProviderOidcOpenId,
+)
 from qontract_utils.ocm_api.search_filters import Filter
 from werkzeug import Request, Response
 
@@ -15,6 +19,7 @@ TOKEN_PATH = "/auth/token"
 LABELS_PATH = "/api/accounts_mgmt/v1/labels"
 SUBSCRIPTIONS_PATH = "/api/accounts_mgmt/v1/subscriptions"
 CLUSTERS_PATH = "/api/clusters_mgmt/v1/clusters"
+IDPS_PATH = "/api/clusters_mgmt/v1/clusters/cluster-1/identity_providers"
 
 
 def _token_response(token: str) -> dict[str, object]:
@@ -229,6 +234,148 @@ def test_get_clusters_maps_fields(httpserver: HTTPServer) -> None:
 
     cluster_requests = [req for req, _ in httpserver.log if req.path == CLUSTERS_PATH]
     assert cluster_requests[0].args["order"] == "creation_timestamp"
+
+
+#
+# identity providers
+#
+
+
+def _oidc_idp_json(
+    idp_id: str = "idp-1", name: str = "redhat-sso"
+) -> dict[str, object]:
+    return {
+        "type": "OpenIDIdentityProvider",
+        "id": idp_id,
+        "name": name,
+        "mapping_method": "add",
+        "open_id": {
+            "client_id": "client-1",
+            "issuer": "https://issuer.example.com",
+            "claims": {"groups": []},
+        },
+    }
+
+
+def _github_idp_json(idp_id: str = "idp-2") -> dict[str, object]:
+    return {
+        "type": "GithubIdentityProvider",
+        "id": idp_id,
+        "name": "github",
+        "mapping_method": "add",
+    }
+
+
+def test_get_identity_providers_classifies_oidc_and_foreign_types(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    httpserver.expect_request(IDPS_PATH, method="GET").respond_with_json(
+        {
+            "items": [_oidc_idp_json(), _github_idp_json()],
+            "page": 1,
+            "size": 2,
+            "total": 2,
+        }
+    )
+
+    idps = api.get_identity_providers("cluster-1")
+
+    assert len(idps) == 2
+    oidc = next(idp for idp in idps if isinstance(idp, OcmIdentityProviderOidc))
+    assert oidc.name == "redhat-sso"
+    assert oidc.open_id.client_id == "client-1"
+    github = next(idp for idp in idps if not isinstance(idp, OcmIdentityProviderOidc))
+    assert github.name == "github"
+    assert github.id == "idp-2"
+
+
+def test_get_identity_providers_paginates(httpserver: HTTPServer) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+
+    def handler(request: Request) -> Response:
+        page = int(request.args.get("page", "1"))
+        if page == 1:
+            items = [_oidc_idp_json(f"idp-{i}", f"name-{i}") for i in range(100)]
+            body = {"items": items, "page": 1, "size": 100, "total": 101}
+        else:
+            items = [_oidc_idp_json("idp-100", "name-100")]
+            body = {"items": items, "page": 2, "size": 1, "total": 101}
+        return Response(json.dumps(body), content_type="application/json")
+
+    httpserver.expect_request(IDPS_PATH, method="GET").respond_with_handler(handler)
+
+    idps = api.get_identity_providers("cluster-1")
+
+    assert len(idps) == 101
+
+
+def test_create_identity_provider_sends_body_without_id(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    httpserver.expect_request(IDPS_PATH, method="POST").respond_with_json(
+        _oidc_idp_json()
+    )
+
+    idp = OcmIdentityProviderOidc(
+        name="redhat-sso",
+        open_id=OcmIdentityProviderOidcOpenId(
+            client_id="client-1",
+            client_secret="secret",
+            issuer="https://issuer.example.com",
+        ),
+    )
+
+    result = api.create_identity_provider("cluster-1", idp)
+
+    assert result.id == "idp-1"
+    create_requests = [req for req, _ in httpserver.log if req.path == IDPS_PATH]
+    assert len(create_requests) == 1
+    body = create_requests[0].get_json()
+    assert "id" not in body
+    assert body["open_id"]["client_secret"] == "secret"
+
+
+def test_update_identity_provider_excludes_id_and_name(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    update_path = f"{IDPS_PATH}/idp-1"
+    httpserver.expect_request(update_path, method="PATCH").respond_with_json(
+        _oidc_idp_json()
+    )
+
+    idp = OcmIdentityProviderOidc(
+        name="redhat-sso",
+        id="idp-1",
+        open_id=OcmIdentityProviderOidcOpenId(
+            client_id="client-1",
+            issuer="https://issuer.example.com",
+        ),
+    )
+
+    api.update_identity_provider("cluster-1", "idp-1", idp)
+
+    update_requests = [req for req, _ in httpserver.log if req.path == update_path]
+    assert len(update_requests) == 1
+    body = update_requests[0].get_json()
+    assert "id" not in body
+    assert "name" not in body
+
+
+def test_delete_identity_provider(httpserver: HTTPServer) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    delete_path = f"{IDPS_PATH}/idp-1"
+    httpserver.expect_request(delete_path, method="DELETE").respond_with_data(
+        status=204
+    )
+
+    api.delete_identity_provider("cluster-1", "idp-1")
+
+    delete_requests = [req for req, _ in httpserver.log if req.path == delete_path]
+    assert len(delete_requests) == 1
+    assert delete_requests[0].method == "DELETE"
 
 
 #

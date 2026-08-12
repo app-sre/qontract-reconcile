@@ -696,7 +696,7 @@ def _expose_errors_as_service_log(
     ocm_api.create_service_log(
         service_log=OCMClusterServiceLogCreateModel(
             cluster_uuid=cluster_uuid,
-            severity=OCMServiceLogSeverity.Warning,
+            severity=OCMServiceLogSeverity.Moderate,
             summary="Dynatrace Token Provider Errors",
             description=f"\n {error}",
             service_name=QONTRACT_INTEGRATION,

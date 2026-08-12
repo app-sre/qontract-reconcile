@@ -439,11 +439,11 @@ class OCMServiceLogSeverity(StrEnum):
     Represents the severity of a service log.
     """
 
+    Low = "Low"
+    Moderate = "Moderate"
+    Important = "Important"
+    Critical = "Critical"
     Debug = "Debug"
-    Info = "Info"
-    Warning = "Warning"
-    Error = "Error"
-    Fatal = "Fatal"
 
 
 class OCMClusterServiceLogCreateModel(BaseModel):
@@ -571,66 +571,6 @@ class ClusterDetails(BaseModel):
     def is_capability_set(self, name: str, value: str) -> bool:
         capa = self.capabilities.get(name)
         return capa is not None and capa.value == value
-
-
-class OCMOIdentityProviderMappingMethod(StrEnum):
-    ADD = "add"
-    CLAIM = "claim"
-    LOOKUP = "lookup"
-    GENERATE = "generate"
-
-
-class OCMOIdentityProvider(BaseModel):
-    type: str
-    name: str
-    id: str | None = None
-    href: str | None = None
-
-
-class OCMOIdentityProviderGithub(OCMOIdentityProvider):
-    # just basic mapping for now
-    type: str = "GithubIdentityProvider"
-    mapping_method: OCMOIdentityProviderMappingMethod = (
-        OCMOIdentityProviderMappingMethod.ADD
-    )
-
-
-class OCMOIdentityProviderOidcOpenIdClaims(BaseModel, frozen=True):
-    email: list[str] = ["email"]
-    name: list[str] = ["name"]
-    preferred_username: list[str] = ["preferred_username"]
-    groups: list[str] = []
-
-
-class OCMOIdentityProviderOidcOpenId(BaseModel):
-    client_id: str
-    client_secret: str | None = None
-    issuer: str
-    claims: OCMOIdentityProviderOidcOpenIdClaims = (
-        OCMOIdentityProviderOidcOpenIdClaims()
-    )
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, OCMOIdentityProviderOidcOpenId):
-            return False
-        return (
-            self.client_id == other.client_id
-            and self.issuer == other.issuer
-            and self.claims == other.claims
-        )
-
-
-class OCMOIdentityProviderOidc(OCMOIdentityProvider):
-    type: str = "OpenIDIdentityProvider"
-    mapping_method: OCMOIdentityProviderMappingMethod = (
-        OCMOIdentityProviderMappingMethod.ADD
-    )
-    open_id: OCMOIdentityProviderOidcOpenId
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, OCMOIdentityProviderOidc):
-            return False
-        return self.name == other.name and self.open_id == other.open_id
 
 
 class OCMAddonUpgradePolicy(BaseModel):

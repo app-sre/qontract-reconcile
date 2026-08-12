@@ -252,3 +252,24 @@ def test_get_repo_changes(mocker: MockerFixture) -> None:
     assert exp_saas_target == saastarget
     assert exp_deployment == deployment
     assert repo_changes == RepoChanges("repo1", "commitA", "commitB")
+
+
+def test_post_deployments_skips_when_get_token_fails(
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch("reconcile.dashdotdb_dora.DashdotdbDORA.__init__").return_value = None
+    d = DashdotdbDORA(False, "1", 1)
+    d.dry_run = False
+    d.dashdotdb_token = None
+    d.logmarker = "DORA"
+    d.scope = "dora"
+
+    d._get_token = MagicMock()  # type: ignore[method-assign]
+    d.post = MagicMock()  # type: ignore[method-assign]
+    d._close_token = MagicMock()  # type: ignore[method-assign]
+
+    d._post_deployments([{"some": "deployment"}])
+
+    d._get_token.assert_called_once()
+    d.post.assert_not_called()
+    d._close_token.assert_not_called()

@@ -70,6 +70,16 @@ query AutomatedActionsInstances {
         }
       }
       maxOps
+      ... on AutomatedActionActionCancel_v1 {
+        action_cancel_arguments: arguments {
+          owner
+        }
+      }
+      ... on AutomatedActionActionDetail_v1 {
+        action_detail_arguments: arguments {
+          owner
+        }
+      }
       ... on AutomatedActionActionList_v1 {
         action_list_arguments: arguments {
           action_user
@@ -236,6 +246,22 @@ class AutomatedActionV1(ConfiguredBaseModel):
     q_type: str = Field(..., alias="type")
     permissions: Optional[list[PermissionAutomatedActionsV1]] = Field(..., alias="permissions")
     max_ops: int = Field(..., alias="maxOps")
+
+
+class AutomatedActionActionCancelArgumentV1(ConfiguredBaseModel):
+    owner: Optional[str] = Field(..., alias="owner")
+
+
+class AutomatedActionActionCancelV1(AutomatedActionV1):
+    action_cancel_arguments: Optional[list[AutomatedActionActionCancelArgumentV1]] = Field(..., alias="action_cancel_arguments")
+
+
+class AutomatedActionActionDetailArgumentV1(ConfiguredBaseModel):
+    owner: Optional[str] = Field(..., alias="owner")
+
+
+class AutomatedActionActionDetailV1(AutomatedActionV1):
+    action_detail_arguments: Optional[list[AutomatedActionActionDetailArgumentV1]] = Field(..., alias="action_detail_arguments")
 
 
 class AutomatedActionActionListArgumentV1(ConfiguredBaseModel):
@@ -450,7 +476,7 @@ class AutomatedActionOpenshiftWorkloadRestartV1(AutomatedActionV1):
 class AutomatedActionsInstanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     deployment: NamespaceV1 = Field(..., alias="deployment")
-    actions: Optional[list[Union[AutomatedActionActionListV1, AutomatedActionExternalResourceFlushElastiCacheV1, AutomatedActionExternalResourceRdsRebootV1, AutomatedActionExternalResourceRdsSnapshotV1, AutomatedActionExternalResourceRdsStartV1, AutomatedActionExternalResourceRdsStopV1, AutomatedActionOpenshiftTriggerCronjobV1, AutomatedActionOpenshiftWorkloadDeleteV1, AutomatedActionOpenshiftWorkloadRestartV1, AutomatedActionV1]]] = Field(..., alias="actions")
+    actions: Optional[list[Union[AutomatedActionActionCancelV1, AutomatedActionActionDetailV1, AutomatedActionActionListV1, AutomatedActionExternalResourceFlushElastiCacheV1, AutomatedActionExternalResourceRdsRebootV1, AutomatedActionExternalResourceRdsSnapshotV1, AutomatedActionExternalResourceRdsStartV1, AutomatedActionExternalResourceRdsStopV1, AutomatedActionOpenshiftTriggerCronjobV1, AutomatedActionOpenshiftWorkloadDeleteV1, AutomatedActionOpenshiftWorkloadRestartV1, AutomatedActionV1]]] = Field(..., alias="actions")
 
 
 class AutomatedActionsInstancesQueryData(ConfiguredBaseModel):

@@ -12,6 +12,10 @@ from reconcile.automated_actions.config.integration import (
     AutomatedActionsUser,
 )
 from reconcile.gql_definitions.automated_actions.instance import (
+    AutomatedActionActionCancelArgumentV1,
+    AutomatedActionActionCancelV1,
+    AutomatedActionActionDetailArgumentV1,
+    AutomatedActionActionDetailV1,
     AutomatedActionActionListArgumentV1,
     AutomatedActionActionListV1,
     AutomatedActionOpenshiftWorkloadRestartArgumentV1,
@@ -119,6 +123,40 @@ def actions() -> list[AutomatedActionV1]:
                 )
             ],
         ),
+        AutomatedActionActionDetailV1(
+            type="action-detail",
+            maxOps=0,
+            permissions=[
+                PermissionAutomatedActionsV1(
+                    roles=[
+                        RoleV1(
+                            name="role-2",
+                            users=[UserV1(org_username="user1")],
+                            bots=[],
+                            expirationDate=None,
+                        )
+                    ],
+                )
+            ],
+            action_detail_arguments=[AutomatedActionActionDetailArgumentV1(owner=".*")],
+        ),
+        AutomatedActionActionCancelV1(
+            type="action-cancel",
+            maxOps=0,
+            permissions=[
+                PermissionAutomatedActionsV1(
+                    roles=[
+                        RoleV1(
+                            name="role-2",
+                            users=[UserV1(org_username="user1")],
+                            bots=[],
+                            expirationDate=None,
+                        )
+                    ],
+                )
+            ],
+            action_cancel_arguments=[AutomatedActionActionCancelArgumentV1(owner=".*")],
+        ),
         AutomatedActionOpenshiftWorkloadRestartV1(
             type="openshift-workload-restart",
             maxOps=5,
@@ -172,6 +210,16 @@ def automated_actions_roles() -> AutomatedActionRoles:
                 params={"action_user": ".*"},
             ),
             AutomatedActionsPolicy(
+                obj="action-detail",
+                max_ops=0,
+                params={"owner": ".*"},
+            ),
+            AutomatedActionsPolicy(
+                obj="action-cancel",
+                max_ops=0,
+                params={"owner": ".*"},
+            ),
+            AutomatedActionsPolicy(
                 obj="openshift-workload-restart",
                 max_ops=5,
                 params={
@@ -197,6 +245,14 @@ def policy_file() -> str:
     obj: action-list
     params:
       action_user: .*
+  - max_ops: 0
+    obj: action-detail
+    params:
+      owner: .*
+  - max_ops: 0
+    obj: action-cancel
+    params:
+      owner: .*
   - max_ops: 5
     obj: openshift-workload-restart
     params:

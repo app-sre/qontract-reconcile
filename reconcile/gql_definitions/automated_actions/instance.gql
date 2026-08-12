@@ -26,6 +26,16 @@ query AutomatedActionsInstances {
         }
       }
       maxOps
+      ... on AutomatedActionActionCancel_v1 {
+        action_cancel_arguments: arguments {
+          owner
+        }
+      }
+      ... on AutomatedActionActionDetail_v1 {
+        action_detail_arguments: arguments {
+          owner
+        }
+      }
       ... on AutomatedActionActionList_v1 {
         action_list_arguments: arguments {
           action_user
