@@ -1,5 +1,5 @@
 from io import StringIO
-from typing import Any
+from typing import Any, Literal
 
 from ruamel.yaml.scalarstring import PreservedScalarString
 
@@ -19,7 +19,7 @@ def create_ruamel_instance(
     explicit_start: bool = False,
     width: int = 4096,
     pure: bool = False,
-    typ: str = "rt",
+    typ: Literal["rt", "safe"] = "rt",
 ) -> yaml.YAML:
     """Create a configured ruamel.yaml YAML instance.
 
