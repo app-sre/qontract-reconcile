@@ -158,7 +158,7 @@ class QuayApi:
             ValueError: if pagination exceeds _MAX_PAGE_FOLLOWS
         """
         repos: list[QuayRepo] = []
-        params: dict[str, object] = {"namespace": self.org}
+        params: dict[str, str] = {"namespace": self.org}
         follows = 0
 
         while True:
