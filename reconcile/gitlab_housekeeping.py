@@ -1237,9 +1237,10 @@ def _check_target_branch_integrity(
     omm_shas: set[str] = set()
     for mr in merged_omm:
         fresh = gl.get_merge_request(mr.iid)
-        sha = fresh.merge_commit_sha or fresh.squash_commit_sha
-        if sha:
-            omm_shas.add(sha)
+        if fresh.merge_commit_sha:
+            omm_shas.add(fresh.merge_commit_sha)
+        if fresh.squash_commit_sha:
+            omm_shas.add(fresh.squash_commit_sha)
 
     if current_head in omm_shas:
         return True
@@ -1298,6 +1299,9 @@ def _process_omm_group(
         ])
         return 0
 
+    # Runs once here rather than per-member: is_rebased() in _process_omm_member
+    # fetches the live HEAD each call, so a mid-loop external merge still prevents
+    # the next member from merging (it won't be rebased against the new HEAD).
     if not _check_target_branch_integrity(gl, lead, lead_sha):
         clear_omm_group(dry_run, gl, lead=lead)
         return 0

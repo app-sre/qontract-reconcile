@@ -2643,11 +2643,22 @@ def test_omm_group_external_merge_dissolves_group(
     clear_mock.assert_called_once_with(False, mocked_gl, lead=lead)
 
 
+@pytest.mark.parametrize(
+    "member_merge_sha, member_squash_sha, head_sha",
+    [
+        ("member-merge-sha", None, "member-merge-sha"),
+        ("merge-sha-abc", "squash-sha-abc", "squash-sha-abc"),
+    ],
+    ids=["merge-commit-only", "both-shas-head-matches-squash"],
+)
 def test_omm_group_omm_member_merge_does_not_dissolve(
     mocker: MockerFixture,
+    member_merge_sha: str,
+    member_squash_sha: str | None,
+    head_sha: str,
 ) -> None:
-    """When HEAD matches a merged OMM member's merge_commit_sha,
-    the group continues (no external merge)."""
+    """When HEAD matches a merged OMM member's merge_commit_sha or
+    squash_commit_sha, the group continues (no external merge)."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
         "reconcile.gitlab_housekeeping.is_rebased",
@@ -2669,7 +2680,7 @@ def test_omm_group_omm_member_merge_does_not_dissolve(
         return_value=[mr],
     )
 
-    mocked_gl = _make_omm_gl(head_sha="member-merge-sha")
+    mocked_gl = _make_omm_gl(head_sha=head_sha)
     mocked_gl.project.repository_compare.return_value = {"commits": []}
     mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
 
@@ -2677,8 +2688,8 @@ def test_omm_group_omm_member_merge_does_not_dissolve(
     merged_member.iid = 50
     mocked_gl.project.mergerequests.list.return_value = [merged_member]
     fresh_mr = Mock()
-    fresh_mr.merge_commit_sha = "member-merge-sha"
-    fresh_mr.squash_commit_sha = None
+    fresh_mr.merge_commit_sha = member_merge_sha
+    fresh_mr.squash_commit_sha = member_squash_sha
     mocked_gl.get_merge_request.return_value = fresh_mr
 
     merges = gl_h._process_omm_group(
