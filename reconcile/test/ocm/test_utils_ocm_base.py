@@ -11,6 +11,7 @@ from reconcile.utils.ocm_base_client import USER_AGENT, OCMBaseClient
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from pytest_httpserver import HTTPServer
     from werkzeug import Request
 
 
@@ -39,6 +40,17 @@ def test_user_agent_header_is_set(
     assert req is not None
     assert req.headers["User-Agent"] == USER_AGENT
     assert USER_AGENT.startswith("qontract-reconcile/")
+
+
+def test_user_agent_header_is_sent_on_token_request(
+    ocm_base: OCMBaseClient,
+    httpserver: HTTPServer,
+    access_token_url: str,
+) -> None:
+    _ = ocm_base
+    token_requests = [req for req, _ in httpserver.log if req.url == access_token_url]
+    assert len(token_requests) == 1
+    assert token_requests[0].headers["User-Agent"] == USER_AGENT
 
 
 @pytest.mark.parametrize(

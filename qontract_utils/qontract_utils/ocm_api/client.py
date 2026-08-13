@@ -118,6 +118,7 @@ def _fetch_access_token(
     access_token_client_id: str,
     access_token_client_secret: str,
     timeout: float,
+    user_agent: str,
 ) -> str:
     response = httpx2.post(
         access_token_url,
@@ -126,6 +127,7 @@ def _fetch_access_token(
             "client_id": access_token_client_id,
             "client_secret": access_token_client_secret,
         },
+        headers={"User-Agent": user_agent},
         timeout=timeout,
     )
     response.raise_for_status()
@@ -183,10 +185,11 @@ class OcmApi:
             access_token_client_secret: OAuth2 client secret (already resolved plaintext)
             timeout: API request timeout in seconds (default: 60)
             max_retries: number of transport-level retries for failed requests (default: 3)
-            user_agent: User-Agent header sent with every request. Defaults to
-                identifying qontract-utils itself; callers embedded in a larger
-                service (e.g. qontract-api) should pass their own app name/version
-                so OCM can attribute traffic to the actual caller.
+            user_agent: User-Agent header sent with every request, including the
+                OAuth token exchange. Defaults to identifying qontract-utils itself;
+                callers embedded in a larger service (e.g. qontract-api) should pass
+                their own app name/version so OCM can attribute traffic to the actual
+                caller.
             hooks: Optional custom hooks to merge with built-in hooks. Not read here -
                 @with_hooks intercepts and merges it into self._hooks before this body runs.
         """
@@ -198,6 +201,7 @@ class OcmApi:
             access_token_client_id,
             access_token_client_secret,
             timeout,
+            user_agent,
         )
         self._client = httpx2.Client(
             base_url=url,

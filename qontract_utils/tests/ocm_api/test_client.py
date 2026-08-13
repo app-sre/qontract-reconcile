@@ -1,6 +1,7 @@
 """Tests for qontract_utils.ocm_api.client."""
 
 import json
+from collections.abc import Generator
 from unittest.mock import MagicMock
 
 import pydantic
@@ -13,6 +14,7 @@ from qontract_utils.ocm_api.models import (
     OcmIdentityProviderOidcOpenId,
 )
 from qontract_utils.ocm_api.search_filters import Filter
+from qontract_utils.user_agent import DEFAULT_USER_AGENT
 from werkzeug import Request, Response
 
 TOKEN_PATH = "/auth/token"
@@ -21,25 +23,42 @@ SUBSCRIPTIONS_PATH = "/api/accounts_mgmt/v1/subscriptions"
 CLUSTERS_PATH = "/api/clusters_mgmt/v1/clusters"
 IDPS_PATH = "/api/clusters_mgmt/v1/clusters/cluster-1/identity_providers"
 
+_created_apis: list[OcmApi] = []
+
+
+@pytest.fixture(autouse=True)
+def _close_ocm_apis() -> Generator[None]:
+    """Close every OcmApi created via `_make_ocm_api` after each test."""
+    yield
+    for api in _created_apis:
+        api.close()
+    _created_apis.clear()
+
 
 def _token_response(token: str) -> dict[str, object]:
     return {"access_token": token, "token_type": "bearer", "expires_in": 300}
 
 
 def _make_ocm_api(
-    httpserver: HTTPServer, token: str, hooks: Hooks | None = None
+    httpserver: HTTPServer,
+    token: str,
+    hooks: Hooks | None = None,
+    user_agent: str = DEFAULT_USER_AGENT,
 ) -> OcmApi:
     httpserver.expect_request(TOKEN_PATH, method="POST").respond_with_json(
         _token_response(token)
     )
-    return OcmApi(
+    api = OcmApi(
         url=httpserver.url_for(""),
         access_token_url=httpserver.url_for(TOKEN_PATH),
         access_token_client_id="client-id",
         access_token_client_secret="client-secret",
         hooks=hooks,
         timeout=5,
+        user_agent=user_agent,
     )
+    _created_apis.append(api)
+    return api
 
 
 def _empty_page() -> dict[str, object]:
@@ -86,18 +105,16 @@ def test_default_user_agent_identifies_qontract_utils(httpserver: HTTPServer) ->
     assert label_requests[0].headers["User-Agent"].startswith("qontract-utils/")
 
 
+def test_user_agent_sent_on_token_request(httpserver: HTTPServer) -> None:
+    _make_ocm_api(httpserver, token="test-token", user_agent="qontract-api/1.2.3")
+
+    token_requests = [req for req, _ in httpserver.log if req.path == TOKEN_PATH]
+    assert len(token_requests) == 1
+    assert token_requests[0].headers["User-Agent"] == "qontract-api/1.2.3"
+
+
 def test_custom_user_agent_overrides_default(httpserver: HTTPServer) -> None:
-    httpserver.expect_request(TOKEN_PATH, method="POST").respond_with_json(
-        _token_response("test-token")
-    )
-    api = OcmApi(
-        url=httpserver.url_for(""),
-        access_token_url=httpserver.url_for(TOKEN_PATH),
-        access_token_client_id="client-id",
-        access_token_client_secret="client-secret",
-        timeout=5,
-        user_agent="qontract-api/1.2.3",
-    )
+    api = _make_ocm_api(httpserver, token="test-token", user_agent="qontract-api/1.2.3")
     httpserver.expect_request(LABELS_PATH, method="GET").respond_with_json(
         _empty_page()
     )

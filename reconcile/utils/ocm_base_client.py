@@ -60,6 +60,7 @@ class OCMBaseClient:
         self._access_token_url = access_token_url
         self._url = url
         self._session = session or Session()
+        self._session.headers["User-Agent"] = USER_AGENT
         self._init_access_token()
         self._init_request_headers()
 
@@ -80,7 +81,6 @@ class OCMBaseClient:
         self._session.headers.update({
             "Authorization": f"Bearer {self._access_token}",
             "accept": "application/json",
-            "User-Agent": USER_AGENT,
         })
 
     def get(self, api_path: str, params: Mapping[str, str] | None = None) -> Any:
