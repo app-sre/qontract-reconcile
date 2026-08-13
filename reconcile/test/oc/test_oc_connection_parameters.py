@@ -101,7 +101,9 @@ def test_from_cluster_falls_back_to_singular_when_no_active_list_entry() -> None
 
 def test_from_cluster_falls_back_to_singular_for_delete_flagged_entry() -> None:
     cluster = _FakeCluster(
-        automation_tokens=[_FakeTokenEntry(active=True, delete=True, secret=_ACTIVE_SECRET)],
+        automation_tokens=[
+            _FakeTokenEntry(active=True, delete=True, secret=_ACTIVE_SECRET)
+        ],
         automation_token=_FALLBACK_SECRET,
     )
     secret_reader = create_autospec(SecretReaderBase)
@@ -130,10 +132,11 @@ def test_from_cluster_falls_back_to_singular_for_entry_without_secret() -> None:
 
 
 def test_from_cluster_picks_first_active_list_entry() -> None:
+    first = _FakeSecret(path="vault/first")
     second = _FakeSecret(path="vault/second")
     cluster = _FakeCluster(
         automation_tokens=[
-            _FakeTokenEntry(active=False, secret=_ACTIVE_SECRET),
+            _FakeTokenEntry(active=True, secret=first),
             _FakeTokenEntry(active=True, secret=second),
         ],
         automation_token=_FALLBACK_SECRET,
@@ -145,7 +148,7 @@ def test_from_cluster_picks_first_active_list_entry() -> None:
         cluster=cluster, secret_reader=secret_reader, cluster_admin=False
     )
 
-    secret_reader.read_all_secret.assert_called_once_with(second)
+    secret_reader.read_all_secret.assert_called_once_with(first)
 
 
 def test_from_cluster_admin_prefers_list_token() -> None:

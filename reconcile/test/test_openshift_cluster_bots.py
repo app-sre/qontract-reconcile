@@ -303,7 +303,11 @@ def test_process_entry_create_new(
 
     oc_mock = mocker.patch("reconcile.openshift_cluster_bots.oc", autospec=True)
     oc_mock.side_effect = [
-        CalledProcessError(returncode=1, cmd="oc", stderr=b'Error from server (NotFound): secrets "tok" not found'),  # oc_get_secret: not found
+        CalledProcessError(
+            returncode=1,
+            cmd="oc",
+            stderr=b'Error from server (NotFound): secrets "tok" not found',
+        ),  # oc_get_secret: not found
         {},  # apply ServiceAccount
         {},  # apply Secret
         {"data": {"token": base64.b64encode(b"mytoken")}},  # retrieve_token
