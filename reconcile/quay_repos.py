@@ -7,6 +7,7 @@ from collections import namedtuple
 from reconcile.quay_base import (
     OrgKey,
     QuayApiStore,
+    get_quay_api_store,
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
@@ -222,7 +223,7 @@ def act(
 
 
 def run(dry_run: bool) -> None:
-    with QuayApiStore() as quay_api_store:
+    with get_quay_api_store() as quay_api_store:
         # consistency checks
         for org_key, org_info in quay_api_store.items():
             if org_info.get("mirror"):
