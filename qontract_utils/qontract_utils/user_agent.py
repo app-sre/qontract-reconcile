@@ -1,7 +1,7 @@
 """Default User-Agent for qontract_utils HTTP clients.
 
-Every Layer 1 API client sends this by default so external services can
-attribute traffic to qontract-utils. Callers embedded in a larger service
+Every HTTP-based Layer 1 API client sends this by default so external services
+can attribute traffic to qontract-utils. Callers embedded in a larger service
 (e.g. qontract-api) should pass their own app name/version instead so the
 embedding service is what shows up in the traffic, not the shared library.
 """

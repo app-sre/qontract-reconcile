@@ -116,18 +116,18 @@ class GithubOrgApi:
         self,
         token: str,
         base_url: str = "https://api.github.com",
-        user_agent: str = DEFAULT_USER_AGENT,
         hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - handled by @with_hooks
+        user_agent: str = DEFAULT_USER_AGENT,
     ) -> None:
         """Initialize GithubOrgApi.
 
         Args:
             token: GitHub API token
             base_url: GitHub API base URL (override for GHE)
+            hooks: Optional custom hooks merged with built-in hooks
             user_agent: User-Agent header sent with every request. Defaults to
                 identifying qontract-utils itself; callers embedded in a larger
                 service should pass their own app name/version instead.
-            hooks: Optional custom hooks merged with built-in hooks
         """
         self._token = token
         self._base_url = base_url

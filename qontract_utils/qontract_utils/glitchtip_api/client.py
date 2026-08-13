@@ -178,8 +178,8 @@ class GlitchtipApi:
         token: str,
         timeout: int = TIMEOUT,
         max_retries: int = 3,
-        user_agent: str = DEFAULT_USER_AGENT,
         hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
+        user_agent: str = DEFAULT_USER_AGENT,
     ) -> None:
         """Initialize Glitchtip API client.
 
@@ -188,11 +188,11 @@ class GlitchtipApi:
             token: Glitchtip API token (Bearer token)
             timeout: API request timeout in seconds (default: 30)
             max_retries: Number of retries for failed requests (default: 3)
+            hooks: Optional custom hooks to merge with built-in hooks.
+                Built-in hooks (metrics, logging, latency) are automatically included.
             user_agent: User-Agent header sent with every request. Defaults to
                 identifying qontract-utils itself; callers embedded in a larger
                 service should pass their own app name/version instead.
-            hooks: Optional custom hooks to merge with built-in hooks.
-                Built-in hooks (metrics, logging, latency) are automatically included.
         """
         self.host = host.rstrip("/")
         self._client = httpx2.Client(
