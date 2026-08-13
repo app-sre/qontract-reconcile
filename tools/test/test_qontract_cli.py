@@ -582,6 +582,31 @@ def test_review_queue_excludes_self_serviceable_mr_without_error(
     assert "MR 6" not in result.output
 
 
+def test_review_queue_includes_mr_when_skipped_pipeline_precedes_success(
+    mock_review_queue_gl: Mock,
+) -> None:
+    """An MR whose most recent pipeline is 'skipped' (merge_request_event)
+    but has a successful CI pipeline behind it must still appear in the
+    review queue — the skipped pipeline is not a real CI result."""
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(8, ["not-self-serviceable"])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.SKIPPED),
+        Mock(status=PipelineStatus.SUCCESS),
+    ]
+    mock_review_queue_gl.is_last_action_by_team.return_value = False
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 8" in result.output
+
+
 def test_review_queue_includes_bot_authored_self_serviceable_mr_with_pipeline_error(
     mock_review_queue_gl: Mock,
 ) -> None:
