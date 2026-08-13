@@ -534,14 +534,17 @@ def preprocess_merge_requests(
             MRStatus.CANNOT_BE_MERGED,
             MRStatus.CANNOT_BE_MERGED_RECHECK,
         }:
-            logging.warning([
+            if skip_unmergeable:
+                continue
+            # cannot_be_merged_recheck is a transient state GitLab sets for
+            # nearly every open MR on every reconcile cycle -- debug only,
+            # see run_error_healthcheck() for why this isn't a warning.
+            logging.debug([
                 "preprocess",
                 gl.project.name,
                 mr.iid,
-                f"merge_status={mr.merge_status}, MR likely conflicts with target branch",
+                f"merge_status={mr.merge_status}, including for rebase",
             ])
-            if skip_unmergeable:
-                continue
         if mr.draft:
             continue
         if len(mr.commits()) == 0:
@@ -1480,24 +1483,29 @@ def run_error_healthcheck(
         if mr.draft:
             continue
 
+        # Don't skip on cannot_be_merged/cannot_be_merged_recheck: that's
+        # exactly the state a real merge conflict produces, and it's the case
+        # the merge_error/rebase-error check below exists to catch. Skipping
+        # here means a conflicting MR can never be flagged. No log at this
+        # point though -- cannot_be_merged_recheck is a transient state that
+        # GitLab sets for nearly every open MR on every reconcile cycle
+        # before approval is even checked; logging here was tried in #5733
+        # and reverted in #5742 for producing ~1,700 log lines/hour.
+
+        if not is_good_to_merge(mr.labels):
+            continue
+
         if mr.merge_status in {
             MRStatus.CANNOT_BE_MERGED,
             MRStatus.CANNOT_BE_MERGED_RECHECK,
         }:
-            # Don't skip: this is exactly the state a real merge conflict
-            # produces, and it's the case the merge_error/rebase-error check
-            # below exists to catch. Skipping here means a conflicting MR
-            # can never be flagged, however it got into this state.
-            logging.warning([
+            logging.debug([
                 "error-healthcheck",
                 "unmergeable",
                 gl.project.name,
                 mr.iid,
                 f"merge_status={mr.merge_status}",
             ])
-
-        if not is_good_to_merge(mr.labels):
-            continue
 
         labels = set(mr.labels)
 
