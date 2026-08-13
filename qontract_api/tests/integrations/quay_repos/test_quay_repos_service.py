@@ -180,6 +180,22 @@ def test_expand_desired_state_empty_orgs(service: QuayReposService) -> None:
     assert service._expand_desired_state({}) == {}
 
 
+def test_expand_desired_state_mirror_own_repo_overlaps_upstream_raises(
+    service: QuayReposService,
+) -> None:
+    upstream = _org(org_name="upstream", managed_repos=True, repos=[_repo("foo")])
+    mirror = _org(
+        org_name="mirror",
+        managed_repos=False,
+        mirror=QuayOrgKey(instance="quay.io", org_name="upstream"),
+        repos=[_repo("foo")],
+    )
+    with pytest.raises(
+        QuayReposConfigError, match="duplicate repo names after mirror expansion"
+    ):
+        service._expand_desired_state(_org_map(upstream, mirror))
+
+
 # ---------------------------------------------------------------------------
 # _calculate_actions
 # ---------------------------------------------------------------------------
@@ -267,6 +283,89 @@ def _make_mock_api() -> MagicMock:
     mock = MagicMock()
     mock.__enter__.return_value = mock
     return mock
+
+
+# ---------------------------------------------------------------------------
+# _apply_actions
+# ---------------------------------------------------------------------------
+
+
+def test_apply_actions_all_succeed(service: QuayReposService) -> None:
+    api = _make_mock_api()
+    org = _org()
+    actions = [
+        QuayRepoActionCreate(
+            instance=org.instance,
+            org_name=org.org_name,
+            repo_name="new",
+            public=True,
+            description="",
+        ),
+        QuayRepoActionDelete(
+            instance=org.instance, org_name=org.org_name, repo_name="old"
+        ),
+    ]
+
+    applied, errors = service._apply_actions(api, org, actions)
+
+    assert applied == actions
+    assert errors == []
+    api.repo_create.assert_called_once()
+    api.repo_delete.assert_called_once()
+
+
+def test_apply_actions_all_fail(service: QuayReposService) -> None:
+    api = _make_mock_api()
+    api.repo_create.side_effect = Exception("boom")
+    org = _org()
+    actions = [
+        QuayRepoActionCreate(
+            instance=org.instance,
+            org_name=org.org_name,
+            repo_name="new",
+            public=True,
+            description="",
+        ),
+    ]
+
+    applied, errors = service._apply_actions(api, org, actions)
+
+    assert applied == []
+    assert len(errors) == 1
+    assert "create" in errors[0]
+    assert "boom" in errors[0]
+
+
+def test_apply_actions_partial_failure(service: QuayReposService) -> None:
+    api = _make_mock_api()
+    api.repo_create.side_effect = Exception("create failed")
+    org = _org()
+    create_action = QuayRepoActionCreate(
+        instance=org.instance,
+        org_name=org.org_name,
+        repo_name="new",
+        public=True,
+        description="",
+    )
+    delete_action = QuayRepoActionDelete(
+        instance=org.instance, org_name=org.org_name, repo_name="old"
+    )
+
+    applied, errors = service._apply_actions(api, org, [create_action, delete_action])
+
+    assert applied == [delete_action]
+    assert len(errors) == 1
+    assert "create" in errors[0]
+
+
+def test_apply_actions_empty(service: QuayReposService) -> None:
+    api = _make_mock_api()
+    org = _org()
+
+    applied, errors = service._apply_actions(api, org, [])
+
+    assert applied == []
+    assert errors == []
 
 
 # ---------------------------------------------------------------------------

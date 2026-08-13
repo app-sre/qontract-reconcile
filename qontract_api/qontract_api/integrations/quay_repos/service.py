@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import TYPE_CHECKING
 
 from qontract_utils.quay_api import QuayApi, QuayRepo
@@ -95,6 +96,15 @@ class QuayReposService:
             for downstream in downstream_of.get(org.key, []):
                 desired.setdefault(downstream.key, []).extend(org.repos)
 
+        for org_key, repos in desired.items():
+            counts = Counter(r.name for r in repos)
+            dupes = [name for name, count in counts.items() if count > 1]
+            if dupes:
+                raise QuayReposConfigError(
+                    f"{org_key.instance}/{org_key.org_name}: duplicate repo names after "
+                    f"mirror expansion: {sorted(dupes)}"
+                )
+
         return desired
 
     # ------------------------------------------------------------------
@@ -169,17 +179,18 @@ class QuayReposService:
         api: QuayApi,
         org: QuayOrgConfig,
         actions: list[QuayRepoAction],
-        applied_actions: list[QuayRepoAction],
-        errors: list[str],
-    ) -> None:
+    ) -> tuple[list[QuayRepoAction], list[str]]:
+        applied: list[QuayRepoAction] = []
+        errors: list[str] = []
         for action in actions:
             try:
                 self._execute_action(api, action)
-                applied_actions.append(action)
+                applied.append(action)
             except Exception as e:
                 error_msg = f"{org.instance}/{org.org_name}/{action.action_type}: {e}"
                 logger.exception(error_msg)
                 errors.append(error_msg)
+        return applied, errors
 
     @staticmethod
     def _execute_action(api: QuayApi, action: QuayRepoAction) -> None:
@@ -225,18 +236,18 @@ class QuayReposService:
         self,
         org: QuayOrgConfig,
         desired_repos: list[QuayRepoConfig],
-        applied_actions: list[QuayRepoAction],
-        errors: list[str],
         *,
         dry_run: bool,
-    ) -> list[QuayRepoAction]:
+    ) -> tuple[list[QuayRepoAction], list[QuayRepoAction], list[str]]:
         token = self.secret_manager.read(org.automation_token)
         with QuayApi(org=org.org_name, token=token, base_url=org.base_url) as api:
             current = api.list_images()
             actions = self._calculate_actions(org, current, desired_repos)
             if not dry_run:
-                self._apply_actions(api, org, actions, applied_actions, errors)
-        return actions
+                applied, errors = self._apply_actions(api, org, actions)
+            else:
+                applied, errors = [], []
+        return actions, applied, errors
 
     # ------------------------------------------------------------------
     # Main entry point
@@ -259,27 +270,29 @@ class QuayReposService:
         desired_by_org = self._expand_desired_state(org_map)
 
         all_actions: list[QuayRepoAction] = []
-        applied_actions: list[QuayRepoAction] = []
-        errors: list[str] = []
+        all_applied: list[QuayRepoAction] = []
+        all_errors: list[str] = []
 
         for org_key, desired_repos in desired_by_org.items():
             org = org_map[org_key]
             logger.info(f"Reconciling {org.instance}/{org.org_name}")
 
             try:
-                actions = self._reconcile_org(
-                    org, desired_repos, applied_actions, errors, dry_run=dry_run
+                actions, applied, errors = self._reconcile_org(
+                    org, desired_repos, dry_run=dry_run
                 )
                 all_actions.extend(actions)
+                all_applied.extend(applied)
+                all_errors.extend(errors)
             except Exception as e:
                 error_msg = f"{org.instance}/{org.org_name}: Unexpected error: {e}"
                 logger.exception(error_msg)
-                errors.append(error_msg)
+                all_errors.append(error_msg)
 
         return QuayReposTaskResult(
-            status=TaskStatus.FAILED if errors else TaskStatus.SUCCESS,
+            status=TaskStatus.FAILED if all_errors else TaskStatus.SUCCESS,
             actions=all_actions,
-            applied_actions=applied_actions,
-            applied_count=len(applied_actions),
-            errors=errors,
+            applied_actions=all_applied,
+            applied_count=len(all_applied),
+            errors=all_errors,
         )

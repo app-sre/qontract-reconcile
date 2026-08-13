@@ -66,5 +66,5 @@ def reconcile_quay_repos_task(
             status=TaskStatus.FAILED,
             actions=[],
             applied_count=0,
-            errors=[f"Unexpected {err=}"],
+            errors=[f"Unexpected error: {err}"],
         )

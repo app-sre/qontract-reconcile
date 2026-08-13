@@ -1,5 +1,6 @@
 """Pydantic schemas for Quay repos reconciliation API."""
 
+from collections import Counter
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -45,8 +46,8 @@ class QuayOrgConfig(BaseModel, frozen=True):
     @field_validator("repos")
     @classmethod
     def repos_names_unique(cls, repos: list[QuayRepoConfig]) -> list[QuayRepoConfig]:
-        names = [r.name for r in repos]
-        duplicates = {n for n in names if names.count(n) > 1}
+        duplicate_counter = Counter(repo.name for repo in repos)
+        duplicates = {name for name, count in duplicate_counter.items() if count > 1}
         if duplicates:
             raise ValueError(f"duplicate repo names: {', '.join(sorted(duplicates))}")
         return repos
