@@ -588,9 +588,7 @@ def test_review_queue_includes_mr_when_skipped_pipeline_precedes_success(
     """An MR whose most recent pipeline is 'skipped' (merge_request_event)
     but has a successful CI pipeline behind it must still appear in the
     review queue — the skipped pipeline is not a real CI result."""
-    mock_review_queue_gl.get_merge_requests.return_value = [
-        _mock_mr(8, [])
-    ]
+    mock_review_queue_gl.get_merge_requests.return_value = [_mock_mr(8, [])]
     mock_review_queue_gl.get_merge_request_pipelines.return_value = [
         Mock(status=PipelineStatus.SKIPPED),
         Mock(status=PipelineStatus.SUCCESS),
