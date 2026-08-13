@@ -33,7 +33,6 @@ def mock_robot_gql() -> QuayRobotV1:
         description="Test robot account",
         quay_org=QuayOrgV1(
             name="test-org",
-            managedRobotAccounts=True,
             instance=QuayInstanceV1(name="quay-instance", url="quay.io"),
             automationToken=VaultSecretV1(path="path", field="field", version=1),
         ),
@@ -120,7 +119,6 @@ def test_build_desired_state_empty_teams_repos(mock_robot_gql: QuayRobotV1) -> N
         description="Test robot",
         quay_org=QuayOrgV1(
             name="test-org",
-            managedRobotAccounts=True,
             instance=QuayInstanceV1(name="quay-instance", url="quay.io"),
             automationToken=None,
         ),

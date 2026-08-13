@@ -6,7 +6,6 @@ query QuayRobotAccounts {
     description
     quay_org {
       name
-      managedRobotAccounts
       instance {
         name
         url
