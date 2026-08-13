@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextvars
 import time
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, Self
 
 import httpx2
@@ -45,6 +46,13 @@ logger = structlog.get_logger(__name__)
 TIMEOUT = 60.0
 MAX_RETRIES = 3
 CHUNK_SIZE = 100
+
+try:
+    _QONTRACT_UTILS_VERSION = version("qontract-utils")
+except PackageNotFoundError:
+    _QONTRACT_UTILS_VERSION = "unknown"
+
+DEFAULT_USER_AGENT = f"qontract-utils/{_QONTRACT_UTILS_VERSION}"
 
 # Prometheus metrics
 ocm_request = Counter(
@@ -171,6 +179,7 @@ class OcmApi:
         hooks: Hooks | None = None,
         timeout: float = TIMEOUT,
         max_retries: int = MAX_RETRIES,
+        user_agent: str = DEFAULT_USER_AGENT,
     ) -> None:
         """Initialize the OCM API client.
 
@@ -181,6 +190,10 @@ class OcmApi:
             access_token_client_secret: OAuth2 client secret (already resolved plaintext)
             timeout: API request timeout in seconds (default: 60)
             max_retries: number of transport-level retries for failed requests (default: 3)
+            user_agent: User-Agent header sent with every request. Defaults to
+                identifying qontract-utils itself; callers embedded in a larger
+                service (e.g. qontract-api) should pass their own app name/version
+                so OCM can attribute traffic to the actual caller.
             hooks: Optional custom hooks to merge with built-in hooks. Not read here -
                 @with_hooks intercepts and merges it into self._hooks before this body runs.
         """
@@ -195,7 +208,10 @@ class OcmApi:
         )
         self._client = httpx2.Client(
             base_url=url,
-            headers={"Authorization": f"Bearer {access_token}"},
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "User-Agent": user_agent,
+            },
             timeout=timeout,
             transport=httpx2.HTTPTransport(retries=max_retries),
         )

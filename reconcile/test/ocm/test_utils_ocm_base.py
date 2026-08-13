@@ -6,7 +6,7 @@ import pytest
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.test.ocm.test_utils_ocm_get_json import build_paged_ocm_response
-from reconcile.utils.ocm_base_client import OCMBaseClient
+from reconcile.utils.ocm_base_client import USER_AGENT, OCMBaseClient
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -22,6 +22,23 @@ def ocm_base(access_token_url: str, ocm_url: str) -> OCMBaseClient:
         access_token_url=access_token_url,
         url=ocm_url,
     )
+
+
+def test_user_agent_header_is_set(
+    ocm_api: OCMBaseClient,
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+    find_ocm_http_request: Callable[[str, str], Request | None],
+) -> None:
+    register_ocm_url_responses([
+        OcmUrl(method="GET", uri="/api/some_path").add_list_response([])
+    ])
+
+    ocm_api.get("/api/some_path")
+
+    req = find_ocm_http_request("GET", "/api/some_path")
+    assert req is not None
+    assert req.headers["User-Agent"] == USER_AGENT
+    assert USER_AGENT.startswith("qontract-reconcile/")
 
 
 @pytest.mark.parametrize(

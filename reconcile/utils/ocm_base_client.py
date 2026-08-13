@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from importlib.metadata import PackageNotFoundError, version
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -31,6 +32,13 @@ if TYPE_CHECKING:
     from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 
 REQUEST_TIMEOUT_SEC = 60
+
+try:
+    _RECONCILE_VERSION = version("qontract-reconcile")
+except PackageNotFoundError:
+    _RECONCILE_VERSION = "unknown"
+
+USER_AGENT = f"qontract-reconcile/{_RECONCILE_VERSION}"
 
 
 class OCMBaseClient:
@@ -72,6 +80,7 @@ class OCMBaseClient:
         self._session.headers.update({
             "Authorization": f"Bearer {self._access_token}",
             "accept": "application/json",
+            "User-Agent": USER_AGENT,
         })
 
     def get(self, api_path: str, params: Mapping[str, str] | None = None) -> Any:

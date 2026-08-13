@@ -74,6 +74,40 @@ def test_bearer_token_sent_on_subsequent_requests(httpserver: HTTPServer) -> Non
     assert label_requests[0].headers["Authorization"] == "Bearer my-secret-token"
 
 
+def test_default_user_agent_identifies_qontract_utils(httpserver: HTTPServer) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    httpserver.expect_request(LABELS_PATH, method="GET").respond_with_json(
+        _empty_page()
+    )
+
+    api.get_labels(Filter().eq("key", "x"))
+
+    label_requests = [req for req, _ in httpserver.log if req.path == LABELS_PATH]
+    assert label_requests[0].headers["User-Agent"].startswith("qontract-utils/")
+
+
+def test_custom_user_agent_overrides_default(httpserver: HTTPServer) -> None:
+    httpserver.expect_request(TOKEN_PATH, method="POST").respond_with_json(
+        _token_response("test-token")
+    )
+    api = OcmApi(
+        url=httpserver.url_for(""),
+        access_token_url=httpserver.url_for(TOKEN_PATH),
+        access_token_client_id="client-id",
+        access_token_client_secret="client-secret",
+        timeout=5,
+        user_agent="qontract-api/1.2.3",
+    )
+    httpserver.expect_request(LABELS_PATH, method="GET").respond_with_json(
+        _empty_page()
+    )
+
+    api.get_labels(Filter().eq("key", "x"))
+
+    label_requests = [req for req, _ in httpserver.log if req.path == LABELS_PATH]
+    assert label_requests[0].headers["User-Agent"] == "qontract-api/1.2.3"
+
+
 #
 # per-instance isolation
 #
