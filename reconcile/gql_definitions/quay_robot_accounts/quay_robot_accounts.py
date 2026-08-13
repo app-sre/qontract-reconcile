@@ -25,6 +25,7 @@ query QuayRobotAccounts {
     description
     quay_org {
       name
+      managedRobotAccounts
       instance {
         name
         url
@@ -65,6 +66,7 @@ class VaultSecretV1(ConfiguredBaseModel):
 
 class QuayOrgV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    managed_robot_accounts: Optional[bool] = Field(..., alias="managedRobotAccounts")
     instance: QuayInstanceV1 = Field(..., alias="instance")
     automation_token: Optional[VaultSecretV1] = Field(..., alias="automationToken")
 

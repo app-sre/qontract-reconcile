@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import logging
 import sys
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
-import requests
 from qontract_utils.differ import diff_mappings
 
 from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
@@ -16,18 +17,11 @@ from reconcile.status import ExitCodes
 from reconcile.utils import gql
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from reconcile.utils.quay_api import RobotAccountDetails
 
 QONTRACT_INTEGRATION = "quay-robot-accounts"
-
-# Quay org tokens in app-interface sometimes lack robot-account scope. Soft-skip
-# these auth failures so one under-privileged org does not block the rest.
-_AUTH_SKIP_HTTP_STATUSES = frozenset({401, 403})
-
-
-def _is_robot_auth_http_error(exc: requests.exceptions.HTTPError) -> bool:
-    status = exc.response.status_code if exc.response is not None else None
-    return status in _AUTH_SKIP_HTTP_STATUSES
 
 
 class RobotAccountActionType(Enum):
@@ -72,30 +66,29 @@ def get_robot_accounts_from_gql() -> list[QuayRobotV1]:
     return list(query_data.robot_accounts or [])
 
 
+def desired_org_keys(
+    desired_state: dict[tuple[str, str, str], RobotAccountState],
+) -> set[OrgKey]:
+    """Org keys referenced by desired robot definitions."""
+    return {
+        OrgKey(state.instance_name, state.org_name) for state in desired_state.values()
+    }
+
+
 def get_current_robot_accounts(
     quay_api_store: QuayApiStore,
+    org_keys: Iterable[OrgKey],
 ) -> dict[tuple[str, str], list[RobotAccountDetails]]:
-    """Fetch current robot accounts from Quay API for all organizations.
+    """Fetch current robot accounts from Quay for the given organizations.
 
-    Organizations that return HTTP 401/403 when listing robots are skipped with
-    a warning. Some Quay org tokens in app-interface lack robot-account scope;
-    failing closed on those would block reconciliation for every other org.
+    Only opted-in orgs that appear in desired state should be passed here.
+    Auth failures (and other API errors) propagate — callers must fail closed.
     """
     current_state: dict[tuple[str, str], list[RobotAccountDetails]] = {}
 
-    for org_key, org_info in quay_api_store.items():
-        try:
-            robots = org_info["api"].list_robot_accounts()
-        except requests.exceptions.HTTPError as e:
-            if _is_robot_auth_http_error(e):
-                logging.warning(
-                    "Skipping org %s/%s: unauthorized to list robot accounts (%s)",
-                    org_key.instance,
-                    org_key.org_name,
-                    e.response.status_code if e.response is not None else "unknown",
-                )
-                continue
-            raise
+    for org_key in org_keys:
+        org_info = quay_api_store[org_key]
+        robots = org_info["api"].list_robot_accounts()
         current_state[org_key.instance, org_key.org_name] = robots or []
 
     return current_state
@@ -140,11 +133,14 @@ def build_desired_state(
 def build_current_state(
     current_robots: dict[tuple[str, str], list[RobotAccountDetails]],
     quay_api_store: QuayApiStore,
+    desired_keys: set[tuple[str, str, str]],
 ) -> dict[tuple[str, str, str], RobotAccountState]:
-    """Build current state from Quay API data.
+    """Build current state from Quay API data for desired robots only.
 
-    Only managedTeams memberships are tracked (same scope as quay-membership),
-    and repository permissions are only tracked when managedRepos is true.
+    Unmanaged robots (present in Quay but not in desired state) are ignored —
+    calculate_diff never deletes them without delete: true. Only managedTeams
+    memberships are tracked, and repository permissions only when managedRepos
+    is true. Auth failures on permission lookups propagate.
     """
     current_state = {}
 
@@ -159,6 +155,10 @@ def build_current_state(
 
         for robot_data in robots:
             robot_name = robot_data["name"]  # already normalized to short name
+            key = (instance_name, org_name, robot_name)
+            if key not in desired_keys:
+                continue
+
             description = robot_data.get("description")
 
             # Only reconcile membership for teams declared as managedTeams
@@ -169,23 +169,7 @@ def build_current_state(
             # does not manage repos (same gate as quay-permissions / quay-repos).
             repositories: dict[str, str] = {}
             if org_info["managedRepos"]:
-                try:
-                    permissions = quay_api.get_robot_account_permissions(robot_name)
-                except requests.exceptions.HTTPError as e:
-                    if _is_robot_auth_http_error(e):
-                        logging.warning(
-                            "Skipping repo permissions for robot %s in %s/%s: "
-                            "unauthorized (%s)",
-                            robot_name,
-                            instance_name,
-                            org_name,
-                            e.response.status_code
-                            if e.response is not None
-                            else "unknown",
-                        )
-                        permissions = []
-                    else:
-                        raise
+                permissions = quay_api.get_robot_account_permissions(robot_name)
                 for perm in permissions:
                     repositories[perm["repository"]["name"]] = perm["role"]
 
@@ -198,7 +182,7 @@ def build_current_state(
                 repositories=repositories,
             )
 
-            current_state[instance_name, org_name, robot_name] = state
+            current_state[key] = state
 
     return current_state
 
@@ -211,6 +195,7 @@ def validate_desired_state(
 
     Mirrors quay-membership (managedTeams) and quay-permissions (managedRepos):
     - org must have an automation token / API client in the store
+    - org must opt in via managedRobotAccounts=true
     - every desired team must be listed in the org's managedTeams
     - repository permissions require managedRepos=true on the org
 
@@ -228,10 +213,19 @@ def validate_desired_state(
             valid = False
             continue
 
+        org_info = quay_api_store[org_key]
+        if not org_info["managedRobotAccounts"]:
+            logging.error(
+                f"Can not manage robot {desired.name} in "
+                f"{desired.instance_name}/{desired.org_name} since "
+                f"managedRobotAccounts is not set to true."
+            )
+            valid = False
+            continue
+
         if desired.delete:
             continue
 
-        org_info = quay_api_store[org_key]
         managed_teams = set(org_info["teams"] or [])
 
         for team in desired.teams:
@@ -477,40 +471,21 @@ def run(dry_run: bool = False) -> None:
     error = False
 
     with get_quay_api_store() as quay_api_store:
-        current_robots = get_current_robot_accounts(quay_api_store)
-
-        # Orgs present in the store but missing from current_robots were soft-skipped
-        # on 401/403. Drop matching desired robots so we do not invent CREATE plans.
-        unauthorized_orgs = {
-            (org_key.instance, org_key.org_name)
-            for org_key in quay_api_store
-            if (org_key.instance, org_key.org_name) not in current_robots
-        }
-
         desired_state = build_desired_state(robot_accounts)
-        if unauthorized_orgs:
-            filtered_desired: dict[tuple[str, str, str], RobotAccountState] = {}
-            for key, state in desired_state.items():
-                org = (state.instance_name, state.org_name)
-                if org in unauthorized_orgs:
-                    logging.warning(
-                        "Skipping desired robot %s for %s/%s: unauthorized to list "
-                        "robot accounts",
-                        state.name,
-                        state.instance_name,
-                        state.org_name,
-                    )
-                    continue
-                filtered_desired[key] = state
-            desired_state = filtered_desired
-
-        current_state = build_current_state(current_robots, quay_api_store)
-
-        logging.debug(f"Desired robots: {len(desired_state)}")
-        logging.debug(f"Current robots: {len(current_state)}")
 
         if not validate_desired_state(desired_state, quay_api_store):
             sys.exit(ExitCodes.ERROR)
+
+        # Inventory only orgs that have desired robots and opted in. Validation
+        # already ensured managedRobotAccounts=true for every desired org.
+        org_keys = desired_org_keys(desired_state)
+        current_robots = get_current_robot_accounts(quay_api_store, org_keys)
+        current_state = build_current_state(
+            current_robots, quay_api_store, set(desired_state)
+        )
+
+        logging.debug(f"Desired robots: {len(desired_state)}")
+        logging.debug(f"Current robots: {len(current_state)}")
 
         actions = calculate_diff(desired_state, current_state)
 
