@@ -23,6 +23,7 @@ from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
+from qontract_utils.user_agent import DEFAULT_USER_AGENT
 
 logger = structlog.get_logger(__name__)
 
@@ -115,6 +116,7 @@ class GithubOrgApi:
         self,
         token: str,
         base_url: str = "https://api.github.com",
+        user_agent: str = DEFAULT_USER_AGENT,
         hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - handled by @with_hooks
     ) -> None:
         """Initialize GithubOrgApi.
@@ -122,11 +124,15 @@ class GithubOrgApi:
         Args:
             token: GitHub API token
             base_url: GitHub API base URL (override for GHE)
+            user_agent: User-Agent header sent with every request. Defaults to
+                identifying qontract-utils itself; callers embedded in a larger
+                service should pass their own app name/version instead.
             hooks: Optional custom hooks merged with built-in hooks
         """
         self._token = token
         self._base_url = base_url
-        self._gh = Github(token, base_url=base_url)
+        self._user_agent = user_agent
+        self._gh = Github(token, base_url=base_url, user_agent=user_agent)
 
     def _paginated_get(self, path: str) -> list[dict[str, Any]]:
         """Perform a paginated GET against the GitHub REST API.
@@ -141,6 +147,7 @@ class GithubOrgApi:
         headers = {
             "Authorization": f"token {self._token}",
             "Accept": "application/vnd.github.v3+json",
+            "User-Agent": self._user_agent,
         }
         items: list[dict[str, Any]] = []
 

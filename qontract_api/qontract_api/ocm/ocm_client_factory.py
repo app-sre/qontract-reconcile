@@ -52,7 +52,6 @@ def create_ocm_workspace_client(
             access_token_client_secret=access_token_client_secret,
             timeout=settings.ocm.api_timeout,
             max_retries=settings.ocm.api_max_retries,
-            user_agent=f"{settings.app_name}/{settings.version}",
         )
 
     # Stable, non-secret identity for this OCM environment + calling client, used

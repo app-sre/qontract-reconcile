@@ -10,7 +10,6 @@ from __future__ import annotations
 import contextvars
 import time
 from dataclasses import dataclass
-from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, Self
 
 import httpx2
@@ -36,6 +35,7 @@ from qontract_utils.ocm_api.models import (
     OcmSubscription,
     OcmSubscriptionLabel,
 )
+from qontract_utils.user_agent import DEFAULT_USER_AGENT
 
 if TYPE_CHECKING:
     from qontract_utils.ocm_api._raw_client import RawCluster, RawSubscription
@@ -46,13 +46,6 @@ logger = structlog.get_logger(__name__)
 TIMEOUT = 60.0
 MAX_RETRIES = 3
 CHUNK_SIZE = 100
-
-try:
-    _QONTRACT_UTILS_VERSION = version("qontract-utils")
-except PackageNotFoundError:
-    _QONTRACT_UTILS_VERSION = "unknown"
-
-DEFAULT_USER_AGENT = f"qontract-utils/{_QONTRACT_UTILS_VERSION}"
 
 # Prometheus metrics
 ocm_request = Counter(
