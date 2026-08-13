@@ -137,9 +137,15 @@ def test_cluster_misses_bot_tokens(
 def test_cluster_misses_bot_tokens_list_based(
     cluster: Callable, secret: VaultSecret, admin_secret: VaultSecret
 ) -> None:
-    active_entry = automation_token_entry(active=True, secret=vault_secret_dict("p", "token"))
-    inactive_entry = automation_token_entry(active=False, secret=vault_secret_dict("p", "token"))
-    delete_entry = automation_token_entry(active=True, delete=True, secret=vault_secret_dict("p", "token"))
+    active_entry = automation_token_entry(
+        active=True, secret=vault_secret_dict("p", "token")
+    )
+    inactive_entry = automation_token_entry(
+        active=False, secret=vault_secret_dict("p", "token")
+    )
+    delete_entry = automation_token_entry(
+        active=True, delete=True, secret=vault_secret_dict("p", "token")
+    )
     no_secret_entry = automation_token_entry(active=True)
 
     # list token satisfies the da requirement
@@ -162,7 +168,9 @@ def test_cluster_misses_bot_tokens_list_based(
     )
     # singular da + list cluster-admin also works
     assert not ocb.cluster_misses_bot_tokens(
-        cluster(secret=secret, admin=True, cluster_admin_automation_tokens=[active_entry])
+        cluster(
+            secret=secret, admin=True, cluster_admin_automation_tokens=[active_entry]
+        )
     )
 
 
@@ -295,7 +303,7 @@ def test_process_entry_create_new(
 
     oc_mock = mocker.patch("reconcile.openshift_cluster_bots.oc", autospec=True)
     oc_mock.side_effect = [
-        CalledProcessError(returncode=1, cmd="oc"),  # oc_get_secret: not found
+        CalledProcessError(returncode=1, cmd="oc", stderr=b'Error from server (NotFound): secrets "tok" not found'),  # oc_get_secret: not found
         {},  # apply ServiceAccount
         {},  # apply Secret
         {"data": {"token": base64.b64encode(b"mytoken")}},  # retrieve_token

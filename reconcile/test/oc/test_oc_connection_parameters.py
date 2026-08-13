@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from unittest.mock import create_autospec
 
@@ -13,7 +13,6 @@ from reconcile.test.oc.fixtures import (
 from reconcile.utils.oc_connection_parameters import (
     OCConnectionError,
     OCConnectionParameters,
-    _find_active_list_token,
     get_oc_connection_parameters_from_namespaces,
 )
 from reconcile.utils.secret_reader import (
@@ -35,7 +34,7 @@ class _FakeSecret:
     path: str
     field: str = "token"
     version: int | None = None
-    format: str | None = None
+    q_format: str | None = None
 
 
 @dataclass
@@ -61,40 +60,6 @@ class _FakeCluster:
 _ACTIVE_SECRET = _FakeSecret(path="vault/active")
 _FALLBACK_SECRET = _FakeSecret(path="vault/fallback")
 _VAULT_RESPONSE = {"server": "https://api.example.com", "token": "tok", "username": "u"}
-
-
-# ---------------------------------------------------------------------------
-# _find_active_list_token unit tests
-# ---------------------------------------------------------------------------
-
-
-def test_find_active_list_token_returns_none_for_empty() -> None:
-    assert _find_active_list_token(None) is None
-    assert _find_active_list_token([]) is None
-
-
-def test_find_active_list_token_skips_inactive() -> None:
-    entries = [_FakeTokenEntry(active=False, secret=_ACTIVE_SECRET)]
-    assert _find_active_list_token(entries) is None
-
-
-def test_find_active_list_token_skips_delete_flagged() -> None:
-    entries = [_FakeTokenEntry(active=True, delete=True, secret=_ACTIVE_SECRET)]
-    assert _find_active_list_token(entries) is None
-
-
-def test_find_active_list_token_skips_no_secret() -> None:
-    entries = [_FakeTokenEntry(active=True, secret=None)]
-    assert _find_active_list_token(entries) is None
-
-
-def test_find_active_list_token_returns_first_active() -> None:
-    second = _FakeSecret(path="vault/second")
-    entries = [
-        _FakeTokenEntry(active=False, secret=_ACTIVE_SECRET),
-        _FakeTokenEntry(active=True, secret=second),
-    ]
-    assert _find_active_list_token(entries) is second
 
 
 # ---------------------------------------------------------------------------
@@ -134,9 +99,60 @@ def test_from_cluster_falls_back_to_singular_when_no_active_list_entry() -> None
     secret_reader.read_all_secret.assert_called_once_with(_FALLBACK_SECRET)
 
 
+def test_from_cluster_falls_back_to_singular_for_delete_flagged_entry() -> None:
+    cluster = _FakeCluster(
+        automation_tokens=[_FakeTokenEntry(active=True, delete=True, secret=_ACTIVE_SECRET)],
+        automation_token=_FALLBACK_SECRET,
+    )
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_all_secret.return_value = _VAULT_RESPONSE
+
+    OCConnectionParameters.from_cluster(
+        cluster=cluster, secret_reader=secret_reader, cluster_admin=False
+    )
+
+    secret_reader.read_all_secret.assert_called_once_with(_FALLBACK_SECRET)
+
+
+def test_from_cluster_falls_back_to_singular_for_entry_without_secret() -> None:
+    cluster = _FakeCluster(
+        automation_tokens=[_FakeTokenEntry(active=True, secret=None)],
+        automation_token=_FALLBACK_SECRET,
+    )
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_all_secret.return_value = _VAULT_RESPONSE
+
+    OCConnectionParameters.from_cluster(
+        cluster=cluster, secret_reader=secret_reader, cluster_admin=False
+    )
+
+    secret_reader.read_all_secret.assert_called_once_with(_FALLBACK_SECRET)
+
+
+def test_from_cluster_picks_first_active_list_entry() -> None:
+    second = _FakeSecret(path="vault/second")
+    cluster = _FakeCluster(
+        automation_tokens=[
+            _FakeTokenEntry(active=False, secret=_ACTIVE_SECRET),
+            _FakeTokenEntry(active=True, secret=second),
+        ],
+        automation_token=_FALLBACK_SECRET,
+    )
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_all_secret.return_value = _VAULT_RESPONSE
+
+    OCConnectionParameters.from_cluster(
+        cluster=cluster, secret_reader=secret_reader, cluster_admin=False
+    )
+
+    secret_reader.read_all_secret.assert_called_once_with(second)
+
+
 def test_from_cluster_admin_prefers_list_token() -> None:
     cluster = _FakeCluster(
-        cluster_admin_automation_tokens=[_FakeTokenEntry(active=True, secret=_ACTIVE_SECRET)],
+        cluster_admin_automation_tokens=[
+            _FakeTokenEntry(active=True, secret=_ACTIVE_SECRET)
+        ],
         cluster_admin_automation_token=_FALLBACK_SECRET,
     )
     secret_reader = create_autospec(SecretReaderBase)
@@ -155,7 +171,9 @@ def test_from_cluster_without_list_attr_uses_singular() -> None:
     test_cluster = load_cluster_for_connection_parameters("cluster_no_jumphost.yml")
     secret_reader = create_autospec(SecretReaderBase)
     secret_reader.read_all_secret.return_value = {
-        "server": "server-url", "token": "secret1", "username": "foo"
+        "server": "server-url",
+        "token": "secret1",
+        "username": "foo",
     }
 
     params = OCConnectionParameters.from_cluster(

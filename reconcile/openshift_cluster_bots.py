@@ -62,15 +62,19 @@ def _has_active_token_with_secret(entries: list[AutomationTokenEntryV1] | None) 
 
 def cluster_misses_bot_tokens(cluster: ClusterV1) -> bool:
     # TODO(APPSRE-13941): simplify to just _has_active_token_with_secret() once all clusters migrated
-    has_da_token = cluster.automation_token is not None or _has_active_token_with_secret(
-        cluster.automation_tokens
+    has_da_token = (
+        cluster.automation_token is not None
+        or _has_active_token_with_secret(cluster.automation_tokens)
     )
     if not has_da_token:
         return True
     if cluster.cluster_admin is True:
         # TODO(APPSRE-13941): simplify once clusterAdminAutomationToken singular field is removed
-        return cluster.cluster_admin_automation_token is None and not _has_active_token_with_secret(
-            cluster.cluster_admin_automation_tokens
+        return (
+            cluster.cluster_admin_automation_token is None
+            and not _has_active_token_with_secret(
+                cluster.cluster_admin_automation_tokens
+            )
         )
     return False
 
@@ -140,7 +144,10 @@ def vault_data_for_entry(
 # Since that is very exceptional and should be done only in this context, it is preferable to
 # not update the generic client implementations.
 def oc(
-    kubeconfig: str, namespace: str, command: list[str], stdin: bytes | None = None,
+    kubeconfig: str,
+    namespace: str,
+    command: list[str],
+    stdin: bytes | None = None,
     output_json: bool = True,
 ) -> dict | None:
     output_flags = ["-o", "json"] if output_json else []
@@ -164,8 +171,11 @@ def oc_apply(kubeconfig: str, namespace: str, items: list[dict]) -> None:
 def oc_get_secret(kubeconfig: str, namespace: str, secret_name: str) -> dict | None:
     try:
         return oc(kubeconfig, namespace, ["get", "secret", secret_name])
-    except subprocess.CalledProcessError:
-        return None
+    except subprocess.CalledProcessError as e:
+        stderr = (e.stderr or b"").decode(errors="replace")
+        if "NotFound" in stderr or "not found" in stderr:
+            return None
+        raise
 
 
 def oc_delete_secret(kubeconfig: str, namespace: str, secret_name: str) -> None:
@@ -190,7 +200,11 @@ def oc_annotate_secret(
 
 def is_managed_secret(secret: dict, sa_name: str) -> bool:
     labels = secret.get("metadata", {}).get("labels") or {}
-    return labels.get(MANAGED_LABEL_KEY) == sa_name
+    if labels.get(MANAGED_LABEL_KEY) == sa_name:
+        return True
+    # Adopt legacy secrets that predate the managed label but belong to the SA.
+    annotations = secret.get("metadata", {}).get("annotations") or {}
+    return annotations.get("kubernetes.io/service-account.name") == sa_name
 
 
 def secret_has_vault_annotation(secret: dict) -> bool:
@@ -712,7 +726,9 @@ def filter_clusters(
         if has_list_entries:
             if cluster_needs_list_processing(cluster):
                 list_based.append(cluster)
-        elif cluster_misses_bot_tokens(cluster):  # TODO(APPSRE-13941): remove elif branch once all clusters migrated; filter_clusters returns only list_based
+        elif cluster_misses_bot_tokens(
+            cluster
+        ):  # TODO(APPSRE-13941): remove elif branch once all clusters migrated; filter_clusters returns only list_based
             legacy.append(cluster)
 
     return legacy, list_based

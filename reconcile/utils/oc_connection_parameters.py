@@ -50,10 +50,18 @@ class Cluster(Protocol):
     insecure_skip_tls_verify: bool | None
 
     @property
-    def automation_token(self) -> HasSecret | None: ...  # TODO(APPSRE-13941): remove once all clusters migrated to automationTokens
+    def automation_token(
+        self,
+    ) -> (
+        HasSecret | None
+    ): ...  # TODO(APPSRE-13941): remove once all clusters migrated to automationTokens
 
     @property
-    def cluster_admin_automation_token(self) -> HasSecret | None: ...  # TODO(APPSRE-13941): remove once all clusters migrated to clusterAdminAutomationTokens
+    def cluster_admin_automation_token(
+        self,
+    ) -> (
+        HasSecret | None
+    ): ...  # TODO(APPSRE-13941): remove once all clusters migrated to clusterAdminAutomationTokens
 
     @property
     def disable(self) -> Disable | None: ...
@@ -127,9 +135,12 @@ class OCConnectionParameters:
         cluster_admin_automation_token: str | None = None
 
         if cluster_admin:
-            token_secret = _find_active_list_token(
-                getattr(cluster, "cluster_admin_automation_tokens", None)
-            ) or cluster.cluster_admin_automation_token  # TODO(APPSRE-13941): remove fallback once all clusters migrated to clusterAdminAutomationTokens
+            token_secret = (
+                _find_active_list_token(
+                    getattr(cluster, "cluster_admin_automation_tokens", None)
+                )
+                or cluster.cluster_admin_automation_token
+            )  # TODO(APPSRE-13941): remove fallback once all clusters migrated to clusterAdminAutomationTokens
             if token_secret:
                 try:
                     cluster_admin_automation_token = (
@@ -150,9 +161,10 @@ class OCConnectionParameters:
                     f"No admin automation token set for cluster '{cluster.name}', but privileged access requested."
                 )
         else:
-            token_secret = _find_active_list_token(
-                getattr(cluster, "automation_tokens", None)
-            ) or cluster.automation_token  # TODO(APPSRE-13941): remove fallback once all clusters migrated to automationTokens
+            token_secret = (
+                _find_active_list_token(getattr(cluster, "automation_tokens", None))
+                or cluster.automation_token
+            )  # TODO(APPSRE-13941): remove fallback once all clusters migrated to automationTokens
             if token_secret:
                 try:
                     automation_token = OCConnectionParameters._get_automation_token(
