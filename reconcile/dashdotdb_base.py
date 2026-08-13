@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from base64 import b64encode
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
@@ -10,7 +11,7 @@ from urllib.parse import urljoin
 import requests
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Generator, Mapping
 
     from reconcile.utils.secret_reader import (
         HasSecret,
@@ -36,6 +37,10 @@ DASHDOTDB_SECRET = DashdotDBSecret(
 )
 
 
+class DashdotdbTokenError(Exception):
+    """Raised when a DashdotDB authentication token cannot be acquired."""
+
+
 class DashdotdbBase:
     def __init__(
         self,
@@ -56,8 +61,10 @@ class DashdotdbBase:
         self.scope = scope
         self.dashdotdb_token: str | None = None
 
-    def _get_token(self) -> None:
+    @contextmanager
+    def _token(self) -> Generator[str | None]:
         if self.dry_run:
+            yield None
             return
 
         params = {"scope": self.scope}
@@ -71,19 +78,17 @@ class DashdotdbBase:
         try:
             response.raise_for_status()
         except requests.exceptions.RequestException as details:
-            LOG.error(
-                "%s error retrieving token for %s data: %s",
-                self.logmarker,
-                self.scope,
-                details,
-            )
-            return
+            raise DashdotdbTokenError(
+                f"error retrieving token for {self.scope}: {details}"
+            ) from details
+
         self.dashdotdb_token = response.text.replace('"', "").strip()
+        try:
+            yield self.dashdotdb_token
+        finally:
+            self._close_token()
 
     def _close_token(self) -> None:
-        if self.dry_run:
-            return
-
         params = {"scope": self.scope}
         endpoint = f"{self.dashdotdb_url}/api/v1/token/{self.dashdotdb_token}"
         response = requests.delete(

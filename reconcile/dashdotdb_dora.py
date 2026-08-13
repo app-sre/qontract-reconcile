@@ -27,6 +27,7 @@ from reconcile import queries
 from reconcile.dashdotdb_base import (
     LOG,
     DashdotdbBase,
+    DashdotdbTokenError,
 )
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -202,8 +203,10 @@ class DashdotdbDORA(DashdotdbBase):
 
     Caveats:
 
-    * This class has been designed to run as a cronjob, so the cleanup code
-      should be reviewed if this changes its execution pattern to a service.
+    * This class has been designed to run as a cronjob, so the resource
+      cleanup (GitLab/GitHub API clients) should be reviewed if this
+      changes its execution pattern to a service. Token lifecycle is
+      handled by the _token() context manager in DashdotdbBase.
     """
 
     def __init__(
@@ -480,20 +483,19 @@ class DashdotdbDORA(DashdotdbBase):
         ]
 
     def _post_deployments(self, deployments: list[dict[str, Any]]) -> None:
-        self._get_token()
-        if not self.dry_run and not self.dashdotdb_token:
+        try:
+            with self._token():
+                self.post({"deployments": deployments})
+        except DashdotdbTokenError:
             LOG.error(
-                "%s failed to acquire token for %s data, skipping POST",
+                "%s error acquiring token for %s, skipping POST",
                 self.logmarker,
                 self.scope,
             )
-            return
-        try:
-            self.post({"deployments": deployments})
-        finally:
-            self._close_token()
 
     def post(self, data: Mapping[str, Any]) -> None:
+        if self.dry_run:
+            return
         endpoint = f"{self.dashdotdb_url}/api/v1/dora"
         response = self._do_post(endpoint, data)
         try:
