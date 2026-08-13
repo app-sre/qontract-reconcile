@@ -89,16 +89,16 @@ DATE_FORMAT = "%Y-%m-%d %H:%M"
 
 class _UserWithSlackIdentity(Protocol):
     org_username: str
-    gov_slack_username: str | None
+    gov_slack_email_local_part: str | None
 
 
 def slack_username(user: _UserWithSlackIdentity) -> str:
     """Return the Slack identity for an app-interface user.
 
-    Prefer gov_slack_username when set (gov Slack email local-part), otherwise
+    Prefer gov_slack_email_local_part when set (gov Slack email local-part), otherwise
     fall back to org_username (commercial Slack / LDAP).
     """
-    return user.gov_slack_username or user.org_username
+    return user.gov_slack_email_local_part or user.org_username
 
 
 class SlackWorkspace(BaseModel, arbitrary_types_allowed=True):
