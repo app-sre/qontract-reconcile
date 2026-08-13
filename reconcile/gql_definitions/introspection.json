@@ -11127,6 +11127,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "gov_slack_email_local_part",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "cloudflare_user",
                             "description": null,
                             "args": [],
