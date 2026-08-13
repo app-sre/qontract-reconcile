@@ -34,6 +34,7 @@ TASK_ENABLE_ENTERPRISE_SUPPORT = "enable-enterprise-support"
 TASK_CHECK_ENTERPRISE_SUPPORT_STATUS = "check-enterprise-support-status"
 TASK_SET_SECURITY_CONTACT = "set-security-contact"
 TASK_SET_SUPPORTED_REGIONS = "set-supported-regions"
+TASK_ENABLE_ROSA_MARKETPLACE = "enable-rosa-marketplace"
 
 
 class Quota(Protocol):
@@ -386,6 +387,29 @@ class AWSReconciler:
 
             state.value = regions
 
+    def _enable_rosa_marketplace(self, aws_api: AWSApi, name: str) -> None:
+        with self.state.transaction(
+            state_key(name, TASK_ENABLE_ROSA_MARKETPLACE)
+        ) as state:
+            if state.exists:
+                return
+
+            if aws_api.marketplace.has_rosa_subscription():
+                logging.info(f"{name}: ROSA HCP marketplace already subscribed")
+                state.value = "already-subscribed"
+                return
+
+            logging.info(f"{name}: Enabling ROSA HCP marketplace subscription")
+            if self.dry_run:
+                raise AbortStateTransactionError("Dry run")
+
+            offer = aws_api.marketplace.discover_rosa_offer()
+            agreement_id = aws_api.marketplace.subscribe_rosa(
+                agreement_proposal_id=offer.agreement_proposal_id,
+                term_ids=offer.term_ids,
+            )
+            state.value = agreement_id
+
     #
     # Public methods
     #
@@ -424,6 +448,9 @@ class AWSReconciler:
                 policy_arn=user_policy_arn,
             )
             return aws_api.iam.create_access_key(user_name=user_name)
+
+    def enable_rosa_marketplace(self, aws_api: AWSApi, name: str) -> None:
+        self._enable_rosa_marketplace(aws_api, name)
 
     def reconcile_organization_account(
         self,
