@@ -10,6 +10,9 @@ query AcsRbac {
         description
         service
         ... on OidcPermissionAcs_v1 {
+          instance {
+            name
+          }
           permission_set
           clusters {
             name
