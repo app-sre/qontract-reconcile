@@ -155,6 +155,9 @@ class AWSApiMarketplace:
             for d in rate_card.get("rateCard") or []
             if "dimensionKey" in d
         ]
+        if not dimensions:
+            msg = "configurableUpfrontPricingTerm rateCard has no dimensions"
+            raise RuntimeError(msg)
         return {"selectorValue": selector_value, "dimensions": dimensions}
 
     @invoke_with_hooks(

@@ -203,6 +203,33 @@ def test_discover_rosa_offer_no_terms(
         marketplace_api.discover_rosa_offer()
 
 
+def test_discover_rosa_offer_upfront_no_dimensions(
+    marketplace_api: AWSApiMarketplace, discovery_client: MagicMock
+) -> None:
+    discovery_client.list_purchase_options.return_value = {
+        "purchaseOptions": [{"purchaseOptionId": "po-1", "associatedEntities": []}]
+    }
+    discovery_client.get_offer.return_value = {"agreementProposalId": "prop-1"}
+    discovery_client.get_offer_terms.return_value = {
+        "offerTerms": [
+            {
+                "configurableUpfrontPricingTerm": {
+                    "id": "term-upfront",
+                    "type": "ConfigurableUpfrontPricingTerm",
+                    "rateCards": [
+                        {
+                            "selector": {"type": "Duration", "value": "P12M"},
+                            "rateCard": [],
+                        }
+                    ],
+                }
+            },
+        ]
+    }
+    with pytest.raises(RuntimeError, match="no dimensions"):
+        marketplace_api.discover_rosa_offer()
+
+
 def test_subscribe_rosa(
     marketplace_api: AWSApiMarketplace, agreement_client: MagicMock
 ) -> None:
