@@ -162,17 +162,15 @@ def test_build_current_state_single_robot(
     assert state.repositories == {"repo1": "read"}
 
 
-def test_build_current_state_no_org_key(
+def test_build_current_state_missing_org_key_errors(
     mock_current_robot: RobotAccountDetails, mock_quay_api_store: QuayApiStore
 ) -> None:
-    """Test building current state with no matching org key"""
+    """Missing org in the store fails closed (caller must validate first)"""
     current_robots = {("unknown-instance", "unknown-org"): [mock_current_robot]}
     desired_keys = {("unknown-instance", "unknown-org", "existing-robot")}
 
-    current_state = build_current_state(
-        current_robots, mock_quay_api_store, desired_keys
-    )
-    assert len(current_state) == 0
+    with pytest.raises(KeyError):
+        build_current_state(current_robots, mock_quay_api_store, desired_keys)
 
 
 def test_build_current_state_empty_robots(mock_quay_api_store: QuayApiStore) -> None:

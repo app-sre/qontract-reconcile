@@ -146,9 +146,6 @@ def build_current_state(
 
     for (instance_name, org_name), robots in current_robots.items():
         org_key = OrgKey(instance_name, org_name)
-        if org_key not in quay_api_store:
-            continue
-
         org_info = quay_api_store[org_key]
         quay_api = org_info["api"]
         managed_teams = set(org_info["teams"] or [])
