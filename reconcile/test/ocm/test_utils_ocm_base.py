@@ -53,6 +53,36 @@ def test_user_agent_header_is_sent_on_token_request(
     assert token_requests[0].headers["User-Agent"] == USER_AGENT
 
 
+def test_user_agent_header_can_be_overridden(
+    access_token_url: str,
+    ocm_url: str,
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+    find_ocm_http_request: Callable[[str, str], Request | None],
+    httpserver: HTTPServer,
+) -> None:
+    register_ocm_url_responses([
+        OcmUrl(method="GET", uri="/api/some_path").add_list_response([])
+    ])
+    custom_user_agent = "qontract-api/1.2.3"
+    client = OCMBaseClient(
+        access_token_client_id="some_client_id",
+        access_token_client_secret="some_client_secret",
+        access_token_url=access_token_url,
+        url=ocm_url,
+        user_agent=custom_user_agent,
+    )
+
+    client.get("/api/some_path")
+
+    req = find_ocm_http_request("GET", "/api/some_path")
+    assert req is not None
+    assert req.headers["User-Agent"] == custom_user_agent
+
+    token_requests = [req for req, _ in httpserver.log if req.url == access_token_url]
+    assert len(token_requests) == 1
+    assert token_requests[0].headers["User-Agent"] == custom_user_agent
+
+
 @pytest.mark.parametrize(
     "nr_of_items, page_size",
     [(10, 3), (10, 2), (1, 10), (10, 10)],

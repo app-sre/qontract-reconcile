@@ -10,9 +10,17 @@ from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version
 
-try:
-    _QONTRACT_UTILS_VERSION = version("qontract-utils")
-except PackageNotFoundError:
-    _QONTRACT_UTILS_VERSION = "unknown"
 
-DEFAULT_USER_AGENT = f"qontract-utils/{_QONTRACT_UTILS_VERSION}"
+def resolve_version(package: str, fallback: str = "unknown") -> str:
+    """Resolve the installed version of a package, falling back if not found.
+
+    Shared by every module that builds a `<package>/<version>` User-Agent
+    string, so the fallback behavior only needs to change in one place.
+    """
+    try:
+        return version(package)
+    except PackageNotFoundError:
+        return fallback
+
+
+DEFAULT_USER_AGENT = f"qontract-utils/{resolve_version('qontract-utils')}"
