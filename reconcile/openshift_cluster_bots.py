@@ -594,8 +594,8 @@ def process_cluster_entries(
     return results
 
 
-def _entry_to_dict(entry: AnyTokenEntry) -> dict:
-    entry_dict: dict = {"name": entry.name, "namespace": entry.namespace}
+def _entry_to_dict(entry: AnyTokenEntry) -> dict[str, object]:
+    entry_dict: dict[str, object] = {"name": entry.name, "namespace": entry.namespace}
     if entry.active is not None:
         entry_dict["active"] = entry.active
     if entry.delete is not None:
@@ -607,7 +607,7 @@ def _entry_to_dict(entry: AnyTokenEntry) -> dict:
 
 def _merge_entry_updates(
     existing_entries: Sequence[AnyTokenEntry], results: list[EntryResult]
-) -> list[dict] | None:
+) -> list[dict[str, object]] | None:
     result_by_key = {
         (r.entry.name, r.entry.namespace): r
         for r in results
@@ -616,7 +616,7 @@ def _merge_entry_updates(
     if not result_by_key:
         return None
 
-    merged: list[dict] = []
+    merged: list[dict[str, object]] = []
     for entry in existing_entries:
         entry_dict = _entry_to_dict(entry)
         key = (entry.name, entry.namespace)
