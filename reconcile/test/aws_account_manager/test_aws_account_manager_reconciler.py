@@ -891,7 +891,7 @@ def test_aws_account_manager_reconcile_enable_rosa_marketplace(
     aws_api.marketplace.discover_rosa_offer.return_value = RosaOffer(
         offer_id="offer-1",
         agreement_proposal_id="prop-1",
-        term_ids=["term-1", "term-2"],
+        requested_terms=[{"id": "term-1"}, {"id": "term-2"}],
     )
     aws_api.marketplace.subscribe_rosa.return_value = "agr-123"
 
@@ -900,7 +900,7 @@ def test_aws_account_manager_reconcile_enable_rosa_marketplace(
     aws_api.marketplace.discover_rosa_offer.assert_called_once()
     aws_api.marketplace.subscribe_rosa.assert_called_once_with(
         agreement_proposal_id="prop-1",
-        term_ids=["term-1", "term-2"],
+        requested_terms=[{"id": "term-1"}, {"id": "term-2"}],
     )
 
 
