@@ -18,7 +18,12 @@ import reconcile.gql_definitions.openshift_cluster_bots.clusters as clusters_gql
 from reconcile import mr_client_gateway, queries
 from reconcile.gql_definitions.openshift_cluster_bots.clusters import (
     AutomationTokenEntryV1,
+    ClusterV1_AutomationTokenEntryV1,
 )
+
+# qenerate emits separate classes when the same type appears under different parent
+# fields in the same query. Both are structurally identical so all helpers accept either.
+AnyTokenEntry = AutomationTokenEntryV1 | ClusterV1_AutomationTokenEntryV1
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -33,6 +38,8 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vault import VaultClient
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from reconcile.gql_definitions.openshift_cluster_bots.clusters import ClusterV1
 
 QONTRACT_INTEGRATION = "openshift-cluster-bots"
@@ -54,7 +61,7 @@ class Config(BaseModel):
     dry_run: bool
 
 
-def _has_active_token_with_secret(entries: list[AutomationTokenEntryV1] | None) -> bool:
+def _has_active_token_with_secret(entries: Sequence[AnyTokenEntry] | None) -> bool:
     if not entries:
         return False
     return any(e.active and not e.delete and e.secret is not None for e in entries)
@@ -122,7 +129,7 @@ def get_sa_name(config: Config, cluster_admin: bool) -> str:
 
 
 def vault_secret_for_entry(
-    cluster_name: str, config: Config, entry: AutomationTokenEntryV1
+    cluster_name: str, config: Config, entry: AnyTokenEntry
 ) -> dict[str, str]:
     return {
         "path": f"{config.vault_creds_path}/{cluster_name}/{entry.namespace}/{entry.name}",
@@ -389,7 +396,7 @@ def submit_mr(clusters: list[ClusterV1], config: Config) -> None:
 
 @dataclass
 class EntryResult:
-    entry: AutomationTokenEntryV1
+    entry: AnyTokenEntry
     cluster_admin: bool
     vault_secret: dict[str, str] | None
     action: str
@@ -406,7 +413,7 @@ def _process_delete_entry(
     kubeconfig: str,
     cluster: ClusterV1,
     config: Config,
-    entry: AutomationTokenEntryV1,
+    entry: AnyTokenEntry,
     sa_name: str,
     cluster_admin: bool,
 ) -> EntryResult:
@@ -442,7 +449,7 @@ def _process_create_entry(
     kubeconfig: str,
     cluster: ClusterV1,
     config: Config,
-    entry: AutomationTokenEntryV1,
+    entry: AnyTokenEntry,
     sa_name: str,
     cluster_admin: bool,
 ) -> EntryResult:
@@ -540,7 +547,7 @@ def process_entry(
     kubeconfig: str,
     cluster: ClusterV1,
     config: Config,
-    entry: AutomationTokenEntryV1,
+    entry: AnyTokenEntry,
     cluster_admin: bool,
 ) -> EntryResult:
     sa_name = get_sa_name(config, cluster_admin)
@@ -556,7 +563,7 @@ def process_entry(
 def process_cluster_entries(
     cluster: ClusterV1, ocm: OCM, config: Config
 ) -> list[EntryResult]:
-    entries: list[tuple[AutomationTokenEntryV1, bool]] = [
+    entries: list[tuple[AnyTokenEntry, bool]] = [
         (entry, False) for entry in (cluster.automation_tokens or [])
     ] + [(entry, True) for entry in (cluster.cluster_admin_automation_tokens or [])]
     if not entries:
@@ -587,7 +594,7 @@ def process_cluster_entries(
     return results
 
 
-def _entry_to_dict(entry: AutomationTokenEntryV1) -> dict:
+def _entry_to_dict(entry: AnyTokenEntry) -> dict:
     entry_dict: dict = {"name": entry.name, "namespace": entry.namespace}
     if entry.active is not None:
         entry_dict["active"] = entry.active
@@ -599,7 +606,7 @@ def _entry_to_dict(entry: AutomationTokenEntryV1) -> dict:
 
 
 def _merge_entry_updates(
-    existing_entries: list[AutomationTokenEntryV1], results: list[EntryResult]
+    existing_entries: Sequence[AnyTokenEntry], results: list[EntryResult]
 ) -> list[dict] | None:
     result_by_key = {
         (r.entry.name, r.entry.namespace): r
@@ -689,7 +696,7 @@ def create_all_bots(
         submit_mr(clusters, config)
 
 
-def _entry_needs_processing(entry: AutomationTokenEntryV1) -> bool:
+def _entry_needs_processing(entry: AnyTokenEntry) -> bool:
     return bool(entry.delete) or entry.secret is None
 
 

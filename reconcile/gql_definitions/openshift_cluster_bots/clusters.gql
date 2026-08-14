@@ -17,7 +17,7 @@ query OpenshiftClusterBotsQuery($name: String) {
         ...VaultSecret
       }
     }
-    automationToken {  # TODO(APPSRE-13941): remove once all clusters migrated to automationTokens
+    automationToken {
       ...VaultSecret
     }
     automationTokens {
@@ -30,7 +30,7 @@ query OpenshiftClusterBotsQuery($name: String) {
       }
     }
     clusterAdmin
-    clusterAdminAutomationToken {  # TODO(APPSRE-13941): remove once all clusters migrated to clusterAdminAutomationTokens
+    clusterAdminAutomationToken {
       ...VaultSecret
     }
     clusterAdminAutomationTokens {
