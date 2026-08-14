@@ -982,6 +982,35 @@ def test_error_mr_skipped_in_rebase(
     assert normal_mr.rebase.call_count == 1
 
 
+@pytest.mark.parametrize(
+    "strategy", [RebaseStrategy.ACTIVE_CAP, RebaseStrategy.OLD_BURST]
+)
+def test_rebase_strategies_pass_skip_unmergeable_false(
+    mocker: MockerFixture,
+    gitlab_api: Mock,
+    state: Mock,
+    strategy: RebaseStrategy,
+) -> None:
+    """Both rebase strategies must ask preprocessing to include MRs that are
+    currently unmergeable -- otherwise a conflicting MR can never be picked
+    up for a rebase attempt in the first place, regardless of which strategy
+    is active."""
+    mocked_get_merge_requests = mocker.patch(
+        "reconcile.gitlab_housekeeping.get_merge_requests",
+        return_value=[],
+    )
+
+    gl_h.rebase_merge_requests(
+        dry_run=False,
+        gl=gitlab_api,
+        rebase_limit=2,
+        state=state,
+        strategy=strategy,
+    )
+
+    assert mocked_get_merge_requests.call_args.kwargs.get("skip_unmergeable") is False
+
+
 # --- get_rebase_strategy tests ---
 
 
@@ -1450,6 +1479,37 @@ def test_healthcheck_applies_rebase_error_on_merge_error_field(
     mocked_gl.get_merge_request_pipelines.assert_not_called()
 
 
+def test_healthcheck_applies_rebase_error_when_currently_unmergeable(
+    project: Project,
+) -> None:
+    """The rebase-error label is the mechanism that's supposed to make a
+    broken MR visible in the review queue. It must still fire while GitLab
+    currently reports the MR as unmergeable -- that's exactly the state a
+    real merge conflict produces, and it's the case this healthcheck exists
+    to catch."""
+    mr = _make_healthcheck_mr(
+        labels=["lgtm"],
+        merge_status="cannot_be_merged",
+    )
+    fresh_mr = create_autospec(ProjectMergeRequest)
+    fresh_mr.merge_error = (
+        "Rebase failed: Rebase locally, resolve all conflicts, then push the branch."
+    )
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request.return_value = fresh_mr
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+    )
+
+    mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
+    mocked_gl.add_label_to_merge_request.assert_called_once_with(mr, "rebase-error")
+
+
 @pytest.mark.parametrize(
     "resolved_status",
     ["mergeable", "ci_must_pass"],
@@ -1691,6 +1751,74 @@ def test_error_labels_visible_in_queue(
     assert len(results) == 1
     assert results[0]["mr"] is mr
     assert results[0]["error"] is True
+
+
+def test_preprocess_merge_requests_skips_unmergeable_by_default(
+    state: Mock,
+    project: Project,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+) -> None:
+    """An MR that GitLab reports as unmergeable (real conflict with the
+    target branch) is excluded from the results by default -- this is what
+    keeps the merge-queue report from listing something that can't actually
+    be merged."""
+    mr = create_autospec(ProjectMergeRequest)
+    mr.merge_status = "cannot_be_merged"
+    mr.draft = False
+    mr.commits.return_value = [create_autospec(ProjectCommit)]
+    mr.labels = ["lgtm"]
+    mr.iid = 1
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+
+    results = gl_h.preprocess_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        state=state,
+        users_allowed_to_label=None,
+    )
+
+    assert results == []
+
+
+def test_preprocess_merge_requests_includes_unmergeable_when_flag_set(
+    state: Mock,
+    project: Project,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+) -> None:
+    """With skip_unmergeable=False, an otherwise-approved MR that is
+    currently unmergeable still comes back as a candidate -- this is what
+    lets the rebase strategies pick it up and attempt to fix it, instead of
+    it being silently abandoned forever."""
+    mr = create_autospec(ProjectMergeRequest)
+    mr.merge_status = "cannot_be_merged"
+    mr.draft = False
+    mr.commits.return_value = [create_autospec(ProjectCommit)]
+    mr.labels = ["lgtm"]
+    mr.iid = 1
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+
+    results = gl_h.preprocess_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        state=state,
+        users_allowed_to_label=None,
+        skip_unmergeable=False,
+    )
+
+    assert len(results) == 1
+    assert results[0]["mr"] is mr
 
 
 class TestMergeErrorCycleEndToEnd:
