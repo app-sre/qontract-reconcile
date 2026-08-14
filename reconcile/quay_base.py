@@ -13,6 +13,7 @@ class OrgInfo(TypedDict):
     push_token: dict[str, str] | None
     teams: list[str]
     managedRepos: bool
+    managedRobotAccounts: bool
     mirror: OrgKey | None
     mirror_filters: dict[str, Any]
     api: QuayApi
@@ -85,6 +86,7 @@ def get_quay_api_store() -> QuayApiStore:
             "push_token": push_token,
             "teams": org_data.get("managedTeams") or [],
             "managedRepos": bool(org_data.get("managedRepos")),
+            "managedRobotAccounts": bool(org_data.get("managedRobotAccounts")),
             "mirror": mirror,
             "mirror_filters": mirror_filters,
             "api": api,

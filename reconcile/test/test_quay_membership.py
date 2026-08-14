@@ -91,6 +91,7 @@ def build_quay_api_store(fixture: dict[str, Any]) -> QuayApiStore:
             teams=org_data["managedTeams"],
             push_token=None,
             managedRepos=False,
+            managedRobotAccounts=False,
             mirror=None,
             mirror_filters={},
             api=mock_api,

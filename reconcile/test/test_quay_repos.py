@@ -52,6 +52,7 @@ def quay_api_store() -> Iterator[QuayApiStore]:
             "push_token": None,
             "teams": [],
             "managedRepos": True,
+            "managedRobotAccounts": False,
             "mirror": None,
             "mirror_filters": {},
             "api": mock_api,
