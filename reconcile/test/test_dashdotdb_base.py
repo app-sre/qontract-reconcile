@@ -136,3 +136,61 @@ def test_body_exception_after_acquisition_still_releases_token(
         raise RuntimeError("simulated failure")
 
     mock_delete.assert_called_once()
+
+
+@patch("reconcile.dashdotdb_base.requests.get")
+@patch("reconcile.dashdotdb_base.requests.delete")
+def test_transport_failure_during_acquisition_raises_token_error(
+    mock_delete: MagicMock,
+    mock_get: MagicMock,
+) -> None:
+    # A timeout or connection error is raised by requests.get() itself, not by
+    # raise_for_status(). It must still surface as DashdotdbTokenError so callers
+    # that only catch DashdotdbTokenError skip the integration cleanly.
+    mock_get.side_effect = requests.exceptions.ConnectionError("boom")
+
+    base = _make_base(dry_run=False)
+
+    with pytest.raises(DashdotdbTokenError), base._token():
+        pytest.fail("body should not execute after a transport failure")
+
+    mock_delete.assert_not_called()
+
+
+@patch("reconcile.dashdotdb_base.requests.get")
+@patch("reconcile.dashdotdb_base.requests.delete")
+def test_empty_token_raises_and_prevents_tokenless_post(
+    mock_delete: MagicMock,
+    mock_get: MagicMock,
+) -> None:
+    # A 200 response with an empty body would leave dashdotdb_token == "", which
+    # _do_post() treats as "no X-Auth header" and would POST unauthenticated.
+    # An empty token must be rejected before the context body runs.
+    mock_get.return_value = _ok_response('""')
+
+    base = _make_base(dry_run=False)
+
+    with pytest.raises(DashdotdbTokenError), base._token():
+        pytest.fail("body should not execute when the token is empty")
+
+    mock_delete.assert_not_called()
+    assert base.dashdotdb_token is None
+
+
+@patch("reconcile.dashdotdb_base.requests.get")
+@patch("reconcile.dashdotdb_base.requests.delete")
+def test_token_release_failure_does_not_mask_body_exception(
+    mock_delete: MagicMock,
+    mock_get: MagicMock,
+) -> None:
+    # If requests.delete() fails at transport level during cleanup, that error
+    # must not replace the exception raised by the context body.
+    mock_get.return_value = _ok_response('"valid-token"')
+    mock_delete.side_effect = requests.exceptions.ConnectionError("cleanup boom")
+
+    base = _make_base(dry_run=False)
+
+    with pytest.raises(RuntimeError, match="simulated failure"), base._token():
+        raise RuntimeError("simulated failure")
+
+    mock_delete.assert_called_once()

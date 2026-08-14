@@ -69,20 +69,30 @@ class DashdotdbBase:
 
         params = {"scope": self.scope}
         endpoint = f"{self.dashdotdb_url}/api/v1/token"
-        response = requests.get(
-            url=endpoint,
-            params=params,
-            auth=(self.dashdotdb_user, self.dashdotdb_pass),
-            timeout=(5, 120),
-        )
+        # The request is inside the try so transport failures (timeout,
+        # connection reset) convert to DashdotdbTokenError, which is the only
+        # error the callers (DORA, DVO, SLO) catch to skip cleanly.
         try:
+            response = requests.get(
+                url=endpoint,
+                params=params,
+                auth=(self.dashdotdb_user, self.dashdotdb_pass),
+                timeout=(5, 120),
+            )
             response.raise_for_status()
         except requests.exceptions.RequestException as details:
             raise DashdotdbTokenError(
                 f"error retrieving token for {self.scope}: {details}"
             ) from details
 
-        self.dashdotdb_token = response.text.replace('"', "").strip()
+        # An empty token would make _do_post() omit the X-Auth header and POST
+        # unauthenticated. Reject it before yielding so no tokenless request runs.
+        token = response.text.replace('"', "").strip()
+        if not token:
+            raise DashdotdbTokenError(
+                f"error retrieving token for {self.scope}: empty token"
+            )
+        self.dashdotdb_token = token
         try:
             yield self.dashdotdb_token
         finally:
@@ -91,13 +101,17 @@ class DashdotdbBase:
     def _close_token(self) -> None:
         params = {"scope": self.scope}
         endpoint = f"{self.dashdotdb_url}/api/v1/token/{self.dashdotdb_token}"
-        response = requests.delete(
-            url=endpoint,
-            params=params,
-            auth=(self.dashdotdb_user, self.dashdotdb_pass),
-            timeout=(5, 120),
-        )
+        # _close_token() runs from the _token() finally block. The request is
+        # inside the try so a transport failure here is logged rather than
+        # propagated, which would otherwise mask an exception raised by the
+        # context body.
         try:
+            response = requests.delete(
+                url=endpoint,
+                params=params,
+                auth=(self.dashdotdb_user, self.dashdotdb_pass),
+                timeout=(5, 120),
+            )
             response.raise_for_status()
         except requests.exceptions.RequestException as details:
             LOG.error(
