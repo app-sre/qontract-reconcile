@@ -71,7 +71,6 @@ def mock_quay_api_store(mock_quay_api: QuayApi) -> QuayApiStore:
             push_token=None,
             teams=["team1", "team2"],
             managedRepos=True,
-            managedRobotAccounts=True,
             mirror=None,
             mirror_filters={},
             api=mock_quay_api,
@@ -145,11 +144,8 @@ def test_build_current_state_single_robot(
         {"repository": {"name": "repo1"}, "role": "read"}
     ]
     current_robots = {("quay-instance", "test-org"): [mock_current_robot]}
-    desired_keys = {("quay-instance", "test-org", "existing-robot")}
 
-    current_state = build_current_state(
-        current_robots, mock_quay_api_store, desired_keys
-    )
+    current_state = build_current_state(current_robots, mock_quay_api_store)
 
     assert len(current_state) == 1
     key = ("quay-instance", "test-org", "existing-robot")
@@ -162,15 +158,14 @@ def test_build_current_state_single_robot(
     assert state.repositories == {"repo1": "read"}
 
 
-def test_build_current_state_missing_org_key_errors(
+def test_build_current_state_no_org_key(
     mock_current_robot: RobotAccountDetails, mock_quay_api_store: QuayApiStore
 ) -> None:
-    """Missing org in the store fails closed (caller must validate first)"""
+    """Test building current state with no matching org key"""
     current_robots = {("unknown-instance", "unknown-org"): [mock_current_robot]}
-    desired_keys = {("unknown-instance", "unknown-org", "existing-robot")}
 
-    with pytest.raises(KeyError):
-        build_current_state(current_robots, mock_quay_api_store, desired_keys)
+    current_state = build_current_state(current_robots, mock_quay_api_store)
+    assert len(current_state) == 0
 
 
 def test_build_current_state_empty_robots(mock_quay_api_store: QuayApiStore) -> None:
@@ -179,41 +174,8 @@ def test_build_current_state_empty_robots(mock_quay_api_store: QuayApiStore) -> 
         ("quay-instance", "test-org"): []
     }
 
-    current_state = build_current_state(current_robots, mock_quay_api_store, set())
+    current_state = build_current_state(current_robots, mock_quay_api_store)
     assert len(current_state) == 0
-
-
-def test_build_current_state_ignores_undesired_robots(
-    mock_quay_api: QuayApi,
-    mock_quay_api_store: QuayApiStore,
-) -> None:
-    """Robots not in desired state are not inventoried (no permission API calls)"""
-    unmanaged = RobotAccountDetails(
-        name="unmanaged-robot",
-        description="Outside app-interface",
-        teams=["team1"],
-        repositories=["repo1"],
-    )
-    managed = RobotAccountDetails(
-        name="managed-robot",
-        description="Managed",
-        teams=["team1"],
-        repositories=["repo1"],
-    )
-    mock_quay_api.get_robot_account_permissions.return_value = [  # type: ignore
-        {"repository": {"name": "repo1"}, "role": "read"}
-    ]
-    current_robots = {("quay-instance", "test-org"): [unmanaged, managed]}
-    desired_keys = {("quay-instance", "test-org", "managed-robot")}
-
-    current_state = build_current_state(
-        current_robots, mock_quay_api_store, desired_keys
-    )
-
-    assert set(current_state) == {("quay-instance", "test-org", "managed-robot")}
-    mock_quay_api.get_robot_account_permissions.assert_called_once_with(  # type: ignore
-        "managed-robot"
-    )
 
 
 def test_calculate_diff_create_robot() -> None:
@@ -453,9 +415,7 @@ def test_get_current_robot_accounts_success(
 
     mock_quay_api.list_robot_accounts.return_value = mock_robots  # type: ignore
 
-    result = get_current_robot_accounts(
-        mock_quay_api_store, [OrgKey("quay-instance", "test-org")]
-    )
+    result = get_current_robot_accounts(mock_quay_api_store)
 
     assert len(result) == 1
     assert ("quay-instance", "test-org") in result
@@ -466,22 +426,20 @@ def test_get_current_robot_accounts_propagates_exception(
     mock_quay_api: QuayApi,
     mock_quay_api_store: QuayApiStore,
 ) -> None:
-    """Test that API errors propagate instead of being swallowed"""
+    """Test that non-auth API errors propagate instead of being swallowed"""
     mock_quay_api.list_robot_accounts.side_effect = Exception("API Error")  # type: ignore
 
     with pytest.raises(Exception, match="API Error"):
-        get_current_robot_accounts(
-            mock_quay_api_store, [OrgKey("quay-instance", "test-org")]
-        )
+        get_current_robot_accounts(mock_quay_api_store)
 
 
-@pytest.mark.parametrize("status_code", [401, 403, 500])
-def test_get_current_robot_accounts_propagates_http_error(
+@pytest.mark.parametrize("status_code", [401, 403])
+def test_get_current_robot_accounts_skips_auth_errors(
     mock_quay_api: QuayApi,
     mock_quay_api_store: QuayApiStore,
     status_code: int,
 ) -> None:
-    """Auth and other HTTP errors fail the integration (no soft-skip)"""
+    """Orgs that return 401/403 when listing robots are skipped with a warning"""
     response = create_autospec(requests.Response, instance=True)
     response.status_code = status_code
     mock_quay_api.list_robot_accounts.side_effect = requests.exceptions.HTTPError(  # type: ignore
@@ -489,26 +447,32 @@ def test_get_current_robot_accounts_propagates_http_error(
         response=response,
     )
 
-    with pytest.raises(requests.exceptions.HTTPError):
-        get_current_robot_accounts(
-            mock_quay_api_store, [OrgKey("quay-instance", "test-org")]
-        )
+    result = get_current_robot_accounts(mock_quay_api_store)
 
-
-def test_get_current_robot_accounts_empty_org_keys(
-    mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
-) -> None:
-    """No desired orgs means no Quay inventory calls"""
-    result = get_current_robot_accounts(mock_quay_api_store, [])
     assert result == {}
-    mock_quay_api.list_robot_accounts.assert_not_called()  # type: ignore
 
 
-def test_build_current_state_propagates_unauthorized_robot_permissions(
+def test_get_current_robot_accounts_propagates_non_auth_http_error(
     mock_quay_api: QuayApi,
     mock_quay_api_store: QuayApiStore,
 ) -> None:
-    """401/403 on get_robot_account_permissions fail closed"""
+    """Non-auth HTTP errors still fail the integration"""
+    response = create_autospec(requests.Response, instance=True)
+    response.status_code = 500
+    mock_quay_api.list_robot_accounts.side_effect = requests.exceptions.HTTPError(  # type: ignore
+        "500 Server Error",
+        response=response,
+    )
+
+    with pytest.raises(requests.exceptions.HTTPError, match="500 Server Error"):
+        get_current_robot_accounts(mock_quay_api_store)
+
+
+def test_build_current_state_skips_unauthorized_robot_permissions(
+    mock_quay_api: QuayApi,
+    mock_quay_api_store: QuayApiStore,
+) -> None:
+    """401/403 on get_robot_account_permissions soft-skips repo state for that robot"""
     robot = RobotAccountDetails(
         name="robot",
         description="Robot",
@@ -521,10 +485,12 @@ def test_build_current_state_propagates_unauthorized_robot_permissions(
         requests.exceptions.HTTPError("403 Client Error", response=response)
     )
     current_robots = {("quay-instance", "test-org"): [robot]}
-    desired_keys = {("quay-instance", "test-org", "robot")}
 
-    with pytest.raises(requests.exceptions.HTTPError, match="403 Client Error"):
-        build_current_state(current_robots, mock_quay_api_store, desired_keys)
+    current_state = build_current_state(current_robots, mock_quay_api_store)
+
+    state = current_state["quay-instance", "test-org", "robot"]
+    assert state.teams == {"team1"}
+    assert state.repositories == {}
 
 
 def test_build_current_state_filters_unmanaged_teams(
@@ -542,11 +508,8 @@ def test_build_current_state_filters_unmanaged_teams(
         {"repository": {"name": "repo1"}, "role": "read"}
     ]
     current_robots = {("quay-instance", "test-org"): [robot]}
-    desired_keys = {("quay-instance", "test-org", "robot")}
 
-    current_state = build_current_state(
-        current_robots, mock_quay_api_store, desired_keys
-    )
+    current_state = build_current_state(current_robots, mock_quay_api_store)
 
     state = current_state["quay-instance", "test-org", "robot"]
     assert state.teams == {"team1"}
@@ -563,7 +526,6 @@ def test_build_current_state_skips_repos_when_not_managed(
             push_token=None,
             teams=["team1"],
             managedRepos=False,
-            managedRobotAccounts=True,
             mirror=None,
             mirror_filters={},
             api=mock_quay_api,
@@ -576,9 +538,8 @@ def test_build_current_state_skips_repos_when_not_managed(
         repositories=["repo1"],
     )
     current_robots = {("quay-instance", "test-org"): [robot]}
-    desired_keys = {("quay-instance", "test-org", "robot")}
 
-    current_state = build_current_state(current_robots, store, desired_keys)
+    current_state = build_current_state(current_robots, store)
 
     state = current_state["quay-instance", "test-org", "robot"]
     assert state.teams == {"team1"}
@@ -600,26 +561,6 @@ def test_validate_desired_state_missing_org(mock_robot_gql: QuayRobotV1) -> None
     assert validate_desired_state(desired_state, QuayApiStore()) is False
 
 
-def test_validate_desired_state_requires_managed_robot_accounts(
-    mock_robot_gql: QuayRobotV1, mock_quay_api: QuayApi
-) -> None:
-    """Orgs must opt in via managedRobotAccounts=true"""
-    store = QuayApiStore({
-        OrgKey("quay-instance", "test-org"): OrgInfo(
-            url="quay.io",
-            push_token=None,
-            teams=["team1", "team2"],
-            managedRepos=True,
-            managedRobotAccounts=False,
-            mirror=None,
-            mirror_filters={},
-            api=mock_quay_api,
-        )
-    })
-    desired_state = build_desired_state([mock_robot_gql])
-    assert validate_desired_state(desired_state, store) is False
-
-
 def test_validate_desired_state_unmanaged_team(
     mock_robot_gql: QuayRobotV1, mock_quay_api_store: QuayApiStore
 ) -> None:
@@ -639,7 +580,6 @@ def test_validate_desired_state_repos_require_managed_repos(
             push_token=None,
             teams=["team1", "team2"],
             managedRepos=False,
-            managedRobotAccounts=True,
             mirror=None,
             mirror_filters={},
             api=mock_quay_api,
