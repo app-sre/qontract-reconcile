@@ -210,6 +210,31 @@ def test_github_api_find_merge_request_not_implemented(
         github_api.find_merge_request("some title")
 
 
+def test_github_api_default_user_agent(mock_github_client: MagicMock) -> None:
+    """Test GitHubRepoApi passes the default qontract-utils User-Agent to PyGithub."""
+    GitHubRepoApi(
+        owner="owner",
+        repo="repo",
+        token="token",
+    )
+
+    assert mock_github_client.call_args.kwargs["user_agent"].startswith(
+        "qontract-utils/"
+    )
+
+
+def test_github_api_custom_user_agent(mock_github_client: MagicMock) -> None:
+    """Test GitHubRepoApi passes a custom User-Agent to PyGithub."""
+    GitHubRepoApi(
+        owner="owner",
+        repo="repo",
+        token="token",
+        user_agent="qontract-api/1.2.3",
+    )
+
+    assert mock_github_client.call_args.kwargs["user_agent"] == "qontract-api/1.2.3"
+
+
 def test_github_api_call_context_immutable() -> None:
     """Test GitHubApiCallContext is immutable (frozen dataclass)."""
     context = GitHubApiCallContext(
