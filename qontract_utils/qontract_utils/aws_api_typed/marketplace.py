@@ -112,10 +112,9 @@ class AWSApiMarketplace:
         self, agreement_proposal_id: str, term_ids: Iterable[str]
     ) -> str:
         create_resp = self.agreement_client.create_agreement_request(
-            catalog="AWSMarketplace",
-            agreementProposalId=agreement_proposal_id,
+            agreementProposalIdentifier=agreement_proposal_id,
             intent="NEW",
-            requestedTerms=[{"termId": tid} for tid in term_ids],
+            requestedTerms=[{"id": tid} for tid in term_ids],
         )
         agreement_request_id = create_resp["agreementRequestId"]
 

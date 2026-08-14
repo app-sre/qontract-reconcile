@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import boto3
 import pytest
+from botocore.stub import Stubber
 from qontract_utils.aws_api_typed.marketplace import (
     ROSA_HCP_PRODUCT_ID,
     AWSApiMarketplace,
@@ -13,6 +15,7 @@ from qontract_utils.hooks import Hooks
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
+    from botocore.client import BaseClient
     from pytest_mock import MockerFixture
     from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 
@@ -171,10 +174,9 @@ def test_subscribe_rosa(
 
     assert result == "agr-456"
     agreement_client.create_agreement_request.assert_called_once_with(
-        catalog="AWSMarketplace",
-        agreementProposalId="prop-xyz",
+        agreementProposalIdentifier="prop-xyz",
         intent="NEW",
-        requestedTerms=[{"termId": "term-1"}, {"termId": "term-2"}],
+        requestedTerms=[{"id": "term-1"}, {"id": "term-2"}],
     )
     agreement_client.accept_agreement_request.assert_called_once_with(
         agreementRequestId="req-123",
@@ -212,3 +214,75 @@ def test_hooks_fire_on_method_call(
     assert len(contexts) == 1
     assert contexts[0].method == "has_rosa_subscription"
     assert contexts[0].service == "marketplace-agreement"
+
+
+# The tests below drive the API against real botocore clients wrapped in a
+# Stubber. Unlike the Mock-based tests above, the Stubber runs botocore's
+# parameter validation against the actual service model, so any drift between
+# the params we send and the AWS API (wrong key names, unknown params, missing
+# required fields) fails the test instead of silently passing. This guards
+# against regressions like passing `catalog`/`agreementProposalId`/`termId` to
+# create_agreement_request, which Mocks accept but AWS rejects at runtime.
+
+
+@pytest.fixture
+def real_agreement_client() -> BaseClient:
+    return boto3.client(
+        "marketplace-agreement",
+        region_name="us-east-1",
+        aws_access_key_id="testing",
+        aws_secret_access_key="testing",
+    )
+
+
+def test_has_rosa_subscription_params_valid_against_botocore_model(
+    real_agreement_client: BaseClient, mocker: MockerFixture
+) -> None:
+    api = AWSApiMarketplace(
+        agreement_client=real_agreement_client, discovery_client=mocker.Mock()
+    )
+    stubber = Stubber(real_agreement_client)
+    stubber.add_response(
+        "search_agreements",
+        {"agreementViewSummaries": [{"agreementId": "agr-123"}]},
+        expected_params={
+            "catalog": "AWSMarketplace",
+            "filters": [
+                {"name": "PartyType", "values": ["Acceptor"]},
+                {"name": "AgreementType", "values": ["PurchaseAgreement"]},
+                {"name": "ResourceIdentifier", "values": [ROSA_HCP_PRODUCT_ID]},
+            ],
+        },
+    )
+    with stubber:
+        assert api.has_rosa_subscription() is True
+    stubber.assert_no_pending_responses()
+
+
+def test_subscribe_rosa_params_valid_against_botocore_model(
+    real_agreement_client: BaseClient, mocker: MockerFixture
+) -> None:
+    api = AWSApiMarketplace(
+        agreement_client=real_agreement_client, discovery_client=mocker.Mock()
+    )
+    stubber = Stubber(real_agreement_client)
+    stubber.add_response(
+        "create_agreement_request",
+        {"agreementRequestId": "req-123"},
+        expected_params={
+            "agreementProposalIdentifier": "prop-xyz",
+            "intent": "NEW",
+            "requestedTerms": [{"id": "term-1"}, {"id": "term-2"}],
+        },
+    )
+    stubber.add_response(
+        "accept_agreement_request",
+        {"agreementId": "agr-456"},
+        expected_params={"agreementRequestId": "req-123"},
+    )
+    with stubber:
+        result = api.subscribe_rosa(
+            agreement_proposal_id="prop-xyz", term_ids=["term-1", "term-2"]
+        )
+    assert result == "agr-456"
+    stubber.assert_no_pending_responses()
