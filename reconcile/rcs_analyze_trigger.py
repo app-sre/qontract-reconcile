@@ -102,8 +102,16 @@ def find_trigger_comment(comments: Iterable[Comment]) -> Comment | None:
     return max(matches, key=attrgetter("created_at"))
 
 
-def _has_award_emoji(note: ProjectMergeRequestNote, emoji_name: str) -> bool:
-    return any(e.name == emoji_name for e in note.awardemojis.list(iterator=True))
+def _has_award_emoji(
+    note: ProjectMergeRequestNote, emoji_name: str, bot_username: str
+) -> bool:
+    # Scoped to our own account: a third party reacting to the trigger
+    # comment with the same emoji name must not be mistaken for our own
+    # durable "already launched/completed" marker.
+    return any(
+        e.name == emoji_name and e.user["username"] == bot_username
+        for e in note.awardemojis.list(iterator=True)
+    )
 
 
 def _award_emoji(note: ProjectMergeRequestNote, emoji_name: str) -> None:
@@ -344,7 +352,7 @@ def _run(
             return
         note = trigger_comment.note
 
-        if _has_award_emoji(note, EMOJI_LAUNCHED):
+        if _has_award_emoji(note, EMOJI_LAUNCHED, gl.user.username):
             # Already launched (regardless of outcome) by a prior pr_check
             # run for this exact comment.
             return

@@ -40,11 +40,15 @@ if TYPE_CHECKING:
     )
 
 
-def _emoji_award(name: str) -> MagicMock:
+BOT_USERNAME = "rcs-analyze-bot"
+
+
+def _emoji_award(name: str, username: str = BOT_USERNAME) -> MagicMock:
     # MagicMock(name=...) sets the mock's own repr, not a "name" attribute,
     # so it must be assigned separately to be readable as award.name.
     award = MagicMock()
     award.name = name
+    award.user = {"username": username}
     return award
 
 
@@ -54,6 +58,7 @@ def _comment(
     comment_id: int = 1,
     created_at: str = "2026-01-01T00:00:00Z",
     awarded_emojis: tuple[str, ...] = (),
+    awarded_emojis_by: str = BOT_USERNAME,
     note: MagicMock | None = None,
 ) -> Comment:
     # Accepting an externally-built note lets callers keep a MagicMock-typed
@@ -61,7 +66,9 @@ def _comment(
     # would statically resolve to the real (non-mock) gitlab-lib type.
     if note is None:
         note = MagicMock()
-    note.awardemojis.list.return_value = [_emoji_award(n) for n in awarded_emojis]
+    note.awardemojis.list.return_value = [
+        _emoji_award(n, username=awarded_emojis_by) for n in awarded_emojis
+    ]
     return Comment(
         id=comment_id, username=username, body=body, created_at=created_at, note=note
     )
@@ -557,6 +564,7 @@ def _mock_run_dependencies(
 ) -> dict[str, MagicMock]:
     mock_gl = mocker.MagicMock()
     mock_gl.__enter__.return_value = mock_gl
+    mock_gl.user.username = BOT_USERNAME
     mock_gl.get_merge_request_comments.return_value = comments
     mock_gl.get_merge_request_changed_paths.return_value = ["/path.yml"]
     mocker.patch("reconcile.rcs_analyze_trigger.GitLabApi", return_value=mock_gl)
@@ -729,6 +737,31 @@ def test_run_skips_when_already_launched(mocker: MockerFixture) -> None:
     )
 
     mocks["controller"].enqueue_job.assert_not_called()
+
+
+def test_run_launches_job_when_launched_emoji_was_awarded_by_someone_else(
+    mocker: MockerFixture,
+) -> None:
+    # The "eyes" emoji is only our durable marker when we're the one who
+    # awarded it - a reviewer or bystander reacting to the trigger comment
+    # with the same emoji must not be mistaken for a prior launch.
+    comment = _comment(
+        TRIGGER_COMMAND, awarded_emojis=(EMOJI_LAUNCHED,), awarded_emojis_by="rando"
+    )
+    mocks = _mock_run_dependencies(mocker, comments=[comment])
+
+    run(
+        dry_run=False,
+        gitlab_project_id="123",
+        gitlab_merge_request_id="456",
+        comparison_sha="deadbeef",
+        job_controller_cluster="cluster",
+        job_controller_namespace="namespace",
+        rcs_job_image="quay.io/example/rcs:latest",
+        rcs_secrets_path="app-sre/rcs/secrets",
+    )
+
+    mocks["controller"].enqueue_job.assert_called_once()
 
 
 def test_run_does_not_raise_on_non_success_job_status(mocker: MockerFixture) -> None:
