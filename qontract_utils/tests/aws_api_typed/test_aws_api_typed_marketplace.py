@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import boto3
 import pytest
@@ -77,24 +77,68 @@ def test_discover_rosa_offer(
     discovery_client.get_offer.return_value = {
         "agreementProposalId": "prop-xyz",
     }
+    # mirrors the real ROSA HCP offer: pay-as-you-go usage term, a mandatory
+    # configurable upfront term (accepted at zero committed quantity),
+    # legal/support terms, and a renewal term (auto-renew).
     discovery_client.get_offer_terms.return_value = {
         "offerTerms": [
             {
                 "usageBasedPricingTerm": {
-                    "id": "term-1",
+                    "id": "term-usage",
                     "type": "UsageBasedPricingTerm",
                 }
             },
-            {"legalTerm": {"id": "term-2", "type": "LegalTerm"}},
+            {
+                "configurableUpfrontPricingTerm": {
+                    "id": "term-upfront",
+                    "type": "ConfigurableUpfrontPricingTerm",
+                    "rateCards": [
+                        {
+                            "selector": {"type": "Duration", "value": "P12M"},
+                            "rateCard": [
+                                {"dimensionKey": "control_plane", "price": "2190"},
+                                {"dimensionKey": "four_vcpu_hour", "price": "1000"},
+                            ],
+                        }
+                    ],
+                }
+            },
+            {"legalTerm": {"id": "term-legal", "type": "LegalTerm"}},
+            {"supportTerm": {"id": "term-support", "type": "SupportTerm"}},
+            {"renewalTerm": {"id": "term-renewal", "type": "RenewalTerm"}},
         ]
     }
 
     offer = marketplace_api.discover_rosa_offer()
 
+    # all terms accepted: upfront carries a zero-quantity configuration, renewal
+    # carries auto-renew, the rest are id-only.
     assert offer == RosaOffer(
         offer_id="offer-abc",
         agreement_proposal_id="prop-xyz",
-        term_ids=["term-1", "term-2"],
+        requested_terms=[
+            {"id": "term-usage"},
+            {
+                "id": "term-upfront",
+                "configuration": {
+                    "configurableUpfrontPricingTermConfiguration": {
+                        "selectorValue": "P12M",
+                        "dimensions": [
+                            {"dimensionKey": "control_plane", "dimensionValue": 0},
+                            {"dimensionKey": "four_vcpu_hour", "dimensionValue": 0},
+                        ],
+                    }
+                },
+            },
+            {"id": "term-legal"},
+            {"id": "term-support"},
+            {
+                "id": "term-renewal",
+                "configuration": {
+                    "renewalTermConfiguration": {"enableAutoRenew": True}
+                },
+            },
+        ],
     )
     discovery_client.list_purchase_options.assert_called_once()
     discovery_client.get_offer.assert_called_once_with(offerId="offer-abc")
@@ -159,6 +203,33 @@ def test_discover_rosa_offer_no_terms(
         marketplace_api.discover_rosa_offer()
 
 
+def test_discover_rosa_offer_upfront_no_dimensions(
+    marketplace_api: AWSApiMarketplace, discovery_client: MagicMock
+) -> None:
+    discovery_client.list_purchase_options.return_value = {
+        "purchaseOptions": [{"purchaseOptionId": "po-1", "associatedEntities": []}]
+    }
+    discovery_client.get_offer.return_value = {"agreementProposalId": "prop-1"}
+    discovery_client.get_offer_terms.return_value = {
+        "offerTerms": [
+            {
+                "configurableUpfrontPricingTerm": {
+                    "id": "term-upfront",
+                    "type": "ConfigurableUpfrontPricingTerm",
+                    "rateCards": [
+                        {
+                            "selector": {"type": "Duration", "value": "P12M"},
+                            "rateCard": [],
+                        }
+                    ],
+                }
+            },
+        ]
+    }
+    with pytest.raises(RuntimeError, match="no dimensions"):
+        marketplace_api.discover_rosa_offer()
+
+
 def test_subscribe_rosa(
     marketplace_api: AWSApiMarketplace, agreement_client: MagicMock
 ) -> None:
@@ -169,14 +240,30 @@ def test_subscribe_rosa(
 
     result = marketplace_api.subscribe_rosa(
         agreement_proposal_id="prop-xyz",
-        term_ids=["term-1", "term-2"],
+        requested_terms=[
+            {"id": "term-1"},
+            {
+                "id": "term-2",
+                "configuration": {
+                    "renewalTermConfiguration": {"enableAutoRenew": True}
+                },
+            },
+        ],
     )
 
     assert result == "agr-456"
     agreement_client.create_agreement_request.assert_called_once_with(
         agreementProposalIdentifier="prop-xyz",
         intent="NEW",
-        requestedTerms=[{"id": "term-1"}, {"id": "term-2"}],
+        requestedTerms=[
+            {"id": "term-1"},
+            {
+                "id": "term-2",
+                "configuration": {
+                    "renewalTermConfiguration": {"enableAutoRenew": True}
+                },
+            },
+        ],
     )
     agreement_client.accept_agreement_request.assert_called_once_with(
         agreementRequestId="req-123",
@@ -193,7 +280,7 @@ def test_subscribe_rosa_fallback_to_request_id(
 
     result = marketplace_api.subscribe_rosa(
         agreement_proposal_id="prop-xyz",
-        term_ids=["term-1"],
+        requested_terms=[{"id": "term-1"}],
     )
     assert result == "req-123"
 
@@ -266,13 +353,33 @@ def test_subscribe_rosa_params_valid_against_botocore_model(
         agreement_client=real_agreement_client, discovery_client=mocker.Mock()
     )
     stubber = Stubber(real_agreement_client)
+    # include a term with a renewalTermConfiguration so botocore validates the
+    # nested configuration union shape too, not just id-only terms.
+    requested_terms: list[dict[str, Any]] = [
+        {"id": "term-1"},
+        {
+            "id": "term-2",
+            "configuration": {"renewalTermConfiguration": {"enableAutoRenew": True}},
+        },
+        {
+            "id": "term-3",
+            "configuration": {
+                "configurableUpfrontPricingTermConfiguration": {
+                    "selectorValue": "P12M",
+                    "dimensions": [
+                        {"dimensionKey": "control_plane", "dimensionValue": 0}
+                    ],
+                }
+            },
+        },
+    ]
     stubber.add_response(
         "create_agreement_request",
         {"agreementRequestId": "req-123"},
         expected_params={
             "agreementProposalIdentifier": "prop-xyz",
             "intent": "NEW",
-            "requestedTerms": [{"id": "term-1"}, {"id": "term-2"}],
+            "requestedTerms": requested_terms,
         },
     )
     stubber.add_response(
@@ -282,7 +389,7 @@ def test_subscribe_rosa_params_valid_against_botocore_model(
     )
     with stubber:
         result = api.subscribe_rosa(
-            agreement_proposal_id="prop-xyz", term_ids=["term-1", "term-2"]
+            agreement_proposal_id="prop-xyz", requested_terms=requested_terms
         )
     assert result == "agr-456"
     stubber.assert_no_pending_responses()
