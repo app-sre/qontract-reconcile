@@ -70,6 +70,45 @@ def test_register_client_sends_correct_body_and_auth(httpserver: HTTPServer) -> 
     assert "attributes" not in body or body["attributes"] is None
 
 
+def test_default_user_agent_identifies_qontract_utils(httpserver: HTTPServer) -> None:
+    api = _make_api(httpserver, initial_access_token="initial-token")
+    httpserver.expect_request(REGISTER_PATH, method="POST").respond_with_json(
+        _registration_response(
+            client_id="my-client",
+            secret="s3cr3t",
+            redirect_uris=[],
+            registration_access_token="reg-token",
+        )
+    )
+
+    api.register_client(client_name="my-client", redirect_uris=[])
+
+    request = next(req for req, _ in httpserver.log if req.path == REGISTER_PATH)
+    assert request.headers["User-Agent"].startswith("qontract-utils/")
+
+
+def test_custom_user_agent_overrides_default(httpserver: HTTPServer) -> None:
+    api = KeycloakApi(
+        url=httpserver.url_for(""),
+        initial_access_token="initial-token",
+        timeout=5,
+        user_agent="qontract-api/1.2.3",
+    )
+    httpserver.expect_request(REGISTER_PATH, method="POST").respond_with_json(
+        _registration_response(
+            client_id="my-client",
+            secret="s3cr3t",
+            redirect_uris=[],
+            registration_access_token="reg-token",
+        )
+    )
+
+    api.register_client(client_name="my-client", redirect_uris=[])
+
+    request = next(req for req, _ in httpserver.log if req.path == REGISTER_PATH)
+    assert request.headers["User-Agent"] == "qontract-api/1.2.3"
+
+
 def test_register_client_maps_response_to_domain_model(httpserver: HTTPServer) -> None:
     api = _make_api(httpserver, initial_access_token="initial-token")
     httpserver.expect_request(REGISTER_PATH, method="POST").respond_with_json(

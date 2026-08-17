@@ -327,6 +327,26 @@ def test_glitchtip_api_host_stripped() -> None:
     assert api.host == "https://glitchtip.example.com"
 
 
+def test_glitchtip_api_default_user_agent() -> None:
+    """Test that a default qontract-utils User-Agent is sent."""
+    with patch("qontract_utils.glitchtip_api.client.httpx2.Client") as mock_cls:
+        GlitchtipApi(host="https://glitchtip.example.com", token="token")
+    headers = mock_cls.call_args.kwargs["headers"]
+    assert headers["User-Agent"].startswith("qontract-utils/")
+
+
+def test_glitchtip_api_custom_user_agent() -> None:
+    """Test that a custom User-Agent overrides the default."""
+    with patch("qontract_utils.glitchtip_api.client.httpx2.Client") as mock_cls:
+        GlitchtipApi(
+            host="https://glitchtip.example.com",
+            token="token",
+            user_agent="qontract-api/1.2.3",
+        )
+    headers = mock_cls.call_args.kwargs["headers"]
+    assert headers["User-Agent"] == "qontract-api/1.2.3"
+
+
 def test_organizations_single_page(
     glitchtip_api: GlitchtipApi, mock_httpx_client: MagicMock
 ) -> None:
