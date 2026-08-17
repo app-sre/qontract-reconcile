@@ -9,6 +9,7 @@ from typing import (
 )
 
 from pydantic import BaseModel
+from qontract_utils.user_agent import resolve_version
 from requests import (
     Session,
     codes,
@@ -32,6 +33,8 @@ if TYPE_CHECKING:
 
 REQUEST_TIMEOUT_SEC = 60
 
+USER_AGENT = f"qontract-reconcile/{resolve_version('qontract-reconcile')}"
+
 
 class OCMBaseClient:
     """
@@ -46,12 +49,14 @@ class OCMBaseClient:
         access_token_url: str,
         access_token_client_id: str,
         session: Session | None = None,
+        user_agent: str = USER_AGENT,
     ):
         self._access_token_client_secret = access_token_client_secret
         self._access_token_client_id = access_token_client_id
         self._access_token_url = access_token_url
         self._url = url
         self._session = session or Session()
+        self._session.headers["User-Agent"] = user_agent
         self._init_access_token()
         self._init_request_headers()
 

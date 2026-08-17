@@ -6,6 +6,7 @@ import os
 import re
 import tarfile
 from dataclasses import dataclass
+from datetime import datetime
 from functools import cached_property
 from operator import attrgetter
 from typing import (
@@ -706,13 +707,13 @@ class GitLabApi:
         last_action_by_team = None
         # comments
         comments = self.get_merge_request_comments(mr)
-        comments.sort(key=attrgetter("created_at"), reverse=True)
+        comments.sort(key=lambda c: datetime.fromisoformat(c.created_at), reverse=True)
         for comment in comments:
             username = comment.username
             if username == self.user.username:
                 continue
             if username in team_usernames:
-                last_action_by_team = comment.created_at
+                last_action_by_team = datetime.fromisoformat(comment.created_at)
                 break
         # labels
         label_events = mr.resourcelabelevents.list(get_all=True)
@@ -722,10 +723,11 @@ class GitLabApi:
                 if username == self.user.username:
                     continue
                 if username in team_usernames:
+                    label_created_at = datetime.fromisoformat(label.created_at)
                     if not last_action_by_team:
-                        last_action_by_team = label.created_at
+                        last_action_by_team = label_created_at
                     else:
-                        last_action_by_team = max(label.created_at, last_action_by_team)
+                        last_action_by_team = max(label_created_at, last_action_by_team)
                     break
         if not last_action_by_team:
             return False
@@ -733,9 +735,9 @@ class GitLabApi:
         last_action_not_by_team = None
         # commits
         commits = list(mr.commits())
-        commits.sort(key=attrgetter("created_at"), reverse=True)
+        commits.sort(key=lambda c: datetime.fromisoformat(c.created_at), reverse=True)
         for commit in commits:
-            last_action_not_by_team = commit.created_at
+            last_action_not_by_team = datetime.fromisoformat(commit.created_at)
             break
         # comments
         for comment in comments:
@@ -743,7 +745,7 @@ class GitLabApi:
             if username == self.user.username:
                 continue
             if username not in team_usernames:
-                last_action_not_by_team = comment.created_at
+                last_action_not_by_team = datetime.fromisoformat(comment.created_at)
                 break
 
         if not last_action_not_by_team:

@@ -13,6 +13,7 @@ from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
+from qontract_utils.user_agent import DEFAULT_USER_AGENT
 from qontract_utils.vcs.provider_protocol import (
     AUTO_MERGE_LABEL,
     CreateMergeRequestInput,
@@ -110,6 +111,9 @@ class GitLabRepoApi:
         timeout: Request timeout in seconds
         hooks: Optional custom hooks to merge with built-in hooks.
             Built-in hooks (metrics, logging, latency) are automatically included.
+        user_agent: User-Agent header sent with every request. Defaults to
+            identifying qontract-utils itself; callers embedded in a larger
+            service should pass their own app name/version instead.
     """
 
     # Set by @with_hooks decorator
@@ -122,6 +126,7 @@ class GitLabRepoApi:
         gitlab_url: str,
         timeout: int = 30,
         hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
+        user_agent: str = DEFAULT_USER_AGENT,
     ) -> None:
         self.project_id = project_id
         self.repo_url = f"{gitlab_url}/{project_id}"
@@ -132,6 +137,7 @@ class GitLabRepoApi:
             url=gitlab_url,
             private_token=token,
             timeout=timeout,
+            user_agent=user_agent,
         )
         self._project: Project = self._gitlab.projects.get(project_id)
 

@@ -506,6 +506,7 @@ def get_merge_requests(
     gl: GitLabApi,
     state: State,
     users_allowed_to_label: Iterable[str] | None = None,
+    skip_unmergeable: bool = True,
 ) -> list[dict[str, Any]]:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     return preprocess_merge_requests(
@@ -514,6 +515,7 @@ def get_merge_requests(
         project_merge_requests=mrs,
         state=state,
         users_allowed_to_label=users_allowed_to_label,
+        skip_unmergeable=skip_unmergeable,
     )
 
 
@@ -524,6 +526,7 @@ def preprocess_merge_requests(
     state: State,
     users_allowed_to_label: Iterable[str] | None = None,
     must_pass: Iterable[str] | None = None,
+    skip_unmergeable: bool = True,
 ) -> list[dict[str, Any]]:
     results = []
     for mr in project_merge_requests:
@@ -531,7 +534,17 @@ def preprocess_merge_requests(
             MRStatus.CANNOT_BE_MERGED,
             MRStatus.CANNOT_BE_MERGED_RECHECK,
         }:
-            continue
+            if skip_unmergeable:
+                continue
+            # cannot_be_merged_recheck is a transient state GitLab sets for
+            # nearly every open MR on every reconcile cycle -- debug only,
+            # see run_error_healthcheck() for why this isn't a warning.
+            logging.debug([
+                "preprocess",
+                gl.project.name,
+                mr.iid,
+                f"merge_status={mr.merge_status}, including for rebase",
+            ])
         if mr.draft:
             continue
         if len(mr.commits()) == 0:
@@ -913,6 +926,7 @@ def _rebase_merge_requests_active_cap(
             gl=gl,
             state=state,
             users_allowed_to_label=users_allowed_to_label,
+            skip_unmergeable=False,
         )
         if not item["error"]
     ]
@@ -986,6 +1000,7 @@ def _rebase_merge_requests_old_burst(
             gl=gl,
             state=state,
             users_allowed_to_label=users_allowed_to_label,
+            skip_unmergeable=False,
         )
         if not item["error"]
     ]
@@ -1507,14 +1522,29 @@ def run_error_healthcheck(
         if mr.draft:
             continue
 
+        # Don't skip on cannot_be_merged/cannot_be_merged_recheck: that's
+        # exactly the state a real merge conflict produces, and it's the case
+        # the merge_error/rebase-error check below exists to catch. Skipping
+        # here means a conflicting MR can never be flagged. No log at this
+        # point though -- cannot_be_merged_recheck is a transient state that
+        # GitLab sets for nearly every open MR on every reconcile cycle
+        # before approval is even checked; logging here was tried in #5733
+        # and reverted in #5742 for producing ~1,700 log lines/hour.
+
+        if not is_good_to_merge(mr.labels):
+            continue
+
         if mr.merge_status in {
             MRStatus.CANNOT_BE_MERGED,
             MRStatus.CANNOT_BE_MERGED_RECHECK,
         }:
-            continue
-
-        if not is_good_to_merge(mr.labels):
-            continue
+            logging.debug([
+                "error-healthcheck",
+                "unmergeable",
+                gl.project.name,
+                mr.iid,
+                f"merge_status={mr.merge_status}",
+            ])
 
         labels = set(mr.labels)
 
