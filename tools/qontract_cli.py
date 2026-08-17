@@ -2413,6 +2413,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 continue
 
             pipelines = gl.get_merge_request_pipelines(mr)
+            pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
             if not pipelines:
                 continue
             running_pipelines = [

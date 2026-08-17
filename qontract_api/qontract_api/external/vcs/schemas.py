@@ -5,9 +5,23 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field
 
 from qontract_api.models import Secret
+
+
+def _reject_path_traversal(value: str) -> str:
+    """Reject repository-relative paths containing '..' segments.
+
+    Defense-in-depth: GitHub/GitLab APIs already scope paths to the repository,
+    but qontract-api should not forward '..' segments to them regardless.
+    """
+    if ".." in value.strip("/").split("/"):
+        raise ValueError(f"Path must not contain '..' segments: {value!r}")
+    return value
+
+
+RepoPath = Annotated[str, AfterValidator(_reject_path_traversal)]
 
 
 class VCSProvider(StrEnum):
@@ -47,7 +61,7 @@ class GetFileParams(Secret):
         ...,
         description="Repository URL (e.g., https://gitlab.com/group/project)",
     )
-    file_path: str = Field(..., description="File path in the repository")
+    file_path: RepoPath = Field(..., description="File path in the repository")
     ref: str = Field(..., description="Git reference (branch, tag, SHA)")
 
 
@@ -67,7 +81,7 @@ class FileSyncCreate(BaseModel, frozen=True):
     """Create a new file in the repository."""
 
     action: Literal["create"] = "create"
-    path: str = Field(..., description="File path in the repository")
+    path: RepoPath = Field(..., description="File path in the repository")
     content: str = Field(..., description="File content")
     commit_message: str = Field(..., description="Commit message for this change")
 
@@ -76,7 +90,7 @@ class FileSyncUpdate(BaseModel, frozen=True):
     """Update an existing file in the repository."""
 
     action: Literal["update"] = "update"
-    path: str = Field(..., description="File path in the repository")
+    path: RepoPath = Field(..., description="File path in the repository")
     content: str = Field(..., description="New file content")
     commit_message: str = Field(..., description="Commit message for this change")
 
@@ -85,7 +99,7 @@ class FileSyncDelete(BaseModel, frozen=True):
     """Delete a file from the repository."""
 
     action: Literal["delete"] = "delete"
-    path: str = Field(..., description="File path in the repository")
+    path: RepoPath = Field(..., description="File path in the repository")
     commit_message: str = Field(..., description="Commit message for this change")
 
 

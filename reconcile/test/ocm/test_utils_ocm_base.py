@@ -6,11 +6,12 @@ import pytest
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.test.ocm.test_utils_ocm_get_json import build_paged_ocm_response
-from reconcile.utils.ocm_base_client import OCMBaseClient
+from reconcile.utils.ocm_base_client import USER_AGENT, OCMBaseClient
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from pytest_httpserver import HTTPServer
     from werkzeug import Request
 
 
@@ -22,6 +23,64 @@ def ocm_base(access_token_url: str, ocm_url: str) -> OCMBaseClient:
         access_token_url=access_token_url,
         url=ocm_url,
     )
+
+
+def test_user_agent_header_is_set(
+    ocm_api: OCMBaseClient,
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+    find_ocm_http_request: Callable[[str, str], Request | None],
+) -> None:
+    register_ocm_url_responses([
+        OcmUrl(method="GET", uri="/api/some_path").add_list_response([])
+    ])
+
+    ocm_api.get("/api/some_path")
+
+    req = find_ocm_http_request("GET", "/api/some_path")
+    assert req is not None
+    assert req.headers["User-Agent"] == USER_AGENT
+    assert USER_AGENT.startswith("qontract-reconcile/")
+
+
+def test_user_agent_header_is_sent_on_token_request(
+    ocm_base: OCMBaseClient,
+    httpserver: HTTPServer,
+    access_token_url: str,
+) -> None:
+    _ = ocm_base
+    token_requests = [req for req, _ in httpserver.log if req.url == access_token_url]
+    assert len(token_requests) == 1
+    assert token_requests[0].headers["User-Agent"] == USER_AGENT
+
+
+def test_user_agent_header_can_be_overridden(
+    access_token_url: str,
+    ocm_url: str,
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+    find_ocm_http_request: Callable[[str, str], Request | None],
+    httpserver: HTTPServer,
+) -> None:
+    register_ocm_url_responses([
+        OcmUrl(method="GET", uri="/api/some_path").add_list_response([])
+    ])
+    custom_user_agent = "qontract-api/1.2.3"
+    client = OCMBaseClient(
+        access_token_client_id="some_client_id",
+        access_token_client_secret="some_client_secret",
+        access_token_url=access_token_url,
+        url=ocm_url,
+        user_agent=custom_user_agent,
+    )
+
+    client.get("/api/some_path")
+
+    req = find_ocm_http_request("GET", "/api/some_path")
+    assert req is not None
+    assert req.headers["User-Agent"] == custom_user_agent
+
+    token_requests = [req for req, _ in httpserver.log if req.url == access_token_url]
+    assert len(token_requests) == 1
+    assert token_requests[0].headers["User-Agent"] == custom_user_agent
 
 
 @pytest.mark.parametrize(

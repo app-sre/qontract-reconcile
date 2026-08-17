@@ -27,6 +27,7 @@ from qontract_api.external.vcs.schemas import (
     GetFileParams,
     GetFileResponse,
     RepoOwnersResponse,
+    RepoPath,
     VCSProvider,
 )
 from qontract_api.external.vcs.vcs_factory import create_vcs_workspace_client
@@ -47,7 +48,7 @@ class VCSQueryParams(Secret):
     repo_url: str = Field(
         ..., description="Repository URL (e.g., https://github.com/owner/repo)"
     )
-    owners_file: str = Field(
+    owners_file: RepoPath = Field(
         "/OWNERS",
         description="Path to OWNERS file in the repository (e.g., /OWNERS or /path/to/OWNERS)",
     )

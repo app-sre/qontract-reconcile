@@ -659,6 +659,56 @@ def test_get_repository_tree_as_git_cli_interface(
     )
 
 
+def test_is_last_action_by_team_handles_non_utc_commit_timezone(
+    mocked_gitlab_api: GitLabApi,
+) -> None:
+    """Commit timestamps carry the committer's local UTC offset (e.g. +10:00),
+    while comment timestamps from the GitLab API are always UTC ("Z"). Comparing
+    the raw ISO-8601 strings instead of parsed datetimes can flip the ordering."""
+    mocked_gitlab_api.user.username = "devtools-bot"
+
+    mr = create_autospec(ProjectMergeRequest)
+    mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+
+    bot_note_1 = create_autospec(ProjectMergeRequestNote)
+    bot_note_1.system = False
+    bot_note_1.author = {"username": "devtools-bot"}
+    bot_note_1.body = "Change coverage report"
+    bot_note_1.created_at = "2026-08-13T06:28:43.746Z"
+    bot_note_1.id = 1
+
+    bot_note_2 = create_autospec(ProjectMergeRequestNote)
+    bot_note_2.system = False
+    bot_note_2.author = {"username": "devtools-bot"}
+    bot_note_2.body = "Build success"
+    bot_note_2.created_at = "2026-08-13T06:33:01.036Z"
+    bot_note_2.id = 2
+
+    team_note = create_autospec(ProjectMergeRequestNote)
+    team_note.system = False
+    team_note.author = {"username": "cassing"}
+    team_note.body = "Please get an /lgtm from someone from rhobs-dev"
+    team_note.created_at = "2026-08-13T07:28:01.558Z"
+    team_note.id = 3
+
+    mr.notes.list.return_value = [bot_note_1, bot_note_2, team_note]
+
+    # committer's local timezone (+10:00) is 06:23:51 UTC -- before team_note,
+    # but the raw string sorts *after* it because "16" > "07" lexicographically.
+    mr.commits.return_value = [Mock(created_at="2026-08-13T16:23:51.000+10:00")]
+
+    mr.resourcelabelevents = create_autospec(
+        ProjectMergeRequestResourceLabelEventManager
+    )
+    mr.resourcelabelevents.list.return_value = []
+
+    result = mocked_gitlab_api.is_last_action_by_team(
+        mr, team_usernames={"cassing", "devtools-bot"}, hold_labels=[]
+    )
+
+    assert result is True
+
+
 def test_last_assignment() -> None:
     mr = create_autospec(ProjectMergeRequest)
     mr.notes = create_autospec(ProjectMergeRequestNoteManager)

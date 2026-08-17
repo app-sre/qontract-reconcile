@@ -29,6 +29,9 @@ query AcsRbac {
         description
         service
         ... on OidcPermissionAcs_v1 {
+          instance {
+            name
+          }
           permission_set
           clusters {
             name
@@ -59,6 +62,10 @@ class OidcPermissionV1(ConfiguredBaseModel):
     service: str = Field(..., alias="service")
 
 
+class AcsInstanceV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
@@ -73,6 +80,7 @@ class NamespaceV1(ConfiguredBaseModel):
 
 
 class OidcPermissionAcsV1(OidcPermissionV1):
+    instance: Optional[AcsInstanceV1] = Field(..., alias="instance")
     permission_set: str = Field(..., alias="permission_set")
     clusters: Optional[list[ClusterV1]] = Field(..., alias="clusters")
     namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")

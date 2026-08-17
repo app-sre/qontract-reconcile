@@ -23,6 +23,7 @@ from qontract_utils.keycloak_api._raw_client import (
 )
 from qontract_utils.keycloak_api.models import KeycloakSsoClient
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
+from qontract_utils.user_agent import DEFAULT_USER_AGENT
 
 logger = structlog.get_logger(__name__)
 
@@ -130,6 +131,7 @@ class KeycloakApi:
         hooks: Hooks | None = None,
         timeout: float = TIMEOUT,
         max_retries: int = MAX_RETRIES,
+        user_agent: str = DEFAULT_USER_AGENT,
     ) -> None:
         """Initialize the Keycloak API client.
 
@@ -138,6 +140,9 @@ class KeycloakApi:
             initial_access_token: static per-realm bearer token used to register clients
             timeout: API request timeout in seconds (default: 30)
             max_retries: number of transport-level retries for failed requests (default: 3)
+            user_agent: User-Agent header sent with every request. Defaults to
+                identifying qontract-utils itself; callers embedded in a larger
+                service should pass their own app name/version instead.
             hooks: Optional custom hooks to merge with built-in hooks. Not read here -
                 @with_hooks intercepts and merges it into self._hooks before this body runs.
         """
@@ -145,7 +150,10 @@ class KeycloakApi:
         self.url = url
         self._client = httpx2.Client(
             base_url=url,
-            headers={"Authorization": f"Bearer {initial_access_token}"},
+            headers={
+                "Authorization": f"Bearer {initial_access_token}",
+                "User-Agent": user_agent,
+            },
             timeout=timeout,
             transport=httpx2.HTTPTransport(retries=max_retries),
         )

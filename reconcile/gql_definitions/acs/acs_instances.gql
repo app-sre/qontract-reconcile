@@ -2,6 +2,7 @@
 
 query AcsInstance {
   instances: acs_instance_v1 {
+    name
     url
     credentials {
       ...VaultSecret

@@ -16,7 +16,7 @@ from sretoolbox.container.image import (
 from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile.container_registry_mirror.deep_sync_timer import DeepSyncTimer
-from reconcile.quay_base import QuayApiStore
+from reconcile.quay_base import get_quay_api_store
 from reconcile.utils.quay_mirror import record_timestamp, sync_tag
 
 if TYPE_CHECKING:
@@ -44,7 +44,9 @@ class QuayMirrorOrg:
     ) -> None:
         self.dry_run = dry_run
         self.skopeo_cli = Skopeo(dry_run)
-        self.quay_api_store = QuayApiStore()
+        self.quay_api_store = get_quay_api_store()
+        self.compare_tags = compare_tags
+        self.compare_tags_interval = compare_tags_interval
         self.orgs = orgs
         self.repositories = repositories
 

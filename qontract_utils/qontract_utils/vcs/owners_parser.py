@@ -43,7 +43,9 @@ class OwnersParser:
         self._ref = ref
         self._repo_url = vcs_client.repo_url
         self._aliases: dict[str, list[str]] | None = None
-        self._yaml = yaml_client() if yaml_client else create_ruamel_instance()
+        self._yaml = (
+            yaml_client() if yaml_client else create_ruamel_instance(typ="safe")
+        )
 
     def get_owners(self, owners_file: str = "/OWNERS") -> RepoOwners:
         """Get owners defined in OWNERS file at specified path.

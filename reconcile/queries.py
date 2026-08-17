@@ -1871,6 +1871,7 @@ QUAY_ORGS_QUERY = """
   quay_orgs: quay_orgs_v1 {
     name
     managedRepos
+    managedRobotAccounts
     instance {
       name
       url

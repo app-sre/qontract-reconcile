@@ -8741,6 +8741,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "instance",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "AcsInstance_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "description",
                             "description": null,
                             "args": [],
@@ -34503,6 +34515,18 @@
                                     "kind": "SCALAR",
                                     "ofType": null
                                 }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "instance",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "AcsInstance_v1",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null

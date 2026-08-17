@@ -8,6 +8,7 @@ import pytest
 
 from reconcile.acs_policies import AcsPoliciesIntegration
 from reconcile.gql_definitions.acs.acs_policies import (
+    AcsInstanceV1,
     AcsPolicyConditionsCveV1,
     AcsPolicyConditionsCvssV1,
     AcsPolicyConditionsSeverityV1,
@@ -42,6 +43,7 @@ def query_data_desired_state() -> AcsPolicyQueryData:
         acs_policies=[
             AcsPolicyV1(
                 name=CUSTOM_POLICY_ONE_NAME,
+                instance=AcsInstanceV1(name="app-sre-acs"),
                 description="CVEs within app-sre clusters with CVSS score gte to 7 and fixable",
                 severity="high",
                 categories=["vulnerability-management"],
@@ -61,6 +63,7 @@ def query_data_desired_state() -> AcsPolicyQueryData:
             ),
             AcsPolicyV1(
                 name=CUSTOM_POLICY_TWO_NAME,
+                instance=AcsInstanceV1(name="app-sre-acs"),
                 description="image security policy violations of critical severity within app-sre namespaces",
                 severity="critical",
                 categories=["vulnerability-management", "devops-best-practices"],
@@ -286,6 +289,7 @@ def test_get_desired_state(
     integration = AcsPoliciesIntegration()
     result = integration.get_desired_state(
         query_func=query_func,
+        instance_name="app-sre-acs",
         notifiers=api_response_list_notifiers,
         clusters=api_response_list_clusters,
     )
@@ -459,3 +463,49 @@ def test_update_policy_dry_run(
     )
 
     acs_mock.create_or_update_policy.assert_not_called()
+
+
+def test_get_desired_state_filters_by_instance(
+    mocker: MockerFixture,
+    query_data_desired_state: AcsPolicyQueryData,
+    api_response_list_notifiers: list[AcsPolicyApi.NotifierIdentifiers],
+    api_response_list_clusters: list[AcsPolicyApi.ClusterIdentifiers],
+) -> None:
+    query_func = mocker.patch(
+        "reconcile.gql_definitions.acs.acs_policies.query", autospec=True
+    )
+    query_func.return_value = query_data_desired_state
+
+    integration = AcsPoliciesIntegration()
+    result = integration.get_desired_state(
+        query_func=query_func,
+        instance_name="other-instance",
+        notifiers=api_response_list_notifiers,
+        clusters=api_response_list_clusters,
+    )
+    assert result == []
+
+
+def test_get_desired_state_includes_policies_without_instance(
+    mocker: MockerFixture,
+    query_data_desired_state: AcsPolicyQueryData,
+    api_response_list_notifiers: list[AcsPolicyApi.NotifierIdentifiers],
+    api_response_list_clusters: list[AcsPolicyApi.ClusterIdentifiers],
+) -> None:
+    # Permissive filter: policies with instance=None are included (treated as "belongs to all instances")
+    for policy in query_data_desired_state.acs_policies or []:
+        policy.instance = None
+
+    query_func = mocker.patch(
+        "reconcile.gql_definitions.acs.acs_policies.query", autospec=True
+    )
+    query_func.return_value = query_data_desired_state
+
+    integration = AcsPoliciesIntegration()
+    result = integration.get_desired_state(
+        query_func=query_func,
+        instance_name="app-sre-acs",
+        notifiers=api_response_list_notifiers,
+        clusters=api_response_list_clusters,
+    )
+    assert len(result) == len(query_data_desired_state.acs_policies or [])

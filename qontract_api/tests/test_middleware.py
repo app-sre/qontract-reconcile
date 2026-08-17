@@ -2,13 +2,17 @@
 
 import gzip
 import json
+import zlib
 from http import HTTPStatus
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.requests import ClientDisconnect
 
+import qontract_api.middleware as middleware_module
 from qontract_api.auth import create_access_token
 from qontract_api.constants import REQUEST_ID_HEADER
+from qontract_api.middleware import _decompress_gzip_bounded, _read_compressed_body
 from qontract_api.models import TokenData
 
 
@@ -98,6 +102,97 @@ def test_gzip_request_with_invalid_data(client_with_cache: TestClient) -> None:
     # Should return 400 Bad Request
     assert response.status_code == HTTPStatus.BAD_REQUEST
     assert "gzip" in response.text.lower()
+
+
+def test_gzip_request_exceeds_max_compressed_size(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that an oversized compressed request body is rejected before decompression."""
+    monkeypatch.setattr(middleware_module, "MAX_GZIP_COMPRESSED_SIZE", 1_000)
+
+    # Body itself doesn't need to be valid gzip - the size check runs
+    # while collecting chunks, before gzip decompression is attempted.
+    oversized_body = b"x" * 2_000
+
+    response = client.post(
+        "/api/v1/integrations/slack-usergroups/reconcile",
+        content=oversized_body,
+        headers={
+            "Content-Type": "application/json",
+            "Content-Encoding": "gzip",
+        },
+    )
+
+    assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+    assert "compressed" in response.text.lower()
+
+
+def test_gzip_bomb_exceeds_max_decompressed_size(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that a gzip bomb (small compressed, huge decompressed) is rejected."""
+    monkeypatch.setattr(middleware_module, "MAX_GZIP_DECOMPRESSED_SIZE", 1_024)
+
+    # Highly compressible payload: tiny compressed size, large decompressed size.
+    bomb = gzip.compress(b"A" * 100_000)
+
+    response = client.post(
+        "/api/v1/integrations/slack-usergroups/reconcile",
+        content=bomb,
+        headers={
+            "Content-Type": "application/json",
+            "Content-Encoding": "gzip",
+        },
+    )
+
+    assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+    assert "decompress" in response.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_read_compressed_body_raises_on_client_disconnect() -> None:
+    """Test that an http.disconnect message raises ClientDisconnect instead of looping forever."""
+    calls = 0
+
+    async def fake_receive() -> dict[str, object]:  # ruff: ignore[unused-async]
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            raise AssertionError("reader did not stop after disconnect")
+        return {"type": "http.disconnect"}
+
+    with pytest.raises(ClientDisconnect):
+        await _read_compressed_body(fake_receive, max_compressed_size=1_000)
+
+
+def test_decompress_gzip_bounded_concatenated_members() -> None:
+    """Test that concatenated gzip members are all decompressed, like gzip.decompress()."""
+    payload = gzip.compress(b"first") + gzip.compress(b"second")
+
+    result = _decompress_gzip_bounded(payload, max_decompressed_size=1_000)
+
+    assert result == b"firstsecond"
+
+
+def test_decompress_gzip_bounded_truncated_data() -> None:
+    """Test that truncated gzip input raises instead of silently returning partial data."""
+    truncated = gzip.compress(b"first")[:-8]
+
+    with pytest.raises(gzip.BadGzipFile):
+        _decompress_gzip_bounded(truncated, max_decompressed_size=1_000)
+
+
+def test_decompress_gzip_bounded_trailing_garbage() -> None:
+    """Test that trailing non-gzip data after a valid member raises instead of being dropped.
+
+    Raises zlib.error (from parsing the invalid gzip header of the trailing
+    data) rather than gzip.BadGzipFile - the middleware's dispatch() already
+    catches both identically and maps them to a 400 "Invalid gzip data" response.
+    """
+    payload = gzip.compress(b"first") + b"garbage-not-gzip"
+
+    with pytest.raises((gzip.BadGzipFile, zlib.error)):
+        _decompress_gzip_bounded(payload, max_decompressed_size=1_000)
 
 
 def test_uncompressed_request_still_works(
