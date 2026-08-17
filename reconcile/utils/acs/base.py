@@ -37,19 +37,16 @@ class AcsBaseApi(BaseModel):
         self.session.close()
 
     @staticmethod
-    def get_acs_instance(query_func: Callable) -> AcsInstanceV1:
-        """
-        Get an ACS instance
-
-        :param query_func: function which queries GQL Server
-        """
+    def get_acs_instances(
+        query_func: Callable, name: str | None = None
+    ) -> list[AcsInstanceV1]:
         if instances := acs_instances_query(query_func=query_func).instances:
-            # mirroring logic for gitlab instances
-            # current assumption is for appsre to only utilize one instance
-            if len(instances) != 1:
-                raise AppInterfaceSettingsError("More than one ACS instance found!")
-            return instances[0]
-        raise AppInterfaceSettingsError("No ACS instance found!")
+            if name:
+                instances = [i for i in instances if i.name == name]
+                if not instances:
+                    raise AppInterfaceSettingsError(f"ACS instance '{name}' not found")
+            return instances
+        raise AppInterfaceSettingsError("No ACS instances found!")
 
     @staticmethod
     def check_len_attributes(attrs: list[Any], api_data: Any) -> None:
