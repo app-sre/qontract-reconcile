@@ -194,6 +194,12 @@ from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
 )
+from tools.cli_commands.rds_eol import (
+    build_eol_lookup,
+    build_next_version_lookup,
+    load_rds_eol_data,
+    rds_version_fields,
+)
 from tools.cli_commands.systems_and_tools import get_systems_and_tools_inventory
 from tools.sre_checkpoints import (
     full_name,
@@ -1831,6 +1837,15 @@ def rds_attr(
     return overrides.get(attr) or defaults.get(attr)
 
 
+def rds_value(
+    attr: str, overrides: dict[str, Any], defaults: dict[str, Any]
+) -> Any | None:
+    """Return an override when the key is present, including falsey YAML values."""
+    if attr in overrides:
+        return overrides[attr]
+    return defaults.get(attr)
+
+
 def region_from_az(az: str | None) -> str | None:
     if not az:
         return None
@@ -1857,6 +1872,11 @@ def rds_region(
 def rds(ctx: click.Context) -> None:
     namespaces = tfr.get_namespaces()
     accounts = {a["name"]: a for a in queries.get_aws_accounts()}
+
+    eol_data = load_rds_eol_data()
+    eol_lookup = build_eol_lookup(eol_data)
+    next_version_lookup = build_next_version_lookup(eol_data)
+
     results = []
     for namespace in namespaces:
         if namespace.delete:
@@ -1873,31 +1893,45 @@ def rds(ctx: click.Context) -> None:
                 gql.get_resource(spec.resource["defaults"])["content"]
             )
             overrides = json.loads(spec.resource.get("overrides") or "{}")
+            engine = rds_attr("engine", overrides, defaults)
+            engine_version = rds_attr("engine_version", overrides, defaults)
+            eol_date, next_version = rds_version_fields(
+                engine, engine_version, eol_lookup, next_version_lookup
+            )
             item = {
                 "identifier": spec.identifier,
                 "account": spec.provisioner_name,
                 "account_uid": accounts[spec.provisioner_name]["uid"],
                 "region": rds_region(spec, overrides, defaults, accounts),
-                "engine": rds_attr("engine", overrides, defaults),
-                "engine_version": rds_attr("engine_version", overrides, defaults),
+                "engine": engine,
+                "engine_version": engine_version,
                 "instance_class": rds_attr("instance_class", overrides, defaults),
-                "storage_type": rds_attr("storage_type", overrides, defaults),
+                "auto_minor_version_upgrade": rds_value(
+                    "auto_minor_version_upgrade", overrides, defaults
+                ),
+                "eol_date": eol_date,
+                "next_version": next_version,
             }
             results.append(item)
+
+    rds_fields = [
+        {"key": "identifier", "sortable": True},
+        {"key": "account", "sortable": True},
+        {"key": "account_uid", "sortable": True},
+        {"key": "region", "sortable": True},
+        {"key": "engine", "sortable": True},
+        {"key": "engine_version", "sortable": True},
+        {"key": "instance_class", "sortable": True},
+        {"key": "auto_minor_version_upgrade", "sortable": True},
+        {"key": "eol_date", "sortable": True},
+        {"key": "next_version", "sortable": True},
+    ]
+    columns = [field["key"] for field in rds_fields]
 
     if ctx.obj["options"]["output"] == "md":
         json_table = {
             "filter": True,
-            "fields": [
-                {"key": "identifier", "sortable": True},
-                {"key": "account", "sortable": True},
-                {"key": "account_uid", "sortable": True},
-                {"key": "region", "sortable": True},
-                {"key": "engine", "sortable": True},
-                {"key": "engine_version", "sortable": True},
-                {"key": "instance_class", "sortable": True},
-                {"key": "storage_type", "sortable": True},
-            ],
+            "fields": rds_fields,
             "items": results,
         }
 
@@ -1913,16 +1947,6 @@ You can view the source of this Markdown to extract the JSON data.
             """
         )
     else:
-        columns = [
-            "identifier",
-            "account",
-            "account_uid",
-            "region",
-            "engine",
-            "engine_version",
-            "instance_class",
-            "storage_type",
-        ]
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], results, columns)
 
