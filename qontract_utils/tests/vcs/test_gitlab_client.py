@@ -499,6 +499,31 @@ def test_gitlab_api_create_merge_request_calls_hooks(
     assert context.method == "create_merge_request"
 
 
+def test_gitlab_api_default_user_agent(mock_gitlab_client: MagicMock) -> None:
+    """Test GitLabRepoApi passes the default qontract-utils User-Agent to python-gitlab."""
+    GitLabRepoApi(
+        project_id="group/project",
+        token="token",
+        gitlab_url="https://gitlab.com",
+    )
+
+    assert mock_gitlab_client.call_args.kwargs["user_agent"].startswith(
+        "qontract-utils/"
+    )
+
+
+def test_gitlab_api_custom_user_agent(mock_gitlab_client: MagicMock) -> None:
+    """Test GitLabRepoApi passes a custom User-Agent to python-gitlab."""
+    GitLabRepoApi(
+        project_id="group/project",
+        token="token",
+        gitlab_url="https://gitlab.com",
+        user_agent="qontract-api/1.2.3",
+    )
+
+    assert mock_gitlab_client.call_args.kwargs["user_agent"] == "qontract-api/1.2.3"
+
+
 def test_gitlab_api_call_context_immutable() -> None:
     """Test GitLabApiCallContext is immutable (frozen dataclass)."""
     context = GitLabApiCallContext(
