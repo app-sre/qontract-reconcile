@@ -1914,19 +1914,19 @@ def rds(ctx: click.Context) -> None:
             }
             results.append(item)
 
-    rds_fields = [
-        {"key": "identifier", "sortable": True},
-        {"key": "account", "sortable": True},
-        {"key": "account_uid", "sortable": True},
-        {"key": "region", "sortable": True},
-        {"key": "engine", "sortable": True},
-        {"key": "engine_version", "sortable": True},
-        {"key": "instance_class", "sortable": True},
-        {"key": "auto_minor_version_upgrade", "sortable": True},
-        {"key": "eol_date", "sortable": True},
-        {"key": "next_version", "sortable": True},
+    columns = [
+        "identifier",
+        "account",
+        "account_uid",
+        "region",
+        "engine",
+        "engine_version",
+        "instance_class",
+        "auto_minor_version_upgrade",
+        "eol_date",
+        "next_version",
     ]
-    columns = [field["key"] for field in rds_fields]
+    rds_fields = [{"key": c, "sortable": True} for c in columns]
 
     if ctx.obj["options"]["output"] == "md":
         json_table = {
