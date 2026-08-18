@@ -406,7 +406,7 @@ class AWSReconciler:
             offer = aws_api.marketplace.discover_rosa_offer()
             agreement_id = aws_api.marketplace.subscribe_rosa(
                 agreement_proposal_id=offer.agreement_proposal_id,
-                term_ids=offer.term_ids,
+                requested_terms=offer.requested_terms,
             )
             state.value = agreement_id
 

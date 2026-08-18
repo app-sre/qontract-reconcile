@@ -1867,6 +1867,14 @@ def quay_membership(ctx: click.Context) -> None:
     run_integration(reconcile.quay_membership, ctx)
 
 
+@integration.command(short_help="Manages robot accounts in Quay organizations.")
+@click.pass_context
+def quay_robot_accounts(ctx: click.Context) -> None:
+    import reconcile.quay_robot_accounts
+
+    run_integration(reconcile.quay_robot_accounts, ctx)
+
+
 @integration.command(short_help="Mirrors external images into GCP Artifact Registry.")
 @click.pass_context
 @binary(["skopeo"])
@@ -3735,23 +3743,30 @@ def ocm_internal_notifications(ctx: click.Context) -> None:
 
 
 @integration.command(short_help="Manages RHACS rbac configuration")
+@click.option("--instance", help="Reconcile just this ACS instance.", default=None)
 @click.pass_context
-def acs_rbac(ctx: click.Context) -> None:
-    from reconcile import acs_rbac
+def acs_rbac(ctx: click.Context, instance: str | None) -> None:
+    from reconcile.acs_rbac import AcsIntegrationParams, AcsRbacIntegration
 
     run_class_integration(
-        integration=acs_rbac.AcsRbacIntegration(),
+        integration=AcsRbacIntegration(AcsIntegrationParams(instance=instance)),
         ctx=ctx,
     )
 
 
 @integration.command(short_help="Manages RHACS security policy configurations")
+@click.option("--instance", help="Reconcile just this ACS instance.", default=None)
 @click.pass_context
-def acs_policies(ctx: click.Context) -> None:
-    from reconcile import acs_policies
+def acs_policies(ctx: click.Context, instance: str | None) -> None:
+    from reconcile.acs_policies import (
+        AcsPoliciesIntegration,
+        AcsPoliciesIntegrationParams,
+    )
 
     run_class_integration(
-        integration=acs_policies.AcsPoliciesIntegration(),
+        integration=AcsPoliciesIntegration(
+            AcsPoliciesIntegrationParams(instance=instance)
+        ),
         ctx=ctx,
     )
 

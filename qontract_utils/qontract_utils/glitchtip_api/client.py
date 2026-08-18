@@ -23,6 +23,7 @@ from qontract_utils.glitchtip_api.models import (
 )
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
+from qontract_utils.user_agent import DEFAULT_USER_AGENT
 
 logger = structlog.get_logger(__name__)
 
@@ -178,6 +179,7 @@ class GlitchtipApi:
         timeout: int = TIMEOUT,
         max_retries: int = 3,
         hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
+        user_agent: str = DEFAULT_USER_AGENT,
     ) -> None:
         """Initialize Glitchtip API client.
 
@@ -188,11 +190,17 @@ class GlitchtipApi:
             max_retries: Number of retries for failed requests (default: 3)
             hooks: Optional custom hooks to merge with built-in hooks.
                 Built-in hooks (metrics, logging, latency) are automatically included.
+            user_agent: User-Agent header sent with every request. Defaults to
+                identifying qontract-utils itself; callers embedded in a larger
+                service should pass their own app name/version instead.
         """
         self.host = host.rstrip("/")
         self._client = httpx2.Client(
             base_url=self.host,
-            headers={"Authorization": f"Bearer {token}"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "User-Agent": user_agent,
+            },
             timeout=timeout,
             transport=httpx2.HTTPTransport(retries=max_retries),
         )

@@ -9,7 +9,7 @@ import reconcile.gql_definitions.acs.acs_policies as gql_acs_policies
 from reconcile.utils import gql
 from reconcile.utils.acs.policies import AcsPolicyApi, Policy, PolicyCondition, Scope
 from reconcile.utils.runtime.integration import (
-    NoParams,
+    PydanticRunParams,
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import make_semver
@@ -49,9 +49,15 @@ POLICY_CONDITION_FIELD_NAMES = {
 }
 
 
-class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
-    def __init__(self) -> None:
-        super().__init__(NoParams())
+class AcsPoliciesIntegrationParams(PydanticRunParams):
+    instance: str | None = None
+
+
+class AcsPoliciesIntegration(
+    QontractReconcileIntegration[AcsPoliciesIntegrationParams]
+):
+    def __init__(self, params: AcsPoliciesIntegrationParams | None = None) -> None:
+        super().__init__(params or AcsPoliciesIntegrationParams())
         self.qontract_integration = "acs_policies"
         self.qontract_integration_version = make_semver(0, 1, 0)
 
@@ -165,6 +171,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
     def get_desired_state(
         self,
         query_func: Callable,
+        instance_name: str,
         notifiers: list[AcsPolicyApi.NotifierIdentifiers],
         clusters: list[AcsPolicyApi.ClusterIdentifiers],
     ) -> list[Policy]:
@@ -172,6 +179,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         Get desired ACS security policies and convert to acs api policy object format
 
         :param query_func: function which queries GQL server
+        :param instance_name: name of the ACS instance to filter policies for
         :return: list of utils.acs.policies.Policy derived from acs-policy-1 definitions
         """
         notifier_name_to_id = {n.name: n.id for n in notifiers}
@@ -180,6 +188,8 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
             self._build_policy(gql_policy, notifier_name_to_id, cluster_name_to_id)
             for gql_policy in gql_acs_policies.query(query_func=query_func).acs_policies
             or []
+            # TODO: Update logic once ACS files in App-interface have been updated with the "instance" field
+            if gql_policy.instance is None or gql_policy.instance.name == instance_name
         ]
 
     def reconcile(
@@ -224,14 +234,31 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         dry_run: bool,
     ) -> None:
         gqlapi = gql.get_api()
-        instance = AcsPolicyApi.get_acs_instance(gqlapi.query)
-        with AcsPolicyApi(
-            url=instance.url, token=self.secret_reader.read_secret(instance.credentials)
-        ) as acs_api:
-            notifiers = acs_api.list_notifiers()
-            clusters = acs_api.list_clusters()
-            desired = self.get_desired_state(gqlapi.query, notifiers, clusters)
-            current = acs_api.get_custom_policies()
-            self.reconcile(
-                desired=desired, current=current, acs=acs_api, dry_run=dry_run
-            )
+        instances = AcsPolicyApi.get_acs_instances(
+            gqlapi.query, name=self.params.instance
+        )
+
+        errors: list[Exception] = []
+        for instance in instances:
+            try:
+                with AcsPolicyApi(
+                    url=instance.url,
+                    token=self.secret_reader.read_secret(instance.credentials),
+                ) as acs_api:
+                    notifiers = acs_api.list_notifiers()
+                    clusters = acs_api.list_clusters()
+                    desired = self.get_desired_state(
+                        gqlapi.query, instance.name, notifiers, clusters
+                    )
+                    current = acs_api.get_custom_policies()
+                    self.reconcile(
+                        desired=desired,
+                        current=current,
+                        acs=acs_api,
+                        dry_run=dry_run,
+                    )
+            except Exception as e:
+                errors.append(e)
+
+        if errors:
+            raise ExceptionGroup("ACS policies reconciliation errors", errors)
