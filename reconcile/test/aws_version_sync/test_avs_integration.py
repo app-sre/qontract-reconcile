@@ -497,6 +497,29 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
         resource_engine="redis",
         resource_engine_version="13.1",
     )
+    # AWS metrics are stale and still report "redis" while app-interface
+    # already reflects an already-applied redis -> valkey engine upgrade.
+    # The integration must not revert this to "redis" (no engine downgrade).
+    ec_stale_aws_metrics_no_engine_downgrade_aws = ExternalResource(
+        namespace_file=None,
+        provider="aws",
+        provisioner=ExternalResourceProvisioner(uid="version_update", path=None),
+        resource_provider="elasticache",
+        resource_identifier="ec-stale-aws-metrics-no-engine-downgrade",
+        resource_engine="redis",
+        resource_engine_version="7.1",
+    )
+    ec_stale_aws_metrics_no_engine_downgrade_ai = ExternalResource(
+        namespace_file="/version_update_ai-namespace-file.yml",
+        provider="aws",
+        provisioner=ExternalResourceProvisioner(
+            uid="version_update", path="version_update.yml"
+        ),
+        resource_provider="elasticache",
+        resource_identifier="ec-stale-aws-metrics-no-engine-downgrade",
+        resource_engine="valkey",
+        resource_engine_version="7.2",
+    )
     external_resources_aws = [
         no_change_aws,
         version_update_aws,
@@ -505,6 +528,7 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
         ec_version_update_aws,
         ec_engine_update_aws,
         ec_engine_and_version_update_aws,
+        ec_stale_aws_metrics_no_engine_downgrade_aws,
     ]
 
     external_resources_app_interface = [
@@ -516,6 +540,7 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
         ec_version_update_ai,
         ec_engine_update_ai,
         ec_engine_and_version_update_ai,
+        ec_stale_aws_metrics_no_engine_downgrade_ai,
     ]
     # randomize the order of the external resources
     random.shuffle(external_resources_aws)
