@@ -11,10 +11,10 @@ dependencies = ["clientele[core]==2.3.0"]
 dev = [
     "clientele[cli]==2.3.0",
     # development and testing tools
-    "mypy==2.3.0",
+    "mypy==2.3.1",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "ruff==0.16.2",
+    "ruff==0.16.3",
 ]
 
 [build-system]
