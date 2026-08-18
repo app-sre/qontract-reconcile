@@ -194,6 +194,13 @@ from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
 )
+from tools.cli_commands.rds_eol import (
+    DEFAULT_RDS_EOL_URL,
+    build_eol_lookup,
+    build_next_version_lookup,
+    load_rds_eol_data,
+    rds_version_fields,
+)
 from tools.cli_commands.systems_and_tools import get_systems_and_tools_inventory
 from tools.sre_checkpoints import (
     full_name,
@@ -1826,9 +1833,16 @@ def aws_terraform_resources(ctx: click.Context) -> None:
 
 
 def rds_attr(
-    attr: str, overrides: dict[str, str], defaults: dict[str, str]
-) -> str | None:
-    return overrides.get(attr) or defaults.get(attr)
+    attr: str, overrides: dict[str, Any], defaults: dict[str, Any]
+) -> Any | None:
+    """Return the override value if the key is present, otherwise the default.
+
+    Uses key membership (not truthiness) so falsey values like False or 0 are
+    preserved when explicitly set in overrides.
+    """
+    if attr in overrides:
+        return overrides[attr]
+    return defaults.get(attr)
 
 
 def region_from_az(az: str | None) -> str | None:
@@ -1839,8 +1853,8 @@ def region_from_az(az: str | None) -> str | None:
 
 def rds_region(
     spec: ExternalResourceSpec,
-    overrides: dict[str, str],
-    defaults: dict[str, str],
+    overrides: dict[str, Any],
+    defaults: dict[str, Any],
     accounts: dict[str, Any],
 ) -> str | None:
     return (
@@ -1853,10 +1867,21 @@ def rds_region(
 
 
 @get.command
+@click.option(
+    "--eol-url",
+    default=DEFAULT_RDS_EOL_URL,
+    show_default=True,
+    help="URL to the RDS EOL calendar YAML dataset.",
+)
 @click.pass_context
-def rds(ctx: click.Context) -> None:
+def rds(ctx: click.Context, eol_url: str) -> None:
     namespaces = tfr.get_namespaces()
     accounts = {a["name"]: a for a in queries.get_aws_accounts()}
+
+    eol_data = load_rds_eol_data(eol_url)
+    eol_lookup = build_eol_lookup(eol_data)
+    next_version_lookup = build_next_version_lookup(eol_data)
+
     results = []
     for namespace in namespaces:
         if namespace.delete:
@@ -1873,31 +1898,44 @@ def rds(ctx: click.Context) -> None:
                 gql.get_resource(spec.resource["defaults"])["content"]
             )
             overrides = json.loads(spec.resource.get("overrides") or "{}")
+            engine = rds_attr("engine", overrides, defaults)
+            engine_version = rds_attr("engine_version", overrides, defaults)
+            eol_date, next_version = rds_version_fields(
+                engine, engine_version, eol_lookup, next_version_lookup
+            )
+            amvu = rds_attr("auto_minor_version_upgrade", overrides, defaults)
             item = {
                 "identifier": spec.identifier,
                 "account": spec.provisioner_name,
                 "account_uid": accounts[spec.provisioner_name]["uid"],
                 "region": rds_region(spec, overrides, defaults, accounts),
-                "engine": rds_attr("engine", overrides, defaults),
-                "engine_version": rds_attr("engine_version", overrides, defaults),
+                "engine": engine,
+                "engine_version": engine_version,
                 "instance_class": rds_attr("instance_class", overrides, defaults),
-                "storage_type": rds_attr("storage_type", overrides, defaults),
+                "auto_minor_version_upgrade": "" if amvu is None else str(amvu),
+                "eol_date": eol_date,
+                "next_version": next_version,
             }
             results.append(item)
+
+    columns = [
+        "identifier",
+        "account",
+        "account_uid",
+        "region",
+        "engine",
+        "engine_version",
+        "instance_class",
+        "auto_minor_version_upgrade",
+        "eol_date",
+        "next_version",
+    ]
+    rds_fields = [{"key": c, "sortable": True} for c in columns]
 
     if ctx.obj["options"]["output"] == "md":
         json_table = {
             "filter": True,
-            "fields": [
-                {"key": "identifier", "sortable": True},
-                {"key": "account", "sortable": True},
-                {"key": "account_uid", "sortable": True},
-                {"key": "region", "sortable": True},
-                {"key": "engine", "sortable": True},
-                {"key": "engine_version", "sortable": True},
-                {"key": "instance_class", "sortable": True},
-                {"key": "storage_type", "sortable": True},
-            ],
+            "fields": rds_fields,
             "items": results,
         }
 
@@ -1913,16 +1951,6 @@ You can view the source of this Markdown to extract the JSON data.
             """
         )
     else:
-        columns = [
-            "identifier",
-            "account",
-            "account_uid",
-            "region",
-            "engine",
-            "engine_version",
-            "instance_class",
-            "storage_type",
-        ]
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], results, columns)
 
