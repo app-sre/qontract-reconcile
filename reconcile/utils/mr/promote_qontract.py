@@ -361,14 +361,6 @@ class PromoteQontractServer(PromoteQontractReconcileCommercial):
     name = "promote_qontract_server"
     project_display_name = "qontract-server"
 
-    def __init__(
-        self, version: str, commit_sha: str, github_user_id: str | None = None
-    ):
-        super().__init__(
-            version=version, commit_sha=commit_sha, github_user_id=github_user_id
-        )
-        self.labels = [AUTO_MERGE]
-
     def process(self, gitlab_cli: GitLabApi) -> None:
         # .env
         self._process_by(
