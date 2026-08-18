@@ -8,6 +8,7 @@ from qontract_utils.quay_api import QuayRepo
 from qontract_api.integrations.quay_repos.schemas import (
     QuayOrgConfig,
     QuayOrgKey,
+    QuayRepoAction,
     QuayRepoActionCreate,
     QuayRepoActionDelete,
     QuayRepoActionUpdateDescription,
@@ -350,7 +351,7 @@ def _make_mock_client() -> MagicMock:
 def test_apply_actions_all_succeed(service: QuayReposService) -> None:
     client = _make_mock_client()
     org = _org()
-    actions = [
+    actions: list[QuayRepoAction] = [
         QuayRepoActionCreate(
             instance=org.instance,
             org_name=org.org_name,
@@ -375,7 +376,7 @@ def test_apply_actions_all_fail(service: QuayReposService) -> None:
     client = _make_mock_client()
     client.repo_create.side_effect = Exception("boom")
     org = _org()
-    actions = [
+    actions: list[QuayRepoAction] = [
         QuayRepoActionCreate(
             instance=org.instance,
             org_name=org.org_name,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -21,7 +22,7 @@ _SECRET = Secret(
 
 
 @pytest.fixture
-def mock_quay_api_cls() -> MagicMock:
+def mock_quay_api_cls() -> Generator[MagicMock, None, None]:
     with patch("qontract_api.quay.quay_client_factory.QuayApi") as mock_cls:
         instance = MagicMock()
         instance.org = "myorg"
