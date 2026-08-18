@@ -171,7 +171,7 @@ EXTENDED_SUPPORT_VERSION_INDICATOR = "-rds."
 # supports upgrading a Redis instance to Valkey, but never the other way round.
 # used to detect stale AWS metrics that still report the pre-upgrade engine
 # while app-interface already reflects the (already applied) upgrade.
-ENGINE_UPGRADE_PATHS = {"redis": "valkey"}
+ENGINE_UPGRADE_PATHS: dict[str, str] = {"redis": "valkey"}
 
 
 class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
