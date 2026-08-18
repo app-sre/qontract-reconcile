@@ -628,3 +628,40 @@ def test_review_queue_includes_bot_authored_self_serviceable_mr_with_pipeline_er
     )
     assert result.exit_code == 0
     assert "MR 7" in result.output
+
+
+def test_rds_command_columns_replace_storage_type(mocker: MockerFixture) -> None:
+    mocker.patch("tools.qontract_cli.tfr.get_namespaces", return_value=[])
+    mocker.patch("tools.qontract_cli.queries.get_aws_accounts", return_value=[])
+    mocker.patch("tools.qontract_cli.load_rds_eol_data", return_value=[])
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["rds"],
+        obj={"options": {"output": "table", "sort": False}},
+    )
+    assert result.exit_code == 0
+    output = result.output
+    assert "STORAGE_TYPE" not in output
+    assert "AUTO_MINOR_VERSION_UPGRADE" in output
+    assert "EOL_DATE" in output
+    assert "NEXT_VERSION" in output
+
+
+def test_rds_attr_preserves_false_override() -> None:
+    overrides: dict = {"auto_minor_version_upgrade": False}
+    defaults: dict = {"auto_minor_version_upgrade": True}
+    assert (
+        qontract_cli.rds_attr("auto_minor_version_upgrade", overrides, defaults)
+        is False
+    )
+    assert qontract_cli.rds_attr("auto_minor_version_upgrade", {}, defaults) is True
+    assert qontract_cli.rds_attr("auto_minor_version_upgrade", {}, {}) is None
+
+
+def test_rds_attr_falls_through_when_key_absent() -> None:
+    overrides: dict = {}
+    defaults: dict = {"engine": "postgres"}
+    assert qontract_cli.rds_attr("engine", overrides, defaults) == "postgres"
+    assert qontract_cli.rds_attr("engine", {"engine": "mysql"}, defaults) == "mysql"

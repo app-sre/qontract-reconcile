@@ -167,6 +167,11 @@ AppInterfaceExternalResources = list[ExternalResource]
 UidAndReplicationGroupId = tuple[str, str]
 ReplicationGroupIdToIdentifier = dict[UidAndReplicationGroupId, str]
 EXTENDED_SUPPORT_VERSION_INDICATOR = "-rds."
+# maps an engine to the engine it can be upgraded to, e.g. AWS ElastiCache
+# supports upgrading a Redis instance to Valkey, but never the other way round.
+# used to detect stale AWS metrics that still report the pre-upgrade engine
+# while app-interface already reflects the (already applied) upgrade.
+ENGINE_UPGRADE_PATHS: dict[str, str] = {"redis": "valkey"}
 
 
 class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
@@ -449,12 +454,19 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
             aws_resource = diff_pair.desired
             app_interface_resource = diff_pair.current
             if (
-                aws_resource.resource_engine_version
+                aws_resource.resource_engine == app_interface_resource.resource_engine
+                and aws_resource.resource_engine_version
                 <= app_interface_resource.resource_engine_version
-                and aws_resource.resource_engine
-                == app_interface_resource.resource_engine
             ):
                 # do not downgrade the version
+                continue
+            if (
+                ENGINE_UPGRADE_PATHS.get(aws_resource.resource_engine)
+                == app_interface_resource.resource_engine
+            ):
+                # the AWS metrics still report the pre-upgrade engine (e.g. "redis")
+                # while app-interface already reflects the applied engine upgrade
+                # (e.g. "valkey"); the AWS metrics are stale, do not downgrade the engine
                 continue
             # make mypy happy
             assert app_interface_resource.namespace_file
