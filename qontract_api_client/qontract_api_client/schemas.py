@@ -515,6 +515,64 @@ class OcmConnectionParams(pydantic.BaseModel):
     version: int | None = None
 
 
+class OcmGroupUser(pydantic.BaseModel):
+    cluster: str
+    group: str
+    user: str
+
+
+class OcmGroupsActionAddUser(pydantic.BaseModel):
+    action_type: typing.Literal["add_user_to_group"] = "add_user_to_group"
+    cluster: str
+    group: str
+    user: str
+
+
+class OcmGroupsActionDeleteUser(pydantic.BaseModel):
+    action_type: typing.Literal["del_user_from_group"] = "del_user_from_group"
+    cluster: str
+    group: str
+    user: str
+
+
+class OcmGroupsCluster(pydantic.BaseModel):
+    cluster_id: str
+    managed_groups: list[str] | None = None
+    name: str
+
+
+class OcmGroupsReconcileRequest(pydantic.BaseModel):
+    clusters: list[OcmGroupsCluster]
+    desired_state: list[OcmGroupUser]
+    dry_run: bool = True
+    ocm_connection: OcmConnectionParams
+    ocm_environment: str
+
+
+class OcmGroupsTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class OcmGroupsTaskResult(pydantic.BaseModel):
+    actions: list[
+        typing.Annotated[
+            OcmGroupsActionAddUser | OcmGroupsActionDeleteUser,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_actions: list[
+        typing.Annotated[
+            OcmGroupsActionAddUser | OcmGroupsActionDeleteUser,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
+
+
 class OcmOidcIdpActionCreate(pydantic.BaseModel):
     action_type: typing.Literal["create"] = "create"
     auth_name: str

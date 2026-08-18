@@ -91,6 +91,32 @@ class RawClusterList(BaseModel):
     total: int = 0
 
 
+class RawGroupUser(BaseModel):
+    id: str
+    kind: str = "User"
+
+
+class RawGroupUserList(BaseModel):
+    items: list[RawGroupUser] = Field(default_factory=list)
+    page: int = 1
+    size: int = 0
+    total: int = 0
+
+
+class RawGroup(BaseModel):
+    id: str
+    href: str | None = None
+    kind: str = "Group"
+    users: RawGroupUserList | None = None
+
+
+class RawGroupList(BaseModel):
+    items: list[RawGroup] = Field(default_factory=list)
+    page: int = 1
+    size: int = 0
+    total: int = 0
+
+
 class RawIdentityProviderOidcOpenIdClaims(BaseModel):
     email: list[str] = Field(default_factory=lambda: ["email"])
     name: list[str] = Field(default_factory=lambda: ["name"])
@@ -277,5 +303,61 @@ class RawOcmClient:
     def delete_identity_provider(self, *, cluster_id: str, idp_id: str) -> None:
         response = self._client.delete(
             f"/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers/{idp_id}"
+        )
+        response.raise_for_status()
+
+    # Cluster Group operations
+    def get_cluster_groups(self, *, cluster_id: str) -> list[RawGroup]:
+        """List all groups on a cluster, including their users."""
+
+        def fetch_page(page: int) -> tuple[list[RawGroup], int]:
+            response = self._client.get(
+                f"/api/clusters_mgmt/v1/clusters/{cluster_id}/groups",
+                params={"page": page, "size": MAX_PAGE_SIZE},
+            )
+            response.raise_for_status()
+            raw_list = RawGroupList.model_validate(response.json())
+            return raw_list.items, raw_list.size
+
+        groups = self._fetch_all_pages(fetch_page)
+        # Fetch users for each group
+        for group in groups:
+            group.users = self._get_group_users(
+                cluster_id=cluster_id, group_id=group.id
+            )
+        return groups
+
+    def _get_group_users(self, *, cluster_id: str, group_id: str) -> RawGroupUserList:
+        """Fetch all users in a specific cluster group."""
+
+        def fetch_page(page: int) -> tuple[list[RawGroupUser], int]:
+            response = self._client.get(
+                f"/api/clusters_mgmt/v1/clusters/{cluster_id}/groups/{group_id}/users",
+                params={"page": page, "size": MAX_PAGE_SIZE},
+            )
+            response.raise_for_status()
+            raw_list = RawGroupUserList.model_validate(response.json())
+            return raw_list.items, raw_list.size
+
+        users = self._fetch_all_pages(fetch_page)
+        return RawGroupUserList(items=users, size=len(users), total=len(users))
+
+    def add_user_to_group(
+        self, *, cluster_id: str, group_id: str, user_id: str
+    ) -> RawGroupUser:
+        """Add a user to a cluster group."""
+        response = self._client.post(
+            f"/api/clusters_mgmt/v1/clusters/{cluster_id}/groups/{group_id}/users",
+            json={"id": user_id},
+        )
+        response.raise_for_status()
+        return RawGroupUser.model_validate(response.json())
+
+    def delete_user_from_group(
+        self, *, cluster_id: str, group_id: str, user_id: str
+    ) -> None:
+        """Remove a user from a cluster group."""
+        response = self._client.delete(
+            f"/api/clusters_mgmt/v1/clusters/{cluster_id}/groups/{group_id}/users/{user_id}"
         )
         response.raise_for_status()

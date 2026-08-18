@@ -27,6 +27,7 @@ from qontract_utils.ocm_api._raw_client import (
 )
 from qontract_utils.ocm_api.models import (
     OcmCluster,
+    OcmClusterGroup,
     OcmIdentityProvider,
     OcmIdentityProviderOidc,
     OcmIdentityProviderOidcOpenId,
@@ -345,6 +346,52 @@ class OcmApi:
     def delete_identity_provider(self, cluster_id: str, idp_id: str) -> None:
         """Delete an identity provider from a cluster."""
         self._raw.delete_identity_provider(cluster_id=cluster_id, idp_id=idp_id)
+
+    # Cluster Group operations
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="groups.list",
+            verb="GET",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def get_cluster_groups(self, cluster_id: str) -> list[OcmClusterGroup]:
+        """List all groups on a cluster with their users."""
+        return [
+            OcmClusterGroup(
+                id=group.id,
+                users=[user.id for user in (group.users.items if group.users else [])],
+            )
+            for group in self._raw.get_cluster_groups(cluster_id=cluster_id)
+        ]
+
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="groups.add_user",
+            verb="POST",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def add_user_to_group(self, cluster_id: str, group_id: str, user_id: str) -> None:
+        """Add a user to a cluster group."""
+        self._raw.add_user_to_group(
+            cluster_id=cluster_id, group_id=group_id, user_id=user_id
+        )
+
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="groups.delete_user",
+            verb="DELETE",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def delete_user_from_group(
+        self, cluster_id: str, group_id: str, user_id: str
+    ) -> None:
+        """Remove a user from a cluster group."""
+        self._raw.delete_user_from_group(
+            cluster_id=cluster_id, group_id=group_id, user_id=user_id
+        )
 
 
 def _label_from_raw(

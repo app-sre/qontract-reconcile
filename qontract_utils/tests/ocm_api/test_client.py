@@ -489,3 +489,88 @@ def test_get_labels_unsupported_type_raises(httpserver: HTTPServer) -> None:
 
     with pytest.raises(pydantic.ValidationError, match="union_tag_invalid"):
         api.get_labels(Filter().eq("key", "k"))
+
+
+#
+# cluster groups
+#
+
+GROUPS_PATH = "/api/clusters_mgmt/v1/clusters/cluster-1/groups"
+
+
+def _group_json(group_id: str) -> dict[str, object]:
+    return {"id": group_id, "kind": "Group", "href": f"/groups/{group_id}"}
+
+
+def _group_users_json(users: list[str]) -> dict[str, object]:
+    return {
+        "items": [{"id": u, "kind": "User"} for u in users],
+        "page": 1,
+        "size": len(users),
+        "total": len(users),
+    }
+
+
+def test_get_cluster_groups_returns_groups_with_users(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+
+    httpserver.expect_request(GROUPS_PATH, method="GET").respond_with_json(
+        {
+            "items": [_group_json("dedicated-admins"), _group_json("cluster-admins")],
+            "page": 1,
+            "size": 2,
+            "total": 2,
+        }
+    )
+    httpserver.expect_request(
+        f"{GROUPS_PATH}/dedicated-admins/users", method="GET"
+    ).respond_with_json(_group_users_json(["alice", "bob"]))
+    httpserver.expect_request(
+        f"{GROUPS_PATH}/cluster-admins/users", method="GET"
+    ).respond_with_json(_group_users_json(["carol"]))
+
+    groups = api.get_cluster_groups("cluster-1")
+
+    assert len(groups) == 2
+    da = next(g for g in groups if g.id == "dedicated-admins")
+    assert set(da.users) == {"alice", "bob"}
+    ca = next(g for g in groups if g.id == "cluster-admins")
+    assert ca.users == ["carol"]
+
+
+def test_get_cluster_groups_empty(httpserver: HTTPServer) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    httpserver.expect_request(GROUPS_PATH, method="GET").respond_with_json(
+        {"items": [], "page": 1, "size": 0, "total": 0}
+    )
+
+    groups = api.get_cluster_groups("cluster-1")
+    assert groups == []
+
+
+def test_add_user_to_group(httpserver: HTTPServer) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    users_path = f"{GROUPS_PATH}/dedicated-admins/users"
+    httpserver.expect_request(users_path, method="POST").respond_with_json(
+        {"id": "alice", "kind": "User"}
+    )
+
+    api.add_user_to_group("cluster-1", "dedicated-admins", "alice")
+
+    post_requests = [req for req, _ in httpserver.log if req.path == users_path]
+    assert len(post_requests) == 1
+    assert post_requests[0].get_json()["id"] == "alice"
+
+
+def test_delete_user_from_group(httpserver: HTTPServer) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    user_path = f"{GROUPS_PATH}/dedicated-admins/users/alice"
+    httpserver.expect_request(user_path, method="DELETE").respond_with_data(status=204)
+
+    api.delete_user_from_group("cluster-1", "dedicated-admins", "alice")
+
+    delete_requests = [req for req, _ in httpserver.log if req.path == user_path]
+    assert len(delete_requests) == 1
+    assert delete_requests[0].method == "DELETE"
