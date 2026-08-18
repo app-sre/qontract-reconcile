@@ -1,4 +1,7 @@
-.PHONY: help build push rc build-test test-app test clean
+.PHONY: help test-app test clean generate dev-reconcile-loop dev-venv format \
+	gql-introspection gql-query-classes qenerate localstack all-tests linter-test \
+	types-test qenerate-test helm-test unittest pypi-konflux print-host-versions \
+	print-files-modified-in-last-30-days
 
 CONTAINER_ENGINE ?= $(shell which podman >/dev/null 2>&1 && echo podman || echo docker)
 CONTAINER_UID ?= $(shell id -u)
@@ -37,7 +40,7 @@ print-host-versions:
 
 test: print-host-versions test-app
 
-dev-reconcile-loop: build-dev ## Trigger the reconcile loop inside a container for an integration
+dev-reconcile-loop: ## Trigger the reconcile loop inside a container for an integration
 	@$(CONTAINER_ENGINE) run --rm -it \
 		--add-host=host.docker.internal:host-gateway \
 		-v "$(CURDIR)":/work:z \
