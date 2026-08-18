@@ -24,13 +24,18 @@ from reconcile.utils.acs.rbac import (
     RbacResources,
 )
 from reconcile.utils.runtime.integration import (
-    NoParams,
+    PydanticRunParams,
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import make_semver
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+
+class AcsIntegrationParams(PydanticRunParams):
+    instance: str | None = None
+
 
 DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
 DEFAULT_ADMIN_SCOPE_DESC = "Access to all clusters and namespaces"
@@ -131,9 +136,9 @@ class AcsRole(BaseModel):
         return not self.access_scope.clusters and not self.access_scope.namespaces
 
 
-class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
-    def __init__(self) -> None:
-        super().__init__(NoParams())
+class AcsRbacIntegration(QontractReconcileIntegration[AcsIntegrationParams]):
+    def __init__(self, params: AcsIntegrationParams | None = None) -> None:
+        super().__init__(params or AcsIntegrationParams())
         self.qontract_integration = "acs_rbac"
         self.qontract_integration_version = make_semver(0, 1, 0)
 
@@ -141,11 +146,14 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
     def name(self) -> str:
         return self.qontract_integration.replace("_", "-")
 
-    def get_desired_state(self, query_func: Callable) -> list[AcsRole]:
+    def get_desired_state(
+        self, query_func: Callable, instance_name: str
+    ) -> list[AcsRole]:
         """
         Get desired ACS roles and associated users from App Interface
 
         :param query_func: function which queries GQL server
+        :param instance_name: name of the ACS instance to filter permissions for
         :return: list of AcsRole derived from oidc-permission-1 definitions
         """
 
@@ -158,6 +166,12 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
             for role in user.roles or []:
                 for permission in role.oidc_permissions or []:
                     if isinstance(permission, OidcPermissionAcsV1):
+                        if (
+                            # TODO: Update logic once ACS files in App-interface have been updated with the "instance" field
+                            permission.instance is not None
+                            and permission.instance.name != instance_name
+                        ):
+                            continue
                         permission_usernames[
                             Permission(**permission.model_dump(by_alias=True))
                         ].append(user.org_username)
@@ -583,21 +597,32 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         dry_run: bool,
     ) -> None:
         gqlapi = gql.get_api()
-        instance = AcsRbacApi.get_acs_instance(gqlapi.query)
-        desired = self.get_desired_state(gqlapi.query)
+        instances = AcsRbacApi.get_acs_instances(
+            gqlapi.query, name=self.params.instance
+        )
 
-        with AcsRbacApi(
-            url=instance.url, token=self.secret_reader.read_secret(instance.credentials)
-        ) as acs_api:
-            rbac_api_resources = acs_api.get_rbac_resources()
-            current = self.get_current_state(
-                instance.auth_provider.q_id, rbac_api_resources
-            )
-            self.reconcile(
-                desired=desired,
-                current=current,
-                rbac_api_resources=rbac_api_resources,
-                acs=acs_api,
-                auth_provider_id=instance.auth_provider.q_id,
-                dry_run=dry_run,
-            )
+        errors: list[Exception] = []
+        for instance in instances:
+            try:
+                desired = self.get_desired_state(gqlapi.query, instance.name)
+                with AcsRbacApi(
+                    url=instance.url,
+                    token=self.secret_reader.read_secret(instance.credentials),
+                ) as acs_api:
+                    rbac_api_resources = acs_api.get_rbac_resources()
+                    current = self.get_current_state(
+                        instance.auth_provider.q_id, rbac_api_resources
+                    )
+                    self.reconcile(
+                        desired=desired,
+                        current=current,
+                        rbac_api_resources=rbac_api_resources,
+                        acs=acs_api,
+                        auth_provider_id=instance.auth_provider.q_id,
+                        dry_run=dry_run,
+                    )
+            except Exception as e:
+                errors.append(e)
+
+        if errors:
+            raise ExceptionGroup("ACS RBAC reconciliation errors", errors)

@@ -22,6 +22,9 @@ DEFINITION = """
 query AcsPolicy {
   acs_policies: acs_policy_v1 {
     name
+    instance {
+      name
+    }
     description
     severity
     categories
@@ -71,6 +74,10 @@ class ConfiguredBaseModel(BaseModel):
     model_config = ConfigDict(
         extra='forbid'
     )
+
+
+class AcsInstanceV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
 
 
 class AcsPolicyScopeV1(ConfiguredBaseModel):
@@ -127,6 +134,7 @@ class AcsPolicyConditionsImageAgeV1(AcsPolicyConditionsV1):
 
 class AcsPolicyV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    instance: Optional[AcsInstanceV1] = Field(..., alias="instance")
     description: Optional[str] = Field(..., alias="description")
     severity: str = Field(..., alias="severity")
     categories: list[str] = Field(..., alias="categories")

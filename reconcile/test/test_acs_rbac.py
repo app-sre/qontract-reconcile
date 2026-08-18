@@ -13,6 +13,7 @@ from reconcile.acs_rbac import (
     AssignmentPair,
 )
 from reconcile.gql_definitions.acs.acs_rbac import (
+    AcsInstanceV1,
     AcsRbacQueryData,
     ClusterV1,
     NamespaceV1,
@@ -44,6 +45,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                                 name="app-sre-acs-admin",
                                 description="admin access to acs instance",
                                 service="acs",
+                                instance=AcsInstanceV1(name="app-sre-acs"),
                                 permission_set="admin",
                                 clusters=[],
                                 namespaces=[],
@@ -62,6 +64,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                                 name="app-sre-acs-admin",
                                 description="admin access to acs instance",
                                 service="acs",
+                                instance=AcsInstanceV1(name="app-sre-acs"),
                                 permission_set="admin",
                                 clusters=[],
                                 namespaces=[],
@@ -80,6 +83,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                                 name="cluster-analyst",
                                 description="analyst access to clusters in acs instance",
                                 service="acs",
+                                instance=AcsInstanceV1(name="app-sre-acs"),
                                 permission_set="analyst",
                                 clusters=[
                                     ClusterV1(name="clusterA"),
@@ -101,6 +105,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                                 name="cluster-analyst",
                                 description="analyst access to clusters in acs instance",
                                 service="acs",
+                                instance=AcsInstanceV1(name="app-sre-acs"),
                                 permission_set="analyst",
                                 clusters=[
                                     ClusterV1(name="clusterA"),
@@ -122,6 +127,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                                 name="service-vuln-admin",
                                 description="vuln-admin access to service namespaces in acs instance",
                                 service="acs",
+                                instance=AcsInstanceV1(name="app-sre-acs"),
                                 permission_set="vuln-admin",
                                 clusters=[],
                                 namespaces=[
@@ -404,7 +410,7 @@ def test_get_desired_state(
     query_func.return_value = query_data_desired_state
 
     integration = AcsRbacIntegration()
-    result = integration.get_desired_state(query_func)
+    result = integration.get_desired_state(query_func, "app-sre-acs")
 
     assert result == modeled_acs_roles
 
@@ -900,3 +906,36 @@ def test_full_reconcile_with_errors(
     acs_mock.update_group_batch.assert_not_called()
 
     assert "Reconcile errors occurred" in str(exc_info.value)
+
+
+def test_get_desired_state_filters_by_instance(
+    mocker: MockerFixture,
+    query_data_desired_state: AcsRbacQueryData,
+) -> None:
+    query_func = mocker.patch("reconcile.acs_rbac.acs_rbac_query", autospec=True)
+    query_func.return_value = query_data_desired_state
+
+    integration = AcsRbacIntegration()
+    result = integration.get_desired_state(query_func, "other-instance")
+
+    assert result == []
+
+
+def test_get_desired_state_includes_permissions_without_instance(
+    mocker: MockerFixture,
+    query_data_desired_state: AcsRbacQueryData,
+) -> None:
+    # Permissive filter: permissions with instance=None are included (treated as "belongs to all instances")
+    for user in query_data_desired_state.acs_rbacs or []:
+        for role in user.roles or []:
+            for perm in role.oidc_permissions or []:
+                if isinstance(perm, OidcPermissionAcsV1):
+                    perm.instance = None
+
+    query_func = mocker.patch("reconcile.acs_rbac.acs_rbac_query", autospec=True)
+    query_func.return_value = query_data_desired_state
+
+    integration = AcsRbacIntegration()
+    result = integration.get_desired_state(query_func, "app-sre-acs")
+
+    assert len(result) > 0
