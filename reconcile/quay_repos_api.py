@@ -35,8 +35,8 @@ from qontract_api_client.schemas import (
 from qontract_utils.exceptions import IntegrationError
 
 from reconcile.gql_definitions.quay_repos_api.apps_quay_repos import (
+    AppQuayReposItemsV1,
     AppV1,
-    QuayRepoItemV1,
 )
 from reconcile.gql_definitions.quay_repos_api.apps_quay_repos import (
     query as apps_query,
@@ -88,9 +88,9 @@ class QuayReposIntegration(QontractReconcileApiIntegration[QuayReposIntegrationP
         return list(data.apps or [])
 
     @staticmethod
-    def _build_repos_map(apps: list[AppV1]) -> dict[OrgKey, list[QuayRepoItemV1]]:
+    def _build_repos_map(apps: list[AppV1]) -> dict[OrgKey, list[AppQuayReposItemsV1]]:
         """Build a map of OrgKey -> list of repo items from apps."""
-        repos_map: dict[OrgKey, list[QuayRepoItemV1]] = {}
+        repos_map: dict[OrgKey, list[AppQuayReposItemsV1]] = {}
         for app in apps:
             for quay_repo in app.quay_repos or []:
                 key = OrgKey(

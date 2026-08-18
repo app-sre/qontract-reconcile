@@ -14,17 +14,17 @@ from qontract_api_client.schemas import (
 from qontract_utils.exceptions import IntegrationError
 
 from reconcile.gql_definitions.quay_repos_api.apps_quay_repos import (
+    AppQuayReposItemsV1,
+    AppQuayReposV1,
     AppV1,
-    QuayRepoItemV1,
-    QuayRepoOrgInstanceV1,
-    QuayRepoOrgV1,
-    QuayRepoV1,
+    QuayInstanceV1 as AppQuayInstanceV1,
+    QuayOrgV1 as AppQuayOrgV1,
 )
 from reconcile.gql_definitions.quay_repos_api.quay_orgs import (
     QuayInstanceV1,
-    QuayMirrorOrgInstanceV1,
-    QuayMirrorOrgV1,
     QuayOrgV1,
+    QuayOrgV1_QuayOrgV1,
+    QuayOrgV1_QuayOrgV1_QuayInstanceV1,
     VaultSecretV1,
 )
 from reconcile.quay_repos_api import QuayReposIntegration, QuayReposIntegrationParams
@@ -83,9 +83,9 @@ def _make_org_with_mirror(
         managedRepos=False,
         instance=QuayInstanceV1(name="quay.io", url="https://quay.io"),
         automationToken=VaultSecretV1(path=token_path, field="token", version=None),
-        mirror=QuayMirrorOrgV1(
+        mirror=QuayOrgV1_QuayOrgV1(
             name=mirror_name,
-            instance=QuayMirrorOrgInstanceV1(name=mirror_instance),
+            instance=QuayOrgV1_QuayOrgV1_QuayInstanceV1(name=mirror_instance),
         ),
     )
 
@@ -93,13 +93,13 @@ def _make_org_with_mirror(
 def _make_app(org_name: str, instance_name: str, repo_names: list[str]) -> AppV1:
     return AppV1(
         quayRepos=[
-            QuayRepoV1(
-                org=QuayRepoOrgV1(
+            AppQuayReposV1(
+                org=AppQuayOrgV1(
                     name=org_name,
-                    instance=QuayRepoOrgInstanceV1(name=instance_name),
+                    instance=AppQuayInstanceV1(name=instance_name),
                 ),
                 items=[
-                    QuayRepoItemV1(name=r, public=True, description="desc")
+                    AppQuayReposItemsV1(name=r, public=True, description="desc")
                     for r in repo_names
                 ],
             )
