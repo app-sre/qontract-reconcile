@@ -3,6 +3,9 @@
 query AcsPolicy {
   acs_policies: acs_policy_v1 {
     name
+    instance {
+      name
+    }
     description
     severity
     categories
