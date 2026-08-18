@@ -17,7 +17,11 @@ from reconcile.gql_definitions.quay_repos_api.apps_quay_repos import (
     AppQuayReposItemsV1,
     AppQuayReposV1,
     AppV1,
+)
+from reconcile.gql_definitions.quay_repos_api.apps_quay_repos import (
     QuayInstanceV1 as AppQuayInstanceV1,
+)
+from reconcile.gql_definitions.quay_repos_api.apps_quay_repos import (
     QuayOrgV1 as AppQuayOrgV1,
 )
 from reconcile.gql_definitions.quay_repos_api.quay_orgs import (
