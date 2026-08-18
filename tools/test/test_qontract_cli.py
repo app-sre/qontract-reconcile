@@ -649,12 +649,19 @@ def test_rds_command_columns_replace_storage_type(mocker: MockerFixture) -> None
     assert "NEXT_VERSION" in output
 
 
-def test_rds_value_preserves_false_override() -> None:
-    overrides = {"auto_minor_version_upgrade": False}
-    defaults = {"auto_minor_version_upgrade": True}
+def test_rds_attr_preserves_false_override() -> None:
+    overrides: dict = {"auto_minor_version_upgrade": False}
+    defaults: dict = {"auto_minor_version_upgrade": True}
     assert (
-        qontract_cli.rds_value("auto_minor_version_upgrade", overrides, defaults)
+        qontract_cli.rds_attr("auto_minor_version_upgrade", overrides, defaults)
         is False
     )
-    assert qontract_cli.rds_value("auto_minor_version_upgrade", {}, defaults) is True
-    assert qontract_cli.rds_value("auto_minor_version_upgrade", {}, {}) is None
+    assert qontract_cli.rds_attr("auto_minor_version_upgrade", {}, defaults) is True
+    assert qontract_cli.rds_attr("auto_minor_version_upgrade", {}, {}) is None
+
+
+def test_rds_attr_falls_through_when_key_absent() -> None:
+    overrides: dict = {}
+    defaults: dict = {"engine": "postgres"}
+    assert qontract_cli.rds_attr("engine", overrides, defaults) == "postgres"
+    assert qontract_cli.rds_attr("engine", {"engine": "mysql"}, defaults) == "mysql"

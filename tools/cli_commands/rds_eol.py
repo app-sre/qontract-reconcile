@@ -3,10 +3,11 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from operator import itemgetter
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import requests
 import yaml
+from pydantic import BaseModel
 
 from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.semver_helper import parse_semver
@@ -14,25 +15,47 @@ from reconcile.utils.semver_helper import parse_semver
 if TYPE_CHECKING:
     from semver import VersionInfo
 
-RDS_EOL_URL = (
+DEFAULT_RDS_EOL_URL = (
     "https://raw.githubusercontent.com/app-sre/aws-generated-data"
     "/main/output/rds_eol.yaml"
 )
 
 
-def load_rds_eol_data() -> list[dict[str, Any]]:
+class RdsEolEntry(BaseModel):
+    """A single entry from the AWS RDS end-of-life calendar dataset."""
+
+    engine: str
+    version: str
+    eol: str
+
+
+def load_rds_eol_data(url: str = DEFAULT_RDS_EOL_URL) -> list[RdsEolEntry]:
     """Fetch the AWS RDS calendar dataset. Returns an empty list on failure."""
     try:
-        resp = requests.get(RDS_EOL_URL, timeout=10)
+        resp = requests.get(url, timeout=10)
         resp.raise_for_status()
         data = yaml.safe_load(resp.text) or []
     except (requests.RequestException, yaml.YAMLError) as exc:
-        logging.warning("Could not fetch RDS EOL data from %s: %s", RDS_EOL_URL, exc)
+        logging.warning("Could not fetch RDS EOL data from %s: %s", url, exc)
         return []
     if not isinstance(data, list):
-        logging.warning("RDS EOL data from %s is not a list", RDS_EOL_URL)
+        logging.warning("RDS EOL data from %s is not a list", url)
         return []
-    return [entry for entry in data if isinstance(entry, dict)]
+    entries: list[RdsEolEntry] = []
+    for raw in data:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            entries.append(
+                RdsEolEntry(
+                    engine=str(raw["engine"]),
+                    version=str(raw["version"]),
+                    eol=str(raw["eol"]),
+                )
+            )
+        except KeyError, TypeError:
+            continue
+    return entries
 
 
 def _parse_rds_version(version: str) -> VersionInfo | None:
@@ -43,22 +66,14 @@ def _parse_rds_version(version: str) -> VersionInfo | None:
 
 
 def build_eol_lookup(
-    eol_data: list[dict[str, Any]],
+    eol_data: list[RdsEolEntry],
 ) -> dict[tuple[str, str], str]:
     """Map exact (engine, version) strings from the AWS calendar to EOL dates."""
-    lookup: dict[tuple[str, str], str] = {}
-    for entry in eol_data:
-        engine = entry.get("engine")
-        version = entry.get("version")
-        eol = entry.get("eol")
-        if engine is None or version is None or eol is None:
-            continue
-        lookup[str(engine), str(version)] = str(eol)
-    return lookup
+    return {(entry.engine, entry.version): entry.eol for entry in eol_data}
 
 
 def build_next_version_lookup(
-    eol_data: list[dict[str, Any]],
+    eol_data: list[RdsEolEntry],
     today: str | None = None,
 ) -> dict[tuple[str, str], str]:
     """Map (engine, version) to the next non-EOL version in the same major line.
@@ -75,50 +90,39 @@ def build_next_version_lookup(
         list
     )
     for entry in eol_data:
-        engine = entry.get("engine")
-        version = entry.get("version")
-        if engine is None or version is None:
-            continue
-        version_str = str(version)
-        parsed = _parse_rds_version(version_str)
+        parsed = _parse_rds_version(entry.version)
         if parsed is None:
             continue
-        by_engine_major[str(engine), parsed.major].append((parsed, version_str))
+        by_engine_major[entry.engine, parsed.major].append((parsed, entry.version))
 
     for versions in by_engine_major.values():
         versions.sort(key=itemgetter(0))
 
     result: dict[tuple[str, str], str] = {}
     for entry in eol_data:
-        engine = entry.get("engine")
-        version = entry.get("version")
-        if engine is None or version is None:
-            continue
-        engine_str = str(engine)
-        version_str = str(version)
-        current = _parse_rds_version(version_str)
+        current = _parse_rds_version(entry.version)
         if current is None:
             continue
-        for candidate, candidate_str in by_engine_major[engine_str, current.major]:
+        for candidate, candidate_str in by_engine_major[entry.engine, current.major]:
             if candidate <= current:
                 continue
-            candidate_eol = eol_lookup.get((engine_str, candidate_str), "")
+            candidate_eol = eol_lookup.get((entry.engine, candidate_str), "")
             if candidate_eol >= today:
-                result[engine_str, version_str] = candidate_str
+                result[entry.engine, entry.version] = candidate_str
                 break
     return result
 
 
 def rds_version_fields(
-    engine: object | None,
-    engine_version: object | None,
+    engine: str | None,
+    engine_version: str | None,
     eol_lookup: dict[tuple[str, str], str],
     next_version_lookup: dict[tuple[str, str], str],
 ) -> tuple[str, str]:
     """Return (eol_date, next_version) only for an exact calendar match."""
     if engine is None or engine_version is None:
         return "", ""
-    key = (str(engine), str(engine_version))
+    key = (engine, engine_version)
     if key not in eol_lookup:
         return "", ""
     return eol_lookup[key], next_version_lookup.get(key, "")
