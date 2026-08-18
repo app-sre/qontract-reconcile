@@ -235,7 +235,9 @@ def test_lock_failure_prevents_mutation(
     mock_quay_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
-    mock_cache.lock.return_value.__enter__.side_effect = RuntimeError("lock unavailable")
+    mock_cache.lock.return_value.__enter__.side_effect = RuntimeError(
+        "lock unavailable"
+    )
 
     with pytest.raises(RuntimeError, match="lock unavailable"):
         client.repo_delete("old-repo")

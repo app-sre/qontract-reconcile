@@ -53,7 +53,9 @@ class QuayReposService:
         self.secret_manager = secret_manager
         self.cache = cache
         self.settings = settings
-        self._workspace_client_factory = workspace_client_factory or create_quay_workspace_client
+        self._workspace_client_factory = (
+            workspace_client_factory or create_quay_workspace_client
+        )
 
     # ------------------------------------------------------------------
     # Consistency checks

@@ -54,8 +54,7 @@ def mock_workspace_client() -> MagicMock:
 
 @pytest.fixture
 def mock_workspace_client_factory(mock_workspace_client: MagicMock) -> MagicMock:
-    factory = MagicMock(return_value=mock_workspace_client)
-    return factory
+    return MagicMock(return_value=mock_workspace_client)
 
 
 @pytest.fixture
@@ -228,7 +227,9 @@ def test_expand_desired_state_absent_upstream_raises(
         managed_repos=False,
         mirror=QuayOrgKey(instance="quay.io", org_name="missing-upstream"),
     )
-    with pytest.raises(QuayReposConfigError, match="absent from the reconciliation payload"):
+    with pytest.raises(
+        QuayReposConfigError, match="absent from the reconciliation payload"
+    ):
         service._expand_desired_state(_org_map(mirror))
 
 
@@ -483,7 +484,9 @@ def test_reconcile_apply_creates_repo(
     assert len(result.applied_actions) == 1
     assert result.applied_count == 1
     assert result.errors == []
-    mock_workspace_client.repo_create.assert_called_once_with("new-repo", "desc", public=True)
+    mock_workspace_client.repo_create.assert_called_once_with(
+        "new-repo", "desc", public=True
+    )
 
 
 def test_reconcile_apply_deletes_repo(
@@ -504,7 +507,9 @@ def test_reconcile_apply_makes_repo_private(
     mock_workspace_client: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_workspace_client.get_repos.return_value = [_current_repo("repo1", is_public=True)]
+    mock_workspace_client.get_repos.return_value = [
+        _current_repo("repo1", is_public=True)
+    ]
 
     org = _org(managed_repos=True, repos=[_repo("repo1", public=False)])
     result = service.reconcile(orgs=[org], dry_run=False)
@@ -518,7 +523,9 @@ def test_reconcile_apply_makes_repo_public(
     mock_workspace_client: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_workspace_client.get_repos.return_value = [_current_repo("repo1", is_public=False)]
+    mock_workspace_client.get_repos.return_value = [
+        _current_repo("repo1", is_public=False)
+    ]
 
     org = _org(managed_repos=True, repos=[_repo("repo1", public=True)])
     result = service.reconcile(orgs=[org], dry_run=False)
@@ -532,13 +539,17 @@ def test_reconcile_apply_updates_description(
     mock_workspace_client: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_workspace_client.get_repos.return_value = [_current_repo("repo1", description="old")]
+    mock_workspace_client.get_repos.return_value = [
+        _current_repo("repo1", description="old")
+    ]
 
     org = _org(managed_repos=True, repos=[_repo("repo1", description="new")])
     result = service.reconcile(orgs=[org], dry_run=False)
 
     assert result.status == TaskStatus.SUCCESS
-    mock_workspace_client.repo_update_description.assert_called_once_with("repo1", "new")
+    mock_workspace_client.repo_update_description.assert_called_once_with(
+        "repo1", "new"
+    )
 
 
 # ---------------------------------------------------------------------------

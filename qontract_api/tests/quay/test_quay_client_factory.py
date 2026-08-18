@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from qontract_api.models import Secret
 from qontract_api.quay.quay_client_factory import create_quay_workspace_client
 from qontract_api.quay.quay_workspace_client import QuayWorkspaceClient
