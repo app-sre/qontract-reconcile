@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 import requests
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Mapping
+    from collections.abc import Iterator, Mapping
 
     from reconcile.utils.secret_reader import (
         HasSecret,
@@ -61,10 +61,24 @@ class DashdotdbBase:
         self.scope = scope
         self.dashdotdb_token: str | None = None
 
+    # The DORA, DVO, and SLO callers each wrap this context manager in an
+    # identical try/except DashdotdbTokenError that logs and skips. That policy
+    # could be centralized here with a helper, e.g.
+    #     def _with_token(self, action: Callable[[], None]) -> None:
+    #         try:
+    #             with self._token():
+    #                 action()
+    #         except DashdotdbTokenError:
+    #             LOG.error("%s error acquiring token for %s, skipping", ...)
+    # so callers become `self._with_token(lambda: self.post(data))`. Deferred:
+    # DVO's multi-statement body would first need extracting into a method.
     @contextmanager
-    def _token(self) -> Generator[str | None]:
+    def _token(self) -> Iterator[None]:
+        # Yields nothing: this context manager exists purely for token
+        # lifecycle. The acquired token is stored on self.dashdotdb_token and
+        # read by _do_post(); callers use `with self._token():` without `as`.
         if self.dry_run:
-            yield None
+            yield
             return
 
         params = {"scope": self.scope}
@@ -94,7 +108,7 @@ class DashdotdbBase:
             )
         self.dashdotdb_token = token
         try:
-            yield self.dashdotdb_token
+            yield
         finally:
             self._close_token()
 

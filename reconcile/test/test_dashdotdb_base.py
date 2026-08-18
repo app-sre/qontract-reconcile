@@ -75,7 +75,9 @@ def test_successful_acquisition_yields_token_and_releases(
     base = _make_base(dry_run=False)
 
     with base._token() as token:
-        assert token == "my-token"
+        # _token() yields None; the token lives on the instance attribute and
+        # is read by _do_post(), not passed to the caller.
+        assert token is None
         assert base.dashdotdb_token == "my-token"
 
     mock_get.assert_called_once()
@@ -132,7 +134,8 @@ def test_body_exception_after_acquisition_still_releases_token(
     base = _make_base(dry_run=False)
 
     with pytest.raises(RuntimeError, match="simulated failure"), base._token() as token:
-        assert token == "valid-token"
+        assert token is None
+        assert base.dashdotdb_token == "valid-token"
         raise RuntimeError("simulated failure")
 
     mock_delete.assert_called_once()

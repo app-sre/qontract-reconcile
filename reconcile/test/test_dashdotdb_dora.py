@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
@@ -16,6 +17,9 @@ from reconcile.dashdotdb_dora import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    import pytest
     from pytest_mock import MockerFixture
 
 
@@ -268,7 +272,7 @@ def test_post_deployments_skips_when_token_acquisition_fails(
     d.scope = "dora"
 
     @contextmanager
-    def _failing_token():  # type: ignore[no-untyped-def]
+    def _failing_token() -> Iterator[None]:
         raise DashdotdbTokenError("simulated failure")
         yield
 
@@ -297,3 +301,23 @@ def test_post_skips_http_in_dry_run(
     d.post({"deployments": []})
 
     d._do_post.assert_not_called()
+
+
+def test_post_logs_deployment_count_in_dry_run(
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    mocker.patch("reconcile.dashdotdb_dora.DashdotdbDORA.__init__").return_value = None
+    d = DashdotdbDORA(True, "1", 1)
+    d.dry_run = True
+    d.logmarker = "DORA"
+
+    d._do_post = MagicMock()  # type: ignore[method-assign]
+
+    with caplog.at_level(logging.INFO):
+        d.post({"deployments": [{"a": 1}, {"b": 2}]})
+
+    # Dry-run must skip the HTTP call but still report what would be posted, so
+    # operators verifying wiring get the same visibility DVO and SLO provide.
+    d._do_post.assert_not_called()
+    assert "would post 2 deployments" in caplog.text

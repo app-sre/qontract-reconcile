@@ -495,6 +495,13 @@ class DashdotdbDORA(DashdotdbBase):
 
     def post(self, data: Mapping[str, Any]) -> None:
         if self.dry_run:
+            # Report what would be posted so a dry-run has the same visibility
+            # DVO and SLO provide; otherwise DORA is silent during dry-runs.
+            LOG.info(
+                "%s dry_run: would post %d deployments",
+                self.logmarker,
+                len(data.get("deployments", [])),
+            )
             return
         endpoint = f"{self.dashdotdb_url}/api/v1/dora"
         response = self._do_post(endpoint, data)
