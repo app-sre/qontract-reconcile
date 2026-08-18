@@ -22,7 +22,7 @@ _SECRET = Secret(
 
 
 @pytest.fixture
-def mock_quay_api_cls() -> Generator[MagicMock, None, None]:
+def mock_quay_api_cls() -> Generator[MagicMock]:
     with patch("qontract_api.quay.quay_client_factory.QuayApi") as mock_cls:
         instance = MagicMock()
         instance.org = "myorg"
