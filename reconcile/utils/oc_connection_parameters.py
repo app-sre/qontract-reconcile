@@ -24,16 +24,28 @@ class OCConnectionError(Exception):
     pass
 
 
-def _find_active_list_token(entries: list | None) -> HasSecret | None:
+class TokenEntry(Protocol):
+    @property
+    def active(self) -> bool | None: ...
+
+    @property
+    def delete(self) -> bool | None: ...
+
+    @property
+    def secret(self) -> HasSecret | None: ...
+
+
+def is_active_token_entry(entry: TokenEntry) -> bool:
+    """Return True if the entry is active, not flagged for deletion, and has a secret."""
+    return bool(entry.active) and not bool(entry.delete) and entry.secret is not None
+
+
+def _find_active_list_token(entries: list[TokenEntry] | None) -> HasSecret | None:
     """Return the secret from the first active, non-deleted list token entry that has a secret."""
     if not entries:
         return None
     for entry in entries:
-        if (
-            getattr(entry, "active", False)
-            and not getattr(entry, "delete", False)
-            and getattr(entry, "secret", None) is not None
-        ):
+        if is_active_token_entry(entry):
             return entry.secret
     return None
 

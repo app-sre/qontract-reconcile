@@ -29,6 +29,7 @@ from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.json import json_dumps
 from reconcile.utils.mr import clusters_updates
+from reconcile.utils.oc_connection_parameters import is_active_token_entry
 from reconcile.utils.ocm import OCM, OCMMap
 from reconcile.utils.openshift_resource import (
     QONTRACT_ANNOTATION_INTEGRATION,
@@ -64,7 +65,7 @@ class Config(BaseModel):
 def _has_active_token_with_secret(entries: Sequence[AnyTokenEntry] | None) -> bool:
     if not entries:
         return False
-    return any(e.active and not e.delete and e.secret is not None for e in entries)
+    return any(is_active_token_entry(e) for e in entries)
 
 
 def cluster_misses_bot_tokens(cluster: ClusterV1) -> bool:
@@ -214,9 +215,9 @@ def is_managed_secret(secret: dict, sa_name: str) -> bool:
     return annotations.get("kubernetes.io/service-account.name") == sa_name
 
 
-def secret_has_vault_annotation(secret: dict) -> bool:
+def secret_has_vault_annotation(secret: dict, vault_path: str) -> bool:
     annotations = secret.get("metadata", {}).get("annotations") or {}
-    return VAULT_PATH_ANNOTATION_KEY in annotations
+    return annotations.get(VAULT_PATH_ANNOTATION_KEY) == vault_path
 
 
 def sa_secret_name(sa: str) -> str:
@@ -505,7 +506,9 @@ def _process_create_entry(
             action="skipped",
         )
 
-    if entry.secret is not None and secret_has_vault_annotation(existing_secret):
+    if entry.secret is not None and secret_has_vault_annotation(
+        existing_secret, vault_path
+    ):
         return EntryResult(
             entry=entry,
             cluster_admin=cluster_admin,
@@ -532,7 +535,7 @@ def _process_create_entry(
         },
         decode_base64=False,
     )
-    if not secret_has_vault_annotation(existing_secret):
+    if not secret_has_vault_annotation(existing_secret, vault_path):
         oc_annotate_secret(kubeconfig, entry.namespace, entry.name, vault_path)
 
     return EntryResult(
@@ -595,33 +598,31 @@ def process_cluster_entries(
 
 
 def _entry_to_dict(entry: AnyTokenEntry) -> dict[str, object]:
-    entry_dict: dict[str, object] = {"name": entry.name, "namespace": entry.namespace}
-    if entry.active is not None:
-        entry_dict["active"] = entry.active
-    if entry.delete is not None:
-        entry_dict["delete"] = entry.delete
-    if entry.secret is not None:
-        entry_dict["secret"] = entry.secret.model_dump(by_alias=True, exclude_none=True)
-    return entry_dict
+    return entry.model_dump(by_alias=True, exclude_none=True)
 
 
 def _merge_entry_updates(
     existing_entries: Sequence[AnyTokenEntry], results: list[EntryResult]
 ) -> list[dict[str, object]] | None:
-    result_by_key = {
-        (r.entry.name, r.entry.namespace): r
+    secret_updates = {
+        (r.entry.name, r.entry.namespace): r.vault_secret
         for r in results
         if r.vault_secret is not None
     }
-    if not result_by_key:
+    deleted_keys = {
+        (r.entry.name, r.entry.namespace) for r in results if r.action == "deleted"
+    }
+    if not secret_updates and not deleted_keys:
         return None
 
     merged: list[dict[str, object]] = []
     for entry in existing_entries:
-        entry_dict = _entry_to_dict(entry)
         key = (entry.name, entry.namespace)
-        if key in result_by_key:
-            entry_dict["secret"] = result_by_key[key].vault_secret
+        if key in deleted_keys:
+            continue
+        entry_dict = _entry_to_dict(entry)
+        if key in secret_updates:
+            entry_dict["secret"] = secret_updates[key]
         merged.append(entry_dict)
     return merged
 
@@ -733,6 +734,19 @@ def filter_clusters(
         if has_list_entries:
             if cluster_needs_list_processing(cluster):
                 list_based.append(cluster)
+            elif (
+                not _has_active_token_with_secret(cluster.automation_tokens)
+                and not _has_active_token_with_secret(
+                    cluster.cluster_admin_automation_tokens
+                )
+                and cluster.automation_token is None
+                and cluster.cluster_admin_automation_token is None
+            ):
+                logging.warning(
+                    f"[{cluster.name}] has list entries but none are active with a "
+                    "secret, and no singular token fallback exists — cluster has no "
+                    "usable connection token"
+                )
         elif cluster_misses_bot_tokens(
             cluster
         ):  # TODO(APPSRE-13941): remove elif branch once all clusters migrated; filter_clusters returns only list_based

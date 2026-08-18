@@ -382,7 +382,9 @@ def test_process_entry_already_synced(
     existing_secret = {
         "metadata": {
             "labels": {ocb.MANAGED_LABEL_KEY: "dedicated-admin-sa"},
-            "annotations": {ocb.VAULT_PATH_ANNOTATION_KEY: "app-sre/bot"},
+            "annotations": {
+                ocb.VAULT_PATH_ANNOTATION_KEY: "/vault/path/cluster/ns/tok"
+            },
         },
         "data": {"token": base64.b64encode(b"tok")},
     }
