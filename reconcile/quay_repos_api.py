@@ -14,6 +14,7 @@ See ADR-002 (Client-Side GraphQL) and ADR-008 (Integration Naming).
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
@@ -124,8 +125,8 @@ class QuayReposIntegration(QontractReconcileApiIntegration[QuayReposIntegrationP
             key = OrgKey(instance=org.instance.name, org_name=org.name)
             repo_items = repos_map.get(key, [])
 
-            names = [item.name for item in repo_items]
-            duplicates = {n for n in names if names.count(n) > 1}
+            counts = Counter(item.name for item in repo_items)
+            duplicates = {name for name, count in counts.items() if count > 1}
             if duplicates:
                 raise IntegrationError(
                     f"{org.instance.name}/{org.name}: duplicate repo name(s) defined "

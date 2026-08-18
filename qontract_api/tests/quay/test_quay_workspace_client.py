@@ -213,27 +213,34 @@ def test_repo_make_private_delegates_and_invalidates(
     mock_cache.delete.assert_called_once_with("quay:https://quay.io:myorg:repos")
 
 
-def test_invalidate_acquires_lock(
+def test_mutation_acquires_lock_before_api_call(
     client: QuayWorkspaceClient,
     mock_quay_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
+    call_order: list[str] = []
+    mock_cache.lock.return_value.__enter__ = MagicMock(
+        side_effect=lambda *_: call_order.append("lock")
+    )
+    mock_quay_api.repo_delete.side_effect = lambda *_: call_order.append("api")
+
     client.repo_delete("old-repo")
 
+    assert call_order == ["lock", "api"]
     mock_cache.lock.assert_called_once_with("quay:https://quay.io:myorg:repos")
 
 
-def test_invalidate_lock_failure_is_swallowed(
+def test_lock_failure_prevents_mutation(
     client: QuayWorkspaceClient,
     mock_quay_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
-    mock_cache.lock.side_effect = RuntimeError("lock unavailable")
+    mock_cache.lock.return_value.__enter__.side_effect = RuntimeError("lock unavailable")
 
-    # Should not raise
-    client.repo_delete("old-repo")
+    with pytest.raises(RuntimeError, match="lock unavailable"):
+        client.repo_delete("old-repo")
 
-    mock_quay_api.repo_delete.assert_called_once()
+    mock_quay_api.repo_delete.assert_not_called()
     mock_cache.delete.assert_not_called()
 
 

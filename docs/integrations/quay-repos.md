@@ -30,7 +30,7 @@ An org is included for reconciliation only when:
 
 Repos from all apps for the same `(instance, org_name)` are merged. Duplicate names across apps raise an `IntegrationError` on both client and server.
 
-If `mirror` is set, the mirror org's current repo list (fetched server-side) is merged into the desired state before diffing — so repos that exist in the upstream org but aren't explicitly declared by any app are still preserved.
+If `mirror` is set, the upstream org's app-declared repos (from the payload) are propagated into the mirror org's desired state before diffing. The upstream org must be present in the same reconciliation payload; if it is absent, reconciliation fails with a configuration error. Repos declared only by apps under the mirror org (not under the upstream) are also included.
 
 **Example app config:**
 
@@ -109,7 +109,7 @@ Content-Type: application/json
 {
   "id": "uuid-string",
   "status": "pending",
-  "status_url": "/api/v1/integrations/quay-repos/reconcile/{task_id}"
+  "status_url": "https://<host>/api/v1/integrations/quay-repos/reconcile/{task_id}"
 }
 ```
 
@@ -128,11 +128,11 @@ Authorization: Bearer <JWT_TOKEN>
 
 ```json
 {
-  "status": "success|failed|pending",
+  "status": "success|failed|pending|skipped",
   "actions": [...],
   "applied_count": 0,
   "applied_actions": [],
-  "errors": null
+  "errors": []
 }
 ```
 
@@ -161,11 +161,11 @@ Authorization: Bearer <JWT_TOKEN>
 
 | Field             | Type                   | Description                                              |
 | ----------------- | ---------------------- | -------------------------------------------------------- |
-| `status`          | `TaskStatus`           | Task execution status (pending/success/failed)           |
+| `status`          | `TaskStatus`           | Task execution status (pending/success/failed/skipped)   |
 | `actions`         | `list[QuayRepoAction]` | All actions calculated (desired − current)               |
 | `applied_count`   | `int`                  | Number of actions applied (0 if dry_run=True)            |
 | `applied_actions` | `list[QuayRepoAction]` | Actions successfully applied (non-dry-run only)          |
-| `errors`          | `list[string]\|null`   | Per-org errors encountered during reconciliation         |
+| `errors`          | `list[str]`            | Per-org errors encountered during reconciliation         |
 
 The integration can perform these reconciliation actions:
 
@@ -209,7 +209,7 @@ The integration can perform these reconciliation actions:
 **Caching:**
 
 - Repo list cached per org per Quay instance: `quay:{base_url}:{org}:repos`
-- TTL: configurable via `QAPI_QUAY_REPOS_CACHE_TTL` (default: 5 minutes)
+- TTL: configurable via `QAPI_QUAY__REPOS_CACHE_TTL` (default: 5 minutes)
 - Cache uses double-check locking to prevent stampedes on cache miss
 
 **Events:**
@@ -256,7 +256,7 @@ automationToken:
 
 | Setting                       | Environment Variable             | Default  | Description                          |
 | ----------------------------- | -------------------------------- | -------- | ------------------------------------ |
-| Quay repos cache TTL          | `QAPI_QUAY_REPOS_CACHE_TTL`     | `300`    | Cache TTL in seconds for repo lists  |
+| Quay repos cache TTL          | `QAPI_QUAY__REPOS_CACHE_TTL`    | `300`    | Cache TTL in seconds for repo lists  |
 
 ## Client Integration
 
@@ -295,7 +295,7 @@ automationToken:
 
 **Code:**
 
-- Server: [qontract_api/qontract_api/integrations/quay_repos/](../qontract_api/integrations/quay_repos/)
+- Server: [qontract_api/qontract_api/integrations/quay_repos/](../../qontract_api/qontract_api/integrations/quay_repos/)
 - Client: [reconcile/quay_repos_api.py](../../reconcile/quay_repos_api.py)
 
 **External:**

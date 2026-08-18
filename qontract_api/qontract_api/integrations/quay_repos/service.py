@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from qontract_utils.quay_api import QuayRepo
@@ -47,10 +48,12 @@ class QuayReposService:
         secret_manager: SecretManager,
         cache: CacheBackend,
         settings: Settings,
+        workspace_client_factory: Callable[..., QuayWorkspaceClient] | None = None,
     ) -> None:
         self.secret_manager = secret_manager
         self.cache = cache
         self.settings = settings
+        self._workspace_client_factory = workspace_client_factory or create_quay_workspace_client
 
     # ------------------------------------------------------------------
     # Consistency checks
@@ -97,6 +100,17 @@ class QuayReposService:
         for org in org_map.values():
             if org.mirror:
                 downstream_of.setdefault(org.mirror, []).append(org)
+
+        for upstream_key, downstreams in downstream_of.items():
+            if upstream_key not in org_map:
+                referencing = ", ".join(
+                    f"{d.instance}/{d.org_name}" for d in downstreams
+                )
+                raise QuayReposConfigError(
+                    f"Mirror upstream {upstream_key.instance}/{upstream_key.org_name} is "
+                    f"absent from the reconciliation payload (referenced by: {referencing}). "
+                    f"Include the upstream org or remove the mirror reference."
+                )
 
         desired: dict[QuayOrgKey, list[QuayRepoConfig]] = {}
         for org in org_map.values():
@@ -249,7 +263,7 @@ class QuayReposService:
         *,
         dry_run: bool,
     ) -> tuple[list[QuayRepoAction], list[QuayRepoAction], list[str]]:
-        with create_quay_workspace_client(
+        with self._workspace_client_factory(
             secret=org.automation_token,
             org_name=org.org_name,
             base_url=org.base_url,

@@ -80,7 +80,7 @@ def _make_org_with_mirror(
 ) -> QuayOrgV1:
     return QuayOrgV1(
         name=name,
-        managedRepos=True,
+        managedRepos=False,
         instance=QuayInstanceV1(name="quay.io", url="https://quay.io"),
         automationToken=VaultSecretV1(path=token_path, field="token", version=None),
         mirror=QuayMirrorOrgV1(
@@ -292,16 +292,24 @@ async def test_async_run_dry_run_polls_and_logs_actions() -> None:
             "reconcile.quay_repos_api.quay_repos_reconcile",
             new_callable=AsyncMock,
             return_value=fake_response,
-        ),
+        ) as mock_reconcile,
         patch.object(
             integration,
             "poll_task_status",
             new_callable=AsyncMock,
             return_value=fake_result,
-        ),
+        ) as mock_poll,
     ):
         mock_gql.get_api.return_value = MagicMock()
         await integration.async_run(dry_run=True)
+
+    mock_reconcile.assert_awaited_once()
+    called_request = mock_reconcile.call_args[0][0]
+    assert called_request.dry_run is True
+    mock_poll.assert_awaited_once_with(
+        status_url=fake_response.status_url,
+        result_type=QuayReposTaskResult,
+    )
 
 
 @pytest.mark.asyncio

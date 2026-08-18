@@ -1,6 +1,6 @@
 """Unit tests for QuayReposService."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from qontract_utils.quay_api import QuayRepo
@@ -45,15 +45,31 @@ def mock_settings() -> MagicMock:
 
 
 @pytest.fixture
+def mock_workspace_client() -> MagicMock:
+    mock = MagicMock()
+    mock.__enter__.return_value = mock
+    mock.__exit__.return_value = None
+    return mock
+
+
+@pytest.fixture
+def mock_workspace_client_factory(mock_workspace_client: MagicMock) -> MagicMock:
+    factory = MagicMock(return_value=mock_workspace_client)
+    return factory
+
+
+@pytest.fixture
 def service(
     mock_secret_manager: MagicMock,
     mock_cache: MagicMock,
     mock_settings: MagicMock,
+    mock_workspace_client_factory: MagicMock,
 ) -> QuayReposService:
     return QuayReposService(
         secret_manager=mock_secret_manager,
         cache=mock_cache,
         settings=mock_settings,
+        workspace_client_factory=mock_workspace_client_factory,
     )
 
 
@@ -134,6 +150,14 @@ def test_validate_org_configs_chained_mirror_raises() -> None:
         )
 
 
+def test_validate_org_configs_absent_upstream_raises() -> None:
+    upstream_key = QuayOrgKey(instance="quay.io", org_name="missing")
+    with pytest.raises(QuayReposConfigError, match="absent from the payload"):
+        QuayReposService._validate_org_configs(
+            _org_map(_org(org_name="mirror", managed_repos=False, mirror=upstream_key))
+        )
+
+
 def test_validate_org_configs_empty_map() -> None:
     QuayReposService._validate_org_configs({})  # No exception
 
@@ -194,6 +218,18 @@ def test_expand_desired_state_mirror_org_own_repos(service: QuayReposService) ->
     mirror_repos = {r.name for r in result[mirror.key]}
     assert "upstream-repo" in mirror_repos
     assert "mirror-only" in mirror_repos
+
+
+def test_expand_desired_state_absent_upstream_raises(
+    service: QuayReposService,
+) -> None:
+    mirror = _org(
+        org_name="mirror",
+        managed_repos=False,
+        mirror=QuayOrgKey(instance="quay.io", org_name="missing-upstream"),
+    )
+    with pytest.raises(QuayReposConfigError, match="absent from the reconciliation payload"):
+        service._expand_desired_state(_org_map(mirror))
 
 
 def test_expand_desired_state_empty_orgs(service: QuayReposService) -> None:
@@ -299,7 +335,6 @@ def test_calculate_actions_mixed() -> None:
 
 
 def _make_mock_client() -> MagicMock:
-    """Create a MagicMock QuayWorkspaceClient that works as a context manager."""
     mock = MagicMock()
     mock.__enter__.return_value = mock
     mock.__exit__.return_value = None
@@ -396,14 +431,11 @@ def test_apply_actions_empty(service: QuayReposService) -> None:
 # ---------------------------------------------------------------------------
 
 
-@patch("qontract_api.integrations.quay_repos.service.create_quay_workspace_client")
 def test_reconcile_dry_run_calculates_actions_only(
-    mock_factory: MagicMock,
+    mock_workspace_client: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_client = _make_mock_client()
-    mock_client.get_repos.return_value = []
-    mock_factory.return_value = mock_client
+    mock_workspace_client.get_repos.return_value = []
 
     org = _org(managed_repos=True, repos=[_repo("new-repo")])
     result = service.reconcile(orgs=[org], dry_run=True)
@@ -414,17 +446,14 @@ def test_reconcile_dry_run_calculates_actions_only(
     assert result.applied_actions == []
     assert result.applied_count == 0
     assert result.errors == []
-    mock_client.repo_create.assert_not_called()
+    mock_workspace_client.repo_create.assert_not_called()
 
 
-@patch("qontract_api.integrations.quay_repos.service.create_quay_workspace_client")
 def test_reconcile_dry_run_no_changes(
-    mock_factory: MagicMock,
+    mock_workspace_client: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_client = _make_mock_client()
-    mock_client.get_repos.return_value = [_current_repo("repo1")]
-    mock_factory.return_value = mock_client
+    mock_workspace_client.get_repos.return_value = [_current_repo("repo1")]
 
     org = _org(managed_repos=True, repos=[_repo("repo1")])
     result = service.reconcile(orgs=[org], dry_run=True)
@@ -439,14 +468,11 @@ def test_reconcile_dry_run_no_changes(
 # ---------------------------------------------------------------------------
 
 
-@patch("qontract_api.integrations.quay_repos.service.create_quay_workspace_client")
 def test_reconcile_apply_creates_repo(
-    mock_factory: MagicMock,
+    mock_workspace_client: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_client = _make_mock_client()
-    mock_client.get_repos.return_value = []
-    mock_factory.return_value = mock_client
+    mock_workspace_client.get_repos.return_value = []
 
     org = _org(
         managed_repos=True, repos=[_repo("new-repo", public=True, description="desc")]
@@ -457,74 +483,62 @@ def test_reconcile_apply_creates_repo(
     assert len(result.applied_actions) == 1
     assert result.applied_count == 1
     assert result.errors == []
-    mock_client.repo_create.assert_called_once_with("new-repo", "desc", public=True)
+    mock_workspace_client.repo_create.assert_called_once_with("new-repo", "desc", public=True)
 
 
-@patch("qontract_api.integrations.quay_repos.service.create_quay_workspace_client")
 def test_reconcile_apply_deletes_repo(
-    mock_factory: MagicMock,
+    mock_workspace_client: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_client = _make_mock_client()
-    mock_client.get_repos.return_value = [_current_repo("stale")]
-    mock_factory.return_value = mock_client
+    mock_workspace_client.get_repos.return_value = [_current_repo("stale")]
 
     org = _org(managed_repos=True, repos=[])
     result = service.reconcile(orgs=[org], dry_run=False)
 
     assert result.status == TaskStatus.SUCCESS
     assert result.applied_count == 1
-    mock_client.repo_delete.assert_called_once_with("stale")
+    mock_workspace_client.repo_delete.assert_called_once_with("stale")
 
 
-@patch("qontract_api.integrations.quay_repos.service.create_quay_workspace_client")
 def test_reconcile_apply_makes_repo_private(
-    mock_factory: MagicMock,
+    mock_workspace_client: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_client = _make_mock_client()
-    mock_client.get_repos.return_value = [_current_repo("repo1", is_public=True)]
-    mock_factory.return_value = mock_client
+    mock_workspace_client.get_repos.return_value = [_current_repo("repo1", is_public=True)]
 
     org = _org(managed_repos=True, repos=[_repo("repo1", public=False)])
     result = service.reconcile(orgs=[org], dry_run=False)
 
     assert result.status == TaskStatus.SUCCESS
-    mock_client.repo_make_private.assert_called_once_with("repo1")
-    mock_client.repo_make_public.assert_not_called()
+    mock_workspace_client.repo_make_private.assert_called_once_with("repo1")
+    mock_workspace_client.repo_make_public.assert_not_called()
 
 
-@patch("qontract_api.integrations.quay_repos.service.create_quay_workspace_client")
 def test_reconcile_apply_makes_repo_public(
-    mock_factory: MagicMock,
+    mock_workspace_client: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_client = _make_mock_client()
-    mock_client.get_repos.return_value = [_current_repo("repo1", is_public=False)]
-    mock_factory.return_value = mock_client
+    mock_workspace_client.get_repos.return_value = [_current_repo("repo1", is_public=False)]
 
     org = _org(managed_repos=True, repos=[_repo("repo1", public=True)])
     result = service.reconcile(orgs=[org], dry_run=False)
 
     assert result.status == TaskStatus.SUCCESS
-    mock_client.repo_make_public.assert_called_once_with("repo1")
-    mock_client.repo_make_private.assert_not_called()
+    mock_workspace_client.repo_make_public.assert_called_once_with("repo1")
+    mock_workspace_client.repo_make_private.assert_not_called()
 
 
-@patch("qontract_api.integrations.quay_repos.service.create_quay_workspace_client")
 def test_reconcile_apply_updates_description(
-    mock_factory: MagicMock,
+    mock_workspace_client: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_client = _make_mock_client()
-    mock_client.get_repos.return_value = [_current_repo("repo1", description="old")]
-    mock_factory.return_value = mock_client
+    mock_workspace_client.get_repos.return_value = [_current_repo("repo1", description="old")]
 
     org = _org(managed_repos=True, repos=[_repo("repo1", description="new")])
     result = service.reconcile(orgs=[org], dry_run=False)
 
     assert result.status == TaskStatus.SUCCESS
-    mock_client.repo_update_description.assert_called_once_with("repo1", "new")
+    mock_workspace_client.repo_update_description.assert_called_once_with("repo1", "new")
 
 
 # ---------------------------------------------------------------------------
@@ -532,12 +546,11 @@ def test_reconcile_apply_updates_description(
 # ---------------------------------------------------------------------------
 
 
-@patch("qontract_api.integrations.quay_repos.service.create_quay_workspace_client")
 def test_reconcile_per_org_exception_captured(
-    mock_factory: MagicMock,
+    mock_workspace_client_factory: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_factory.side_effect = Exception("Network error")
+    mock_workspace_client_factory.side_effect = Exception("Network error")
 
     org = _org(managed_repos=True, repos=[_repo("repo1")])
     result = service.reconcile(orgs=[org], dry_run=True)
@@ -549,15 +562,12 @@ def test_reconcile_per_org_exception_captured(
     assert result.actions == []
 
 
-@patch("qontract_api.integrations.quay_repos.service.create_quay_workspace_client")
 def test_reconcile_per_action_exception_captured(
-    mock_factory: MagicMock,
+    mock_workspace_client: MagicMock,
     service: QuayReposService,
 ) -> None:
-    mock_client = _make_mock_client()
-    mock_client.get_repos.return_value = []
-    mock_client.repo_create.side_effect = Exception("Quay API 500")
-    mock_factory.return_value = mock_client
+    mock_workspace_client.get_repos.return_value = []
+    mock_workspace_client.repo_create.side_effect = Exception("Quay API 500")
 
     org = _org(managed_repos=True, repos=[_repo("new-repo")])
     result = service.reconcile(orgs=[org], dry_run=False)
@@ -580,9 +590,8 @@ def test_reconcile_config_error_propagates(service: QuayReposService) -> None:
         service.reconcile(orgs=orgs)
 
 
-@patch("qontract_api.integrations.quay_repos.service.create_quay_workspace_client")
 def test_reconcile_multiple_orgs_partial_failure(
-    mock_factory: MagicMock,
+    mock_workspace_client_factory: MagicMock,
     service: QuayReposService,
 ) -> None:
     good_client = _make_mock_client()
@@ -597,7 +606,7 @@ def test_reconcile_multiple_orgs_partial_failure(
             raise RuntimeError("first org failed")
         return good_client
 
-    mock_factory.side_effect = factory_side_effect
+    mock_workspace_client_factory.side_effect = factory_side_effect
 
     orgs = [
         _org(org_name="org1", managed_repos=True, repos=[_repo("r1")]),

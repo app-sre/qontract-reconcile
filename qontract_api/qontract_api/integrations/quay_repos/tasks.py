@@ -46,9 +46,9 @@ def reconcile_quay_repos_task(
         dry_run: If True, only calculate actions without executing
     """
     request_id = self.request.id
-    event_manager = get_event_manager()
 
     try:
+        event_manager = get_event_manager()
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
         service = QuayReposService(

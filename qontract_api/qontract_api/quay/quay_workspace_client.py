@@ -86,33 +86,35 @@ class QuayWorkspaceClient:
     # Mutations
     # ------------------------------------------------------------------
 
-    def _invalidate_repos_cache(self) -> None:
-        cache_key = self._cache_key_repos()
-        try:
-            with self.cache.lock(cache_key):
-                self.cache.delete(cache_key)
-        except RuntimeError as e:
-            logger.warning(f"Could not acquire lock to invalidate repos cache: {e}")
-
     def repo_create(self, repo_name: str, description: str, *, public: bool) -> None:
-        self.quay_api.repo_create(repo_name, description, public=public)
-        self._invalidate_repos_cache()
+        cache_key = self._cache_key_repos()
+        with self.cache.lock(cache_key):
+            self.quay_api.repo_create(repo_name, description, public=public)
+            self.cache.delete(cache_key)
 
     def repo_delete(self, repo_name: str) -> None:
-        self.quay_api.repo_delete(repo_name)
-        self._invalidate_repos_cache()
+        cache_key = self._cache_key_repos()
+        with self.cache.lock(cache_key):
+            self.quay_api.repo_delete(repo_name)
+            self.cache.delete(cache_key)
 
     def repo_update_description(self, repo_name: str, description: str) -> None:
-        self.quay_api.repo_update_description(repo_name, description)
-        self._invalidate_repos_cache()
+        cache_key = self._cache_key_repos()
+        with self.cache.lock(cache_key):
+            self.quay_api.repo_update_description(repo_name, description)
+            self.cache.delete(cache_key)
 
     def repo_make_public(self, repo_name: str) -> None:
-        self.quay_api.repo_make_public(repo_name)
-        self._invalidate_repos_cache()
+        cache_key = self._cache_key_repos()
+        with self.cache.lock(cache_key):
+            self.quay_api.repo_make_public(repo_name)
+            self.cache.delete(cache_key)
 
     def repo_make_private(self, repo_name: str) -> None:
-        self.quay_api.repo_make_private(repo_name)
-        self._invalidate_repos_cache()
+        cache_key = self._cache_key_repos()
+        with self.cache.lock(cache_key):
+            self.quay_api.repo_make_private(repo_name)
+            self.cache.delete(cache_key)
 
     def close(self) -> None:
         self.quay_api.close()
