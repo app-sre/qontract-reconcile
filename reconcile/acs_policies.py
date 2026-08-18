@@ -188,8 +188,8 @@ class AcsPoliciesIntegration(
             self._build_policy(gql_policy, notifier_name_to_id, cluster_name_to_id)
             for gql_policy in gql_acs_policies.query(query_func=query_func).acs_policies
             or []
-            # TODO: Update logic once ACS files in App-interface have been updated with the "instance" field
-            if gql_policy.instance is None or gql_policy.instance.name == instance_name
+            if gql_policy.instance is not None
+            and gql_policy.instance.name == instance_name
         ]
 
     def reconcile(
