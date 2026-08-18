@@ -10,6 +10,7 @@ from sretoolbox.container import Image
 
 from reconcile.typed_queries.users import get_users
 from reconcile.utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.labels import AUTO_MERGE
 
 if TYPE_CHECKING:
     from reconcile.utils.gitlab_api import GitLabApi
@@ -36,7 +37,7 @@ class PromoteQontractSchemas(MergeRequestBase):
 
         super().__init__()
 
-        self.labels = []
+        self.labels = [AUTO_MERGE]
 
     @property
     def title(self) -> str:
@@ -338,6 +339,14 @@ class PromoteQontractValidator(PromoteQontractReconcileCommercial):
     name = "promote_qontract_validator"
     project_display_name = "qontract-validator"
 
+    def __init__(
+        self, version: str, commit_sha: str, github_user_id: str | None = None
+    ):
+        super().__init__(
+            version=version, commit_sha=commit_sha, github_user_id=github_user_id
+        )
+        self.labels = [AUTO_MERGE]
+
     def process(self, gitlab_cli: GitLabApi) -> None:
         self._process_by(
             "line_search",
@@ -351,6 +360,14 @@ class PromoteQontractValidator(PromoteQontractReconcileCommercial):
 class PromoteQontractServer(PromoteQontractReconcileCommercial):
     name = "promote_qontract_server"
     project_display_name = "qontract-server"
+
+    def __init__(
+        self, version: str, commit_sha: str, github_user_id: str | None = None
+    ):
+        super().__init__(
+            version=version, commit_sha=commit_sha, github_user_id=github_user_id
+        )
+        self.labels = [AUTO_MERGE]
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         # .env
