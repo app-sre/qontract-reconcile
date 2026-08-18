@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import TYPE_CHECKING
 
-from qontract_utils.quay_api import QuayApi, QuayRepo
+from qontract_utils.quay_api import QuayRepo
 
 from qontract_api.integrations.quay_repos.schemas import (
     QuayOrgConfig,
@@ -20,8 +20,12 @@ from qontract_api.integrations.quay_repos.schemas import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
+from qontract_api.quay.quay_client_factory import create_quay_workspace_client
 
 if TYPE_CHECKING:
+    from qontract_api.cache import CacheBackend
+    from qontract_api.config import Settings
+    from qontract_api.quay.quay_workspace_client import QuayWorkspaceClient
     from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
@@ -35,12 +39,18 @@ class QuayReposService:
     """Service for reconciling Quay repositories.
 
     Uses Dependency Injection to keep the service decoupled from secret backends.
-    Talks directly to Layer 1 QuayApi — no caching layer needed (repos fetched
-    once per run, no cross-task sharing).
+    Talks to Layer 2 QuayWorkspaceClient — never calls Layer 1 QuayApi directly.
     """
 
-    def __init__(self, secret_manager: SecretManager) -> None:
+    def __init__(
+        self,
+        secret_manager: SecretManager,
+        cache: CacheBackend,
+        settings: Settings,
+    ) -> None:
         self.secret_manager = secret_manager
+        self.cache = cache
+        self.settings = settings
 
     # ------------------------------------------------------------------
     # Consistency checks
@@ -176,7 +186,7 @@ class QuayReposService:
 
     def _apply_actions(
         self,
-        api: QuayApi,
+        client: QuayWorkspaceClient,
         org: QuayOrgConfig,
         actions: list[QuayRepoAction],
     ) -> tuple[list[QuayRepoAction], list[str]]:
@@ -184,7 +194,7 @@ class QuayReposService:
         errors: list[str] = []
         for action in actions:
             try:
-                self._execute_action(api, action)
+                self._execute_action(client, action)
                 applied.append(action)
             except Exception as e:
                 error_msg = f"{org.instance}/{org.org_name}/{action.action_type}: {e}"
@@ -193,14 +203,14 @@ class QuayReposService:
         return applied, errors
 
     @staticmethod
-    def _execute_action(api: QuayApi, action: QuayRepoAction) -> None:
+    def _execute_action(client: QuayWorkspaceClient, action: QuayRepoAction) -> None:
         match action:
             case QuayRepoActionCreate():
                 logger.info(
                     f"Creating repo {action.instance}/{action.org_name}/{action.repo_name}",
                     action_type=action.action_type,
                 )
-                api.repo_create(
+                client.repo_create(
                     action.repo_name, action.description, public=action.public
                 )
 
@@ -209,14 +219,14 @@ class QuayReposService:
                     f"Deleting repo {action.instance}/{action.org_name}/{action.repo_name}",
                     action_type=action.action_type,
                 )
-                api.repo_delete(action.repo_name)
+                client.repo_delete(action.repo_name)
 
             case QuayRepoActionUpdateDescription():
                 logger.info(
                     f"Updating description for {action.instance}/{action.org_name}/{action.repo_name}",
                     action_type=action.action_type,
                 )
-                api.repo_update_description(action.repo_name, action.description)
+                client.repo_update_description(action.repo_name, action.description)
 
             case QuayRepoActionUpdateVisibility():
                 logger.info(
@@ -224,9 +234,9 @@ class QuayReposService:
                     action_type=action.action_type,
                 )
                 if action.public:
-                    api.repo_make_public(action.repo_name)
+                    client.repo_make_public(action.repo_name)
                 else:
-                    api.repo_make_private(action.repo_name)
+                    client.repo_make_private(action.repo_name)
 
     # ------------------------------------------------------------------
     # Per-org reconciliation
@@ -239,12 +249,18 @@ class QuayReposService:
         *,
         dry_run: bool,
     ) -> tuple[list[QuayRepoAction], list[QuayRepoAction], list[str]]:
-        token = self.secret_manager.read(org.automation_token)
-        with QuayApi(org=org.org_name, token=token, base_url=org.base_url) as api:
-            current = api.list_images()
+        with create_quay_workspace_client(
+            secret=org.automation_token,
+            org_name=org.org_name,
+            base_url=org.base_url,
+            cache=self.cache,
+            secret_manager=self.secret_manager,
+            settings=self.settings,
+        ) as client:
+            current = client.get_repos()
             actions = self._calculate_actions(org, current, desired_repos)
             if not dry_run:
-                applied, errors = self._apply_actions(api, org, actions)
+                applied, errors = self._apply_actions(client, org, actions)
             else:
                 applied, errors = [], []
         return actions, applied, errors

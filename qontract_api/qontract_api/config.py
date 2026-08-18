@@ -365,6 +365,15 @@ class SecretSettings(BaseModel):
     )
 
 
+class QuaySettings(BaseModel):
+    """Quay API and integration configuration."""
+
+    repos_cache_ttl: int = Field(
+        default=60 * 5,
+        description="Quay repos list cache TTL in seconds (5 minutes)",
+    )
+
+
 class EventSettings(BaseModel):
     """Event publishing configuration."""
 
@@ -564,6 +573,12 @@ class Settings(BaseSettings):
     events: EventSettings = Field(
         default_factory=EventSettings,
         description="Event publishing configuration",
+    )
+
+    # Quay Configuration (nested)
+    quay: QuaySettings = Field(
+        default_factory=QuaySettings,
+        description="Quay API and integration configuration",
     )
 
     # Event Subscriber Configuration (nested)
