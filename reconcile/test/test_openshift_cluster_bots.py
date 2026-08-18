@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import base64
+from dataclasses import dataclass
 from subprocess import CalledProcessError
 from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock
 from urllib.error import URLError
 
 import pytest
@@ -16,7 +18,6 @@ from reconcile.gql_definitions.openshift_cluster_bots.clusters import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from unittest.mock import MagicMock
 
     from pytest_mock import MockerFixture
 
@@ -299,6 +300,7 @@ def test_process_entry_create_new(
     mocker: MockerFixture, config: ocb.Config, cluster: Callable
 ) -> None:
     c = cluster(automation_tokens=[automation_token_entry(name="tok", namespace="ns")])
+    assert c.automation_tokens
     entry = c.automation_tokens[0]
 
     oc_mock = mocker.patch("reconcile.openshift_cluster_bots.oc", autospec=True)
@@ -343,6 +345,7 @@ def test_process_entry_existing_unsynced(
     mocker: MockerFixture, config: ocb.Config, cluster: Callable
 ) -> None:
     c = cluster(automation_tokens=[automation_token_entry(name="tok", namespace="ns")])
+    assert c.automation_tokens
     entry = c.automation_tokens[0]
 
     existing_secret = {
@@ -377,6 +380,7 @@ def test_process_entry_already_synced(
             automation_token_entry(name="tok", namespace="ns", secret=secret)
         ]
     )
+    assert c.automation_tokens
     entry = c.automation_tokens[0]
 
     existing_secret = {
@@ -406,6 +410,7 @@ def test_process_entry_unmanaged(
     mocker: MockerFixture, config: ocb.Config, cluster: Callable
 ) -> None:
     c = cluster(automation_tokens=[automation_token_entry(name="tok", namespace="ns")])
+    assert c.automation_tokens
     entry = c.automation_tokens[0]
 
     existing_secret: dict[str, Any] = {
@@ -435,6 +440,7 @@ def test_process_entry_delete(
             )
         ]
     )
+    assert c.automation_tokens
     entry = c.automation_tokens[0]
 
     existing_secret = {
@@ -466,6 +472,7 @@ def test_process_entry_delete_unmanaged(
             )
         ]
     )
+    assert c.automation_tokens
     entry = c.automation_tokens[0]
 
     existing_secret: dict[str, Any] = {"metadata": {"labels": {}, "annotations": {}}}
@@ -482,18 +489,12 @@ def test_process_entry_delete_unmanaged(
     vault_mock.return_value.delete.assert_not_called()
 
 
-class Mocks:  # ruff: ignore[class-as-data-structure]
-    def __init__(
-        self,
-        oc: MagicMock,
-        vault: MagicMock,
-        submit_mr: MagicMock,
-        submit_list_mr: MagicMock,
-    ) -> None:
-        self.oc = oc
-        self.vault = vault
-        self.submit_mr = submit_mr
-        self.submit_list_mr = submit_list_mr
+@dataclass
+class Mocks:
+    oc: MagicMock
+    vault: MagicMock
+    submit_mr: MagicMock
+    submit_list_mr: MagicMock
 
 
 def _setup_mocks(
