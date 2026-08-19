@@ -151,6 +151,10 @@ All ADRs are documented in `docs/adr/` and are binding. Always choose the "Selec
 - Uses `qenerate` to generate type-safe Python dataclasses from GraphQL schemas
 - All data fetching uses generated Pydantic models for type safety
 - Schema changes require running `make gql-query-classes`
+- **NEVER use dict-based GQL queries** — this is an absolute no-go for new or changed integrations
+- Always create proper `.gql` query files under `reconcile/gql_definitions/<integration>/`
+- Run `make gql-query-classes` (or `qenerate code`) to generate typed dataclasses from `.gql` files
+- Do NOT reuse other integrations' query methods — each integration should have its own dedicated queries
 
 ### Integration Structure
 
@@ -173,6 +177,45 @@ class MyIntegrationApi(QontractReconcileApiIntegration):
         # Uses self.qontract_api_client for API calls
 ```
 
+### qontract-api Integration File Layout
+
+New server-side integrations in `qontract_api` follow a standard module structure:
+
+```
+qontract_api/qontract_api/integrations/<name>/
+  __init__.py       # empty
+  domain.py         # Pure domain models (internal business logic types), frozen=True
+  schemas.py        # API request/response Pydantic schemas (TaskResult subclass)
+  service.py        # Core reconciliation logic, uses diff_iterables
+  router.py         # FastAPI router, mounts endpoints
+  tasks.py          # Celery task definition, acks_late=True, deduplicated_task
+  metrics.py        # Prometheus counters/gauges with environment-scoped labels
+```
+
+Client-side (in the `reconcile/` package):
+
+```
+reconcile/<name>_api.py   # Inherits QontractReconcileApiIntegration
+```
+
+Do NOT create a barrel re-export `models.py` — import directly from `domain.py` and `schemas.py`.
+
+## Coding Conventions
+
+- Prefer walrus operator (`if value := expression:`) over `value = expression; if value:`
+- Use typed Pydantic models everywhere — never use plain dicts for structured data
+- Raise exceptions on invalid state — never set empty-string fallbacks when config is always populated
+- Don't add hard-coded fallback values for fields that are always set via configuration
+- Don't import from legacy integration modules (e.g. `reconcile/ocm_groups.py`). If a utility is needed elsewhere, move it to `qontract_utils/`
+
+## Service Layer Patterns
+
+- Use `qontract_utils.differ.diff_iterables` for state comparison — never hand-roll set operations
+- All metrics should include environment/scope labels (e.g. `["integration", "ocm_environment"]`) for per-environment dashboards
+- Fatal errors (auth failures, timeouts, 500s) must be appended to the `errors` list — the task must report FAILURE, not SUCCESS, when clusters are silently skipped
+- Implement defensive desired-state handling: distinguish transient failures (Vault secret pending) from genuine misconfigurations. A transient failure should not cause deletions
+- Per-cluster error isolation: one failed cluster should not abort reconciliation for others
+
 ## Testing Guidelines
 
 - Unit tests use pytest functions (no classes)
@@ -182,6 +225,16 @@ class MyIntegrationApi(QontractReconcileApiIntegration):
 - Test both `dry_run=True` and `dry_run=False`
 - Use `moto` for AWS mocking, `responses` for HTTP mocking
 - All tests must pass for CI/CD pipeline
+- Both client-side and server-side tests are required for new qontract-api integrations
+- Target >80% coverage for new integration code
+- Client-side tests go in `reconcile/test/test_<name>_api.py`
+- Server-side tests go in `qontract_api/tests/integrations/<name>/`
+
+## PR and Review Conventions
+
+- Use incremental commits during review — do NOT force-push or squash after opening a PR. Force-pushing makes re-review very difficult
+- Keep PR comments and review thread replies up to date — the PR is documentation for the future
+- Each review fix should be a separate, clearly described commit on top of the existing history
 
 ## Important Notes
 
