@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.jobcontroller.controller import K8sJobController
 from reconcile.utils.jobcontroller.models import JobConcurrencyPolicy, JobStatus
+from reconcile.utils.ocm.products import build_ystream_channel
 from reconcile.utils.rosa.rosa_cli import (
     LogHandle,
     RosaCliError,
@@ -219,4 +220,8 @@ def generate_rosa_creation_script(
         cluster_name=cluster_name,
         cluster=cluster,
         dry_run=dry_run,
+        channel=build_ystream_channel(
+            cluster.spec.channel,
+            cluster.spec.initial_version or cluster.spec.version,
+        ),
     )

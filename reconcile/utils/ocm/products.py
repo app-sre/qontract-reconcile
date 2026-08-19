@@ -756,6 +756,10 @@ class OCMProductHypershift(OCMProduct):
     ) -> dict[str, Any]:
         ocm_spec: dict[str, Any] = {}
 
+        channel = update_spec.get(SPEC_ATTR_CHANNEL)
+        if channel is not None:
+            ocm_spec["channel"] = build_ystream_channel(channel, version)
+
         disable_uwm = update_spec.get(SPEC_ATTR_DISABLE_UWM)
         if disable_uwm is not None:
             ocm_spec["disable_user_workload_monitoring"] = disable_uwm
