@@ -242,3 +242,7 @@ Do NOT create a barrel re-export `models.py` — import directly from `domain.py
 - Always test integrations in dry-run mode first
 - Use type hints consistently — MyPy enforcement is strict
 - Follow existing patterns for error handling and logging
+
+## Maintaining This Document
+
+When introducing new patterns, coding conventions, or architectural decisions, update this file to reflect the change. AGENTS.md is the primary reference for both human and AI contributors — keeping it current prevents recurring review feedback on established conventions.
