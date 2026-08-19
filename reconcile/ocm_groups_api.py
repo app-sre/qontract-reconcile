@@ -149,15 +149,12 @@ def _build_ocm_connection(
 
     client_id = ocm.access_token_client_id or env.access_token_client_id
     access_token_url = ocm.access_token_url or env.access_token_url
-    if (
-        not (
-            token_secret := ocm.access_token_client_secret
-            or env.access_token_client_secret
-        )
-        or not token_secret.path
-        or not client_id
-        or not env.name
-    ):
+    token_secret = (
+        ocm.access_token_client_secret
+        if ocm.access_token_client_secret is not None
+        else env.access_token_client_secret
+    )
+    if not token_secret.path or not client_id or not env.name:
         raise IntegrationError(
             f"ocm-groups-api: required OCM credentials "
             f"missing from cluster OCM configuration (env={env.name})"
