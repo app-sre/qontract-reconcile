@@ -167,9 +167,8 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsIntegrationParams]):
                 for permission in role.oidc_permissions or []:
                     if isinstance(permission, OidcPermissionAcsV1):
                         if (
-                            # TODO: Update logic once ACS files in App-interface have been updated with the "instance" field
-                            permission.instance is not None
-                            and permission.instance.name != instance_name
+                            permission.instance is None
+                            or permission.instance.name != instance_name
                         ):
                             continue
                         permission_usernames[

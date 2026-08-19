@@ -486,13 +486,13 @@ def test_get_desired_state_filters_by_instance(
     assert result == []
 
 
-def test_get_desired_state_includes_policies_without_instance(
+def test_get_desired_state_excludes_policies_without_instance(
     mocker: MockerFixture,
     query_data_desired_state: AcsPolicyQueryData,
     api_response_list_notifiers: list[AcsPolicyApi.NotifierIdentifiers],
     api_response_list_clusters: list[AcsPolicyApi.ClusterIdentifiers],
 ) -> None:
-    # Permissive filter: policies with instance=None are included (treated as "belongs to all instances")
+    # Strict filter: policies with instance=None are excluded
     for policy in query_data_desired_state.acs_policies or []:
         policy.instance = None
 
@@ -508,4 +508,4 @@ def test_get_desired_state_includes_policies_without_instance(
         notifiers=api_response_list_notifiers,
         clusters=api_response_list_clusters,
     )
-    assert len(result) == len(query_data_desired_state.acs_policies or [])
+    assert result == []
