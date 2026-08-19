@@ -41,7 +41,6 @@ from reconcile.gql_definitions.ocm_groups_api.roles import (
 )
 from reconcile.utils import expiration, gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
-from reconcile.utils.ocm.base import OCMClusterGroupId
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -51,6 +50,7 @@ if TYPE_CHECKING:
     from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 
 QONTRACT_INTEGRATION = "ocm-groups-api"
+VALID_OCM_GROUPS = frozenset({"dedicated-admins", "cluster-admins"})
 
 
 class OcmGroupsIntegrationParams(PydanticRunParams):
@@ -64,7 +64,7 @@ def _get_clusters() -> list[ClusterV1]:
     return data.clusters or []
 
 
-def _fetch_desired_state(cluster_names: list[str]) -> list[dict[str, str]]:
+def _fetch_desired_state(cluster_names: list[str]) -> list[OcmGroupUser]:
     """Fetch desired group memberships from roles (client-side per ADR-002).
 
     Mirrors reconcile/openshift_groups.fetch_desired_state but uses the
@@ -73,7 +73,7 @@ def _fetch_desired_state(cluster_names: list[str]) -> list[dict[str, str]]:
     gqlapi = gql.get_api()
     data = roles_query(gqlapi.query)
     roles = expiration.filter(data.roles or [])
-    desired_state: list[dict[str, str]] = []
+    desired_state: list[OcmGroupUser] = []
 
     for r in roles:
         for a in r.access or []:
@@ -88,14 +88,15 @@ def _fetch_desired_state(cluster_names: list[str]) -> list[dict[str, str]]:
             )
             for u in r.users:
                 for user_key in user_keys:
-                    username = getattr(u, user_key, None)
-                    if username is None:
+                    if (username := getattr(u, user_key, None)) is None:
                         continue
-                    desired_state.append({
-                        "cluster": a.cluster.name,
-                        "group": a.group,
-                        "user": username,
-                    })
+                    desired_state.append(
+                        OcmGroupUser(
+                            cluster=a.cluster.name,
+                            group=a.group,
+                            user=username,
+                        )
+                    )
 
     return desired_state
 
@@ -106,13 +107,10 @@ def _build_api_clusters(
     """Build API cluster objects from typed GQL cluster data."""
     api_clusters: list[OcmGroupsCluster] = []
     for c in clusters:
-        managed_groups = c.managed_groups or []
-        # Only include OCM-valid groups
-        managed_groups = [g for g in managed_groups if g in OCMClusterGroupId.values()]
+        managed_groups = [g for g in (c.managed_groups or []) if g in VALID_OCM_GROUPS]
         if not managed_groups:
             continue
-        spec_id = c.spec.q_id if c.spec else None
-        if not spec_id:
+        if not (spec_id := c.spec.q_id if c.spec else None):
             logging.warning(f"Cluster {c.name} has no spec.id, skipping")
             continue
         api_clusters.append(
@@ -134,8 +132,8 @@ def _group_clusters_by_ocm_env(
     """
     env_clusters: dict[str, list[ClusterV1]] = defaultdict(list)
     for c in clusters:
-        if c.ocm is not None and c.ocm.environment is not None:
-            env_clusters[c.ocm.environment.name].append(c)
+        if (ocm := c.ocm) is not None and ocm.environment is not None:
+            env_clusters[ocm.environment.name].append(c)
     return env_clusters
 
 
@@ -149,32 +147,27 @@ def _build_ocm_connection(
     assert ocm is not None  # caller guarantees OCM config exists
     env = ocm.environment
 
-    # Use cluster-level override if available, fallback to environment-level
-    client_id = ocm.access_token_client_id or env.access_token_client_id or ""
-    access_token_url = (
-        ocm.access_token_url
-        or env.access_token_url
-        or "https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token"
-    )
-    token_secret = (
-        ocm.access_token_client_secret
-        if ocm.access_token_client_secret is not None
-        else env.access_token_client_secret
-    )
-    if token_secret is not None:
-        token_path = token_secret.path
-        token_field = token_secret.field
-        token_version = token_secret.version
-    else:
-        token_path = ""
-        token_field = None
-        token_version = None
+    client_id = ocm.access_token_client_id or env.access_token_client_id
+    access_token_url = ocm.access_token_url or env.access_token_url
+    if (
+        not (
+            token_secret := ocm.access_token_client_secret
+            or env.access_token_client_secret
+        )
+        or not token_secret.path
+        or not client_id
+        or not env.name
+    ):
+        raise IntegrationError(
+            f"ocm-groups-api: required OCM credentials "
+            f"missing from cluster OCM configuration (env={env.name})"
+        )
 
     return OcmConnectionParams(
         secret_manager_url=secret_manager_url,
-        path=token_path,
-        field=token_field,
-        version=token_version,
+        path=token_secret.path,
+        field=token_secret.field,
+        version=token_secret.version,
         ocm_url=env.url,
         access_token_url=access_token_url,
         access_token_client_id=client_id,
@@ -236,24 +229,17 @@ class OcmGroupsIntegration(QontractReconcileApiIntegration[OcmGroupsIntegrationP
         cluster_names = [c.name for c in clusters]
 
         # Fetch desired state from GraphQL (client-side per ADR-002)
-        desired_state_raw = _fetch_desired_state(cluster_names=cluster_names)
-        # Filter to only OCM-valid groups
         desired_state_all = [
-            OcmGroupUser(
-                cluster=s["cluster"],
-                group=s["group"],
-                user=s["user"],
-            )
-            for s in desired_state_raw
-            if s["group"] in OCMClusterGroupId.values()
+            ds
+            for ds in _fetch_desired_state(cluster_names=cluster_names)
+            if ds.group in VALID_OCM_GROUPS
         ]
 
-        # Group clusters by OCM environment (Fix 2: per-env reconciliation)
+        # Group clusters by OCM environment
         env_clusters = _group_clusters_by_ocm_env(clusters)
 
         for env_name, env_cluster_list in env_clusters.items():
-            api_clusters = _build_api_clusters(env_cluster_list)
-            if not api_clusters:
+            if not (api_clusters := _build_api_clusters(env_cluster_list)):
                 logging.debug(
                     f"No clusters with OCM-valid managed groups for env {env_name}"
                 )
@@ -269,25 +255,9 @@ class OcmGroupsIntegration(QontractReconcileApiIntegration[OcmGroupsIntegrationP
             first_cluster = env_cluster_list[0]
             ocm = first_cluster.ocm
             assert ocm is not None  # filtered above
-            env = ocm.environment
-
-            client_id = ocm.access_token_client_id or env.access_token_client_id or ""
-            if ocm.access_token_client_secret is not None:
-                token_path = ocm.access_token_client_secret.path
-            elif env.access_token_client_secret is not None:
-                token_path = env.access_token_client_secret.path
-            else:
-                token_path = ""
-
-            if not token_path or not client_id or not env_name:
-                raise IntegrationError(
-                    f"ocm-groups-api: OCM environment name, access token secret path, "
-                    f"or client ID missing from cluster OCM configuration "
-                    f"(env={env_name})"
-                )
 
             ocm_connection = _build_ocm_connection(
-                env, first_cluster, self.secret_manager_url
+                ocm.environment, first_cluster, self.secret_manager_url
             )
 
             task = await self._reconcile_env(
@@ -315,8 +285,7 @@ class OcmGroupsIntegration(QontractReconcileApiIntegration[OcmGroupsIntegrationP
                     f"{action.group=} {action.user=}"
                 )
 
-            if task_result.errors:
-                errors_summary = "; ".join(task_result.errors)
+            if errors_summary := "; ".join(task_result.errors or []):
                 raise IntegrationError(
                     f"ocm-groups-api: {len(task_result.errors)} error(s) "
                     f"in env {env_name}: {errors_summary}"

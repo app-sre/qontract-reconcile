@@ -11,6 +11,7 @@ from qontract_api_client.schemas import (
     OcmGroupsActionDeleteUser,
     OcmGroupsTaskResponse,
     OcmGroupsTaskResult,
+    OcmGroupUser,
     TaskStatus,
 )
 from qontract_utils.exceptions import IntegrationError
@@ -135,11 +136,11 @@ async def test_dry_run_polls_task_and_logs_actions() -> None:
         patch(
             f"{_MOD}._fetch_desired_state",
             return_value=[
-                {
-                    "cluster": "my-cluster",
-                    "group": "dedicated-admins",
-                    "user": "alice",
-                }
+                OcmGroupUser(
+                    cluster="my-cluster",
+                    group="dedicated-admins",
+                    user="alice",
+                )
             ],
         ),
         patch(
@@ -330,7 +331,7 @@ async def test_skips_clusters_without_valid_managed_groups() -> None:
 
 @pytest.mark.asyncio
 async def test_filters_non_ocm_groups_from_desired_state() -> None:
-    """Groups not in OCMClusterGroupId (dedicated-admins, cluster-admins) are
+    """Groups not in VALID_OCM_GROUPS (dedicated-admins, cluster-admins) are
     filtered from the desired state before sending to the server.
     """
     integration = make_integration()
@@ -343,16 +344,16 @@ async def test_filters_non_ocm_groups_from_desired_state() -> None:
         patch(
             f"{_MOD}._fetch_desired_state",
             return_value=[
-                {
-                    "cluster": "my-cluster",
-                    "group": "dedicated-admins",
-                    "user": "alice",
-                },
-                {
-                    "cluster": "my-cluster",
-                    "group": "osd-sre-admins",
-                    "user": "bob",
-                },
+                OcmGroupUser(
+                    cluster="my-cluster",
+                    group="dedicated-admins",
+                    user="alice",
+                ),
+                OcmGroupUser(
+                    cluster="my-cluster",
+                    group="osd-sre-admins",
+                    user="bob",
+                ),
             ],
         ),
         patch(
