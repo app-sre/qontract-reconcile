@@ -15,6 +15,14 @@ from qontract_api_client.schemas import (
 )
 from qontract_utils.exceptions import IntegrationError
 
+from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.gql_definitions.ocm_groups_api.clusters import (
+    ClusterAuthV1,
+    ClusterSpecV1,
+    ClusterV1,
+    OpenShiftClusterManagerV1,
+)
 from reconcile.ocm_groups_api import (
     OcmGroupsIntegration,
     OcmGroupsIntegrationParams,
@@ -44,28 +52,51 @@ def make_cluster(
     spec_id: str = "cluster-1",
     managed_groups: list[str] | None = None,
     with_ocm: bool = True,
-) -> dict[str, Any]:
-    """Build a cluster dict mimicking queries.get_clusters() output."""
-    cluster: dict[str, Any] = {
-        "name": name,
-        "spec": {"id": spec_id},
-        "managedGroups": managed_groups
+    ocm_env_name: str = "ocm-production",
+    access_token_client_id: str = "client-id",
+    access_token_url: str = "https://sso.redhat.com/token",
+    secret_path: str = "app-sre/creds/ocm",
+    secret_field: str = "client_secret",
+    ocm_url: str = "https://api.openshift.com",
+) -> ClusterV1:
+    """Build a typed ClusterV1 matching the GQL schema."""
+    ocm = None
+    if with_ocm:
+        ocm = OpenShiftClusterManagerV1(
+            name=ocm_env_name,
+            environment=OCMEnvironment(
+                name=ocm_env_name,
+                description=f"{ocm_env_name} env",
+                labels=None,
+                url=ocm_url,
+                accessTokenClientId=access_token_client_id,
+                accessTokenUrl=access_token_url,
+                accessTokenClientSecret=VaultSecret(
+                    path=secret_path,
+                    field=secret_field,
+                    version=None,
+                    format=None,
+                ),
+            ),
+            accessTokenClientId=access_token_client_id,
+            accessTokenUrl=access_token_url,
+            accessTokenClientSecret=VaultSecret(
+                path=secret_path,
+                field=secret_field,
+                version=None,
+                format=None,
+            ),
+        )
+    return ClusterV1(
+        name=name,
+        managedGroups=managed_groups
         if managed_groups is not None
         else ["dedicated-admins"],
-    }
-    if with_ocm:
-        cluster["ocm"] = {
-            "name": "ocm-production",
-            "url": "https://api.openshift.com",
-            "accessTokenClientId": "client-id",
-            "accessTokenUrl": "https://sso.redhat.com/token",
-            "accessTokenClientSecret": {
-                "path": "app-sre/creds/ocm",
-                "field": "client_secret",
-                "version": None,
-            },
-        }
-    return cluster
+        spec=ClusterSpecV1(id=spec_id),
+        auth=[ClusterAuthV1(service="github-org")],
+        ocm=ocm,
+        disable=None,
+    )
 
 
 def make_task_response(task_id: str = "task-123") -> OcmGroupsTaskResponse:
@@ -99,10 +130,10 @@ async def test_dry_run_polls_task_and_logs_actions() -> None:
     task_result = make_task_result(actions=[action])
 
     with (
-        patch(f"{_MOD}.queries.get_clusters", return_value=[make_cluster()]),
+        patch(f"{_MOD}._get_clusters", return_value=[make_cluster()]),
         patch(f"{_MOD}.integration_is_enabled", return_value=True),
         patch(
-            f"{_MOD}.openshift_groups.fetch_desired_state",
+            f"{_MOD}._fetch_desired_state",
             return_value=[
                 {
                     "cluster": "my-cluster",
@@ -146,9 +177,9 @@ async def test_non_dry_run_also_polls_task() -> None:
     task_result = make_task_result()
 
     with (
-        patch(f"{_MOD}.queries.get_clusters", return_value=[make_cluster()]),
+        patch(f"{_MOD}._get_clusters", return_value=[make_cluster()]),
         patch(f"{_MOD}.integration_is_enabled", return_value=True),
-        patch(f"{_MOD}.openshift_groups.fetch_desired_state", return_value=[]),
+        patch(f"{_MOD}._fetch_desired_state", return_value=[]),
         patch(
             f"{_MOD}.reconcile_ocm_groups",
             new=AsyncMock(return_value=task_response),
@@ -173,9 +204,9 @@ async def test_sends_request_with_empty_desired_state() -> None:
     task_result = make_task_result()
 
     with (
-        patch(f"{_MOD}.queries.get_clusters", return_value=[make_cluster()]),
+        patch(f"{_MOD}._get_clusters", return_value=[make_cluster()]),
         patch(f"{_MOD}.integration_is_enabled", return_value=True),
-        patch(f"{_MOD}.openshift_groups.fetch_desired_state", return_value=[]),
+        patch(f"{_MOD}._fetch_desired_state", return_value=[]),
         patch(
             f"{_MOD}.reconcile_ocm_groups",
             new=AsyncMock(return_value=task_response),
@@ -198,9 +229,9 @@ async def test_raises_on_errors() -> None:
     task_result = make_task_result(errors=["something went wrong"])
 
     with (
-        patch(f"{_MOD}.queries.get_clusters", return_value=[make_cluster()]),
+        patch(f"{_MOD}._get_clusters", return_value=[make_cluster()]),
         patch(f"{_MOD}.integration_is_enabled", return_value=True),
-        patch(f"{_MOD}.openshift_groups.fetch_desired_state", return_value=[]),
+        patch(f"{_MOD}._fetch_desired_state", return_value=[]),
         patch(
             f"{_MOD}.reconcile_ocm_groups",
             new=AsyncMock(return_value=task_response),
@@ -222,9 +253,9 @@ async def test_raises_on_timeout() -> None:
     task_result = make_task_result(status=TaskStatus.PENDING)
 
     with (
-        patch(f"{_MOD}.queries.get_clusters", return_value=[make_cluster()]),
+        patch(f"{_MOD}._get_clusters", return_value=[make_cluster()]),
         patch(f"{_MOD}.integration_is_enabled", return_value=True),
-        patch(f"{_MOD}.openshift_groups.fetch_desired_state", return_value=[]),
+        patch(f"{_MOD}._fetch_desired_state", return_value=[]),
         patch(
             f"{_MOD}.reconcile_ocm_groups",
             new=AsyncMock(return_value=task_response),
@@ -244,7 +275,7 @@ async def test_no_clusters_returns_early() -> None:
     integration = make_integration()
 
     with (
-        patch(f"{_MOD}.queries.get_clusters", return_value=[]),
+        patch(f"{_MOD}._get_clusters", return_value=[]),
         patch(
             f"{_MOD}.reconcile_ocm_groups",
             new=AsyncMock(),
@@ -261,7 +292,7 @@ async def test_skips_non_ocm_clusters() -> None:
 
     with (
         patch(
-            f"{_MOD}.queries.get_clusters",
+            f"{_MOD}._get_clusters",
             return_value=[make_cluster(with_ocm=False)],
         ),
         patch(f"{_MOD}.integration_is_enabled", return_value=True),
@@ -283,10 +314,11 @@ async def test_skips_clusters_without_valid_managed_groups() -> None:
 
     with (
         patch(
-            f"{_MOD}.queries.get_clusters",
+            f"{_MOD}._get_clusters",
             return_value=[make_cluster(managed_groups=["invalid-group"])],
         ),
         patch(f"{_MOD}.integration_is_enabled", return_value=True),
+        patch(f"{_MOD}._fetch_desired_state", return_value=[]),
         patch(
             f"{_MOD}.reconcile_ocm_groups",
             new=AsyncMock(),
@@ -306,10 +338,10 @@ async def test_filters_non_ocm_groups_from_desired_state() -> None:
     task_result = make_task_result()
 
     with (
-        patch(f"{_MOD}.queries.get_clusters", return_value=[make_cluster()]),
+        patch(f"{_MOD}._get_clusters", return_value=[make_cluster()]),
         patch(f"{_MOD}.integration_is_enabled", return_value=True),
         patch(
-            f"{_MOD}.openshift_groups.fetch_desired_state",
+            f"{_MOD}._fetch_desired_state",
             return_value=[
                 {
                     "cluster": "my-cluster",
@@ -348,14 +380,14 @@ async def test_ocm_connection_uses_first_cluster_config() -> None:
 
     with (
         patch(
-            f"{_MOD}.queries.get_clusters",
+            f"{_MOD}._get_clusters",
             return_value=[
                 make_cluster(name="first"),
                 make_cluster(name="second"),
             ],
         ),
         patch(f"{_MOD}.integration_is_enabled", return_value=True),
-        patch(f"{_MOD}.openshift_groups.fetch_desired_state", return_value=[]),
+        patch(f"{_MOD}._fetch_desired_state", return_value=[]),
         patch(
             f"{_MOD}.reconcile_ocm_groups",
             new=AsyncMock(return_value=task_response),
@@ -374,15 +406,12 @@ async def test_ocm_connection_uses_first_cluster_config() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "ocm_override",
+    "overrides",
     [
-        {"accessTokenClientSecret": {"path": "", "field": "f", "version": None}},
-        {"accessTokenClientId": ""},
-        {
-            "accessTokenClientSecret": {"path": "", "field": "f", "version": None},
-            "accessTokenClientId": "",
-        },
-        {"name": ""},
+        {"secret_path": ""},
+        {"access_token_client_id": ""},
+        {"secret_path": "", "access_token_client_id": ""},
+        {"ocm_env_name": ""},
     ],
     ids=[
         "missing-secret-path",
@@ -392,17 +421,52 @@ async def test_ocm_connection_uses_first_cluster_config() -> None:
     ],
 )
 async def test_raises_on_missing_ocm_credentials(
-    ocm_override: dict[str, Any],
+    overrides: dict[str, Any],
 ) -> None:
     """Missing accessTokenClientSecret.path or accessTokenClientId raises."""
     integration = make_integration()
-    cluster = make_cluster()
-    cluster["ocm"].update(ocm_override)
+    cluster = make_cluster(**overrides)
 
     with (
-        patch(f"{_MOD}.queries.get_clusters", return_value=[cluster]),
+        patch(f"{_MOD}._get_clusters", return_value=[cluster]),
         patch(f"{_MOD}.integration_is_enabled", return_value=True),
-        patch(f"{_MOD}.openshift_groups.fetch_desired_state", return_value=[]),
+        patch(f"{_MOD}._fetch_desired_state", return_value=[]),
         pytest.raises(IntegrationError, match="missing from cluster OCM configuration"),
     ):
         await integration.async_run(dry_run=True)
+
+
+@pytest.mark.asyncio
+async def test_per_env_reconciliation_sends_separate_requests() -> None:
+    """Clusters in different OCM environments get separate reconcile requests."""
+    integration = make_integration()
+    task_response = make_task_response()
+    task_result = make_task_result()
+
+    prod_cluster = make_cluster(name="prod-cluster", ocm_env_name="ocm-prod")
+    stage_cluster = make_cluster(name="stage-cluster", ocm_env_name="ocm-stage")
+
+    with (
+        patch(
+            f"{_MOD}._get_clusters",
+            return_value=[prod_cluster, stage_cluster],
+        ),
+        patch(f"{_MOD}.integration_is_enabled", return_value=True),
+        patch(f"{_MOD}._fetch_desired_state", return_value=[]),
+        patch(
+            f"{_MOD}.reconcile_ocm_groups",
+            new=AsyncMock(return_value=task_response),
+        ) as mock_reconcile,
+        patch.object(
+            integration,
+            "poll_task_status",
+            new=AsyncMock(return_value=task_result),
+        ),
+    ):
+        await integration.async_run(dry_run=True)
+        # Should be called once per environment
+        assert mock_reconcile.call_count == 2
+        envs_called = {
+            call.args[0].ocm_environment for call in mock_reconcile.call_args_list
+        }
+        assert envs_called == {"ocm-prod", "ocm-stage"}
