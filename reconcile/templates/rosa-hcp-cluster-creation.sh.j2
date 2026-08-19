@@ -62,4 +62,4 @@ rosa create cluster --cluster-name={{ cluster_name }} \
     {% if cluster.spec.fips -%}
     --fips \
     {% endif -%}
-    --channel {{ cluster.spec.channel }}-{{ (cluster.spec.initial_version | split("."))[:2] | join(".") }}
+    --channel {{ channel }}
