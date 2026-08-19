@@ -72,6 +72,7 @@ def build_ystream_channel(channel_group: str, version: str) -> str:
     major_minor = ".".join(version.split(".")[:2])
     return f"{channel_group}-{major_minor}"
 
+
 OCM_PRODUCT_OSD = "osd"
 OCM_PRODUCT_ROSA = "rosa"
 OCM_PRODUCT_HYPERSHIFT = "hypershift"
@@ -259,7 +260,8 @@ class OCMProductOsd(OCMProduct):
                 "id": f"openshift-v{cluster.spec.initial_version}",
             },
             "channel": build_ystream_channel(
-                cluster.spec.channel, cluster.spec.initial_version or cluster.spec.version
+                cluster.spec.channel,
+                cluster.spec.initial_version or cluster.spec.version,
             ),
             "multi_az": cluster.spec.multi_az,
             "nodes": self._get_nodes_spec(cluster),
@@ -520,7 +522,8 @@ class OCMProductRosa(OCMProduct):
                 "id": f"openshift-v{cluster.spec.initial_version}",
             },
             "channel": build_ystream_channel(
-                cluster.spec.channel, cluster.spec.initial_version or cluster.spec.version
+                cluster.spec.channel,
+                cluster.spec.initial_version or cluster.spec.version,
             ),
             "hypershift": {"enabled": cluster.spec.hypershift},
             "multi_az": cluster.spec.multi_az,
