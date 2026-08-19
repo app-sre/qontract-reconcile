@@ -29,8 +29,26 @@ fragment OcConnectionCluster on Cluster_v1 {
   automationToken {
     ...VaultSecret
   }
+  automationTokens {
+    name
+    namespace
+    active
+    delete
+    secret {
+      ...VaultSecret
+    }
+  }
   clusterAdminAutomationToken {
     ...VaultSecret
+  }
+  clusterAdminAutomationTokens {
+    name
+    namespace
+    active
+    delete
+    secret {
+      ...VaultSecret
+    }
   }
   disable {
     integrations
