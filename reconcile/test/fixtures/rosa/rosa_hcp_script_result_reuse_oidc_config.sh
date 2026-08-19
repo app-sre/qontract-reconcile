@@ -34,4 +34,4 @@ rosa create cluster --cluster-name=cluster-1 \
     --compute-machine-type m5.xlarge \
     --disable-workload-monitoring \
     --properties provision_shard_id:provision_shard_id \
-    --channel-group stable
+    --channel stable-4.8

@@ -42,4 +42,4 @@ rosa create cluster --cluster-name=cluster-1 \
     --default-ingress-private \
     --disable-workload-monitoring \
     --properties provision_shard_id:provision_shard_id \
-    --channel-group stable
+    --channel stable-4.8
