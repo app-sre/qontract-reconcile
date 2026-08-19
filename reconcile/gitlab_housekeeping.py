@@ -1173,7 +1173,6 @@ def _process_omm_member(
                     onboarding=ONBOARDING in labels,
                 ).inc()
                 optimistic_merges.labels(project_id=mr.target_project_id).inc()
-                gl.remove_label(mr, OMM_PENDING)
                 approval_info = _get_approval_info(gl, mr)
                 if approval_info:
                     priority, approved_at = approval_info
@@ -1183,7 +1182,6 @@ def _process_omm_member(
             except gitlab.exceptions.GitlabMRClosedError as e:
                 logging.error(f"unable to merge {mr.iid}: {e}")
                 gl.add_label_to_merge_request(mr, MERGE_ERROR)
-                gl.remove_label(mr, OMM_PENDING)
                 optimistic_merge_rejected.labels(
                     project_id=mr.target_project_id, reason="merge_rejected"
                 ).inc()
@@ -1215,6 +1213,60 @@ def _process_omm_member(
             ).inc()
             return _MemberResult()
     return _MemberResult(active=True)
+
+
+def _check_target_branch_integrity(
+    gl: GitLabApi,
+    lead: ProjectMergeRequest,
+    lead_sha: str,
+) -> bool:
+    """Return True if the target branch is safe to continue merging onto.
+
+    Detects external merges by checking whether the current branch HEAD
+    corresponds to a known OMM merge commit. Uses the detail API to refresh
+    merge_commit_sha and avoid stale list-API values.
+    """
+    current_head = gl.project.branches.get(lead.target_branch).commit["id"]
+    if current_head == lead_sha:
+        return True
+
+    result = cast(
+        "dict",
+        gl.project.repository_compare(current_head, lead_sha),
+    )
+    if len(result["commits"]) > 0:
+        logging.warning([
+            "omm-group",
+            "head-diverged",
+            gl.project.name,
+            "invalidating",
+        ])
+        return False
+
+    merged_omm = gl.project.mergerequests.list(
+        state=MRState.MERGED,
+        labels=[OMM_PENDING],
+        target_branch=lead.target_branch,
+        get_all=True,
+    )
+    omm_shas: set[str] = set()
+    for mr in merged_omm:
+        fresh = gl.get_merge_request(mr.iid)
+        if fresh.merge_commit_sha:
+            omm_shas.add(fresh.merge_commit_sha)
+        if fresh.squash_commit_sha:
+            omm_shas.add(fresh.squash_commit_sha)
+
+    if current_head in omm_shas:
+        return True
+
+    logging.warning([
+        "omm-group",
+        "external-merge-detected",
+        gl.project.name,
+        f"HEAD {current_head[:8]} not in OMM SHAs",
+    ])
+    return False
 
 
 def _process_omm_group(
@@ -1262,25 +1314,12 @@ def _process_omm_group(
         ])
         return 0
 
-    current_head = gl.project.branches.get(lead.target_branch).commit["id"]
-    if current_head != lead_sha:
-        # Head moved since the lead merged.  This is expected when pending
-        # members merge (each advances the target).  Only invalidate if
-        # the lead's commit is no longer reachable — meaning the branch
-        # diverged (force push / external reset).
-        result = cast(
-            "dict",
-            gl.project.repository_compare(current_head, lead_sha),
-        )
-        if len(result["commits"]) > 0:
-            logging.warning([
-                "omm-group",
-                "head-diverged",
-                gl.project.name,
-                "invalidating",
-            ])
-            clear_omm_group(dry_run, gl, lead=lead)
-            return 0
+    # Runs once here rather than per-member: is_rebased() in _process_omm_member
+    # fetches the live HEAD each call, so a mid-loop external merge still prevents
+    # the next member from merging (it won't be rebased against the new HEAD).
+    if not _check_target_branch_integrity(gl, lead, lead_sha):
+        clear_omm_group(dry_run, gl, lead=lead)
+        return 0
 
     pending = get_omm_pending_mrs(gl)
     if not pending:

@@ -20,9 +20,27 @@ query OpenshiftClusterBotsQuery($name: String) {
     automationToken {
       ...VaultSecret
     }
+    automationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        ...VaultSecret
+      }
+    }
     clusterAdmin
     clusterAdminAutomationToken {
       ...VaultSecret
+    }
+    clusterAdminAutomationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        ...VaultSecret
+      }
     }
     disable {
       integrations
