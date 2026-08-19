@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from base64 import b64encode
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
@@ -10,7 +11,7 @@ from urllib.parse import urljoin
 import requests
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterator, Mapping
 
     from reconcile.utils.secret_reader import (
         HasSecret,
@@ -36,6 +37,10 @@ DASHDOTDB_SECRET = DashdotDBSecret(
 )
 
 
+class DashdotdbTokenError(Exception):
+    """Raised when a DashdotDB authentication token cannot be acquired."""
+
+
 class DashdotdbBase:
     def __init__(
         self,
@@ -56,43 +61,71 @@ class DashdotdbBase:
         self.scope = scope
         self.dashdotdb_token: str | None = None
 
-    def _get_token(self) -> None:
+    # The DORA, DVO, and SLO callers each wrap this context manager in an
+    # identical try/except DashdotdbTokenError that logs and skips. That policy
+    # could be centralized here with a helper, e.g.
+    #     def _with_token(self, action: Callable[[], None]) -> None:
+    #         try:
+    #             with self._token():
+    #                 action()
+    #         except DashdotdbTokenError:
+    #             LOG.error("%s error acquiring token for %s, skipping", ...)
+    # so callers become `self._with_token(lambda: self.post(data))`. Deferred:
+    # DVO's multi-statement body would first need extracting into a method.
+    @contextmanager
+    def _token(self) -> Iterator[None]:
+        # Yields nothing: this context manager exists purely for token
+        # lifecycle. The acquired token is stored on self.dashdotdb_token and
+        # read by _do_post(); callers use `with self._token():` without `as`.
         if self.dry_run:
+            yield
             return
 
         params = {"scope": self.scope}
         endpoint = f"{self.dashdotdb_url}/api/v1/token"
-        response = requests.get(
-            url=endpoint,
-            params=params,
-            auth=(self.dashdotdb_user, self.dashdotdb_pass),
-            timeout=(5, 120),
-        )
+        # The request is inside the try so transport failures (timeout,
+        # connection reset) convert to DashdotdbTokenError, which is the only
+        # error the callers (DORA, DVO, SLO) catch to skip cleanly.
         try:
+            response = requests.get(
+                url=endpoint,
+                params=params,
+                auth=(self.dashdotdb_user, self.dashdotdb_pass),
+                timeout=(5, 120),
+            )
             response.raise_for_status()
         except requests.exceptions.RequestException as details:
-            LOG.error(
-                "%s error retrieving token for %s data: %s",
-                self.logmarker,
-                self.scope,
-                details,
+            raise DashdotdbTokenError(
+                f"error retrieving token for {self.scope}: {details}"
+            ) from details
+
+        # An empty token would make _do_post() omit the X-Auth header and POST
+        # unauthenticated. Reject it before yielding so no tokenless request runs.
+        token = response.text.replace('"', "").strip()
+        if not token:
+            raise DashdotdbTokenError(
+                f"error retrieving token for {self.scope}: empty token"
             )
-            return
-        self.dashdotdb_token = response.text.replace('"', "").strip()
+        self.dashdotdb_token = token
+        try:
+            yield
+        finally:
+            self._close_token()
 
     def _close_token(self) -> None:
-        if self.dry_run:
-            return
-
         params = {"scope": self.scope}
         endpoint = f"{self.dashdotdb_url}/api/v1/token/{self.dashdotdb_token}"
-        response = requests.delete(
-            url=endpoint,
-            params=params,
-            auth=(self.dashdotdb_user, self.dashdotdb_pass),
-            timeout=(5, 120),
-        )
+        # _close_token() runs from the _token() finally block. The request is
+        # inside the try so a transport failure here is logged rather than
+        # propagated, which would otherwise mask an exception raised by the
+        # context body.
         try:
+            response = requests.delete(
+                url=endpoint,
+                params=params,
+                auth=(self.dashdotdb_user, self.dashdotdb_pass),
+                timeout=(5, 120),
+            )
             response.raise_for_status()
         except requests.exceptions.RequestException as details:
             LOG.error(

@@ -10,6 +10,7 @@ from sretoolbox.utils import threaded
 from reconcile.dashdotdb_base import (
     LOG,
     DashdotdbBase,
+    DashdotdbTokenError,
 )
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -238,24 +239,32 @@ class DashdotdbDVO(DashdotdbBase):
             validation_metrics_by_cluster = {
                 v.cluster_name: v.metrics for v in validation_list if v
             }
-        self._get_token()
-        for cluster in clusters:
-            if cluster.name not in validation_metrics_by_cluster:
-                LOG.debug("%s Skipping cluster: %s", self.logmarker, cluster.name)
-                continue
-            LOG.debug("%s Processing cluster: %s", self.logmarker, cluster.name)
-            validations: list[DVOPayload] = threaded.run(
-                func=self._get_deploymentvalidation,
-                iterable=validation_metrics_by_cluster[cluster.name],
-                thread_pool_size=self.thread_pool_size,
-                cluster=cluster,
+        try:
+            with self._token():
+                for cluster in clusters:
+                    if cluster.name not in validation_metrics_by_cluster:
+                        LOG.debug(
+                            "%s Skipping cluster: %s", self.logmarker, cluster.name
+                        )
+                        continue
+                    LOG.debug("%s Processing cluster: %s", self.logmarker, cluster.name)
+                    validations: list[DVOPayload] = threaded.run(
+                        func=self._get_deploymentvalidation,
+                        iterable=validation_metrics_by_cluster[cluster.name],
+                        thread_pool_size=self.thread_pool_size,
+                        cluster=cluster,
+                    )
+                    threaded.run(
+                        func=self._post,
+                        iterable=validations,
+                        thread_pool_size=self.thread_pool_size,
+                    )
+        except DashdotdbTokenError:
+            LOG.error(
+                "%s error acquiring token for %s, skipping",
+                self.logmarker,
+                self.scope,
             )
-            threaded.run(
-                func=self._post,
-                iterable=validations,
-                thread_pool_size=self.thread_pool_size,
-            )
-        self._close_token()
 
 
 def run(
