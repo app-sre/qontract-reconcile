@@ -59,6 +59,19 @@ SPEC_ATTR_PATH = "path"
 BYTES_IN_GIGABYTE = 1024**3
 DEFAULT_OCM_MACHINE_POOL_ID = "worker"
 
+
+def build_ystream_channel(channel_group: str, version: str) -> str:
+    """Build the OCM Y-stream ``channel`` field value.
+
+    OCM deprecated the ``version.channel_group`` request field in favour of the
+    top-level ``channel`` field, which must be in Y-stream format
+    (e.g. ``stable-4.16``, ``eus-4.16``). App-interface only stores the plain
+    channel group (e.g. ``stable``), so combine it with the cluster version's
+    major.minor to produce the value OCM expects.
+    """
+    major_minor = ".".join(version.split(".")[:2])
+    return f"{channel_group}-{major_minor}"
+
 OCM_PRODUCT_OSD = "osd"
 OCM_PRODUCT_ROSA = "rosa"
 OCM_PRODUCT_HYPERSHIFT = "hypershift"
@@ -89,6 +102,7 @@ class OCMProduct:
         ocm: OCMBaseClient,
         cluster_id: str,
         update_spec: Mapping[str, Any],
+        version: str,
         dry_run: bool,
     ) -> None:
         pass
@@ -142,9 +156,10 @@ class OCMProductOsd(OCMProduct):
         ocm: OCMBaseClient,
         cluster_id: str,
         update_spec: Mapping[str, Any],
+        version: str,
         dry_run: bool,
     ) -> None:
-        ocm_spec = self._get_update_cluster_spec(update_spec)
+        ocm_spec = self._get_update_cluster_spec(update_spec, version)
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
         params: dict[str, Any] = {}
         if dry_run:
@@ -242,8 +257,10 @@ class OCMProductOsd(OCMProduct):
             "region": {"id": cluster.spec.region},
             "version": {
                 "id": f"openshift-v{cluster.spec.initial_version}",
-                "channel_group": cluster.spec.channel,
             },
+            "channel": build_ystream_channel(
+                cluster.spec.channel, cluster.spec.initial_version or cluster.spec.version
+            ),
             "multi_az": cluster.spec.multi_az,
             "nodes": self._get_nodes_spec(cluster),
             "network": {
@@ -279,7 +296,7 @@ class OCMProductOsd(OCMProduct):
         return ocm_spec
 
     def _get_update_cluster_spec(
-        self, update_spec: Mapping[str, Any]
+        self, update_spec: Mapping[str, Any], version: str
     ) -> dict[str, Any]:
         ocm_spec: dict[str, Any] = {}
 
@@ -297,7 +314,7 @@ class OCMProductOsd(OCMProduct):
 
         channel = update_spec.get("channel")
         if channel is not None:
-            ocm_spec["version"] = {"channel_group": channel}
+            ocm_spec["channel"] = build_ystream_channel(channel, version)
 
         disable_uwm = update_spec.get("disable_user_workload_monitoring")
         if disable_uwm is not None:
@@ -367,9 +384,10 @@ class OCMProductRosa(OCMProduct):
         ocm: OCMBaseClient,
         cluster_id: str,
         update_spec: Mapping[str, Any],
+        version: str,
         dry_run: bool,
     ) -> None:
-        ocm_spec = self._get_update_cluster_spec(update_spec)
+        ocm_spec = self._get_update_cluster_spec(update_spec, version)
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
         params: dict[str, Any] = {}
         if dry_run:
@@ -500,8 +518,10 @@ class OCMProductRosa(OCMProduct):
             "region": {"id": cluster.spec.region},
             "version": {
                 "id": f"openshift-v{cluster.spec.initial_version}",
-                "channel_group": cluster.spec.channel,
             },
+            "channel": build_ystream_channel(
+                cluster.spec.channel, cluster.spec.initial_version or cluster.spec.version
+            ),
             "hypershift": {"enabled": cluster.spec.hypershift},
             "multi_az": cluster.spec.multi_az,
             "nodes": self._get_nodes_spec(cluster),
@@ -566,13 +586,13 @@ class OCMProductRosa(OCMProduct):
         return ocm_spec
 
     def _get_update_cluster_spec(
-        self, update_spec: Mapping[str, Any]
+        self, update_spec: Mapping[str, Any], version: str
     ) -> dict[str, Any]:
         ocm_spec: dict[str, Any] = {}
 
         channel = update_spec.get(SPEC_ATTR_CHANNEL)
         if channel is not None:
-            ocm_spec["version"] = {"channel_group": channel}
+            ocm_spec["channel"] = build_ystream_channel(channel, version)
 
         disable_uwm = update_spec.get(SPEC_ATTR_DISABLE_UWM)
         if disable_uwm is not None:
@@ -644,9 +664,10 @@ class OCMProductHypershift(OCMProduct):
         ocm: OCMBaseClient,
         cluster_id: str,
         update_spec: Mapping[str, Any],
+        version: str,
         dry_run: bool,
     ) -> None:
-        ocm_spec = self._get_update_cluster_spec(update_spec)
+        ocm_spec = self._get_update_cluster_spec(update_spec, version)
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
         params: dict[str, Any] = {}
         if dry_run:
@@ -728,7 +749,7 @@ class OCMProductHypershift(OCMProduct):
         return ocm_spec
 
     def _get_update_cluster_spec(
-        self, update_spec: Mapping[str, Any]
+        self, update_spec: Mapping[str, Any], version: str
     ) -> dict[str, Any]:
         ocm_spec: dict[str, Any] = {}
 

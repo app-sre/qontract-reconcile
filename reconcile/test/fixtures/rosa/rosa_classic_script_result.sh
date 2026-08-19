@@ -40,4 +40,4 @@ rosa create cluster -y --cluster-name=cluster-2 \
     --replicas 3 \
     --compute-machine-type m5.xlarge \
     --disable-workload-monitoring \
-    --channel-group stable
+    --channel stable-4.8
