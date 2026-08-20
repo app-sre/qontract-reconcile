@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from qontract_utils.ocm_api import (
     ACTIVE_SUBSCRIPTION_STATES,
     Filter,
+    OcmClusterGroup,
     OcmIdentityProvider,
     OcmIdentityProviderOidc,
     OcmOrganizationLabel,
@@ -71,6 +72,12 @@ class CachedOcmIdentityProviders(BaseModel, frozen=True):
     items: list[OcmIdentityProvider | OcmIdentityProviderOidc] = Field(
         default_factory=list
     )
+
+
+class CachedOcmClusterGroups(BaseModel, frozen=True):
+    """Cached list of cluster groups for one (environment, cluster_id) pair."""
+
+    items: list[OcmClusterGroup] = Field(default_factory=list)
 
 
 class OcmWorkspaceClient:
@@ -319,5 +326,57 @@ class OcmWorkspaceClient:
         """Delete an identity provider from a cluster, invalidating its IDP cache."""
         self._ocm_api.delete_identity_provider(cluster_id, idp_id)
         cache_key = self._idp_cache_key(cluster_id)
+        with self.cache.lock(cache_key):
+            self.cache.delete(cache_key)
+
+    # CLUSTER GROUPS (cached read, invalidating mutations)
+    def _groups_cache_key(self, cluster_id: str) -> str:
+        return f"ocm:groups:{self._environment_key}:{cluster_id}"
+
+    def _get_cached_cluster_groups(
+        self, cache_key: str
+    ) -> list[OcmClusterGroup] | None:
+        """Get cached cluster groups.
+
+        Uses `is not None` (not a truthy check) so a genuinely empty result is a
+        cache hit, not indistinguishable from a miss.
+        """
+        cached = self.cache.get_obj(cache_key, CachedOcmClusterGroups)
+        return cached.items if cached is not None else None
+
+    def get_cluster_groups(self, cluster_id: str) -> list[OcmClusterGroup]:
+        """List groups on a cluster with their users.
+
+        Cached with distributed locking, same double-checked-locking pattern as
+        get_identity_providers.
+        """
+        cache_key = self._groups_cache_key(cluster_id)
+
+        cached = self._get_cached_cluster_groups(cache_key)
+        if cached is None:
+            with self.cache.lock(cache_key):
+                cached = self._get_cached_cluster_groups(cache_key)
+                if cached is None:
+                    cached = self._ocm_api.get_cluster_groups(cluster_id)
+                    self.cache.set_obj(
+                        cache_key,
+                        CachedOcmClusterGroups(items=cached),
+                        self.settings.ocm.groups_cache_ttl,
+                    )
+        return cached
+
+    def add_user_to_group(self, cluster_id: str, group_id: str, user_id: str) -> None:
+        """Add a user to a cluster group, invalidating the groups cache."""
+        self._ocm_api.add_user_to_group(cluster_id, group_id, user_id)
+        cache_key = self._groups_cache_key(cluster_id)
+        with self.cache.lock(cache_key):
+            self.cache.delete(cache_key)
+
+    def delete_user_from_group(
+        self, cluster_id: str, group_id: str, user_id: str
+    ) -> None:
+        """Remove a user from a cluster group, invalidating the groups cache."""
+        self._ocm_api.delete_user_from_group(cluster_id, group_id, user_id)
+        cache_key = self._groups_cache_key(cluster_id)
         with self.cache.lock(cache_key):
             self.cache.delete(cache_key)
