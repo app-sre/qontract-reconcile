@@ -142,7 +142,16 @@ def test_get_users_keys_scoped_to_specific_accounts(
     assert "account-b" not in result
 
 
-def test_get_users_keys_defaults_to_all_sessions(
+def test_get_users_keys_requires_explicit_accounts(
+    aws_api: AWSApi, mocker: MockerFixture
+) -> None:
+    # accounts has no default - callers must consciously choose scope
+    # rather than silently falling back to every session
+    with pytest.raises(TypeError):
+        aws_api.get_users_keys()  # type: ignore[call-arg]
+
+
+def test_get_users_keys_can_still_scope_to_every_session_explicitly(
     aws_api: AWSApi, mocker: MockerFixture
 ) -> None:
     aws_api.sessions = {
@@ -153,7 +162,7 @@ def test_get_users_keys_defaults_to_all_sessions(
     mocker.patch.object(aws_api, "paginate", return_value=[{"UserName": "u1"}])
     mocker.patch.object(aws_api, "get_user_keys", return_value=["AKIA123"])
 
-    result = aws_api.get_users_keys()
+    result = aws_api.get_users_keys(aws_api.sessions.keys())
 
     assert set(result.keys()) == {"account-a", "account-b"}
 

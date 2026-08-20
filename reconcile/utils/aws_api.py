@@ -515,7 +515,7 @@ class AWSApi:
     ) -> tuple[bool, bool]:
         error = False
         service_account_recycle_complete = True
-        users_keys = self.get_users_keys()
+        users_keys = self.get_users_keys(keys_to_delete.keys())
         for account, s in self.sessions.items():
             iam = self.get_session_client(s, "iam")
             keys = keys_to_delete.get(account, [])
@@ -594,10 +594,9 @@ class AWSApi:
 
         return error, service_account_recycle_complete
 
-    def get_users_keys(self, accounts: Iterable[str] | None = None) -> dict:
-        target_accounts = accounts if accounts is not None else self.sessions.keys()
+    def get_users_keys(self, accounts: Iterable[str]) -> dict:
         users_keys = {}
-        for account in target_accounts:
+        for account in accounts:
             iam = self.get_session_client(self.sessions[account], "iam")
             users_keys[account] = {
                 user: self.get_user_keys(iam, user)
