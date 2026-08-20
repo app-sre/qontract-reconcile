@@ -153,8 +153,8 @@ All ADRs are documented in `docs/adr/` and are binding. Always choose the "Selec
 - Schema changes require running `make gql-query-classes`
 - **NEVER use dict-based GQL queries** — this is an absolute no-go for new or changed integrations
 - Always create proper `.gql` query files under `reconcile/gql_definitions/<integration>/`
-- Run `make gql-query-classes` (or `qenerate code`) to generate typed dataclasses from `.gql` files
-- Do NOT reuse other integrations' query methods — each integration should have its own dedicated queries
+- Run `make gql-query-classes` (or `qenerate code`) to generate typed Pydantic models from `.gql` files
+- Do NOT reuse other integrations' query methods — each integration should have its own dedicated queries. Shared fragments in `gql_definitions/fragments/` are fine to reuse.
 
 ### Integration Structure
 
@@ -181,7 +181,7 @@ class MyIntegrationApi(QontractReconcileApiIntegration):
 
 New server-side integrations in `qontract_api` follow a standard module structure:
 
-```
+```text
 qontract_api/qontract_api/integrations/<name>/
   __init__.py       # empty
   domain.py         # Pure domain models (internal business logic types), frozen=True
@@ -189,13 +189,14 @@ qontract_api/qontract_api/integrations/<name>/
   service.py        # Core reconciliation logic, uses diff_iterables
   router.py         # FastAPI router, mounts endpoints
   tasks.py          # Celery task definition, acks_late=True, deduplicated_task
-  metrics.py        # Prometheus counters/gauges with environment-scoped labels
+  metrics.py        # (optional) Prometheus counters/gauges with environment-scoped labels
 ```
 
 Client-side (in the `reconcile/` package):
 
-```
-reconcile/<name>_api.py   # Inherits QontractReconcileApiIntegration
+```text
+reconcile/<name>_api.py   # Simple integrations: single file inheriting QontractReconcileApiIntegration
+reconcile/<name>_api/     # Complex integrations: package with __init__.py, models, MR builders, etc.
 ```
 
 Do NOT create a barrel re-export `models.py` — import directly from `domain.py` and `schemas.py`.
@@ -227,7 +228,7 @@ Do NOT create a barrel re-export `models.py` — import directly from `domain.py
 - All tests must pass for CI/CD pipeline
 - Both client-side and server-side tests are required for new qontract-api integrations
 - Target >80% coverage for new integration code
-- Client-side tests go in `reconcile/test/test_<name>_api.py`
+- Client-side tests go in `reconcile/test/test_<name>_api.py` (or `reconcile/test/<name>_api/` for complex integrations)
 - Server-side tests go in `qontract_api/tests/integrations/<name>/`
 
 ## PR and Review Conventions
