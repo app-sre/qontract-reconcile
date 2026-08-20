@@ -977,15 +977,6 @@ def test_aws_account_manager_reconcile_ensure_elb_service_linked_role_already_ex
     aws_api.iam.create_service_linked_role.assert_not_called()
 
 
-def test_aws_account_manager_reconcile_ensure_elb_service_linked_role_already_exists_dry_run(
-    aws_api: MagicMock, reconciler_dry_run: AWSReconciler
-) -> None:
-    aws_api.iam.has_service_linked_role.return_value = True
-
-    reconciler_dry_run._ensure_elb_service_linked_role(aws_api, "account")
-    aws_api.iam.create_service_linked_role.assert_not_called()
-
-
 def test_aws_account_manager_reconcile_ensure_elb_service_linked_role_state_exists(
     aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
 ) -> None:

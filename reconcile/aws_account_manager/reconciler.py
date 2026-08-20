@@ -400,8 +400,6 @@ class AWSReconciler:
 
             if aws_api.iam.has_service_linked_role(ELB_SERVICE_LINKED_ROLE_NAME):
                 logging.info(f"{name}: ELB service-linked role already exists")
-                if self.dry_run:
-                    raise AbortStateTransactionError("Dry run")
                 state.value = "already-exists"
                 return
 
