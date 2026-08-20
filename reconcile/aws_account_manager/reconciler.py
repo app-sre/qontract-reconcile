@@ -35,6 +35,10 @@ TASK_CHECK_ENTERPRISE_SUPPORT_STATUS = "check-enterprise-support-status"
 TASK_SET_SECURITY_CONTACT = "set-security-contact"
 TASK_SET_SUPPORTED_REGIONS = "set-supported-regions"
 TASK_ENABLE_ROSA_MARKETPLACE = "enable-rosa-marketplace"
+TASK_ENSURE_ELB_SERVICE_LINKED_ROLE = "ensure-elb-service-linked-role"
+
+ELB_SERVICE_LINKED_ROLE_NAME = "AWSServiceRoleForElasticLoadBalancing"
+ELB_AWS_SERVICE_NAME = "elasticloadbalancing.amazonaws.com"
 
 
 class Quota(Protocol):
@@ -387,6 +391,27 @@ class AWSReconciler:
 
             state.value = regions
 
+    def _ensure_elb_service_linked_role(self, aws_api: AWSApi, name: str) -> None:
+        with self.state.transaction(
+            state_key(name, TASK_ENSURE_ELB_SERVICE_LINKED_ROLE)
+        ) as state:
+            if state.exists:
+                return
+
+            if aws_api.iam.has_service_linked_role(ELB_SERVICE_LINKED_ROLE_NAME):
+                logging.info(f"{name}: ELB service-linked role already exists")
+                if self.dry_run:
+                    raise AbortStateTransactionError("Dry run")
+                state.value = "already-exists"
+                return
+
+            logging.info(f"{name}: Creating ELB service-linked role")
+            if self.dry_run:
+                raise AbortStateTransactionError("Dry run")
+
+            aws_api.iam.create_service_linked_role(ELB_AWS_SERVICE_NAME)
+            state.value = ELB_SERVICE_LINKED_ROLE_NAME
+
     def _enable_rosa_marketplace(self, aws_api: AWSApi, name: str) -> None:
         with self.state.transaction(
             state_key(name, TASK_ENABLE_ROSA_MARKETPLACE)
@@ -450,6 +475,7 @@ class AWSReconciler:
             return aws_api.iam.create_access_key(user_name=user_name)
 
     def enable_rosa_marketplace(self, aws_api: AWSApi, name: str) -> None:
+        self._ensure_elb_service_linked_role(aws_api, name)
         self._enable_rosa_marketplace(aws_api, name)
 
     def reconcile_organization_account(
