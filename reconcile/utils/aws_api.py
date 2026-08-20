@@ -649,9 +649,17 @@ class AWSApi:
             )
             try:
                 support = self.get_session_client(s, "support", support_region)
-                support_cases = support.describe_cases(
-                    includeResolvedCases=True, includeCommunications=True
-                )["cases"]
+                support_cases = list(
+                    self.paginate(
+                        support,
+                        "describe_cases",
+                        "cases",
+                        params={
+                            "includeResolvedCases": False,
+                            "includeCommunications": True,
+                        },
+                    )
+                )
                 all_support_cases[account] = support_cases
             except Exception as e:
                 msg = "[{}] error getting support cases. details: {}"

@@ -102,6 +102,57 @@ def test_default_region(aws_api: AWSApi, accounts: list[dict]) -> None:
         assert aws_api.sessions[a["name"]].region_name == a["resourcesDefaultRegion"]
 
 
+def test_get_support_cases_excludes_resolved_and_paginates(
+    aws_api: AWSApi, mocker: MockerFixture
+) -> None:
+    aws_api.accounts = {
+        "some-account": {
+            "name": "some-account",
+            "premiumSupport": True,
+            "partition": "aws",
+        }
+    }
+    aws_api.sessions = {"some-account": mocker.MagicMock()}
+
+    mock_support_client = mocker.MagicMock()
+    mock_paginator = mocker.MagicMock()
+    mock_paginator.paginate.return_value = [
+        {"cases": [{"caseId": "case-1"}]},
+        {"cases": [{"caseId": "case-2"}]},
+    ]
+    mock_support_client.get_paginator.return_value = mock_paginator
+    mocker.patch.object(aws_api, "get_session_client", return_value=mock_support_client)
+
+    result = aws_api.get_support_cases()
+
+    # both pages are flattened into a single list - confirms pagination
+    # is actually followed, not just the first page
+    assert result == {"some-account": [{"caseId": "case-1"}, {"caseId": "case-2"}]}
+    mock_support_client.get_paginator.assert_called_once_with("describe_cases")
+    mock_paginator.paginate.assert_called_once_with(
+        includeResolvedCases=False, includeCommunications=True
+    )
+
+
+def test_get_support_cases_skips_non_premium_support_accounts(
+    aws_api: AWSApi, mocker: MockerFixture
+) -> None:
+    aws_api.accounts = {
+        "some-account": {
+            "name": "some-account",
+            "premiumSupport": False,
+            "partition": "aws",
+        }
+    }
+    aws_api.sessions = {"some-account": mocker.MagicMock()}
+    mock_get_session_client = mocker.patch.object(aws_api, "get_session_client")
+
+    result = aws_api.get_support_cases()
+
+    assert result == {}
+    mock_get_session_client.assert_not_called()
+
+
 def test_filter_amis_regex(aws_api: AWSApi) -> None:
     regex = re.compile(r"^match.*$")
     images = [
