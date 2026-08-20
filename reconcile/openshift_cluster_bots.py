@@ -563,12 +563,21 @@ def process_entry(
     )
 
 
+def _cluster_admin_entries(cluster: ClusterV1) -> list[AnyTokenEntry]:
+    # clusterAdminAutomationTokens are only processed when the cluster is
+    # authorized for cluster-admin automation, matching the clusterAdmin gate
+    # that create_all_bots enforces for the legacy singular field.
+    if not cluster.cluster_admin:
+        return []
+    return list(cluster.cluster_admin_automation_tokens or [])
+
+
 def process_cluster_entries(
     cluster: ClusterV1, ocm: OCM, config: Config
 ) -> list[EntryResult]:
     entries: list[tuple[AnyTokenEntry, bool]] = [
         (entry, False) for entry in (cluster.automation_tokens or [])
-    ] + [(entry, True) for entry in (cluster.cluster_admin_automation_tokens or [])]
+    ] + [(entry, True) for entry in _cluster_admin_entries(cluster)]
     if not entries:
         return []
 
@@ -702,9 +711,7 @@ def _entry_needs_processing(entry: AnyTokenEntry) -> bool:
 
 
 def cluster_needs_list_processing(cluster: ClusterV1) -> bool:
-    entries = list(cluster.automation_tokens or []) + list(
-        cluster.cluster_admin_automation_tokens or []
-    )
+    entries = list(cluster.automation_tokens or []) + _cluster_admin_entries(cluster)
     return any(_entry_needs_processing(entry) for entry in entries)
 
 
@@ -728,17 +735,16 @@ def filter_clusters(
         if not cluster_is_reachable(cluster):
             continue
 
+        cluster_admin_entries = _cluster_admin_entries(cluster)
         has_list_entries = bool(cluster.automation_tokens) or bool(
-            cluster.cluster_admin_automation_tokens
+            cluster_admin_entries
         )
         if has_list_entries:
             if cluster_needs_list_processing(cluster):
                 list_based.append(cluster)
             elif (
                 not _has_active_token_with_secret(cluster.automation_tokens)
-                and not _has_active_token_with_secret(
-                    cluster.cluster_admin_automation_tokens
-                )
+                and not _has_active_token_with_secret(cluster_admin_entries)
                 and cluster.automation_token is None
                 and cluster.cluster_admin_automation_token is None
             ):
