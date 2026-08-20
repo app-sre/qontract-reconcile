@@ -135,7 +135,6 @@ class AWSApi:
         settings: Mapping | None = None,
         secret_reader: SecretReaderBase | None = None,
         init_ecr_auth_tokens: bool = False,
-        init_users: bool = True,
     ) -> None:
         self._session_clients: list[BaseClient] = []
         self.thread_pool_size = thread_pool_size
@@ -150,6 +149,9 @@ class AWSApi:
 
         # store the app-interface accounts in a dictionary indexed by name
         self.accounts = {acc["name"]: acc for acc in accounts}
+
+        # populated lazily, per-account, by _get_account_users() on first access
+        self.users: dict[str, list[str]] = {}
 
         # Setup caches on the instance itself to avoid leak
         # https://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
@@ -171,9 +173,6 @@ class AWSApi:
         self.get_network_interfaces = lru_cache()(self.get_network_interfaces)  # type: ignore[method-assign]
         self.get_load_balancers = lru_cache()(self.get_load_balancers)  # type: ignore[method-assign]
         self.get_load_balancer_tags = lru_cache()(self.get_load_balancer_tags)  # type: ignore[method-assign]
-
-        if init_users:
-            self.init_users()
 
     def init_sessions(self, accounts: Iterable[awsh.Account]) -> None:
         results = threaded.run(
@@ -462,13 +461,12 @@ class AWSApi:
         session = self.get_session(account_name)
         return cast("S3Client", self.get_session_client(session, "s3", region_name))
 
-    def init_users(self) -> None:
-        self.users = {}
-        for account, s in self.sessions.items():
-            iam = self.get_session_client(s, "iam")
+    def _get_account_users(self, account: str) -> list[str]:
+        if account not in self.users:
+            iam = self.get_session_client(self.sessions[account], "iam")
             users = self.paginate(iam, "list_users", "Users")
-            users = [u["UserName"] for u in users]
-            self.users[account] = users
+            self.users[account] = [u["UserName"] for u in users]
+        return self.users[account]
 
     @staticmethod
     def paginate(
@@ -600,12 +598,14 @@ class AWSApi:
 
         return error, service_account_recycle_complete
 
-    def get_users_keys(self) -> dict:
+    def get_users_keys(self, accounts: Iterable[str] | None = None) -> dict:
+        target_accounts = accounts if accounts is not None else self.sessions.keys()
         users_keys = {}
-        for account, s in self.sessions.items():
-            iam = self.get_session_client(s, "iam")
+        for account in target_accounts:
+            iam = self.get_session_client(self.sessions[account], "iam")
             users_keys[account] = {
-                user: self.get_user_keys(iam, user) for user in self.users[account]
+                user: self.get_user_keys(iam, user)
+                for user in self._get_account_users(account)
             }
 
         return users_keys

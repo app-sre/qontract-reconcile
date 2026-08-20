@@ -180,7 +180,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Callable | None = None) -> 
     secret_reader = create_secret_reader(
         use_vault=get_app_interface_vault_settings().vault
     )
-    aws_api = AWSApi(1, accounts_dicted, secret_reader=secret_reader, init_users=False)
+    aws_api = AWSApi(1, accounts_dicted, secret_reader=secret_reader)
     if defer:  # defer is provided by the method decorator; this makes just mypy happy.
         defer(aws_api.cleanup)
 

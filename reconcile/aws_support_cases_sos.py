@@ -84,9 +84,14 @@ def run(
     settings = queries.get_app_interface_settings()
     deleted_keys = get_deleted_keys(accounts)
     with AWSApi(thread_pool_size, accounts, settings=settings) as aws:
-        existing_keys = aws.get_users_keys()
         aws_support_cases = aws.get_support_cases()
-    keys_to_delete_from_cases = get_keys_to_delete(aws_support_cases)
+        keys_to_delete_from_cases = get_keys_to_delete(aws_support_cases)
+        # only fetch existing keys for accounts that actually have a candidate
+        # leaked key to verify, instead of every account in the fleet
+        accounts_to_check = {ktd["account"] for ktd in keys_to_delete_from_cases}
+        existing_keys = (
+            aws.get_users_keys(accounts_to_check) if accounts_to_check else {}
+        )
     keys_to_delete = []
     for ktd in keys_to_delete_from_cases:
         ktd_account = ktd["account"]

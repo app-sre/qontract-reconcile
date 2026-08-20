@@ -98,7 +98,6 @@ def run(dry_run: bool) -> None:
         1,
         sharing_accounts,
         settings=settings,
-        init_users=False,
     ) as aws_api:
         for src_account in sharing_accounts:
             for share in src_account.get("sharing") or []:

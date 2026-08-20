@@ -838,7 +838,6 @@ def test_run_when_cluster_with_tgw_connection(
         1,
         [tgw_account.model_dump(by_alias=True)],
         secret_reader=mocks["secret_reader"],
-        init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_tgw_connection.model_dump(by_alias=True)],
@@ -898,7 +897,6 @@ def test_run_when_cluster_with_mixed_connections(
         1,
         [tgw_account.model_dump(by_alias=True), vpc_account.model_dump(by_alias=True)],
         secret_reader=mocks["secret_reader"],
-        init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_mixed_connections.model_dump(by_alias=True)],
@@ -983,7 +981,6 @@ def test_run_with_multiple_clusters(
         1,
         [tgw_account.model_dump(by_alias=True), vpc_account.model_dump(by_alias=True)],
         secret_reader=mocks["secret_reader"],
-        init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_tgw_connection.model_dump(by_alias=True)],
@@ -1044,7 +1041,6 @@ def test_run_with_account_name_for_multiple_clusters(
         1,
         [tgw_account.model_dump(by_alias=True)],
         secret_reader=mocks["secret_reader"],
-        init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_tgw_connection.model_dump(by_alias=True)],
@@ -1104,7 +1100,6 @@ def test_run_with_account_name_for_multiple_connections(
         1,
         [tgw_account.model_dump(by_alias=True)],
         secret_reader=mocks["secret_reader"],
-        init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_2_tgw_connections.model_dump(by_alias=True)],
