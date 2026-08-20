@@ -50,7 +50,7 @@ class OcmGroupsActionAddUser(BaseModel, frozen=True):
 class OcmGroupsActionDeleteUser(BaseModel, frozen=True):
     """Action: remove a user from a cluster group."""
 
-    action_type: Literal["del_user_from_group"] = "del_user_from_group"
+    action_type: Literal["delete_user_from_group"] = "delete_user_from_group"
     cluster: str = Field(..., description="Cluster name")
     group: str = Field(..., description="Group name")
     user: str = Field(..., description="Username to remove")

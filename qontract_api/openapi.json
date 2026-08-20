@@ -2492,8 +2492,8 @@
         "description": "Action: remove a user from a cluster group.",
         "properties": {
           "action_type": {
-            "const": "del_user_from_group",
-            "default": "del_user_from_group",
+            "const": "delete_user_from_group",
+            "default": "delete_user_from_group",
             "title": "Action Type",
             "type": "string"
           },
@@ -2630,7 +2630,7 @@
               "discriminator": {
                 "mapping": {
                   "add_user_to_group": "#/components/schemas/OcmGroupsActionAddUser",
-                  "del_user_from_group": "#/components/schemas/OcmGroupsActionDeleteUser"
+                  "delete_user_from_group": "#/components/schemas/OcmGroupsActionDeleteUser"
                 },
                 "propertyName": "action_type"
               },
@@ -2653,7 +2653,7 @@
               "discriminator": {
                 "mapping": {
                   "add_user_to_group": "#/components/schemas/OcmGroupsActionAddUser",
-                  "del_user_from_group": "#/components/schemas/OcmGroupsActionDeleteUser"
+                  "delete_user_from_group": "#/components/schemas/OcmGroupsActionDeleteUser"
                 },
                 "propertyName": "action_type"
               },

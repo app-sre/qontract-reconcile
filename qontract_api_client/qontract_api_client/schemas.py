@@ -529,7 +529,7 @@ class OcmGroupsActionAddUser(pydantic.BaseModel):
 
 
 class OcmGroupsActionDeleteUser(pydantic.BaseModel):
-    action_type: typing.Literal["del_user_from_group"] = "del_user_from_group"
+    action_type: typing.Literal["delete_user_from_group"] = "delete_user_from_group"
     cluster: str
     group: str
     user: str
