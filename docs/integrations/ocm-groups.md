@@ -32,7 +32,7 @@ Desired state is derived from App-Interface roles and permissions. Each role wit
 
 - Fetches current state (existing group memberships) from OCM API per cluster
 - Computes set-based diff between desired and current state
-- Generates add_user_to_group / del_user_from_group actions
+- Generates add_user_to_group / delete_user_from_group actions
 - Executes actions against OCM (if not dry-run)
 
 ## API Endpoints
@@ -120,10 +120,10 @@ Authorization: Bearer <JWT_TOKEN>
 {"action_type": "add_user_to_group", "cluster": "my-cluster", "group": "dedicated-admins", "user": "alice"}
 ```
 
-`del_user_from_group`: Remove a user from a cluster group.
+`delete_user_from_group`: Remove a user from a cluster group.
 
 ```json
-{"action_type": "del_user_from_group", "cluster": "my-cluster", "group": "dedicated-admins", "user": "bob"}
+{"action_type": "delete_user_from_group", "cluster": "my-cluster", "group": "dedicated-admins", "user": "bob"}
 ```
 
 ## Limits and Constraints
