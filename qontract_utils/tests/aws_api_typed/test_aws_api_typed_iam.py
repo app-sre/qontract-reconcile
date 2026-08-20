@@ -163,9 +163,16 @@ def test_aws_api_typed_iam_get_account_alias(
 def test_aws_api_typed_iam_has_service_linked_role_exists(
     aws_api_iam: AWSApiIam, iam_client: MagicMock
 ) -> None:
-    iam_client.get_role.return_value = {"Role": {"RoleName": "AWSServiceRoleForElasticLoadBalancing"}}
-    assert aws_api_iam.has_service_linked_role("AWSServiceRoleForElasticLoadBalancing") is True
-    iam_client.get_role.assert_called_once_with(RoleName="AWSServiceRoleForElasticLoadBalancing")
+    iam_client.get_role.return_value = {
+        "Role": {"RoleName": "AWSServiceRoleForElasticLoadBalancing"}
+    }
+    assert (
+        aws_api_iam.has_service_linked_role("AWSServiceRoleForElasticLoadBalancing")
+        is True
+    )
+    iam_client.get_role.assert_called_once_with(
+        RoleName="AWSServiceRoleForElasticLoadBalancing"
+    )
 
 
 def test_aws_api_typed_iam_has_service_linked_role_not_exists(
@@ -175,7 +182,10 @@ def test_aws_api_typed_iam_has_service_linked_role_not_exists(
         error_response={"Error": {"Code": "NoSuchEntity", "Message": "Role not found"}},
         operation_name="GetRole",
     )
-    assert aws_api_iam.has_service_linked_role("AWSServiceRoleForElasticLoadBalancing") is False
+    assert (
+        aws_api_iam.has_service_linked_role("AWSServiceRoleForElasticLoadBalancing")
+        is False
+    )
 
 
 def test_aws_api_typed_iam_has_service_linked_role_reraises_unexpected_error(
@@ -217,7 +227,9 @@ def test_aws_api_typed_iam_create_service_linked_role_reraises_unexpected_error(
     aws_api_iam: AWSApiIam, iam_client: MagicMock
 ) -> None:
     iam_client.create_service_linked_role.side_effect = botocore.exceptions.ClientError(
-        error_response={"Error": {"Code": "InvalidInput", "Message": "Service is not supported."}},
+        error_response={
+            "Error": {"Code": "InvalidInput", "Message": "Service is not supported."}
+        },
         operation_name="CreateServiceLinkedRole",
     )
     with pytest.raises(botocore.exceptions.ClientError):

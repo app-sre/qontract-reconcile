@@ -942,7 +942,9 @@ def test_aws_account_manager_reconcile_enable_rosa_marketplace_public(
     reconciler._ensure_elb_service_linked_role = MagicMock(return_value=None)  # type: ignore
     reconciler._enable_rosa_marketplace = MagicMock(return_value=None)  # type: ignore
     reconciler.enable_rosa_marketplace(aws_api, "account")
-    reconciler._ensure_elb_service_linked_role.assert_called_once_with(aws_api, "account")
+    reconciler._ensure_elb_service_linked_role.assert_called_once_with(
+        aws_api, "account"
+    )
     reconciler._enable_rosa_marketplace.assert_called_once_with(aws_api, "account")
 
 
@@ -957,7 +959,9 @@ def test_aws_account_manager_reconcile_ensure_elb_service_linked_role(
     aws_api.iam.has_service_linked_role.return_value = False
 
     reconciler._ensure_elb_service_linked_role(aws_api, "account")
-    aws_api.iam.has_service_linked_role.assert_called_once_with(ELB_SERVICE_LINKED_ROLE_NAME)
+    aws_api.iam.has_service_linked_role.assert_called_once_with(
+        ELB_SERVICE_LINKED_ROLE_NAME
+    )
     aws_api.iam.create_service_linked_role.assert_called_once_with(ELB_AWS_SERVICE_NAME)
 
 
@@ -967,7 +971,9 @@ def test_aws_account_manager_reconcile_ensure_elb_service_linked_role_already_ex
     aws_api.iam.has_service_linked_role.return_value = True
 
     reconciler._ensure_elb_service_linked_role(aws_api, "account")
-    aws_api.iam.has_service_linked_role.assert_called_once_with(ELB_SERVICE_LINKED_ROLE_NAME)
+    aws_api.iam.has_service_linked_role.assert_called_once_with(
+        ELB_SERVICE_LINKED_ROLE_NAME
+    )
     aws_api.iam.create_service_linked_role.assert_not_called()
 
 
@@ -983,7 +989,9 @@ def test_aws_account_manager_reconcile_ensure_elb_service_linked_role_already_ex
 def test_aws_account_manager_reconcile_ensure_elb_service_linked_role_state_exists(
     aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
 ) -> None:
-    state_exists(state_key("account", TASK_ENSURE_ELB_SERVICE_LINKED_ROLE), "already-exists")
+    state_exists(
+        state_key("account", TASK_ENSURE_ELB_SERVICE_LINKED_ROLE), "already-exists"
+    )
 
     reconciler._ensure_elb_service_linked_role(aws_api, "account")
     aws_api.iam.has_service_linked_role.assert_not_called()

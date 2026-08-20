@@ -96,7 +96,10 @@ class AWSApiIam:
         try:
             self.client.create_service_linked_role(AWSServiceName=aws_service_name)
         except botocore.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "InvalidInput" and "has been taken" in e.response["Error"]["Message"]:
+            if (
+                e.response["Error"]["Code"] == "InvalidInput"
+                and "has been taken" in e.response["Error"]["Message"]
+            ):
                 return
             raise
 
