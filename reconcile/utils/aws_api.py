@@ -150,13 +150,11 @@ class AWSApi:
         # store the app-interface accounts in a dictionary indexed by name
         self.accounts = {acc["name"]: acc for acc in accounts}
 
-        # populated lazily, per-account, by _get_account_users() on first access
-        self.users: dict[str, list[str]] = {}
-
         # Setup caches on the instance itself to avoid leak
         # https://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
         # using @lru_cache decorators on methods would lek AWSApi instances
         # since the cache keeps a reference to self.
+        self._get_account_users = lru_cache()(self._get_account_users)  # type: ignore[method-assign]
         self._get_assume_role_session = lru_cache()(self._get_assume_role_session)  # type: ignore[method-assign]
         self._get_session_resource = lru_cache()(self._get_session_resource)  # type: ignore[method-assign, assignment]
         self.get_account_amis = lru_cache()(self.get_account_amis)  # type: ignore[method-assign]
@@ -462,11 +460,9 @@ class AWSApi:
         return cast("S3Client", self.get_session_client(session, "s3", region_name))
 
     def _get_account_users(self, account: str) -> list[str]:
-        if account not in self.users:
-            iam = self.get_session_client(self.sessions[account], "iam")
-            users = self.paginate(iam, "list_users", "Users")
-            self.users[account] = [u["UserName"] for u in users]
-        return self.users[account]
+        iam = self.get_session_client(self.sessions[account], "iam")
+        users = self.paginate(iam, "list_users", "Users")
+        return [u["UserName"] for u in users]
 
     @staticmethod
     def paginate(

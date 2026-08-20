@@ -103,8 +103,9 @@ def test_default_region(aws_api: AWSApi, accounts: list[dict]) -> None:
 
 
 def test_users_not_populated_eagerly_on_init(aws_api: AWSApi) -> None:
-    # users are populated lazily by _get_account_users(), not upfront in __init__
-    assert aws_api.users == {}
+    # _get_account_users is an lru_cache-wrapped method - nothing is
+    # fetched upfront in __init__, only on first actual call
+    assert aws_api._get_account_users.cache_info().currsize == 0  # type: ignore[attr-defined]
 
 
 def test_get_account_users_caches_per_account(
