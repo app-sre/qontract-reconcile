@@ -56,6 +56,7 @@ Content-Type: application/json
     "access_token_url": "https://sso.redhat.com/token",
     "access_token_client_id": "client-id"
   },
+  "ocm_environment": "ocm-production",
   "clusters": [
     {
       "name": "my-cluster",
@@ -108,6 +109,7 @@ Authorization: Bearer <JWT_TOKEN>
 | Field            | Type                  | Required | Default | Description                                       |
 | ---------------- | --------------------- | -------- | ------- | ------------------------------------------------- |
 | `ocm_connection` | `OcmConnectionParams` | Yes      | -       | OCM API connection details                        |
+| `ocm_environment`| `str`                 | Yes      | -       | Target OCM environment name                       |
 | `clusters`       | `list[OcmGroupsCluster]` | Yes   | -       | Clusters with their managed groups                |
 | `desired_state`  | `list[OcmGroupUser]`  | Yes      | -       | Desired group memberships                         |
 | `dry_run`        | `bool`                | No       | `true`  | If true, only calculate actions without executing |
