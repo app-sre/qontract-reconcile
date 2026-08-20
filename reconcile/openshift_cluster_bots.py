@@ -735,17 +735,16 @@ def filter_clusters(
         if not cluster_is_reachable(cluster):
             continue
 
+        cluster_admin_entries = _cluster_admin_entries(cluster)
         has_list_entries = bool(cluster.automation_tokens) or bool(
-            cluster.cluster_admin_automation_tokens
+            cluster_admin_entries
         )
         if has_list_entries:
             if cluster_needs_list_processing(cluster):
                 list_based.append(cluster)
             elif (
                 not _has_active_token_with_secret(cluster.automation_tokens)
-                and not _has_active_token_with_secret(
-                    cluster.cluster_admin_automation_tokens
-                )
+                and not _has_active_token_with_secret(cluster_admin_entries)
                 and cluster.automation_token is None
                 and cluster.cluster_admin_automation_token is None
             ):

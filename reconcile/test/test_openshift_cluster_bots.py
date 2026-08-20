@@ -292,14 +292,22 @@ def test_filter_clusters_legacy_vs_list(
     list_needs_work = cluster(automation_tokens=[automation_token_entry(secret=None)])
     list_synced = cluster(automation_tokens=[automation_token_entry(secret=secret)])
 
+    # a cluster missing its da token plus a disabled (clusterAdmin=false)
+    # cluster-admin list entry must still be classified as legacy, not
+    # dropped from both buckets because of the unauthorized ca entry
+    legacy_with_disabled_ca_entry = cluster(
+        cluster_admin_automation_tokens=[automation_token_entry(secret=None)],
+    )
+
     legacy_result, list_result = ocb.filter_clusters([
         legacy_needs_work,
         legacy_synced,
         list_needs_work,
         list_synced,
+        legacy_with_disabled_ca_entry,
     ])
 
-    assert legacy_result == [legacy_needs_work]
+    assert legacy_result == [legacy_needs_work, legacy_with_disabled_ca_entry]
     assert list_result == [list_needs_work]
 
 
