@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from typing import TYPE_CHECKING
 
 from qontract_api_client.client import ocm_groups as reconcile_ocm_groups
 from qontract_api_client.schemas import (
@@ -45,9 +44,6 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
 )
-
-if TYPE_CHECKING:
-    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 
 QONTRACT_INTEGRATION = "ocm-groups-api"
 VALID_OCM_GROUPS = frozenset({"dedicated-admins", "cluster-admins"})
@@ -138,7 +134,6 @@ def _group_clusters_by_ocm_env(
 
 
 def _build_ocm_connection(
-    ocm_env: OCMEnvironment,
     ocm_config: ClusterV1,
     secret_manager_url: str,
 ) -> OcmConnectionParams:
@@ -254,7 +249,7 @@ class OcmGroupsIntegration(QontractReconcileApiIntegration[OcmGroupsIntegrationP
             assert ocm is not None  # filtered above
 
             ocm_connection = _build_ocm_connection(
-                ocm.environment, first_cluster, self.secret_manager_url
+                first_cluster, self.secret_manager_url
             )
 
             task = await self._reconcile_env(

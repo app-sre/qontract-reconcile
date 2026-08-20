@@ -7,10 +7,10 @@ Refactored from reconcile/ocm_groups.py for the API context (ADR-007).
 from __future__ import annotations
 
 import operator
-from collections import Counter as CollectionCounter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
+import httpx2
 import pydantic
 from qontract_utils.differ import diff_iterables
 
@@ -48,12 +48,9 @@ logger = get_logger(__name__)
 # OCM-manageable groups - matches reconcile/utils/ocm/base.py::OCMClusterGroupId
 VALID_OCM_GROUPS = frozenset({"dedicated-admins", "cluster-admins"})
 
-# Exceptions whose root cause is a transient or expected OCM condition
-# (e.g. cluster not subscribed to groups yet) and should not fail the run.
-_NON_FATAL_STRINGS = frozenset({
-    "404",  # cluster or group not found in OCM
-    "not found",
-})
+# HTTP status codes considered non-fatal during cluster-fetch operations.
+# 404 = cluster or group not found in OCM (expected when not yet configured).
+_NON_FATAL_STATUS_CODES = frozenset({404})
 
 
 def _is_fatal_fetch_error(exc: Exception) -> bool:
@@ -64,9 +61,14 @@ def _is_fatal_fetch_error(exc: Exception) -> bool:
     permission errors) must surface as task errors; non-fatal errors
     (e.g. group not yet configured, 404) are logged and the cluster is
     skipped for this reconcile without failing the overall run.
+
+    Uses proper exception type checking instead of fragile substring
+    matching on error messages — a 500 whose body happens to contain
+    "not found" would otherwise be misclassified as non-fatal.
     """
-    msg = str(exc).lower()
-    return not any(marker in msg for marker in _NON_FATAL_STRINGS)
+    if isinstance(exc, httpx2.HTTPStatusError):
+        return exc.response.status_code not in _NON_FATAL_STATUS_CODES
+    return True
 
 
 class _GroupMembershipState(pydantic.BaseModel):
@@ -122,16 +124,11 @@ class OcmGroupsService:
     def _expose_cluster_metrics(
         ocm_environment: str, clusters: Iterable[OcmGroupsCluster]
     ) -> None:
-        """Expose ocm_groups_managed_clusters per org, for ALL discovered clusters."""
-        clusters_per_org: CollectionCounter[str] = CollectionCounter()
+        """Expose ocm_groups_managed_clusters gauge for each managed cluster."""
         for cluster in clusters:
-            # OcmGroupsCluster doesn't carry org_id; use name as the grouping
-            # key - each unique cluster name is one managed cluster.
-            clusters_per_org[cluster.name] += 1
-        for cluster_name, count in clusters_per_org.items():
             ocm_groups_managed_clusters.labels(
-                INTEGRATION_NAME, ocm_environment, cluster_name
-            ).set(count)
+                INTEGRATION_NAME, ocm_environment, cluster.name
+            ).set(1)
 
     @staticmethod
     def _fetch_current_state(
@@ -369,6 +366,25 @@ class OcmGroupsService:
                     s for s in current_state if s.cluster not in unresolved_clusters
                 ]
                 desired = [s for s in desired if s.cluster not in unresolved_clusters]
+
+            # Safeguard: if desired state is empty for a cluster that has
+            # current members, a transient GQL error on the client side
+            # likely caused the desired list to arrive incomplete.  Treating
+            # that as "no users desired" would delete everyone on the
+            # cluster — skip it instead and surface an error.
+            clusters_with_current = {s.cluster for s in current_state}
+            clusters_with_desired = {s.cluster for s in desired}
+            empty_desired_clusters = clusters_with_current - clusters_with_desired
+            if empty_desired_clusters:
+                errors.extend(
+                    f"Desired state is empty for cluster {cluster_name} "
+                    "which has existing members — refusing to delete all "
+                    "memberships (possible upstream data error)"
+                    for cluster_name in sorted(empty_desired_clusters)
+                )
+                current_state = [
+                    s for s in current_state if s.cluster not in empty_desired_clusters
+                ]
 
             diff_result = diff_iterables(
                 current_state, desired, key=self._diff_key, equal=operator.eq

@@ -4,6 +4,7 @@ from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
 
+import httpx2
 import pytest
 from qontract_utils.ocm_api import OcmClusterGroup
 
@@ -110,20 +111,30 @@ def service(
 # -- _is_fatal_fetch_error --
 
 
+def _http_status_error(status_code: int) -> httpx2.HTTPStatusError:
+    """Build an httpx2.HTTPStatusError with the given status code."""
+    response = MagicMock(status_code=status_code)
+    return httpx2.HTTPStatusError(
+        f"{status_code} error", request=MagicMock(), response=response
+    )
+
+
 @pytest.mark.parametrize(
-    ("message", "expected_fatal"),
+    ("exc", "expected_fatal"),
     [
-        ("OCM down", True),
-        ("Connection timeout", True),
-        ("403 Forbidden", True),
-        ("500 Internal Server Error", True),
-        ("404: group not found", False),
-        ("not found in OCM", False),
-        ("404: cluster not found", False),
+        # Non-HTTP exceptions are always fatal
+        (RuntimeError("OCM down"), True),
+        (ConnectionError("Connection timeout"), True),
+        # HTTP 404 is non-fatal (cluster/group not found in OCM)
+        (_http_status_error(404), False),
+        # Other HTTP status codes are fatal
+        (_http_status_error(403), True),
+        (_http_status_error(500), True),
+        (_http_status_error(502), True),
     ],
 )
-def test_is_fatal_fetch_error(message: str, expected_fatal: bool) -> None:
-    assert _is_fatal_fetch_error(RuntimeError(message)) is expected_fatal
+def test_is_fatal_fetch_error(exc: Exception, expected_fatal: bool) -> None:
+    assert _is_fatal_fetch_error(exc) is expected_fatal
 
 
 # -- _GroupMembershipState model --
@@ -239,10 +250,8 @@ def test_fetch_current_state_handles_nonfatal_error(
     service: OcmGroupsService,
     mock_workspace_client: MagicMock,
 ) -> None:
-    """Non-fatal errors (404, not found) skip the cluster without surfacing errors."""
-    mock_workspace_client.get_cluster_groups.side_effect = RuntimeError(
-        "404: group not found"
-    )
+    """Non-fatal errors (404) skip the cluster without surfacing errors."""
+    mock_workspace_client.get_cluster_groups.side_effect = _http_status_error(404)
     clusters = [_cluster()]
 
     result, unresolved, errors = service._fetch_current_state(
@@ -493,9 +502,7 @@ def test_reconcile_excludes_failed_clusters_from_diff_nonfatal(
     mock_workspace_client: MagicMock,
 ) -> None:
     """A non-fatal cluster-fetch failure (404) skips the cluster without failing."""
-    mock_workspace_client.get_cluster_groups.side_effect = RuntimeError(
-        "404: cluster not found"
-    )
+    mock_workspace_client.get_cluster_groups.side_effect = _http_status_error(404)
 
     clusters = [_cluster()]
     desired = [_user(user="alice"), _user(user="bob")]
@@ -551,8 +558,8 @@ def test_reconcile_current_state_fetch_error_isolated_per_cluster(
 
     mock_workspace_client.get_cluster_groups.side_effect = _get_groups
 
-    # Desired: remove 'existing' from ok-cluster (desired is empty)
-    desired: list[OcmGroupUser] = []
+    # Desired: only 'new-user' on ok-cluster (remove 'existing', add 'new-user')
+    desired = [_user(cluster="ok-cluster", user="new-user")]
 
     result = service.reconcile(
         OCM_ENVIRONMENT,
@@ -562,14 +569,19 @@ def test_reconcile_current_state_fetch_error_isolated_per_cluster(
         dry_run=False,
     )
 
-    # ok-cluster's 'existing' user is correctly deleted; failing-cluster's
-    # fatal error is surfaced as a reconcile error.
+    # ok-cluster's 'existing' user is correctly deleted and 'new-user' added;
+    # failing-cluster's fatal error is surfaced as a reconcile error.
     assert result.status == TaskStatus.FAILED
-    assert len(result.applied_actions) == 1
-    assert isinstance(result.applied_actions[0], OcmGroupsActionDeleteUser)
-    assert result.applied_actions[0].cluster == "ok-cluster"
-    assert len(result.errors) == 1
-    assert "OCM unreachable" in result.errors[0]
+    assert len(result.applied_actions) == 2
+    assert any(
+        isinstance(a, OcmGroupsActionDeleteUser) and a.cluster == "ok-cluster"
+        for a in result.applied_actions
+    )
+    assert any(
+        isinstance(a, OcmGroupsActionAddUser) and a.cluster == "ok-cluster"
+        for a in result.applied_actions
+    )
+    assert any("OCM unreachable" in e for e in result.errors)
 
 
 def test_reconcile_current_state_nonfatal_fetch_error_isolated_per_cluster(
@@ -586,12 +598,13 @@ def test_reconcile_current_state_nonfatal_fetch_error_isolated_per_cluster(
 
     def _get_groups(cluster_id: str) -> list[OcmClusterGroup]:
         if cluster_id == "cid-fail":
-            raise RuntimeError("404: cluster not found in OCM")
+            raise _http_status_error(404)
         return [OcmClusterGroup(id="dedicated-admins", users=["existing"])]
 
     mock_workspace_client.get_cluster_groups.side_effect = _get_groups
 
-    desired: list[OcmGroupUser] = []
+    # Desired: only 'new-user' on ok-cluster
+    desired = [_user(cluster="ok-cluster", user="new-user")]
 
     result = service.reconcile(
         OCM_ENVIRONMENT,
@@ -601,12 +614,14 @@ def test_reconcile_current_state_nonfatal_fetch_error_isolated_per_cluster(
         dry_run=False,
     )
 
-    # ok-cluster's 'existing' user is correctly deleted; failing-cluster's
-    # non-fatal error does not fail the run.
+    # ok-cluster's 'existing' user is correctly deleted and 'new-user' added;
+    # failing-cluster's non-fatal error does not fail the run.
     assert result.status == TaskStatus.SUCCESS
-    assert len(result.applied_actions) == 1
-    assert isinstance(result.applied_actions[0], OcmGroupsActionDeleteUser)
-    assert result.applied_actions[0].cluster == "ok-cluster"
+    assert len(result.applied_actions) == 2
+    assert any(
+        isinstance(a, OcmGroupsActionDeleteUser) and a.cluster == "ok-cluster"
+        for a in result.applied_actions
+    )
     assert result.errors == []
 
 
@@ -728,3 +743,34 @@ def test_reconcile_multiple_clusters_and_groups(
     assert add_actions[0].user == "dave"
     assert len(del_actions) == 1
     assert del_actions[0].user == "carol"
+
+
+def test_reconcile_empty_desired_state_safeguard(
+    service: OcmGroupsService,
+    mock_workspace_client: MagicMock,
+) -> None:
+    """Empty desired state with existing members is treated as an error.
+
+    Prevents accidental mass-deletion from a transient GQL error upstream.
+    """
+    mock_workspace_client.get_cluster_groups.return_value = [
+        OcmClusterGroup(id="dedicated-admins", users=["alice", "bob"]),
+    ]
+
+    clusters = [_cluster()]
+    # Desired state is empty — simulate a transient GQL fetch error
+    desired: list[OcmGroupUser] = []
+
+    result = service.reconcile(
+        OCM_ENVIRONMENT, OCM_CONNECTION, clusters, desired, dry_run=False
+    )
+
+    # No deletes should be applied
+    assert result.applied_count == 0
+    assert result.actions == []
+    # Error is surfaced for the affected cluster
+    assert result.status == TaskStatus.FAILED
+    assert len(result.errors) == 1
+    assert "Desired state is empty" in result.errors[0]
+    assert "my-cluster" in result.errors[0]
+    mock_workspace_client.delete_user_from_group.assert_not_called()
