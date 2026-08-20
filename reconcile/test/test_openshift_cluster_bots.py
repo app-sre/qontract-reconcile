@@ -268,8 +268,15 @@ def test_cluster_needs_list_processing(cluster: Callable, secret: dict) -> None:
     assert ocb.cluster_needs_list_processing(
         cluster(automation_tokens=[automation_token_entry(secret=secret, delete=True)])
     )
-    assert ocb.cluster_needs_list_processing(
+    # cluster_admin_automation_tokens are ignored unless clusterAdmin is true
+    assert not ocb.cluster_needs_list_processing(
         cluster(cluster_admin_automation_tokens=[automation_token_entry(secret=None)])
+    )
+    assert ocb.cluster_needs_list_processing(
+        cluster(
+            admin=True,
+            cluster_admin_automation_tokens=[automation_token_entry(secret=None)],
+        )
     )
 
 

@@ -563,12 +563,21 @@ def process_entry(
     )
 
 
+def _cluster_admin_entries(cluster: ClusterV1) -> list[AnyTokenEntry]:
+    # clusterAdminAutomationTokens are only processed when the cluster is
+    # authorized for cluster-admin automation, matching the clusterAdmin gate
+    # that create_all_bots enforces for the legacy singular field.
+    if not cluster.cluster_admin:
+        return []
+    return list(cluster.cluster_admin_automation_tokens or [])
+
+
 def process_cluster_entries(
     cluster: ClusterV1, ocm: OCM, config: Config
 ) -> list[EntryResult]:
     entries: list[tuple[AnyTokenEntry, bool]] = [
         (entry, False) for entry in (cluster.automation_tokens or [])
-    ] + [(entry, True) for entry in (cluster.cluster_admin_automation_tokens or [])]
+    ] + [(entry, True) for entry in _cluster_admin_entries(cluster)]
     if not entries:
         return []
 
@@ -702,9 +711,7 @@ def _entry_needs_processing(entry: AnyTokenEntry) -> bool:
 
 
 def cluster_needs_list_processing(cluster: ClusterV1) -> bool:
-    entries = list(cluster.automation_tokens or []) + list(
-        cluster.cluster_admin_automation_tokens or []
-    )
+    entries = list(cluster.automation_tokens or []) + _cluster_admin_entries(cluster)
     return any(_entry_needs_processing(entry) for entry in entries)
 
 
