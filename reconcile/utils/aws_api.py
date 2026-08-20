@@ -473,7 +473,7 @@ class AWSApi:
     @staticmethod
     def paginate(
         client: BaseClient, method: str, key: str, params: Mapping | None = None
-    ) -> Iterable:
+    ) -> list:
         """paginate returns an aggregated list of the specified key
         from all pages returned by executing the client's specified method."""
         if params is None:
@@ -649,9 +649,15 @@ class AWSApi:
             )
             try:
                 support = self.get_session_client(s, "support", support_region)
-                support_cases = support.describe_cases(
-                    includeResolvedCases=True, includeCommunications=True
-                )["cases"]
+                support_cases = self.paginate(
+                    support,
+                    "describe_cases",
+                    "cases",
+                    params={
+                        "includeResolvedCases": False,
+                        "includeCommunications": True,
+                    },
+                )
                 all_support_cases[account] = support_cases
             except Exception as e:
                 msg = "[{}] error getting support cases. details: {}"
