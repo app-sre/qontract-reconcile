@@ -442,17 +442,13 @@ def test_author_github_username(
     )
 
 
-@patch.object(reconcile.typed_queries.smtp, "settings", autospec=True)
-def test_author_github_username_case_insensitive(
-    settings: MagicMock, users: list[User], smtp_settings: SmtpSettingsV1
-) -> None:
+def test_author_github_username_case_insensitive(users: list[User]) -> None:
     """app-interface github_username casing may differ from the casing GitHub reports."""
     mr = PromoteQontractReconcileCommercial(
         version="1q2w3e4",
         commit_sha="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
         github_user_id="Github_User",
     )
-    settings.return_value = smtp_settings
 
     assert (
         mr.infer_author(github_user_id=mr.github_user_id, all_users=users) == "org_user"

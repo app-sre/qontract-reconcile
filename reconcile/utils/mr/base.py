@@ -121,15 +121,11 @@ class MergeRequestBase(ABC):
         if not all_users:
             return None
 
-        user = next(
-            (
-                u
-                for u in all_users
-                if u.github_username.casefold() == github_user_id.casefold()
-            ),
+        target = github_user_id.lower()
+        return next(
+            (u.org_username for u in all_users if u.github_username.lower() == target),
             None,
         )
-        return user.org_username if user else None
 
     def submit_to_sqs(self, sqs_cli: SQSGateway) -> None:
         """
