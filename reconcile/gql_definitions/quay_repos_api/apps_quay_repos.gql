@@ -1,0 +1,18 @@
+# qenerate: plugin=pydantic_v2
+query QuayReposApiApps {
+  apps: apps_v1 {
+    quayRepos {
+      org {
+        name
+        instance {
+          name
+        }
+      }
+      items {
+        name
+        public
+        description
+      }
+    }
+  }
+}
