@@ -1104,7 +1104,26 @@ def _process_omm_member(
     ]
 
     fresh_mr = gl.get_merge_request(mr.iid)
-    mr_is_rebased = is_rebased(fresh_mr, gl)
+    try:
+        mr_is_rebased = is_rebased(fresh_mr, gl)
+    except gitlab.exceptions.GitlabGetError as e:
+        if e.response_code != 404:
+            raise
+        logging.warning([
+            "omm-group",
+            "ref-not-found",
+            gl.project.name,
+            mr.iid,
+            fresh_mr.sha,
+            str(e),
+        ])
+        if not dry_run:
+            gl.remove_label(mr, OMM_PENDING)
+        optimistic_merge_rejected.labels(
+            project_id=mr.target_project_id,
+            reason="ref_not_found",
+        ).inc()
+        return _MemberResult()
 
     if not pipelines:
         if mr_is_rebased:

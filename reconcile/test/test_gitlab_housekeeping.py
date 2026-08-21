@@ -3060,6 +3060,56 @@ def test_omm_group_skip_ci_rebase_failure_ejects_member(
     [("abc123", None), (None, "abc123")],
     ids=["merge-commit", "squash-commit"],
 )
+def test_omm_group_ref_not_found_ejects_member(
+    mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
+) -> None:
+    """When is_rebased raises GitlabGetError 404 the member is ejected
+    without a rebase attempt and the group can adaptive-close."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        side_effect=GitlabGetError("404 Ref Not Found", 404),
+    )
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
+    lead.target_branch = "master"
+
+    mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
+    mr.rebase.assert_not_called()
+    mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
+    clear_mock.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
 def test_omm_group_merge_limit_enforced(
     mocker: MockerFixture,
     merge_sha: str | None,
