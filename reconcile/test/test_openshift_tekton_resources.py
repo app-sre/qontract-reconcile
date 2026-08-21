@@ -4,18 +4,22 @@
 # to be addressed, but it was blocking other changes.
 # type: ignore
 
+import logging
 from copy import deepcopy
 from typing import Any
 from unittest.mock import (
+    Mock,
     create_autospec,
     patch,
 )
 
 import pytest
 
+from reconcile import openshift_base as ob
 from reconcile import openshift_tekton_resources as otr
 from reconcile.queries import PIPELINES_PROVIDERS_QUERY
 from reconcile.utils import gql
+from reconcile.utils.oc import OCLogMsg
 
 from .fixtures import Fixtures
 
@@ -276,3 +280,106 @@ class TestOpenshiftTektonResources:
         )
         with pytest.raises(otr.OpenshiftTektonResourcesNameTooLongError, match=msg):
             otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
+
+
+def _tkn_provider_fixture(
+    provider_name: str,
+    cluster: str,
+    namespace: str,
+    *,
+    delete: bool | None = False,
+    saas_file_count: int = 1,
+) -> dict[str, Any]:
+    return {
+        provider_name: {
+            "name": provider_name,
+            "namespace": {
+                "name": namespace,
+                "delete": delete,
+                "cluster": {"name": cluster},
+            },
+            "saas_files": [{}] * saas_file_count,
+        }
+    }
+
+
+class TestOpenshiftTektonResourcesLogging:
+    def test_log_tkn_provider_scope_includes_cluster_and_provider(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        tkn_providers = {
+            **_tkn_provider_fixture(
+                "tekton-pipelines-provider-a",
+                "cluster-a",
+                "pipelines-namespace-a",
+            ),
+            **_tkn_provider_fixture(
+                "tekton-pipelines-provider-b",
+                "cluster-b",
+                "pipelines-namespace-b",
+            ),
+        }
+
+        with caplog.at_level(logging.INFO):
+            otr._log_tkn_provider_scope(tkn_providers)
+
+        messages = [record.message for record in caplog.records]
+        assert any(
+            "provider=tekton-pipelines-provider-a" in message
+            and "cluster=cluster-a" in message
+            and "namespace=pipelines-namespace-a" in message
+            for message in messages
+        )
+        assert any(
+            "reconciling 2 pipeline-provider(s) across 2 cluster(s)" in message
+            for message in messages
+        )
+
+    def test_log_oc_map_failures_includes_unhealthy_cluster_and_providers(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        tkn_providers = _tkn_provider_fixture(
+            "tekton-pipelines-provider-a",
+            "cluster-a",
+            "pipelines-namespace-a",
+        )
+        oc_map = Mock()
+        oc_map.get.return_value = OCLogMsg(
+            logging.ERROR,
+            '[cluster-a] HTTP response body: b\'{"message":"conversion webhook unavailable"}\'',
+        )
+
+        with caplog.at_level(logging.ERROR):
+            failed_clusters = otr._log_oc_map_failures(tkn_providers, oc_map)
+
+        assert failed_clusters == {"cluster-a"}
+        assert any(
+            record.levelno == logging.ERROR
+            and "cannot connect to cluster=cluster-a" in record.message
+            and "tekton-pipelines-provider-a" in record.message
+            and "pipelines-namespace-a" in record.message
+            and "conversion webhook unavailable" in record.message
+            for record in caplog.records
+        )
+
+    def test_log_reconcile_failure_summary_includes_cluster_and_providers(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        tkn_providers = _tkn_provider_fixture(
+            "tekton-pipelines-provider-a",
+            "cluster-a",
+            "pipelines-namespace-a",
+        )
+        ri = ob.ResourceInventory()
+        ri.register_error(cluster="cluster-a")
+
+        with caplog.at_level(logging.ERROR):
+            otr._log_reconcile_failure_summary(tkn_providers, ri, set())
+
+        assert any(
+            record.levelno == logging.ERROR
+            and "resource inventory errors on cluster=cluster-a" in record.message
+            and "tekton-pipelines-provider-a" in record.message
+            and "pipelines-namespace-a" in record.message
+            for record in caplog.records
+        )
