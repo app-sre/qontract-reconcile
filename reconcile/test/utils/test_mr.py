@@ -440,3 +440,16 @@ def test_author_github_username(
     assert (
         mr.infer_author(github_user_id=mr.github_user_id, all_users=users) == "org_user"
     )
+
+
+def test_author_github_username_case_insensitive(users: list[User]) -> None:
+    """app-interface github_username casing may differ from the casing GitHub reports."""
+    mr = PromoteQontractReconcileCommercial(
+        version="1q2w3e4",
+        commit_sha="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
+        github_user_id="Github_User",
+    )
+
+    assert (
+        mr.infer_author(github_user_id=mr.github_user_id, all_users=users) == "org_user"
+    )
