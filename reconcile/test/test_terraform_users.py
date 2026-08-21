@@ -167,5 +167,4 @@ def test_setup(
         1,
         [test_aws_account],
         settings=None,
-        init_users=False,
     )

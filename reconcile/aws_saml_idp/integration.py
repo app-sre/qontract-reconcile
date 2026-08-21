@@ -162,9 +162,7 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
         if self.params.print_to_file:
             sys.exit(ExitCodes.SUCCESS)
 
-        aws_api = AWSApi(
-            1, aws_accounts_dict, secret_reader=self.secret_reader, init_users=False
-        )
+        aws_api = AWSApi(1, aws_accounts_dict, secret_reader=self.secret_reader)
         tf = TerraformClient(
             self.name,
             QONTRACT_INTEGRATION_VERSION,

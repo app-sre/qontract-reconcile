@@ -307,9 +307,7 @@ class AwsSamlRolesIntegration(
             default_tags=default_tags,
         )
         unique_policies = self._unique_policies(aws_roles)
-        aws_api = AWSApi(
-            1, aws_accounts_dict, secret_reader=self.secret_reader, init_users=False
-        )
+        aws_api = AWSApi(1, aws_accounts_dict, secret_reader=self.secret_reader)
         if defer:
             defer(aws_api.cleanup)
         self._validate_saml_iam_policies(unique_policies, aws_api)

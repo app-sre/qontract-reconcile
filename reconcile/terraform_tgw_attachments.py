@@ -448,7 +448,7 @@ def setup(
     account_by_name = {a["name"]: a for a in all_accounts}
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(vault_settings.vault)
-    aws_api = AWSApi(1, all_accounts, secret_reader=secret_reader, init_users=False)
+    aws_api = AWSApi(1, all_accounts, secret_reader=secret_reader)
     ocm_map = _build_ocm_map(desired_state_data_source.clusters, vault_settings)
     tgw_account_names = [a["name"] for a in tgw_accounts]
     desired_state, err = _build_desired_state_tgw_attachments(

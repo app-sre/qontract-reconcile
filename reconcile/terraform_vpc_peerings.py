@@ -615,7 +615,7 @@ def run(
         ocm_map = None
 
     accounts = queries.get_aws_accounts(terraform_state=True, ecrs=False)
-    awsapi = aws_api.AWSApi(1, accounts, settings=settings, init_users=False)
+    awsapi = aws_api.AWSApi(1, accounts, settings=settings)
 
     desired_state = []
     errors = []

@@ -1064,7 +1064,7 @@ def clusters_network(ctx: click.Context, name: str) -> None:
                 "resourcesDefaultRegion"
             ]
             cluster["aws_account_id"] = get_account_uid_from_arn(account["assume_role"])
-        with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
+        with AWSApi(1, [account], settings=settings) as aws_api:
             vpc_id, _, subnets_id_az, _ = aws_api.get_cluster_vpc_details(
                 account, subnets=True
             )
@@ -1629,7 +1629,7 @@ def rosa_create_cluster_command(ctx: click.Context, cluster_name: str) -> None:
         billing_account = account.billing_account.uid
     else:
         with AWSApi(
-            1, [account.model_dump(by_alias=True)], settings=settings, init_users=False
+            1, [account.model_dump(by_alias=True)], settings=settings
         ) as aws_api:
             billing_account = aws_api.get_organization_billing_account(account.name)
 
@@ -2004,7 +2004,7 @@ def rds_recommendations(ctx: click.Context) -> None:
         assert account_name is not None  # make mypy happy
         account_deployment_regions = account.get("supportedDeploymentRegions")
         for region in account_deployment_regions or []:
-            with AWSApi(1, [account], settings=settings, init_users=False) as aws:
+            with AWSApi(1, [account], settings=settings) as aws:
                 try:
                     data = aws.describe_rds_recommendations(account_name, region)
                     db_recommendations = data.get("DBRecommendations", [])

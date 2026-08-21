@@ -163,9 +163,7 @@ def build_desired_state(
                     tf_zone_spec.resource.get("region")
                     or zone_account["resourcesDefaultRegion"]
                 )
-                with AWSApi(
-                    1, [zone_account], settings=settings, init_users=False
-                ) as awsapi:
+                with AWSApi(1, [zone_account], settings=settings) as awsapi:
                     tf_zone_ns_records = awsapi.get_route53_zone_ns_records(
                         tf_zone_account_name, tf_zone_name, tf_zone_region
                     )
@@ -250,7 +248,7 @@ def run(
 
     ts.populate_route53(desired_state)
     working_dirs = ts.dump(print_to_file=print_to_file)
-    aws_api = AWSApi(1, participating_accounts, settings=settings, init_users=False)
+    aws_api = AWSApi(1, participating_accounts, settings=settings)
 
     if print_to_file:
         sys.exit(ExitCodes.SUCCESS)

@@ -48,7 +48,7 @@ def aws_api(accounts: list[dict], mocker: MockerFixture) -> AWSApi:
         "aws_secret_access_key": "access_key",
         "region": "tf_state_bucket_region",
     }
-    return AWSApi(1, accounts, init_users=False)
+    return AWSApi(1, accounts)
 
 
 @pytest.fixture
@@ -100,6 +100,71 @@ def test_get_user_key_status(aws_api: AWSApi, iam_client: IAMClient) -> None:
 def test_default_region(aws_api: AWSApi, accounts: list[dict]) -> None:
     for a in accounts:
         assert aws_api.sessions[a["name"]].region_name == a["resourcesDefaultRegion"]
+
+
+def test_users_not_populated_eagerly_on_init(aws_api: AWSApi) -> None:
+    # _get_account_users is an lru_cache-wrapped method - nothing is
+    # fetched upfront in __init__, only on first actual call
+    assert aws_api._get_account_users.cache_info().currsize == 0  # type: ignore[attr-defined]
+
+
+def test_get_account_users_caches_per_account(
+    aws_api: AWSApi, mocker: MockerFixture
+) -> None:
+    aws_api.sessions = {"some-account": mocker.MagicMock()}
+    mocker.patch.object(aws_api, "get_session_client", return_value=mocker.MagicMock())
+    mock_paginate = mocker.patch.object(
+        aws_api, "paginate", return_value=[{"UserName": "u1"}]
+    )
+
+    first = aws_api._get_account_users("some-account")
+    second = aws_api._get_account_users("some-account")
+
+    assert first == ["u1"]
+    assert second == ["u1"]
+    mock_paginate.assert_called_once()
+
+
+def test_get_users_keys_scoped_to_specific_accounts(
+    aws_api: AWSApi, mocker: MockerFixture
+) -> None:
+    aws_api.sessions = {
+        "account-a": mocker.MagicMock(),
+        "account-b": mocker.MagicMock(),
+    }
+    mocker.patch.object(aws_api, "get_session_client", return_value=mocker.MagicMock())
+    mocker.patch.object(aws_api, "paginate", return_value=[{"UserName": "u1"}])
+    mocker.patch.object(aws_api, "get_user_keys", return_value=["AKIA123"])
+
+    result = aws_api.get_users_keys(accounts={"account-a"})
+
+    assert result == {"account-a": {"u1": ["AKIA123"]}}
+    assert "account-b" not in result
+
+
+def test_get_users_keys_requires_explicit_accounts(
+    aws_api: AWSApi, mocker: MockerFixture
+) -> None:
+    # accounts has no default - callers must consciously choose scope
+    # rather than silently falling back to every session
+    with pytest.raises(TypeError):
+        aws_api.get_users_keys()  # type: ignore[call-arg]
+
+
+def test_get_users_keys_can_still_scope_to_every_session_explicitly(
+    aws_api: AWSApi, mocker: MockerFixture
+) -> None:
+    aws_api.sessions = {
+        "account-a": mocker.MagicMock(),
+        "account-b": mocker.MagicMock(),
+    }
+    mocker.patch.object(aws_api, "get_session_client", return_value=mocker.MagicMock())
+    mocker.patch.object(aws_api, "paginate", return_value=[{"UserName": "u1"}])
+    mocker.patch.object(aws_api, "get_user_keys", return_value=["AKIA123"])
+
+    result = aws_api.get_users_keys(aws_api.sessions.keys())
+
+    assert set(result.keys()) == {"account-a", "account-b"}
 
 
 def test_get_support_cases_excludes_resolved_and_paginates(
