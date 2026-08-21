@@ -336,6 +336,34 @@ def test_calculate_actions_mixed() -> None:
     assert create_action.repo_name == "create-me"
 
 
+def test_calculate_actions_mirror_org_does_not_delete() -> None:
+    # Mirror orgs have managed_repos=False, so repos present in Quay but absent
+    # from desired state must NOT be deleted — only creates/updates are allowed.
+    upstream_key = QuayOrgKey(instance="quay.io", org_name="upstream")
+    org = _org(managed_repos=False, mirror=upstream_key)
+    current = [_current_repo("extra-repo")]
+    desired: list[QuayRepoConfig] = []
+    actions = QuayReposService._calculate_actions(org, current, desired)
+    assert actions == []
+
+
+def test_calculate_actions_mirror_org_creates_and_updates() -> None:
+    # Mirror orgs still receive create and update actions — only deletes are skipped.
+    upstream_key = QuayOrgKey(instance="quay.io", org_name="upstream")
+    org = _org(managed_repos=False, mirror=upstream_key)
+    current = [_current_repo("existing", is_public=True, description="old")]
+    desired = [
+        _repo("existing", public=False, description="new"),
+        _repo("new-repo"),
+    ]
+    actions = QuayReposService._calculate_actions(org, current, desired)
+    action_types = {type(a) for a in actions}
+    assert QuayRepoActionDelete not in action_types
+    assert QuayRepoActionCreate in action_types
+    assert QuayRepoActionUpdateVisibility in action_types
+    assert QuayRepoActionUpdateDescription in action_types
+
+
 def _make_mock_client() -> MagicMock:
     mock = MagicMock()
     mock.__enter__.return_value = mock

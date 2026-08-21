@@ -147,16 +147,19 @@ class QuayReposService:
         desired_map = {r.name: r for r in desired}
         actions: list[QuayRepoAction] = []
 
-        # Delete repos that are not in the desired state
-        actions.extend([
-            QuayRepoActionDelete(
-                instance=org.instance,
-                org_name=org.org_name,
-                repo_name=name,
-            )
-            for name in current_map
-            if name not in desired_map
-        ])
+        # Delete repos that are not in the desired state — only when the org is
+        # fully managed. Mirror orgs have managed_repos=False by validation, so
+        # they never reach this branch (creates/updates only).
+        if org.managed_repos:
+            actions.extend([
+                QuayRepoActionDelete(
+                    instance=org.instance,
+                    org_name=org.org_name,
+                    repo_name=name,
+                )
+                for name in current_map
+                if name not in desired_map
+            ])
 
         # Create repos that are not in the current state
         actions.extend([
