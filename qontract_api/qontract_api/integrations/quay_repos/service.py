@@ -148,8 +148,8 @@ class QuayReposService:
         actions: list[QuayRepoAction] = []
 
         # Delete repos that are not in the desired state — only when the org is
-        # fully managed. Mirror orgs have managed_repos=False by validation, so
-        # they never reach this branch (creates/updates only).
+        # fully managed. Mirror orgs (managed_repos=False by validation) skip
+        # this block and receive creates/updates only.
         if org.managed_repos:
             actions.extend([
                 QuayRepoActionDelete(

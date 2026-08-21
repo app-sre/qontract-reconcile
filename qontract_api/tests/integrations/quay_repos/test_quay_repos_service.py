@@ -669,3 +669,28 @@ def test_reconcile_mirror_with_absent_upstream_raises(
 
     with pytest.raises(QuayReposConfigError, match="absent from the payload"):
         service.reconcile(orgs=[mirror], dry_run=True)
+
+
+def test_reconcile_mirror_org_never_deletes(
+    mock_workspace_client: MagicMock,
+    service: QuayReposService,
+) -> None:
+    """End-to-end: reconcile() must not call repo_delete for a mirror org.
+
+    The mock client is shared across both orgs, so we use side_effect to give
+    each org a distinct get_repos response: upstream sees only 'shared' (no
+    stale repos → no delete opportunity), mirror sees 'shared' + 'extra' (extra
+    is stale but must not be deleted because managed_repos=False).
+    """
+    upstream_key = QuayOrgKey(instance="quay.io", org_name="upstream")
+    upstream = _org(org_name="upstream", managed_repos=True, repos=[_repo("shared")])
+    mirror = _org(org_name="mirror", managed_repos=False, mirror=upstream_key)
+    mock_workspace_client.get_repos.side_effect = [
+        [_current_repo("shared")],  # upstream call
+        [_current_repo("shared"), _current_repo("extra")],  # mirror call
+    ]
+
+    result = service.reconcile(orgs=[upstream, mirror], dry_run=False)
+
+    assert result.status == TaskStatus.SUCCESS
+    mock_workspace_client.repo_delete.assert_not_called()
