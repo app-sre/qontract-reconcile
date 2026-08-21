@@ -260,7 +260,7 @@ def setup(
 
     # initialize terraform client
     # it is used to plan and apply according to the output of terrascript
-    aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
+    aws_api = AWSApi(1, accounts, settings=settings)
     tf = Terraform(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,

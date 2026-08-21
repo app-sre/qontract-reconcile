@@ -2428,6 +2428,273 @@
         "title": "OcmConnectionParams",
         "type": "object"
       },
+      "OcmGroupUser": {
+        "description": "A single user membership in a cluster group.",
+        "properties": {
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "group": {
+            "description": "Group name (e.g. dedicated-admins)",
+            "title": "Group",
+            "type": "string"
+          },
+          "user": {
+            "description": "Username",
+            "title": "User",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster",
+          "group",
+          "user"
+        ],
+        "title": "OcmGroupUser",
+        "type": "object"
+      },
+      "OcmGroupsActionAddUser": {
+        "description": "Action: add a user to a cluster group.",
+        "properties": {
+          "action_type": {
+            "const": "add_user_to_group",
+            "default": "add_user_to_group",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "group": {
+            "description": "Group name",
+            "title": "Group",
+            "type": "string"
+          },
+          "user": {
+            "description": "Username to add",
+            "title": "User",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster",
+          "group",
+          "user"
+        ],
+        "title": "OcmGroupsActionAddUser",
+        "type": "object"
+      },
+      "OcmGroupsActionDeleteUser": {
+        "description": "Action: remove a user from a cluster group.",
+        "properties": {
+          "action_type": {
+            "const": "delete_user_from_group",
+            "default": "delete_user_from_group",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "group": {
+            "description": "Group name",
+            "title": "Group",
+            "type": "string"
+          },
+          "user": {
+            "description": "Username to remove",
+            "title": "User",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster",
+          "group",
+          "user"
+        ],
+        "title": "OcmGroupsActionDeleteUser",
+        "type": "object"
+      },
+      "OcmGroupsCluster": {
+        "description": "A cluster with its OCM cluster ID and managed groups, sent by the client.",
+        "properties": {
+          "cluster_id": {
+            "description": "OCM cluster ID",
+            "title": "Cluster Id",
+            "type": "string"
+          },
+          "managed_groups": {
+            "description": "Group names managed on this cluster (e.g. dedicated-admins)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Managed Groups",
+            "type": "array"
+          },
+          "name": {
+            "description": "Cluster name",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "cluster_id"
+        ],
+        "title": "OcmGroupsCluster",
+        "type": "object"
+      },
+      "OcmGroupsReconcileRequest": {
+        "description": "Request model for OCM groups reconciliation.\n\nPOST requests always queue a background task (async execution).",
+        "properties": {
+          "clusters": {
+            "description": "Clusters with their managed groups",
+            "items": {
+              "$ref": "#/components/schemas/OcmGroupsCluster"
+            },
+            "title": "Clusters",
+            "type": "array"
+          },
+          "desired_state": {
+            "description": "Desired group memberships (from GraphQL roles)",
+            "items": {
+              "$ref": "#/components/schemas/OcmGroupUser"
+            },
+            "title": "Desired State",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "ocm_connection": {
+            "$ref": "#/components/schemas/OcmConnectionParams",
+            "description": "OCM connection details for cluster group CRUD"
+          },
+          "ocm_environment": {
+            "description": "OCM environment name (metric label only)",
+            "title": "Ocm Environment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ocm_environment",
+          "ocm_connection",
+          "clusters",
+          "desired_state"
+        ],
+        "title": "OcmGroupsReconcileRequest",
+        "type": "object"
+      },
+      "OcmGroupsTaskResponse": {
+        "description": "Response model for POST /reconcile endpoint.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "OcmGroupsTaskResponse",
+        "type": "object"
+      },
+      "OcmGroupsTaskResult": {
+        "description": "Result model for a completed OCM groups reconciliation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "All actions calculated (desired - current), including any that failed to apply.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_user_to_group": "#/components/schemas/OcmGroupsActionAddUser",
+                  "delete_user_from_group": "#/components/schemas/OcmGroupsActionDeleteUser"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/OcmGroupsActionAddUser"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmGroupsActionDeleteUser"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (non-dry-run only).",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_user_to_group": "#/components/schemas/OcmGroupsActionAddUser",
+                  "delete_user_from_group": "#/components/schemas/OcmGroupsActionDeleteUser"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/OcmGroupsActionAddUser"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmGroupsActionDeleteUser"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "OcmGroupsTaskResult",
+        "type": "object"
+      },
       "OcmOidcIdpActionCreate": {
         "description": "Action: create a new OIDC identity provider on a cluster.",
         "properties": {
@@ -5059,6 +5326,101 @@
           }
         ],
         "summary": "Glitchtip Reconcile Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/ocm-groups/reconcile": {
+      "post": {
+        "description": "Queue OCM groups reconciliation task.\n\nThis endpoint always queues a background task and returns immediately with a\ntask_id. Use GET /reconcile/{task_id} to retrieve the result.",
+        "operationId": "ocm-groups",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OcmGroupsReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OcmGroupsTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ocm Groups",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/ocm-groups/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation result (blocking or non-blocking).",
+        "operationId": "ocm-groups-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OcmGroupsTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ocm Groups Task Status",
         "tags": [
           "integrations"
         ]

@@ -135,7 +135,6 @@ class AWSApi:
         settings: Mapping | None = None,
         secret_reader: SecretReaderBase | None = None,
         init_ecr_auth_tokens: bool = False,
-        init_users: bool = True,
     ) -> None:
         self._session_clients: list[BaseClient] = []
         self.thread_pool_size = thread_pool_size
@@ -155,6 +154,7 @@ class AWSApi:
         # https://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
         # using @lru_cache decorators on methods would lek AWSApi instances
         # since the cache keeps a reference to self.
+        self._get_account_users = lru_cache()(self._get_account_users)  # type: ignore[method-assign]
         self._get_assume_role_session = lru_cache()(self._get_assume_role_session)  # type: ignore[method-assign]
         self._get_session_resource = lru_cache()(self._get_session_resource)  # type: ignore[method-assign, assignment]
         self.get_account_amis = lru_cache()(self.get_account_amis)  # type: ignore[method-assign]
@@ -171,9 +171,6 @@ class AWSApi:
         self.get_network_interfaces = lru_cache()(self.get_network_interfaces)  # type: ignore[method-assign]
         self.get_load_balancers = lru_cache()(self.get_load_balancers)  # type: ignore[method-assign]
         self.get_load_balancer_tags = lru_cache()(self.get_load_balancer_tags)  # type: ignore[method-assign]
-
-        if init_users:
-            self.init_users()
 
     def init_sessions(self, accounts: Iterable[awsh.Account]) -> None:
         results = threaded.run(
@@ -462,18 +459,15 @@ class AWSApi:
         session = self.get_session(account_name)
         return cast("S3Client", self.get_session_client(session, "s3", region_name))
 
-    def init_users(self) -> None:
-        self.users = {}
-        for account, s in self.sessions.items():
-            iam = self.get_session_client(s, "iam")
-            users = self.paginate(iam, "list_users", "Users")
-            users = [u["UserName"] for u in users]
-            self.users[account] = users
+    def _get_account_users(self, account: str) -> list[str]:
+        iam = self.get_session_client(self.sessions[account], "iam")
+        users = self.paginate(iam, "list_users", "Users")
+        return [u["UserName"] for u in users]
 
     @staticmethod
     def paginate(
         client: BaseClient, method: str, key: str, params: Mapping | None = None
-    ) -> Iterable:
+    ) -> list:
         """paginate returns an aggregated list of the specified key
         from all pages returned by executing the client's specified method."""
         if params is None:
@@ -521,7 +515,7 @@ class AWSApi:
     ) -> tuple[bool, bool]:
         error = False
         service_account_recycle_complete = True
-        users_keys = self.get_users_keys()
+        users_keys = self.get_users_keys(keys_to_delete.keys())
         for account, s in self.sessions.items():
             iam = self.get_session_client(s, "iam")
             keys = keys_to_delete.get(account, [])
@@ -600,12 +594,13 @@ class AWSApi:
 
         return error, service_account_recycle_complete
 
-    def get_users_keys(self) -> dict:
+    def get_users_keys(self, accounts: Iterable[str]) -> dict:
         users_keys = {}
-        for account, s in self.sessions.items():
-            iam = self.get_session_client(s, "iam")
+        for account in accounts:
+            iam = self.get_session_client(self.sessions[account], "iam")
             users_keys[account] = {
-                user: self.get_user_keys(iam, user) for user in self.users[account]
+                user: self.get_user_keys(iam, user)
+                for user in self._get_account_users(account)
             }
 
         return users_keys
@@ -649,9 +644,15 @@ class AWSApi:
             )
             try:
                 support = self.get_session_client(s, "support", support_region)
-                support_cases = support.describe_cases(
-                    includeResolvedCases=True, includeCommunications=True
-                )["cases"]
+                support_cases = self.paginate(
+                    support,
+                    "describe_cases",
+                    "cases",
+                    params={
+                        "includeResolvedCases": False,
+                        "includeCommunications": True,
+                    },
+                )
                 all_support_cases[account] = support_cases
             except Exception as e:
                 msg = "[{}] error getting support cases. details: {}"

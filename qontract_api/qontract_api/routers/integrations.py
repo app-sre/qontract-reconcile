@@ -11,6 +11,7 @@ from qontract_api.integrations.glitchtip import router as glitchtip_router
 from qontract_api.integrations.glitchtip_project_alerts import (
     router as glitchtip_project_alerts_router,
 )
+from qontract_api.integrations.ocm_groups import router as ocm_groups_router
 from qontract_api.integrations.ocm_oidc_idp import router as ocm_oidc_idp_router
 from qontract_api.integrations.openshift_namespaces import (
     router as openshift_namespaces_router,
@@ -33,6 +34,7 @@ integrations_router.include_router(glitchtip_router.router)
 integrations_router.include_router(openshift_namespaces_router.router)
 integrations_router.include_router(sso_client_router.router)
 integrations_router.include_router(quay_repos_router.router)
+integrations_router.include_router(ocm_groups_router.router)
 integrations_router.include_router(ocm_oidc_idp_router.router)
 
 # Future integrations will be added here:

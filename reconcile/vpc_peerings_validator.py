@@ -42,7 +42,7 @@ def validate_no_cidr_overlap(
                     aws_account_uid = peering.account.uid
                     settings = queries.get_secret_reader_settings()
                     accounts = queries.get_aws_accounts(uid=aws_account_uid)
-                    awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
+                    awsapi = AWSApi(1, accounts, settings=settings)
                     mesh_results = awsapi.get_vpcs_details(
                         accounts[0], peering.tags or {}
                     )

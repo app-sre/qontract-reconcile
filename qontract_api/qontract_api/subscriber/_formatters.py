@@ -28,6 +28,7 @@ class GenericEventFormatter:
         "error": "🔴",
         "fail": "❌",
         "create": "🟢",
+        "add": "🟢",
         "update": "🔄",
         "delete": "🗑️",
         "default": "📢",

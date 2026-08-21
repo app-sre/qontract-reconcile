@@ -1,0 +1,20 @@
+# qenerate: plugin=pydantic_v2
+
+query OcmGroupsApiRoles {
+  roles: roles_v1 {
+    name
+    users {
+      ...User
+    }
+    expirationDate
+    access {
+      cluster {
+        name
+        auth {
+          service
+        }
+      }
+      group
+    }
+  }
+}

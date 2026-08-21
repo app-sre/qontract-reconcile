@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
@@ -16,6 +17,9 @@ from reconcile.dashdotdb_dora import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    import pytest
     from pytest_mock import MockerFixture
 
 
@@ -254,22 +258,66 @@ def test_get_repo_changes(mocker: MockerFixture) -> None:
     assert repo_changes == RepoChanges("repo1", "commitA", "commitB")
 
 
-def test_post_deployments_skips_when_get_token_fails(
+def test_post_deployments_skips_when_token_acquisition_fails(
     mocker: MockerFixture,
 ) -> None:
+    from contextlib import contextmanager
+
+    from reconcile.dashdotdb_base import DashdotdbTokenError
+
     mocker.patch("reconcile.dashdotdb_dora.DashdotdbDORA.__init__").return_value = None
     d = DashdotdbDORA(False, "1", 1)
     d.dry_run = False
-    d.dashdotdb_token = None
     d.logmarker = "DORA"
     d.scope = "dora"
 
-    d._get_token = MagicMock()  # type: ignore[method-assign]
+    @contextmanager
+    def _failing_token() -> Iterator[None]:
+        raise DashdotdbTokenError("simulated failure")
+        yield
+
+    d._token = _failing_token  # type: ignore[method-assign]
     d.post = MagicMock()  # type: ignore[method-assign]
-    d._close_token = MagicMock()  # type: ignore[method-assign]
 
     d._post_deployments([{"some": "deployment"}])
 
-    d._get_token.assert_called_once()
     d.post.assert_not_called()
-    d._close_token.assert_not_called()
+
+
+def test_post_skips_http_in_dry_run(
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch("reconcile.dashdotdb_dora.DashdotdbDORA.__init__").return_value = None
+    d = DashdotdbDORA(True, "1", 1)
+    d.dry_run = True
+    d.dashdotdb_url = "https://dashdotdb.example.com"
+    d.dashdotdb_user = "user"
+    d.dashdotdb_pass = "pass"
+    d.dashdotdb_token = None
+    d.logmarker = "DORA"
+
+    d._do_post = MagicMock()  # type: ignore[method-assign]
+
+    d.post({"deployments": []})
+
+    d._do_post.assert_not_called()
+
+
+def test_post_logs_deployment_count_in_dry_run(
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    mocker.patch("reconcile.dashdotdb_dora.DashdotdbDORA.__init__").return_value = None
+    d = DashdotdbDORA(True, "1", 1)
+    d.dry_run = True
+    d.logmarker = "DORA"
+
+    d._do_post = MagicMock()  # type: ignore[method-assign]
+
+    with caplog.at_level(logging.INFO):
+        d.post({"deployments": [{"a": 1}, {"b": 2}]})
+
+    # Dry-run must skip the HTTP call but still report what would be posted, so
+    # operators verifying wiring get the same visibility DVO and SLO provide.
+    d._do_post.assert_not_called()
+    assert "would post 2 deployments" in caplog.text

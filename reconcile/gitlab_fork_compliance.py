@@ -26,9 +26,7 @@ MSG_BRANCH = (
 MSG_ACCESS = (
     "@{user}, the user @{bot} is not a Maintainer in "
     "your fork of {project_name}. "
-    'Please enable the "Allow commits from members who can merge '
-    'to the target branch" option on this Merge Request (preferred), '
-    "or add the @{bot} user to your fork as a Maintainer, "
+    "Please add the @{bot} user to your fork as a Maintainer "
     'and retest by commenting "/retest" on the Merge Request.'
 )
 
@@ -67,10 +65,10 @@ class GitlabForkCompliance:
         if self.exit_code:
             sys.exit(self.exit_code)
 
-        # At this point, we know that the bot is either a maintainer of the
-        # fork or has collaboration access to it. Syncing maintainers into
-        # the fork requires actual maintainer access, so skip it otherwise.
-        if self.maintainers_group and self.bot_is_maintainer:
+        # At this point, we know that the bot is a maintainer, so
+        # we check if all the maintainers are in the fork, adding those
+        # who are not
+        if self.maintainers_group:
             group = self.gl_cli.gl.groups.get(self.maintainers_group)
             maintainers = group.members.list(iterator=True)
             project_maintainers = self.src.get_project_maintainers()
@@ -107,14 +105,9 @@ class GitlabForkCompliance:
             self.handle_error("access denied for user {bot}", MSG_ACCESS)
             return self.ERR_NOT_A_MEMBER
 
-        self.bot_is_maintainer = (
-            self.gl_cli.user.username in self.src.get_project_maintainers()
-        )
-        if not self.bot_is_maintainer and not self.mr.allow_collaboration:
+        if self.gl_cli.user.username not in self.src.get_project_maintainers():
             self.handle_error(
-                "{bot} is not a maintainer in the fork project and "
-                "allow_collaboration is not enabled on the Merge Request",
-                MSG_ACCESS,
+                "{bot} is not a maintainer in the fork project", MSG_ACCESS
             )
             return self.ERR_NOT_A_MAINTAINER
 

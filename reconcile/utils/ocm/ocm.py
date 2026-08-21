@@ -158,7 +158,9 @@ class OCM:
         cluster = self.clusters[cluster_name]
         cluster_id = self.cluster_ids[cluster_name]
         impl = self.get_product_impl(cluster.spec.product, cluster.spec.hypershift)
-        impl.update_cluster(self.ocm_api, cluster_id, update_spec, dry_run)
+        impl.update_cluster(
+            self.ocm_api, cluster_id, update_spec, cluster.spec.version, dry_run
+        )
 
     def get_group_if_exists(self, cluster: str, group_id: str) -> dict[str, Any] | None:
         """Returns a list of users in a group in a cluster.

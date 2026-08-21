@@ -76,6 +76,34 @@ class AWSApiIam:
         return self.client.list_account_aliases()["AccountAliases"][0]
 
     @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="has_service_linked_role", service="iam")
+    )
+    def has_service_linked_role(self, role_name: str) -> bool:
+        """Check if a service-linked role exists."""
+        try:
+            self.client.get_role(RoleName=role_name)
+            return True
+        except botocore.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] == "NoSuchEntity":
+                return False
+            raise
+
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="create_service_linked_role", service="iam")
+    )
+    def create_service_linked_role(self, aws_service_name: str) -> None:
+        """Create a service-linked role for the given AWS service."""
+        try:
+            self.client.create_service_linked_role(AWSServiceName=aws_service_name)
+        except botocore.exceptions.ClientError as e:
+            if (
+                e.response["Error"]["Code"] == "InvalidInput"
+                and "has been taken" in e.response["Error"]["Message"]
+            ):
+                return
+            raise
+
+    @invoke_with_hooks(
         lambda: AWSApiCallContext(method="set_account_alias", service="iam")
     )
     def set_account_alias(self, account_alias: str) -> None:

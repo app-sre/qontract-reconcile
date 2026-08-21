@@ -176,7 +176,7 @@ def setup(
     participating_aws_accounts = _filter_participating_aws_accounts(accounts, roles)
 
     settings = queries.get_app_interface_settings()
-    aws_api = AWSApi(1, participating_aws_accounts, settings=settings, init_users=False)
+    aws_api = AWSApi(1, participating_aws_accounts, settings=settings)
     try:
         _validate_aws_policies_in_roles(roles, participating_aws_accounts, aws_api)
     except Exception:

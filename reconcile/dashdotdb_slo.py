@@ -8,6 +8,7 @@ from sretoolbox.utils import threaded
 from reconcile.dashdotdb_base import (
     LOG,
     DashdotdbBase,
+    DashdotdbTokenError,
 )
 from reconcile.gql_definitions.dashdotdb_slo.slo_documents_query import (
     query,
@@ -100,15 +101,19 @@ class DashdotdbSLO(DashdotdbBase):
         slo_details_list = slo_document_manager.get_current_slo_list()
         valid_slo_list = [slo for slo in slo_details_list if slo]
 
-        self._get_token()
         try:
-            threaded.run(
-                func=self._post,
-                iterable=valid_slo_list,
-                thread_pool_size=self.thread_pool_size,
+            with self._token():
+                threaded.run(
+                    func=self._post,
+                    iterable=valid_slo_list,
+                    thread_pool_size=self.thread_pool_size,
+                )
+        except DashdotdbTokenError:
+            LOG.error(
+                "%s error acquiring token for %s, skipping",
+                self.logmarker,
+                self.scope,
             )
-        finally:
-            self._close_token()
 
 
 def run(

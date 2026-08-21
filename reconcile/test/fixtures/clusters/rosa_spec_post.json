@@ -54,7 +54,7 @@
     "id": "us-east-1"
   },
   "version": {
-    "channel_group": "stable",
     "id": "openshift-v4.8.10"
-  }
+  },
+  "channel": "stable-4.8"
 }

@@ -32,9 +32,7 @@ class SQSGateway:
             )
         account = self.get_queue_account(accounts, queue_url)
         accounts = [a for a in accounts if a["name"] == account]
-        self._aws_api = AWSApi(
-            1, accounts, secret_reader=secret_reader, init_users=False
-        )
+        self._aws_api = AWSApi(1, accounts, secret_reader=secret_reader)
         session = self._aws_api.get_session(account)
 
         self.sqs = self._aws_api.get_session_client(session, "sqs")

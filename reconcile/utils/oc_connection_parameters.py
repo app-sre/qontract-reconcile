@@ -24,6 +24,32 @@ class OCConnectionError(Exception):
     pass
 
 
+class TokenEntry(Protocol):
+    @property
+    def active(self) -> bool | None: ...
+
+    @property
+    def delete(self) -> bool | None: ...
+
+    @property
+    def secret(self) -> HasSecret | None: ...
+
+
+def is_active_token_entry(entry: TokenEntry) -> bool:
+    """Return True if the entry is active, not flagged for deletion, and has a secret."""
+    return bool(entry.active) and not bool(entry.delete) and entry.secret is not None
+
+
+def _find_active_list_token(entries: list[TokenEntry] | None) -> HasSecret | None:
+    """Return the secret from the first active, non-deleted list token entry that has a secret."""
+    if not entries:
+        return None
+    for entry in entries:
+        if is_active_token_entry(entry):
+            return entry.secret
+    return None
+
+
 class Disable(Protocol):
     integrations: list[str] | None
 
@@ -36,10 +62,18 @@ class Cluster(Protocol):
     insecure_skip_tls_verify: bool | None
 
     @property
-    def automation_token(self) -> HasSecret | None: ...
+    def automation_token(
+        self,
+    ) -> (
+        HasSecret | None
+    ): ...  # TODO(APPSRE-13941): remove once all clusters migrated to automationTokens
 
     @property
-    def cluster_admin_automation_token(self) -> HasSecret | None: ...
+    def cluster_admin_automation_token(
+        self,
+    ) -> (
+        HasSecret | None
+    ): ...  # TODO(APPSRE-13941): remove once all clusters migrated to clusterAdminAutomationTokens
 
     @property
     def disable(self) -> Disable | None: ...
@@ -113,18 +147,24 @@ class OCConnectionParameters:
         cluster_admin_automation_token: str | None = None
 
         if cluster_admin:
-            if cluster.cluster_admin_automation_token:
+            token_secret = (
+                _find_active_list_token(
+                    getattr(cluster, "cluster_admin_automation_tokens", None)
+                )
+                or cluster.cluster_admin_automation_token
+            )  # TODO(APPSRE-13941): remove fallback once all clusters migrated to clusterAdminAutomationTokens
+            if token_secret:
                 try:
                     cluster_admin_automation_token = (
                         OCConnectionParameters._get_automation_token(
                             secret_reader,
-                            cluster.cluster_admin_automation_token,
+                            token_secret,
                             cluster,
                         )
                     )
                 except SecretNotFoundError:
                     logging.error(
-                        f"[{cluster.name}] admin token {cluster.cluster_admin_automation_token} not found"
+                        f"[{cluster.name}] admin token {token_secret} not found"
                     )
             else:
                 # Note, that currently OCMap uses OCLogMsg if a token is missing, i.e.,
@@ -132,19 +172,24 @@ class OCConnectionParameters:
                 logging.debug(
                     f"No admin automation token set for cluster '{cluster.name}', but privileged access requested."
                 )
-        elif cluster.automation_token:
-            try:
-                automation_token = OCConnectionParameters._get_automation_token(
-                    secret_reader, cluster.automation_token, cluster
-                )
-            except SecretNotFoundError:
-                logging.error(
-                    f"[{cluster.name}] automation token {cluster.automation_token} not found"
-                )
         else:
-            # Note, that currently OCMap uses OCLogMsg if a token is missing, i.e.,
-            # for now this is valid behavior.
-            logging.debug(f"No automation token for cluster '{cluster.name}'.")
+            token_secret = (
+                _find_active_list_token(getattr(cluster, "automation_tokens", None))
+                or cluster.automation_token
+            )  # TODO(APPSRE-13941): remove fallback once all clusters migrated to automationTokens
+            if token_secret:
+                try:
+                    automation_token = OCConnectionParameters._get_automation_token(
+                        secret_reader, token_secret, cluster
+                    )
+                except SecretNotFoundError:
+                    logging.error(
+                        f"[{cluster.name}] automation token {token_secret} not found"
+                    )
+            else:
+                # Note, that currently OCMap uses OCLogMsg if a token is missing, i.e.,
+                # for now this is valid behavior.
+                logging.debug(f"No automation token for cluster '{cluster.name}'.")
 
         disabled_integrations = []
         if cluster.disable:

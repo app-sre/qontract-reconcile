@@ -5417,9 +5417,7 @@ class TerrascriptClient:
         )
         account["assume_region"] = cluster["spec"]["region"]
         service_name = f"{namespace_info['name']}/{openshift_service}"
-        with AWSApi(
-            1, [account], secret_reader=self.secret_reader, init_users=False
-        ) as awsapi:
+        with AWSApi(1, [account], secret_reader=self.secret_reader) as awsapi:
             ips = awsapi.get_alb_network_interface_ips(account, service_name)
         if not ips:
             raise ValueError(
@@ -6036,9 +6034,7 @@ class TerrascriptClient:
 
         # Get the most recent AMI id
         aws_account = self.accounts[account]
-        with AWSApi(
-            1, [aws_account], secret_reader=self.secret_reader, init_users=False
-        ) as aws:
+        with AWSApi(1, [aws_account], secret_reader=self.secret_reader) as aws:
             return aws.get_image_id(account, region, tags)
 
     def _use_previous_image_id(self, filters: Iterable[Mapping[str, Any]]) -> bool:

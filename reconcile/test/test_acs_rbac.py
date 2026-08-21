@@ -921,11 +921,11 @@ def test_get_desired_state_filters_by_instance(
     assert result == []
 
 
-def test_get_desired_state_includes_permissions_without_instance(
+def test_get_desired_state_excludes_permissions_without_instance(
     mocker: MockerFixture,
     query_data_desired_state: AcsRbacQueryData,
 ) -> None:
-    # Permissive filter: permissions with instance=None are included (treated as "belongs to all instances")
+    # Strict filter: permissions with instance=None are excluded
     for user in query_data_desired_state.acs_rbacs or []:
         for role in user.roles or []:
             for perm in role.oidc_permissions or []:
@@ -938,4 +938,4 @@ def test_get_desired_state_includes_permissions_without_instance(
     integration = AcsRbacIntegration()
     result = integration.get_desired_state(query_func, "app-sre-acs")
 
-    assert len(result) > 0
+    assert result == []
