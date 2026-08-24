@@ -1875,6 +1875,25 @@ def quay_robot_accounts(ctx: click.Context) -> None:
     run_integration(reconcile.quay_robot_accounts, ctx)
 
 
+@integration.command(
+    short_help="Manages robot accounts in Quay organizations via qontract-api."
+)
+@click.option("--org", help="Reconcile just this Quay org.", default=None)
+@click.pass_context
+def quay_robot_accounts_api(ctx: click.Context, org: str | None) -> None:
+    from reconcile.quay_robot_accounts_api import (
+        QuayRobotAccountsIntegration,
+        QuayRobotAccountsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=QuayRobotAccountsIntegration(
+            QuayRobotAccountsIntegrationParams(org_name=org)
+        ),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Mirrors external images into GCP Artifact Registry.")
 @click.pass_context
 @binary(["skopeo"])
