@@ -1,6 +1,6 @@
 """Tests for the quay-robot-accounts-api client-side integration."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from qontract_api_client.schemas import (
@@ -168,8 +168,7 @@ async def test_async_run_dry_run_polls_and_logs() -> None:
         mock_gql.get_api.return_value = MagicMock()
         await integration.async_run(dry_run=True)
 
-    mock_reconcile.assert_awaited_once()
-    assert mock_reconcile.await_args.kwargs["dry_run"] is True
+    mock_reconcile.assert_awaited_once_with(organizations=ANY, dry_run=True)
     mock_poll.assert_awaited_once()
 
 
