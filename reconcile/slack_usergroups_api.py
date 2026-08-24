@@ -92,7 +92,7 @@ class _UserWithSlackIdentity(Protocol):
     gov_slack_email_local_part: str | None
 
 
-def slack_username(user: _UserWithSlackIdentity) -> str:
+def slack_identity(user: _UserWithSlackIdentity) -> str:
     """Return the Slack identity for an app-interface user.
 
     Prefer gov_slack_email_local_part when set (gov Slack email local-part), otherwise
@@ -224,7 +224,7 @@ class SlackUsergroupsIntegration(
             start = ensure_utc(datetime.strptime(entry.start, DATE_FORMAT))  # ruff: ignore[call-datetime-strptime-without-zone]
             end = ensure_utc(datetime.strptime(entry.end, DATE_FORMAT))  # ruff: ignore[call-datetime-strptime-without-zone]
             if start <= now <= end:
-                all_usernames.extend(slack_username(u) for u in entry.users)
+                all_usernames.extend(slack_identity(u) for u in entry.users)
         return all_usernames
 
     @staticmethod
@@ -239,7 +239,7 @@ class SlackUsergroupsIntegration(
         """
 
         return [
-            slack_username(user) for role in roles or [] for user in role.users or []
+            slack_identity(user) for role in roles or [] for user in role.users or []
         ]
 
     async def fetch_owners(
@@ -277,7 +277,7 @@ class SlackUsergroupsIntegration(
             if org_username and org_username in users_map:
                 user = users_map[org_username]
                 if user.tag_on_merge_requests is not False:
-                    result.append(slack_username(user))
+                    result.append(slack_identity(user))
         return result
 
     async def compile_users_from_git_owners(
@@ -566,7 +566,7 @@ class SlackUsergroupsIntegration(
                     continue
 
                 cluster_users.setdefault(cluster_name, set()).update([
-                    slack_username(user)
+                    slack_identity(user)
                     for user in role.users
                     if self.include_user_to_cluster_usergroup(user, role)
                 ])
