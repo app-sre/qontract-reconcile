@@ -49,6 +49,9 @@ class App(TypedDict):
 class SLODocument(TypedDict):
     name: str
     app: App
+    # Optional environment (e.g. "prod"/"stage"); when set, it is emitted as the
+    # `env` label on generated alerts so Alertmanager can route per environment.
+    env: NotRequired[str]
     slos: NotRequired[list[SLO]]
 
 
@@ -118,6 +121,24 @@ def run_sloth(spec: dict[str, Any]) -> str:
         return process_sloth_output(output_file.name)
 
 
+def build_alert_labels(
+    severity: str, service: str, slo_name: str, env: str | None
+) -> dict[str, str]:
+    """Build the label set for a sloth alert rule.
+
+    `env` is added only when the SLO document specifies it, so documents without
+    an environment keep their previous label set (severity/service/slo) exactly.
+    """
+    labels = {
+        "severity": severity,
+        "service": service,
+        "slo": slo_name,
+    }
+    if env:
+        labels["env"] = env
+    return labels
+
+
 def get_slo_target(slo: SLO) -> float:
     """
     Ensure SLO target unit aligns with format expected by sloth for 'Objective' attribute
@@ -138,6 +159,7 @@ def generate_sloth_rules(
             {
                 slo_docs: slo_document_v1(filter: {name: "foo"}) {
                     name
+                    env
                     app {
                         name
                     }
@@ -166,6 +188,7 @@ def generate_sloth_rules(
         raise SlothInputError("SLO document has no SLOs defined")
 
     service = slo_document["app"]["name"]
+    env = slo_document.get("env")
     # only process SLOs that have both error and total queries defined
     slo_input = [
         {
@@ -191,18 +214,10 @@ def generate_sloth_rules(
                     "dashboard": slo["dashboard"],
                 },
                 "page_alert": {
-                    "labels": {
-                        "severity": "critical",
-                        "service": service,
-                        "slo": slo["name"],
-                    }
+                    "labels": build_alert_labels("critical", service, slo["name"], env)
                 },
                 "ticket_alert": {
-                    "labels": {
-                        "severity": "high",
-                        "service": service,
-                        "slo": slo["name"],
-                    }
+                    "labels": build_alert_labels("high", service, slo["name"], env)
                 },
             },
         }
