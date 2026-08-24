@@ -242,7 +242,7 @@ def lookup_s3_object(
         accounts = queries.get_aws_accounts(name=account_name)
         if not accounts:
             raise Exception(f"aws account not found: {account_name}")
-        with AWSApi(1, accounts, settings=settings, init_users=False) as aws_api:
+        with AWSApi(1, accounts, settings=settings) as aws_api:
             return aws_api.get_s3_object_content(
                 account_name,
                 bucket_name,
@@ -268,7 +268,7 @@ def list_s3_objects(
         accounts = queries.get_aws_accounts(name=account_name)
         if not accounts:
             raise Exception(f"aws account not found: {account_name}")
-        with AWSApi(1, accounts, settings=settings, init_users=False) as aws_api:
+        with AWSApi(1, accounts, settings=settings) as aws_api:
             return aws_api.list_s3_objects(
                 account_name,
                 bucket_name,

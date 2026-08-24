@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class OcmSubscriptionLabel(BaseModel, frozen=True):
@@ -37,6 +37,14 @@ class OcmCluster(BaseModel, frozen=True):
     subscription_id: str
     console_url: str | None
     external_auth_enabled: bool
+
+
+class OcmClusterGroup(BaseModel, frozen=True):
+    """A cluster group (e.g. dedicated-admins, cluster-admins) with its user set."""
+
+    id: str
+    users: list[str] = Field(default_factory=list)
+    """User IDs (usernames) belonging to this group."""
 
 
 class OcmIdentityProvider(BaseModel, frozen=True):

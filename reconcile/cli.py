@@ -2527,6 +2527,22 @@ def ocm_groups(ctx: click.Context, thread_pool_size: int) -> None:
     run_integration(reconcile.ocm_groups, ctx, thread_pool_size)
 
 
+@integration.command(
+    short_help="Manage membership in OpenShift groups via OCM (via qontract-api)."
+)
+@click.pass_context
+def ocm_groups_api(ctx: click.Context) -> None:
+    from reconcile.ocm_groups_api import (
+        OcmGroupsIntegration,
+        OcmGroupsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=OcmGroupsIntegration(OcmGroupsIntegrationParams()),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Manages clusters via OCM.")
 @gitlab_project_id
 @threaded()

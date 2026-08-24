@@ -34,8 +34,8 @@
     "value": 4402341478400.0
   },
   "version": {
-    "channel_group": "candidate",
     "id": "openshift-v4.8.10"
   },
+  "channel": "candidate-4.8",
   "fips": false
 }

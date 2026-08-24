@@ -61,7 +61,7 @@ def aws_api(accounts: Accounts, secret: Secret, mocker: MockerFixture) -> AWSApi
         "reconcile.utils.aws_api.SecretReader", autospec=True
     )
     mock_secret_reader.return_value.read_all.return_value = secret
-    return AWSApi(1, accounts, init_users=False)
+    return AWSApi(1, accounts)
 
 
 @pytest.fixture

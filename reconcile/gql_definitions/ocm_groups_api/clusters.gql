@@ -1,0 +1,35 @@
+# qenerate: plugin=pydantic_v2
+
+query OcmGroupsApiClusters {
+  clusters: clusters_v1 {
+    name
+    managedGroups
+    spec {
+      id
+    }
+    auth {
+      service
+      ... on ClusterAuthGithubOrg_v1 {
+        org
+      }
+      ... on ClusterAuthGithubOrgTeam_v1 {
+        org
+        team
+      }
+    }
+    ocm {
+      name
+      environment {
+        ...OCMEnvironment
+      }
+      accessTokenClientId
+      accessTokenUrl
+      accessTokenClientSecret {
+        ...VaultSecret
+      }
+    }
+    disable {
+      ...DisableAutomations
+    }
+  }
+}
