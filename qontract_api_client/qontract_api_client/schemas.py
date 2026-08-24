@@ -671,6 +671,112 @@ class PagerDutyUser(pydantic.BaseModel):
     username: str
 
 
+class QuayOrgDesiredState(pydantic.BaseModel):
+    instance_name: str
+    instance_url: str
+    managed_repos: bool = False
+    managed_robot_accounts: bool = False
+    managed_teams: list[str] | None = None
+    org_name: str
+    robots: list[QuayRobotDesiredState] | None = None
+    token: Secret
+
+
+class QuayRobotAccountsReconcileRequest(pydantic.BaseModel):
+    dry_run: bool = True
+    organizations: list[QuayOrgDesiredState]
+
+
+class QuayRobotAccountsTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class QuayRobotAccountsTaskResult(pydantic.BaseModel):
+    actions: list[
+        typing.Annotated[
+            QuayRobotActionCreate
+            | QuayRobotActionDelete
+            | QuayRobotActionAddTeam
+            | QuayRobotActionRemoveTeam
+            | QuayRobotActionSetRepoPermission
+            | QuayRobotActionRemoveRepoPermission,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_actions: list[
+        typing.Annotated[
+            QuayRobotActionCreate
+            | QuayRobotActionDelete
+            | QuayRobotActionAddTeam
+            | QuayRobotActionRemoveTeam
+            | QuayRobotActionSetRepoPermission
+            | QuayRobotActionRemoveRepoPermission,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
+
+
+class QuayRobotActionAddTeam(pydantic.BaseModel):
+    action_type: typing.Literal["add_team"] = "add_team"
+    instance_name: str
+    org_name: str
+    robot_name: str
+    team: str
+
+
+class QuayRobotActionCreate(pydantic.BaseModel):
+    action_type: typing.Literal["create"] = "create"
+    description: str | None = None
+    instance_name: str
+    org_name: str
+    robot_name: str
+
+
+class QuayRobotActionDelete(pydantic.BaseModel):
+    action_type: typing.Literal["delete"] = "delete"
+    instance_name: str
+    org_name: str
+    robot_name: str
+
+
+class QuayRobotActionRemoveRepoPermission(pydantic.BaseModel):
+    action_type: typing.Literal["remove_repo_permission"] = "remove_repo_permission"
+    instance_name: str
+    org_name: str
+    repo: str
+    robot_name: str
+
+
+class QuayRobotActionRemoveTeam(pydantic.BaseModel):
+    action_type: typing.Literal["remove_team"] = "remove_team"
+    instance_name: str
+    org_name: str
+    robot_name: str
+    team: str
+
+
+class QuayRobotActionSetRepoPermission(pydantic.BaseModel):
+    action_type: typing.Literal["set_repo_permission"] = "set_repo_permission"
+    instance_name: str
+    org_name: str
+    permission: str
+    repo: str
+    robot_name: str
+
+
+class QuayRobotDesiredState(pydantic.BaseModel):
+    delete: bool = False
+    description: str | None = None
+    name: str
+    repositories: dict[str, typing.Any] | None = None
+    teams: list[str] | None = None
+
+
 class RecipientType(str, enum.Enum):
     EMAIL = "email"
     WEBHOOK = "webhook"

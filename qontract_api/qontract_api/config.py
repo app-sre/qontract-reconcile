@@ -240,6 +240,15 @@ class GithubOrgSettings(BaseModel):
     )
 
 
+class QuaySettings(BaseModel):
+    """Quay API and integration configuration."""
+
+    robots_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Quay robot account list and permission cache TTL in seconds (one hour)",
+    )
+
+
 class GlitchtipSettings(BaseModel):
     """Glitchtip API and integration configuration."""
 
@@ -534,6 +543,12 @@ class Settings(BaseSettings):
     github_org: GithubOrgSettings = Field(
         default_factory=GithubOrgSettings,
         description="GitHub organization membership integration configuration",
+    )
+
+    # Quay Configuration (nested)
+    quay: QuaySettings = Field(
+        default_factory=QuaySettings,
+        description="Quay API and integration configuration",
     )
 
     # Glitchtip Configuration (nested)
