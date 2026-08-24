@@ -189,6 +189,14 @@ def generate_sloth_rules(
 
     service = slo_document["app"]["name"]
     env = slo_document.get("env")
+    # An omitted env is valid (no env label), but a present-but-blank env is
+    # invalid state: it would otherwise be silently dropped (empty string) or
+    # emitted as an unroutable whitespace label, defeating per-environment
+    # Alertmanager routing. Reject it rather than fall back silently.
+    if env is not None and not env.strip():
+        raise SlothInputError(
+            "env is set but blank; provide a non-empty environment or omit it"
+        )
     # only process SLOs that have both error and total queries defined
     slo_input = [
         {

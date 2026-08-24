@@ -3,7 +3,12 @@ import os
 import pytest
 import yaml
 
-from reconcile.utils.sloth import SLODocument, SlothInputError, generate_sloth_rules
+from reconcile.utils.sloth import (
+    SLO,
+    SLODocument,
+    SlothInputError,
+    generate_sloth_rules,
+)
 
 
 def test_generate_sloth_rules_success() -> None:
@@ -130,6 +135,44 @@ def test_generate_sloth_rules_omits_env_label_when_unset() -> None:
         for group in data.get("groups", [])
         for rule in group.get("rules", [])
     )
+
+
+# A minimal, valid SLO that generates multi-window alert rules; the test below
+# varies only the document-level `env`.
+_VALID_SLO: SLO = {
+    "name": "Availability",
+    "SLOTarget": 0.95,
+    "SLOTargetUnit": "percent_0_1",
+    "SLIErrorQuery": 'sum(rate(http_requests_total{status=~"5.."}[{{window}}]))',
+    "SLITotalQuery": "sum(rate(http_requests_total{}[{{window}}]))",
+    "SLIType": "events",
+    "SLISpecification": "availability",
+    "SLOParameters": {"window": "30d"},
+    "SLODetails": "https://example.com/test-app/availability-runbook.md",
+    "dashboard": "https://example.com/dashboard",
+    "expr": "test-expr",
+}
+
+
+@pytest.mark.parametrize("blank_env", ["", "   ", "\t", "\n"])
+def test_generate_sloth_rules_rejects_blank_env(blank_env: str) -> None:
+    """A present-but-blank `env` is invalid state and must be rejected.
+
+    This test exposes the defect CodeRabbit flagged. Today an empty string is
+    silently dropped and a whitespace-only string is emitted verbatim, so
+    neither raises: the test FAILS against the current code. It passes only
+    once generate_sloth_rules validates `env` (e.g. via `env.strip()`) and
+    raises SlothInputError when the key is present but blank.
+    """
+    slo_document: SLODocument = {
+        "name": "test-app",
+        "env": blank_env,
+        "app": {"name": "test-app"},
+        "slos": [_VALID_SLO],
+    }
+
+    with pytest.raises(SlothInputError):
+        generate_sloth_rules(slo_document)
 
 
 def test_generate_sloth_rules_no_slos() -> None:
