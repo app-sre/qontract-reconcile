@@ -25,6 +25,13 @@ Successful migrations serve as reference implementations:
   sso_client's Vault secret schema by moving it to a new shared `qontract_api/rhidp/`
   domain layer. See "Naming: don't assume every RHIDP integration gets an rhidp-
   prefix" and "Cacheable read + invalidating mutations" below.)
+- `quay_robot_accounts` -> `quay_robot_accounts_api` (Pattern 1: full server-side.
+  First Quay migration: new Layer 1 `quay_api` covering robot CRUD + team/repo
+  permission methods only, new `qontract_api/quay/` workspace client + factory for
+  reuse by future quay-membership/permissions/repos migrations. No Phase 3 external
+  endpoints. Robot tokens are not written to Vault. Unmanaged robots are never
+  auto-deleted — only `delete: true`. Closest skeleton: github_owners; closest
+  diff/apply: glitchtip_project_alerts.)
 
 ## Input
 
@@ -155,7 +162,8 @@ Following ADR-007 (no reconcile/ imports in qontract-api) and ADR-014 (three-lay
      - `qontract_utils/qontract_utils/ldap_api/` - LDAP (FreeIPA) API
      - `qontract_utils/qontract_utils/ocm_api/` - OCM (OpenShift Cluster Manager) API - labels, subscriptions, clusters, identity providers (get/create/update/delete, parameterized by `cluster_id`/`idp_id` rather than the `Filter` DSL used for the collection-search methods, since IDPs are a per-cluster nested resource)
      - `qontract_utils/qontract_utils/keycloak_api/` - Keycloak dynamic client registration API
-   - If a client exists, check if it covers all needed methods. Only extend, never duplicate.
+     - `qontract_utils/qontract_utils/quay_api/` - Quay API (robot CRUD, team membership for robots, repository permissions for robots; extend rather than duplicating when migrating quay-membership/permissions/repos)
+     - If a client exists, check if it covers all needed methods. Only extend, never duplicate.
 
 2. **Layer 1 - Pure API Client** (`qontract_utils/<domain>/api.py`):
    - Thin synchronous wrapper around the external API (REST/GraphQL calls)
