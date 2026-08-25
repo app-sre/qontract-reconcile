@@ -2485,6 +2485,7 @@ def test_omm_group_ejects_error_labeled_mr(
     lead.merge_commit_sha = "abc123"
     lead.squash_commit_sha = None
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending", error_label])
 
@@ -2534,6 +2535,7 @@ def test_omm_group_ejects_hold_labeled_mr(
     lead.merge_commit_sha = "abc123"
     lead.squash_commit_sha = None
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending", hold_label])
 
@@ -2583,6 +2585,7 @@ def test_omm_group_merge_rejected_applies_merge_error(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
     mr.merge.side_effect = GitlabMRClosedError("MR was closed")
@@ -2629,6 +2632,7 @@ def test_omm_group_head_drift_invalidates_group(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     mocked_gl = _make_omm_gl(head_sha="different-sha")
     mocked_gl.project.repository_compare.return_value = {"commits": ["x"]}
@@ -2658,6 +2662,7 @@ def test_omm_group_lead_missing_merge_commit_sha(
     lead.merge_commit_sha = None
     lead.squash_commit_sha = None
     lead.target_branch = "master"
+    lead.labels = []
     lead.iid = 99999
 
     mocked_gl = _make_omm_gl(head_sha="some-sha")
@@ -2700,6 +2705,7 @@ def test_omm_group_head_advanced_but_reachable_continues(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
@@ -2748,6 +2754,7 @@ def test_omm_group_external_merge_dissolves_group(
     lead.merge_commit_sha = "lead-sha"
     lead.squash_commit_sha = None
     lead.target_branch = "master"
+    lead.labels = []
 
     mocked_gl = _make_omm_gl(head_sha="external-sha")
     mocked_gl.project.repository_compare.return_value = {"commits": []}
@@ -2800,6 +2807,7 @@ def test_omm_group_omm_member_merge_does_not_dissolve(
     lead.merge_commit_sha = "lead-sha"
     lead.squash_commit_sha = None
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
@@ -2849,6 +2857,7 @@ def test_omm_group_multiple_members_sha_match(
     lead.merge_commit_sha = "lead-sha"
     lead.squash_commit_sha = None
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
@@ -2915,6 +2924,7 @@ def test_omm_group_skip_ci_rebase_on_success_not_rebased(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
@@ -2963,6 +2973,7 @@ def test_omm_member_refreshes_mr_before_rebased_check(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     stale_mr = _make_merge_mr(
         11, ["approved", "tenant-bar", "omm-pending"], sha="stale-sha-old"
@@ -3031,6 +3042,7 @@ def test_omm_group_skip_ci_rebase_failure_ejects_member(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
     mr.rebase.side_effect = GitlabMRRebaseError("rebase conflict")
@@ -3080,6 +3092,7 @@ def test_omm_group_ref_not_found_ejects_member(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
@@ -3130,6 +3143,7 @@ def test_omm_group_merge_limit_enforced(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     mr1 = _make_merge_mr(10, ["approved", "tenant-foo", "omm-pending"])
     mr2 = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
@@ -3393,6 +3407,7 @@ def test_omm_group_skipped_pipeline_filtered_merges_on_pre_rebase_success(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
@@ -3443,6 +3458,7 @@ def test_omm_group_all_skipped_pipelines_rebased_stays_active(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
@@ -3501,6 +3517,7 @@ def test_omm_group_canceled_pipeline_ejects_member(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
@@ -3550,6 +3567,7 @@ def test_omm_group_unhandled_status_rebased_stays_active(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
@@ -3607,6 +3625,7 @@ def test_omm_group_push_pipeline_filtered_even_at_different_sha(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     fork_id = 99
     current_sha = "current-sha"
@@ -3667,6 +3686,7 @@ def test_omm_group_fork_pipeline_not_rebased_triggers_skip_ci(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     fork_id = 99
     current_sha = "current-head-sha"
@@ -3726,6 +3746,7 @@ def test_omm_group_fork_pipeline_running_old_sha_waits(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     fork_id = 99
     new_sha = "rebased-sha"
@@ -3788,6 +3809,7 @@ def test_omm_group_fork_push_pipeline_filtered_when_not_rebased(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     fork_id = 99
     current_sha = "current-head-sha"
@@ -3848,6 +3870,7 @@ def test_omm_group_fork_external_pipeline_preserved_at_current_sha(
     lead.merge_commit_sha = merge_sha
     lead.squash_commit_sha = squash_sha
     lead.target_branch = "master"
+    lead.labels = []
 
     fork_id = 99
     current_sha = "current-head-sha"
@@ -3973,12 +3996,15 @@ def test_omm_expansion_adds_newcomer_skips_existing(
         "reconcile.gitlab_housekeeping._process_omm_member",
         return_value=gl_h._MemberResult(merged=False, active=True),
     )
-    apply_mock = mocker.patch("reconcile.gitlab_housekeeping.apply_omm_pending")
-
     lead = _make_omm_lead(sha="abc123", labels=["tenant-lead"])
 
     existing = _make_merge_mr(10, ["approved", "tenant-foo", "omm-pending"])
     newcomer = _make_merge_mr(20, ["approved", "tenant-bar"])
+
+    apply_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.apply_omm_pending",
+        return_value=[newcomer],
+    )
 
     mocker.patch(
         "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
@@ -4076,5 +4102,3 @@ def test_omm_expansion_ejects_pending_mr_with_overlapping_labels(
     mocked_gl.remove_label.assert_called_once_with(mr2, "omm-pending")
     processed_mrs = [call.args[2] for call in process_member_mock.call_args_list]
     assert mr2 not in processed_mrs
-
-

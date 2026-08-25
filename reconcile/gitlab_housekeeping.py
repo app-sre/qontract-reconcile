@@ -762,8 +762,14 @@ def apply_omm_pending(
     dry_run: bool,
     gl: GitLabApi,
     mrs: list[ProjectMergeRequest],
-) -> None:
-    """Apply omm-pending label and kick rebases for group candidates."""
+) -> list[ProjectMergeRequest]:
+    """Apply omm-pending label and kick rebases for group candidates.
+
+    Returns the subset of MRs that were successfully retained in the group
+    (i.e. whose rebase did not fail). In dry-run mode all candidates are
+    returned as retained since no mutations are performed.
+    """
+    retained: list[ProjectMergeRequest] = []
     for mr in mrs:
         logging.info(["omm-group", "add-pending", gl.project.name, mr.iid])
         if not dry_run:
@@ -789,6 +795,9 @@ def apply_omm_pending(
                     project_id=mr.target_project_id,
                     reason="rebase_failed",
                 ).inc()
+                continue
+        retained.append(mr)
+    return retained
 
 
 def apply_omm_group_lead(
@@ -1401,9 +1410,10 @@ def _process_omm_group(
             f"added={len(new_candidates)}",
             f"group_size={len(pending) + len(new_candidates)}",
         ])
-        apply_omm_pending(dry_run, gl, new_candidates)
-        omm_group_expanded.labels(project_id=gl.project.id).inc(len(new_candidates))
-        any_active = True
+        retained = apply_omm_pending(dry_run, gl, new_candidates)
+        if retained:
+            omm_group_expanded.labels(project_id=gl.project.id).inc(len(retained))
+            any_active = True
 
     if not any_active:
         logging.info(["omm-group", "adaptive-close", gl.project.name])
