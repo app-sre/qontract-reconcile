@@ -13,6 +13,7 @@ from qontract_api.config import Settings
 from qontract_api.integrations.quay_robot_accounts.domain import (
     QuayOrgDesiredState,
     QuayRobotDesiredState,
+    QuayRobotRepository,
 )
 from qontract_api.integrations.quay_robot_accounts.schemas import (
     QuayRobotActionAddTeam,
@@ -85,6 +86,13 @@ def service(
     )
 
 
+def _repos(**permissions: str) -> list[QuayRobotRepository]:
+    return [
+        QuayRobotRepository(name=name, permission=permission)
+        for name, permission in permissions.items()
+    ]
+
+
 def _org(
     token: Secret,
     *,
@@ -124,7 +132,7 @@ def test_reconcile_no_changes(
             QuayRobotDesiredState(
                 name="ci-bot",
                 teams=["team1"],
-                repositories={"repo1": "read"},
+                repositories=_repos(repo1="read"),
             )
         ],
     )
@@ -147,7 +155,7 @@ def test_reconcile_create_robot_with_team_and_repo(
                 name="new-bot",
                 description="New",
                 teams=["team1"],
-                repositories={"repo1": "read"},
+                repositories=_repos(repo1="read"),
             )
         ],
     )
@@ -254,7 +262,7 @@ def test_reconcile_repository_changes(
         robots=[
             QuayRobotDesiredState(
                 name="bot",
-                repositories={"repo1": "write", "repo3": "read"},
+                repositories=_repos(repo1="write", repo3="read"),
             )
         ],
     )
@@ -302,7 +310,7 @@ def test_validate_repos_require_managed_repos(
 ) -> None:
     org = _org(
         test_token,
-        robots=[QuayRobotDesiredState(name="bot", repositories={"repo1": "read"})],
+        robots=[QuayRobotDesiredState(name="bot", repositories=_repos(repo1="read"))],
         managed_repos=False,
     )
     result = service.reconcile(organizations=[org], dry_run=True)
@@ -369,6 +377,7 @@ def test_apply_create_robot(
     )
     result = service.reconcile(organizations=[org], dry_run=False)
     mock_quay_client.create_robot_account.assert_called_once_with("new-bot", "n")
+    mock_quay_client.close.assert_called_once()
     assert result.applied_count == 1
     assert result.status == TaskStatus.SUCCESS
 
@@ -394,7 +403,7 @@ def test_apply_remaining_action_types(
             QuayRobotDesiredState(
                 name="keep",
                 teams=["team2"],
-                repositories={"repo2": "write"},
+                repositories=_repos(repo2="write"),
             ),
             QuayRobotDesiredState(name="gone", delete=True),
         ],
@@ -457,3 +466,18 @@ def test_inventory_error_does_not_abort_other_orgs(
     assert result.status == TaskStatus.FAILED
     assert any("test-org" in e and "401" in e for e in result.errors)
     assert any(a.robot_name == "b" for a in result.actions)
+    failing.close.assert_called_once()
+    ok.close.assert_called_once()
+
+
+def test_duplicate_robot_names_rejected(test_token: Secret) -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="duplicate robot names"):
+        _org(
+            test_token,
+            robots=[
+                QuayRobotDesiredState(name="bot"),
+                QuayRobotDesiredState(name="bot"),
+            ],
+        )

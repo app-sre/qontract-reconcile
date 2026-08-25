@@ -91,10 +91,10 @@ def test_post_reconcile_dry_run_false(
 ) -> None:
     response = client.post(
         "/api/v1/integrations/quay-robot-accounts/reconcile",
-        json={
-            "organizations": [sample_org.model_dump()],
-            "dry_run": False,
-        },
+        json=QuayRobotAccountsReconcileRequest(
+            organizations=[sample_org],
+            dry_run=False,
+        ).model_dump(),
         headers=auth_headers,
     )
 

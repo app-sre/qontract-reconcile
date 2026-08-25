@@ -11,8 +11,8 @@ def test_robot_account_defaults() -> None:
     robot = RobotAccount(name="ci-bot")
     assert robot.name == "ci-bot"
     assert robot.description is None
-    assert robot.teams == []
-    assert robot.repositories == []
+    assert robot.teams == ()
+    assert robot.repositories == ()
 
 
 def test_robot_account_frozen() -> None:

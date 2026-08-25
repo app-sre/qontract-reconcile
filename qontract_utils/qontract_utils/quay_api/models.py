@@ -15,8 +15,8 @@ class RobotAccount(BaseModel):
 
     name: str
     description: str | None = None
-    teams: list[str] = Field(default_factory=list)
-    repositories: list[str] = Field(default_factory=list)
+    teams: tuple[str, ...] = ()
+    repositories: tuple[str, ...] = ()
 
 
 class RobotAccountRepository(BaseModel):
@@ -33,4 +33,55 @@ class RobotAccountPermission(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     repository: RobotAccountRepository
+    role: str
+
+
+class QuayRobotTeamRef(BaseModel):
+    """Team membership as returned by the Quay robots list API."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    name: str
+
+
+class QuayRobotListItem(BaseModel):
+    """A single robot in a Quay list-robots response."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    name: str
+    description: str | None = None
+    teams: list[QuayRobotTeamRef] = Field(default_factory=list)
+    repositories: list[str] = Field(default_factory=list)
+
+
+class QuayRobotListResponse(BaseModel):
+    """Envelope for GET /organization/{org}/robots."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    robots: list[QuayRobotListItem]
+
+
+class QuayRobotPermissionsResponse(BaseModel):
+    """Envelope for GET /organization/{org}/robots/{name}/permissions."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    permissions: list[RobotAccountPermission]
+
+
+class QuayCreateRobotRequest(BaseModel):
+    """PUT body for creating a robot account."""
+
+    model_config = ConfigDict(frozen=True)
+
+    description: str
+
+
+class QuayRepoPermissionRequest(BaseModel):
+    """PUT body for setting a robot's repository role."""
+
+    model_config = ConfigDict(frozen=True)
+
     role: str

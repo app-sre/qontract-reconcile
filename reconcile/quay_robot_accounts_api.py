@@ -27,6 +27,7 @@ from qontract_api_client.schemas import (
     QuayRobotActionRemoveTeam,
     QuayRobotActionSetRepoPermission,
     QuayRobotDesiredState,
+    QuayRobotRepository,
     Secret,
     TaskStatus,
 )
@@ -114,9 +115,10 @@ class QuayRobotAccountsIntegration(
                     "managed_robot_accounts": bool(org.managed_robot_accounts),
                 }
 
-            repositories = {
-                repo.name: repo.permission for repo in (robot.repositories or [])
-            }
+            repositories = [
+                QuayRobotRepository(name=repo.name, permission=repo.permission)
+                for repo in (robot.repositories or [])
+            ]
             robots_by_org[key].append(
                 QuayRobotDesiredState(
                     name=robot.name,

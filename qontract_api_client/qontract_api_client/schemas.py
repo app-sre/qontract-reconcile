@@ -682,6 +682,12 @@ class QuayOrgDesiredState(pydantic.BaseModel):
     token: Secret
 
 
+class QuayRepoPermission(str, enum.Enum):
+    READ = "read"
+    WRITE = "write"
+    ADMIN = "admin"
+
+
 class QuayRobotAccountsReconcileRequest(pydantic.BaseModel):
     dry_run: bool = True
     organizations: list[QuayOrgDesiredState]
@@ -773,8 +779,13 @@ class QuayRobotDesiredState(pydantic.BaseModel):
     delete: bool = False
     description: str | None = None
     name: str
-    repositories: dict[str, typing.Any] | None = None
+    repositories: list[QuayRobotRepository] | None = None
     teams: list[str] | None = None
+
+
+class QuayRobotRepository(pydantic.BaseModel):
+    name: str
+    permission: QuayRepoPermission
 
 
 class RecipientType(str, enum.Enum):

@@ -1,6 +1,9 @@
 """Tests for the quay-robot-accounts-api client-side integration."""
 
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from unittest.mock import ANY, AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 from qontract_api_client.schemas import (
@@ -23,17 +26,28 @@ from reconcile.quay_robot_accounts_api import (
     QuayRobotAccountsIntegrationParams,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+
 SECRET_MANAGER_URL = "https://vault.example.com"
 
 
-class _TestableIntegration(QuayRobotAccountsIntegration):
-    @property
-    def secret_manager_url(self) -> str:
-        return SECRET_MANAGER_URL
+@pytest.fixture(autouse=True)
+def patch_secret_manager_url() -> Iterator[None]:
+    with patch.object(
+        QuayRobotAccountsIntegration,
+        "secret_manager_url",
+        new_callable=PropertyMock,
+        return_value=SECRET_MANAGER_URL,
+    ):
+        yield
 
 
-def make_integration(org_name: str | None = None) -> _TestableIntegration:
-    return _TestableIntegration(QuayRobotAccountsIntegrationParams(org_name=org_name))
+def make_integration(org_name: str | None = None) -> QuayRobotAccountsIntegration:
+    return QuayRobotAccountsIntegration(
+        QuayRobotAccountsIntegrationParams(org_name=org_name)
+    )
 
 
 def make_vault_secret(

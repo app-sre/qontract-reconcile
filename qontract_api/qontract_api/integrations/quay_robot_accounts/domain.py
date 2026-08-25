@@ -1,8 +1,28 @@
 """Desired-state domain models for the quay-robot-accounts integration."""
 
-from pydantic import BaseModel, Field, field_validator
+from enum import StrEnum
+from typing import Self
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from qontract_api.models import Secret
+
+
+class QuayRepoPermission(StrEnum):
+    """Allowed Quay repository roles for a robot account."""
+
+    READ = "read"
+    WRITE = "write"
+    ADMIN = "admin"
+
+
+class QuayRobotRepository(BaseModel, frozen=True):
+    """Desired permission for a robot on a single repository."""
+
+    name: str = Field(..., description="Repository name")
+    permission: QuayRepoPermission = Field(
+        ..., description="Repository role: read, write, or admin"
+    )
 
 
 class QuayRobotDesiredState(BaseModel, frozen=True):
@@ -14,9 +34,9 @@ class QuayRobotDesiredState(BaseModel, frozen=True):
         default_factory=list,
         description="Teams the robot should belong to (managedTeams only)",
     )
-    repositories: dict[str, str] = Field(
-        default_factory=dict,
-        description="Repository name to permission (read/write/admin)",
+    repositories: list[QuayRobotRepository] = Field(
+        default_factory=list,
+        description="Desired repository permissions for this robot",
     )
     delete: bool = Field(
         default=False,
@@ -30,8 +50,10 @@ class QuayRobotDesiredState(BaseModel, frozen=True):
 
     @field_validator("repositories")
     @classmethod
-    def sort_repositories(cls, value: dict[str, str]) -> dict[str, str]:
-        return dict(sorted(value.items()))
+    def sort_repositories(
+        cls, value: list[QuayRobotRepository]
+    ) -> list[QuayRobotRepository]:
+        return sorted(value, key=lambda repo: repo.name)
 
 
 class QuayOrgDesiredState(BaseModel, frozen=True):
@@ -64,3 +86,14 @@ class QuayOrgDesiredState(BaseModel, frozen=True):
     @classmethod
     def sort_managed_teams(cls, value: list[str]) -> list[str]:
         return sorted(value)
+
+    @model_validator(mode="after")
+    def unique_robot_names(self) -> Self:
+        names = [robot.name for robot in self.robots]
+        duplicates = sorted({name for name in names if names.count(name) > 1})
+        if duplicates:
+            raise ValueError(
+                "duplicate robot names in organization "
+                f"{self.instance_name}/{self.org_name}: {', '.join(duplicates)}"
+            )
+        return self

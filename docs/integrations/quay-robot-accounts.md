@@ -46,7 +46,7 @@ The org must set `managedRobotAccounts: true`. Teams must be listed in `managedT
 
 **Client-Side (`reconcile/quay_robot_accounts_api.py`):**
 
-- Queries `quay_robots_v1` with org guardrails and automation token refs (qenerate types in `reconcile/gql_definitions/quay_robot_accounts_api/`)
+- Queries `quay_robots_v1` with org guardrails and automation token refs (generated types in `reconcile/gql_definitions/quay_robot_accounts_api/`)
 - Groups robots by instance/org and embeds Vault `Secret` references (never raw tokens)
 - Fails closed if a referenced org has no `automationToken`
 - Sends the complete desired state to qontract-api in a single request
@@ -95,7 +95,7 @@ Content-Type: application/json
           "name": "ci-bot",
           "description": "CI robot",
           "teams": ["sre"],
-          "repositories": {"my-image": "write"},
+          "repositories": [{"name": "my-image", "permission": "write"}],
           "delete": false
         }
       ]
@@ -149,7 +149,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 **Validation Rules:**
 
-- Teams and repository maps are sorted for deterministic output
+- Teams and repository permissions are sorted for deterministic output
 - Org must have `managed_robot_accounts=true` or the org is skipped with an error
 - Desired teams must be listed in `managed_teams`
 - Non-empty `repositories` requires `managed_repos=true`
@@ -313,10 +313,10 @@ automationToken:
 **Example (dry-run via CLI):**
 
 ```bash
-qd quay-robot-accounts-api --dry-run
+qontract-reconcile quay-robot-accounts-api --dry-run
 
 # Filter to one org
-qd quay-robot-accounts-api --org my-org --dry-run
+qontract-reconcile quay-robot-accounts-api --org my-org --dry-run
 ```
 
 **Example (direct API call):**
@@ -335,7 +335,7 @@ curl -s -X POST http://localhost:8000/api/v1/integrations/quay-robot-accounts/re
       "managed_teams": ["sre"],
       "managed_repos": true,
       "managed_robot_accounts": true,
-      "robots": [{"name": "ci-bot", "teams": ["sre"], "repositories": {}, "delete": false}],
+      "robots": [{"name": "ci-bot", "teams": ["sre"], "repositories": [], "delete": false}],
       "token": {
         "secret_manager_url": "https://vault.example.com",
         "path": "app-sre/creds/quay/my-org",

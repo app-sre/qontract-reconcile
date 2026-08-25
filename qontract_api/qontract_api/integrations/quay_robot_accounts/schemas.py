@@ -116,3 +116,9 @@ class QuayRobotAccountsTaskResponse(BaseModel, frozen=True):
     status_url: str = Field(
         ..., description="URL to retrieve task result (GET request)"
     )
+
+
+class QuayRobotAccountsErrorEvent(BaseModel, frozen=True):
+    """Payload published when a reconciliation error is recorded."""
+
+    error: str

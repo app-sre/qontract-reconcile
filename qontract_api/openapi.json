@@ -3202,6 +3202,16 @@
         "title": "QuayOrgDesiredState",
         "type": "object"
       },
+      "QuayRepoPermission": {
+        "description": "Allowed Quay repository roles for a robot account.",
+        "enum": [
+          "read",
+          "write",
+          "admin"
+        ],
+        "title": "QuayRepoPermission",
+        "type": "string"
+      },
       "QuayRobotAccountsReconcileRequest": {
         "description": "Request model for quay-robot-accounts reconciliation.",
         "properties": {
@@ -3602,12 +3612,12 @@
             "type": "string"
           },
           "repositories": {
-            "additionalProperties": {
-              "type": "string"
+            "description": "Desired repository permissions for this robot",
+            "items": {
+              "$ref": "#/components/schemas/QuayRobotRepository"
             },
-            "description": "Repository name to permission (read/write/admin)",
             "title": "Repositories",
-            "type": "object"
+            "type": "array"
           },
           "teams": {
             "description": "Teams the robot should belong to (managedTeams only)",
@@ -3622,6 +3632,26 @@
           "name"
         ],
         "title": "QuayRobotDesiredState",
+        "type": "object"
+      },
+      "QuayRobotRepository": {
+        "description": "Desired permission for a robot on a single repository.",
+        "properties": {
+          "name": {
+            "description": "Repository name",
+            "title": "Name",
+            "type": "string"
+          },
+          "permission": {
+            "$ref": "#/components/schemas/QuayRepoPermission",
+            "description": "Repository role: read, write, or admin"
+          }
+        },
+        "required": [
+          "name",
+          "permission"
+        ],
+        "title": "QuayRobotRepository",
         "type": "object"
       },
       "RecipientType": {

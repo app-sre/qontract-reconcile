@@ -10,6 +10,7 @@ from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
 from qontract_api.event_manager import get_event_manager
 from qontract_api.integrations.quay_robot_accounts.schemas import (
+    QuayRobotAccountsErrorEvent,
     QuayRobotAccountsTaskResult,
 )
 from qontract_api.integrations.quay_robot_accounts.service import (
@@ -97,7 +98,9 @@ def reconcile_quay_robot_accounts_task(
                     Event(
                         source=__name__,
                         type="qontract-api.quay-robot-accounts.error",
-                        data={"error": error},
+                        data=QuayRobotAccountsErrorEvent(error=error).model_dump(
+                            mode="json"
+                        ),
                         datacontenttype="application/json",
                     )
                 )

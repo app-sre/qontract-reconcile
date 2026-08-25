@@ -116,3 +116,10 @@ def test_get_robot_account_permissions_cache_miss(
 
     assert result == perms
     mock_api.get_robot_account_permissions.assert_called_once_with("ci-bot")
+
+
+def test_close_delegates_to_api(
+    client: QuayWorkspaceClient, mock_api: MagicMock
+) -> None:
+    client.close()
+    mock_api.close.assert_called_once()

@@ -17,7 +17,14 @@ from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
-from qontract_utils.quay_api.models import RobotAccount, RobotAccountPermission
+from qontract_utils.quay_api.models import (
+    QuayCreateRobotRequest,
+    QuayRepoPermissionRequest,
+    QuayRobotListResponse,
+    QuayRobotPermissionsResponse,
+    RobotAccount,
+    RobotAccountPermission,
+)
 from qontract_utils.user_agent import DEFAULT_USER_AGENT
 
 logger = structlog.get_logger(__name__)
@@ -191,19 +198,21 @@ class QuayApi:
 
         Names are normalized to short names (the ``org+`` prefix is stripped).
         """
-        body = self._get(
-            f"/api/v1/organization/{self.organization}/robots",
-            params={"permissions": "true"},
+        body = QuayRobotListResponse.model_validate(
+            self._get(
+                f"/api/v1/organization/{self.organization}/robots",
+                params={"permissions": "true"},
+            )
         )
         prefix = f"{self.organization}+"
         return [
             RobotAccount(
-                name=robot["name"].removeprefix(prefix),
-                description=robot.get("description"),
-                teams=[t["name"] for t in robot.get("teams") or []],
-                repositories=robot.get("repositories") or [],
+                name=robot.name.removeprefix(prefix),
+                description=robot.description,
+                teams=tuple(team.name for team in robot.teams),
+                repositories=tuple(robot.repositories),
             )
-            for robot in body["robots"]
+            for robot in body.robots
         ]
 
     @invoke_with_hooks(
@@ -215,7 +224,7 @@ class QuayApi:
         """Create a robot account. The returned token is discarded."""
         self._put(
             f"/api/v1/organization/{self.organization}/robots/{name}",
-            data={"description": description},
+            data=QuayCreateRobotRequest(description=description).model_dump(),
         )
 
     @invoke_with_hooks(
@@ -234,12 +243,12 @@ class QuayApi:
     )
     def get_robot_account_permissions(self, name: str) -> list[RobotAccountPermission]:
         """List repository permissions for a robot account."""
-        body = self._get(
-            f"/api/v1/organization/{self.organization}/robots/{name}/permissions"
+        body = QuayRobotPermissionsResponse.model_validate(
+            self._get(
+                f"/api/v1/organization/{self.organization}/robots/{name}/permissions"
+            )
         )
-        return [
-            RobotAccountPermission.model_validate(perm) for perm in body["permissions"]
-        ]
+        return list(body.permissions)
 
     @invoke_with_hooks(
         lambda self: QuayApiCallContext(
@@ -287,7 +296,7 @@ class QuayApi:
         self._put(
             f"/api/v1/repository/{self.organization}/{repo_name}"
             f"/permissions/user/{self._robot_user(robot_name)}",
-            data={"role": role},
+            data=QuayRepoPermissionRequest(role=role).model_dump(),
         )
 
     @invoke_with_hooks(

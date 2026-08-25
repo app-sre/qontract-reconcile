@@ -177,7 +177,10 @@ class QuayRobotAccountsService:
             for team in team_diff.delete
         )
 
-        repo_diff = diff_mappings(current_repos, desired.repositories)
+        desired_repos = {
+            repo.name: str(repo.permission) for repo in desired.repositories
+        }
+        repo_diff = diff_mappings(current_repos, desired_repos)
         for repo, role in repo_diff.add.items():
             actions.append(
                 QuayRobotActionSetRepoPermission(
@@ -288,31 +291,36 @@ class QuayRobotAccountsService:
                 errors.extend(validation_errors)
                 continue
 
+            quay_client: QuayWorkspaceClient | None = None
             try:
-                quay_client = self._create_quay_client(org)
-                org_actions = self._calculate_actions(org, quay_client)
-                all_actions.extend(org_actions)
-            except Exception as e:
-                error_msg = (
-                    f"{org_label}: Unexpected error during diff calculation: {e}"
-                )
-                logger.exception(error_msg)
-                errors.append(error_msg)
-                continue
+                try:
+                    quay_client = self._create_quay_client(org)
+                    org_actions = self._calculate_actions(org, quay_client)
+                    all_actions.extend(org_actions)
+                except Exception as e:
+                    error_msg = (
+                        f"{org_label}: Unexpected error during diff calculation: {e}"
+                    )
+                    logger.exception(error_msg)
+                    errors.append(error_msg)
+                    continue
 
-            if not dry_run and org_actions:
-                for action in org_actions:
-                    try:
-                        self._execute_action(quay_client, action)
-                        applied_actions.append(action)
-                    except Exception as e:
-                        error_msg = (
-                            f"{action.instance_name}/{action.org_name}/"
-                            f"{action.robot_name}: Failed to execute "
-                            f"{action.action_type}: {e}"
-                        )
-                        logger.exception(error_msg)
-                        errors.append(error_msg)
+                if not dry_run and org_actions:
+                    for action in org_actions:
+                        try:
+                            self._execute_action(quay_client, action)
+                            applied_actions.append(action)
+                        except Exception as e:
+                            error_msg = (
+                                f"{action.instance_name}/{action.org_name}/"
+                                f"{action.robot_name}: Failed to execute "
+                                f"{action.action_type}: {e}"
+                            )
+                            logger.exception(error_msg)
+                            errors.append(error_msg)
+            finally:
+                if quay_client is not None:
+                    quay_client.close()
 
         return QuayRobotAccountsTaskResult(
             status=TaskStatus.FAILED if errors else TaskStatus.SUCCESS,

@@ -145,3 +145,7 @@ class QuayWorkspaceClient:
         """Remove a robot's repository permission and invalidate cache."""
         self._api.delete_repo_robot_account_permissions(repo_name, robot_name)
         self._clear_cache(self._permissions_cache_key(robot_name))
+
+    def close(self) -> None:
+        """Close the underlying Layer 1 HTTP client."""
+        self._api.close()

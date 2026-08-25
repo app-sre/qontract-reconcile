@@ -74,8 +74,8 @@ def test_list_robot_accounts(quay_api: QuayApi, mock_httpx_client: MagicMock) ->
     robots = quay_api.list_robot_accounts()
 
     assert [r.name for r in robots] == ["robot1", "robot2"]
-    assert robots[0].teams == ["team1", "team2"]
-    assert robots[0].repositories == ["repo1"]
+    assert robots[0].teams == ("team1", "team2")
+    assert robots[0].repositories == ("repo1",)
     mock_httpx_client.get.assert_called_once_with(
         f"/api/v1/organization/{ORG}/robots",
         params={"permissions": "true"},
