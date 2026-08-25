@@ -149,6 +149,12 @@ merge_batch_size_histogram = Histogram(
     buckets=(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, float("inf")),
 )
 
+omm_group_expanded = Counter(
+    name="qontract_reconcile_omm_group_expanded_total",
+    documentation="MRs added to an already-active OMM group after formation",
+    labelnames=["project_id"],
+)
+
 
 class RebaseStrategy(StrEnum):
     ACTIVE_CAP = "active-cap"
@@ -849,7 +855,7 @@ def _form_omm_group(
 
     Note: this makes one get_merge_request_pipelines API call per candidate,
     proportional to queue length. Acceptable because it runs at most once per
-    reconcile loop (after the first merge).
+    reconcile loop after the first merge, and once more during expansion.
     """
     candidates: list[ProjectMergeRequest] = []
     group_labels = set(merged_labels)
@@ -1295,11 +1301,14 @@ def _process_omm_group(
     app_sre_usernames: AbstractSet[str],
     pipeline_timeout: int | None = None,
     merge_limit: int = 8,
+    merge_requests: list[dict[str, Any]] | None = None,
 ) -> int:
     """Process an active OMM group. Returns number of merges performed.
 
-    Single-pass: check window, verify post-merge CI, process each pending
-    member (merge if ready, eject if failed). Non-blocking.
+    Single-pass: check window, verify post-merge CI, eject overlapping
+    pending members, process each remaining member (merge if ready, eject
+    if failed), then expand with new non-overlapping candidates.
+    Non-blocking.
 
     Enforces ``merge_limit`` — when reached the group is cleared so the
     next loop starts fresh with a serial merge and re-evaluation.
@@ -1346,6 +1355,19 @@ def _process_omm_group(
         clear_omm_group(dry_run, gl, lead=lead, pending=pending)
         return 0
 
+    seen_labels: set[str] = set()
+    kept: list[ProjectMergeRequest] = []
+    for mr in pending:
+        mr_labels = get_tenant_labels(mr)
+        if has_overlapping_labels(mr_labels, seen_labels):
+            logging.info(["omm-group", "eject-overlap", gl.project.name, mr.iid])
+            if not dry_run:
+                gl.remove_label(mr, OMM_PENDING)
+            continue
+        seen_labels.update(mr_labels)
+        kept.append(mr)
+    pending = kept
+
     merges = 0
     any_active = False
 
@@ -1363,6 +1385,25 @@ def _process_omm_group(
                 clear_omm_group(dry_run, gl, lead=lead, pending=pending)
                 return merges
         any_active |= r.active
+
+    queue = merge_requests or []
+    pending_iids = {mr.iid for mr in pending}
+    group_labels = set(get_tenant_labels(lead))
+    for mr in pending:
+        group_labels.update(get_tenant_labels(mr))
+    expansion_queue = [m for m in queue if m["mr"].iid not in pending_iids]
+    new_candidates = _form_omm_group(gl, expansion_queue, group_labels)
+    if new_candidates:
+        logging.info([
+            "omm-group",
+            "expanded",
+            gl.project.name,
+            f"added={len(new_candidates)}",
+            f"group_size={len(pending) + len(new_candidates)}",
+        ])
+        apply_omm_pending(dry_run, gl, new_candidates)
+        omm_group_expanded.labels(project_id=gl.project.id).inc(len(new_candidates))
+        any_active = True
 
     if not any_active:
         logging.info(["omm-group", "adaptive-close", gl.project.name])
@@ -1425,6 +1466,7 @@ def merge_merge_requests(
                 app_sre_usernames=app_sre_usernames,
                 pipeline_timeout=pipeline_timeout,
                 merge_limit=merge_limit,
+                merge_requests=merge_requests,
             )
             merge_batch_size_histogram.labels(project_id=gl.project.id).observe(merges)
             return

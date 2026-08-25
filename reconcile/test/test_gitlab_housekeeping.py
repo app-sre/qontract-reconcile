@@ -3943,3 +3943,138 @@ def test_form_omm_group_skipped_pipeline_filtered_includes_candidate(
     candidates = gl_h._form_omm_group(mocked_gl, items, set())
 
     assert candidates == [mr]
+
+
+# --- OMM dynamic group expansion tests ---
+
+
+def _make_omm_lead(
+    *,
+    sha: str = "abc123",
+    labels: list[str] | None = None,
+) -> Mock:
+    """Create a lead MR mock for expansion tests."""
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = sha
+    lead.squash_commit_sha = None
+    lead.target_branch = "master"
+    lead.labels = labels or ["tenant-lead"]
+    return lead
+
+
+def test_omm_expansion_adds_newcomer_skips_existing(
+    mocker: MockerFixture,
+) -> None:
+    """Expansion adds a new non-overlapping MR but does not re-add an MR
+    that is already pending in the group."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch("reconcile.gitlab_housekeeping.clear_omm_group")
+    mocker.patch(
+        "reconcile.gitlab_housekeeping._process_omm_member",
+        return_value=gl_h._MemberResult(merged=False, active=True),
+    )
+    apply_mock = mocker.patch("reconcile.gitlab_housekeeping.apply_omm_pending")
+
+    lead = _make_omm_lead(sha="abc123", labels=["tenant-lead"])
+
+    existing = _make_merge_mr(10, ["approved", "tenant-foo", "omm-pending"])
+    newcomer = _make_merge_mr(20, ["approved", "tenant-bar"])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[existing],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+
+    # existing is in both pending and queue — must not be re-added
+    queue = [_make_merge_item(existing), _make_merge_item(newcomer)]
+
+    gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+        merge_requests=queue,
+    )
+
+    apply_mock.assert_called_once_with(False, mocked_gl, [newcomer])
+
+
+def test_omm_expansion_overlapping_candidate_not_added(
+    mocker: MockerFixture,
+) -> None:
+    """A new MR whose tenant label overlaps with a current pending member
+    is not added to the group during expansion."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch("reconcile.gitlab_housekeeping.clear_omm_group")
+    mocker.patch(
+        "reconcile.gitlab_housekeeping._process_omm_member",
+        return_value=gl_h._MemberResult(merged=False, active=True),
+    )
+    apply_mock = mocker.patch("reconcile.gitlab_housekeeping.apply_omm_pending")
+
+    lead = _make_omm_lead(sha="abc123", labels=["tenant-lead"])
+
+    existing = _make_merge_mr(10, ["approved", "tenant-foo", "omm-pending"])
+    overlapping = _make_merge_mr(20, ["approved", "tenant-foo"])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[existing],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+
+    queue = [_make_merge_item(existing), _make_merge_item(overlapping)]
+
+    gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+        merge_requests=queue,
+    )
+
+    apply_mock.assert_not_called()
+
+
+def test_omm_expansion_ejects_pending_mr_with_overlapping_labels(
+    mocker: MockerFixture,
+) -> None:
+    """A pending MR whose tenant label now conflicts with another pending MR
+    (e.g. due to manual label edit) is ejected from the group."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch("reconcile.gitlab_housekeeping.clear_omm_group")
+    process_member_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping._process_omm_member",
+        return_value=gl_h._MemberResult(merged=False, active=True),
+    )
+
+    lead = _make_omm_lead(sha="abc123", labels=["tenant-lead"])
+
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo", "omm-pending"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-foo", "omm-pending"])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr1, mr2],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+
+    gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+        merge_requests=[],
+    )
+
+    mocked_gl.remove_label.assert_called_once_with(mr2, "omm-pending")
+    processed_mrs = [call.args[2] for call in process_member_mock.call_args_list]
+    assert mr2 not in processed_mrs
+
+
