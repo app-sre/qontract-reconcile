@@ -1364,7 +1364,7 @@ def _process_omm_group(
         clear_omm_group(dry_run, gl, lead=lead, pending=pending)
         return 0
 
-    seen_labels: set[str] = set()
+    seen_labels: set[str] = set(get_tenant_labels(lead))
     kept: list[ProjectMergeRequest] = []
     for mr in pending:
         mr_labels = get_tenant_labels(mr)
