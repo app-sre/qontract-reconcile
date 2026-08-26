@@ -5,7 +5,7 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from qontract_utils.aws_api_typed._hooks import AWS_DEFAULT_HOOKS, AWSApiCallContext
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
@@ -21,6 +21,40 @@ class RosaOffer(BaseModel):
     # fully-formed requestedTerms payload for create_agreement_request, i.e. a
     # list of {"id": ..., "configuration": {...}?} entries.
     requested_terms: list[dict[str, Any]]
+
+
+# Typed boundary models for the raw marketplace-discovery responses. Fields use
+# the AWS wire-format aliases so raw responses parse via Model(**raw), matching
+# the pattern in the sibling aws_api_typed modules.
+class MarketplaceOffer(BaseModel):
+    offer_id: str | None = Field(None, alias="offerId")
+
+
+class AssociatedEntity(BaseModel):
+    offer: MarketplaceOffer | None = None
+
+
+class PurchaseOption(BaseModel):
+    purchase_option_id: str | None = Field(None, alias="purchaseOptionId")
+    available_from_time: datetime | None = Field(None, alias="availableFromTime")
+    expiration_time: datetime | None = Field(None, alias="expirationTime")
+    associated_entities: list[AssociatedEntity] = Field(
+        default_factory=list, alias="associatedEntities"
+    )
+
+
+class RateCardSelector(BaseModel):
+    value: str | None = None
+
+
+class RateCardDimension(BaseModel):
+    dimension_key: str | None = Field(None, alias="dimensionKey")
+
+
+class RateCard(BaseModel):
+    selector: RateCardSelector | None = None
+    # AWS names the dimension list "rateCard" inside each rate card entry.
+    dimensions: list[RateCardDimension] = Field(default_factory=list, alias="rateCard")
 
 
 @with_hooks(hooks=AWS_DEFAULT_HOOKS)
@@ -66,10 +100,11 @@ class AWSApiMarketplace:
                 }
             ],
         )
-        options = resp.get("purchaseOptions", [])
-        if not options:
+        options_raw = resp.get("purchaseOptions", [])
+        if not options_raw:
             msg = "No purchase options found for ROSA HCP product"
             raise RuntimeError(msg)
+        options = [PurchaseOption(**o) for o in options_raw]
 
         # list_purchase_options returns *all* purchase options for the product,
         # including expired / not-yet-available offers, in no guaranteed order.
@@ -81,11 +116,11 @@ class AWSApiMarketplace:
 
         offer_id = next(
             (
-                entity["offer"]["offerId"]
-                for entity in option.get("associatedEntities", [])
-                if entity.get("offer", {}).get("offerId")
+                entity.offer.offer_id
+                for entity in option.associated_entities
+                if entity.offer and entity.offer.offer_id
             ),
-            option.get("purchaseOptionId"),
+            option.purchase_option_id,
         )
         if not offer_id:
             msg = "Could not determine offer ID for ROSA HCP product"
@@ -111,8 +146,8 @@ class AWSApiMarketplace:
 
     @staticmethod
     def _select_active_purchase_option(
-        options: list[dict[str, Any]],
-    ) -> dict[str, Any]:
+        options: list[PurchaseOption],
+    ) -> PurchaseOption:
         """Select the currently-active purchase option.
 
         AWS returns every purchase option for the product — including offers
@@ -126,17 +161,15 @@ class AWSApiMarketplace:
         active = [
             o
             for o in options
-            if (o.get("availableFromTime") is None or o["availableFromTime"] <= now)
-            and (o.get("expirationTime") is None or o["expirationTime"] > now)
+            if (o.available_from_time is None or o.available_from_time <= now)
+            and (o.expiration_time is None or o.expiration_time > now)
         ]
         if not active:
             msg = "No active purchase options found for ROSA HCP product"
             raise RuntimeError(msg)
         return max(
             active,
-            key=lambda o: (
-                o.get("availableFromTime") or datetime.min.replace(tzinfo=UTC)
-            ),
+            key=lambda o: o.available_from_time or datetime.min.replace(tzinfo=UTC),
         )
 
     @classmethod
@@ -184,21 +217,26 @@ class AWSApiMarketplace:
         dimension with a committed quantity of 0 so there is no upfront spend
         regardless of the duration chosen.
         """
-        rate_cards = term_data.get("rateCards") or []
-        if not rate_cards:
+        rate_cards_raw = term_data.get("rateCards") or []
+        if not rate_cards_raw:
             msg = "configurableUpfrontPricingTerm has no rateCards"
             raise RuntimeError(msg)
+        rate_cards = [RateCard(**rc) for rc in rate_cards_raw]
         rate_card = cls._select_rate_card(rate_cards)
-        selector_value = rate_card["selector"]["value"]
+        # _select_rate_card guarantees a selector value and >=1 dimension.
+        selector_value = rate_card.selector.value if rate_card.selector else None
+        if not selector_value:
+            msg = "configurableUpfrontPricingTerm rateCard has no selector value"
+            raise RuntimeError(msg)
         dimensions = [
-            {"dimensionKey": d["dimensionKey"], "dimensionValue": 0}
-            for d in rate_card.get("rateCard") or []
-            if "dimensionKey" in d
+            {"dimensionKey": d.dimension_key, "dimensionValue": 0}
+            for d in rate_card.dimensions
+            if d.dimension_key
         ]
         return {"selectorValue": selector_value, "dimensions": dimensions}
 
     @classmethod
-    def _select_rate_card(cls, rate_cards: list[dict[str, Any]]) -> dict[str, Any]:
+    def _select_rate_card(cls, rate_cards: list[RateCard]) -> RateCard:
         """Deterministically pick the shortest-duration usable rate card.
 
         A rate card is usable only if it carries both a selector value and at
@@ -206,25 +244,24 @@ class AWSApiMarketplace:
         duration wins (ties broken by the selector string for stability). When
         none are usable, raise the most specific error for diagnostics.
         """
-        usable = [
-            rc
-            for rc in rate_cards
-            if (rc.get("selector") or {}).get("value")
-            and any("dimensionKey" in d for d in rc.get("rateCard") or [])
-        ]
+        usable: list[tuple[RateCard, str]] = []
+        for rc in rate_cards:
+            value = rc.selector.value if rc.selector else None
+            if value and any(d.dimension_key for d in rc.dimensions):
+                usable.append((rc, value))
         if not usable:
-            if any((rc.get("selector") or {}).get("value") for rc in rate_cards):
-                msg = "configurableUpfrontPricingTerm rateCard has no dimensions"
-            else:
-                msg = "configurableUpfrontPricingTerm rateCard has no selector value"
+            has_selector = any(rc.selector and rc.selector.value for rc in rate_cards)
+            msg = (
+                "configurableUpfrontPricingTerm rateCard has no dimensions"
+                if has_selector
+                else "configurableUpfrontPricingTerm rateCard has no selector value"
+            )
             raise RuntimeError(msg)
-        return min(
+        rate_card, _ = min(
             usable,
-            key=lambda rc: (
-                cls._duration_months(rc["selector"]["value"]),
-                rc["selector"]["value"],
-            ),
+            key=lambda t: (cls._duration_months(t[1]), t[1]),
         )
+        return rate_card
 
     @staticmethod
     def _duration_months(value: str) -> int:
