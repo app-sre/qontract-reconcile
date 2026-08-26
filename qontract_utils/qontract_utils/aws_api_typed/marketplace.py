@@ -134,7 +134,9 @@ class AWSApiMarketplace:
             raise RuntimeError(msg)
         return max(
             active,
-            key=lambda o: o.get("availableFromTime") or datetime.min.replace(tzinfo=UTC),
+            key=lambda o: (
+                o.get("availableFromTime") or datetime.min.replace(tzinfo=UTC)
+            ),
         )
 
     @classmethod
@@ -193,27 +195,31 @@ class AWSApiMarketplace:
             for d in rate_card.get("rateCard") or []
             if "dimensionKey" in d
         ]
-        if not dimensions:
-            msg = "configurableUpfrontPricingTerm rateCard has no dimensions"
-            raise RuntimeError(msg)
         return {"selectorValue": selector_value, "dimensions": dimensions}
 
     @classmethod
     def _select_rate_card(cls, rate_cards: list[dict[str, Any]]) -> dict[str, Any]:
         """Deterministically pick the shortest-duration usable rate card.
 
-        Only rate cards carrying a selector value are considered; among those,
-        the one with the shortest contract duration wins (ties broken by the
-        selector string for stability).
+        A rate card is usable only if it carries both a selector value and at
+        least one dimension; among the usable ones the shortest contract
+        duration wins (ties broken by the selector string for stability). When
+        none are usable, raise the most specific error for diagnostics.
         """
-        with_selector = [
-            rc for rc in rate_cards if (rc.get("selector") or {}).get("value")
+        usable = [
+            rc
+            for rc in rate_cards
+            if (rc.get("selector") or {}).get("value")
+            and any("dimensionKey" in d for d in rc.get("rateCard") or [])
         ]
-        if not with_selector:
-            msg = "configurableUpfrontPricingTerm rateCard has no selector value"
+        if not usable:
+            if any((rc.get("selector") or {}).get("value") for rc in rate_cards):
+                msg = "configurableUpfrontPricingTerm rateCard has no dimensions"
+            else:
+                msg = "configurableUpfrontPricingTerm rateCard has no selector value"
             raise RuntimeError(msg)
         return min(
-            with_selector,
+            usable,
             key=lambda rc: (
                 cls._duration_months(rc["selector"]["value"]),
                 rc["selector"]["value"],

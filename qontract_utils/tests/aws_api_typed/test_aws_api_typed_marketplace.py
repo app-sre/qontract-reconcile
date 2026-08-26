@@ -310,9 +310,7 @@ def test_discover_rosa_offer_picks_shortest_duration_rate_card(
     marketplace_api: AWSApiMarketplace, discovery_client: MagicMock
 ) -> None:
     discovery_client.list_purchase_options.return_value = {
-        "purchaseOptions": [
-            {"purchaseOptionId": "po-1", "associatedEntities": []}
-        ]
+        "purchaseOptions": [{"purchaseOptionId": "po-1", "associatedEntities": []}]
     }
     discovery_client.get_offer.return_value = {"agreementProposalId": "prop-xyz"}
     discovery_client.get_offer_terms.return_value = {
@@ -359,9 +357,7 @@ def test_discover_rosa_offer_skips_rate_card_without_selector(
     marketplace_api: AWSApiMarketplace, discovery_client: MagicMock
 ) -> None:
     discovery_client.list_purchase_options.return_value = {
-        "purchaseOptions": [
-            {"purchaseOptionId": "po-1", "associatedEntities": []}
-        ]
+        "purchaseOptions": [{"purchaseOptionId": "po-1", "associatedEntities": []}]
     }
     discovery_client.get_offer.return_value = {"agreementProposalId": "prop-xyz"}
     discovery_client.get_offer_terms.return_value = {
@@ -392,6 +388,45 @@ def test_discover_rosa_offer_skips_rate_card_without_selector(
     ]
     assert config["selectorValue"] == "P12M"
     assert config["dimensions"] == [{"dimensionKey": "d12", "dimensionValue": 0}]
+
+
+def test_discover_rosa_offer_skips_rate_card_without_dimensions(
+    marketplace_api: AWSApiMarketplace, discovery_client: MagicMock
+) -> None:
+    # shortest-duration card has a selector but no dimensions; the longer one is
+    # fully usable and must be chosen instead of raising "no dimensions".
+    discovery_client.list_purchase_options.return_value = {
+        "purchaseOptions": [{"purchaseOptionId": "po-1", "associatedEntities": []}]
+    }
+    discovery_client.get_offer.return_value = {"agreementProposalId": "prop-xyz"}
+    discovery_client.get_offer_terms.return_value = {
+        "offerTerms": [
+            {
+                "configurableUpfrontPricingTerm": {
+                    "id": "term-upfront",
+                    "type": "ConfigurableUpfrontPricingTerm",
+                    "rateCards": [
+                        {
+                            "selector": {"type": "Duration", "value": "P12M"},
+                            "rateCard": [],
+                        },
+                        {
+                            "selector": {"type": "Duration", "value": "P24M"},
+                            "rateCard": [{"dimensionKey": "d24", "price": "1"}],
+                        },
+                    ],
+                }
+            },
+        ]
+    }
+
+    offer = marketplace_api.discover_rosa_offer()
+
+    config = offer.requested_terms[0]["configuration"][
+        "configurableUpfrontPricingTermConfiguration"
+    ]
+    assert config["selectorValue"] == "P24M"
+    assert config["dimensions"] == [{"dimensionKey": "d24", "dimensionValue": 0}]
 
 
 def test_subscribe_rosa(
