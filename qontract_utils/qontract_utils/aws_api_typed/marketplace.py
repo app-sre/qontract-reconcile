@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import re
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -69,13 +71,21 @@ class AWSApiMarketplace:
             msg = "No purchase options found for ROSA HCP product"
             raise RuntimeError(msg)
 
+        # list_purchase_options returns *all* purchase options for the product,
+        # including expired / not-yet-available offers, in no guaranteed order.
+        # Picking the first one blindly can select a rotated-out offer whose
+        # agreementProposalId is inactive, so create_agreement_request then
+        # fails with "Provided agreement proposal is inactive". Select the
+        # currently-active offer instead.
+        option = self._select_active_purchase_option(options)
+
         offer_id = next(
             (
                 entity["offer"]["offerId"]
-                for entity in options[0].get("associatedEntities", [])
+                for entity in option.get("associatedEntities", [])
                 if entity.get("offer", {}).get("offerId")
             ),
-            options[0].get("purchaseOptionId"),
+            option.get("purchaseOptionId"),
         )
         if not offer_id:
             msg = "Could not determine offer ID for ROSA HCP product"
@@ -97,6 +107,34 @@ class AWSApiMarketplace:
             offer_id=offer_id,
             agreement_proposal_id=agreement_proposal_id,
             requested_terms=requested_terms,
+        )
+
+    @staticmethod
+    def _select_active_purchase_option(
+        options: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Select the currently-active purchase option.
+
+        AWS returns every purchase option for the product — including offers
+        that have already expired or are not yet available — with no guaranteed
+        ordering. An option is active when its availability window
+        (availableFromTime .. expirationTime) contains 'now'; boto3 returns
+        these as timezone-aware datetimes. When several are active, prefer the
+        most recently available one.
+        """
+        now = datetime.now(UTC)
+        active = [
+            o
+            for o in options
+            if (o.get("availableFromTime") is None or o["availableFromTime"] <= now)
+            and (o.get("expirationTime") is None or o["expirationTime"] > now)
+        ]
+        if not active:
+            msg = "No active purchase options found for ROSA HCP product"
+            raise RuntimeError(msg)
+        return max(
+            active,
+            key=lambda o: o.get("availableFromTime") or datetime.min.replace(tzinfo=UTC),
         )
 
     @classmethod
@@ -134,22 +172,22 @@ class AWSApiMarketplace:
                 requested_terms.append(requested)
         return requested_terms
 
-    @staticmethod
-    def _build_upfront_config(term_data: dict[str, Any]) -> dict[str, Any]:
+    @classmethod
+    def _build_upfront_config(cls, term_data: dict[str, Any]) -> dict[str, Any]:
         """Zero-commitment configuration for a configurableUpfrontPricingTerm.
 
-        Uses the term's first rate card selector and lists every dimension with
-        a committed quantity of 0.
+        A term can offer several rate cards — one per contract-duration selector
+        (e.g. P12M / P24M / P36M) — in no guaranteed order. Pick deterministically
+        (shortest committed duration) rather than positionally, and list every
+        dimension with a committed quantity of 0 so there is no upfront spend
+        regardless of the duration chosen.
         """
         rate_cards = term_data.get("rateCards") or []
         if not rate_cards:
             msg = "configurableUpfrontPricingTerm has no rateCards"
             raise RuntimeError(msg)
-        rate_card = rate_cards[0]
-        selector_value = (rate_card.get("selector") or {}).get("value")
-        if not selector_value:
-            msg = "configurableUpfrontPricingTerm rateCard has no selector value"
-            raise RuntimeError(msg)
+        rate_card = cls._select_rate_card(rate_cards)
+        selector_value = rate_card["selector"]["value"]
         dimensions = [
             {"dimensionKey": d["dimensionKey"], "dimensionValue": 0}
             for d in rate_card.get("rateCard") or []
@@ -159,6 +197,40 @@ class AWSApiMarketplace:
             msg = "configurableUpfrontPricingTerm rateCard has no dimensions"
             raise RuntimeError(msg)
         return {"selectorValue": selector_value, "dimensions": dimensions}
+
+    @classmethod
+    def _select_rate_card(cls, rate_cards: list[dict[str, Any]]) -> dict[str, Any]:
+        """Deterministically pick the shortest-duration usable rate card.
+
+        Only rate cards carrying a selector value are considered; among those,
+        the one with the shortest contract duration wins (ties broken by the
+        selector string for stability).
+        """
+        with_selector = [
+            rc for rc in rate_cards if (rc.get("selector") or {}).get("value")
+        ]
+        if not with_selector:
+            msg = "configurableUpfrontPricingTerm rateCard has no selector value"
+            raise RuntimeError(msg)
+        return min(
+            with_selector,
+            key=lambda rc: (
+                cls._duration_months(rc["selector"]["value"]),
+                rc["selector"]["value"],
+            ),
+        )
+
+    @staticmethod
+    def _duration_months(value: str) -> int:
+        """Months in an ISO-8601 duration selector (e.g. P12M, P1Y, P1Y6M).
+
+        Unparseable selectors sort last so a recognizable duration is always
+        preferred when one exists.
+        """
+        m = re.fullmatch(r"P(?:(\d+)Y)?(?:(\d+)M)?", value)
+        if not m or not (m.group(1) or m.group(2)):
+            return 10**9
+        return int(m.group(1) or 0) * 12 + int(m.group(2) or 0)
 
     @invoke_with_hooks(
         lambda: AWSApiCallContext(
