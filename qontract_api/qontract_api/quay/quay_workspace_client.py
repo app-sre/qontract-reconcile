@@ -70,6 +70,7 @@ class QuayWorkspaceClient:
             logger.warning(
                 f"Could not acquire lock to clear cache for {cache_key}: {e}"
             )
+            raise
 
     def list_robot_accounts(self) -> list[RobotAccount]:
         """List robot accounts for this org (cached)."""

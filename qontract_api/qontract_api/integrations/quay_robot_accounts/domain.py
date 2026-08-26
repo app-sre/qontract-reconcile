@@ -53,6 +53,10 @@ class QuayRobotDesiredState(BaseModel, frozen=True):
     def sort_repositories(
         cls, value: list[QuayRobotRepository]
     ) -> list[QuayRobotRepository]:
+        names = [repo.name for repo in value]
+        duplicates = sorted({name for name in names if names.count(name) > 1})
+        if duplicates:
+            raise ValueError(f"duplicate repository names: {', '.join(duplicates)}")
         return sorted(value, key=lambda repo: repo.name)
 
 

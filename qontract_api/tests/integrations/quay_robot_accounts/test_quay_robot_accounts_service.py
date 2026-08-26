@@ -481,3 +481,24 @@ def test_duplicate_robot_names_rejected(test_token: Secret) -> None:
                 QuayRobotDesiredState(name="bot"),
             ],
         )
+
+
+def test_duplicate_repository_names_rejected() -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="duplicate repository names"):
+        QuayRobotDesiredState(
+            name="bot",
+            repositories=[
+                QuayRobotRepository(name="images", permission="read"),
+                QuayRobotRepository(name="images", permission="write"),
+            ],
+        )
+
+
+def test_repositories_are_sorted_by_name() -> None:
+    robot = QuayRobotDesiredState(
+        name="bot",
+        repositories=_repos(zeta="read", alpha="write"),
+    )
+    assert [repo.name for repo in robot.repositories] == ["alpha", "zeta"]
