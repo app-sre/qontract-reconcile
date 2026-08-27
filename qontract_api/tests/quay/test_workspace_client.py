@@ -77,13 +77,12 @@ def test_create_robot_invalidates_list_cache(
     mock_cache.delete.assert_called_once_with("quay:quay-io:test-org:robots")
 
 
-def test_create_robot_raises_when_cache_lock_fails(
+def test_create_robot_succeeds_when_cache_lock_fails(
     client: QuayWorkspaceClient, mock_api: MagicMock, mock_cache: MagicMock
 ) -> None:
     mock_cache.lock.side_effect = RuntimeError("Could not acquire lock")
 
-    with pytest.raises(RuntimeError, match="Could not acquire lock"):
-        client.create_robot_account("ci-bot", "CI")
+    client.create_robot_account("ci-bot", "CI")
 
     mock_api.create_robot_account.assert_called_once_with("ci-bot", "CI")
     mock_cache.delete.assert_not_called()

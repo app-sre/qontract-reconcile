@@ -3,12 +3,14 @@
 from unittest.mock import MagicMock
 
 import pytest
+from qontract_utils.quay_api import QuayApi
 from qontract_utils.quay_api.models import (
     RobotAccount,
     RobotAccountPermission,
     RobotAccountRepository,
 )
 
+from qontract_api.cache.base import CacheBackend
 from qontract_api.config import Settings
 from qontract_api.integrations.quay_robot_accounts.domain import (
     QuayOrgDesiredState,
@@ -28,6 +30,7 @@ from qontract_api.integrations.quay_robot_accounts.service import (
 )
 from qontract_api.models import Secret, TaskStatus
 from qontract_api.quay import QuayWorkspaceClient
+from qontract_api.quay.quay_workspace_client import CachedRobotAccounts
 
 
 @pytest.fixture
@@ -380,6 +383,42 @@ def test_apply_create_robot(
     mock_quay_client.close.assert_called_once()
     assert result.applied_count == 1
     assert result.status == TaskStatus.SUCCESS
+
+
+def test_apply_create_succeeds_when_cache_lock_fails(
+    mock_secret_manager: MagicMock,
+    mock_settings: Settings,
+    test_token: Secret,
+) -> None:
+    mock_api = MagicMock(spec=QuayApi)
+    mock_cache = MagicMock(spec=CacheBackend)
+    mock_cache.get_obj.return_value = CachedRobotAccounts(items=[])
+    mock_cache.lock.side_effect = RuntimeError("Could not acquire lock")
+    client = QuayWorkspaceClient(
+        quay_api=mock_api,
+        instance_name="quay-io",
+        organization="test-org",
+        cache=mock_cache,
+        settings=mock_settings,
+    )
+    factory = MagicMock()
+    factory.create_workspace_client.return_value = client
+    service = QuayRobotAccountsService(
+        quay_client_factory=factory,
+        secret_manager=mock_secret_manager,
+        settings=mock_settings,
+    )
+    org = _org(
+        test_token,
+        robots=[QuayRobotDesiredState(name="new-bot", description="n")],
+    )
+
+    result = service.reconcile(organizations=[org], dry_run=False)
+
+    mock_api.create_robot_account.assert_called_once_with("new-bot", "n")
+    assert result.status == TaskStatus.SUCCESS
+    assert result.applied_count == 1
+    assert result.errors == []
 
 
 def test_apply_remaining_action_types(

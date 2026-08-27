@@ -63,6 +63,11 @@ class QuayWorkspaceClient:
         return f"quay:{self.instance_name}:{self.organization}:robot:{robot_name}:permissions"
 
     def _clear_cache(self, cache_key: str) -> None:
+        """Invalidate a cache key after a successful Quay mutation.
+
+        Lock failures are logged and swallowed: the mutation is already
+        committed, and a later reconcile refreshes the entry after TTL.
+        """
         try:
             with self._cache.lock(cache_key):
                 self._cache.delete(cache_key)
@@ -70,7 +75,6 @@ class QuayWorkspaceClient:
             logger.warning(
                 f"Could not acquire lock to clear cache for {cache_key}: {e}"
             )
-            raise
 
     def list_robot_accounts(self) -> list[RobotAccount]:
         """List robot accounts for this org (cached)."""
