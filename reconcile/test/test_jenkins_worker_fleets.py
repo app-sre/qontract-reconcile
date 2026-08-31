@@ -51,6 +51,7 @@ def test_jenkins_worker_fleets(
         "['update_jenkins_worker_fleet', 'ci-int', 'ci-int-jenkins-worker-app-sre']",
         "['update_jenkins_worker_fleet', 'ci-int', 'test-remove-sshConnector-attrs']",
         "['update_jenkins_worker_fleet', 'ci-int', 'test-add-sshConnector-JVMOpts']",
+        "['update_jenkins_worker_fleet', 'ci-int', 'test-add-sshConnector-prefixStartSlaveCmd']",
     ])
 
 

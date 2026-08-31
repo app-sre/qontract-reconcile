@@ -30,6 +30,7 @@ class SSHConnector(BaseModel, use_enum_values=True):
     credentials_id: str = Field(..., alias="credentialsId")
     launch_timeout_seconds: int | None = Field(None, alias="launchTimeoutSeconds")
     max_num_retries: int | None = Field(None, alias="maxNumRetries")
+    prefix_start_slave_cmd: str | None = Field(None, alias="prefixStartSlaveCmd")
     retry_wait_time: int | None = Field(None, alias="retryWaitTime")
     port: int | None = 22
     jvm_options: str | None = Field(None, alias="jvmOptions")

@@ -295,6 +295,7 @@ JENKINS_INSTANCES_QUERY = """
         launchTimeoutSeconds
         maxNumRetries
         port
+        prefixStartSlaveCmd
         retryWaitTime
         sshHostKeyVerificationStrategy
       }
