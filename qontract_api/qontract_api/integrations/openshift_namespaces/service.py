@@ -107,7 +107,7 @@ class OpenShiftNamespacesService:
                     actions.append(
                         CreateNamespaceAction(cluster=cluster_name, namespace=ns.name)
                     )
-                case (True, True):
+                case (True, True) if not ws_client.is_namespace_terminating(ns.name):
                     actions.append(
                         DeleteNamespaceAction(cluster=cluster_name, namespace=ns.name)
                     )

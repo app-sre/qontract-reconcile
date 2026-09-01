@@ -21,10 +21,14 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+_TERMINATING_PHASE = "Terminating"
+
+
 class CachedNamespaceNames(BaseModel, frozen=True):
-    """Cached set of all namespace names on a cluster."""
+    """Cached set of all namespace names on a cluster, plus those Terminating."""
 
     names: frozenset[str]
+    terminating: frozenset[str] = frozenset()
 
 
 class KubernetesWorkspaceClient:
@@ -50,16 +54,16 @@ class KubernetesWorkspaceClient:
     def _cache_key_namespace_names(self) -> str:
         return f"kubernetes:{self._cluster_name}:namespace_names"
 
-    def _get_namespace_names(self) -> frozenset[str]:
-        """Get the cached set of namespace names, or fetch and cache it."""
+    def _get_namespace_state(self) -> CachedNamespaceNames:
+        """Get the cached namespace names and Terminating state, or fetch and cache it."""
         cache_key = self._cache_key_namespace_names()
 
         if cached := self._cache.get_obj(cache_key, CachedNamespaceNames):
-            return cached.names
+            return cached
 
         with self._cache.lock(cache_key):
             if cached := self._cache.get_obj(cache_key, CachedNamespaceNames):
-                return cached.names
+                return cached
 
             namespaces = self._api.list_namespaces()
             names = frozenset(
@@ -67,12 +71,21 @@ class KubernetesWorkspaceClient:
                 for ns in namespaces
                 if ns.metadata and ns.metadata.name
             )
+            terminating = frozenset(
+                ns.metadata.name
+                for ns in namespaces
+                if ns.metadata
+                and ns.metadata.name
+                and ns.status
+                and ns.status.phase == _TERMINATING_PHASE
+            )
+            state = CachedNamespaceNames(names=names, terminating=terminating)
             self._cache.set_obj(
                 cache_key,
-                CachedNamespaceNames(names=names),
+                state,
                 self._settings.kubernetes.namespace_cache_ttl,
             )
-            return names
+            return state
 
     def _invalidate_namespace_cache(self) -> None:
         cache_key = self._cache_key_namespace_names()
@@ -81,7 +94,11 @@ class KubernetesWorkspaceClient:
 
     def namespace_exists(self, name: str) -> bool:
         """Check if a namespace exists (cached via full namespace listing)."""
-        return name in self._get_namespace_names()
+        return name in self._get_namespace_state().names
+
+    def is_namespace_terminating(self, name: str) -> bool:
+        """Check if a namespace is already in the Terminating phase (cached)."""
+        return name in self._get_namespace_state().terminating
 
     def create_namespace(self, name: str) -> Namespace:
         """Create a namespace and invalidate cache."""
