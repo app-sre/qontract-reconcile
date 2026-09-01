@@ -16,7 +16,7 @@ dependencies = [
     "pagerduty==7.0.0",
     "prometheus-client==0.26.0",
     "pydantic==2.13.4",
-    "pygithub==1.58.2",
+    "pygithub==2.10.0",
     "python-gitlab==6.0.0",
     "redis==8.1.0",
     "requests==2.34.2",
