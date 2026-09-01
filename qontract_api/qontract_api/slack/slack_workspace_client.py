@@ -445,6 +445,20 @@ class SlackWorkspaceClient:
             resolved_ids.append(user_id)
         return resolved_ids
 
+    def _empty_usergroup_user_ids(self) -> list[str]:
+        """Build a placeholder ID list for an effectively-empty usergroup.
+
+        Slack API does not allow empty user lists and we don't want to disable
+        the usergroup to keep the handle alive. The trick is passing a random
+        deleted user.
+        """
+        try:
+            return [next(user.id for user in self.get_users().values() if user.deleted)]
+        except StopIteration:
+            raise RuntimeError(
+                "No deleted users found to assign to empty usergroup"
+            ) from None
+
     def update_usergroup_users(
         self,
         *,
@@ -465,19 +479,14 @@ class SlackWorkspaceClient:
 
         users = list(users)
 
-        if users:
-            user_ids = self._resolve_user_ids(users)
-        else:
-            # Slack API does not allow empty user lists and we don't want to disable
-            # the usergroup to keep the handle alive. The trick is passing a random deleted user.
-            try:
-                user_ids = [
-                    next(user.id for user in self.get_users().values() if user.deleted)
-                ]
-            except StopIteration:
-                raise RuntimeError(
-                    "No deleted users found to assign to empty usergroup"
-                ) from None
+        # `emptying` covers both a genuinely empty desired list AND the case
+        # where every desired name turned out unresolvable/deactivated - Slack
+        # rejects an empty user_ids list either way, so both use the same
+        # deleted-user placeholder trick and the same invalid_users handling.
+        user_ids = self._resolve_user_ids(users) if users else []
+        emptying = not user_ids
+        if emptying:
+            user_ids = self._empty_usergroup_user_ids()
 
         if not ug.is_active():
             # Reactivate usergroup if it was disabled
@@ -491,7 +500,7 @@ class SlackWorkspaceClient:
         except SlackApiError as e:
             if e.response["error"] != "invalid_users":
                 raise
-            if not users:
+            if emptying:
                 # Slack can throw an invalid_users error when emptying groups, but
                 # it will still empty the group (so this can be ignored).
                 return

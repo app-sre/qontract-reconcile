@@ -620,6 +620,89 @@ def test_update_usergroup_users_skips_unresolvable_name(
     )
 
 
+def test_update_usergroup_users_all_names_unresolvable_uses_placeholder(
+    client: SlackWorkspaceClient,
+    mock_slack_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """If every desired name is unresolvable, don't send an empty list to Slack.
+
+    Regression test for a CodeRabbit finding on APPSRE-15192's fix: Slack
+    rejects an empty `user_ids` list. If the *original* `users` argument was
+    non-empty but every name turns out unresolvable/deactivated, we must fall
+    back to the same deleted-user placeholder trick used for a genuinely
+    empty desired list - not silently send `user_ids=[]`.
+    """
+    ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
+    cached_usergroups = CachedUsergroups(items=[ug])
+    deleted_user = SlackUser(
+        id="U_DELETED",
+        name="Deleted User",
+        deleted=True,
+        profile=SlackUserProfile(email="deleted@example.com"),
+    )
+
+    def get_obj_side_effect(
+        cache_key: str, *_args: Any, **_kwargs: Any
+    ) -> CachedUsergroups | CachedUsers | None:
+        if "usergroups" in cache_key:
+            return cached_usergroups
+        if "users" in cache_key:
+            return CachedUsers(items=[deleted_user])
+        return None
+
+    mock_cache.get_obj.side_effect = get_obj_side_effect
+
+    # "gone" doesn't resolve to anyone - the *only* desired member is unresolvable.
+    client.update_usergroup_users(handle="oncall", users=["gone"])
+
+    mock_slack_api.usergroup_users_update.assert_called_once_with(
+        usergroup_id="UG1",
+        user_ids=["U_DELETED"],
+    )
+
+
+def test_update_usergroup_users_all_names_unresolvable_invalid_users_ignored(
+    client: SlackWorkspaceClient,
+    mock_slack_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """All-unresolvable + invalid_users is the emptying quirk, not a stale cache.
+
+    Must be ignored (not raise) and must NOT invalidate the users cache - it's
+    the same known Slack quirk as a genuinely empty desired list, not a signal
+    that our cached data disagrees with Slack's real state.
+    """
+    ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
+    cached_usergroups = CachedUsergroups(items=[ug])
+    deleted_user = SlackUser(
+        id="U_DELETED",
+        name="Deleted User",
+        deleted=True,
+        profile=SlackUserProfile(email="deleted@example.com"),
+    )
+
+    def get_obj_side_effect(
+        cache_key: str, *_args: Any, **_kwargs: Any
+    ) -> CachedUsergroups | CachedUsers | None:
+        if "usergroups" in cache_key:
+            return cached_usergroups
+        if "users" in cache_key:
+            return CachedUsers(items=[deleted_user])
+        return None
+
+    mock_cache.get_obj.side_effect = get_obj_side_effect
+    mock_slack_api.usergroup_users_update.side_effect = SlackApiError(
+        message="invalid_users", response={"error": "invalid_users"}
+    )
+
+    # Must not raise.
+    client.update_usergroup_users(handle="oncall", users=["gone"])
+
+    mock_slack_api.usergroup_users_update.assert_called_once()
+    mock_cache.delete.assert_called_once_with("slack:test-workspace:usergroups")
+
+
 def test_update_usergroup_users_invalid_users_busts_users_cache(
     client: SlackWorkspaceClient,
     mock_slack_api: MagicMock,
