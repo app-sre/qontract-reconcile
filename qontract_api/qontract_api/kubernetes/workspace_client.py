@@ -52,7 +52,9 @@ class KubernetesWorkspaceClient:
         self._settings = settings
 
     def _cache_key_namespace_names(self) -> str:
-        return f"kubernetes:{self._cluster_name}:namespace_names"
+        # v2: adds `terminating` — versioned so pre-upgrade cache entries
+        # (missing the field) are never mistaken for having none.
+        return f"kubernetes:{self._cluster_name}:namespace_names:v2"
 
     def _get_namespace_state(self) -> CachedNamespaceNames:
         """Get the cached namespace names and Terminating state, or fetch and cache it."""
