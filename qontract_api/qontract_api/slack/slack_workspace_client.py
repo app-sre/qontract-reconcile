@@ -96,6 +96,10 @@ class SlackUsergroupNotFoundError(Exception):
     """Raised when a Slack usergroup is not found."""
 
 
+class AllUsersUnresolvableError(Exception):
+    """Raised when a non-empty desired users list resolves to no Slack user IDs."""
+
+
 class SlackWorkspaceClient:
     """Caching + compute layer for Slack workspace data.
 
@@ -470,6 +474,11 @@ class SlackWorkspaceClient:
         Args:
             handle: Usergroup handle (e.g., "oncall-team")
             users: List of org usernames (will be mapped to Slack user IDs)
+
+        Raises:
+            SlackUsergroupNotFoundError: If the usergroup handle doesn't exist.
+            AllUsersUnresolvableError: If `users` is non-empty but none of the
+                names resolve to a Slack user ID.
         """
         # TODO: https://github.com/app-sre/qontract-reconcile/pull/5304#discussion_r2715066336
         # Get usergroup by handle
@@ -479,12 +488,18 @@ class SlackWorkspaceClient:
 
         users = list(users)
 
-        # `emptying` covers both a genuinely empty desired list AND the case
-        # where every desired name turned out unresolvable/deactivated - Slack
-        # rejects an empty user_ids list either way, so both use the same
-        # deleted-user placeholder trick and the same invalid_users handling.
+        # `emptying` only covers a genuinely empty desired list. If `users` is
+        # non-empty but every name turns out unresolvable/deactivated, that's
+        # far more likely a stale/incomplete users cache than every member
+        # leaving the company at once - fail loud instead of silently wiping
+        # the usergroup with the deleted-user placeholder trick.
         user_ids = self._resolve_user_ids(users) if users else []
-        emptying = not user_ids
+        if users and not user_ids:
+            raise AllUsersUnresolvableError(
+                f"None of the desired members for '{handle}' resolved to a "
+                f"Slack user: {users}"
+            )
+        emptying = not users
         if emptying:
             user_ids = self._empty_usergroup_user_ids()
 
