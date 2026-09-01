@@ -703,19 +703,22 @@ def test_update_usergroup_users_all_names_unresolvable_invalid_users_ignored(
     mock_cache.delete.assert_called_once_with("slack:test-workspace:usergroups")
 
 
-def test_update_usergroup_users_invalid_users_busts_users_cache(
+def test_update_usergroup_users_invalid_users_busts_cache_and_raises(
     client: SlackWorkspaceClient,
     mock_slack_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
-    """A Slack-side invalid_users rejection must bust the stale users cache.
+    """A Slack-side invalid_users rejection must bust the cache and still raise.
 
     Regression test for APPSRE-15192: the local `users` cache can be stale for up
     to its full TTL after a real-world Slack deactivation, causing us to send a
     now-invalid user ID to Slack. Slack rejects the *entire* call with
-    'invalid_users'. On that specific error (non-empty desired list), we must
-    invalidate the `users` cache so the *next* reconcile cycle picks up fresh
-    data instead of waiting out the full TTL - no retry, no exception.
+    'invalid_users' and (verified against the real API) applies nothing. We
+    must invalidate the `users` cache so the *next* reconcile cycle picks up
+    fresh data, but we must also re-raise - swallowing it here would make
+    `service.reconcile()` record this as a successfully applied action and
+    publish a false "update_users" success event to the subscriber Slack
+    channel, even though nothing was actually changed.
     """
     ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
     cached_usergroups = CachedUsergroups(items=[ug])
@@ -740,8 +743,8 @@ def test_update_usergroup_users_invalid_users_busts_users_cache(
         message="invalid_users", response={"error": "invalid_users"}
     )
 
-    # Must not raise.
-    client.update_usergroup_users(handle="oncall", users=["bob"])
+    with pytest.raises(SlackApiError):
+        client.update_usergroup_users(handle="oncall", users=["bob"])
 
     mock_slack_api.usergroup_users_update.assert_called_once()
     mock_cache.delete.assert_any_call("slack:test-workspace:users")

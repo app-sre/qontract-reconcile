@@ -506,14 +506,18 @@ class SlackWorkspaceClient:
                 return
             # Our `users` cache was stale relative to Slack's real state (e.g. a
             # user was deactivated after we last cached the users list) - Slack
-            # rejects the entire call in that case. Bust the stale cache so the
-            # next reconcile cycle picks up fresh data instead of waiting out
-            # the full TTL.
+            # rejects the entire call in that case and applies nothing. Bust
+            # the stale cache so the next reconcile cycle picks up fresh data,
+            # but still raise: unlike the emptying case above, nothing was
+            # actually applied here, so the caller must record this as a
+            # failure (not a successfully applied action) rather than publish
+            # a false "update_users" success to the subscriber channel.
             logger.warning(
                 f"Slack rejected usergroup update for '{handle}' as invalid_users; "
                 "invalidating users cache"
             )
             self._clear_cache(self._cache_key_users())
+            raise
 
     def chat_post_message(
         self,
