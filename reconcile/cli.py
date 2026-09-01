@@ -2008,6 +2008,22 @@ def quay_repos(ctx: click.Context) -> None:
     run_integration(reconcile.quay_repos, ctx)
 
 
+@integration.command(short_help="Creates and Manages Quay Repos (via qontract-api).")
+@click.pass_context
+def quay_repos_api(
+    ctx: click.Context,
+) -> None:
+    from reconcile.quay_repos_api import (
+        QuayReposIntegration,
+        QuayReposIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=QuayReposIntegration(QuayReposIntegrationParams()),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Manage permissions for Quay Repositories.")
 @click.pass_context
 def quay_permissions(ctx: click.Context) -> None:

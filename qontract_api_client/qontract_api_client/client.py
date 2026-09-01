@@ -442,6 +442,37 @@ async def openshift_namespaces_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/quay-repos/reconcile")
+async def quay_repos(
+    result: schemas.QuayReposTaskResponse, data: schemas.QuayReposReconcileRequest
+) -> schemas.QuayReposTaskResponse:
+    """Quay Repos
+
+        Queue Quay repos reconciliation task.
+
+    Always queues a background task and returns immediately with a task_id.
+    Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/quay-repos/reconcile/{task_id}")
+async def quay_repos_task_status(
+    result: schemas.QuayReposTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.QuayReposTaskResult:
+    """Quay Repos Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        timeout: Maximum seconds to wait (default: non-blocking)
+    """
+    return result
+
+
 @client.post("/api/v1/integrations/slack-usergroups/reconcile")
 async def slack_usergroups(
     result: schemas.SlackUsergroupsTaskResponse,
