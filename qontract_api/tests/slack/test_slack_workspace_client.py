@@ -620,97 +620,19 @@ def test_update_usergroup_users_skips_unresolvable_name(
     )
 
 
-def test_update_usergroup_users_invalid_users_invalidates_cache_and_retries(
+def test_update_usergroup_users_invalid_users_busts_users_cache(
     client: SlackWorkspaceClient,
     mock_slack_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
-    """A Slack-side invalid_users rejection must bust the stale users cache and retry.
+    """A Slack-side invalid_users rejection must bust the stale users cache.
 
     Regression test for APPSRE-15192: the local `users` cache can be stale for up
     to its full TTL after a real-world Slack deactivation, causing us to send a
     now-invalid user ID to Slack. Slack rejects the *entire* call with
-    'invalid_users'. On that specific error, we must invalidate the `users`
-    cache (not just `usergroups`), re-resolve against fresh data, and retry
-    once - converging within the same reconcile cycle instead of waiting out
-    the full TTL.
-    """
-    ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
-    cached_usergroups = CachedUsergroups(items=[ug])
-
-    bob = SlackUser(
-        id="U_BOB",
-        name="Bob",
-        deleted=False,
-        profile=SlackUserProfile(email="bob@example.com"),
-    )
-    stale_olivia = SlackUser(
-        id="U_OLIVIA",
-        name="Olivia",
-        deleted=False,  # stale: cache doesn't know she was deactivated yet
-        profile=SlackUserProfile(email="olivia@example.com"),
-    )
-    fresh_olivia = SlackUser(
-        id="U_OLIVIA",
-        name="Olivia",
-        deleted=True,  # fresh: reflects the real, current Slack state
-        profile=SlackUserProfile(email="olivia@example.com"),
-    )
-
-    users_cache_key = "slack:test-workspace:users"
-    users_cache_state = {"cleared": False}
-
-    def get_obj_side_effect(
-        cache_key: str, *_args: Any, **_kwargs: Any
-    ) -> CachedUsergroups | CachedUsers | None:
-        if "usergroups" in cache_key:
-            return cached_usergroups
-        if cache_key == users_cache_key:
-            if users_cache_state["cleared"]:
-                return None  # cache miss -> get_users() must fetch fresh data
-            return CachedUsers(items=[stale_olivia, bob])
-        return None
-
-    def delete_side_effect(cache_key: str) -> None:
-        if cache_key == users_cache_key:
-            users_cache_state["cleared"] = True
-
-    mock_cache.get_obj.side_effect = get_obj_side_effect
-    mock_cache.delete.side_effect = delete_side_effect
-    mock_slack_api.users_list.return_value = [fresh_olivia, bob]
-    mock_slack_api.usergroup_users_update.side_effect = [
-        SlackApiError(message="invalid_users", response={"error": "invalid_users"}),
-        None,
-    ]
-
-    client.update_usergroup_users(
-        handle="oncall",
-        users=["olivia", "bob"],
-    )
-
-    assert mock_slack_api.usergroup_users_update.call_count == 2
-
-    first_call_ids = mock_slack_api.usergroup_users_update.call_args_list[0].kwargs[
-        "user_ids"
-    ]
-    assert sorted(first_call_ids) == ["U_BOB", "U_OLIVIA"]
-
-    second_call_ids = mock_slack_api.usergroup_users_update.call_args_list[1].kwargs[
-        "user_ids"
-    ]
-    assert second_call_ids == ["U_BOB"]
-
-    mock_cache.delete.assert_any_call(users_cache_key)
-
-
-def test_update_usergroup_users_invalid_users_still_invalid_after_retry_raises(
-    client: SlackWorkspaceClient,
-    mock_slack_api: MagicMock,
-    mock_cache: MagicMock,
-) -> None:
-    """If invalid_users persists after the cache-busting retry, it must raise.
-
-    No infinite retry loop - one retry, then surface the error like any other.
+    'invalid_users'. On that specific error (non-empty desired list), we must
+    invalidate the `users` cache so the *next* reconcile cycle picks up fresh
+    data instead of waiting out the full TTL - no retry, no exception.
     """
     ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
     cached_usergroups = CachedUsergroups(items=[ug])
@@ -731,15 +653,55 @@ def test_update_usergroup_users_invalid_users_still_invalid_after_retry_raises(
         return None
 
     mock_cache.get_obj.side_effect = get_obj_side_effect
-    mock_slack_api.users_list.return_value = [bob]
     mock_slack_api.usergroup_users_update.side_effect = SlackApiError(
         message="invalid_users", response={"error": "invalid_users"}
     )
 
-    with pytest.raises(SlackApiError):
-        client.update_usergroup_users(handle="oncall", users=["bob"])
+    # Must not raise.
+    client.update_usergroup_users(handle="oncall", users=["bob"])
 
-    assert mock_slack_api.usergroup_users_update.call_count == 2
+    mock_slack_api.usergroup_users_update.assert_called_once()
+    mock_cache.delete.assert_any_call("slack:test-workspace:users")
+
+
+def test_update_usergroup_users_empty_list_invalid_users_does_not_bust_users_cache(
+    client: SlackWorkspaceClient,
+    mock_slack_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """The known 'emptying a group returns invalid_users anyway' quirk stays ignored.
+
+    It's not a stale-cache signal, so unlike the non-empty case it must NOT
+    trigger a users-cache invalidation.
+    """
+    ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
+    cached_usergroups = CachedUsergroups(items=[ug])
+    deleted_user = SlackUser(
+        id="U_DELETED",
+        name="Deleted User",
+        deleted=True,
+        profile=SlackUserProfile(email="deleted@example.com"),
+    )
+
+    def get_obj_side_effect(
+        cache_key: str, *_args: Any, **_kwargs: Any
+    ) -> CachedUsergroups | CachedUsers | None:
+        if "usergroups" in cache_key:
+            return cached_usergroups
+        if "users" in cache_key:
+            return CachedUsers(items=[deleted_user])
+        return None
+
+    mock_cache.get_obj.side_effect = get_obj_side_effect
+    mock_slack_api.usergroup_users_update.side_effect = SlackApiError(
+        message="invalid_users", response={"error": "invalid_users"}
+    )
+
+    # Must not raise.
+    client.update_usergroup_users(handle="oncall", users=[])
+
+    mock_slack_api.usergroup_users_update.assert_called_once()
+    mock_cache.delete.assert_called_once_with("slack:test-workspace:usergroups")
 
 
 def test_chat_post_message_resolves_channel_name(
