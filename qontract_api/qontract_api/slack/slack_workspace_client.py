@@ -423,6 +423,28 @@ class SlackWorkspaceClient:
             channel_ids=[channel_id_by_name[ch.lstrip("#")] for ch in channels],
         )
 
+    def _resolve_user_ids(self, users: Iterable[str]) -> list[str]:
+        """Map org usernames to Slack user IDs, skipping unresolvable ones.
+
+        A name is unresolvable if it's missing entirely (e.g. removed from the
+        workspace) or deactivated (deleted=True). Unresolvable names are
+        skipped with a warning rather than raising - one bad name must not
+        block the update for everyone else.
+        """
+        user_id_by_org_name = {
+            user.org_username: user.id
+            for user in self.get_users().values()
+            if not user.deleted
+        }
+        resolved_ids = []
+        for name in users:
+            user_id = user_id_by_org_name.get(name)
+            if user_id is None:
+                logger.warning(f"Skipping unresolvable/deactivated user: {name}")
+                continue
+            resolved_ids.append(user_id)
+        return resolved_ids
+
     def update_usergroup_users(
         self,
         *,
@@ -441,26 +463,7 @@ class SlackWorkspaceClient:
         if not ug:
             raise SlackUsergroupNotFoundError(f"Usergroup {handle} not found!")
 
-        all_users = self.get_users()
-        if users:
-            # Map user names to IDs
-            user_id_by_org_name = {
-                user.org_username: user.id
-                for user in all_users.values()
-                if not user.deleted
-            }
-            user_ids = [user_id_by_org_name[name] for name in users]
-        else:
-            # Slack API does not allow empty user lists and we don't want to disable
-            # the usergroup to keep the handle alive. The trick is passing a random deleted user.
-            try:
-                user_ids = [
-                    next(user.id for user in all_users.values() if user.deleted)
-                ]
-            except StopIteration:
-                raise RuntimeError(
-                    "No deleted users found to assign to empty usergroup"
-                ) from None
+        users = list(users)
 
         if not ug.is_active():
             # Reactivate usergroup if it was disabled
@@ -469,13 +472,46 @@ class SlackWorkspaceClient:
         # Always clear the usergroup cache (will be repopulated on next read)
         self._clear_cache(self._cache_key_usergroups())
 
+        if not users:
+            # Slack API does not allow empty user lists and we don't want to disable
+            # the usergroup to keep the handle alive. The trick is passing a random deleted user.
+            try:
+                user_ids = [
+                    next(user.id for user in self.get_users().values() if user.deleted)
+                ]
+            except StopIteration:
+                raise RuntimeError(
+                    "No deleted users found to assign to empty usergroup"
+                ) from None
+            try:
+                self.slack_api.usergroup_users_update(
+                    usergroup_id=ug.id, user_ids=user_ids
+                )
+            except SlackApiError as e:
+                # Slack can throw an invalid_users error when emptying groups, but
+                # it will still empty the group (so this can be ignored).
+                if e.response["error"] != "invalid_users":
+                    raise
+            return
+
+        user_ids = self._resolve_user_ids(users)
         try:
             self.slack_api.usergroup_users_update(usergroup_id=ug.id, user_ids=user_ids)
         except SlackApiError as e:
-            # Slack can throw an invalid_users error when emptying groups, but
-            # it will still empty the group (so this can be ignored).
             if e.response["error"] != "invalid_users":
                 raise
+            # Our `users` cache was stale relative to Slack's real state (e.g. a
+            # user was deactivated after we last cached the users list) - Slack
+            # rejects the *entire* call in that case. Bust the stale cache and
+            # retry once with freshly-resolved IDs instead of waiting out the
+            # full TTL for it to self-heal.
+            logger.warning(
+                f"Slack rejected usergroup update for '{handle}' as invalid_users; "
+                "invalidating users cache and retrying with fresh data"
+            )
+            self._clear_cache(self._cache_key_users())
+            user_ids = self._resolve_user_ids(users)
+            self.slack_api.usergroup_users_update(usergroup_id=ug.id, user_ids=user_ids)
 
     def chat_post_message(
         self,
