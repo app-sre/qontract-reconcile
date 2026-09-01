@@ -665,3 +665,160 @@ def test_rds_attr_falls_through_when_key_absent() -> None:
     defaults: dict = {"engine": "postgres"}
     assert qontract_cli.rds_attr("engine", overrides, defaults) == "postgres"
     assert qontract_cli.rds_attr("engine", {"engine": "mysql"}, defaults) == "mysql"
+
+
+@pytest.fixture
+def mock_qontract_api_config(mocker: MockerFixture) -> Mock:
+    return mocker.patch(
+        "tools.qontract_cli.config.get_config",
+        return_value={
+            "qontract-api": {
+                "server": "https://qontract-api.example.com",
+                "token": "tok",
+            }
+        },
+    )
+
+
+@pytest.fixture
+def mock_requests_session(mocker: MockerFixture) -> Mock:
+    mock_session_cls = mocker.patch("tools.qontract_cli.requests.Session")
+    return mock_session_cls.return_value.__enter__.return_value
+
+
+def test_sso_client_create_success(
+    mock_qontract_api_config: Mock, mock_requests_session: Mock
+) -> None:
+    mock_requests_session.post.return_value = Mock(
+        json=Mock(
+            return_value={
+                "status_url": "https://internal-host/api/v1/integrations/sso-client/manual/task-123"
+            }
+        )
+    )
+    mock_requests_session.get.return_value = Mock(
+        json=Mock(
+            return_value={
+                "status": "success",
+                "vault_secret_path": "app-sre/creds/rhidp/manual/my-client",
+            }
+        )
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.sso_client,
+        ["create", "my-client", "--redirect-uri", "https://example.org/login"],
+    )
+
+    assert result.exit_code == 0
+    assert "app-sre/creds/rhidp/manual/my-client" in result.output
+
+    post_kwargs = mock_requests_session.post.call_args.kwargs
+    assert (
+        mock_requests_session.post.call_args.args[0]
+        == "https://qontract-api.example.com/api/v1/integrations/sso-client/manual"
+    )
+    assert post_kwargs["json"]["client_name"] == "my-client"
+    assert post_kwargs["json"]["redirect_uris"] == ["https://example.org/login"]
+    assert post_kwargs["json"]["keycloak_instance"] == {
+        "url": qontract_cli.RHIDP_KEYCLOAK_INSTANCES["prod"]["url"],
+        "secret": {
+            "secret_manager_url": qontract_cli.RHIDP_KEYCLOAK_INSTANCES["prod"][
+                "secret_manager_url"
+            ],
+            "path": qontract_cli.RHIDP_KEYCLOAK_INSTANCES["prod"]["path"],
+        },
+    }
+
+    get_args, get_kwargs = mock_requests_session.get.call_args
+    assert (
+        get_args[0]
+        == "https://qontract-api.example.com/api/v1/integrations/sso-client/manual/task-123"
+    )
+    assert get_kwargs["params"] == {"timeout": 60}
+
+
+def test_sso_client_create_stage_environment(
+    mock_qontract_api_config: Mock, mock_requests_session: Mock
+) -> None:
+    mock_requests_session.post.return_value = Mock(
+        json=Mock(
+            return_value={
+                "status_url": "https://internal-host/api/v1/integrations/sso-client/manual/task-123"
+            }
+        )
+    )
+    mock_requests_session.get.return_value = Mock(
+        json=Mock(
+            return_value={
+                "status": "success",
+                "vault_secret_path": "app-sre/creds/rhidp/manual/my-client",
+            }
+        )
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.sso_client,
+        [
+            "create",
+            "my-client",
+            "--environment",
+            "stage",
+            "--redirect-uri",
+            "https://example.org/login",
+        ],
+    )
+
+    assert result.exit_code == 0
+    post_kwargs = mock_requests_session.post.call_args.kwargs
+    assert (
+        post_kwargs["json"]["keycloak_instance"]["url"]
+        == qontract_cli.RHIDP_KEYCLOAK_INSTANCES["stage"]["url"]
+    )
+
+
+def test_sso_client_create_task_failure_exits_nonzero(
+    mock_qontract_api_config: Mock, mock_requests_session: Mock
+) -> None:
+    mock_requests_session.post.return_value = Mock(
+        json=Mock(
+            return_value={
+                "status_url": "https://internal-host/api/v1/integrations/sso-client/manual/task-123"
+            }
+        )
+    )
+    mock_requests_session.get.return_value = Mock(
+        json=Mock(
+            return_value={
+                "status": "failed",
+                "errors": ["Keycloak unreachable"],
+                "vault_secret_path": None,
+            }
+        )
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.sso_client,
+        ["create", "my-client", "--redirect-uri", "https://example.org/login"],
+    )
+
+    assert result.exit_code != 0
+    assert "Keycloak unreachable" in result.output
+
+
+def test_sso_client_create_requires_qontract_api_config(
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch("tools.qontract_cli.config.get_config", return_value={})
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.sso_client,
+        ["create", "my-client", "--redirect-uri", "https://example.org/login"],
+    )
+
+    assert result.exit_code != 0
+    assert "Missing [qontract-api]" in result.output

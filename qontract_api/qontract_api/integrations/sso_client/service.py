@@ -24,6 +24,8 @@ from qontract_api.integrations.sso_client.schemas import (
     SsoClientAction,
     SsoClientActionCreate,
     SsoClientActionDelete,
+    SsoClientCreateManualRequest,
+    SsoClientCreateManualResult,
     SsoClientTaskResult,
 )
 from qontract_api.logger import get_logger
@@ -117,6 +119,57 @@ class SsoClientService:
                 INTEGRATION_NAME, ocm_environment, entry.secret.path
             ).set(claims["exp"])
 
+    def _register_and_persist_client(
+        self,
+        *,
+        client_name: str,
+        redirect_uris: Iterable[str],
+        group_filter_regex: str | None,
+        issuer: str,
+        keycloak: KeycloakWorkspaceClient,
+        target_secret: Secret,
+    ) -> None:
+        """Register a client with Keycloak and persist its secret to Vault.
+
+        Rolls back the Keycloak registration if the Vault write fails, so a
+        failed persist never leaves an orphaned-but-unrecorded Keycloak client.
+        """
+        sso_client = keycloak.register_client(
+            client_name=client_name,
+            redirect_uris=list(redirect_uris),
+            group_filter_regex=group_filter_regex,
+        )
+        secret_data = SsoClientSecret(
+            client_id=sso_client.client_id,
+            client_name=client_name,
+            client_secret=sso_client.client_secret,
+            redirect_uris=sso_client.redirect_uris,
+            registration_access_token=sso_client.registration_access_token,
+            registration_client_uri=(
+                f"{issuer}/clients-registrations/default/{sso_client.client_id}"
+            ),
+            issuer=issuer,
+            attributes=sso_client.attributes,
+        )
+        try:
+            self.secret_manager.write(target_secret, secret_data.model_dump())
+        except Exception:
+            logger.exception(
+                f"Failed to persist secret for {client_name}; "
+                "rolling back Keycloak client registration"
+            )
+            try:
+                keycloak.delete_client(
+                    client_id=sso_client.client_id,
+                    registration_access_token=sso_client.registration_access_token,
+                )
+            except Exception:
+                logger.exception(
+                    f"Rollback also failed for {client_name}; "
+                    f"Keycloak client {sso_client.client_id} may be orphaned"
+                )
+            raise
+
     def _create_sso_client(
         self,
         action: SsoClientActionCreate,
@@ -131,51 +184,61 @@ class SsoClientService:
             )
             return False
 
-        keycloak = keycloak_instances[cluster.auth.issuer]
-        sso_client = keycloak.register_client(
+        self._register_and_persist_client(
             client_name=action.sso_client_id,
             redirect_uris=[
                 console_url_to_oauth_url(cluster.console_url, cluster.auth.name)
             ],
             group_filter_regex=cluster.auth.group_filter_regex,
-        )
-        secret_data = SsoClientSecret(
-            client_id=sso_client.client_id,
-            client_name=action.sso_client_id,
-            client_secret=sso_client.client_secret,
-            redirect_uris=sso_client.redirect_uris,
-            registration_access_token=sso_client.registration_access_token,
-            registration_client_uri=(
-                f"{cluster.auth.issuer}/clients-registrations/default/{sso_client.client_id}"
-            ),
             issuer=cluster.auth.issuer,
-            attributes=sso_client.attributes,
+            keycloak=keycloak_instances[cluster.auth.issuer],
+            target_secret=Secret(
+                secret_manager_url=vault_target.secret_manager_url,
+                path=f"{vault_target.path}/{action.sso_client_id}",
+            ),
+        )
+        return True
+
+    def create_manual(
+        self, request: SsoClientCreateManualRequest
+    ) -> SsoClientCreateManualResult:
+        """Register a one-off SSO client (not tied to an OCM cluster) and store it in Vault.
+
+        Used for ad-hoc client creation (e.g. via qontract-cli), as opposed to the
+        cluster-driven reconcile() flow. The Vault path is server-derived (not
+        caller-specified) so OPA can restrict the calling token's role tightly.
+        """
+        keycloak_instances = build_keycloak_instances(
+            [request.keycloak_instance], self.cache, self.secret_manager
+        )
+        keycloak = keycloak_instances[request.keycloak_instance.url]
+        target_secret = Secret(
+            secret_manager_url=self.settings.secrets.default_provider_url,
+            path=f"app-sre/creds/rhidp/manual/{request.client_name}",
         )
         try:
-            self.secret_manager.write(
-                Secret(
-                    secret_manager_url=vault_target.secret_manager_url,
-                    path=f"{vault_target.path}/{action.sso_client_id}",
-                ),
-                secret_data.model_dump(),
+            self._register_and_persist_client(
+                client_name=request.client_name,
+                redirect_uris=request.redirect_uris,
+                group_filter_regex=request.group_filter_regex,
+                issuer=request.keycloak_instance.url,
+                keycloak=keycloak,
+                target_secret=target_secret,
             )
-        except Exception:
-            logger.exception(
-                f"Failed to persist secret for {action.sso_client_id}; "
-                "rolling back Keycloak client registration"
+        except Exception as e:
+            logger.exception(f"Failed to create SSO client {request.client_name}")
+            return SsoClientCreateManualResult(
+                status=TaskStatus.FAILED,
+                errors=[f"Failed to create SSO client {request.client_name}: {e}"],
             )
-            try:
-                keycloak.delete_client(
-                    client_id=sso_client.client_id,
-                    registration_access_token=sso_client.registration_access_token,
-                )
-            except Exception:
-                logger.exception(
-                    f"Rollback also failed for {action.sso_client_id}; "
-                    f"Keycloak client {sso_client.client_id} may be orphaned"
-                )
-            raise
-        return True
+        finally:
+            keycloak.close()
+
+        return SsoClientCreateManualResult(
+            status=TaskStatus.SUCCESS,
+            applied_count=1,
+            vault_secret_path=target_secret.path,
+        )
 
     def _delete_sso_client(
         self,

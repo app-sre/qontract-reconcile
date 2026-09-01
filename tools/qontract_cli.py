@@ -21,6 +21,7 @@ from pathlib import Path
 from statistics import median
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import urlparse
 
 import boto3
 import click
@@ -145,7 +146,6 @@ from reconcile.utils.gitlab_api import (
 )
 from reconcile.utils.glitchtip.client import GlitchtipClient
 from reconcile.utils.gql import GqlApiSingleton
-from reconcile.utils.json import json_dumps
 from reconcile.utils.keycloak import (
     KeycloakAPI,
     SSOClient,
@@ -4328,14 +4328,33 @@ def sso_client(ctx: click.Context) -> None:
     """SSO client commands"""
 
 
+# Red Hat SSO (Keycloak) realms usable with `sso-client create`. The Initial
+# Access Token for each lives in vault.corp.redhat.com - qontract-api already
+# holds AppRole credentials for it and reads it server-side, so the CLI never
+# needs direct vault.corp access. Keep in sync with the `--keycloak-instances`
+# extraArgs in data/integrations/qontract-reconcile-rhidp-sso-client.yml.
+RHIDP_KEYCLOAK_INSTANCES = {
+    "prod": {
+        "url": "https://auth.redhat.com/auth/realms/EmployeeIDP",
+        "secret_manager_url": "https://vault.corp.redhat.com:8200",
+        "path": "apps/sso-iat/share-with/app/ai-app-sre/iat",
+    },
+    "stage": {
+        "url": "https://auth.stage.redhat.com/auth/realms/EmployeeIDP",
+        "secret_manager_url": "https://vault.corp.redhat.com:8200",
+        "path": "apps/sso-iat/share-with/app/ai-app-sre/iat-stage",
+    },
+}
+
+
 @sso_client.command()
 @click.argument("client-name", required=True)
 @click.option(
-    "--keycloak-instance-vault-path",
-    help="Path to the keycloak secret in vault",
-    default="app-sre/creds/rhidp/auth.redhat.com",
-    required=True,
+    "--environment",
+    type=click.Choice(sorted(RHIDP_KEYCLOAK_INSTANCES)),
+    default="prod",
     show_default=True,
+    help="Red Hat SSO (Keycloak) environment to register the client with",
 )
 @click.option(
     "--redirect-uri",
@@ -4344,32 +4363,84 @@ def sso_client(ctx: click.Context) -> None:
     required=True,
     prompt=True,
 )
+@click.option(
+    "--group-filter-regex",
+    help="Optional group filter regex for the SSO client",
+    default=None,
+)
+@click.option(
+    "--timeout",
+    help="Seconds to wait for qontract-api to finish creating the client",
+    default=60,
+    show_default=True,
+)
 @click.pass_context
 def create(
     ctx: click.Context,
     client_name: str,
-    keycloak_instance_vault_path: str,
+    environment: str,
     redirect_uri: tuple[str],
+    group_filter_regex: str | None,
+    timeout: int,
 ) -> None:
-    """Create a new SSO client"""
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    """Create a new SSO client via qontract-api.
 
-    keycloak_secret = secret_reader.read_all({"path": keycloak_instance_vault_path})
-    keycloak_api = KeycloakAPI(
-        url=keycloak_secret["url"],
-        initial_access_token=keycloak_secret["initial-access-token"],
-    )
-    sso_client = keycloak_api.register_client(
-        client_name=client_name,
-        redirect_uris=redirect_uri,
-    )
+    qontract-api registers the client with Keycloak and stores its secret in
+    Vault server-side - unlike the old flow, there is nothing left to save
+    manually.
+    """
+    api_config = config.get_config().get("qontract-api", {})
+    server = api_config.get("server")
+    token = api_config.get("token")
+    if not server or not token:
+        click.secho(
+            "Missing [qontract-api] server/token in the --config TOML.",
+            fg="red",
+        )
+        sys.exit(1)
+
+    keycloak_instance = RHIDP_KEYCLOAK_INSTANCES[environment]
+    with requests.Session() as session:
+        session.auth = BearerTokenAuth(token)
+
+        create_response = session.post(
+            f"{server}/api/v1/integrations/sso-client/manual",
+            json={
+                "client_name": client_name,
+                "redirect_uris": list(redirect_uri),
+                "group_filter_regex": group_filter_regex,
+                "keycloak_instance": {
+                    "url": keycloak_instance["url"],
+                    "secret": {
+                        "secret_manager_url": keycloak_instance["secret_manager_url"],
+                        "path": keycloak_instance["path"],
+                    },
+                },
+            },
+            timeout=30,
+        )
+        create_response.raise_for_status()
+        status_path = urlparse(create_response.json()["status_url"]).path
+
+        result_response = session.get(
+            f"{server}{status_path}",
+            params={"timeout": timeout},
+            timeout=timeout + 10,
+        )
+    result_response.raise_for_status()
+    result = result_response.json()
+
+    if result["status"] != "success":
+        click.secho(
+            f"Failed to create SSO client: {'; '.join(result.get('errors', []))}",
+            fg="red",
+        )
+        sys.exit(1)
+
     click.secho(
-        "SSO client created successfully. Please save the following JSON in Vault!",
-        bg="red",
-        fg="white",
+        f"SSO client created successfully. Secret stored in Vault at: {result['vault_secret_path']}",
+        fg="green",
     )
-    print(json_dumps(sso_client, indent=2))
 
 
 @sso_client.command()

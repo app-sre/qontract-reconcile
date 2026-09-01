@@ -11,10 +11,14 @@ from qontract_api.integrations.sso_client.schemas import (
     SsoClientAction,
     SsoClientActionCreate,
     SsoClientActionDelete,
+    SsoClientCreateManualRequest,
+    SsoClientCreateManualResult,
     SsoClientTaskResult,
 )
 from qontract_api.integrations.sso_client.tasks import (
+    create_manual_sso_client_task,
     generate_lock_key,
+    generate_manual_create_lock_key,
     reconcile_sso_client_task,
 )
 from qontract_api.models import Secret, TaskStatus
@@ -235,6 +239,103 @@ def test_task_returns_failed_result_on_unexpected_exception(
     result = _task_func()(
         mock_self, "prod", [], [KEYCLOAK_SECRET], VAULT_TARGET, dry_run=False
     )
+
+    assert result.status == TaskStatus.FAILED
+    assert "connection refused" in result.errors[0]
+
+
+# ---------------------------------------------------------------------------
+# create_manual_sso_client_task
+# ---------------------------------------------------------------------------
+
+CREATE_MANUAL_REQUEST = SsoClientCreateManualRequest(
+    client_name="my-manual-client",
+    redirect_uris=["https://example.org/login"],
+    keycloak_instance=KEYCLOAK_SECRET,
+)
+
+
+def _manual_task_func() -> Callable:
+    """Return the unwrapped task function (bypasses Celery + deduplication decorators)."""
+    return inspect.unwrap(create_manual_sso_client_task)
+
+
+def test_generate_manual_create_lock_key() -> None:
+    key = generate_manual_create_lock_key(MagicMock(), CREATE_MANUAL_REQUEST)
+    assert key == "my-manual-client"
+
+
+@patch("qontract_api.integrations.sso_client.tasks.get_event_manager")
+@patch("qontract_api.integrations.sso_client.tasks.get_secret_manager")
+@patch("qontract_api.integrations.sso_client.tasks.get_cache")
+@patch("qontract_api.integrations.sso_client.tasks.SsoClientService")
+def test_manual_publishes_event_on_success(
+    mock_service_cls: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_get_secret_manager: MagicMock,
+    mock_get_event_manager: MagicMock,
+    mock_self: MagicMock,
+) -> None:
+    mock_service_cls.return_value.create_manual.return_value = (
+        SsoClientCreateManualResult(
+            status=TaskStatus.SUCCESS,
+            applied_count=1,
+            vault_secret_path="app-sre/creds/rhidp/manual/my-manual-client",
+        )
+    )
+    mock_event_manager = MagicMock()
+    mock_get_event_manager.return_value = mock_event_manager
+
+    result = _manual_task_func()(mock_self, CREATE_MANUAL_REQUEST)
+
+    assert result.status == TaskStatus.SUCCESS
+    mock_event_manager.publish_event.assert_called_once()
+    published = mock_event_manager.publish_event.call_args[0][0]
+    assert published.type == "qontract-api.sso-client.create-manual"
+    assert published.data["client_name"] == "my-manual-client"
+
+
+@patch("qontract_api.integrations.sso_client.tasks.get_event_manager")
+@patch("qontract_api.integrations.sso_client.tasks.get_secret_manager")
+@patch("qontract_api.integrations.sso_client.tasks.get_cache")
+@patch("qontract_api.integrations.sso_client.tasks.SsoClientService")
+def test_manual_no_event_published_on_failure(
+    mock_service_cls: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_get_secret_manager: MagicMock,
+    mock_get_event_manager: MagicMock,
+    mock_self: MagicMock,
+) -> None:
+    mock_service_cls.return_value.create_manual.return_value = (
+        SsoClientCreateManualResult(
+            status=TaskStatus.FAILED, errors=["Keycloak unreachable"]
+        )
+    )
+    mock_event_manager = MagicMock()
+    mock_get_event_manager.return_value = mock_event_manager
+
+    result = _manual_task_func()(mock_self, CREATE_MANUAL_REQUEST)
+
+    assert result.status == TaskStatus.FAILED
+    mock_event_manager.publish_event.assert_not_called()
+
+
+@patch("qontract_api.integrations.sso_client.tasks.get_event_manager")
+@patch("qontract_api.integrations.sso_client.tasks.get_secret_manager")
+@patch("qontract_api.integrations.sso_client.tasks.get_cache")
+@patch("qontract_api.integrations.sso_client.tasks.SsoClientService")
+def test_manual_task_returns_failed_result_on_unexpected_exception(
+    mock_service_cls: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_get_secret_manager: MagicMock,
+    mock_get_event_manager: MagicMock,
+    mock_self: MagicMock,
+) -> None:
+    mock_service_cls.return_value.create_manual.side_effect = RuntimeError(
+        "connection refused"
+    )
+
+    result = _manual_task_func()(mock_self, CREATE_MANUAL_REQUEST)
 
     assert result.status == TaskStatus.FAILED
     assert "connection refused" in result.errors[0]
