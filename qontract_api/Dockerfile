@@ -61,15 +61,20 @@ RUN cd qontract_api && uv sync --frozen --no-group dev
 #
 # Test image
 #
-FROM base AS test
-COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48afb6c5a5c237ca0e67f12e74b8f174b1 /uv /bin/uv
+# Must use the builder image (python-314-minimal) rather than `base`
+# (ubi10-minimal + /usr/bin/python3.14). UV_PROJECT_ENVIRONMENT is /opt/app-root;
+# a different interpreter makes uv recreate that directory, which fails as
+# UID 1001 with: failed to remove directory `/opt/app-root`: Permission denied.
+FROM builder AS test
+
+ENV \
+    RUFF_CACHE_DIR=/tmp/.ruff_cache \
+    TESTFLAG=/tmp/.tests_passed
 
 USER root
-# install dependencies
-RUN microdnf install -y diffutils && microdnf clean all
+RUN microdnf install -y make diffutils && microdnf clean all
 USER 1001
 
-COPY --from=builder /opt/app-root /opt/app-root
 RUN cd qontract_api && uv sync --frozen
 RUN make -C qontract_api test
 RUN echo "true" > $TESTFLAG
