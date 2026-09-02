@@ -36,7 +36,7 @@ class QuayRepoListResponse(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="ignore")
 
-    repositories: list[QuayRepo] = Field(default_factory=list)
+    repositories: list[QuayRepo]
     next_page: str | None = None
 
 

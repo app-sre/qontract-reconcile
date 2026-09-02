@@ -1,7 +1,10 @@
 """Tests for qontract_utils.quay_api models."""
 
+import pytest
+from pydantic import ValidationError
 from qontract_utils.quay_api.models import (
     QuayRepo,
+    QuayRepoListResponse,
     RobotAccount,
     RobotAccountPermission,
     RobotAccountRepository,
@@ -39,3 +42,13 @@ def test_quay_repo_coerces_null_description() -> None:
         {"name": "images", "is_public": False, "description": None}
     )
     assert not repo.description
+
+
+def test_quay_repo_list_response_accepts_empty_repositories() -> None:
+    body = QuayRepoListResponse.model_validate({"repositories": []})
+    assert body.repositories == []
+
+
+def test_quay_repo_list_response_requires_repositories() -> None:
+    with pytest.raises(ValidationError):
+        QuayRepoListResponse.model_validate({})
