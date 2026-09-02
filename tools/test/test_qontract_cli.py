@@ -708,7 +708,13 @@ def test_sso_client_create_success(
     runner = CliRunner()
     result = runner.invoke(
         qontract_cli.sso_client,
-        ["create", "my-client", "--redirect-uri", "https://example.org/login"],
+        [
+            "create",
+            "--client-name",
+            "my-client",
+            "--redirect-uri",
+            "https://example.org/login",
+        ],
     )
 
     assert result.exit_code == 0
@@ -763,6 +769,7 @@ def test_sso_client_create_stage_environment(
         qontract_cli.sso_client,
         [
             "create",
+            "--client-name",
             "my-client",
             "--environment",
             "stage",
@@ -802,7 +809,13 @@ def test_sso_client_create_task_failure_exits_nonzero(
     runner = CliRunner()
     result = runner.invoke(
         qontract_cli.sso_client,
-        ["create", "my-client", "--redirect-uri", "https://example.org/login"],
+        [
+            "create",
+            "--client-name",
+            "my-client",
+            "--redirect-uri",
+            "https://example.org/login",
+        ],
     )
 
     assert result.exit_code != 0
@@ -817,7 +830,13 @@ def test_sso_client_create_requires_qontract_api_config(
     runner = CliRunner()
     result = runner.invoke(
         qontract_cli.sso_client,
-        ["create", "my-client", "--redirect-uri", "https://example.org/login"],
+        [
+            "create",
+            "--client-name",
+            "my-client",
+            "--redirect-uri",
+            "https://example.org/login",
+        ],
     )
 
     assert result.exit_code != 0
