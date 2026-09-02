@@ -4348,7 +4348,12 @@ RHIDP_KEYCLOAK_INSTANCES = {
 
 
 @sso_client.command()
-@click.argument("client-name", required=True)
+@click.option(
+    "--client-name",
+    help="The name of the SSO client",
+    required=True,
+    prompt=True,
+)
 @click.option(
     "--environment",
     type=click.Choice(sorted(RHIDP_KEYCLOAK_INSTANCES)),
