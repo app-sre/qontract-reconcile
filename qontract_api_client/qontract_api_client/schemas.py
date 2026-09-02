@@ -892,6 +892,21 @@ class SsoClientCluster(pydantic.BaseModel):
     rhidp_enabled: bool
 
 
+class SsoClientCreateManualRequest(pydantic.BaseModel):
+    client_name: str
+    group_filter_regex: str | None = None
+    keycloak_instance: KeycloakInstanceSecret
+    redirect_uris: list[str]
+
+
+class SsoClientCreateManualResult(pydantic.BaseModel):
+    actions: list[str] = []
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
+    vault_secret_path: str | None = None
+
+
 class SsoClientReconcileRequest(pydantic.BaseModel):
     clusters: list[SsoClientCluster]
     dry_run: bool = True

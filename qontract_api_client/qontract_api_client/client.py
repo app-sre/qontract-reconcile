@@ -525,6 +525,34 @@ async def slack_usergroups_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/sso-client/manual")
+async def sso_client_create_manual(
+    result: schemas.SsoClientTaskResponse, data: schemas.SsoClientCreateManualRequest
+) -> schemas.SsoClientTaskResponse:
+    """Sso Client Create Manual
+
+        Queue ad-hoc SSO client creation (not tied to an OCM cluster).
+
+    Used by qontract-cli for one-off client creation. Always queues a
+    background task and returns immediately with a task_id. Use
+    GET /manual/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/sso-client/manual/{task_id}")
+async def sso_client_create_manual_task_status(
+    result: schemas.SsoClientCreateManualResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.SsoClientCreateManualResult:
+    """Sso Client Create Manual Task Status
+
+    Retrieve ad-hoc SSO client creation result (blocking or non-blocking).
+    """
+    return result
+
+
 @client.post("/api/v1/integrations/sso-client/reconcile")
 async def sso_client(
     result: schemas.SsoClientTaskResponse, data: schemas.SsoClientReconcileRequest

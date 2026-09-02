@@ -4126,6 +4126,97 @@
         "title": "SsoClientCluster",
         "type": "object"
       },
+      "SsoClientCreateManualRequest": {
+        "description": "Request model for ad-hoc SSO client creation (not tied to an OCM cluster).\n\nUsed by qontract-cli to create one-off SSO clients without needing direct\naccess to vault.corp.redhat.com - qontract-api already holds AppRole\ncredentials for it and reads the IAT server-side via keycloak_instance.secret.",
+        "properties": {
+          "client_name": {
+            "description": "Keycloak client id / Vault secret name",
+            "title": "Client Name",
+            "type": "string"
+          },
+          "group_filter_regex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional group filter regex for the SSO client",
+            "title": "Group Filter Regex"
+          },
+          "keycloak_instance": {
+            "$ref": "#/components/schemas/KeycloakInstanceSecret",
+            "description": "Keycloak issuer URL + Vault reference to its IAT secret"
+          },
+          "redirect_uris": {
+            "description": "Allowed redirect URIs",
+            "items": {
+              "type": "string"
+            },
+            "title": "Redirect Uris",
+            "type": "array"
+          }
+        },
+        "required": [
+          "client_name",
+          "redirect_uris",
+          "keycloak_instance"
+        ],
+        "title": "SsoClientCreateManualRequest",
+        "type": "object"
+      },
+      "SsoClientCreateManualResult": {
+        "description": "Result model for a completed ad-hoc SSO client creation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "Always empty - ad-hoc creation is a single action, not a diff. Present only so this result satisfies the shared task-polling Protocol (qontract_api.tasks._utils.TaskResult).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          },
+          "vault_secret_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vault path where the created client secret was stored (set on success only)",
+            "title": "Vault Secret Path"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "SsoClientCreateManualResult",
+        "type": "object"
+      },
       "SsoClientReconcileRequest": {
         "description": "Request model for RHIDP SSO client reconciliation.\n\nPOST requests always queue a background task (async execution).",
         "properties": {
@@ -5801,6 +5892,101 @@
           }
         ],
         "summary": "Slack Usergroups Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/sso-client/manual": {
+      "post": {
+        "description": "Queue ad-hoc SSO client creation (not tied to an OCM cluster).\n\nUsed by qontract-cli for one-off client creation. Always queues a\nbackground task and returns immediately with a task_id. Use\nGET /manual/{task_id} to retrieve the result.",
+        "operationId": "sso-client-create-manual",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SsoClientCreateManualRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoClientTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sso Client Create Manual",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/sso-client/manual/{task_id}": {
+      "get": {
+        "description": "Retrieve ad-hoc SSO client creation result (blocking or non-blocking).",
+        "operationId": "sso-client-create-manual-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoClientCreateManualResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sso Client Create Manual Task Status",
         "tags": [
           "integrations"
         ]

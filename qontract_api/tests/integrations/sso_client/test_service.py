@@ -18,6 +18,7 @@ from qontract_api.integrations.sso_client.domain import (
 from qontract_api.integrations.sso_client.schemas import (
     SsoClientActionCreate,
     SsoClientActionDelete,
+    SsoClientCreateManualRequest,
 )
 from qontract_api.integrations.sso_client.service import SsoClientService
 from qontract_api.models import Secret, TaskStatus
@@ -459,6 +460,83 @@ def test_create_rollback_failure_does_not_mask_original_write_error(
         client_id="my-cluster-org-1-redhat-sso-issuer.example.com",
         registration_access_token="rat",
     )
+
+
+def test_create_manual_success(
+    service: SsoClientService,
+    settings: Settings,
+    mock_secret_manager: MagicMock,
+    mock_keycloak_instance: MagicMock,
+) -> None:
+    mock_keycloak_instance.register_client.return_value = KeycloakSsoClient(
+        client_id="my-manual-client",
+        client_secret="s3cr3t",
+        redirect_uris=["https://example.org/login"],
+        registration_access_token="rat",
+        attributes={},
+    )
+
+    result = service.create_manual(
+        SsoClientCreateManualRequest(
+            client_name="my-manual-client",
+            redirect_uris=["https://example.org/login"],
+            keycloak_instance=KEYCLOAK_SECRET,
+        )
+    )
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.applied_count == 1
+    assert (
+        result.vault_secret_path
+        == "app-sre/integrations-throughput/rhidp/manual/my-manual-client"
+    )
+
+    mock_keycloak_instance.register_client.assert_called_once_with(
+        client_name="my-manual-client",
+        redirect_uris=["https://example.org/login"],
+        group_filter_regex=None,
+    )
+    mock_secret_manager.write.assert_called_once()
+    written_secret, written_data = mock_secret_manager.write.call_args.args
+    assert written_secret.secret_manager_url == settings.secrets.default_provider_url
+    assert (
+        written_secret.path
+        == "app-sre/integrations-throughput/rhidp/manual/my-manual-client"
+    )
+    assert written_data["client_id"] == "my-manual-client"
+    assert written_data["issuer"] == ISSUER_URL
+    mock_keycloak_instance.close.assert_called_once_with()
+
+
+def test_create_manual_rollback_on_write_failure(
+    service: SsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak_instance: MagicMock,
+) -> None:
+    mock_secret_manager.write.side_effect = RuntimeError("vault write failed")
+    mock_keycloak_instance.register_client.return_value = KeycloakSsoClient(
+        client_id="my-manual-client",
+        client_secret="s3cr3t",
+        redirect_uris=["https://example.org/login"],
+        registration_access_token="rat",
+        attributes={},
+    )
+
+    result = service.create_manual(
+        SsoClientCreateManualRequest(
+            client_name="my-manual-client",
+            redirect_uris=["https://example.org/login"],
+            keycloak_instance=KEYCLOAK_SECRET,
+        )
+    )
+
+    assert result.status == TaskStatus.FAILED
+    assert result.vault_secret_path is None
+    assert "vault write failed" in result.errors[0]
+    mock_keycloak_instance.delete_client.assert_called_once_with(
+        client_id="my-manual-client", registration_access_token="rat"
+    )
+    mock_keycloak_instance.close.assert_called_once_with()
 
 
 def test_reconcile_exposes_metrics(
