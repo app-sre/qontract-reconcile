@@ -382,6 +382,7 @@ class SsoClientSettings(BaseModel):
 
     manual_vault_path_prefix: str = Field(
         default="app-sre/integrations-throughput/rhidp/manual",
+        min_length=1,
         description=(
             "Vault path prefix for ad-hoc (qontract-cli) SSO client secrets. "
             "The client name is appended to form the full path. Must stay "

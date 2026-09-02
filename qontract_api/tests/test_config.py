@@ -1,6 +1,7 @@
 """Tests for configuration settings."""
 
 import pytest
+from pydantic import ValidationError
 
 from qontract_api.config import Secret, Settings
 
@@ -98,6 +99,25 @@ def test_subscriber_settings_defaults() -> None:
     assert subscriber.slack_token is None
     assert subscriber.qontract_api_url == "http://qontract-api:8080"
     assert subscriber.qontract_api_token == ""
+
+
+def test_sso_client_settings_default_manual_vault_path_prefix() -> None:
+    """Test SsoClientSettings defaults manual_vault_path_prefix to the writable RHIDP prefix."""
+    from qontract_api.config import SsoClientSettings
+
+    sso_client = SsoClientSettings()
+    assert (
+        sso_client.manual_vault_path_prefix
+        == "app-sre/integrations-throughput/rhidp/manual"
+    )
+
+
+def test_sso_client_settings_rejects_empty_manual_vault_path_prefix() -> None:
+    """Test SsoClientSettings rejects an empty manual_vault_path_prefix."""
+    from qontract_api.config import SsoClientSettings
+
+    with pytest.raises(ValidationError):
+        SsoClientSettings(manual_vault_path_prefix="")
 
 
 def test_slack_settings_backwards_compatible() -> None:
