@@ -431,6 +431,27 @@ def test_usergroups_users_update_returns_slack_usergroup(
     )
 
 
+def test_usergroup_users_update_propagates_invalid_users_error(
+    slack_api: SlackApi, mock_webclient: MagicMock
+) -> None:
+    """Layer 1 must not swallow invalid_users - that decision belongs to Layer 2.
+
+    Regression test for APPSRE-15192: qontract_api's SlackWorkspaceClient
+    (Layer 2) decides whether an invalid_users rejection is a harmless
+    "emptying a group" quirk or a real failure that must bust the users cache
+    and be reported. If Layer 1 swallows the error here, Layer 2 never sees
+    it and that decision logic is dead code.
+    """
+    slack_api._sc.usergroups_users_update = MagicMock(  # type: ignore[method-assign]
+        side_effect=SlackApiError(
+            message="invalid_users", response={"error": "invalid_users"}
+        )
+    )
+
+    with pytest.raises(SlackApiError):
+        slack_api.usergroup_users_update(usergroup_id="UG1", user_ids=["U1"])
+
+
 def test_conversations_list_returns_slack_channel_objects(
     slack_api: SlackApi, mock_webclient: MagicMock
 ) -> None:

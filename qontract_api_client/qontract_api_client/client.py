@@ -442,6 +442,37 @@ async def openshift_namespaces_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/quay-repos/reconcile")
+async def quay_repos(
+    result: schemas.QuayReposTaskResponse, data: schemas.QuayReposReconcileRequest
+) -> schemas.QuayReposTaskResponse:
+    """Quay Repos
+
+        Queue Quay repos reconciliation task.
+
+    Always queues a background task and returns immediately with a task_id.
+    Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/quay-repos/reconcile/{task_id}")
+async def quay_repos_task_status(
+    result: schemas.QuayReposTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.QuayReposTaskResult:
+    """Quay Repos Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        timeout: Maximum seconds to wait (default: non-blocking)
+    """
+    return result
+
+
 @client.post("/api/v1/integrations/slack-usergroups/reconcile")
 async def slack_usergroups(
     result: schemas.SlackUsergroupsTaskResponse,
@@ -490,6 +521,34 @@ async def slack_usergroups_task_status(
         HTTPException:
             - 404 Not Found: Task ID not found
             - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/sso-client/manual")
+async def sso_client_create_manual(
+    result: schemas.SsoClientTaskResponse, data: schemas.SsoClientCreateManualRequest
+) -> schemas.SsoClientTaskResponse:
+    """Sso Client Create Manual
+
+        Queue ad-hoc SSO client creation (not tied to an OCM cluster).
+
+    Used by qontract-cli for one-off client creation. Always queues a
+    background task and returns immediately with a task_id. Use
+    GET /manual/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/sso-client/manual/{task_id}")
+async def sso_client_create_manual_task_status(
+    result: schemas.SsoClientCreateManualResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.SsoClientCreateManualResult:
+    """Sso Client Create Manual Task Status
+
+    Retrieve ad-hoc SSO client creation result (blocking or non-blocking).
     """
     return result
 

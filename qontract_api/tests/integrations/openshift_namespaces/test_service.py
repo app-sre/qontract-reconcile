@@ -65,6 +65,7 @@ def test_delete_namespace_when_exists(
 ) -> None:
     """Namespace marked for deletion and exists → DeleteNamespaceAction."""
     mock_ws_client.namespace_exists.return_value = True
+    mock_ws_client.is_namespace_terminating.return_value = False
 
     result = service.reconcile(
         cluster_clients={"prod-1": mock_ws_client},
@@ -202,6 +203,22 @@ def test_missing_client_for_cluster(
     assert result.status == TaskStatus.FAILED
 
 
+def test_no_action_when_namespace_terminating(
+    service: OpenShiftNamespacesService,
+    mock_ws_client: MagicMock,
+) -> None:
+    """Namespace marked for deletion but already Terminating → no repeated delete."""
+    mock_ws_client.namespace_exists.return_value = True
+    mock_ws_client.is_namespace_terminating.return_value = True
+
+    result = service.reconcile(
+        cluster_clients={"prod-1": mock_ws_client},
+        cluster_namespaces={"prod-1": [DesiredNamespace(name="stuck-ns", delete=True)]},
+    )
+
+    assert result.actions == []
+
+
 def test_mix_create_and_delete(
     service: OpenShiftNamespacesService,
     mock_ws_client: MagicMock,
@@ -212,6 +229,7 @@ def test_mix_create_and_delete(
         return name == "existing"
 
     mock_ws_client.namespace_exists.side_effect = exists_side_effect
+    mock_ws_client.is_namespace_terminating.return_value = False
 
     result = service.reconcile(
         cluster_clients={"prod-1": mock_ws_client},

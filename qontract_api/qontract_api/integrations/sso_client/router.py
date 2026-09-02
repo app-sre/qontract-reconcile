@@ -12,11 +12,16 @@ from fastapi import APIRouter, Query, Request, status
 from qontract_api.config import settings
 from qontract_api.dependencies import UserDep
 from qontract_api.integrations.sso_client.schemas import (
+    SsoClientCreateManualRequest,
+    SsoClientCreateManualResult,
     SsoClientReconcileRequest,
     SsoClientTaskResponse,
     SsoClientTaskResult,
 )
-from qontract_api.integrations.sso_client.tasks import reconcile_sso_client_task
+from qontract_api.integrations.sso_client.tasks import (
+    create_manual_sso_client_task,
+    reconcile_sso_client_task,
+)
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.tasks import (
@@ -87,5 +92,64 @@ async def sso_client_task_status(
     """Retrieve reconciliation result (blocking or non-blocking)."""
     return await wait_for_task_completion(
         get_task_status=lambda: get_celery_task_result(task_id, SsoClientTaskResult),
+        timeout_seconds=timeout,
+    )
+
+
+@router.post(
+    "/manual",
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="sso-client-create-manual",
+)
+def sso_client_create_manual(
+    create_request: SsoClientCreateManualRequest,
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
+    request: Request,
+) -> SsoClientTaskResponse:
+    """Queue ad-hoc SSO client creation (not tied to an OCM cluster).
+
+    Used by qontract-cli for one-off client creation. Always queues a
+    background task and returns immediately with a task_id. Use
+    GET /manual/{task_id} to retrieve the result.
+    """
+    create_manual_sso_client_task.apply_async(
+        task_id=request.state.request_id,
+        queue=queue_for(dry_run=False),
+        kwargs={"request": create_request},
+    )
+
+    return SsoClientTaskResponse(
+        id=request.state.request_id,
+        status=TaskStatus.PENDING,
+        status_url=str(
+            request.url_for(
+                "sso_client_create_manual_task_status",
+                task_id=request.state.request_id,
+            )
+        ),
+    )
+
+
+@router.get(
+    "/manual/{task_id}",
+    operation_id="sso-client-create-manual-task-status",
+)
+async def sso_client_create_manual_task_status(
+    task_id: str,
+    current_user: UserDep,  # ruff: ignore[unused-function-argument]
+    timeout: Annotated[
+        int | None,
+        Query(
+            ge=1,
+            le=settings.api_task_max_timeout,
+            description="Optional: Block up to N seconds for completion. Omit for immediate status check.",
+        ),
+    ] = settings.api_task_default_timeout,
+) -> SsoClientCreateManualResult:
+    """Retrieve ad-hoc SSO client creation result (blocking or non-blocking)."""
+    return await wait_for_task_completion(
+        get_task_status=lambda: get_celery_task_result(
+            task_id, SsoClientCreateManualResult
+        ),
         timeout_seconds=timeout,
     )

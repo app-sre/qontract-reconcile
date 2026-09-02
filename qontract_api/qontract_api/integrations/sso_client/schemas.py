@@ -85,3 +85,38 @@ class SsoClientTaskResponse(BaseModel, frozen=True):
     status_url: str = Field(
         ..., description="URL to retrieve task result (GET request)"
     )
+
+
+class SsoClientCreateManualRequest(BaseModel, frozen=True):
+    """Request model for ad-hoc SSO client creation (not tied to an OCM cluster).
+
+    Used by qontract-cli to create one-off SSO clients without needing direct
+    access to vault.corp.redhat.com - qontract-api already holds AppRole
+    credentials for it and reads the IAT server-side via keycloak_instance.secret.
+    """
+
+    client_name: str = Field(..., description="Keycloak client id / Vault secret name")
+    redirect_uris: list[str] = Field(..., description="Allowed redirect URIs")
+    group_filter_regex: str | None = Field(
+        default=None, description="Optional group filter regex for the SSO client"
+    )
+    keycloak_instance: KeycloakInstanceSecret = Field(
+        ..., description="Keycloak issuer URL + Vault reference to its IAT secret"
+    )
+
+
+class SsoClientCreateManualResult(TaskResult, frozen=True):
+    """Result model for a completed ad-hoc SSO client creation task."""
+
+    actions: list[str] = Field(
+        default=[],
+        description=(
+            "Always empty - ad-hoc creation is a single action, not a diff. "
+            "Present only so this result satisfies the shared task-polling "
+            "Protocol (qontract_api.tasks._utils.TaskResult)."
+        ),
+    )
+    vault_secret_path: str | None = Field(
+        default=None,
+        description="Vault path where the created client secret was stored (set on success only)",
+    )
