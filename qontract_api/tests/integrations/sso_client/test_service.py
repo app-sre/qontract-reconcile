@@ -486,7 +486,10 @@ def test_create_manual_success(
 
     assert result.status == TaskStatus.SUCCESS
     assert result.applied_count == 1
-    assert result.vault_secret_path == "app-sre/creds/rhidp/manual/my-manual-client"
+    assert (
+        result.vault_secret_path
+        == "app-sre/integrations-throughput/rhidp/manual/my-manual-client"
+    )
 
     mock_keycloak_instance.register_client.assert_called_once_with(
         client_name="my-manual-client",
@@ -496,7 +499,10 @@ def test_create_manual_success(
     mock_secret_manager.write.assert_called_once()
     written_secret, written_data = mock_secret_manager.write.call_args.args
     assert written_secret.secret_manager_url == settings.secrets.default_provider_url
-    assert written_secret.path == "app-sre/creds/rhidp/manual/my-manual-client"
+    assert (
+        written_secret.path
+        == "app-sre/integrations-throughput/rhidp/manual/my-manual-client"
+    )
     assert written_data["client_id"] == "my-manual-client"
     assert written_data["issuer"] == ISSUER_URL
     mock_keycloak_instance.close.assert_called_once_with()

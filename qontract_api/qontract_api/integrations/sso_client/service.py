@@ -214,7 +214,7 @@ class SsoClientService:
         keycloak = keycloak_instances[request.keycloak_instance.url]
         target_secret = Secret(
             secret_manager_url=self.settings.secrets.default_provider_url,
-            path=f"app-sre/creds/rhidp/manual/{request.client_name}",
+            path=f"{self.settings.sso_client.manual_vault_path_prefix}/{request.client_name}",
         )
         try:
             self._register_and_persist_client(

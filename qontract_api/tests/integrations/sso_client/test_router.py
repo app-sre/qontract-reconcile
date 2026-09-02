@@ -192,7 +192,7 @@ def test_get_manual_task_status(
     expected_result = SsoClientCreateManualResult(
         status=TaskStatus.SUCCESS,
         applied_count=1,
-        vault_secret_path="app-sre/creds/rhidp/manual/my-manual-client",
+        vault_secret_path="app-sre/integrations-throughput/rhidp/manual/my-manual-client",
     )
     mock_wait.return_value = expected_result
 
@@ -202,5 +202,5 @@ def test_get_manual_task_status(
     assert response.json()["status"] == TaskStatus.SUCCESS.value
     assert (
         response.json()["vault_secret_path"]
-        == "app-sre/creds/rhidp/manual/my-manual-client"
+        == "app-sre/integrations-throughput/rhidp/manual/my-manual-client"
     )

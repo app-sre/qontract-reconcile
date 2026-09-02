@@ -700,7 +700,7 @@ def test_sso_client_create_success(
         json=Mock(
             return_value={
                 "status": "success",
-                "vault_secret_path": "app-sre/creds/rhidp/manual/my-client",
+                "vault_secret_path": "app-sre/integrations-throughput/rhidp/manual/my-client",
             }
         )
     )
@@ -712,7 +712,7 @@ def test_sso_client_create_success(
     )
 
     assert result.exit_code == 0
-    assert "app-sre/creds/rhidp/manual/my-client" in result.output
+    assert "app-sre/integrations-throughput/rhidp/manual/my-client" in result.output
 
     post_kwargs = mock_requests_session.post.call_args.kwargs
     assert (
@@ -753,7 +753,7 @@ def test_sso_client_create_stage_environment(
         json=Mock(
             return_value={
                 "status": "success",
-                "vault_secret_path": "app-sre/creds/rhidp/manual/my-client",
+                "vault_secret_path": "app-sre/integrations-throughput/rhidp/manual/my-client",
             }
         )
     )

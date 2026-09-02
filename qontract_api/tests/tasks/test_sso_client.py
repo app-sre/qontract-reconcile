@@ -276,12 +276,10 @@ def test_manual_publishes_event_on_success(
     mock_get_event_manager: MagicMock,
     mock_self: MagicMock,
 ) -> None:
-    mock_service_cls.return_value.create_manual.return_value = (
-        SsoClientCreateManualResult(
-            status=TaskStatus.SUCCESS,
-            applied_count=1,
-            vault_secret_path="app-sre/creds/rhidp/manual/my-manual-client",
-        )
+    mock_service_cls.return_value.create_manual.return_value = SsoClientCreateManualResult(
+        status=TaskStatus.SUCCESS,
+        applied_count=1,
+        vault_secret_path="app-sre/integrations-throughput/rhidp/manual/my-manual-client",
     )
     mock_event_manager = MagicMock()
     mock_get_event_manager.return_value = mock_event_manager
