@@ -222,10 +222,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   resources.
   status-board-exporter           Export Product and Application informnation
                                   to Status Board.
-  status-page-components          Manages components on statuspage.io hosted
-                                  status pages.
-  status-page-maintenances        Manages maintenances on statuspage.io hosted
-                                  status pages.
   template-renderer               Render datafile templates in app-interface.
   template-validator              Test app-interface templates.
   terraform-aws-route53           Manage AWS Route53 resources using

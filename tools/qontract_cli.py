@@ -13,7 +13,6 @@ import tempfile
 import textwrap
 from collections import defaultdict
 from datetime import (
-    datetime,
     timedelta,
 )
 from operator import itemgetter
@@ -93,7 +92,6 @@ from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     query as glitchtip_project_query,
 )
 from reconcile.gql_definitions.integrations import integrations as integrations_gql
-from reconcile.gql_definitions.maintenance import maintenances as maintenances_gql
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.status_board import StatusBoardExporterIntegration
@@ -3040,28 +3038,6 @@ def osd_component_versions(ctx: click.Context) -> None:
         "saas_file",
         "resource_template",
         "ref",
-    ]
-    print_output(ctx.obj["options"], data, columns)
-
-
-@get.command()
-@click.pass_context
-def maintenances(ctx: click.Context) -> None:
-    now = utc_now()
-    maintenances = maintenances_gql.query(gql.get_api().query).maintenances or []
-    data = [
-        {
-            **m.model_dump(),
-            "services": ", ".join(a.name for a in m.affected_services),
-        }
-        for m in maintenances
-        if datetime.fromisoformat(m.scheduled_start) > now
-    ]
-    columns = [
-        "name",
-        "scheduled_start",
-        "scheduled_end",
-        "services",
     ]
     print_output(ctx.obj["options"], data, columns)
 
