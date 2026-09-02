@@ -352,14 +352,14 @@ class SlackApi:
         Args:
             usergroup_id: Encoded usergroup ID
             user_ids: List of encoded user IDs representing the entire list of users for the usergroup
+
+        Raises:
+            SlackApiError: On any Slack API error, including invalid_users.
+                Deciding whether an invalid_users rejection is safe to ignore
+                (e.g. it happened while emptying a group) is business logic
+                that belongs to the caller, not this stateless client.
         """
-        try:
-            self._sc.usergroups_users_update(usergroup=usergroup_id, users=user_ids)
-        except SlackApiError as e:
-            # Slack can throw an invalid_users error when emptying groups, but
-            # it will still empty the group (so this can be ignored).
-            if e.response["error"] != "invalid_users":
-                raise
+        self._sc.usergroups_users_update(usergroup=usergroup_id, users=user_ids)
 
     @invoke_with_hooks(
         lambda self: SlackApiCallContext(
