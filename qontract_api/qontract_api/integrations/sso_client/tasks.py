@@ -13,7 +13,11 @@ from qontract_utils.events import Event
 from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
 from qontract_api.event_manager import get_event_manager
-from qontract_api.integrations.sso_client.schemas import SsoClientTaskResult
+from qontract_api.integrations.sso_client.schemas import (
+    SsoClientCreateManualRequest,
+    SsoClientCreateManualResult,
+    SsoClientTaskResult,
+)
 from qontract_api.integrations.sso_client.service import SsoClientService
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
@@ -117,5 +121,70 @@ def reconcile_sso_client_task(
                 )
         except Exception:
             logger.exception(f"Task {request_id} failed to publish events")
+
+    return result
+
+
+def generate_manual_create_lock_key(
+    _self: Task,
+    request: SsoClientCreateManualRequest,
+    **_: Any,
+) -> str:
+    """Lock key based on client_name to prevent concurrent duplicate creation."""
+    return request.client_name
+
+
+@celery_app.task(bind=True, name="sso-client.create-manual", acks_late=True)
+@deduplicated_task(lock_key_fn=generate_manual_create_lock_key, timeout=600)
+def create_manual_sso_client_task(
+    self: Any,  # Celery Task instance (bind=True)
+    request: SsoClientCreateManualRequest,
+    *,
+    dry_run: bool = False,  # ruff: ignore[unused-function-argument] - consumed by @deduplicated_task's kwargs.get("dry_run")
+) -> SsoClientCreateManualResult:
+    """Create a one-off SSO client, not tied to any OCM cluster (background task)."""
+    request_id = self.request.id
+
+    try:
+        cache = get_cache()
+        secret_manager = get_secret_manager(cache=cache)
+        event_manager = get_event_manager()
+
+        service = SsoClientService(
+            cache=cache,
+            secret_manager=secret_manager,
+            settings=settings,
+        )
+
+        result = service.create_manual(request)
+    except Exception as err:
+        logger.exception(f"Task {request_id} failed with error")
+        return SsoClientCreateManualResult(
+            status=TaskStatus.FAILED,
+            errors=[f"Unexpected {err=}"],
+        )
+
+    logger.info(
+        f"Task {request_id} completed",
+        status=result.status,
+        vault_secret_path=result.vault_secret_path,
+        errors=result.errors,
+    )
+
+    if result.status == TaskStatus.SUCCESS and event_manager:
+        try:
+            event_manager.publish_event(
+                Event(
+                    source=__name__,
+                    type="qontract-api.sso-client.create-manual",
+                    data={
+                        "client_name": request.client_name,
+                        "vault_secret_path": result.vault_secret_path,
+                    },
+                    datacontenttype="application/json",
+                )
+            )
+        except Exception:
+            logger.exception(f"Task {request_id} failed to publish event")
 
     return result

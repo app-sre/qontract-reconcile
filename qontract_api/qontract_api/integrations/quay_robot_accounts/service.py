@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -19,14 +20,16 @@ from qontract_api.integrations.quay_robot_accounts.schemas import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
+from qontract_api.quay.quay_client_factory import create_quay_workspace_client
 
 if TYPE_CHECKING:
+    from qontract_api.cache import CacheBackend
     from qontract_api.config import Settings
     from qontract_api.integrations.quay_robot_accounts.domain import (
         QuayOrgDesiredState,
         QuayRobotDesiredState,
     )
-    from qontract_api.quay import QuayClientFactory, QuayWorkspaceClient
+    from qontract_api.quay.quay_workspace_client import QuayWorkspaceClient
     from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
@@ -49,21 +52,16 @@ class QuayRobotAccountsService:
 
     def __init__(
         self,
-        quay_client_factory: QuayClientFactory,
         secret_manager: SecretManager,
+        cache: CacheBackend,
         settings: Settings,
+        workspace_client_factory: Callable[..., QuayWorkspaceClient] | None = None,
     ) -> None:
-        self.quay_client_factory = quay_client_factory
         self.secret_manager = secret_manager
+        self.cache = cache
         self.settings = settings
-
-    def _create_quay_client(self, org: QuayOrgDesiredState) -> QuayWorkspaceClient:
-        token = self.secret_manager.read(org.token)
-        return self.quay_client_factory.create_workspace_client(
-            instance_name=org.instance_name,
-            organization=org.org_name,
-            token=token,
-            base_url=org.instance_url,
+        self._workspace_client_factory = (
+            workspace_client_factory or create_quay_workspace_client
         )
 
     @staticmethod
@@ -272,6 +270,49 @@ class QuayRobotAccountsService:
                     action.repo, action.robot_name
                 )
 
+    def _apply_actions(
+        self,
+        quay_client: QuayWorkspaceClient,
+        actions: list[QuayRobotAction],
+        *,
+        dry_run: bool,
+    ) -> tuple[list[QuayRobotAction], list[str]]:
+        if dry_run:
+            return [], []
+        applied: list[QuayRobotAction] = []
+        errors: list[str] = []
+        for action in actions:
+            try:
+                self._execute_action(quay_client, action)
+                applied.append(action)
+            except Exception as e:
+                error_msg = (
+                    f"{action.instance_name}/{action.org_name}/"
+                    f"{action.robot_name}: Failed to execute "
+                    f"{action.action_type}: {e}"
+                )
+                logger.exception(error_msg)
+                errors.append(error_msg)
+        return applied, errors
+
+    def _reconcile_org(
+        self,
+        org: QuayOrgDesiredState,
+        *,
+        dry_run: bool,
+    ) -> tuple[list[QuayRobotAction], list[QuayRobotAction], list[str]]:
+        with self._workspace_client_factory(
+            secret=org.token,
+            org_name=org.org_name,
+            base_url=org.instance_url,
+            cache=self.cache,
+            secret_manager=self.secret_manager,
+            settings=self.settings,
+        ) as quay_client:
+            actions = self._calculate_actions(org, quay_client)
+            applied, errors = self._apply_actions(quay_client, actions, dry_run=dry_run)
+        return actions, applied, errors
+
     def reconcile(
         self,
         organizations: list[QuayOrgDesiredState],
@@ -291,36 +332,17 @@ class QuayRobotAccountsService:
                 errors.extend(validation_errors)
                 continue
 
-            quay_client: QuayWorkspaceClient | None = None
             try:
-                try:
-                    quay_client = self._create_quay_client(org)
-                    org_actions = self._calculate_actions(org, quay_client)
-                    all_actions.extend(org_actions)
-                except Exception as e:
-                    error_msg = (
-                        f"{org_label}: Unexpected error during diff calculation: {e}"
-                    )
-                    logger.exception(error_msg)
-                    errors.append(error_msg)
-                    continue
-
-                if not dry_run and org_actions:
-                    for action in org_actions:
-                        try:
-                            self._execute_action(quay_client, action)
-                            applied_actions.append(action)
-                        except Exception as e:
-                            error_msg = (
-                                f"{action.instance_name}/{action.org_name}/"
-                                f"{action.robot_name}: Failed to execute "
-                                f"{action.action_type}: {e}"
-                            )
-                            logger.exception(error_msg)
-                            errors.append(error_msg)
-            finally:
-                if quay_client is not None:
-                    quay_client.close()
+                actions, applied, org_errors = self._reconcile_org(org, dry_run=dry_run)
+                all_actions.extend(actions)
+                applied_actions.extend(applied)
+                errors.extend(org_errors)
+            except Exception as e:
+                error_msg = (
+                    f"{org_label}: Unexpected error during diff calculation: {e}"
+                )
+                logger.exception(error_msg)
+                errors.append(error_msg)
 
         return QuayRobotAccountsTaskResult(
             status=TaskStatus.FAILED if errors else TaskStatus.SUCCESS,

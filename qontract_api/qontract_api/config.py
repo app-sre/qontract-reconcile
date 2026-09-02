@@ -240,15 +240,6 @@ class GithubOrgSettings(BaseModel):
     )
 
 
-class QuaySettings(BaseModel):
-    """Quay API and integration configuration."""
-
-    robots_cache_ttl: int = Field(
-        default=60 * 60,
-        description="Quay robot account list and permission cache TTL in seconds (one hour)",
-    )
-
-
 class GlitchtipSettings(BaseModel):
     """Glitchtip API and integration configuration."""
 
@@ -383,6 +374,34 @@ class SecretSettings(BaseModel):
     default_provider_url: str = Field(
         "please-set-in-environment",
         description="Default secret provider URL. Used when no provider/secret is specified in the API request.",
+    )
+
+
+class SsoClientSettings(BaseModel):
+    """RHIDP SSO client integration configuration."""
+
+    manual_vault_path_prefix: str = Field(
+        default="app-sre/integrations-throughput/rhidp/manual",
+        min_length=1,
+        description=(
+            "Vault path prefix for ad-hoc (qontract-cli) SSO client secrets. "
+            "The client name is appended to form the full path. Must stay "
+            "within a prefix the qontract-api Vault AppRole is granted write "
+            "access to."
+        ),
+    )
+
+
+class QuaySettings(BaseModel):
+    """Quay API and integration configuration."""
+
+    repos_cache_ttl: int = Field(
+        default=60 * 5,
+        description="Quay repos list cache TTL in seconds (5 minutes)",
+    )
+    robots_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Quay robot account list and permission cache TTL in seconds (one hour)",
     )
 
 
@@ -545,12 +564,6 @@ class Settings(BaseSettings):
         description="GitHub organization membership integration configuration",
     )
 
-    # Quay Configuration (nested)
-    quay: QuaySettings = Field(
-        default_factory=QuaySettings,
-        description="Quay API and integration configuration",
-    )
-
     # Glitchtip Configuration (nested)
     glitchtip: GlitchtipSettings = Field(
         default_factory=GlitchtipSettings,
@@ -591,6 +604,18 @@ class Settings(BaseSettings):
     events: EventSettings = Field(
         default_factory=EventSettings,
         description="Event publishing configuration",
+    )
+
+    # Quay Configuration (nested)
+    quay: QuaySettings = Field(
+        default_factory=QuaySettings,
+        description="Quay API and integration configuration",
+    )
+
+    # SSO Client (RHIDP) Configuration (nested)
+    sso_client: SsoClientSettings = Field(
+        default_factory=SsoClientSettings,
+        description="RHIDP SSO client integration configuration",
     )
 
     # Event Subscriber Configuration (nested)

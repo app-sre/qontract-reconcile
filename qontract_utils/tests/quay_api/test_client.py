@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 import httpx2
 import pytest
 from qontract_utils.quay_api import QuayApi
-from qontract_utils.quay_api.client import _normalize_host
 
 ORG = "some-org"
 
@@ -19,7 +18,7 @@ def mock_httpx_client() -> MagicMock:
 def quay_api(mock_httpx_client: MagicMock) -> QuayApi:
     with patch("qontract_utils.quay_api.client.httpx2.Client") as mock_cls:
         mock_cls.return_value = mock_httpx_client
-        return QuayApi(token="some-token", organization=ORG, base_url="quay.io")
+        return QuayApi(org=ORG, token="some-token", base_url="quay.io")
 
 
 def _response(
@@ -35,19 +34,10 @@ def _response(
     return httpx2.Response(status, request=request)
 
 
-def test_normalize_host_hostname() -> None:
-    assert _normalize_host("quay.io") == "https://quay.io"
-
-
-def test_normalize_host_full_url() -> None:
-    assert _normalize_host("http://localhost:12345/") == "http://localhost:12345"
-
-
-def test_quay_api_default_user_agent() -> None:
+def test_quay_api_bearer_token() -> None:
     with patch("qontract_utils.quay_api.client.httpx2.Client") as mock_cls:
-        QuayApi(token="token", organization=ORG)
+        QuayApi(org=ORG, token="token")
     headers = mock_cls.call_args.kwargs["headers"]
-    assert headers["User-Agent"].startswith("qontract-utils/")
     assert headers["Authorization"] == "Bearer token"
 
 
@@ -232,6 +222,6 @@ def test_delete_repo_robot_account_permissions_http_error(
 def test_context_manager_closes_client(mock_httpx_client: MagicMock) -> None:
     with patch("qontract_utils.quay_api.client.httpx2.Client") as mock_cls:
         mock_cls.return_value = mock_httpx_client
-        with QuayApi(token="t", organization=ORG) as api:
-            assert api.organization == ORG
+        with QuayApi(org=ORG, token="t") as api:
+            assert api.org == ORG
     mock_httpx_client.close.assert_called_once()

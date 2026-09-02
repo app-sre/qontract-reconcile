@@ -3142,6 +3142,63 @@
         "title": "PagerDutyUser",
         "type": "object"
       },
+      "QuayOrgConfig": {
+        "description": "Configuration for a single Quay organization to reconcile.",
+        "properties": {
+          "automation_token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Secret reference for API token"
+          },
+          "base_url": {
+            "description": "Quay instance base URL",
+            "title": "Base Url",
+            "type": "string"
+          },
+          "instance": {
+            "description": "Quay instance name",
+            "title": "Instance",
+            "type": "string"
+          },
+          "managed_repos": {
+            "description": "Whether repos are managed by app-interface",
+            "title": "Managed Repos",
+            "type": "boolean"
+          },
+          "mirror": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuayOrgKey"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Upstream org this org mirrors (if any)"
+          },
+          "org_name": {
+            "description": "Quay organization name",
+            "title": "Org Name",
+            "type": "string"
+          },
+          "repos": {
+            "description": "Desired repository state for this org",
+            "items": {
+              "$ref": "#/components/schemas/QuayRepoConfig"
+            },
+            "title": "Repos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "instance",
+          "org_name",
+          "base_url",
+          "automation_token",
+          "managed_repos"
+        ],
+        "title": "QuayOrgConfig",
+        "type": "object"
+      },
       "QuayOrgDesiredState": {
         "description": "Desired robot-account state for a single Quay organization.",
         "properties": {
@@ -3202,6 +3259,194 @@
         "title": "QuayOrgDesiredState",
         "type": "object"
       },
+      "QuayOrgKey": {
+        "description": "Identifies a Quay organization uniquely across instances.",
+        "properties": {
+          "instance": {
+            "description": "Quay instance name (e.g. quay.io)",
+            "title": "Instance",
+            "type": "string"
+          },
+          "org_name": {
+            "description": "Quay organization name",
+            "title": "Org Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "org_name"
+        ],
+        "title": "QuayOrgKey",
+        "type": "object"
+      },
+      "QuayRepoActionCreate": {
+        "description": "Action: Create a new repository.",
+        "properties": {
+          "action_type": {
+            "const": "create",
+            "default": "create",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "public": {
+            "title": "Public",
+            "type": "boolean"
+          },
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "org_name",
+          "repo_name",
+          "public",
+          "description"
+        ],
+        "title": "QuayRepoActionCreate",
+        "type": "object"
+      },
+      "QuayRepoActionDelete": {
+        "description": "Action: Delete a repository no longer in desired state.",
+        "properties": {
+          "action_type": {
+            "const": "delete",
+            "default": "delete",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "org_name",
+          "repo_name"
+        ],
+        "title": "QuayRepoActionDelete",
+        "type": "object"
+      },
+      "QuayRepoActionUpdateDescription": {
+        "description": "Action: Update repository description.",
+        "properties": {
+          "action_type": {
+            "const": "update_description",
+            "default": "update_description",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "org_name",
+          "repo_name",
+          "description"
+        ],
+        "title": "QuayRepoActionUpdateDescription",
+        "type": "object"
+      },
+      "QuayRepoActionUpdateVisibility": {
+        "description": "Action: Update repository visibility (public/private).",
+        "properties": {
+          "action_type": {
+            "const": "update_visibility",
+            "default": "update_visibility",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "public": {
+            "title": "Public",
+            "type": "boolean"
+          },
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "org_name",
+          "repo_name",
+          "public"
+        ],
+        "title": "QuayRepoActionUpdateVisibility",
+        "type": "object"
+      },
+      "QuayRepoConfig": {
+        "description": "Desired state for a single Quay repository.",
+        "properties": {
+          "description": {
+            "default": "",
+            "description": "Repository description",
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "description": "Repository name",
+            "title": "Name",
+            "type": "string"
+          },
+          "public": {
+            "description": "Whether the repository should be public",
+            "title": "Public",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "public"
+        ],
+        "title": "QuayRepoConfig",
+        "type": "object"
+      },
       "QuayRepoPermission": {
         "description": "Allowed Quay repository roles for a robot account.",
         "enum": [
@@ -3211,6 +3456,126 @@
         ],
         "title": "QuayRepoPermission",
         "type": "string"
+      },
+      "QuayReposReconcileRequest": {
+        "description": "Request model for Quay repos reconciliation.",
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "orgs": {
+            "description": "List of Quay organizations to reconcile",
+            "items": {
+              "$ref": "#/components/schemas/QuayOrgConfig"
+            },
+            "title": "Orgs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "orgs"
+        ],
+        "title": "QuayReposReconcileRequest",
+        "type": "object"
+      },
+      "QuayReposTaskResponse": {
+        "description": "Immediate response returned when the reconciliation task is queued.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending"
+          },
+          "status_url": {
+            "description": "URL to poll for task result",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "QuayReposTaskResponse",
+        "type": "object"
+      },
+      "QuayReposTaskResult": {
+        "description": "Result of a completed reconciliation task.",
+        "properties": {
+          "actions": {
+            "description": "All actions calculated (desired - current).",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/QuayRepoActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRepoActionDelete"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRepoActionUpdateDescription"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRepoActionUpdateVisibility"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "description": "Actions successfully applied (non-dry-run only).",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/QuayRepoActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRepoActionDelete"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRepoActionUpdateDescription"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRepoActionUpdateVisibility"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "QuayReposTaskResult",
+        "type": "object"
       },
       "QuayRobotAccountsReconcileRequest": {
         "description": "Request model for quay-robot-accounts reconciliation.",
@@ -4271,6 +4636,97 @@
           "auth"
         ],
         "title": "SsoClientCluster",
+        "type": "object"
+      },
+      "SsoClientCreateManualRequest": {
+        "description": "Request model for ad-hoc SSO client creation (not tied to an OCM cluster).\n\nUsed by qontract-cli to create one-off SSO clients without needing direct\naccess to vault.corp.redhat.com - qontract-api already holds AppRole\ncredentials for it and reads the IAT server-side via keycloak_instance.secret.",
+        "properties": {
+          "client_name": {
+            "description": "Keycloak client id / Vault secret name",
+            "title": "Client Name",
+            "type": "string"
+          },
+          "group_filter_regex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional group filter regex for the SSO client",
+            "title": "Group Filter Regex"
+          },
+          "keycloak_instance": {
+            "$ref": "#/components/schemas/KeycloakInstanceSecret",
+            "description": "Keycloak issuer URL + Vault reference to its IAT secret"
+          },
+          "redirect_uris": {
+            "description": "Allowed redirect URIs",
+            "items": {
+              "type": "string"
+            },
+            "title": "Redirect Uris",
+            "type": "array"
+          }
+        },
+        "required": [
+          "client_name",
+          "redirect_uris",
+          "keycloak_instance"
+        ],
+        "title": "SsoClientCreateManualRequest",
+        "type": "object"
+      },
+      "SsoClientCreateManualResult": {
+        "description": "Result model for a completed ad-hoc SSO client creation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "Always empty - ad-hoc creation is a single action, not a diff. Present only so this result satisfies the shared task-polling Protocol (qontract_api.tasks._utils.TaskResult).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          },
+          "vault_secret_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vault path where the created client secret was stored (set on success only)",
+            "title": "Vault Secret Path"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "SsoClientCreateManualResult",
         "type": "object"
       },
       "SsoClientReconcileRequest": {
@@ -5763,6 +6219,101 @@
         ]
       }
     },
+    "/api/v1/integrations/quay-repos/reconcile": {
+      "post": {
+        "description": "Queue Quay repos reconciliation task.\n\nAlways queues a background task and returns immediately with a task_id.\nUse GET /reconcile/{task_id} to retrieve the result.",
+        "operationId": "quay-repos",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuayReposReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuayReposTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Quay Repos",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/quay-repos/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation result (blocking or non-blocking).\n\nArgs:\n    task_id: Task ID from POST /reconcile response\n    timeout: Maximum seconds to wait (default: non-blocking)",
+        "operationId": "quay-repos-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuayReposTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Quay Repos Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
     "/api/v1/integrations/quay-robot-accounts/reconcile": {
       "post": {
         "description": "Queue a quay-robot-accounts reconciliation task.",
@@ -5948,6 +6499,101 @@
           }
         ],
         "summary": "Slack Usergroups Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/sso-client/manual": {
+      "post": {
+        "description": "Queue ad-hoc SSO client creation (not tied to an OCM cluster).\n\nUsed by qontract-cli for one-off client creation. Always queues a\nbackground task and returns immediately with a task_id. Use\nGET /manual/{task_id} to retrieve the result.",
+        "operationId": "sso-client-create-manual",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SsoClientCreateManualRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoClientTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sso Client Create Manual",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/sso-client/manual/{task_id}": {
+      "get": {
+        "description": "Retrieve ad-hoc SSO client creation result (blocking or non-blocking).",
+        "operationId": "sso-client-create-manual-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoClientCreateManualResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sso Client Create Manual Task Status",
         "tags": [
           "integrations"
         ]

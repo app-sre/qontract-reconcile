@@ -76,12 +76,6 @@ from reconcile.gql_definitions.jira.jira_servers import (
 from reconcile.gql_definitions.jira.jira_servers import (
     JiraServerV1,
 )
-from reconcile.gql_definitions.statuspage.statuspages import (
-    DEFINITION as STATUS_PAGES_DEFINITION,
-)
-from reconcile.gql_definitions.statuspage.statuspages import (
-    StatusPageV1,
-)
 from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
     DEFINITION as AWS_ACCOUNTS_DEFINITION,
 )
@@ -100,7 +94,6 @@ from reconcile.gql_definitions.vault_instances.vault_instances import (
 from reconcile.gql_definitions.vault_instances.vault_instances import (
     VaultInstanceV1,
 )
-from reconcile.statuspage.integration import get_status_pages
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.dynatrace import get_dynatrace_environments
 from reconcile.typed_queries.gitlab_instances import (
@@ -164,8 +157,6 @@ class SystemTool(BaseModel):
                 return cls.init_from_quay_instance(model, enumeration)
             case SlackWorkspaceV1():
                 return cls.init_from_slack_workspace(model, enumeration)
-            case StatusPageV1():
-                return cls.init_from_status_page(model, enumeration)
             case UnleashInstanceV1():
                 return cls.init_from_unleash_instance(model, enumeration)
             case VaultInstanceV1():
@@ -324,17 +315,6 @@ class SystemTool(BaseModel):
         )
 
     @classmethod
-    def init_from_status_page(cls, s: StatusPageV1, enumeration: Any) -> Self:
-        return cls(
-            system_type="statuspage",
-            system_id=s.name,
-            name=s.name,
-            url=s.url,
-            description=s.description,
-            enumeration=enumeration,
-        )
-
-    @classmethod
     def init_from_unleash_instance(cls, u: UnleashInstanceV1, enumeration: Any) -> Self:
         return cls(
             system_type="unleash",
@@ -441,7 +421,6 @@ def get_systems_and_tools_inventory() -> SystemToolInventory:
     )
     inventory.update(get_quay_instances(), QUAY_INSTANCES_DEFINITION)
     inventory.update(get_slack_workspaces(), SLACK_WORKSPACES_DEFINITION)
-    inventory.update(get_status_pages(), STATUS_PAGES_DEFINITION)
     inventory.update(get_unleash_instances(), UNLEASH_INSTANCES_DEFINITION)
     inventory.update(get_vault_instances(), VAULT_INSTANCES_DEFINITION)
     inventory.update(

@@ -35,7 +35,6 @@ from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
     ModuleArgsKwargsRunParams,
     ModuleBasedQontractReconcileIntegration,
-    NoParams,
     PydanticRunParams,
     QontractReconcileApiIntegration,
     QontractReconcileIntegration,
@@ -2027,6 +2026,22 @@ def quay_repos(ctx: click.Context) -> None:
     run_integration(reconcile.quay_repos, ctx)
 
 
+@integration.command(short_help="Creates and Manages Quay Repos (via qontract-api).")
+@click.pass_context
+def quay_repos_api(
+    ctx: click.Context,
+) -> None:
+    from reconcile.quay_repos_api import (
+        QuayReposIntegration,
+        QuayReposIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=QuayReposIntegration(QuayReposIntegrationParams()),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Manage permissions for Quay Repositories.")
 @click.pass_context
 def quay_permissions(ctx: click.Context) -> None:
@@ -3373,30 +3388,6 @@ def gabi_authorized_users(
         thread_pool_size,
         internal,
     )
-
-
-@integration.command(
-    short_help="Manages components on statuspage.io hosted status pages."
-)
-@click.pass_context
-def status_page_components(ctx: click.Context) -> None:
-    from reconcile.statuspage.integrations.components import (
-        StatusPageComponentsIntegration,
-    )
-
-    run_class_integration(StatusPageComponentsIntegration(), ctx)
-
-
-@integration.command(
-    short_help="Manages maintenances on statuspage.io hosted status pages."
-)
-@click.pass_context
-def status_page_maintenances(ctx: click.Context) -> None:
-    from reconcile.statuspage.integrations.maintenances import (
-        StatusPageMaintenancesIntegration,
-    )
-
-    run_class_integration(StatusPageMaintenancesIntegration(NoParams()), ctx)
 
 
 @integration.command(

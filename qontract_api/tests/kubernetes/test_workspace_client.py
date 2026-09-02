@@ -25,9 +25,10 @@ def _make_client(
     )
 
 
-def _mock_namespace(name: str) -> MagicMock:
+def _mock_namespace(name: str, phase: str | None = "Active") -> MagicMock:
     ns = MagicMock()
     ns.metadata.name = name
+    ns.status.phase = phase
     return ns
 
 
@@ -80,6 +81,87 @@ def test_namespace_exists_cache_miss(
     cached_value = mock_cache.set_obj.call_args[0][1]
     assert isinstance(cached_value, CachedNamespaceNames)
     assert cached_value.names == frozenset({"ns-a", "ns-b"})
+    assert cached_value.terminating == frozenset()
+
+
+def test_namespace_exists_true_when_terminating(
+    mock_kubernetes_api: MagicMock,
+    mock_cache: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    """A Terminating namespace still counts as existing."""
+    mock_cache.get_obj.return_value = None
+    mock_kubernetes_api.list_namespaces.return_value = [
+        _mock_namespace("stuck-ns", phase="Terminating"),
+    ]
+    client = _make_client(mock_kubernetes_api, mock_cache, mock_settings)
+
+    assert client.namespace_exists("stuck-ns") is True
+
+
+def test_is_namespace_terminating_cache_miss_populates_terminating_set(
+    mock_kubernetes_api: MagicMock,
+    mock_cache: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    """Cache miss classifies namespaces by status.phase == Terminating."""
+    mock_cache.get_obj.return_value = None
+    mock_kubernetes_api.list_namespaces.return_value = [
+        _mock_namespace("stuck-ns", phase="Terminating"),
+        _mock_namespace("active-ns", phase="Active"),
+    ]
+    client = _make_client(mock_kubernetes_api, mock_cache, mock_settings)
+
+    assert client.is_namespace_terminating("stuck-ns") is True
+    assert client.is_namespace_terminating("active-ns") is False
+    cached_value = mock_cache.set_obj.call_args[0][1]
+    assert isinstance(cached_value, CachedNamespaceNames)
+    assert cached_value.terminating == frozenset({"stuck-ns"})
+
+
+def test_is_namespace_terminating_cache_hit(
+    mock_kubernetes_api: MagicMock,
+    mock_cache: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    """Cache hit returns terminating state without listing namespaces again."""
+    mock_cache.get_obj.return_value = CachedNamespaceNames(
+        names=frozenset({"stuck-ns"}), terminating=frozenset({"stuck-ns"})
+    )
+    client = _make_client(mock_kubernetes_api, mock_cache, mock_settings)
+
+    assert client.is_namespace_terminating("stuck-ns") is True
+    mock_kubernetes_api.list_namespaces.assert_not_called()
+
+
+def test_legacy_pre_version_cache_entry_is_ignored(
+    mock_kubernetes_api: MagicMock,
+    mock_cache: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    """Legacy pre-versioning cache entries are never read as-is.
+
+    A cache entry from before the `terminating` field existed would default
+    to an empty set and mask a namespace that's actually Terminating. The
+    versioned key ensures it's treated as a miss and refreshed from a live
+    listing instead.
+    """
+    legacy_key = "kubernetes:test-cluster:namespace_names"
+    legacy_entry = CachedNamespaceNames(names=frozenset({"stuck-ns"}))
+
+    def get_obj(key: str, cls: type) -> CachedNamespaceNames | None:
+        return legacy_entry if key == legacy_key else None
+
+    mock_cache.get_obj.side_effect = get_obj
+    mock_kubernetes_api.list_namespaces.return_value = [
+        _mock_namespace("stuck-ns", phase="Terminating"),
+    ]
+    client = _make_client(mock_kubernetes_api, mock_cache, mock_settings)
+
+    assert client.is_namespace_terminating("stuck-ns") is True
+    mock_kubernetes_api.list_namespaces.assert_called_once()
+    cache_key_used = mock_cache.set_obj.call_args[0][0]
+    assert cache_key_used != legacy_key
 
 
 def test_namespace_exists_double_check_locking(
@@ -151,7 +233,9 @@ def test_create_namespace_delegates_and_invalidates(
     client.create_namespace("new-ns")
 
     mock_kubernetes_api.create_namespace.assert_called_once_with("new-ns")
-    mock_cache.delete.assert_called_once_with("kubernetes:test-cluster:namespace_names")
+    mock_cache.delete.assert_called_once_with(
+        "kubernetes:test-cluster:namespace_names:v2"
+    )
 
 
 def test_delete_namespace_delegates_and_invalidates(
@@ -164,7 +248,9 @@ def test_delete_namespace_delegates_and_invalidates(
     client.delete_namespace("old-ns")
 
     mock_kubernetes_api.delete_namespace.assert_called_once_with("old-ns")
-    mock_cache.delete.assert_called_once_with("kubernetes:test-cluster:namespace_names")
+    mock_cache.delete.assert_called_once_with(
+        "kubernetes:test-cluster:namespace_names:v2"
+    )
 
 
 def test_list_namespaces_delegates_no_cache(

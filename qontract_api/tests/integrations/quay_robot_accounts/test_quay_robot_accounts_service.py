@@ -29,8 +29,10 @@ from qontract_api.integrations.quay_robot_accounts.service import (
     QuayRobotAccountsService,
 )
 from qontract_api.models import Secret, TaskStatus
-from qontract_api.quay import QuayWorkspaceClient
-from qontract_api.quay.quay_workspace_client import CachedRobotAccounts
+from qontract_api.quay.quay_workspace_client import (
+    CachedRobotAccounts,
+    QuayWorkspaceClient,
+)
 
 
 @pytest.fixture
@@ -62,30 +64,37 @@ def mock_secret_manager() -> MagicMock:
 
 
 @pytest.fixture
+def mock_cache() -> MagicMock:
+    return MagicMock(spec=CacheBackend)
+
+
+@pytest.fixture
 def mock_quay_client() -> MagicMock:
     mock = MagicMock(spec=QuayWorkspaceClient)
     mock.list_robot_accounts.return_value = []
     mock.get_robot_account_permissions.return_value = []
+    mock.__enter__.return_value = mock
+    mock.__exit__.return_value = False
     return mock
 
 
 @pytest.fixture
-def mock_quay_client_factory(mock_quay_client: MagicMock) -> MagicMock:
-    mock = MagicMock()
-    mock.create_workspace_client.return_value = mock_quay_client
-    return mock
+def mock_workspace_client_factory(mock_quay_client: MagicMock) -> MagicMock:
+    return MagicMock(return_value=mock_quay_client)
 
 
 @pytest.fixture
 def service(
-    mock_quay_client_factory: MagicMock,
+    mock_workspace_client_factory: MagicMock,
     mock_secret_manager: MagicMock,
+    mock_cache: MagicMock,
     mock_settings: Settings,
 ) -> QuayRobotAccountsService:
     return QuayRobotAccountsService(
-        quay_client_factory=mock_quay_client_factory,
         secret_manager=mock_secret_manager,
+        cache=mock_cache,
         settings=mock_settings,
+        workspace_client_factory=mock_workspace_client_factory,
     )
 
 
@@ -342,7 +351,6 @@ def test_filters_unmanaged_teams_from_current(
 def test_per_org_error_isolation(
     service: QuayRobotAccountsService,
     test_token: Secret,
-    mock_quay_client_factory: MagicMock,
     mock_quay_client: MagicMock,
 ) -> None:
     bad_org = _org(
@@ -360,7 +368,6 @@ def test_per_org_error_isolation(
         managed_robot_accounts=True,
         robots=[QuayRobotDesiredState(name="new-bot")],
     )
-    mock_quay_client_factory.create_workspace_client.return_value = mock_quay_client
 
     result = service.reconcile(organizations=[bad_org, good_org], dry_run=True)
 
@@ -380,7 +387,7 @@ def test_apply_create_robot(
     )
     result = service.reconcile(organizations=[org], dry_run=False)
     mock_quay_client.create_robot_account.assert_called_once_with("new-bot", "n")
-    mock_quay_client.close.assert_called_once()
+    mock_quay_client.__exit__.assert_called_once()
     assert result.applied_count == 1
     assert result.status == TaskStatus.SUCCESS
 
@@ -391,22 +398,22 @@ def test_apply_create_succeeds_when_cache_lock_fails(
     test_token: Secret,
 ) -> None:
     mock_api = MagicMock(spec=QuayApi)
+    mock_api.org = "test-org"
     mock_cache = MagicMock(spec=CacheBackend)
     mock_cache.get_obj.return_value = CachedRobotAccounts(items=[])
     mock_cache.lock.side_effect = RuntimeError("Could not acquire lock")
     client = QuayWorkspaceClient(
         quay_api=mock_api,
-        instance_name="quay-io",
-        organization="test-org",
+        base_url="https://quay.io",
         cache=mock_cache,
         settings=mock_settings,
     )
-    factory = MagicMock()
-    factory.create_workspace_client.return_value = client
+    factory = MagicMock(return_value=client)
     service = QuayRobotAccountsService(
-        quay_client_factory=factory,
         secret_manager=mock_secret_manager,
+        cache=mock_cache,
         settings=mock_settings,
+        workspace_client_factory=factory,
     )
     org = _org(
         test_token,
@@ -479,14 +486,18 @@ def test_apply_action_error_collected(
 def test_inventory_error_does_not_abort_other_orgs(
     service: QuayRobotAccountsService,
     test_token: Secret,
-    mock_quay_client_factory: MagicMock,
+    mock_workspace_client_factory: MagicMock,
 ) -> None:
     failing = MagicMock(spec=QuayWorkspaceClient)
     failing.list_robot_accounts.side_effect = RuntimeError("401")
+    failing.__enter__.return_value = failing
+    failing.__exit__.return_value = False
     ok = MagicMock(spec=QuayWorkspaceClient)
     ok.list_robot_accounts.return_value = []
     ok.get_robot_account_permissions.return_value = []
-    mock_quay_client_factory.create_workspace_client.side_effect = [failing, ok]
+    ok.__enter__.return_value = ok
+    ok.__exit__.return_value = False
+    mock_workspace_client_factory.side_effect = [failing, ok]
 
     org_a = _org(test_token, robots=[QuayRobotDesiredState(name="a")])
     org_b = QuayOrgDesiredState(
@@ -505,8 +516,8 @@ def test_inventory_error_does_not_abort_other_orgs(
     assert result.status == TaskStatus.FAILED
     assert any("test-org" in e and "401" in e for e in result.errors)
     assert any(a.robot_name == "b" for a in result.actions)
-    failing.close.assert_called_once()
-    ok.close.assert_called_once()
+    failing.__exit__.assert_called_once()
+    ok.__exit__.assert_called_once()
 
 
 def test_duplicate_robot_names_rejected(test_token: Secret) -> None:
