@@ -35,7 +35,6 @@ from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
     ModuleArgsKwargsRunParams,
     ModuleBasedQontractReconcileIntegration,
-    NoParams,
     PydanticRunParams,
     QontractReconcileApiIntegration,
     QontractReconcileIntegration,
@@ -3370,30 +3369,6 @@ def gabi_authorized_users(
         thread_pool_size,
         internal,
     )
-
-
-@integration.command(
-    short_help="Manages components on statuspage.io hosted status pages."
-)
-@click.pass_context
-def status_page_components(ctx: click.Context) -> None:
-    from reconcile.statuspage.integrations.components import (
-        StatusPageComponentsIntegration,
-    )
-
-    run_class_integration(StatusPageComponentsIntegration(), ctx)
-
-
-@integration.command(
-    short_help="Manages maintenances on statuspage.io hosted status pages."
-)
-@click.pass_context
-def status_page_maintenances(ctx: click.Context) -> None:
-    from reconcile.statuspage.integrations.maintenances import (
-        StatusPageMaintenancesIntegration,
-    )
-
-    run_class_integration(StatusPageMaintenancesIntegration(NoParams()), ctx)
 
 
 @integration.command(
