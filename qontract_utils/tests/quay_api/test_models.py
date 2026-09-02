@@ -1,6 +1,7 @@
 """Tests for qontract_utils.quay_api models."""
 
 from qontract_utils.quay_api.models import (
+    QuayRepo,
     RobotAccount,
     RobotAccountPermission,
     RobotAccountRepository,
@@ -31,3 +32,10 @@ def test_robot_account_permission_from_api_payload() -> None:
 def test_robot_account_repository() -> None:
     repo = RobotAccountRepository(name="images")
     assert repo.name == "images"
+
+
+def test_quay_repo_coerces_null_description() -> None:
+    repo = QuayRepo.model_validate(
+        {"name": "images", "is_public": False, "description": None}
+    )
+    assert not repo.description

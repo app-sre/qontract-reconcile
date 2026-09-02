@@ -5,10 +5,12 @@ Following ADR-012 (Fully Typed Pydantic Models Over Nested Dicts):
 - Only fields consumed by integrations are declared
 """
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class QuayRepo(BaseModel, frozen=True):
+class QuayRepo(BaseModel):
     """Quay repository as returned by the list repositories API.
 
     Attributes:
@@ -17,9 +19,53 @@ class QuayRepo(BaseModel, frozen=True):
         description: Repository description
     """
 
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
     name: str = Field(..., description="Repository name")
     is_public: bool = Field(..., description="Whether the repository is public")
     description: str = Field(default="", description="Repository description")
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def _coerce_description(cls, value: object) -> object:
+        return "" if value is None else value
+
+
+class QuayRepoListResponse(BaseModel):
+    """Envelope for GET /api/v1/repository."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    repositories: list[QuayRepo] = Field(default_factory=list)
+    next_page: str | None = None
+
+
+class QuayCreateRepoRequest(BaseModel):
+    """POST body for creating a repository."""
+
+    model_config = ConfigDict(frozen=True)
+
+    repo_kind: Literal["image"] = "image"
+    namespace: str
+    visibility: Literal["public", "private"]
+    repository: str
+    description: str
+
+
+class QuayUpdateRepoDescriptionRequest(BaseModel):
+    """PUT body for updating a repository description."""
+
+    model_config = ConfigDict(frozen=True)
+
+    description: str
+
+
+class QuayChangeVisibilityRequest(BaseModel):
+    """POST body for changing repository visibility."""
+
+    model_config = ConfigDict(frozen=True)
+
+    visibility: Literal["public", "private"]
 
 
 class RobotAccount(BaseModel):
