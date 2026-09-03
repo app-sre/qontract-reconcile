@@ -34,6 +34,49 @@ CLUSTER_PREFIXED_MESSAGES = [
     },
 ]
 
+# Bot OAuth app messages (used since the incoming-webhook was rotated on
+# 2026-05-14) have no "username" field at all, only "bot_id" — which is the
+# same for every cluster. Cluster identity now only comes from the title
+# prefix, so two different clusters firing the same alert/message must stay
+# separate.
+BOT_ONLY_MULTI_CLUSTER_MESSAGES = [
+    {
+        "subtype": "bot_message",
+        "bot_id": "B0B3Y3X62AW",
+        "ts": "1750000400.000000",
+        "attachments": [
+            {"title": "[clusterB]Alert: SharedAlert [RESOLVED]  same message"}
+        ],
+    },
+    {
+        "subtype": "bot_message",
+        "bot_id": "B0B3Y3X62AW",
+        "ts": "1750000300.000000",
+        "attachments": [
+            {"title": "[clusterB]Alert: SharedAlert [FIRING:1]  same message"}
+        ],
+    },
+    {
+        "subtype": "bot_message",
+        "bot_id": "B0B3Y3X62AW",
+        "ts": "1750000100.000000",
+        "attachments": [
+            {"title": "[clusterA]Alert: SharedAlert [FIRING:1]  same message"}
+        ],
+    },
+]
+
+# Bot message without a cluster-prefixed title (defensive edge case): falls
+# back to bot_id rather than raising KeyError.
+BOT_ONLY_NO_CLUSTER_PREFIX_MESSAGES = [
+    {
+        "subtype": "bot_message",
+        "bot_id": "B0B3Y3X62AW",
+        "ts": "1750000500.000000",
+        "attachments": [{"title": "Alert: NoUsernameAlert [FIRING:1]  message text"}],
+    },
+]
+
 messages = Fixtures("slack_api").get_anymarkup("conversations_history_messages.yaml")
 
 
@@ -115,3 +158,27 @@ def test_alert_stats_cluster_prefixed_title() -> None:
     assert stat.triggered_alerts == 1
     assert stat.resolved_alerts == 1
     assert len(stat.elapsed_times) == 1
+
+
+def test_group_alerts_bot_message_without_username() -> None:
+    """Bot OAuth app messages have no 'username' field and must not raise KeyError."""
+    alerts = group_alerts(BOT_ONLY_MULTI_CLUSTER_MESSAGES)
+    assert "SharedAlert" in alerts
+    assert len(alerts["SharedAlert"]) == 3
+    # The shared bot_id must not be used as the grouping key when a cluster
+    # name is available from the title prefix.
+    assert {a.username for a in alerts["SharedAlert"]} == {"clusterA", "clusterB"}
+
+
+def test_alert_stats_bot_message_without_username_keeps_clusters_separate() -> None:
+    stat = gen_alert_stats(group_alerts(BOT_ONLY_MULTI_CLUSTER_MESSAGES))["SharedAlert"]
+    # Both clusters fired, but only clusterB resolved.
+    assert stat.triggered_alerts == 2
+    assert stat.resolved_alerts == 1
+    assert stat.elapsed_times == [100.0]
+
+
+def test_group_alerts_bot_message_falls_back_to_bot_id() -> None:
+    """Without a cluster-prefixed title either, fall back to bot_id."""
+    alerts = group_alerts(BOT_ONLY_NO_CLUSTER_PREFIX_MESSAGES)
+    assert alerts["NoUsernameAlert"][0].username == "B0B3Y3X62AW"
