@@ -143,3 +143,26 @@ jenkins:
       alwaysReconnect: true
       privateIpUsed: true
       restrictUsage: true
+  - eC2Fleet:
+      name: test-add-sshConnector-prefixStartSlaveCmd
+      fleet: test-add-sshConnector-prefixStartSlaveCmd
+      region: us-east-1
+      minSize: 1
+      maxSize: 1
+      computerConnector:
+        sSHConnector:
+          credentialsId: jenkins
+          port: 22
+          sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+          prefixStartSlaveCmd: "cloud-init status --wait && "
+      fsRoot: "/var/lib/jenkins"
+      labelString: rhel7
+      numExecutors: 3
+      idleMinutes: 30
+      minSpareSize: 0
+      maxTotalUses: -1
+      noDelayProvision: false
+      addNodeOnlyIfRunning: true
+      alwaysReconnect: true
+      privateIpUsed: true
+      restrictUsage: true
