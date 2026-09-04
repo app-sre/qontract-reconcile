@@ -14,6 +14,7 @@ from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
+from reconcile.utils.oc import OCLogMsg
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.parse_dhms_duration import (
     dhms_to_seconds,
@@ -424,6 +425,113 @@ def build_one_per_saas_file_tkn_task_name(
     return name
 
 
+def _cluster_provider_map(tkn_providers: dict[str, Any]) -> dict[str, list[str]]:
+    """Map cluster name -> pipeline-provider names using that cluster."""
+    mapping: dict[str, list[str]] = {}
+    for provider_name, tknp in tkn_providers.items():
+        if tknp["namespace"].get("delete"):
+            continue
+        cluster = tknp["namespace"]["cluster"]["name"]
+        namespace = tknp["namespace"]["name"]
+        mapping.setdefault(cluster, []).append(f"{provider_name} ({namespace})")
+    return mapping
+
+
+def _log_tkn_provider_scope(tkn_providers: dict[str, Any]) -> None:
+    """Log which pipeline-providers this run will reconcile and where they live."""
+    clusters = _cluster_provider_map(tkn_providers)
+    LOG.info(
+        "[openshift-tekton-resources] reconciling %s pipeline-provider(s) "
+        "across %s cluster(s)",
+        len(tkn_providers),
+        len(clusters),
+    )
+    for provider_name, tknp in sorted(tkn_providers.items()):
+        if tknp["namespace"].get("delete"):
+            LOG.info(
+                "[openshift-tekton-resources] skipping provider=%s "
+                "(namespace marked for deletion)",
+                provider_name,
+            )
+            continue
+        cluster = tknp["namespace"]["cluster"]["name"]
+        namespace = tknp["namespace"]["name"]
+        LOG.info(
+            "[openshift-tekton-resources] provider=%s cluster=%s namespace=%s "
+            "saas_files=%s",
+            provider_name,
+            cluster,
+            namespace,
+            len(tknp.get("saas_files", [])),
+        )
+
+
+def _log_oc_map_failures(
+    tkn_providers: dict[str, Any],
+    oc_map: ob.OC_Map,
+) -> set[str]:
+    """Log OpenShift client init problems and return affected cluster names."""
+    failed_clusters: set[str] = set()
+    for cluster, providers in sorted(_cluster_provider_map(tkn_providers).items()):
+        oc = oc_map.get(cluster)
+        if not isinstance(oc, OCLogMsg):
+            continue
+        failed_clusters.add(cluster)
+        provider_list = ", ".join(providers)
+        if oc.log_level >= logging.ERROR:
+            LOG.error(
+                "[openshift-tekton-resources] cannot connect to cluster=%s; "
+                "pipeline-providers affected: %s. %s",
+                cluster,
+                provider_list,
+                oc.message,
+            )
+        else:
+            LOG.warning(
+                "[openshift-tekton-resources] cluster=%s skipped; "
+                "pipeline-providers affected: %s. %s",
+                cluster,
+                provider_list,
+                oc.message,
+            )
+    return failed_clusters
+
+
+def _log_reconcile_failure_summary(
+    tkn_providers: dict[str, Any],
+    ri: ob.ResourceInventory,
+    oc_failed_clusters: set[str],
+) -> None:
+    """Summarize why the integration is exiting with an error."""
+    cluster_providers = _cluster_provider_map(tkn_providers)
+    inventory_failed = sorted(
+        cluster
+        for cluster in cluster_providers
+        if ri.has_error_registered(cluster=cluster)
+    )
+    oc_failed = sorted(oc_failed_clusters)
+    if inventory_failed:
+        for cluster in inventory_failed:
+            LOG.error(
+                "[openshift-tekton-resources] resource inventory errors on "
+                "cluster=%s (pipeline-providers: %s). Check earlier logs for "
+                "StatusCodeError while listing Pipeline/Task resources.",
+                cluster,
+                ", ".join(cluster_providers[cluster]),
+            )
+    if oc_failed:
+        LOG.error(
+            "[openshift-tekton-resources] OpenShift API client errors on "
+            "cluster(s): %s",
+            ", ".join(oc_failed),
+        )
+    if not inventory_failed and not oc_failed and ri.has_error_registered():
+        LOG.error(
+            "[openshift-tekton-resources] integration failed but no cluster "
+            "was attributed; check earlier openshift_base logs"
+        )
+
+
 def run(
     dry_run: bool,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
@@ -436,6 +544,8 @@ def run(
     if not tkn_providers:
         LOG.debug("No saas files found to be processed")
         sys.exit(0)
+
+    _log_tkn_provider_scope(tkn_providers)
 
     # We need to start with the desired state to know the names of the
     # tekton objects that will be created in the providers' namespaces. We
@@ -455,6 +565,7 @@ def run(
         thread_pool_size=thread_pool_size,
     )
     defer(oc_map.cleanup)
+    oc_failed_clusters = _log_oc_map_failures(tkn_providers, oc_map)
 
     LOG.debug("Adding desired resources to inventory")
     for desired_resource in desired_resources:
@@ -466,6 +577,7 @@ def run(
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
+        _log_reconcile_failure_summary(tkn_providers, ri, oc_failed_clusters)
         sys.exit(ExitCodes.ERROR)
 
     sys.exit(0)
