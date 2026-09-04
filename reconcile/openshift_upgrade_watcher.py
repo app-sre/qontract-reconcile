@@ -109,14 +109,18 @@ def notify_upgrades_start(
 ) -> None:
     now = utc_now()
     for cluster in clusters:
-        if cluster.spec and not cluster.spec.hypershift:
-            upgrade_at, version = _get_start_osd(oc_map, cluster.name)
-        elif cluster.spec and cluster.spec.q_id:
-            upgrade_at, version = _get_start_hypershift(
-                ocm_map.get(cluster.name)._ocm_client, cluster.spec.q_id
-            )
-        else:
-            continue
+        try:
+            if cluster.spec and not cluster.spec.hypershift:
+                upgrade_at, version = _get_start_osd(oc_map, cluster.name)
+            elif cluster.spec and cluster.spec.q_id:
+                upgrade_at, version = _get_start_hypershift(
+                    ocm_map.get(cluster.name)._ocm_client, cluster.spec.q_id
+                )
+            else:
+                continue
+        except Exception:
+            logging.exception(f"[{cluster.name}] Failed to get upgrade start info.")
+            raise
 
         if upgrade_at and version:
             upgrade_at_obj = from_utc_iso_format(upgrade_at)
