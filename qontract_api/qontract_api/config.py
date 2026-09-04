@@ -399,6 +399,10 @@ class QuaySettings(BaseModel):
         default=60 * 5,
         description="Quay repos list cache TTL in seconds (5 minutes)",
     )
+    robots_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Quay robot account list and permission cache TTL in seconds (one hour)",
+    )
 
 
 class EventSettings(BaseModel):

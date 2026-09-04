@@ -3199,6 +3199,66 @@
         "title": "QuayOrgConfig",
         "type": "object"
       },
+      "QuayOrgDesiredState": {
+        "description": "Desired robot-account state for a single Quay organization.",
+        "properties": {
+          "instance_name": {
+            "description": "Quay instance name",
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "instance_url": {
+            "description": "Quay instance URL or hostname",
+            "title": "Instance Url",
+            "type": "string"
+          },
+          "managed_repos": {
+            "default": false,
+            "description": "Whether repository permissions may be reconciled",
+            "title": "Managed Repos",
+            "type": "boolean"
+          },
+          "managed_robot_accounts": {
+            "default": false,
+            "description": "Opt-in flag required to manage robot accounts in this org",
+            "title": "Managed Robot Accounts",
+            "type": "boolean"
+          },
+          "managed_teams": {
+            "description": "Teams this integration is allowed to manage",
+            "items": {
+              "type": "string"
+            },
+            "title": "Managed Teams",
+            "type": "array"
+          },
+          "org_name": {
+            "description": "Quay organization name",
+            "title": "Org Name",
+            "type": "string"
+          },
+          "robots": {
+            "description": "Desired robot accounts for this organization",
+            "items": {
+              "$ref": "#/components/schemas/QuayRobotDesiredState"
+            },
+            "title": "Robots",
+            "type": "array"
+          },
+          "token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Vault secret reference for the org automation token"
+          }
+        },
+        "required": [
+          "instance_name",
+          "instance_url",
+          "org_name",
+          "token"
+        ],
+        "title": "QuayOrgDesiredState",
+        "type": "object"
+      },
       "QuayOrgKey": {
         "description": "Identifies a Quay organization uniquely across instances.",
         "properties": {
@@ -3387,6 +3447,16 @@
         "title": "QuayRepoConfig",
         "type": "object"
       },
+      "QuayRepoPermission": {
+        "description": "Allowed Quay repository roles for a robot account.",
+        "enum": [
+          "read",
+          "write",
+          "admin"
+        ],
+        "title": "QuayRepoPermission",
+        "type": "string"
+      },
       "QuayReposReconcileRequest": {
         "description": "Request model for Quay repos reconciliation.",
         "properties": {
@@ -3505,6 +3575,448 @@
           "status"
         ],
         "title": "QuayReposTaskResult",
+        "type": "object"
+      },
+      "QuayRobotAccountsReconcileRequest": {
+        "description": "Request model for quay-robot-accounts reconciliation.",
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "organizations": {
+            "description": "Quay organizations with desired robot-account state",
+            "items": {
+              "$ref": "#/components/schemas/QuayOrgDesiredState"
+            },
+            "title": "Organizations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "organizations"
+        ],
+        "title": "QuayRobotAccountsReconcileRequest",
+        "type": "object"
+      },
+      "QuayRobotAccountsTaskResponse": {
+        "description": "Response model for POST /reconcile.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "QuayRobotAccountsTaskResponse",
+        "type": "object"
+      },
+      "QuayRobotAccountsTaskResult": {
+        "description": "Result model for a completed quay-robot-accounts reconciliation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "All actions calculated (desired - current), including any that failed to apply.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_team": "#/components/schemas/QuayRobotActionAddTeam",
+                  "create": "#/components/schemas/QuayRobotActionCreate",
+                  "delete": "#/components/schemas/QuayRobotActionDelete",
+                  "remove_repo_permission": "#/components/schemas/QuayRobotActionRemoveRepoPermission",
+                  "remove_team": "#/components/schemas/QuayRobotActionRemoveTeam",
+                  "set_repo_permission": "#/components/schemas/QuayRobotActionSetRepoPermission"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionDelete"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionAddTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionRemoveTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionSetRepoPermission"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionRemoveRepoPermission"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (non-dry-run only).",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_team": "#/components/schemas/QuayRobotActionAddTeam",
+                  "create": "#/components/schemas/QuayRobotActionCreate",
+                  "delete": "#/components/schemas/QuayRobotActionDelete",
+                  "remove_repo_permission": "#/components/schemas/QuayRobotActionRemoveRepoPermission",
+                  "remove_team": "#/components/schemas/QuayRobotActionRemoveTeam",
+                  "set_repo_permission": "#/components/schemas/QuayRobotActionSetRepoPermission"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionDelete"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionAddTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionRemoveTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionSetRepoPermission"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionRemoveRepoPermission"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "QuayRobotAccountsTaskResult",
+        "type": "object"
+      },
+      "QuayRobotActionAddTeam": {
+        "description": "Action: Add a robot to a team.",
+        "properties": {
+          "action_type": {
+            "const": "add_team",
+            "default": "add_team",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "instance_name": {
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "robot_name": {
+            "title": "Robot Name",
+            "type": "string"
+          },
+          "team": {
+            "title": "Team",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_name",
+          "org_name",
+          "robot_name",
+          "team"
+        ],
+        "title": "QuayRobotActionAddTeam",
+        "type": "object"
+      },
+      "QuayRobotActionCreate": {
+        "description": "Action: Create a robot account.",
+        "properties": {
+          "action_type": {
+            "const": "create",
+            "default": "create",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "instance_name": {
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "robot_name": {
+            "title": "Robot Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_name",
+          "org_name",
+          "robot_name"
+        ],
+        "title": "QuayRobotActionCreate",
+        "type": "object"
+      },
+      "QuayRobotActionDelete": {
+        "description": "Action: Delete a robot account (only when delete: true).",
+        "properties": {
+          "action_type": {
+            "const": "delete",
+            "default": "delete",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "instance_name": {
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "robot_name": {
+            "title": "Robot Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_name",
+          "org_name",
+          "robot_name"
+        ],
+        "title": "QuayRobotActionDelete",
+        "type": "object"
+      },
+      "QuayRobotActionRemoveRepoPermission": {
+        "description": "Action: Remove a robot's repository permission.",
+        "properties": {
+          "action_type": {
+            "const": "remove_repo_permission",
+            "default": "remove_repo_permission",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "instance_name": {
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          },
+          "robot_name": {
+            "title": "Robot Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_name",
+          "org_name",
+          "robot_name",
+          "repo"
+        ],
+        "title": "QuayRobotActionRemoveRepoPermission",
+        "type": "object"
+      },
+      "QuayRobotActionRemoveTeam": {
+        "description": "Action: Remove a robot from a team.",
+        "properties": {
+          "action_type": {
+            "const": "remove_team",
+            "default": "remove_team",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "instance_name": {
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "robot_name": {
+            "title": "Robot Name",
+            "type": "string"
+          },
+          "team": {
+            "title": "Team",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_name",
+          "org_name",
+          "robot_name",
+          "team"
+        ],
+        "title": "QuayRobotActionRemoveTeam",
+        "type": "object"
+      },
+      "QuayRobotActionSetRepoPermission": {
+        "description": "Action: Set or update a robot's repository permission.",
+        "properties": {
+          "action_type": {
+            "const": "set_repo_permission",
+            "default": "set_repo_permission",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "instance_name": {
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "permission": {
+            "title": "Permission",
+            "type": "string"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          },
+          "robot_name": {
+            "title": "Robot Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_name",
+          "org_name",
+          "robot_name",
+          "repo",
+          "permission"
+        ],
+        "title": "QuayRobotActionSetRepoPermission",
+        "type": "object"
+      },
+      "QuayRobotDesiredState": {
+        "description": "Desired state for a single Quay robot account.",
+        "properties": {
+          "delete": {
+            "default": false,
+            "description": "If True, delete the robot when it exists in Quay",
+            "title": "Delete",
+            "type": "boolean"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Robot description",
+            "title": "Description"
+          },
+          "name": {
+            "description": "Robot short name (without org+ prefix)",
+            "title": "Name",
+            "type": "string"
+          },
+          "repositories": {
+            "description": "Desired repository permissions for this robot",
+            "items": {
+              "$ref": "#/components/schemas/QuayRobotRepository"
+            },
+            "title": "Repositories",
+            "type": "array"
+          },
+          "teams": {
+            "description": "Teams the robot should belong to (managedTeams only)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Teams",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "QuayRobotDesiredState",
+        "type": "object"
+      },
+      "QuayRobotRepository": {
+        "description": "Desired permission for a robot on a single repository.",
+        "properties": {
+          "name": {
+            "description": "Repository name",
+            "title": "Name",
+            "type": "string"
+          },
+          "permission": {
+            "$ref": "#/components/schemas/QuayRepoPermission",
+            "description": "Repository role: read, write, or admin"
+          }
+        },
+        "required": [
+          "name",
+          "permission"
+        ],
+        "title": "QuayRobotRepository",
         "type": "object"
       },
       "RecipientType": {
@@ -5797,6 +6309,101 @@
           }
         ],
         "summary": "Quay Repos Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/quay-robot-accounts/reconcile": {
+      "post": {
+        "description": "Queue a quay-robot-accounts reconciliation task.",
+        "operationId": "quay-robot-accounts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuayRobotAccountsReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuayRobotAccountsTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Quay Robot Accounts",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/quay-robot-accounts/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve the reconciliation result (blocking or non-blocking).",
+        "operationId": "quay-robot-accounts-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuayRobotAccountsTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Quay Robot Accounts Task Status",
         "tags": [
           "integrations"
         ]

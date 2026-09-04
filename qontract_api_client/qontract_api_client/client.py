@@ -473,6 +473,31 @@ async def quay_repos_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/quay-robot-accounts/reconcile")
+async def quay_robot_accounts(
+    result: schemas.QuayRobotAccountsTaskResponse,
+    data: schemas.QuayRobotAccountsReconcileRequest,
+) -> schemas.QuayRobotAccountsTaskResponse:
+    """Quay Robot Accounts
+
+    Queue a quay-robot-accounts reconciliation task.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/quay-robot-accounts/reconcile/{task_id}")
+async def quay_robot_accounts_task_status(
+    result: schemas.QuayRobotAccountsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.QuayRobotAccountsTaskResult:
+    """Quay Robot Accounts Task Status
+
+    Retrieve the reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
 @client.post("/api/v1/integrations/slack-usergroups/reconcile")
 async def slack_usergroups(
     result: schemas.SlackUsergroupsTaskResponse,
