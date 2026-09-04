@@ -72,7 +72,9 @@ def build_clusters(
     Label interpretation stays client-side: which labels mean what, and the default
     fallbacks, mirror reconcile/rhidp/common.py::build_cluster_objects exactly. Clusters
     without a console URL or with external auth enabled can never get an SSO client and
-    are excluded entirely (not even counted toward rhidp_managed_clusters).
+    are excluded entirely (not even counted toward rhidp_managed_clusters). Clusters
+    labeled `ignored` are excluded the same way - unlike `disabled`, which is still
+    sent so it's still counted toward rhidp_managed_clusters.
     """
     result: list[SsoClientCluster] = []
     for cluster in clusters:
@@ -80,6 +82,9 @@ def build_clusters(
             continue
 
         labels: dict[str, Any] = cluster.labels or {}
+        if labels.get(STATUS_LABEL_KEY) == StatusValue.IGNORED.value:
+            continue
+
         status = (
             labels.get(RHIDP_NAMESPACE_LABEL_KEY)
             or labels.get(STATUS_LABEL_KEY)
