@@ -24,10 +24,10 @@ Desired state is compiled from two sources:
 1. **OCM cluster labels** under the `sre-capabilities.rhidp` namespace, discovered via qontract-api's `/external/ocm/clusters` endpoint and interpreted client-side (label interpretation is deliberately kept out of qontract-api, which stays domain-agnostic):
    - `sre-capabilities.rhidp.name` — auth/IDP name (falls back to `--default-auth-name`)
    - `sre-capabilities.rhidp.issuer` — Keycloak issuer URL (falls back to `--default-auth-issuer-url`)
-   - `sre-capabilities.rhidp.status` — `enabled` / `disabled` / `enforced` / `sso-client-only` (the deprecated bare `sre-capabilities.rhidp` label takes precedence over `.status` when both are set; missing entirely defaults to `disabled`). The client translates this into two plain booleans sent to the server — `oidc_enabled` (`status` not in `{disabled, sso-client-only}`) and `enforced` (`status == enforced`) — so the server has zero knowledge of label/status semantics.
+   - `sre-capabilities.rhidp.status` — `enabled` / `disabled` / `enforced` / `sso-client-only` / `ignored` (the deprecated bare `sre-capabilities.rhidp` label takes precedence over `.status` when both are set; missing entirely defaults to `disabled`). The client translates this into two plain booleans sent to the server — `oidc_enabled` (`status` not in `{disabled, sso-client-only}`) and `enforced` (`status == enforced`) — so the server has zero knowledge of label/status semantics.
    - `sre-capabilities.rhidp.group-filter-regex` — optional; if set, the desired IDP's claims map a `groups` claim to the `filtered_groups` Keycloak client scope
-   - Clusters without a console URL, or with external auth enabled, can never have an OIDC identity provider configured and are excluded entirely
-   - Clusters are sent to qontract-api regardless of `oidc_enabled` (not just enabled ones) so a cluster that becomes disabled still has its stale identity provider cleaned up
+   - Clusters without a console URL, with external auth enabled, or labeled `ignored`, can never have an OIDC identity provider configured and are excluded entirely
+   - Clusters are sent to qontract-api regardless of `oidc_enabled` (not just enabled ones) so a cluster that becomes disabled still has its stale identity provider cleaned up. `ignored` clusters are the one exception — they're dropped client-side before qontract-api ever sees them, so no cleanup happens for them (the intent is to stop touching the cluster entirely, not just leave a stale IDP in place)
 2. **Vault secret** written by `sso-client-api` (read server-side, not client-side): `client_id`, `client_secret`, `issuer`, `attributes["group-filter-regex"]`. If the stored `issuer` doesn't match the cluster's configured issuer, or the secret is missing/malformed, that cluster's OIDC config is skipped for this reconcile (logged, not a fatal error)
 3. **CLI parameters** — which Vault path to read SSO client secrets from (must match the same path `sso-client-api` writes to), and default auth name/issuer for clusters without explicit labels
 
@@ -290,7 +290,7 @@ The integration can perform these reconciliation actions:
 **Issue: A cluster's identity provider is never created**
 
 - **Symptom:** No `create` action appears for a cluster you expect to have RHIDP OIDC enabled
-- **Cause:** `sso-client-api` hasn't registered a Keycloak client for that cluster yet (no Vault secret at the expected path), or the cluster's `sre-capabilities.rhidp.status` label resolves to `disabled`/`sso-client-only`
+- **Cause:** `sso-client-api` hasn't registered a Keycloak client for that cluster yet (no Vault secret at the expected path), or the cluster's `sre-capabilities.rhidp.status` label resolves to `disabled`/`sso-client-only`/`ignored`
 - **Solution:** Confirm `sso-client-api` has successfully reconciled that cluster first (this integration only configures OCM, never Keycloak), and check the cluster's OCM labels
 
 **Issue: Foreign identity providers keep reappearing in the diff but are never deleted**

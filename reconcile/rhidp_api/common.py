@@ -43,6 +43,8 @@ class StatusValue(StrEnum):
     ENFORCED = "enforced"
     # rhidp is enabled and oidc is skipped
     RHIDP_ONLY = "sso-client-only"
+    # ignore this server completely
+    IGNORED = "ignored"
 
 
 def get_ocm_environments(env_name: str | None) -> list[OCMEnvironment]:

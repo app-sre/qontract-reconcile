@@ -168,6 +168,22 @@ def test_build_clusters_status_label_maps_to_oidc_flags(
     assert result[0].auth.enforced is expected_enforced
 
 
+def test_build_clusters_excludes_ignored_clusters() -> None:
+    result = build_clusters(
+        [
+            make_ocm_cluster(
+                name="ignored-cluster",
+                labels={"sre-capabilities.rhidp.status": "ignored"},
+            ),
+            make_ocm_cluster(name="not-ignored-cluster"),
+        ],
+        "redhat-sso",
+        "https://default-issuer.example.com",
+    )
+
+    assert [cluster.name for cluster in result] == ["not-ignored-cluster"]
+
+
 def test_build_clusters_deprecated_bare_rhidp_label_takes_precedence() -> None:
     result = build_clusters(
         [
