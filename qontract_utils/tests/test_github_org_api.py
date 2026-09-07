@@ -151,6 +151,69 @@ def test_reset_at_fallback_when_headers_missing() -> None:
     assert before + fallback <= exc_info.value.reset_at <= after + fallback
 
 
+def test_reset_at_fallback_on_non_numeric_retry_after() -> None:
+    """A non-numeric Retry-After (an HTTP-date, which HTTP allows) must not raise."""
+    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    org = MagicMock()
+    org.get_members.side_effect = RateLimitExceededException(
+        403,
+        {"message": "rate limit"},
+        {"retry-after": "Wed, 21 Oct 2026 07:28:00 GMT"},
+    )
+    api._gh = MagicMock()
+    api._gh.get_organization.return_value = org
+
+    before = datetime.now(UTC)
+    with pytest.raises(GithubRateLimitExceededError) as exc_info:
+        api.get_admin_members("my-org")
+    after = datetime.now(UTC)
+
+    fallback = timedelta(seconds=_DEFAULT_RATE_LIMIT_FALLBACK_SECONDS)
+    assert before + fallback <= exc_info.value.reset_at <= after + fallback
+
+
+def test_reset_at_fallback_on_non_numeric_ratelimit_reset() -> None:
+    """A non-numeric X-RateLimit-Reset must not raise ValueError - fall back."""
+    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    org = MagicMock()
+    org.get_members.side_effect = RateLimitExceededException(
+        403, {"message": "rate limit"}, {"x-ratelimit-reset": "not-a-number"}
+    )
+    api._gh = MagicMock()
+    api._gh.get_organization.return_value = org
+
+    before = datetime.now(UTC)
+    with pytest.raises(GithubRateLimitExceededError) as exc_info:
+        api.get_admin_members("my-org")
+    after = datetime.now(UTC)
+
+    fallback = timedelta(seconds=_DEFAULT_RATE_LIMIT_FALLBACK_SECONDS)
+    assert before + fallback <= exc_info.value.reset_at <= after + fallback
+
+
+def test_secondary_limit_403_without_remaining_zero_is_rate_limit(
+    httpserver: HTTPServer,
+) -> None:
+    """A secondary-limit 403+Retry-After without remaining=0 is still a rate limit."""
+    api = GithubOrgApi(token="token", base_url=httpserver.url_for(""))
+    httpserver.expect_request(INVITATIONS_PATH, method="GET").respond_with_json(
+        {"message": "You have exceeded a secondary rate limit"},
+        status=403,
+        headers={"Retry-After": "30"},
+    )
+
+    before = datetime.now(UTC)
+    with pytest.raises(GithubRateLimitExceededError) as exc_info:
+        api.get_pending_invitations("my-org")
+    after = datetime.now(UTC)
+
+    assert (
+        before + timedelta(seconds=30)
+        <= exc_info.value.reset_at
+        <= after + timedelta(seconds=30)
+    )
+
+
 @pytest.mark.usefixtures("enable_retry")
 def test_rate_limit_is_not_retried(httpserver: HTTPServer) -> None:
     """A rate-limited request must fail on the first attempt, never retried."""

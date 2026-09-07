@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextvars
 import time
 from collections.abc import Mapping
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
@@ -57,13 +58,33 @@ def _reset_at_from_headers(headers: Mapping[str, str]) -> datetime:
     Prefers `Retry-After` (used for GitHub's secondary rate limit, seconds
     from now) over `X-RateLimit-Reset` (used for the primary rate limit, an
     absolute epoch timestamp). Falls back to a conservative default when
-    neither header is present.
+    neither header is present or a value fails to parse - `Retry-After` may
+    also carry an HTTP-date per RFC 9110, which `int()` cannot parse.
     """
     if retry_after := headers.get("retry-after"):
-        return datetime.now(UTC) + timedelta(seconds=int(retry_after))
+        with suppress(ValueError):
+            return datetime.now(UTC) + timedelta(seconds=int(retry_after))
     if reset := headers.get("x-ratelimit-reset"):
-        return datetime.fromtimestamp(int(reset), tz=UTC)
+        with suppress(ValueError, OSError, OverflowError):
+            return datetime.fromtimestamp(int(reset), tz=UTC)
     return datetime.now(UTC) + timedelta(seconds=_DEFAULT_RATE_LIMIT_FALLBACK_SECONDS)
+
+
+def _is_rate_limit_response(status_code: int, headers: Mapping[str, str]) -> bool:
+    """Match GitHub's primary and secondary rate-limit response shapes.
+
+    Primary: 403 with `X-RateLimit-Remaining: 0`. Secondary (abuse detection,
+    concurrent-request limits): 403 or 429, often with `Retry-After` but NOT
+    necessarily zeroing the primary quota's `X-RateLimit-Remaining` (it's a
+    separate bucket) - see
+    https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
+    """
+    if status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        return True
+    return status_code == HTTPStatus.FORBIDDEN and (
+        headers.get("x-ratelimit-remaining") == "0"
+        or headers.get("retry-after") is not None
+    )
 
 
 def _rate_limit_reset_at(exc: BaseException) -> datetime | None:
@@ -75,14 +96,13 @@ def _rate_limit_reset_at(exc: BaseException) -> datetime | None:
     """
     if isinstance(exc, RateLimitExceededException):
         return _reset_at_from_headers(exc.headers or {})
-    if isinstance(exc, GithubException) and exc.status == HTTPStatus.TOO_MANY_REQUESTS:
+    if isinstance(exc, GithubException) and _is_rate_limit_response(
+        exc.status, exc.headers or {}
+    ):
         return _reset_at_from_headers(exc.headers or {})
     if isinstance(exc, requests.HTTPError) and exc.response is not None:
         response = exc.response
-        if response.status_code == HTTPStatus.TOO_MANY_REQUESTS or (
-            response.status_code == HTTPStatus.FORBIDDEN
-            and response.headers.get("X-RateLimit-Remaining") == "0"
-        ):
+        if _is_rate_limit_response(response.status_code, response.headers):
             return _reset_at_from_headers(response.headers)
     return None
 
