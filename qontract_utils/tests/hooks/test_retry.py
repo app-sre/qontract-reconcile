@@ -193,7 +193,7 @@ def test_error_hooks_only_on_final_failure(enable_retry: None) -> None:
     error_hook_calls = {"count": 0}
     execution_count = {"count": 0}
 
-    def error_hook() -> None:
+    def error_hook(exc: Exception) -> None:
         error_hook_calls["count"] += 1
 
     class TestApi:
@@ -221,7 +221,7 @@ def test_error_hooks_on_exhausted_retries(enable_retry: None) -> None:
     """Test error-hooks called when all retries exhausted."""
     error_hook_calls = {"count": 0}
 
-    def error_hook() -> None:
+    def error_hook(exc: Exception) -> None:
         error_hook_calls["count"] += 1
 
     class TestApi:
@@ -306,7 +306,7 @@ def test_retry_with_full_hook_lifecycle(enable_retry: None) -> None:
     def post_hook() -> None:
         execution_log.append("post")
 
-    def error_hook() -> None:
+    def error_hook(exc: Exception) -> None:
         execution_log.append("error")
 
     def retry_hook(attempt: int) -> None:
@@ -439,7 +439,7 @@ def test_retry_config_override_still_calls_hooks() -> None:
     def post_hook() -> None:
         execution_log.append("post")
 
-    def error_hook() -> None:
+    def error_hook(exc: Exception) -> None:
         execution_log.append("error")
 
     class TestApi:

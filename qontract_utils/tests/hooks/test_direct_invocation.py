@@ -76,7 +76,7 @@ def test_invoke_with_error_hooks() -> None:
     def pre_hook() -> None:
         execution_order.append("pre")
 
-    def error_hook() -> None:
+    def error_hook(exc: Exception) -> None:
         execution_order.append("error")
 
     def post_hook() -> None:
