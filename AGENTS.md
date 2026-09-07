@@ -216,6 +216,7 @@ Do NOT create a barrel re-export `models.py` — import directly from `domain.py
 - Fatal errors (auth failures, timeouts, 500s) must be appended to the `errors` list — the task must report FAILURE, not SUCCESS, when clusters are silently skipped
 - Implement defensive desired-state handling: distinguish transient failures (Vault secret pending) from genuine misconfigurations. A transient failure should not cause deletions
 - Per-cluster error isolation: one failed cluster should not abort reconciliation for others
+- **Carve-out for externally-imposed, self-healing throttling** (e.g. a shared API rate limit): report SUCCESS with a warning log instead of FAILURE, and do not append to `errors`. Unlike a generic transient failure, the reset time is known upfront, there is no action an operator can take before it, and the alert that FAILURE would trigger is not actionable. Only applies when the condition is detected via a typed exception (not inferred from a generic error) — see `github-owners`'s `GithubRateLimitExceededError` handling in `qontract_api/qontract_api/integrations/github_owners/service.py` for the reference implementation
 
 ## Testing Guidelines
 

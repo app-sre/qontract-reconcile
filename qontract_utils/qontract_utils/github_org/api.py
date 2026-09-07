@@ -12,20 +12,139 @@ from __future__ import annotations
 
 import contextvars
 import time
+from collections.abc import Mapping
+from contextlib import suppress
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from http import HTTPStatus
 from typing import Any
 
 import requests
 import structlog
 from github import Github
+from github.GithubException import GithubException, RateLimitExceededException
 from github.NamedUser import NamedUser
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+from qontract_utils.hooks import Hooks, RetryConfig, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.user_agent import DEFAULT_USER_AGENT
 
 logger = structlog.get_logger(__name__)
+
+# GitHub resets its primary rate limit window hourly. Used as a conservative
+# fallback when a rate-limit response carries neither a Retry-After nor an
+# X-RateLimit-Reset header.
+_DEFAULT_RATE_LIMIT_FALLBACK_SECONDS = 3600
+
+
+class GithubRateLimitExceededError(Exception):
+    """Raised when GitHub's primary or secondary API rate limit is exhausted.
+
+    Retrying before `reset_at` is futile - the caller should back off instead.
+    """
+
+    def __init__(self, reset_at: datetime, message: str | None = None) -> None:
+        self.reset_at = reset_at
+        super().__init__(
+            message
+            or f"GitHub API rate limit exceeded; resets at {reset_at.isoformat()}"
+        )
+
+
+def _reset_at_from_headers(headers: Mapping[str, str]) -> datetime:
+    """Derive the rate-limit reset time from response/exception headers.
+
+    Prefers `Retry-After` (used for GitHub's secondary rate limit, seconds
+    from now) over `X-RateLimit-Reset` (used for the primary rate limit, an
+    absolute epoch timestamp). Falls back to a conservative default when
+    neither header is present or a value fails to parse - `Retry-After` may
+    also carry an HTTP-date per RFC 9110, which `int()` cannot parse.
+    """
+    if retry_after := headers.get("retry-after"):
+        with suppress(ValueError, OverflowError):
+            return datetime.now(UTC) + timedelta(seconds=int(retry_after))
+    if reset := headers.get("x-ratelimit-reset"):
+        with suppress(ValueError, OSError, OverflowError):
+            return datetime.fromtimestamp(int(reset), tz=UTC)
+    return datetime.now(UTC) + timedelta(seconds=_DEFAULT_RATE_LIMIT_FALLBACK_SECONDS)
+
+
+def _is_rate_limit_response(status_code: int, headers: Mapping[str, str]) -> bool:
+    """Match GitHub's primary and secondary rate-limit response shapes.
+
+    Primary: 403 with `X-RateLimit-Remaining: 0`. Secondary (abuse detection,
+    concurrent-request limits): 403 or 429, often with `Retry-After` but NOT
+    necessarily zeroing the primary quota's `X-RateLimit-Remaining` (it's a
+    separate bucket) - see
+    https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
+    """
+    if status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        return True
+    return status_code == HTTPStatus.FORBIDDEN and (
+        headers.get("x-ratelimit-remaining") == "0"
+        or headers.get("retry-after") is not None
+    )
+
+
+def _rate_limit_reset_at(exc: BaseException) -> datetime | None:
+    """Return the rate-limit reset time if `exc` is a GitHub rate limit error.
+
+    Returns None for any other exception. Shared by the error hook (which
+    converts the exception) and the retry predicate (which must never retry
+    it), so the two can never disagree on what counts as a rate limit.
+    """
+    if isinstance(exc, RateLimitExceededException):
+        return _reset_at_from_headers(exc.headers or {})
+    if isinstance(exc, GithubException) and _is_rate_limit_response(
+        exc.status, exc.headers or {}
+    ):
+        return _reset_at_from_headers(exc.headers or {})
+    if isinstance(exc, requests.HTTPError) and exc.response is not None:
+        response = exc.response
+        if _is_rate_limit_response(response.status_code, response.headers):
+            return _reset_at_from_headers(response.headers)
+    return None
+
+
+# Server-side statuses worth a quick retry (distinct from client errors like
+# 401/404/422, which won't succeed on retry, and from 403/429 rate limits,
+# which are handled separately and must never be retried).
+_RETRYABLE_HTTP_STATUSES = frozenset(
+    {
+        HTTPStatus.INTERNAL_SERVER_ERROR,
+        HTTPStatus.BAD_GATEWAY,
+        HTTPStatus.SERVICE_UNAVAILABLE,
+        HTTPStatus.GATEWAY_TIMEOUT,
+    }
+)
+
+
+def _should_retry(exc: Exception) -> bool:
+    """Retry transient network/server errors; never retry rate limits.
+
+    Retrying a rate-limited request before GitHub's reset window is
+    guaranteed to fail and only burns more of the shared quota, so those
+    fail fast via `_rate_limit_error_hook` instead of being retried here.
+    """
+    if _rate_limit_reset_at(exc) is not None:
+        return False
+    if isinstance(exc, requests.ConnectionError | requests.Timeout):
+        return True
+    if isinstance(exc, requests.HTTPError) and exc.response is not None:
+        return exc.response.status_code in _RETRYABLE_HTTP_STATUSES
+    return isinstance(exc, GithubException) and exc.status in _RETRYABLE_HTTP_STATUSES
+
+
+_RETRY_CONFIG = RetryConfig(
+    on=_should_retry,
+    attempts=3,
+    timeout=5.0,
+    wait_initial=0.5,
+    wait_max=5.0,
+    wait_jitter=1.0,
+)
+
 
 # Prometheus metrics (following qontract_reconcile_external_api_<component>_requests_total convention)
 github_org_request = Counter(
@@ -91,9 +210,25 @@ def _request_log_hook(context: GithubOrgApiCallContext) -> None:
     )
 
 
+def _rate_limit_error_hook(_context: GithubOrgApiCallContext, exc: Exception) -> None:
+    """Convert GitHub rate-limit errors into GithubRateLimitExceededError.
+
+    Runs as an error hook, receiving the exception that triggered it, so all
+    three API methods share one detection path instead of each catching
+    PyGithub/requests exceptions individually. Shares detection logic with
+    `_should_retry` via `_rate_limit_reset_at` so the two can never disagree
+    on what counts as a rate limit. Raising here replaces the original
+    exception for the caller.
+    """
+    if (reset_at := _rate_limit_reset_at(exc)) is not None:
+        raise GithubRateLimitExceededError(reset_at) from exc
+
+
 _DEFAULT_HOOKS = Hooks(
     pre_hooks=[_metrics_hook, _request_log_hook, _latency_start_hook],
     post_hooks=[_latency_end_hook],
+    error_hooks=[_rate_limit_error_hook],
+    retry_config=_RETRY_CONFIG,
 )
 
 
