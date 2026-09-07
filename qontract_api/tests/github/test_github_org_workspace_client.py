@@ -44,12 +44,12 @@ def test_members_cache_hit_still_returns(
     mock_github_org_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
-    mock_cache.get_obj.return_value = CachedOrgMembers(members=["alice"])
+    mock_cache.get_obj.side_effect = [None, CachedOrgMembers(members=["alice"])]
 
     members = client.get_current_members(ORG_NAME)
 
     assert members == ["alice"]
-    assert mock_cache.get_obj.call_count == 1
+    assert mock_cache.get_obj.call_count == 2
     mock_cache.lock.assert_not_called()
     mock_github_org_api.get_admin_members.assert_not_called()
     mock_github_org_api.get_pending_invitations.assert_not_called()
@@ -120,13 +120,67 @@ def test_short_circuits_when_marker_present(
     mock_cache: MagicMock,
 ) -> None:
     reset_at = datetime.now(UTC) + timedelta(seconds=60)
-    mock_cache.get_obj.side_effect = [None, RateLimitMarker(reset_at=reset_at)]
+    mock_cache.get_obj.side_effect = [RateLimitMarker(reset_at=reset_at)]
 
     with pytest.raises(GithubRateLimitExceededError) as exc_info:
         client.get_current_members(ORG_NAME)
 
     assert exc_info.value.reset_at == reset_at
     mock_cache.lock.assert_not_called()
+    mock_github_org_api.get_admin_members.assert_not_called()
+    mock_github_org_api.get_pending_invitations.assert_not_called()
+
+
+def test_marker_takes_priority_over_stale_members_cache(
+    client: GithubOrgWorkspaceClient,
+    mock_github_org_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """A rate-limit marker must short-circuit even when a stale members cache exists.
+
+    A write hitting the rate limit caches the marker but does not clear the
+    (still valid) members cache. If the members-cache lookup ran first, it
+    would return the stale list without ever consulting the marker, so the
+    org would not be skipped and the same doomed mutation would be retried.
+    """
+    reset_at = datetime.now(UTC) + timedelta(seconds=60)
+    mock_cache.get_obj.side_effect = [
+        RateLimitMarker(reset_at=reset_at),
+        CachedOrgMembers(members=["alice"]),
+    ]
+
+    with pytest.raises(GithubRateLimitExceededError) as exc_info:
+        client.get_current_members(ORG_NAME)
+
+    assert exc_info.value.reset_at == reset_at
+    mock_cache.lock.assert_not_called()
+    mock_github_org_api.get_admin_members.assert_not_called()
+    mock_github_org_api.get_pending_invitations.assert_not_called()
+
+
+def test_marker_rechecked_after_acquiring_lock(
+    client: GithubOrgWorkspaceClient,
+    mock_github_org_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """A marker written while waiting on the lock must still short-circuit.
+
+    Simulates: no marker and no cached members before the lock, but by the
+    time the lock is acquired another caller has already cached the marker
+    (e.g. a concurrent write just hit the rate limit).
+    """
+    reset_at = datetime.now(UTC) + timedelta(seconds=60)
+    mock_cache.get_obj.side_effect = [
+        None,  # marker check before member-cache hit
+        None,  # member-cache check before lock
+        None,  # member-cache check after acquiring lock
+        RateLimitMarker(reset_at=reset_at),  # marker recheck after acquiring lock
+    ]
+
+    with pytest.raises(GithubRateLimitExceededError) as exc_info:
+        client.get_current_members(ORG_NAME)
+
+    assert exc_info.value.reset_at == reset_at
     mock_github_org_api.get_admin_members.assert_not_called()
     mock_github_org_api.get_pending_invitations.assert_not_called()
 

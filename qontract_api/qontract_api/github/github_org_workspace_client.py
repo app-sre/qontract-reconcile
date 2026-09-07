@@ -114,17 +114,20 @@ class GithubOrgWorkspaceClient:
             Sorted list of lowercase GitHub usernames (admins + pending invitees)
         """
         cache_key = self._cache_key(org_name)
+        rate_limit_key = self._rate_limit_key(org_name)
+
+        if marker := self._cache.get_obj(rate_limit_key, RateLimitMarker):
+            raise GithubRateLimitExceededError(marker.reset_at)
 
         if cached := self._cache.get_obj(cache_key, CachedOrgMembers):
             return cached.members
 
-        rate_limit_key = self._rate_limit_key(org_name)
-        if marker := self._cache.get_obj(rate_limit_key, RateLimitMarker):
-            raise GithubRateLimitExceededError(marker.reset_at)
-
         with self._cache.lock(cache_key):
             if cached := self._cache.get_obj(cache_key, CachedOrgMembers):
                 return cached.members
+
+            if marker := self._cache.get_obj(rate_limit_key, RateLimitMarker):
+                raise GithubRateLimitExceededError(marker.reset_at)
 
             try:
                 admin_members = self._api.get_admin_members(org_name)
