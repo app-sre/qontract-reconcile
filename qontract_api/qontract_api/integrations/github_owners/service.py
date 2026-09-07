@@ -185,6 +185,9 @@ class GithubOwnersService:
                             f"cycle, GitHub rate limit resets at "
                             f"{e.reset_at.isoformat()}"
                         )
+                        # Shared credential is exhausted - every remaining
+                        # action for this org would fail the same way.
+                        break
                     except Exception as e:
                         error_msg = (
                             f"{action.org_name}/{action.username}: "

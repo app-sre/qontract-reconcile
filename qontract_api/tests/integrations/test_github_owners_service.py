@@ -284,6 +284,32 @@ def test_reconcile_rate_limit_during_apply_not_dry_run(
     assert result.applied_count == 0
 
 
+def test_reconcile_stops_remaining_actions_for_org_after_rate_limit(
+    service: GithubOwnersService,
+    test_token: Secret,
+    mock_github_client: MagicMock,
+) -> None:
+    """Once rate-limited mid-apply, remaining actions for that org must be skipped."""
+    reset_at = datetime.now(UTC) + timedelta(minutes=5)
+    mock_github_client.get_current_members.return_value = []
+    mock_github_client.add_member_as_admin.side_effect = GithubRateLimitExceededError(
+        reset_at
+    )
+
+    org = GithubOrgDesiredState(
+        org_name="my-org",
+        token=test_token,
+        owners=["alice", "bob"],
+    )
+
+    result = service.reconcile(organizations=[org], dry_run=False)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.errors == []
+    assert result.applied_count == 0
+    mock_github_client.add_member_as_admin.assert_called_once()
+
+
 def test_owners_are_normalized(test_token: Secret) -> None:
     """GithubOrgDesiredState normalizes owners to lowercase sorted."""
     org = GithubOrgDesiredState(

@@ -129,3 +129,49 @@ def test_short_circuits_when_marker_present(
     mock_cache.lock.assert_not_called()
     mock_github_org_api.get_admin_members.assert_not_called()
     mock_github_org_api.get_pending_invitations.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# add_member_as_admin — rate limit while applying a mutation
+# ---------------------------------------------------------------------------
+
+
+def test_add_member_as_admin_sets_marker_and_reraises_on_rate_limit(
+    client: GithubOrgWorkspaceClient,
+    mock_github_org_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """A rate limit hit while applying a mutation must also cache the marker.
+
+    Otherwise the next cycle reuses the (already-cached) stale member list
+    and regenerates the same doomed action - the mitigation would only cover
+    the read path, not the write path.
+    """
+    reset_at = datetime.now(UTC) + timedelta(seconds=120)
+    mock_github_org_api.add_member_as_admin.side_effect = GithubRateLimitExceededError(
+        reset_at
+    )
+
+    with pytest.raises(GithubRateLimitExceededError):
+        client.add_member_as_admin(ORG_NAME, "alice")
+
+    mock_cache.set_obj.assert_called_once()
+    key, marker, _ttl = mock_cache.set_obj.call_args[0]
+    assert key == f"github-org:{ORG_NAME}:rate-limited"
+    assert marker == RateLimitMarker(reset_at=reset_at)
+
+
+def test_add_member_as_admin_does_not_clear_members_cache_on_rate_limit(
+    client: GithubOrgWorkspaceClient,
+    mock_github_org_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    reset_at = datetime.now(UTC) + timedelta(seconds=120)
+    mock_github_org_api.add_member_as_admin.side_effect = GithubRateLimitExceededError(
+        reset_at
+    )
+
+    with pytest.raises(GithubRateLimitExceededError):
+        client.add_member_as_admin(ORG_NAME, "alice")
+
+    mock_cache.delete.assert_not_called()

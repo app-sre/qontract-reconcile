@@ -84,6 +84,23 @@ class GithubOrgWorkspaceClient:
         except RuntimeError as e:
             logger.warning(f"Could not acquire lock to clear cache for {org_name}: {e}")
 
+    def _cache_rate_limit_marker(
+        self, org_name: str, exc: GithubRateLimitExceededError
+    ) -> None:
+        """Cache a rate-limit marker so subsequent calls short-circuit until reset."""
+        ttl = max(
+            1,
+            min(
+                int((exc.reset_at - datetime.now(UTC)).total_seconds()),
+                self._settings.github_org.members_cache_ttl,
+            ),
+        )
+        self._cache.set_obj(
+            self._rate_limit_key(org_name),
+            RateLimitMarker(reset_at=exc.reset_at),
+            ttl,
+        )
+
     def get_current_members(self, org_name: str) -> list[str]:
         """Get the combined set of admin members + pending invitations (cached).
 
@@ -113,18 +130,7 @@ class GithubOrgWorkspaceClient:
                 admin_members = self._api.get_admin_members(org_name)
                 pending_invitations = self._api.get_pending_invitations(org_name)
             except GithubRateLimitExceededError as e:
-                ttl = max(
-                    1,
-                    min(
-                        int((e.reset_at - datetime.now(UTC)).total_seconds()),
-                        self._settings.github_org.members_cache_ttl,
-                    ),
-                )
-                self._cache.set_obj(
-                    rate_limit_key,
-                    RateLimitMarker(reset_at=e.reset_at),
-                    ttl,
-                )
+                self._cache_rate_limit_marker(org_name, e)
                 raise
 
             combined = sorted(set(admin_members) | set(pending_invitations))
@@ -143,5 +149,9 @@ class GithubOrgWorkspaceClient:
             org_name: GitHub organization name
             username: GitHub username to add as admin
         """
-        self._api.add_member_as_admin(org_name, username)
+        try:
+            self._api.add_member_as_admin(org_name, username)
+        except GithubRateLimitExceededError as e:
+            self._cache_rate_limit_marker(org_name, e)
+            raise
         self._clear_cache(org_name)
