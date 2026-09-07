@@ -164,6 +164,34 @@ def test_new_upgrade_already_notified(
     assert state.add.call_count == 0
 
 
+def test_new_upgrade_error_logs_cluster_name(
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+    state: MagicMock,
+    slack: MagicMock,
+    ouw_oc_map: MagicMock,
+    ouw_ocm_map: MagicMock,
+    mock_utc_now: MagicMock,
+) -> None:
+    """If getting the upgrade start info fails, the cluster name is logged
+    and the exception still propagates"""
+    mock_utc_now.return_value = upgrade_at - timedelta(hours=1)
+    gso = mocker.patch(
+        "reconcile.openshift_upgrade_watcher._get_start_osd", autospec=True
+    )
+    gso.side_effect = RuntimeError("boom")
+    cluster = load_cluster("cluster1.yml")
+    with pytest.raises(RuntimeError, match="boom"):
+        ouw.notify_upgrades_start(
+            ocm_map=ouw_ocm_map,
+            oc_map=ouw_oc_map,
+            clusters=[cluster],
+            state=state,
+            slack=slack,
+        )
+    assert cluster.name in caplog.text
+
+
 @pytest.fixture
 def clusters() -> list[ClusterV1]:
     cluster = load_cluster("cluster1.yml")
