@@ -123,11 +123,11 @@ class GithubOrgWorkspaceClient:
             return cached.members
 
         with self._cache.lock(cache_key):
-            if cached := self._cache.get_obj(cache_key, CachedOrgMembers):
-                return cached.members
-
             if marker := self._cache.get_obj(rate_limit_key, RateLimitMarker):
                 raise GithubRateLimitExceededError(marker.reset_at)
+
+            if cached := self._cache.get_obj(cache_key, CachedOrgMembers):
+                return cached.members
 
             try:
                 admin_members = self._api.get_admin_members(org_name)

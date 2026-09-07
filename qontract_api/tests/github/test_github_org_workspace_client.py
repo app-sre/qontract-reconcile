@@ -173,7 +173,6 @@ def test_marker_rechecked_after_acquiring_lock(
     mock_cache.get_obj.side_effect = [
         None,  # marker check before member-cache hit
         None,  # member-cache check before lock
-        None,  # member-cache check after acquiring lock
         RateLimitMarker(reset_at=reset_at),  # marker recheck after acquiring lock
     ]
 
