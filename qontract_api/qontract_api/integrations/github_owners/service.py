@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from qontract_utils.differ import diff_iterables
+from qontract_utils.github_org import GithubRateLimitExceededError
 
 from qontract_api.integrations.github_owners.schemas import (
     GithubOwnerActionAddOwner,
@@ -159,6 +160,12 @@ class GithubOwnersService:
                 github_client = self._create_github_org_client(org)
                 org_actions = self._calculate_actions(org, github_client)
                 all_actions.extend(org_actions)
+            except GithubRateLimitExceededError as e:
+                logger.warning(
+                    f"{org.org_name}: skipped this cycle, "
+                    f"GitHub rate limit resets at {e.reset_at.isoformat()}"
+                )
+                continue
             except Exception as e:
                 error_msg = (
                     f"{org.org_name}: Unexpected error during diff calculation: {e}"
@@ -172,6 +179,12 @@ class GithubOwnersService:
                     try:
                         self._execute_action(github_client, action)
                         applied_actions.append(action)
+                    except GithubRateLimitExceededError as e:
+                        logger.warning(
+                            f"{action.org_name}/{action.username}: skipped this "
+                            f"cycle, GitHub rate limit resets at "
+                            f"{e.reset_at.isoformat()}"
+                        )
                     except Exception as e:
                         error_msg = (
                             f"{action.org_name}/{action.username}: "

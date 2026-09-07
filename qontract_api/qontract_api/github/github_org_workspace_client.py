@@ -8,9 +8,11 @@ This layer sits between the stateless GithubOrgApi and business logic, providing
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
+from qontract_utils.github_org import GithubRateLimitExceededError
 
 from qontract_api.logger import get_logger
 
@@ -27,6 +29,16 @@ class CachedOrgMembers(BaseModel, frozen=True):
     """Cached combined list of admin members + pending invitations."""
 
     members: list[str] = Field(default_factory=list)
+
+
+class RateLimitMarker(BaseModel, frozen=True):
+    """Marks that GitHub's API rate limit was exhausted for an org's credential.
+
+    Cached with a TTL derived from the rate limit reset time so subsequent
+    reconcile cycles short-circuit instead of repeating a doomed GitHub call.
+    """
+
+    reset_at: datetime
 
 
 class GithubOrgWorkspaceClient:
@@ -59,6 +71,10 @@ class GithubOrgWorkspaceClient:
     def _cache_key(org_name: str) -> str:
         return f"github-org:{org_name}:members"
 
+    @staticmethod
+    def _rate_limit_key(org_name: str) -> str:
+        return f"github-org:{org_name}:rate-limited"
+
     def _clear_cache(self, org_name: str) -> None:
         """Clear cached members for the given org."""
         cache_key = self._cache_key(org_name)
@@ -85,12 +101,31 @@ class GithubOrgWorkspaceClient:
         if cached := self._cache.get_obj(cache_key, CachedOrgMembers):
             return cached.members
 
+        rate_limit_key = self._rate_limit_key(org_name)
+        if marker := self._cache.get_obj(rate_limit_key, RateLimitMarker):
+            raise GithubRateLimitExceededError(marker.reset_at)
+
         with self._cache.lock(cache_key):
             if cached := self._cache.get_obj(cache_key, CachedOrgMembers):
                 return cached.members
 
-            admin_members = self._api.get_admin_members(org_name)
-            pending_invitations = self._api.get_pending_invitations(org_name)
+            try:
+                admin_members = self._api.get_admin_members(org_name)
+                pending_invitations = self._api.get_pending_invitations(org_name)
+            except GithubRateLimitExceededError as e:
+                ttl = max(
+                    1,
+                    min(
+                        int((e.reset_at - datetime.now(UTC)).total_seconds()),
+                        self._settings.github_org.members_cache_ttl,
+                    ),
+                )
+                self._cache.set_obj(
+                    rate_limit_key,
+                    RateLimitMarker(reset_at=e.reset_at),
+                    ttl,
+                )
+                raise
 
             combined = sorted(set(admin_members) | set(pending_invitations))
             cached_obj = CachedOrgMembers(members=combined)
