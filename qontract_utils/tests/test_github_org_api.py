@@ -172,6 +172,25 @@ def test_reset_at_fallback_on_non_numeric_retry_after() -> None:
     assert before + fallback <= exc_info.value.reset_at <= after + fallback
 
 
+def test_reset_at_fallback_on_oversized_retry_after() -> None:
+    """An oversized-but-numeric Retry-After must not raise OverflowError."""
+    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    org = MagicMock()
+    org.get_members.side_effect = RateLimitExceededException(
+        403, {"message": "rate limit"}, {"retry-after": str(10**20)}
+    )
+    api._gh = MagicMock()
+    api._gh.get_organization.return_value = org
+
+    before = datetime.now(UTC)
+    with pytest.raises(GithubRateLimitExceededError) as exc_info:
+        api.get_admin_members("my-org")
+    after = datetime.now(UTC)
+
+    fallback = timedelta(seconds=_DEFAULT_RATE_LIMIT_FALLBACK_SECONDS)
+    assert before + fallback <= exc_info.value.reset_at <= after + fallback
+
+
 def test_reset_at_fallback_on_non_numeric_ratelimit_reset() -> None:
     """A non-numeric X-RateLimit-Reset must not raise ValueError - fall back."""
     api = GithubOrgApi(token="token", base_url="https://api.github.com")

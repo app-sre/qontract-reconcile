@@ -62,7 +62,7 @@ def _reset_at_from_headers(headers: Mapping[str, str]) -> datetime:
     also carry an HTTP-date per RFC 9110, which `int()` cannot parse.
     """
     if retry_after := headers.get("retry-after"):
-        with suppress(ValueError):
+        with suppress(ValueError, OverflowError):
             return datetime.now(UTC) + timedelta(seconds=int(retry_after))
     if reset := headers.get("x-ratelimit-reset"):
         with suppress(ValueError, OSError, OverflowError):
