@@ -72,6 +72,10 @@ class GithubOrgWorkspaceClient:
         return f"github-org:{org_name}:members"
 
     @staticmethod
+    def _all_members_cache_key(org_name: str) -> str:
+        return f"github-org:{org_name}:all-members"
+
+    @staticmethod
     def _rate_limit_key(org_name: str) -> str:
         return f"github-org:{org_name}:rate-limited"
 
@@ -144,6 +148,49 @@ class GithubOrgWorkspaceClient:
                 self._settings.github_org.members_cache_ttl,
             )
             return combined
+
+    def get_all_members(self, org_name: str) -> list[str]:
+        """Get all organization members (any role), cached.
+
+        Unlike `get_current_members` (admins + pending invitations), this
+        returns every member of the organization. Logins are returned in their
+        original case exactly as GitHub reports them; callers that need
+        case-insensitive comparison must lowercase on their side.
+
+        Args:
+            org_name: GitHub organization name
+
+        Returns:
+            Sorted list of GitHub usernames (original case) of all org members
+        """
+        cache_key = self._all_members_cache_key(org_name)
+        rate_limit_key = self._rate_limit_key(org_name)
+
+        if marker := self._cache.get_obj(rate_limit_key, RateLimitMarker):
+            raise GithubRateLimitExceededError(marker.reset_at)
+
+        if cached := self._cache.get_obj(cache_key, CachedOrgMembers):
+            return cached.members
+
+        with self._cache.lock(cache_key):
+            if marker := self._cache.get_obj(rate_limit_key, RateLimitMarker):
+                raise GithubRateLimitExceededError(marker.reset_at)
+
+            if cached := self._cache.get_obj(cache_key, CachedOrgMembers):
+                return cached.members
+
+            try:
+                members = self._api.get_members(org_name)
+            except GithubRateLimitExceededError as e:
+                self._cache_rate_limit_marker(org_name, e)
+                raise
+
+            self._cache.set_obj(
+                cache_key,
+                CachedOrgMembers(members=members),
+                self._settings.github_org.members_cache_ttl,
+            )
+            return members
 
     def add_member_as_admin(self, org_name: str, username: str) -> None:
         """Add a user as org admin and invalidate the member cache.

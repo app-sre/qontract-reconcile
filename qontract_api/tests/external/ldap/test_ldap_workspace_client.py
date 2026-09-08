@@ -9,6 +9,7 @@ from qontract_utils.ldap_api.models import LdapUser
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import LdapSettings, Settings
 from qontract_api.external.ldap.ldap_workspace_client import (
+    CachedGithubUsernames,
     CachedUserCheck,
     LdapWorkspaceClient,
 )
@@ -156,3 +157,114 @@ def test_check_users_exist_empty_input(
     assert result == []
     mock_api.get_users.assert_not_called()
     mock_cache.get_obj.assert_not_called()
+
+
+# --- resolve_github_usernames ---
+
+
+def test_resolve_github_usernames_calls_api_and_matches(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+) -> None:
+    """Test resolve_github_usernames delegates to LdapApi and returns matches."""
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.get_github_usernames.return_value = {"AliceGH": "alice", "bob": "bob"}
+
+    result = workspace_client.resolve_github_usernames(["AliceGH", "bob"])
+
+    assert result == {"AliceGH": "alice", "bob": "bob"}
+    mock_api.get_github_usernames.assert_called_once()
+
+
+def test_resolve_github_usernames_case_insensitive(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+) -> None:
+    """Test resolve_github_usernames matches logins case-insensitively."""
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.get_github_usernames.return_value = {"AliceGH": "alice"}
+
+    # Requested with different casing than stored in LDAP
+    result = workspace_client.resolve_github_usernames(["alicegh"])
+
+    # The requested login is echoed back (not the LDAP casing), mapped to uid
+    assert result == {"alicegh": "alice"}
+
+
+def test_resolve_github_usernames_omits_unresolved(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+) -> None:
+    """Test resolve_github_usernames omits logins not found in LDAP."""
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.get_github_usernames.return_value = {"AliceGH": "alice"}
+
+    result = workspace_client.resolve_github_usernames(["AliceGH", "unknown"])
+
+    assert result == {"AliceGH": "alice"}
+
+
+def test_resolve_github_usernames_empty_input(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Test resolve_github_usernames with empty input returns empty and skips work."""
+    result = workspace_client.resolve_github_usernames([])
+
+    assert result == {}
+    mock_api.get_github_usernames.assert_not_called()
+    mock_cache.get_obj.assert_not_called()
+
+
+def test_resolve_github_usernames_cache_hit(
+    workspace_client: LdapWorkspaceClient,
+    mock_cache: MagicMock,
+    mock_api: MagicMock,
+) -> None:
+    """Test resolve_github_usernames serves the map from cache without an API call."""
+    mock_cache.get_obj.return_value = CachedGithubUsernames(
+        mapping={"AliceGH": "alice"}
+    )
+
+    result = workspace_client.resolve_github_usernames(["AliceGH"])
+
+    assert result == {"AliceGH": "alice"}
+    mock_api.get_github_usernames.assert_not_called()
+
+
+def test_resolve_github_usernames_caches_map_with_ttl(
+    workspace_client: LdapWorkspaceClient,
+    mock_cache: MagicMock,
+    mock_api: MagicMock,
+    ldap_settings: Settings,
+) -> None:
+    """Test resolve_github_usernames caches the full map with the configured TTL."""
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.get_github_usernames.return_value = {"AliceGH": "alice"}
+
+    workspace_client.resolve_github_usernames(["AliceGH"])
+
+    mock_cache.set_obj.assert_called_once()
+    call_args = mock_cache.set_obj.call_args
+    assert call_args[1]["ttl"] == ldap_settings.ldap.github_usernames_cache_ttl
+
+
+def test_resolve_github_usernames_double_check_locking(
+    workspace_client: LdapWorkspaceClient,
+    mock_cache: MagicMock,
+    mock_api: MagicMock,
+) -> None:
+    """Test resolve_github_usernames uses double-check locking on cache miss."""
+    cached = CachedGithubUsernames(mapping={"AliceGH": "alice"})
+    mock_cache.get_obj.side_effect = [None, cached]
+
+    result = workspace_client.resolve_github_usernames(["AliceGH"])
+
+    assert result == {"AliceGH": "alice"}
+    mock_api.get_github_usernames.assert_not_called()
+    mock_cache.lock.assert_called_once()

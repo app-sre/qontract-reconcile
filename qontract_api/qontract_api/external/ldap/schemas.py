@@ -44,3 +44,34 @@ class LdapUsersCheckResponse(BaseModel, frozen=True):
         default_factory=list,
         description="Existence status for each requested username",
     )
+
+
+class LdapGithubUsernamesRequest(BaseModel, frozen=True):
+    """Request to resolve GitHub usernames to LDAP uids via rhatSocialURL."""
+
+    logins: list[str] = Field(
+        ..., description="GitHub usernames to resolve to LDAP uids"
+    )
+    secret: LdapDirectSecret = Field(
+        ..., description="Vault secret reference for LDAP credentials"
+    )
+
+
+class LdapGithubUser(BaseModel, frozen=True):
+    """Resolved mapping of a single GitHub username to an LDAP uid."""
+
+    github_username: str = Field(..., description="GitHub username (as requested)")
+    org_username: str = Field(..., description="LDAP uid (app-interface org_username)")
+
+
+class LdapGithubUsernamesResponse(BaseModel, frozen=True):
+    """Response with resolved GitHub-username -> uid mappings.
+
+    Only contains entries for requested logins that were found in LDAP;
+    unresolved logins are omitted.
+    """
+
+    users: list[LdapGithubUser] = Field(
+        default_factory=list,
+        description="Resolved GitHub username to org_username mappings",
+    )

@@ -662,6 +662,21 @@
         "title": "GithubOrgDesiredState",
         "type": "object"
       },
+      "GithubOrgMembersResponse": {
+        "description": "Response with all members of a GitHub organization.",
+        "properties": {
+          "members": {
+            "description": "GitHub usernames (original case) of all organization members",
+            "items": {
+              "type": "string"
+            },
+            "title": "Members",
+            "type": "array"
+          }
+        },
+        "title": "GithubOrgMembersResponse",
+        "type": "object"
+      },
       "GithubOwnerActionAddOwner": {
         "description": "Action: Add a user as an org admin (owner).\n\nNote: Owner removal is intentionally NOT supported. The integration only\nadds owners and never removes them, preserving the behavior of the original\ngithub-owners reconcile integration. This is a deliberate safety decision \u2014\nremoving org admins is a high-impact operation that requires explicit manual\nreview rather than automated removal.",
         "properties": {
@@ -2195,6 +2210,65 @@
           "base_dn"
         ],
         "title": "LdapDirectSecret",
+        "type": "object"
+      },
+      "LdapGithubUser": {
+        "description": "Resolved mapping of a single GitHub username to an LDAP uid.",
+        "properties": {
+          "github_username": {
+            "description": "GitHub username (as requested)",
+            "title": "Github Username",
+            "type": "string"
+          },
+          "org_username": {
+            "description": "LDAP uid (app-interface org_username)",
+            "title": "Org Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "github_username",
+          "org_username"
+        ],
+        "title": "LdapGithubUser",
+        "type": "object"
+      },
+      "LdapGithubUsernamesRequest": {
+        "description": "Request to resolve GitHub usernames to LDAP uids via rhatSocialURL.",
+        "properties": {
+          "logins": {
+            "description": "GitHub usernames to resolve to LDAP uids",
+            "items": {
+              "type": "string"
+            },
+            "title": "Logins",
+            "type": "array"
+          },
+          "secret": {
+            "$ref": "#/components/schemas/LdapDirectSecret",
+            "description": "Vault secret reference for LDAP credentials"
+          }
+        },
+        "required": [
+          "logins",
+          "secret"
+        ],
+        "title": "LdapGithubUsernamesRequest",
+        "type": "object"
+      },
+      "LdapGithubUsernamesResponse": {
+        "description": "Response with resolved GitHub-username -> uid mappings.\n\nOnly contains entries for requested logins that were found in LDAP;\nunresolved logins are omitted.",
+        "properties": {
+          "users": {
+            "description": "Resolved GitHub username to org_username mappings",
+            "items": {
+              "$ref": "#/components/schemas/LdapGithubUser"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "title": "LdapGithubUsernamesResponse",
         "type": "object"
       },
       "LdapUserStatus": {
@@ -4438,6 +4512,141 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/external/github-org/members": {
+      "get": {
+        "description": "Get all members of a GitHub organization.\n\nLists every member of the organization (any role) using the GitHub API\ntoken resolved from Vault. Results are cached for performance (TTL\nconfigured in settings).",
+        "operationId": "github-org-members",
+        "parameters": [
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "GitHub organization name",
+            "in": "query",
+            "name": "org_name",
+            "required": true,
+            "schema": {
+              "description": "GitHub organization name",
+              "title": "Org Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubOrgMembersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Org Members",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/ldap/github-usernames": {
+      "post": {
+        "description": "Resolve GitHub usernames to LDAP uids via the rhatSocialURL attribute.\n\nMaps each requested GitHub username to the app-interface org_username (LDAP\nuid) of the user whose rhatSocialURL points at that GitHub account. The\nfull map is cached for performance; unresolved logins are omitted from the\nresponse.\n\nArgs:\n    request: GitHub usernames to resolve and the Vault secret reference\n    cache: Cache dependency\n    secret_manager: Secret manager dependency\n\nReturns:\n    LdapGithubUsernamesResponse with resolved username -> org_username pairs",
+        "operationId": "ldap-github-usernames",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LdapGithubUsernamesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LdapGithubUsernamesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve Github Usernames",
+        "tags": [
+          "external"
+        ]
+      }
+    },
     "/api/v1/external/ldap/users/check": {
       "post": {
         "description": "Check which usernames exist in LDAP (cached, FreeIPA-authenticated).\n\nQueries LDAP directly using FreeIPA service account credentials\nresolved from Vault. Results are cached for performance.\n\nArgs:\n    request: Request with usernames to check and Vault secret reference\n    cache: Cache dependency\n    secret_manager: Secret manager dependency\n\nReturns:\n    LdapUsersCheckResponse with existence status per username",

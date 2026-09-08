@@ -185,6 +185,76 @@ def test_marker_rechecked_after_acquiring_lock(
 
 
 # ---------------------------------------------------------------------------
+# get_all_members — all org members (any role)
+# ---------------------------------------------------------------------------
+
+
+def test_get_all_members_cache_miss_fetches_and_caches(
+    client: GithubOrgWorkspaceClient,
+    mock_github_org_api: MagicMock,
+    mock_cache: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    mock_github_org_api.get_members.return_value = ["Bob", "alice"]
+
+    members = client.get_all_members(ORG_NAME)
+
+    # returned verbatim from the API (case preserved, no lowercasing here)
+    assert members == ["Bob", "alice"]
+    mock_github_org_api.get_members.assert_called_once_with(ORG_NAME)
+    key, cached_obj, ttl = mock_cache.set_obj.call_args[0]
+    assert key == f"github-org:{ORG_NAME}:all-members"
+    assert cached_obj == CachedOrgMembers(members=["Bob", "alice"])
+    assert ttl == mock_settings.github_org.members_cache_ttl
+
+
+def test_get_all_members_cache_hit_skips_api(
+    client: GithubOrgWorkspaceClient,
+    mock_github_org_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    mock_cache.get_obj.side_effect = [None, CachedOrgMembers(members=["alice"])]
+
+    members = client.get_all_members(ORG_NAME)
+
+    assert members == ["alice"]
+    mock_cache.lock.assert_not_called()
+    mock_github_org_api.get_members.assert_not_called()
+
+
+def test_get_all_members_short_circuits_when_marker_present(
+    client: GithubOrgWorkspaceClient,
+    mock_github_org_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    reset_at = datetime.now(UTC) + timedelta(seconds=60)
+    mock_cache.get_obj.side_effect = [RateLimitMarker(reset_at=reset_at)]
+
+    with pytest.raises(GithubRateLimitExceededError) as exc_info:
+        client.get_all_members(ORG_NAME)
+
+    assert exc_info.value.reset_at == reset_at
+    mock_cache.lock.assert_not_called()
+    mock_github_org_api.get_members.assert_not_called()
+
+
+def test_get_all_members_sets_marker_and_reraises_on_rate_limit(
+    client: GithubOrgWorkspaceClient,
+    mock_github_org_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    reset_at = datetime.now(UTC) + timedelta(seconds=120)
+    mock_github_org_api.get_members.side_effect = GithubRateLimitExceededError(reset_at)
+
+    with pytest.raises(GithubRateLimitExceededError):
+        client.get_all_members(ORG_NAME)
+
+    key, marker, _ttl = mock_cache.set_obj.call_args[0]
+    assert key == f"github-org:{ORG_NAME}:rate-limited"
+    assert marker == RateLimitMarker(reset_at=reset_at)
+
+
+# ---------------------------------------------------------------------------
 # add_member_as_admin — rate limit while applying a mutation
 # ---------------------------------------------------------------------------
 

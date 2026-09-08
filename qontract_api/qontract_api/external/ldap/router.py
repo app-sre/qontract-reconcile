@@ -14,6 +14,9 @@ from qontract_api.external.ldap.ldap_factory import (
     create_ldap_workspace_client,
 )
 from qontract_api.external.ldap.schemas import (
+    LdapGithubUser,
+    LdapGithubUsernamesRequest,
+    LdapGithubUsernamesResponse,
     LdapUsersCheckRequest,
     LdapUsersCheckResponse,
 )
@@ -66,3 +69,51 @@ def check_users_exist(
     )
 
     return LdapUsersCheckResponse(users=result)
+
+
+@router.post(
+    "/github-usernames",
+    operation_id="ldap-github-usernames",
+)
+def resolve_github_usernames(
+    request: LdapGithubUsernamesRequest,
+    cache: CacheDep,
+    secret_manager: SecretManagerDep,
+    _user: UserDep,
+) -> LdapGithubUsernamesResponse:
+    """Resolve GitHub usernames to LDAP uids via the rhatSocialURL attribute.
+
+    Maps each requested GitHub username to the app-interface org_username (LDAP
+    uid) of the user whose rhatSocialURL points at that GitHub account. The
+    full map is cached for performance; unresolved logins are omitted from the
+    response.
+
+    Args:
+        request: GitHub usernames to resolve and the Vault secret reference
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapGithubUsernamesResponse with resolved username -> org_username pairs
+    """
+    client = create_ldap_workspace_client(
+        secret=request.secret,
+        cache=cache,
+        secret_manager=secret_manager,
+        settings=settings,
+    )
+
+    resolved = client.resolve_github_usernames(request.logins)
+
+    logger.info(
+        f"Resolved {len(resolved)}/{len(request.logins)} GitHub usernames via LDAP",
+        requested=len(request.logins),
+        resolved=len(resolved),
+    )
+
+    return LdapGithubUsernamesResponse(
+        users=[
+            LdapGithubUser(github_username=login, org_username=uid)
+            for login, uid in resolved.items()
+        ]
+    )
