@@ -1,10 +1,10 @@
 # Slack Usergroups Integration
 
-**Last Updated:** 2025-11-26
+**Last Updated:** 2026-09-08
 
 ## Description
 
-This integration manages Slack usergroups across multiple workspaces (Slack instances) by reconciling desired state from app-interface with current state in Slack. It supports Slack Usergroup management based on roles, schedules, git repository ownership, and PagerDuty on-call rotations. The integration uses a client-server architecture where GraphQL queries happen client-side and reconciliation logic runs server-side via qontract-api.
+This integration manages Slack usergroups across multiple workspaces (Slack instances) by reconciling desired state from app-interface with current state in Slack. It supports Slack Usergroup management based on roles, schedules, git repository ownership, PagerDuty on-call rotations, and GitHub organization membership. The integration uses a client-server architecture where GraphQL queries happen client-side and reconciliation logic runs server-side via qontract-api.
 
 ## Features
 
@@ -14,6 +14,7 @@ This integration manages Slack usergroups across multiple workspaces (Slack inst
   - Time-based on-call schedules (with active time window filtering)
   - Git repository OWNERS files (GitHub/GitLab)
   - PagerDuty schedules and escalation policies
+  - GitHub organization members (e.g. to broadcast to all members of an org)
   - Cluster access roles (automatic cluster-specific usergroups)
 - Update usergroup metadata (description, default channels)
 - Whitelist-based management (only reconciles explicitly managed usergroups)
@@ -22,7 +23,7 @@ This integration manages Slack usergroups across multiple workspaces (Slack inst
 
 ## Desired State Details
 
-The desired state for Slack usergroup membership is compiled from **five different sources**, each with specific inclusion conditions. All sources are combined using set union logic (no duplicates), and the final user list is sorted alphabetically.
+The desired state for Slack usergroup membership is compiled from **six different sources**, each with specific inclusion conditions. All sources are combined using set union logic (no duplicates), and the final user list is sorted alphabetically.
 
 ### User Sources
 
@@ -66,7 +67,35 @@ Users are included from PagerDuty if:
 - `/api/v1/external/pagerduty-schedule-users`
 - `/api/v1/external/pagerduty-escalation-policy-users`
 
-#### 5. Cluster Access (Automatic Cluster Usergroups)
+#### 5. GitHub Organization Members (`/access/permission-1.yml.github`)
+
+All members of a GitHub organization are included. This is intended for
+broadcasting to an entire organization (e.g. security announcements) without
+maintaining an explicit member list in app-interface.
+
+Configuration provides the organization `name` and a Vault `token` reference
+with read access to the org's membership.
+
+**User Mapping (two stages, GitHub login → org_username):**
+
+1. **app-interface `github_username`** — a member is mapped to the app-interface
+   user whose `github_username` matches the GitHub login (compared
+   case-insensitively).
+2. **LDAP `rhatSocialURL` fallback** — remaining unmapped logins are resolved
+   via the FreeIPA `rhatSocialURL` attribute (`Github->https://github.com/<login>`),
+   which maps the GitHub login to the user's LDAP `uid` (the app-interface
+   `org_username`). The full map is cached server-side.
+
+Members that resolve to neither an app-interface `github_username` nor an LDAP
+`rhatSocialURL` entry are **logged and skipped** (one warning per unresolved
+login); they do not block reconciliation of the rest of the usergroup.
+
+**API Endpoints:**
+
+- `/api/v1/external/github-org/members`
+- `/api/v1/external/ldap/github-usernames`
+
+#### 6. Cluster Access (Automatic Cluster Usergroups)
 
 **Automatic Generation:** No explicit permission needed - generated from cluster access roles
 
@@ -107,6 +136,8 @@ After compiling users from all sources, the following validation and filtering o
 - Only users with `org_username` field are included
 - For PagerDuty, RedHat users no longer require an app-interface user file (`/access/user-*.yml`)
 - GitHub username mapping for OWNERS files requires `user.github_username` field
+- GitHub organization members are mapped via `user.github_username`, falling back
+  to the LDAP `rhatSocialURL` attribute; unresolved members are logged and skipped
 - `tag_on_merge_requests` filtering for git OWNERS (default: true)
 - `tag_on_cluster_updates` filtering for cluster usergroups (default: true)
 
@@ -121,13 +152,14 @@ After compiling users from all sources, the following validation and filtering o
 **Client-Side ([reconcile/slack_usergroups_api.py](../../reconcile/slack_usergroups_api.py)):**
 
 - Fetches desired state:
-  - from app-interface (GraphQL) permissions, users, clusters, and roles
-  - from qontract-api external endpoints (VCS repo owners, PagerDuty)
+  - from app-interface (GraphQL) permissions, users, clusters, roles, and LDAP settings
+  - from qontract-api external endpoints (VCS repo owners, PagerDuty, GitHub org members)
 - Compiles usergroup membership from multiple sources:
   - Roles (with expiration filtering)
   - Time-based schedules (filters by active time windows)
   - Git OWNERS files (via qontract-api external endpoints)
   - PagerDuty schedules and escalation policies (via qontract-api)
+  - GitHub organization members (via qontract-api, mapped via github_username/LDAP)
   - Cluster access roles (generates cluster-specific usergroups)
 - Transforms data to API request format
 - Calls qontract-api reconciliation endpoint
@@ -485,6 +517,8 @@ The integration uses GraphQL queries to fetch desired state from app-interface. 
    - Time-based schedules (filtered by active time window)
    - Git OWNERS files (via qontract-api `/api/v1/external/vcs-repo-owners`)
    - PagerDuty schedules/policies (via qontract-api `/api/v1/external/pagerduty-*`)
+   - GitHub org members (via qontract-api `/api/v1/external/github-org/members`,
+     mapped via `github_username` then `/api/v1/external/ldap/github-usernames`)
    - Cluster access roles
 3. Build `SlackWorkspace` objects with usergroups
 4. POST to `/reconcile` endpoint (queue task)
