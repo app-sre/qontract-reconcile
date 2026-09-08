@@ -247,7 +247,11 @@ class Hooks(BaseModel, frozen=True):
 
     pre_hooks: list[Callable[..., None]] = Field(default_factory=list)
     post_hooks: list[Callable[..., None]] = Field(default_factory=list)
+    # Called as hook(*hook_args, exc) - i.e. (exception,) with no context, or
+    # (context, exception) with one - so a hook can inspect/convert the
+    # exception that triggered it.
     error_hooks: list[Callable[..., None]] = Field(default_factory=list)
+    # Called as hook(*hook_args, attempt_num) - same trailing-arg convention.
     retry_hooks: list[Callable[..., None]] = Field(default_factory=list)
     retry_config: RetryConfig | None = None
 
@@ -512,9 +516,9 @@ class InvokeWithHooksMethod:
 
             try:
                 yield from self.func(*prepend_args, *args, **kwargs)
-            except Exception:
+            except Exception as exc:
                 for hook in hooks.error_hooks:
-                    hook(*hook_args)
+                    hook(*hook_args, exc)
                 raise
             finally:
                 for hook in hooks.post_hooks:
@@ -569,9 +573,9 @@ class InvokeWithHooksMethod:
 
                         # Execute method - no yield, just return!
                         return self.func(*prepend_args, *args, **kwargs)
-            except Exception:
+            except Exception as exc:
                 for hook in hooks.error_hooks:
-                    hook(*hook_args)
+                    hook(*hook_args, exc)
                 raise
             finally:
                 # Post hooks

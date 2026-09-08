@@ -42,7 +42,7 @@ def test_standalone_function_with_all_hooks() -> None:
     def post_hook() -> None:
         execution_order.append("post")
 
-    def error_hook() -> None:
+    def error_hook(exc: Exception) -> None:
         execution_order.append("error")
 
     @invoke_with_hooks(
