@@ -1999,14 +1999,6 @@ def quay_mirror_org(
     )
 
 
-@integration.command(short_help="Creates and Manages Quay Repos.")
-@click.pass_context
-def quay_repos(ctx: click.Context) -> None:
-    import reconcile.quay_repos
-
-    run_integration(reconcile.quay_repos, ctx)
-
-
 @integration.command(short_help="Creates and Manages Quay Repos (via qontract-api).")
 @click.pass_context
 def quay_repos_api(
