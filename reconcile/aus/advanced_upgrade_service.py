@@ -282,7 +282,7 @@ def _build_org_upgrade_specs_for_ocm_env(
 def aus_label_key(config_atom: str | None = None) -> str:
     """
     Generates label keys for aus, compliant with the naming schema defined in
-    https://service.pages.redhat.com/dev-guidelines/docs/sre-capabilities/framework/ocm-labels/
+    https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/platform-users/platform-services/sre-capabilities/ocm-labels.md
     """
     return sre_capability_label_key("aus", config_atom)
 
