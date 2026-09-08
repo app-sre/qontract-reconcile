@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import BaseModel
 from qontract_api_client.client import (
+    github_org_members,
+    ldap_github_usernames,
     pagerduty_escalation_policy_users,
     pagerduty_schedule_users,
     slack_usergroups,
@@ -29,6 +31,8 @@ from qontract_api_client.client import (
 )
 from qontract_api_client.schemas import (
     EscalationPolicyUsersResponse,
+    LdapDirectSecret,
+    LdapGithubUsernamesRequest,
     NotificationAddUser,
     NotificationRemoveUser,
     ScheduleUsersResponse,
@@ -52,6 +56,7 @@ from reconcile.gql_definitions.slack_usergroups_api.clusters import (
     query as clusters_query,
 )
 from reconcile.gql_definitions.slack_usergroups_api.permissions import (
+    GithubOrgV1,
     PagerDutyTargetV1,
     PermissionSlackUsergroupV1,
     RoleV1,
@@ -70,6 +75,7 @@ from reconcile.gql_definitions.slack_usergroups_api.roles import (
 from reconcile.gql_definitions.slack_usergroups_api.roles import query as roles_query
 from reconcile.gql_definitions.slack_usergroups_api.users import UserV1
 from reconcile.gql_definitions.slack_usergroups_api.users import query as users_query
+from reconcile.typed_queries.ldap_settings import get_ldap_settings
 from reconcile.typed_queries.vcs import Vcs, get_vcs_instances
 from reconcile.utils import expiration, gql
 from reconcile.utils.datetime_util import ensure_utc, utc_now
@@ -81,6 +87,8 @@ from reconcile.utils.runtime.integration import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine, Iterable, Mapping
+
+    from reconcile.gql_definitions.common.ldap_settings import LdapSettingsV1
 
 QONTRACT_INTEGRATION = "slack-usergroups-api"
 INTEGRATION_VERSION = "0.1.0"
@@ -377,11 +385,125 @@ class SlackUsergroupsIntegration(
             for user in resp.users or []
         ]
 
+    async def _resolve_github_logins_via_ldap(
+        self,
+        logins: list[str],
+        ldap_settings: LdapSettingsV1,
+    ) -> dict[str, str]:
+        """Resolve GitHub logins to org_usernames via LDAP rhatSocialURL.
+
+        Args:
+            logins: GitHub logins not resolvable via app-interface github_username
+            ldap_settings: App-interface LDAP settings (server, base DN, creds)
+
+        Returns:
+            Mapping of the requested GitHub login to its org_username, containing
+            only logins found in LDAP (unresolved logins are omitted).
+        """
+        if not logins:
+            return {}
+        if not ldap_settings.credentials:
+            raise RuntimeError("LDAP credentials not found in settings")
+
+        with self.log_api_exceptions():
+            response = await ldap_github_usernames(
+                LdapGithubUsernamesRequest(
+                    logins=logins,
+                    secret=LdapDirectSecret(
+                        secret_manager_url=self.secret_manager_url,
+                        path=ldap_settings.credentials.path,
+                        field=ldap_settings.credentials.field,
+                        version=ldap_settings.credentials.version,
+                        server_url=ldap_settings.server_url,
+                        base_dn=ldap_settings.base_dn,
+                    ),
+                ),
+            )
+        return {u.github_username: u.org_username for u in response.users or []}
+
+    async def compile_users_from_github_org(
+        self,
+        github_org: GithubOrgV1 | None,
+        app_interface_users: list[UserV1],
+        ldap_settings: LdapSettingsV1,
+    ) -> list[str]:
+        """Extract Slack identities from a GitHub organization's membership.
+
+        Members are mapped to app-interface users via their github_username
+        first, then via the LDAP rhatSocialURL attribute for the remainder.
+        Members that resolve to neither are logged and skipped.
+
+        Args:
+            github_org: GitHub org reference (name + API token) or None
+            app_interface_users: List of all app-interface users
+            ldap_settings: App-interface LDAP settings for the fallback lookup
+
+        Returns:
+            List of Slack identities for the resolvable org members
+        """
+        if not github_org:
+            return []
+
+        with self.log_api_exceptions():
+            response = await github_org_members(
+                secret_manager_url=self.secret_manager_url,
+                path=github_org.token.path,
+                field=github_org.token.field,
+                version=github_org.token.version,
+                org_name=github_org.name,
+            )
+        if not (members := response.members):
+            return []
+
+        users_map = {user.org_username: user for user in app_interface_users}
+        # Compare case-insensitively: GitHub logins keep their original casing
+        # in both app-interface and the org membership listing.
+        gh_to_org_username = {
+            user.github_username.lower(): user.org_username
+            for user in app_interface_users
+        }
+
+        # login -> org_username, resolved via app-interface github_username first
+        resolved: dict[str, str] = {}
+        unresolved: list[str] = []
+        for login in members:
+            if org_username := gh_to_org_username.get(login.lower()):
+                resolved[login] = org_username
+            else:
+                unresolved.append(login)
+
+        # Fall back to LDAP rhatSocialURL for members without a github_username
+        resolved.update(
+            await self._resolve_github_logins_via_ldap(unresolved, ldap_settings)
+        )
+
+        slack_identities: set[str] = set()
+        for login in members:
+            if not (org_username := resolved.get(login)):
+                logging.warning(
+                    f"[{github_org.name}] could not map GitHub member '{login}' "
+                    "to an org user, skipping. If this is a Red Hat associate, "
+                    f"add their GitHub profile (https://github.com/{login}) to "
+                    "their Rover page (https://rover.redhat.com) so it can be "
+                    "resolved via LDAP."
+                )
+                continue
+            # Honor an app-interface user's Slack identity override
+            # (gov_slack_email_local_part); otherwise the org_username - the
+            # LDAP-resolved uid - is itself the Slack identity.
+            if user := users_map.get(org_username):
+                slack_identities.add(slack_identity(user))
+            else:
+                slack_identities.add(org_username)
+
+        return sorted(slack_identities)
+
     async def _process_permission(
         self,
         permission: PermissionSlackUsergroupV1,
         app_interface_users: list[UserV1],
         vcs_instances: Iterable[Vcs],
+        ldap_settings: LdapSettingsV1,
         desired_workspace_name: str | None,
         desired_usergroup_name: str | None,
     ) -> tuple[str, SlackUsergroup] | None:
@@ -426,6 +548,14 @@ class SlackUsergroupsIntegration(
                 app_interface_users=app_interface_users,
             )
         )
+        # Add users from Github org (if configured)
+        users.update(
+            await self.compile_users_from_github_org(
+                github_org=permission.github,
+                app_interface_users=app_interface_users,
+                ldap_settings=ldap_settings,
+            )
+        )
 
         # Create config and usergroup
         notifications: list[NotificationAddUser | NotificationRemoveUser] = []
@@ -453,6 +583,7 @@ class SlackUsergroupsIntegration(
         permissions: list[PermissionSlackUsergroupV1],
         app_interface_users: list[UserV1],
         vcs_instances: Iterable[Vcs],
+        ldap_settings: LdapSettingsV1,
         desired_workspace_name: str | None = None,
         desired_usergroup_name: str | None = None,
     ) -> list[SlackWorkspace]:
@@ -463,6 +594,7 @@ class SlackUsergroupsIntegration(
                 permission,
                 app_interface_users,
                 vcs_instances,
+                ldap_settings,
                 desired_workspace_name,
                 desired_usergroup_name,
             )
@@ -649,11 +781,13 @@ class SlackUsergroupsIntegration(
         clusters = self.get_clusters(query_func=gqlapi.query)
         roles = self.get_roles(query_func=gqlapi.query)
         vcs_instances = get_vcs_instances(query_func=gqlapi.query)
+        ldap_settings = get_ldap_settings(query_func=gqlapi.query)
 
         workspaces = await self.compile_desired_state_from_permissions(
             permissions=permissions,
             app_interface_users=users,
             vcs_instances=vcs_instances,
+            ldap_settings=ldap_settings,
             desired_workspace_name=self.params.workspace_name,
             desired_usergroup_name=self.params.usergroup_name,
         )

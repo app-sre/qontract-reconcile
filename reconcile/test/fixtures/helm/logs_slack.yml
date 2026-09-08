@@ -95,6 +95,14 @@ objects:
               @type grep
               <exclude>
                 key message
+                pattern /could not map GitHub member /
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
                 pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
