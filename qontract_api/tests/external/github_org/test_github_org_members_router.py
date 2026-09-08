@@ -78,11 +78,13 @@ def test_get_org_members_resolves_token_from_secret(
     mock_client.get_all_members.return_value = []
     mock_factory.return_value.create_workspace_client.return_value = mock_client
 
+    from qontract_api.main import app
+
     api_client.get(MEMBERS_ENDPOINT, params=QUERY_PARAMS, headers=auth_headers)
 
     # secret_manager.read(params) is used to resolve the token
-    api_client.app.state.secret_manager.read.assert_called_once()
-    read_arg = api_client.app.state.secret_manager.read.call_args[0][0]
+    app.state.secret_manager.read.assert_called_once()
+    read_arg = app.state.secret_manager.read.call_args[0][0]
     assert read_arg.path == "secret/github/my-org"
     assert read_arg.org_name == "my-org"
 
