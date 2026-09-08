@@ -746,6 +746,74 @@ def test_get_github_usernames_skips_unparseable_values(
     assert result == {}
 
 
+def test_get_github_usernames_omits_ambiguous_logins(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Ambiguous logins (same github login, different uids) are omitted."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            # Two distinct users claim the same GitHub login (case-insensitive)
+            {
+                "attributes": {
+                    "uid": ["alice"],
+                    "rhatSocialURL": ["Github->https://github.com/shared-gh"],
+                }
+            },
+            {
+                "attributes": {
+                    "uid": ["mallory"],
+                    "rhatSocialURL": ["Github->https://github.com/Shared-GH"],
+                }
+            },
+            # An unambiguous mapping is still returned
+            {
+                "attributes": {
+                    "uid": ["bob"],
+                    "rhatSocialURL": ["Github->https://github.com/bob-gh"],
+                }
+            },
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_github_usernames()
+
+    # The ambiguous login is dropped (LDAP order must not decide identity);
+    # the unambiguous one survives.
+    assert result == {"bob-gh": "bob"}
+
+
+def test_get_github_usernames_keeps_duplicate_same_uid(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """A login repeated for the SAME uid (any casing) is not ambiguous."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {
+                "attributes": {
+                    "uid": ["alice"],
+                    "rhatSocialURL": [
+                        "Github->https://github.com/AliceGH",
+                        "Github->https://github.com/alicegh",
+                    ],
+                }
+            },
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_github_usernames()
+
+    # First-seen casing is preserved; the mapping resolves to the single uid.
+    assert result == {"AliceGH": "alice"}
+
+
 def test_get_github_usernames_search_failure_raises_error(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:

@@ -323,6 +323,11 @@ class LdapApi:
         skipped (see `_parse_github_login`). Logins keep their original casing;
         callers normalise for comparison.
 
+        A GitHub login that resolves (case-insensitively) to more than one
+        distinct uid is ambiguous - LDAP result order is not an
+        identity-selection rule - so it is omitted from the mapping and logged,
+        rather than letting an arbitrary entry win.
+
         Returns:
             Mapping of GitHub username to LDAP uid (org_username)
 
@@ -336,11 +341,26 @@ class LdapApi:
         )
         self._check_ldap_response(status)
 
-        mapping: dict[str, str] = {}
+        # Collect the distinct uids per case-insensitive login so ambiguous
+        # mappings can be detected instead of silently overwritten. The
+        # first-seen original casing is preserved as the map key.
+        by_login: dict[str, tuple[str, set[str]]] = {}
         for r in results:
             attributes = r["attributes"]
             uid = attributes["uid"][0]
             for value in attributes.get("rhatSocialURL", []):
                 if login := _parse_github_login(value):
-                    mapping[login] = uid
+                    _, uids = by_login.setdefault(login.lower(), (login, set()))
+                    uids.add(uid)
+
+        mapping: dict[str, str] = {}
+        for original, uids in by_login.values():
+            if len(uids) > 1:
+                logger.warning(
+                    "Ambiguous GitHub login maps to multiple LDAP uids; skipping",
+                    github_login=original,
+                    uids=sorted(uids),
+                )
+                continue
+            mapping[original] = next(iter(uids))
         return mapping
