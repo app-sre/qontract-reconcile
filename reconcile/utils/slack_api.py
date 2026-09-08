@@ -96,7 +96,7 @@ class SlackApiConfig:
 
     @classmethod
     def from_dict(cls, config_data: Mapping[str, Any]) -> SlackApiConfig:
-        """
+        r"""
         Build a SlackApiConfig object from a mapping object.
 
         Input example:
