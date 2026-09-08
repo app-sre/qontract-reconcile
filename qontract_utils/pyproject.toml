@@ -86,6 +86,7 @@ ignore = [
     "try-consider-else",                   # try-consider-else
     "typing-only-third-party-import",      # type-checking-block
     "typing-only-standard-library-import", # type-checking-block
+    "pytest-fixture-autouse",              # Avoid using `autouse=True` in `pytest.fixture` decorators
     # pydoclint
     "DOC",
     # May conflict with the formatter, https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules

@@ -225,6 +225,7 @@ ignore = [
     "mutable-class-default",             # Mutable class attributes should be annotated with "typing.ClassVar"
     "non-empty-init-module",             # `__init__` module should only contain docstrings and re-exports
     "too-many-statements-in-try-clause",
+    "pytest-fixture-autouse",            # Avoid using `autouse=True` in `pytest.fixture` decorators
     # Review later
     "read-whole-file",     # Replace `open` with `pathlib.Path`
     "write-whole-file",    # Replace `open` with `pathlib.Path`
