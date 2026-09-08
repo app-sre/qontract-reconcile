@@ -20,6 +20,6 @@ class GithubOrgMembersResponse(BaseModel, frozen=True):
     """Response with all members of a GitHub organization."""
 
     members: list[str] = Field(
-        default_factory=list,
+        ...,
         description="GitHub usernames (original case) of all organization members",
     )

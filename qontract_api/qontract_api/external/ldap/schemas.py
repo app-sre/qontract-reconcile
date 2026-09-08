@@ -72,6 +72,6 @@ class LdapGithubUsernamesResponse(BaseModel, frozen=True):
     """
 
     users: list[LdapGithubUser] = Field(
-        default_factory=list,
+        ...,
         description="Resolved GitHub username to org_username mappings",
     )

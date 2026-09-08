@@ -674,6 +674,9 @@
             "type": "array"
           }
         },
+        "required": [
+          "members"
+        ],
         "title": "GithubOrgMembersResponse",
         "type": "object"
       },
@@ -2268,6 +2271,9 @@
             "type": "array"
           }
         },
+        "required": [
+          "users"
+        ],
         "title": "LdapGithubUsernamesResponse",
         "type": "object"
       },
