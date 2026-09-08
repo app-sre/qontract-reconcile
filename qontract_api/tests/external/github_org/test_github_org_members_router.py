@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from qontract_api.auth import create_access_token
+from qontract_api.external.github_org.schemas import GithubOrgMembersParams
 from qontract_api.models import TokenData
 
 
@@ -37,12 +38,12 @@ def auth_headers() -> dict[str, str]:
 
 MEMBERS_ENDPOINT = "/api/v1/external/github-org/members"
 
-QUERY_PARAMS = {
-    "org_name": "my-org",
-    "secret_manager_url": "https://vault.example.com",
-    "path": "secret/github/my-org",
-    "field": "token",
-}
+QUERY_PARAMS = GithubOrgMembersParams(
+    org_name="my-org",
+    secret_manager_url="https://vault.example.com",
+    path="secret/github/my-org",
+    field="token",
+).model_dump(mode="json", exclude_none=True)
 
 
 @patch("qontract_api.external.github_org.router.GithubOrgClientFactory")

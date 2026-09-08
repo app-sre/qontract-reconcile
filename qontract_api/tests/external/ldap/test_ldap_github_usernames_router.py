@@ -8,6 +8,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from qontract_api.auth import create_access_token
+from qontract_api.external.ldap.schemas import (
+    LdapDirectSecret,
+    LdapGithubUsernamesRequest,
+)
 from qontract_api.models import TokenData
 
 
@@ -37,16 +41,18 @@ def auth_headers() -> dict[str, str]:
 
 LDAP_GITHUB_USERNAMES_ENDPOINT = "/api/v1/external/ldap/github-usernames"
 
-LDAP_GITHUB_USERNAMES_REQUEST = {
-    "logins": ["AliceGH", "bob", "unknown"],
-    "secret": {
-        "secret_manager_url": "https://vault.example.com",
-        "path": "secret/ldap/freeipa",
-        "field": "bind_password",
-        "server_url": "ldap://freeipa.example.com",
-        "base_dn": "dc=example,dc=com",
-    },
-}
+LDAP_SECRET = LdapDirectSecret(
+    secret_manager_url="https://vault.example.com",
+    path="secret/ldap/freeipa",
+    field="bind_password",
+    server_url="ldap://freeipa.example.com",
+    base_dn="dc=example,dc=com",
+)
+
+LDAP_GITHUB_USERNAMES_REQUEST = LdapGithubUsernamesRequest(
+    logins=["AliceGH", "bob", "unknown"],
+    secret=LDAP_SECRET,
+).model_dump(mode="json")
 
 
 @patch("qontract_api.external.ldap.router.create_ldap_workspace_client")
@@ -93,10 +99,9 @@ def test_resolve_github_usernames_passes_secret(
 
     api_client.post(
         LDAP_GITHUB_USERNAMES_ENDPOINT,
-        json={
-            "logins": [],
-            "secret": LDAP_GITHUB_USERNAMES_REQUEST["secret"],
-        },
+        json=LdapGithubUsernamesRequest(logins=[], secret=LDAP_SECRET).model_dump(
+            mode="json"
+        ),
         headers=auth_headers,
     )
 
@@ -120,10 +125,9 @@ def test_resolve_github_usernames_empty_result(
 
     response = api_client.post(
         LDAP_GITHUB_USERNAMES_ENDPOINT,
-        json={
-            "logins": ["unknown"],
-            "secret": LDAP_GITHUB_USERNAMES_REQUEST["secret"],
-        },
+        json=LdapGithubUsernamesRequest(
+            logins=["unknown"], secret=LDAP_SECRET
+        ).model_dump(mode="json"),
         headers=auth_headers,
     )
 
