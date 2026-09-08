@@ -1,12 +1,14 @@
 """LDAP API client with hook system for metrics, logging, and latency tracking."""
 
 import contextvars
+import re
 import time
 import types
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 from typing import Self
+from urllib.parse import urlparse
 
 import structlog
 from ldap3 import NONE, SAFE_SYNC, Connection, Server
@@ -115,6 +117,41 @@ _LDAP_RETRY_CONFIG = RetryConfig(
     wait_max=5.0,
     wait_jitter=1.0,
 )
+
+
+# GitHub usernames: alphanumerics and single hyphens, max 39 chars. We only
+# validate the character set here (not the full hyphen rules) - a value that
+# survives this is safe to compare against real org members.
+_GITHUB_USERNAME_RE = re.compile(r"[A-Za-z0-9-]{1,39}")
+
+# Hosts whose first path segment is a GitHub user login. `*.github.io` (Pages),
+# custom domains and `gist.github.com` are intentionally excluded: their first
+# path segment is not reliably a username.
+_GITHUB_HOSTS = frozenset({"github.com", "www.github.com"})
+
+
+def _parse_github_login(social_url: str) -> str | None:
+    """Extract a GitHub login from a single `rhatSocialURL` attribute value.
+
+    Values have the form ``<Social>-><URL>`` (e.g.
+    ``Github->http://github.com/chassing``). Returns the first path segment of
+    ``github.com/<login>`` URLs whose social label is ``Github``; returns None
+    for any non-GitHub label, non-github.com host (``*.github.io`` Pages, gist,
+    custom domains), or empty/malformed login. The login is returned with its
+    original casing - callers normalise for comparison.
+    """
+    label, sep, url = social_url.partition("->")
+    if not sep or label.strip().lower() != "github":
+        return None
+
+    parsed = urlparse(url.strip().rstrip("\x00").strip())
+    if parsed.hostname not in _GITHUB_HOSTS:
+        return None
+
+    segment = parsed.path.strip("/").split("/", 1)[0].strip().rstrip("\x00").strip()
+    if not segment or not _GITHUB_USERNAME_RE.fullmatch(segment):
+        return None
+    return segment
 
 
 def _get_cn_from_dn(dn: str) -> str:
@@ -271,3 +308,39 @@ class LdapApi:
             )
             for dn, members in groups_and_members.items()
         ]
+
+    @invoke_with_hooks(
+        lambda: LdapApiCallContext(method="get_github_usernames"),
+        retry_config=_LDAP_RETRY_CONFIG,
+    )
+    def get_github_usernames(self) -> dict[str, str]:
+        """Build a GitHub-username -> LDAP uid map from `rhatSocialURL`.
+
+        Searches the active users container for entries whose `rhatSocialURL`
+        holds a `Github->...github.com/<login>` value and maps the parsed
+        GitHub login to the user's uid (which is the app-interface
+        org_username). Values that are not GitHub github.com user URLs are
+        skipped (see `_parse_github_login`). Logins keep their original casing;
+        callers normalise for comparison.
+
+        Returns:
+            Mapping of GitHub username to LDAP uid (org_username)
+
+        Raises:
+            LdapApiError: If the LDAP search fails
+        """
+        _, status, results, _ = self._connection.search(
+            f"cn=users,cn=accounts,{self.base_dn}",
+            "(&(objectclass=person)(rhatSocialURL=Github->*github.com/*))",
+            attributes=["uid", "rhatSocialURL"],
+        )
+        self._check_ldap_response(status)
+
+        mapping: dict[str, str] = {}
+        for r in results:
+            attributes = r["attributes"]
+            uid = attributes["uid"][0]
+            for value in attributes.get("rhatSocialURL", []):
+                if login := _parse_github_login(value):
+                    mapping[login] = uid
+        return mapping

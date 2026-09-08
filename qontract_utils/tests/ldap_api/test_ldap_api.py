@@ -7,7 +7,12 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 from pydantic import ValidationError
 from qontract_utils.hooks import Hooks
-from qontract_utils.ldap_api.api import LdapApi, LdapApiCallContext, LdapApiError
+from qontract_utils.ldap_api.api import (
+    LdapApi,
+    LdapApiCallContext,
+    LdapApiError,
+    _parse_github_login,
+)
 from qontract_utils.ldap_api.models import LdapGroup, LdapUser
 
 
@@ -597,3 +602,182 @@ def test_get_group_members_escapes_special_characters(
     assert f"(memberOf={dn_with_parens})" not in filter_str
     assert "\\28" in filter_str  # ( -> \28
     assert "\\29" in filter_str  # ) -> \29
+
+
+# --- _parse_github_login ---
+
+
+@pytest.mark.parametrize(
+    ("social_url", "expected"),
+    [
+        # Canonical form as stored in FreeIPA
+        ("Github->http://github.com/chassing", "chassing"),
+        # https and www variants
+        ("Github->https://github.com/chassing", "chassing"),
+        ("Github->https://www.github.com/chassing", "chassing"),
+        # Trailing slash and extra path segments -> first segment only
+        ("Github->https://github.com/chassing/", "chassing"),
+        ("Github->https://github.com/chassing/repo", "chassing"),
+        # Casing of the login is preserved (callers normalise)
+        ("Github->https://github.com/ChAsSiNg", "ChAsSiNg"),
+        # Label matching is case-insensitive / whitespace-tolerant
+        ("github->https://github.com/chassing", "chassing"),
+        (" GitHub -> https://github.com/chassing ", "chassing"),
+        # Hyphenated login (valid GitHub username)
+        ("Github->https://github.com/red-hat", "red-hat"),
+    ],
+)
+def test_parse_github_login_valid(social_url: str, expected: str) -> None:
+    """Test _parse_github_login extracts the login from valid github.com URLs."""
+    assert _parse_github_login(social_url) == expected
+
+
+@pytest.mark.parametrize(
+    "social_url",
+    [
+        # Non-GitHub social label
+        "Twitter->https://twitter.com/chassing",
+        "LinkedIn->https://github.com/chassing",  # wrong label, right host
+        # Missing separator
+        "https://github.com/chassing",
+        # Empty login (no path segment)
+        "Github->https://github.com/",
+        "Github->https://github.com",
+        # Excluded hosts: Pages, gist, custom domain
+        "Github->https://chassing.github.io/",
+        "Github->https://gist.github.com/chassing",
+        "Github->https://example.com/chassing",
+        # Login with invalid characters (underscore not allowed)
+        "Github->https://github.com/bad_name",
+        # Empty string
+        "",
+    ],
+)
+def test_parse_github_login_invalid(social_url: str) -> None:
+    """Test _parse_github_login returns None for non-github.com user URLs."""
+    assert _parse_github_login(social_url) is None
+
+
+def test_parse_github_login_strips_null_bytes() -> None:
+    """Test _parse_github_login tolerates trailing null bytes (seen in LDAP values)."""
+    assert _parse_github_login("Github->https://github.com/chassing\x00") == "chassing"
+
+
+# --- get_github_usernames ---
+
+
+def test_get_github_usernames_builds_mapping(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_github_usernames maps parsed logins to uids, preserving case."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {
+                "attributes": {
+                    "uid": ["alice"],
+                    "rhatSocialURL": ["Github->https://github.com/AliceGH"],
+                }
+            },
+            {
+                "attributes": {
+                    "uid": ["bob"],
+                    "rhatSocialURL": [
+                        "Twitter->https://twitter.com/bob",
+                        "Github->http://github.com/bob-gh",
+                    ],
+                }
+            },
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_github_usernames()
+
+    assert result == {"AliceGH": "alice", "bob-gh": "bob"}
+
+
+def test_get_github_usernames_scopes_and_filters(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_github_usernames searches the active users container with a filter."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        ldap_api.get_github_usernames()
+
+    call_args = mock_ldap3.connection.search.call_args
+    assert call_args[0][0] == "cn=users,cn=accounts,dc=example,dc=com"
+    filter_str = call_args[0][1]
+    assert "(objectclass=person)" in filter_str
+    assert "rhatSocialURL=Github->*github.com/*" in filter_str
+    assert call_args[1]["attributes"] == ["uid", "rhatSocialURL"]
+
+
+def test_get_github_usernames_skips_unparseable_values(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_github_usernames drops users whose social URLs aren't github.com logins."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {
+                "attributes": {
+                    "uid": ["carol"],
+                    "rhatSocialURL": ["Github->https://gist.github.com/carol"],
+                }
+            },
+            {"attributes": {"uid": ["dave"], "rhatSocialURL": []}},
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_github_usernames()
+
+    assert result == {}
+
+
+def test_get_github_usernames_search_failure_raises_error(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_github_usernames raises LdapApiError on search failure."""
+    mock_ldap3.connection.search.return_value = (
+        False,
+        {"result": 53, "description": "Server Unwilling to Perform"},
+        [],
+        None,
+    )
+
+    with ldap_api, pytest.raises(LdapApiError, match="LDAP operation failed"):
+        ldap_api.get_github_usernames()
+
+
+def test_get_github_usernames_calls_hooks(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_github_usernames triggers hooks with correct context."""
+    pre_hook = MagicMock()
+    ldap_api._hooks = Hooks(pre_hooks=[pre_hook])
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        ldap_api.get_github_usernames()
+
+    pre_hook.assert_called_once()
+    context = pre_hook.call_args[0][0]
+    assert isinstance(context, LdapApiCallContext)
+    assert context.method == "get_github_usernames"
