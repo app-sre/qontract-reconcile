@@ -312,7 +312,7 @@ def test_resolve_github_usernames_no_log_for_non_requested_ambiguous(
     """
     mock_cache.get_obj.return_value = CachedGithubUsernames(
         mapping={
-            "stackrox": ["chsheth", "jvmartin"],  # ambiguous, but not requested
+            "example-org": ["carol", "dave"],  # ambiguous, but not requested
             "alicegh": ["alice"],
         }
     )
