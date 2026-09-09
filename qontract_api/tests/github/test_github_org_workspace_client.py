@@ -298,3 +298,27 @@ def test_add_member_as_admin_does_not_clear_members_cache_on_rate_limit(
         client.add_member_as_admin(ORG_NAME, "alice")
 
     mock_cache.delete.assert_not_called()
+
+
+def test_add_member_as_admin_clears_both_member_caches(
+    client: GithubOrgWorkspaceClient,
+    mock_github_org_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """A successful mutation must invalidate BOTH cached member lists.
+
+    get_current_members writes the ':members' key and get_all_members writes
+    ':all-members'; adding a member changes both. Clearing only ':members'
+    would leave get_all_members (used by slack-usergroups) stale until TTL.
+    """
+    client.add_member_as_admin(ORG_NAME, "alice")
+
+    mock_github_org_api.add_member_as_admin.assert_called_once_with(ORG_NAME, "alice")
+    deleted_keys = {c.args[0] for c in mock_cache.delete.call_args_list}
+    assert deleted_keys == {
+        f"github-org:{ORG_NAME}:members",
+        f"github-org:{ORG_NAME}:all-members",
+    }
+    # Every delete happens under a lock scoped to the same key.
+    locked_keys = {c.args[0] for c in mock_cache.lock.call_args_list}
+    assert locked_keys == deleted_keys

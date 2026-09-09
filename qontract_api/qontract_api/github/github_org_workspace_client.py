@@ -80,13 +80,23 @@ class GithubOrgWorkspaceClient:
         return f"github-org:{org_name}:rate-limited"
 
     def _clear_cache(self, org_name: str) -> None:
-        """Clear cached members for the given org."""
-        cache_key = self._cache_key(org_name)
-        try:
-            with self._cache.lock(cache_key):
-                self._cache.delete(cache_key)
-        except RuntimeError as e:
-            logger.warning(f"Could not acquire lock to clear cache for {org_name}: {e}")
+        """Clear both cached member lists for the given org.
+
+        A mutation changes both the admins/invitations list (``:members``) and
+        the full membership list (``:all-members``), so both keys must be
+        invalidated - each under a lock scoped to that key.
+        """
+        for cache_key in (
+            self._cache_key(org_name),
+            self._all_members_cache_key(org_name),
+        ):
+            try:
+                with self._cache.lock(cache_key):
+                    self._cache.delete(cache_key)
+            except RuntimeError as e:
+                logger.warning(
+                    f"Could not acquire lock to clear cache for {org_name}: {e}"
+                )
 
     def _cache_rate_limit_marker(
         self, org_name: str, exc: GithubRateLimitExceededError
