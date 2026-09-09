@@ -13,6 +13,7 @@ Structure:
 
 from fastapi import APIRouter
 
+from qontract_api.external.github_org import router as github_org_router
 from qontract_api.external.ldap import router as ldap_router
 from qontract_api.external.ocm import router as ocm_router
 from qontract_api.external.pagerduty import router as pagerduty_router
@@ -29,6 +30,7 @@ api_v1_router.include_router(pagerduty_router.router)
 api_v1_router.include_router(slack_router.router)
 api_v1_router.include_router(vcs_router.router)
 api_v1_router.include_router(ldap_router.router)
+api_v1_router.include_router(github_org_router.router)
 api_v1_router.include_router(ocm_router.router)
 
 # Future routers will be added here:

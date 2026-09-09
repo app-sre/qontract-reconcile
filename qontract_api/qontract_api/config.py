@@ -283,6 +283,11 @@ class LdapSettings(BaseModel):
         description="LDAP users check cache TTL in seconds (six hours)",
     )
 
+    github_usernames_cache_ttl: int = Field(
+        default=6 * 60 * 60,
+        description="LDAP GitHub-username -> uid map cache TTL in seconds (six hours)",
+    )
+
 
 class OcmSettings(BaseModel):
     """OCM API and integration configuration."""
