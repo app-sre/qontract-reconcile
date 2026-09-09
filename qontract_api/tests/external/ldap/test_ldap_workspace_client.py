@@ -1,6 +1,6 @@
 """Tests for LdapWorkspaceClient (Layer 2 - caching + locking for direct LDAP)."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from qontract_utils.ldap_api import LdapApi
@@ -169,7 +169,10 @@ def test_resolve_github_usernames_calls_api_and_matches(
     """Test resolve_github_usernames delegates to LdapApi and returns matches."""
     mock_api.__enter__ = MagicMock(return_value=mock_api)
     mock_api.__exit__ = MagicMock(return_value=False)
-    mock_api.get_github_usernames.return_value = {"AliceGH": "alice", "bob": "bob"}
+    mock_api.get_github_usernames.return_value = {
+        "alicegh": ["alice"],
+        "bob": ["bob"],
+    }
 
     result = workspace_client.resolve_github_usernames(["AliceGH", "bob"])
 
@@ -184,7 +187,7 @@ def test_resolve_github_usernames_case_insensitive(
     """Test resolve_github_usernames matches logins case-insensitively."""
     mock_api.__enter__ = MagicMock(return_value=mock_api)
     mock_api.__exit__ = MagicMock(return_value=False)
-    mock_api.get_github_usernames.return_value = {"AliceGH": "alice"}
+    mock_api.get_github_usernames.return_value = {"alicegh": ["alice"]}
 
     # Requested with different casing than stored in LDAP
     result = workspace_client.resolve_github_usernames(["alicegh"])
@@ -200,7 +203,7 @@ def test_resolve_github_usernames_omits_unresolved(
     """Test resolve_github_usernames omits logins not found in LDAP."""
     mock_api.__enter__ = MagicMock(return_value=mock_api)
     mock_api.__exit__ = MagicMock(return_value=False)
-    mock_api.get_github_usernames.return_value = {"AliceGH": "alice"}
+    mock_api.get_github_usernames.return_value = {"alicegh": ["alice"]}
 
     result = workspace_client.resolve_github_usernames(["AliceGH", "unknown"])
 
@@ -227,7 +230,7 @@ def test_resolve_github_usernames_cache_hit(
 ) -> None:
     """Test resolve_github_usernames serves the map from cache without an API call."""
     mock_cache.get_obj.return_value = CachedGithubUsernames(
-        mapping={"AliceGH": "alice"}
+        mapping={"alicegh": ["alice"]}
     )
 
     result = workspace_client.resolve_github_usernames(["AliceGH"])
@@ -245,7 +248,7 @@ def test_resolve_github_usernames_caches_map_with_ttl(
     """Test resolve_github_usernames caches the full map with the configured TTL."""
     mock_api.__enter__ = MagicMock(return_value=mock_api)
     mock_api.__exit__ = MagicMock(return_value=False)
-    mock_api.get_github_usernames.return_value = {"AliceGH": "alice"}
+    mock_api.get_github_usernames.return_value = {"alicegh": ["alice"]}
 
     workspace_client.resolve_github_usernames(["AliceGH"])
 
@@ -260,7 +263,7 @@ def test_resolve_github_usernames_double_check_locking(
     mock_api: MagicMock,
 ) -> None:
     """Test resolve_github_usernames uses double-check locking on cache miss."""
-    cached = CachedGithubUsernames(mapping={"AliceGH": "alice"})
+    cached = CachedGithubUsernames(mapping={"alicegh": ["alice"]})
     mock_cache.get_obj.side_effect = [None, cached]
 
     result = workspace_client.resolve_github_usernames(["AliceGH"])
@@ -268,3 +271,56 @@ def test_resolve_github_usernames_double_check_locking(
     assert result == {"AliceGH": "alice"}
     mock_api.get_github_usernames.assert_not_called()
     mock_cache.lock.assert_called_once()
+
+
+def test_resolve_github_usernames_skips_and_logs_ambiguous_requested(
+    workspace_client: LdapWorkspaceClient,
+    mock_cache: MagicMock,
+) -> None:
+    """A requested login mapping to >1 uid is skipped and logged once.
+
+    LDAP result order must not decide identity, so an ambiguous requested login
+    is omitted from the result. The warning names the requested login and all
+    candidate uids so it is actionable.
+    """
+    mock_cache.get_obj.return_value = CachedGithubUsernames(
+        mapping={"shared-gh": ["alice", "mallory"], "bob-gh": ["bob"]}
+    )
+
+    with patch(
+        "qontract_api.external.ldap.ldap_workspace_client.logger"
+    ) as mock_logger:
+        result = workspace_client.resolve_github_usernames(["Shared-GH", "bob-gh"])
+
+    # Ambiguous login dropped; unambiguous one resolved.
+    assert result == {"bob-gh": "bob"}
+    mock_logger.warning.assert_called_once()
+    _, kwargs = mock_logger.warning.call_args
+    assert kwargs["github_login"] == "Shared-GH"
+    assert kwargs["uids"] == ["alice", "mallory"]
+
+
+def test_resolve_github_usernames_no_log_for_non_requested_ambiguous(
+    workspace_client: LdapWorkspaceClient,
+    mock_cache: MagicMock,
+) -> None:
+    """Ambiguity outside the requested logins produces no warning.
+
+    The directory holds many ambiguous logins (orgs/repos claimed by several
+    associates) that are irrelevant to the org being reconciled. Only requested
+    logins are considered, so those never spam the logs.
+    """
+    mock_cache.get_obj.return_value = CachedGithubUsernames(
+        mapping={
+            "stackrox": ["chsheth", "jvmartin"],  # ambiguous, but not requested
+            "alicegh": ["alice"],
+        }
+    )
+
+    with patch(
+        "qontract_api.external.ldap.ldap_workspace_client.logger"
+    ) as mock_logger:
+        result = workspace_client.resolve_github_usernames(["AliceGH"])
+
+    assert result == {"AliceGH": "alice"}
+    mock_logger.warning.assert_not_called()

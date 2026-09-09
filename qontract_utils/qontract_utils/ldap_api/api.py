@@ -141,11 +141,18 @@ def _parse_github_login(social_url: str) -> str | None:
     """Extract a GitHub login from a single `rhatSocialURL` attribute value.
 
     Values have the form ``<Social>-><URL>`` (e.g.
-    ``Github->http://github.com/chassing``). Returns the first path segment of
-    ``github.com/<login>`` URLs whose social label is ``Github``; returns None
-    for any non-GitHub label, non-github.com host (``*.github.io`` Pages, gist,
-    custom domains), or empty/malformed login. The login is returned with its
-    original casing - callers normalise for comparison.
+    ``Github->http://github.com/chassing``). Only a *bare* profile URL -
+    ``github.com/<login>`` with exactly one path segment - establishes a login.
+    Repo / sub-path URLs (``github.com/<owner>/<repo>``) are rejected: their
+    first segment is not reliably the linking user (it may be an organization
+    they belong to or another user's repository they contribute to), so trusting
+    it would attribute someone else's login to this user. A user who owns a repo
+    also links their bare profile, so no genuine login is lost.
+
+    Returns None for any non-GitHub label, non-github.com host (``*.github.io``
+    Pages, gist, custom domains), multi-segment path, or empty/malformed login.
+    The login is returned with its original casing - callers normalise for
+    comparison.
     """
     label, sep, url = social_url.partition("->")
     if not sep or label.strip().lower() != "github":
@@ -155,8 +162,16 @@ def _parse_github_login(social_url: str) -> str | None:
     if parsed.hostname not in _GITHUB_HOSTS:
         return None
 
-    segment = parsed.path.strip("/").split("/", 1)[0].strip().rstrip("\x00").strip()
-    if not segment or not _GITHUB_USERNAME_RE.fullmatch(segment):
+    segments = [
+        cleaned
+        for raw in parsed.path.split("/")
+        if (cleaned := raw.strip().rstrip("\x00").strip())
+    ]
+    if len(segments) != 1:
+        return None
+
+    segment = segments[0]
+    if not _GITHUB_USERNAME_RE.fullmatch(segment):
         return None
     return segment
 
@@ -351,27 +366,28 @@ class LdapApi:
         lambda: LdapApiCallContext(method="get_github_usernames"),
         retry_config=_LDAP_RETRY_CONFIG,
     )
-    def get_github_usernames(self) -> dict[str, str]:
-        """Build a GitHub-username -> LDAP uid map from `rhatSocialURL`.
+    def get_github_usernames(self) -> dict[str, list[str]]:
+        """Build a GitHub-login -> LDAP uid(s) map from `rhatSocialURL`.
 
         Searches the active users container for entries whose `rhatSocialURL`
-        holds a `Github->...github.com/<login>` value and maps the parsed
-        GitHub login to the user's uid (which is the app-interface
-        org_username). Values that are not GitHub github.com user URLs are
-        skipped (see `_parse_github_login`). Logins keep their original casing;
-        callers normalise for comparison.
+        holds a bare `Github->...github.com/<login>` value and groups the parsed
+        GitHub login to every uid that claims it. Values that are not bare
+        github.com user URLs are skipped (see `_parse_github_login`).
 
-        A GitHub login that resolves (case-insensitively) to more than one
-        distinct uid is ambiguous - LDAP result order is not an
-        identity-selection rule - so it is omitted from the mapping and logged,
-        rather than letting an arbitrary entry win.
+        Login keys are lowercased (GitHub logins are case-insensitive) and each
+        maps to the sorted list of distinct uids seen for it. This layer only
+        extracts data: a login claimed by more than one uid is *not* resolved
+        here - deciding what to do with such ambiguity is the caller's policy,
+        applied to the specific logins it requested rather than to the whole
+        directory (see `LdapWorkspaceClient.resolve_github_usernames`).
 
         The search is paged (RFC 2696) so it survives the directory server's
         per-response size limit - the broad filter can match more entries than
         389 DS returns in a single response.
 
         Returns:
-            Mapping of GitHub username to LDAP uid (org_username)
+            Mapping of lowercased GitHub login to the sorted list of LDAP uids
+            (org_usernames) that claim it
 
         Raises:
             LdapApiError: If the LDAP search fails
@@ -382,26 +398,12 @@ class LdapApi:
             attributes=["uid", "rhatSocialURL"],
         )
 
-        # Collect the distinct uids per case-insensitive login so ambiguous
-        # mappings can be detected instead of silently overwritten. The
-        # first-seen original casing is preserved as the map key.
-        by_login: dict[str, tuple[str, set[str]]] = {}
+        by_login: dict[str, set[str]] = defaultdict(set[str])
         for r in results:
             attributes = r["attributes"]
             uid = attributes["uid"][0]
             for value in attributes.get("rhatSocialURL", []):
                 if login := _parse_github_login(value):
-                    _, uids = by_login.setdefault(login.lower(), (login, set()))
-                    uids.add(uid)
+                    by_login[login.lower()].add(uid)
 
-        mapping: dict[str, str] = {}
-        for original, uids in by_login.values():
-            if len(uids) > 1:
-                logger.warning(
-                    "Ambiguous GitHub login maps to multiple LDAP uids; skipping",
-                    github_login=original,
-                    uids=sorted(uids),
-                )
-                continue
-            mapping[original] = next(iter(uids))
-        return mapping
+        return {login: sorted(uids) for login, uids in by_login.items()}

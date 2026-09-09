@@ -28,9 +28,14 @@ class CachedUserCheck(BaseModel, frozen=True):
 
 
 class CachedGithubUsernames(BaseModel, frozen=True):
-    """Cached GitHub-username -> uid map (for two-tier cache serialization)."""
+    """Cached GitHub-login -> uid(s) map (for two-tier cache serialization).
 
-    mapping: dict[str, str]
+    Each lowercased login maps to the sorted list of uids that claim it; a login
+    with more than one uid is ambiguous and resolved (skipped + logged) per
+    request, not at build time.
+    """
+
+    mapping: dict[str, list[str]]
 
 
 class LdapWorkspaceClient:
@@ -112,8 +117,8 @@ class LdapWorkspaceClient:
         """Cache key for the full GitHub-username -> uid map of this server."""
         return f"ldap:{self.cache_key_prefix}:github-usernames"
 
-    def _get_github_username_map(self) -> dict[str, str]:
-        """Return the full GitHub-username -> uid map (cached, locked)."""
+    def _get_github_username_map(self) -> dict[str, list[str]]:
+        """Return the full GitHub-login -> uid(s) map (cached, locked)."""
         cache_key = self._github_usernames_cache_key()
 
         if cached := self.cache.get_obj(cache_key, CachedGithubUsernames):
@@ -136,10 +141,16 @@ class LdapWorkspaceClient:
     def resolve_github_usernames(self, logins: Iterable[str]) -> dict[str, str]:
         """Resolve GitHub usernames to LDAP uids via rhatSocialURL (cached).
 
-        The full GitHub-username -> uid map is fetched from LDAP once per TTL
-        window and cached; individual lookups are then served from it.
-        Matching is case-insensitive (GitHub usernames are), and only requested
-        logins found in LDAP are returned - unresolved logins are omitted.
+        The full GitHub-login -> uid(s) map is fetched from LDAP once per TTL
+        window and cached; individual lookups are then served from it. Matching
+        is case-insensitive (GitHub logins are), and only requested logins found
+        in LDAP are returned - unresolved logins are omitted.
+
+        A requested login that maps to more than one uid is ambiguous: LDAP
+        result order must not decide identity, so it is skipped and logged. The
+        ambiguity check is scoped to the *requested* logins, so unrelated
+        ambiguous directory entries (organizations/repos claimed by several
+        associates) never appear in the logs.
 
         Args:
             logins: GitHub usernames to resolve
@@ -153,10 +164,17 @@ class LdapWorkspaceClient:
             return {}
 
         mapping = self._get_github_username_map()
-        lookup = {login.lower(): uid for login, uid in mapping.items()}
 
-        return {
-            login: lookup[login.lower()]
-            for login in requested
-            if login.lower() in lookup
-        }
+        resolved: dict[str, str] = {}
+        for login in requested:
+            if not (uids := mapping.get(login.lower())):
+                continue
+            if len(uids) > 1:
+                logger.warning(
+                    "Ambiguous GitHub login maps to multiple LDAP uids; skipping",
+                    github_login=login,
+                    uids=uids,
+                )
+                continue
+            resolved[login] = uids[0]
+        return resolved

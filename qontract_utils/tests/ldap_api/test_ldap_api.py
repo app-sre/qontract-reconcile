@@ -617,9 +617,8 @@ def test_get_group_members_escapes_special_characters(
         # https and www variants
         ("Github->https://github.com/chassing", "chassing"),
         ("Github->https://www.github.com/chassing", "chassing"),
-        # Trailing slash and extra path segments -> first segment only
+        # Trailing slash -> single (bare) path segment is still a profile
         ("Github->https://github.com/chassing/", "chassing"),
-        ("Github->https://github.com/chassing/repo", "chassing"),
         # Casing of the login is preserved (callers normalise)
         ("Github->https://github.com/ChAsSiNg", "ChAsSiNg"),
         # Label matching is case-insensitive / whitespace-tolerant
@@ -645,6 +644,12 @@ def test_parse_github_login_valid(social_url: str, expected: str) -> None:
         # Empty login (no path segment)
         "Github->https://github.com/",
         "Github->https://github.com",
+        # Repo / sub-path URLs: the first segment is NOT reliably the linking
+        # user's profile (it may be an org they contribute to or another user's
+        # repo), so only bare `github.com/<login>` establishes a login.
+        "Github->https://github.com/chassing/repo",
+        "Github->https://github.com/openshift/cluster-kube-apiserver-operator",
+        "Github->https://github.com/util-linux/util-linux",
         # Excluded hosts: Pages, gist, custom domain
         "Github->https://chassing.github.io/",
         "Github->https://gist.github.com/chassing",
@@ -671,7 +676,7 @@ def test_parse_github_login_strips_null_bytes() -> None:
 def test_get_github_usernames_builds_mapping(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:
-    """Test get_github_usernames maps parsed logins to uids, preserving case."""
+    """Test get_github_usernames maps parsed logins (lowercased) to uid lists."""
     mock_ldap3.connection.search.return_value = (
         True,
         {"result": 0, "description": "success"},
@@ -698,7 +703,8 @@ def test_get_github_usernames_builds_mapping(
     with ldap_api:
         result = ldap_api.get_github_usernames()
 
-    assert result == {"AliceGH": "alice", "bob-gh": "bob"}
+    # Keys are lowercased logins; values are the distinct uids per login.
+    assert result == {"alicegh": ["alice"], "bob-gh": ["bob"]}
 
 
 def test_get_github_usernames_scopes_and_filters(
@@ -748,10 +754,15 @@ def test_get_github_usernames_skips_unparseable_values(
     assert result == {}
 
 
-def test_get_github_usernames_omits_ambiguous_logins(
+def test_get_github_usernames_groups_uids_per_login(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:
-    """Ambiguous logins (same github login, different uids) are omitted."""
+    """All uids that claim a login (case-insensitively) are grouped, not dropped.
+
+    The api layer only extracts data; deciding what to do with an ambiguous
+    login (>1 uid) is the caller's policy, scoped to the logins it actually
+    requested, so this layer returns every uid it saw.
+    """
     mock_ldap3.connection.search.return_value = (
         True,
         {"result": 0, "description": "success"},
@@ -769,7 +780,6 @@ def test_get_github_usernames_omits_ambiguous_logins(
                     "rhatSocialURL": ["Github->https://github.com/Shared-GH"],
                 }
             },
-            # An unambiguous mapping is still returned
             {
                 "attributes": {
                     "uid": ["bob"],
@@ -783,15 +793,14 @@ def test_get_github_usernames_omits_ambiguous_logins(
     with ldap_api:
         result = ldap_api.get_github_usernames()
 
-    # The ambiguous login is dropped (LDAP order must not decide identity);
-    # the unambiguous one survives.
-    assert result == {"bob-gh": "bob"}
+    # Login key is lowercased; the two claimants are grouped and sorted.
+    assert result == {"shared-gh": ["alice", "mallory"], "bob-gh": ["bob"]}
 
 
 def test_get_github_usernames_keeps_duplicate_same_uid(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:
-    """A login repeated for the SAME uid (any casing) is not ambiguous."""
+    """A login repeated for the SAME uid (any casing) yields a single uid."""
     mock_ldap3.connection.search.return_value = (
         True,
         {"result": 0, "description": "success"},
@@ -812,8 +821,47 @@ def test_get_github_usernames_keeps_duplicate_same_uid(
     with ldap_api:
         result = ldap_api.get_github_usernames()
 
-    # First-seen casing is preserved; the mapping resolves to the single uid.
-    assert result == {"AliceGH": "alice"}
+    # Login lowercased; the single uid is not duplicated.
+    assert result == {"alicegh": ["alice"]}
+
+
+def test_get_github_usernames_ignores_repo_urls(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Repo / sub-path URLs never establish a login (misattribution fix).
+
+    A user whose only GitHub link is a repo they contribute to must not have
+    that repo's owner attributed to them, otherwise the owner would resolve to
+    the wrong Red Hat identity. Only bare `github.com/<login>` counts.
+    """
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            # Only contributes to someone else's repo -> nothing extracted
+            {
+                "attributes": {
+                    "uid": ["carol"],
+                    "rhatSocialURL": [
+                        "Github->https://github.com/openshift/cluster-kube-apiserver-operator"
+                    ],
+                }
+            },
+            # Bare profile -> extracted
+            {
+                "attributes": {
+                    "uid": ["dave"],
+                    "rhatSocialURL": ["Github->https://github.com/dave-gh"],
+                }
+            },
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_github_usernames()
+
+    assert result == {"dave-gh": ["dave"]}
 
 
 def test_get_github_usernames_paginates_across_pages(
@@ -868,7 +916,7 @@ def test_get_github_usernames_paginates_across_pages(
         result = ldap_api.get_github_usernames()
 
     # Entries from both pages are merged.
-    assert result == {"AliceGH": "alice", "bob-gh": "bob"}
+    assert result == {"alicegh": ["alice"], "bob-gh": ["bob"]}
     assert mock_ldap3.connection.search.call_count == 2
 
     first_call, second_call = mock_ldap3.connection.search.call_args_list
