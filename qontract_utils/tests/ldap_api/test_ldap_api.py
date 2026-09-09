@@ -8,6 +8,8 @@ import pytest
 from pydantic import ValidationError
 from qontract_utils.hooks import Hooks
 from qontract_utils.ldap_api.api import (
+    _LDAP_PAGE_SIZE,
+    _PAGED_RESULTS_CONTROL,
     LdapApi,
     LdapApiCallContext,
     LdapApiError,
@@ -812,6 +814,69 @@ def test_get_github_usernames_keeps_duplicate_same_uid(
 
     # First-seen casing is preserved; the mapping resolves to the single uid.
     assert result == {"AliceGH": "alice"}
+
+
+def test_get_github_usernames_paginates_across_pages(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """The broad search is paged: results from every page are aggregated.
+
+    389 Directory Server caps a single search at ~2000 entries and returns
+    LDAP_SIZELIMIT_EXCEEDED past that, so the mapping must follow the paged
+    results cookie until the server signals no more pages.
+    """
+    mock_ldap3.connection.search.side_effect = [
+        (
+            True,
+            {
+                "result": 0,
+                "description": "success",
+                "controls": {
+                    _PAGED_RESULTS_CONTROL: {"value": {"cookie": b"next-page"}}
+                },
+            },
+            [
+                {
+                    "attributes": {
+                        "uid": ["alice"],
+                        "rhatSocialURL": ["Github->https://github.com/AliceGH"],
+                    }
+                }
+            ],
+            None,
+        ),
+        (
+            True,
+            {
+                "result": 0,
+                "description": "success",
+                "controls": {_PAGED_RESULTS_CONTROL: {"value": {"cookie": b""}}},
+            },
+            [
+                {
+                    "attributes": {
+                        "uid": ["bob"],
+                        "rhatSocialURL": ["Github->https://github.com/bob-gh"],
+                    }
+                }
+            ],
+            None,
+        ),
+    ]
+
+    with ldap_api:
+        result = ldap_api.get_github_usernames()
+
+    # Entries from both pages are merged.
+    assert result == {"AliceGH": "alice", "bob-gh": "bob"}
+    assert mock_ldap3.connection.search.call_count == 2
+
+    first_call, second_call = mock_ldap3.connection.search.call_args_list
+    # First page requests a fresh cursor; second page forwards the cookie.
+    assert first_call[1]["paged_size"] == _LDAP_PAGE_SIZE
+    assert first_call[1]["paged_cookie"] is None
+    assert second_call[1]["paged_size"] == _LDAP_PAGE_SIZE
+    assert second_call[1]["paged_cookie"] == b"next-page"
 
 
 def test_get_github_usernames_search_failure_raises_error(

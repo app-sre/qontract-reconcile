@@ -129,6 +129,13 @@ _GITHUB_USERNAME_RE = re.compile(r"[A-Za-z0-9-]{1,39}")
 # path segment is not reliably a username.
 _GITHUB_HOSTS = frozenset({"github.com", "www.github.com"})
 
+# 389 Directory Server caps a single search response at ~2000 entries by
+# default and returns LDAP_SIZELIMIT_EXCEEDED past that. Broad searches must
+# follow the RFC 2696 paged-results cookie until the server signals no more
+# pages. `_PAGED_RESULTS_CONTROL` is the paged-results control OID.
+_LDAP_PAGE_SIZE = 1000
+_PAGED_RESULTS_CONTROL = "1.2.840.113556.1.4.319"
+
 
 def _parse_github_login(social_url: str) -> str | None:
     """Extract a GitHub login from a single `rhatSocialURL` attribute value.
@@ -237,6 +244,37 @@ class LdapApi:
                 f"LDAP operation failed (error {error_code}: {error_desc})"
             )
 
+    def _paged_search(
+        self, search_base: str, search_filter: str, attributes: list[str]
+    ) -> list[dict]:
+        """Run an LDAP search across all pages, following the paged cookie.
+
+        Uses RFC 2696 paged results so broad searches survive the server's
+        per-response size limit (389 DS defaults to ~2000 entries). Aggregates
+        the entries from every page.
+        """
+        entries: list[dict] = []
+        cookie: bytes | None = None
+        while True:
+            _, status, page, _ = self._connection.search(
+                search_base,
+                search_filter,
+                attributes=attributes,
+                paged_size=_LDAP_PAGE_SIZE,
+                paged_cookie=cookie,
+            )
+            self._check_ldap_response(status)
+            entries.extend(page)
+            cookie = (
+                status.get("controls", {})
+                .get(_PAGED_RESULTS_CONTROL, {})
+                .get("value", {})
+                .get("cookie")
+            )
+            if not cookie:
+                break
+        return entries
+
     @invoke_with_hooks(
         lambda: LdapApiCallContext(method="get_users"),
         retry_config=_LDAP_RETRY_CONFIG,
@@ -328,18 +366,21 @@ class LdapApi:
         identity-selection rule - so it is omitted from the mapping and logged,
         rather than letting an arbitrary entry win.
 
+        The search is paged (RFC 2696) so it survives the directory server's
+        per-response size limit - the broad filter can match more entries than
+        389 DS returns in a single response.
+
         Returns:
             Mapping of GitHub username to LDAP uid (org_username)
 
         Raises:
             LdapApiError: If the LDAP search fails
         """
-        _, status, results, _ = self._connection.search(
+        results = self._paged_search(
             f"cn=users,cn=accounts,{self.base_dn}",
             "(&(objectclass=person)(rhatSocialURL=Github->*github.com/*))",
             attributes=["uid", "rhatSocialURL"],
         )
-        self._check_ldap_response(status)
 
         # Collect the distinct uids per case-insensitive login so ambiguous
         # mappings can be detected instead of silently overwritten. The
