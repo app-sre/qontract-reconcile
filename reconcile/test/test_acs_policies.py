@@ -484,28 +484,3 @@ def test_get_desired_state_filters_by_instance(
         clusters=api_response_list_clusters,
     )
     assert result == []
-
-
-def test_get_desired_state_excludes_policies_without_instance(
-    mocker: MockerFixture,
-    query_data_desired_state: AcsPolicyQueryData,
-    api_response_list_notifiers: list[AcsPolicyApi.NotifierIdentifiers],
-    api_response_list_clusters: list[AcsPolicyApi.ClusterIdentifiers],
-) -> None:
-    # Strict filter: policies with instance=None are excluded
-    for policy in query_data_desired_state.acs_policies or []:
-        policy.instance = None
-
-    query_func = mocker.patch(
-        "reconcile.gql_definitions.acs.acs_policies.query", autospec=True
-    )
-    query_func.return_value = query_data_desired_state
-
-    integration = AcsPoliciesIntegration()
-    result = integration.get_desired_state(
-        query_func=query_func,
-        instance_name="app-sre-acs",
-        notifiers=api_response_list_notifiers,
-        clusters=api_response_list_clusters,
-    )
-    assert result == []

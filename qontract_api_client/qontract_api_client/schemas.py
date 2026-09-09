@@ -137,6 +137,10 @@ class GithubOrgDesiredState(pydantic.BaseModel):
     token: Secret
 
 
+class GithubOrgMembersResponse(pydantic.BaseModel):
+    members: list[str]
+
+
 class GithubOwnerActionAddOwner(pydantic.BaseModel):
     action_type: typing.Literal["add_owner"] = "add_owner"
     org_name: str
@@ -466,6 +470,20 @@ class LdapDirectSecret(pydantic.BaseModel):
     secret_manager_url: str
     server_url: str
     version: int | None = None
+
+
+class LdapGithubUser(pydantic.BaseModel):
+    github_username: str
+    org_username: str
+
+
+class LdapGithubUsernamesRequest(pydantic.BaseModel):
+    logins: list[str]
+    secret: LdapDirectSecret
+
+
+class LdapGithubUsernamesResponse(pydantic.BaseModel):
+    users: list[LdapGithubUser]
 
 
 class LdapUserStatus(pydantic.BaseModel):

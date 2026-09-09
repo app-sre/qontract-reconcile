@@ -1,0 +1,57 @@
+<!-- --- BEGIN COPYRIGHT BLOCK ---
+     This program is free software; you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation; version 2 of the License.
+     This program is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
+     You should have received a copy of the GNU General Public License along
+     with this program; if not, write to the Free Software Foundation, Inc.,
+     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+     Copyright (C) 2007 Red Hat, Inc.
+     All rights reserved.
+     --- END COPYRIGHT BLOCK --- -->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<script type="text/javascript">
+errorReason="LDAPException caught from operation. Constraint violation";
+errorCode="1";
+</script>
+<script src="/pki/js/jquery.js"></script>
+<script src="/pki/js/jquery.i18n.properties.js"></script>
+<script src="/pki/js/underscore.js"></script>
+<script src="/pki/js/backbone.js"></script>
+<script src="/pki/js/pki.js"></script>
+<script src="/pki/js/pki-banner.js"></script>
+</head>
+<font size="+1" face="PrimaSans BT, Verdana, Arial, Helvetica, sans-serif">
+Certificate Profile
+</font><br>
+  <Font size="-1" face="PrimaSans BT, Verdana, Arial, Helvetica, sans-serif">
+<p>
+</font>
+<table border="0" cellspacing="0" cellpadding="0" background="/pki/images/hr.gif"
+width="100%">
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+</table>
+<font size="-1" face="PrimaSans BT, Verdana, Arial, Helvetica, sans-serif">
+<script language=javascript>
+var autoImport = 'false';
+if (errorCode == 0) { // processed
+  document.write('Congratulations, your request has been processed successfully ');
+} else if (errorCode == 1) { // not submitted
+  document.write('Sorry, your request is not submitted. The reason is "' + errorReason + '".');
+} else if (errorCode == 2) { // pending
+  document.write('Congratulations, your request has been successfully submitted. ');
+} else if (errorCode == 3) { // rejected
+  document.write('Sorry, your request has been rejected. The reason is "' + errorReason + '"');
+} else { // unknown state
+  document.write('Sorry, your request is not submitted. The error code is "' + errorReason + '".');
+}
+</script>
+</font>
+</html>
