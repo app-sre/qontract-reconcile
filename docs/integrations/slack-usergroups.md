@@ -87,8 +87,10 @@ with read access to the org's membership.
    `org_username`). The full map is cached server-side.
 
 Members that resolve to neither an app-interface `github_username` nor an LDAP
-`rhatSocialURL` entry are **logged and skipped** (one warning per unresolved
-login); they do not block reconciliation of the rest of the usergroup.
+`rhatSocialURL` entry are **logged and skipped**: a single aggregated warning is
+emitted per organization, listing every unresolved login (with its
+`github.com` profile URL) so the MR author sees them in the app-interface MR
+check output. They do not block reconciliation of the rest of the usergroup.
 
 **API Endpoints:**
 
