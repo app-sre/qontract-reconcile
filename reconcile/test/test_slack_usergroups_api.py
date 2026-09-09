@@ -8,6 +8,7 @@ orchestration (dry-run vs apply, polling, error handling).
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -750,23 +751,31 @@ async def test_github_org_logs_and_skips_unresolved(
         patch(f"{_MOD}.ldap_github_usernames", new_callable=AsyncMock) as mock_ldap,
     ):
         mock_members.return_value = GithubOrgMembersResponse(
-            members=["AliceGH", "ghost"]
+            members=["AliceGH", "ghost", "phantom"]
         )
         mock_ldap.return_value = LdapGithubUsernamesResponse(users=[])
-        result = await integration.compile_users_from_github_org(
-            github_org=_github_org(),
-            app_interface_users=users,
-            ldap_settings=_ldap_settings(),
-        )
+        with caplog.at_level(logging.WARNING):
+            result = await integration.compile_users_from_github_org(
+                github_org=_github_org(),
+                app_interface_users=users,
+                ldap_settings=_ldap_settings(),
+            )
     assert result == ["alice"]
-    # The client-side warning (visible in MR checks) must name the member and
-    # point the reviewer to the Rover fix.
-    assert any(
-        "could not map GitHub member 'ghost'" in record.message
-        and "https://github.com/ghost" in record.message
-        and "Rover" in record.message
-        for record in caplog.records
-    )
+    # Exactly ONE aggregated warning per org (keeps the #reconcile channel
+    # quiet), but every unmapped GitHub username stays visible so the MR author
+    # sees them in the app-interface MR check output, with the Rover fix hint.
+    warnings = [
+        r
+        for r in caplog.records
+        if r.levelno == logging.WARNING and "could not map" in r.message
+    ]
+    assert len(warnings) == 1
+    message = warnings[0].message
+    assert "ghost" in message
+    assert "phantom" in message
+    assert "https://github.com/ghost" in message
+    assert "https://github.com/phantom" in message
+    assert "Rover" in message
 
 
 @pytest.mark.asyncio

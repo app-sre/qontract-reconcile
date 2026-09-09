@@ -95,7 +95,7 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /could not map GitHub member /
+                pattern /could not map \d+ GitHub member/
               </exclude>
             </filter>
 

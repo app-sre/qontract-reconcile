@@ -478,15 +478,10 @@ class SlackUsergroupsIntegration(
         )
 
         slack_identities: set[str] = set()
+        unmapped: list[str] = []
         for login in members:
             if not (org_username := resolved.get(login)):
-                logging.warning(
-                    f"[{github_org.name}] could not map GitHub member '{login}' "
-                    "to an org user, skipping. If this is a Red Hat associate, "
-                    f"add their GitHub profile (https://github.com/{login}) to "
-                    "their Rover page (https://rover.redhat.com) so it can be "
-                    "resolved via LDAP."
-                )
+                unmapped.append(login)
                 continue
             # Honor an app-interface user's Slack identity override
             # (gov_slack_email_local_part); otherwise the org_username - the
@@ -495,6 +490,21 @@ class SlackUsergroupsIntegration(
                 slack_identities.add(slack_identity(user))
             else:
                 slack_identities.add(org_username)
+
+        if unmapped:
+            # One aggregated warning per org keeps the #reconcile channel quiet
+            # (fluentd filters it out there), while still listing every unmapped
+            # login + profile URL so the MR author sees them in the
+            # app-interface MR check output.
+            profiles = ", ".join(
+                f"{login} (https://github.com/{login})" for login in sorted(unmapped)
+            )
+            logging.warning(
+                f"[{github_org.name}] could not map {len(unmapped)} GitHub "
+                f"member(s) to an org user, skipping: {profiles}. If any of them "
+                "is a Red Hat associate, add their GitHub profile to their Rover "
+                "page (https://rover.redhat.com) so it can be resolved via LDAP."
+            )
 
         return sorted(slack_identities)
 
