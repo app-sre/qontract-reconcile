@@ -26,6 +26,7 @@ COST_REPORT_SETTINGS = CostReportSettingsV1(
         field="all",
         version=None,
         format=None,
+        url=None,
     )
 )
 

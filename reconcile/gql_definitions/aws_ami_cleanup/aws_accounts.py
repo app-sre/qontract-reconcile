@@ -74,6 +74,7 @@ fragment TerraformState on TerraformStateAWS_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
+  url
   path
   field
   version

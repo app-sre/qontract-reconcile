@@ -22,6 +22,7 @@ ocm:
       field: "client_secret"
       version: null
       format: null
+      url: null
     accessTokenUrl: "https://sso.blah.com/token"
 spec:
   product: osd
