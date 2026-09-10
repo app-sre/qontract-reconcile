@@ -7,6 +7,7 @@ pagerduty_instances:
       field: token
       version: null
       format: null
+      url: null
   - name: instance-2
     description: instance 2
     token:
@@ -14,3 +15,4 @@ pagerduty_instances:
       field: token2
       version: 2
       format: format
+      url: null

@@ -92,7 +92,7 @@ _MOD = "reconcile.slack_usergroups_api"
 
 
 def _vault_secret(path: str = "secret/token", field: str = "token") -> VaultSecret:
-    return VaultSecret(path=path, field=field, version=None, format=None)
+    return VaultSecret(path=path, field=field, version=None, format=None, url=None)
 
 
 def _frag_user(
@@ -162,6 +162,7 @@ def _ldap_settings(*, with_credentials: bool = True) -> LdapSettingsV1:
             field="password",
             version=None,
             format=None,
+            url=None,
         )
         if with_credentials
         else None,

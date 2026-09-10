@@ -236,24 +236,28 @@ def test_collect_state(saas_files: list[SaasFile]) -> None:
                 "path": "target_path",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
             "saas_default_1": {
                 "field": "target_field",
                 "path": "target_path",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
             "saas_default_2": {
                 "field": "saas_field_2",
                 "path": "saas_path_2",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
             "env_default_1": {
                 "field": "target_field",
                 "path": "target_path",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
             # environment-1 secrets should be present since saasherder uses them but collect_state does sadly not
             # "env_default_2": {
@@ -267,12 +271,14 @@ def test_collect_state(saas_files: list[SaasFile]) -> None:
                 "path": "target_path",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
             "tmpl_default_2": {
                 "field": "tmpl_field_2",
                 "path": "tmpl_path_2",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
         },
         upstream={

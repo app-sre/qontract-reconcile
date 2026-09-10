@@ -15,11 +15,13 @@ def app_interface_membership_provider() -> AppInterfaceMembershipProviderSourceV
             field="username",
             format="format",
             version=1,
+            url=None,
         ),
         password=VaultSecret(
             path="path",
             field="password",
             format="format",
             version=1,
+            url=None,
         ),
     )

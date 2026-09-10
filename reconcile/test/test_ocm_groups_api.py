@@ -77,6 +77,7 @@ def make_cluster(
                     field=secret_field,
                     version=None,
                     format=None,
+                    url=None,
                 ),
             ),
             accessTokenClientId=access_token_client_id,
@@ -86,6 +87,7 @@ def make_cluster(
                 field=secret_field,
                 version=None,
                 format=None,
+                url=None,
             ),
         )
     return ClusterV1(

@@ -145,6 +145,7 @@ def acquire_state_settings(
                 path=state_bucket_vault_secret,
                 field="all",
                 format=None,
+                url=None,
                 version=int(state_bucket_vault_secret_version)
                 if state_bucket_vault_secret_version
                 else None,
