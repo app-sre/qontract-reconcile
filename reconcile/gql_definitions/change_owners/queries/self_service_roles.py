@@ -41,6 +41,7 @@ fragment RoleMembershipSource on RoleMembershipSource_V1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
+  url
   path
   field
   version
