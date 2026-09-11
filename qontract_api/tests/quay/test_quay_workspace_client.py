@@ -7,8 +7,17 @@ from unittest.mock import MagicMock
 
 import pytest
 from qontract_utils.quay_api import QuayRepo
+from qontract_utils.quay_api.models import (
+    RobotAccount,
+    RobotAccountPermission,
+    RobotAccountRepository,
+)
 
-from qontract_api.quay.quay_workspace_client import CachedRepos, QuayWorkspaceClient
+from qontract_api.quay.quay_workspace_client import (
+    CachedRepos,
+    CachedRobotAccounts,
+    QuayWorkspaceClient,
+)
 
 if TYPE_CHECKING:
     from qontract_api.config import Settings
@@ -288,3 +297,94 @@ def test_context_manager_closes_quay_api(
         pass
 
     mock_quay_api.close.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Robot accounts
+# ---------------------------------------------------------------------------
+
+
+def test_list_robot_accounts_cache_miss(
+    client: QuayWorkspaceClient, mock_quay_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    robots = [RobotAccount(name="ci-bot")]
+    mock_quay_api.list_robot_accounts.return_value = robots
+
+    result = client.list_robot_accounts()
+
+    assert result == robots
+    mock_quay_api.list_robot_accounts.assert_called_once()
+    mock_cache.set_obj.assert_called_once()
+    assert mock_cache.set_obj.call_args.args[0] == "quay:https://quay.io:myorg:robots"
+
+
+def test_list_robot_accounts_cache_hit(
+    client: QuayWorkspaceClient, mock_quay_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    robots = [RobotAccount(name="ci-bot")]
+    mock_cache.get_obj.return_value = CachedRobotAccounts(items=robots)
+
+    result = client.list_robot_accounts()
+
+    assert result == robots
+    mock_quay_api.list_robot_accounts.assert_not_called()
+
+
+def test_create_robot_invalidates_list_cache(
+    client: QuayWorkspaceClient, mock_quay_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    client.create_robot_account("ci-bot", "CI")
+    mock_quay_api.create_robot_account.assert_called_once_with("ci-bot", "CI")
+    mock_cache.delete.assert_called_once_with("quay:https://quay.io:myorg:robots")
+
+
+def test_create_robot_succeeds_when_cache_lock_fails(
+    client: QuayWorkspaceClient, mock_quay_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    mock_cache.lock.side_effect = RuntimeError("Could not acquire lock")
+
+    client.create_robot_account("ci-bot", "CI")
+
+    mock_quay_api.create_robot_account.assert_called_once_with("ci-bot", "CI")
+    mock_cache.delete.assert_not_called()
+
+
+def test_delete_robot_invalidates_list_and_permissions(
+    client: QuayWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    client.delete_robot_account("ci-bot")
+    deleted = {call.args[0] for call in mock_cache.delete.call_args_list}
+    assert "quay:https://quay.io:myorg:robots" in deleted
+    assert "quay:https://quay.io:myorg:robot:ci-bot:permissions" in deleted
+
+
+def test_add_robot_to_team_prefixes_org(
+    client: QuayWorkspaceClient, mock_quay_api: MagicMock
+) -> None:
+    client.add_robot_to_team("ci-bot", "sre")
+    mock_quay_api.add_user_to_team.assert_called_once_with("myorg+ci-bot", "sre")
+
+
+def test_set_repo_permission_invalidates_permissions_cache(
+    client: QuayWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    client.set_repo_robot_account_permissions("images", "ci-bot", "write")
+    mock_cache.delete.assert_called_once_with(
+        "quay:https://quay.io:myorg:robot:ci-bot:permissions"
+    )
+
+
+def test_get_robot_account_permissions_cache_miss(
+    client: QuayWorkspaceClient, mock_quay_api: MagicMock
+) -> None:
+    perms = [
+        RobotAccountPermission(
+            repository=RobotAccountRepository(name="images"), role="read"
+        )
+    ]
+    mock_quay_api.get_robot_account_permissions.return_value = perms
+
+    result = client.get_robot_account_permissions("ci-bot")
+
+    assert result == perms
+    mock_quay_api.get_robot_account_permissions.assert_called_once_with("ci-bot")

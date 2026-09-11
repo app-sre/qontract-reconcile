@@ -17,6 +17,9 @@ from qontract_api.integrations.openshift_namespaces import (
     router as openshift_namespaces_router,
 )
 from qontract_api.integrations.quay_repos import router as quay_repos_router
+from qontract_api.integrations.quay_robot_accounts import (
+    router as quay_robot_accounts_router,
+)
 from qontract_api.integrations.slack_usergroups import router as slack_usergroups_router
 from qontract_api.integrations.sso_client import router as sso_client_router
 
@@ -36,6 +39,7 @@ integrations_router.include_router(sso_client_router.router)
 integrations_router.include_router(quay_repos_router.router)
 integrations_router.include_router(ocm_groups_router.router)
 integrations_router.include_router(ocm_oidc_idp_router.router)
+integrations_router.include_router(quay_robot_accounts_router.router)
 
 # Future integrations will be added here:
 # - AWS RDS reboot
