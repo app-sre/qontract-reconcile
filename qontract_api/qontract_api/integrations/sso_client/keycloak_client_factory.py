@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING
 
 from qontract_utils.keycloak_api import KeycloakApi
 
-from qontract_api.integrations.sso_client.domain import KeycloakInstanceIat
 from qontract_api.integrations.sso_client.keycloak_workspace_client import (
     KeycloakWorkspaceClient,
 )
+from qontract_api.keycloak_iat import resolve_initial_access_token
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -31,8 +31,9 @@ def build_keycloak_instances(
 
     Mirrors the legacy KeycloakMap construction, keyed by url since that's exactly
     what a cluster's SsoClientAuth.issuer references. The issuer URL is NOT part of
-    the Vault secret data (it only contains {"current_iat": {"id", "token"}, ...}),
-    so it comes from the request's KeycloakInstanceSecret.url instead.
+    the Vault secret data, so it comes from the request's KeycloakInstanceSecret.url
+    instead. The secret data itself may be in either of Vault's two coexisting IAT
+    shapes - see qontract_api.keycloak_iat.
 
     Args:
         keycloak_secrets: One entry per Keycloak instance (issuer URL + IAT secret ref)
@@ -45,7 +46,9 @@ def build_keycloak_instances(
     instances: dict[str, KeycloakWorkspaceClient] = {}
     for entry in keycloak_secrets:
         data = secret_manager.read_all(entry.secret)
-        iat = KeycloakInstanceIat(**data)
-        api = KeycloakApi(url=entry.url, initial_access_token=iat.current_iat.token)
+        token = resolve_initial_access_token(
+            data, entry.secret.field, path=entry.secret.path
+        )
+        api = KeycloakApi(url=entry.url, initial_access_token=token)
         instances[entry.url] = KeycloakWorkspaceClient(keycloak_api=api, cache=cache)
     return instances
