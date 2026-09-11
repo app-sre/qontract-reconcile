@@ -225,7 +225,7 @@ The integration can perform these reconciliation actions:
 
 **Vault Secrets:**
 
-- One IAT secret per Keycloak instance, referenced via `keycloak_secrets[].secret` — shape `{"current_iat": {"id": ..., "token": ...}, "previous_iat": ...}`. Only `current_iat.token` (a JWT) is used; `previous_iat` (used during token rotation) is not yet consumed. This secret commonly lives in a **different Vault instance** than everything else.
+- One IAT secret per Keycloak instance, referenced via `keycloak_secrets[].secret`. Accepts either of Vault's two coexisting IAT shapes (see `qontract_api.keycloak_iat.resolve_initial_access_token`, shared with `managed-sso-client`): IT's rotation format `{"current_iat": {"id": ..., "token": ...}, "previous_iat": ...}` (only `current_iat.token`, a JWT, is used; `previous_iat` is not yet consumed), or a plain secret with the token as the value of `keycloak_secrets[].secret.field`. This secret commonly lives in a **different Vault instance** than everything else.
 - SSO client secrets storage path (`vault_target`, **KV v1 only**): stores `client_id`, `client_name`, `client_secret`, `redirect_uris`, `registration_access_token`, `registration_client_uri`, `issuer`, `attributes`
 
 **External APIs:**

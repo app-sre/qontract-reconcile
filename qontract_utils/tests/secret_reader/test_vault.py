@@ -497,6 +497,83 @@ class TestVaultSecretBackendWrite:
             self.backend.write(Secret(path="secret/forbidden/path"), {"token": "x"})
 
 
+class TestVaultSecretBackendCanWrite:
+    """Test Vault write-permission (capabilities-self) checks."""
+
+    def setup_method(self) -> None:
+        """Create a mock VaultSecretBackend for each test."""
+        with patch("hvac.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.is_authenticated.return_value = True
+            # Default to a KV v2 mount for detection (sys/internal/ui/mounts) -
+            # individual tests override this when they need different behavior.
+            mock_client.adapter.get.return_value = {
+                "data": {"options": {"version": "2"}}
+            }
+            mock_client_class.return_value = mock_client
+
+            settings = VaultSecretBackendSettings(
+                server="https://vault.test",
+                role_id="test-role-id",
+                secret_id="test-secret-id",
+                auto_refresh=False,
+            )
+            self.backend = VaultSecretBackend(settings)
+            self.mock_client = mock_client
+
+    def test_can_write_checks_kv_v2_data_subpath(self) -> None:
+        """KV v2 ACLs are evaluated against the mount's data/ sub-path."""
+        self.mock_client.sys.get_capabilities.return_value = {
+            "capabilities": ["create", "update"]
+        }
+
+        result = self.backend.can_write(Secret(path="secret/workspace-1/token"))
+
+        assert result is True
+        self.mock_client.sys.get_capabilities.assert_called_once_with(
+            paths=["secret/data/workspace-1/token"]
+        )
+
+    def test_can_write_checks_kv_v1_bare_path(self) -> None:
+        """KV v1 has no data/ sub-path - the bare path is the real API path."""
+        self.mock_client.adapter.get.return_value = {"data": {}}
+        self.mock_client.sys.get_capabilities.return_value = {
+            "capabilities": ["create", "update"]
+        }
+
+        result = self.backend.can_write(Secret(path="secret/workspace-1/token"))
+
+        assert result is True
+        self.mock_client.sys.get_capabilities.assert_called_once_with(
+            paths=["secret/workspace-1/token"]
+        )
+
+    @pytest.mark.parametrize(
+        ("capabilities", "expected"),
+        [
+            (["create"], True),
+            (["update"], True),
+            (["root"], True),
+            (["create", "read"], True),
+            (["read"], False),
+            (["deny"], False),
+            ([], False),
+            (["sudo"], False),
+        ],
+    )
+    def test_can_write_capability_sets(
+        self, capabilities: list[str], *, expected: bool
+    ) -> None:
+        """Sudo alone must not count as write access - it's a modifier, not a grant."""
+        self.mock_client.sys.get_capabilities.return_value = {
+            "capabilities": capabilities
+        }
+
+        assert (
+            self.backend.can_write(Secret(path="secret/workspace-1/token")) is expected
+        )
+
+
 class TestVaultSecretBackendDelete:
     """Test Vault delete operations."""
 

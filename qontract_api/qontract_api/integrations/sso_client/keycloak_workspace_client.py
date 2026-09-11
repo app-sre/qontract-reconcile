@@ -10,10 +10,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from qontract_utils.keycloak_api import KeycloakApi, KeycloakSsoClient
+from qontract_utils.keycloak_api import (
+    KeycloakApi,
+    KeycloakSsoClient,
+    ManagedKeycloakClient,
+)
 
 if TYPE_CHECKING:
     from qontract_api.cache.base import CacheBackend
+
+DEFAULT_CLIENT_SCOPES = ["web-origins", "acr", "profile", "roles", "email"]
 
 
 class KeycloakWorkspaceClient:
@@ -33,12 +39,31 @@ class KeycloakWorkspaceClient:
         group_filter_regex: str | None = None,
     ) -> KeycloakSsoClient:
         """Register a new SSO client, locked per instance+client name."""
+        scopes = [*DEFAULT_CLIENT_SCOPES]
+        attributes: dict[str, str] = {}
+        if group_filter_regex:
+            scopes.append("regex-filtered-groups")
+            attributes = {"group-filter-regex": group_filter_regex}
+
         with self.cache.lock(self._lock_key(client_name)):
-            return self.keycloak_api.register_client(
-                client_name=client_name,
-                redirect_uris=redirect_uris,
-                group_filter_regex=group_filter_regex,
+            registered = self.keycloak_api.register_client(
+                ManagedKeycloakClient(
+                    client_id=client_name,
+                    redirect_uris=list(redirect_uris),
+                    default_client_scopes=scopes,
+                    extra_attributes=attributes,
+                )
             )
+        if registered.secret is None or registered.registration_access_token is None:
+            msg = f"Keycloak did not return a secret/registration_access_token for {client_name}"
+            raise ValueError(msg)
+        return KeycloakSsoClient(
+            client_id=registered.client_id,
+            client_secret=registered.secret,
+            redirect_uris=registered.redirect_uris,
+            registration_access_token=registered.registration_access_token,
+            attributes=registered.extra_attributes,
+        )
 
     def delete_client(self, client_id: str, registration_access_token: str) -> None:
         """Delete a registered SSO client, locked per instance+client id."""

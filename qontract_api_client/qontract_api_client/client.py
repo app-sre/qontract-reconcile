@@ -408,6 +408,31 @@ async def glitchtip_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/managed-sso-client/reconcile")
+async def managed_sso_client(
+    result: schemas.ManagedSsoClientTaskResponse,
+    data: schemas.ManagedSsoClientReconcileRequest,
+) -> schemas.ManagedSsoClientTaskResponse:
+    """Managed Sso Client
+
+    Queue a managed-sso-client reconciliation task.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/managed-sso-client/reconcile/{task_id}")
+async def managed_sso_client_task_status(
+    result: schemas.ManagedSsoClientTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.ManagedSsoClientTaskResult:
+    """Managed Sso Client Task Status
+
+    Retrieve the reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
 @client.post("/api/v1/integrations/ocm-groups/reconcile")
 async def ocm_groups(
     result: schemas.OcmGroupsTaskResponse, data: schemas.OcmGroupsReconcileRequest

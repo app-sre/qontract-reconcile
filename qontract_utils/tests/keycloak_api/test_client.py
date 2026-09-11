@@ -7,22 +7,9 @@ import pytest
 from pytest_httpserver import HTTPServer
 from qontract_utils.hooks import Hooks
 from qontract_utils.keycloak_api import KeycloakApi
+from qontract_utils.keycloak_api.models import ManagedKeycloakClient
 
 REGISTER_PATH = "/clients-registrations/default"
-
-
-def _registration_response(
-    client_id: str,
-    secret: str,
-    redirect_uris: list[str],
-    registration_access_token: str,
-) -> dict[str, object]:
-    return {
-        "clientId": client_id,
-        "secret": secret,
-        "redirectUris": redirect_uris,
-        "registrationAccessToken": registration_access_token,
-    }
 
 
 def _make_api(httpserver: HTTPServer, initial_access_token: str) -> KeycloakApi:
@@ -33,6 +20,14 @@ def _make_api(httpserver: HTTPServer, initial_access_token: str) -> KeycloakApi:
     )
 
 
+def _managed_client(**overrides: object) -> ManagedKeycloakClient:
+    defaults: dict[str, object] = {
+        "client_id": "my-app-my-client",
+        "redirect_uris": ["https://example.com/callback"],
+    }
+    return ManagedKeycloakClient.model_validate({**defaults, **overrides})
+
+
 #
 # register_client
 #
@@ -41,16 +36,18 @@ def _make_api(httpserver: HTTPServer, initial_access_token: str) -> KeycloakApi:
 def test_register_client_sends_correct_body_and_auth(httpserver: HTTPServer) -> None:
     api = _make_api(httpserver, initial_access_token="initial-token")
     httpserver.expect_request(REGISTER_PATH, method="POST").respond_with_json(
-        _registration_response(
-            client_id="my-client",
-            secret="s3cr3t",
-            redirect_uris=["https://example.com/callback"],
-            registration_access_token="reg-token",
-        )
+        {
+            "clientId": "my-client",
+            "secret": "s3cr3t",
+            "redirectUris": ["https://example.com/callback"],
+            "registrationAccessToken": "reg-token",
+        }
     )
 
     api.register_client(
-        client_name="my-client", redirect_uris=["https://example.com/callback"]
+        ManagedKeycloakClient(
+            client_id="my-client", redirect_uris=["https://example.com/callback"]
+        )
     )
 
     requests = [req for req, _ in httpserver.log if req.path == REGISTER_PATH]
@@ -60,28 +57,19 @@ def test_register_client_sends_correct_body_and_auth(httpserver: HTTPServer) -> 
     body = request.get_json()
     assert body["clientId"] == "my-client"
     assert body["redirectUris"] == ["https://example.com/callback"]
-    assert body["defaultClientScopes"] == [
-        "web-origins",
-        "acr",
-        "profile",
-        "roles",
-        "email",
-    ]
-    assert "attributes" not in body or body["attributes"] is None
 
 
 def test_default_user_agent_identifies_qontract_utils(httpserver: HTTPServer) -> None:
     api = _make_api(httpserver, initial_access_token="initial-token")
     httpserver.expect_request(REGISTER_PATH, method="POST").respond_with_json(
-        _registration_response(
-            client_id="my-client",
-            secret="s3cr3t",
-            redirect_uris=[],
-            registration_access_token="reg-token",
-        )
+        {
+            "clientId": "my-client",
+            "secret": "s3cr3t",
+            "registrationAccessToken": "reg-token",
+        }
     )
 
-    api.register_client(client_name="my-client", redirect_uris=[])
+    api.register_client(_managed_client())
 
     request = next(req for req, _ in httpserver.log if req.path == REGISTER_PATH)
     assert request.headers["User-Agent"].startswith("qontract-utils/")
@@ -95,15 +83,14 @@ def test_custom_user_agent_overrides_default(httpserver: HTTPServer) -> None:
         user_agent="qontract-api/1.2.3",
     )
     httpserver.expect_request(REGISTER_PATH, method="POST").respond_with_json(
-        _registration_response(
-            client_id="my-client",
-            secret="s3cr3t",
-            redirect_uris=[],
-            registration_access_token="reg-token",
-        )
+        {
+            "clientId": "my-client",
+            "secret": "s3cr3t",
+            "registrationAccessToken": "reg-token",
+        }
     )
 
-    api.register_client(client_name="my-client", redirect_uris=[])
+    api.register_client(_managed_client())
 
     request = next(req for req, _ in httpserver.log if req.path == REGISTER_PATH)
     assert request.headers["User-Agent"] == "qontract-api/1.2.3"
@@ -112,39 +99,39 @@ def test_custom_user_agent_overrides_default(httpserver: HTTPServer) -> None:
 def test_register_client_maps_response_to_domain_model(httpserver: HTTPServer) -> None:
     api = _make_api(httpserver, initial_access_token="initial-token")
     httpserver.expect_request(REGISTER_PATH, method="POST").respond_with_json(
-        _registration_response(
-            client_id="my-client",
-            secret="s3cr3t",
-            redirect_uris=["https://example.com/callback"],
-            registration_access_token="reg-token",
-        )
+        {
+            "clientId": "my-client",
+            "secret": "s3cr3t",
+            "redirectUris": ["https://example.com/callback"],
+            "registrationAccessToken": "reg-token",
+        }
     )
 
-    sso_client = api.register_client(
-        client_name="my-client", redirect_uris=["https://example.com/callback"]
-    )
+    result = api.register_client(_managed_client(client_id="my-client"))
 
-    assert sso_client.client_id == "my-client"
-    assert sso_client.client_secret == "s3cr3t"
-    assert sso_client.redirect_uris == ["https://example.com/callback"]
-    assert sso_client.registration_access_token == "reg-token"
+    assert result.client_id == "my-client"
+    assert result.secret == "s3cr3t"
+    assert result.redirect_uris == ["https://example.com/callback"]
+    assert result.registration_access_token == "reg-token"
 
 
-def test_register_client_with_group_filter_regex(httpserver: HTTPServer) -> None:
+def test_register_client_folds_and_sends_extra_attributes(
+    httpserver: HTTPServer,
+) -> None:
     api = _make_api(httpserver, initial_access_token="initial-token")
     httpserver.expect_request(REGISTER_PATH, method="POST").respond_with_json(
-        _registration_response(
-            client_id="my-client",
-            secret="s3cr3t",
-            redirect_uris=["https://example.com/callback"],
-            registration_access_token="reg-token",
-        )
+        {
+            "clientId": "my-client",
+            "secret": "s3cr3t",
+            "registrationAccessToken": "reg-token",
+        }
     )
 
     api.register_client(
-        client_name="my-client",
-        redirect_uris=["https://example.com/callback"],
-        group_filter_regex="^my-group-.*$",
+        _managed_client(
+            default_client_scopes=["web-origins", "regex-filtered-groups"],
+            extra_attributes={"group-filter-regex": "^my-group-.*$"},
+        )
     )
 
     request = next(req for req, _ in httpserver.log if req.path == REGISTER_PATH)
@@ -199,24 +186,28 @@ def test_two_instances_do_not_share_state(
     api1 = _make_api(httpserver, initial_access_token="token-1")
     api2 = _make_api(httpserver_ipv4, initial_access_token="token-2")
     httpserver.expect_request(REGISTER_PATH, method="POST").respond_with_json(
-        _registration_response(
-            client_id="c1",
-            secret="s3cr3t-1",
-            redirect_uris=["https://example.com/cb"],
-            registration_access_token="reg-token-1",
-        )
+        {
+            "clientId": "c1",
+            "secret": "s3cr3t-1",
+            "redirectUris": ["https://example.com/cb"],
+            "registrationAccessToken": "reg-token-1",
+        }
     )
     httpserver_ipv4.expect_request(REGISTER_PATH, method="POST").respond_with_json(
-        _registration_response(
-            client_id="c2",
-            secret="s3cr3t-2",
-            redirect_uris=["https://example.com/cb"],
-            registration_access_token="reg-token-2",
-        )
+        {
+            "clientId": "c2",
+            "secret": "s3cr3t-2",
+            "redirectUris": ["https://example.com/cb"],
+            "registrationAccessToken": "reg-token-2",
+        }
     )
 
-    api1.register_client(client_name="c1", redirect_uris=["https://example.com/cb"])
-    api2.register_client(client_name="c2", redirect_uris=["https://example.com/cb"])
+    api1.register_client(
+        _managed_client(client_id="c1", redirect_uris=["https://example.com/cb"])
+    )
+    api2.register_client(
+        _managed_client(client_id="c2", redirect_uris=["https://example.com/cb"])
+    )
 
     req1 = next(req for req, _ in httpserver.log if req.path == REGISTER_PATH)
     req2 = next(req for req, _ in httpserver_ipv4.log if req.path == REGISTER_PATH)
@@ -260,3 +251,83 @@ def test_custom_hooks_appended_after_builtin(httpserver: HTTPServer) -> None:
     assert custom_hook in api._hooks.pre_hooks
     # built-in: metrics, request_log, latency_start = 3, + 1 custom = 4
     assert len(api._hooks.pre_hooks) == 4
+
+
+#
+# require_https (SSRF guard)
+#
+
+
+def test_require_https_rejects_plain_http() -> None:
+    with pytest.raises(ValueError, match="must use https://"):
+        KeycloakApi(
+            url="http://keycloak.example.com",
+            initial_access_token="initial-token",
+            require_https=True,
+        )
+
+
+def test_require_https_allows_https() -> None:
+    api = KeycloakApi(
+        url="https://keycloak.example.com",
+        initial_access_token="initial-token",
+        require_https=True,
+    )
+    assert api.url == "https://keycloak.example.com"
+
+
+def test_require_https_defaults_to_false(httpserver: HTTPServer) -> None:
+    # httpserver only serves plain http:// - this must not raise without require_https.
+    _make_api(httpserver, initial_access_token="initial-token")
+
+
+# Fetching and updating a managed client
+
+
+def test_get_client_uses_registration_access_token(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_api(httpserver, initial_access_token="initial-token")
+    get_path = f"{REGISTER_PATH}/my-client"
+    httpserver.expect_request(get_path, method="GET").respond_with_json(
+        {
+            "clientId": "my-client",
+            "redirectUris": ["https://example.com/callback"],
+        }
+    )
+
+    result = api.get_client(
+        client_id="my-client", registration_access_token="reg-token"
+    )
+
+    request = next(req for req, _ in httpserver.log if req.path == get_path)
+    assert request.headers["Authorization"] == "Bearer reg-token"
+    assert result.client_id == "my-client"
+
+
+def test_update_client_returns_rotated_token(httpserver: HTTPServer) -> None:
+    api = _make_api(httpserver, initial_access_token="initial-token")
+    update_path = f"{REGISTER_PATH}/my-client"
+    httpserver.expect_request(update_path, method="PUT").respond_with_json(
+        {
+            "clientId": "my-client",
+            "redirectUris": ["https://example.com/callback", "https://example.com/cb2"],
+            "registrationAccessToken": "new-reg-token",
+        }
+    )
+
+    result = api.update_client(
+        client_id="my-client",
+        registration_access_token="old-reg-token",
+        data=_managed_client(
+            client_id="my-client",
+            redirect_uris=[
+                "https://example.com/callback",
+                "https://example.com/cb2",
+            ],
+        ),
+    )
+
+    request = next(req for req, _ in httpserver.log if req.path == update_path)
+    assert request.headers["Authorization"] == "Bearer old-reg-token"
+    assert result.registration_access_token == "new-reg-token"
