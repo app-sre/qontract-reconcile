@@ -1438,9 +1438,14 @@ def merge_merge_requests(
     users_allowed_to_label: Iterable[str] | None = None,
     must_pass: Iterable[str] | None = None,
     multi_merge: bool = False,
+    pipeline_cache: dict[int, list[ProjectMergeRequestPipeline]] | None = None,
 ) -> None:
     if reload_toggle.reload:
         project_merge_requests = gl.get_merge_requests(state=MRState.OPENED)
+        # Same dict as run() created. clear() is in-place so the insist
+        # retry does not reuse pipeline lists from before the wait.
+        if pipeline_cache is not None:
+            pipeline_cache.clear()
     merge_requests = preprocess_merge_requests(
         dry_run=dry_run,
         gl=gl,
@@ -1500,7 +1505,10 @@ def merge_merge_requests(
         if rebase and not is_rebased(mr, gl):
             continue
 
-        pipelines = gl.get_merge_request_pipelines(mr)
+        if pipeline_cache is not None and mr.iid in pipeline_cache:
+            pipelines = pipeline_cache[mr.iid]
+        else:
+            pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
             continue
 
@@ -1584,6 +1592,7 @@ def run_error_healthcheck(
     gl: GitLabApi,
     project_merge_requests: list[ProjectMergeRequest],
     consecutive_failure_limit: int = 3,
+    pipeline_cache: dict[int, list[ProjectMergeRequestPipeline]] | None = None,
 ) -> None:
     """Check error labels for queue-eligible MRs. Apply/remove
     rebase-error based on merge_error field from .get(),
@@ -1659,6 +1668,8 @@ def run_error_healthcheck(
                 gl.remove_label(mr, REBASE_ERROR)
 
         pipelines = gl.get_merge_request_pipelines(mr)
+        if pipeline_cache is not None:
+            pipeline_cache[mr.iid] = pipelines
         if not pipelines:
             continue
 
@@ -1815,12 +1826,16 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
             project_merge_requests = [
                 mr for mr in opened_merge_requests if mr.state == MRState.OPENED
             ]
+            # Per-repo, per-loop. Healthcheck fills it; merge may clear()
+            # this dict on reload. Same object both calls.
+            pipeline_cache: dict[int, list[ProjectMergeRequestPipeline]] = {}
             try:
                 run_error_healthcheck(
                     dry_run=dry_run,
                     gl=gl,
                     project_merge_requests=project_merge_requests,
                     consecutive_failure_limit=consecutive_failure_limit,
+                    pipeline_cache=pipeline_cache,
                 )
             except Exception:
                 logging.exception(
@@ -1845,6 +1860,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                     users_allowed_to_label=users_allowed_to_label,
                     must_pass=must_pass,
                     multi_merge=multi_merge,
+                    pipeline_cache=pipeline_cache,
                 )
             except Exception:
                 logging.error(
@@ -1865,6 +1881,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                     users_allowed_to_label=users_allowed_to_label,
                     must_pass=must_pass,
                     multi_merge=multi_merge,
+                    pipeline_cache={},
                 )
             if rebase:
                 rebase_merge_requests(
