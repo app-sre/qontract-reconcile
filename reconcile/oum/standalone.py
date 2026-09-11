@@ -136,7 +136,7 @@ class OCMStandaloneUserManagementIntegration(OCMUserManagementIntegration):
 def user_mgmt_label_key(config_atom: str) -> str:
     """
     Generates label keys for the user management authz capability, compliant with the naming
-    scheme defined in https://service.pages.redhat.com/dev-guidelines/docs/sre-capabilities/framework/ocm-labels/
+    scheme defined in https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/platform-users/platform-services/sre-capabilities/ocm-labels.md
     """
     return sre_capability_label_key("user-mgmt", config_atom)
 
