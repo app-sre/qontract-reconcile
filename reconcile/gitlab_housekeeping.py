@@ -1443,7 +1443,7 @@ def merge_merge_requests(
     if reload_toggle.reload:
         project_merge_requests = gl.get_merge_requests(state=MRState.OPENED)
         if pipeline_cache is not None:
-            pipeline_cache.clear()
+            pipeline_cache.clear()  # in-place; caller holds this dict across insist retries
     merge_requests = preprocess_merge_requests(
         dry_run=dry_run,
         gl=gl,
@@ -1510,6 +1510,7 @@ def merge_merge_requests(
                 None,
             )
             if latest is not None and latest.status == PipelineStatus.SUCCESS:
+                # cached success can be stale; a newer pipeline may have failed
                 pipelines = gl.get_merge_request_pipelines(mr)
         else:
             pipelines = gl.get_merge_request_pipelines(mr)
