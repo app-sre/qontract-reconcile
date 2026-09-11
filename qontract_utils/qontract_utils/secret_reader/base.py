@@ -244,6 +244,21 @@ class SecretBackend(ABC):
         """
 
     @abstractmethod
+    def can_write(self, secret: Secret) -> bool:
+        """Whether this backend's credentials have write permission for secret.path.
+
+        Checks the ACL without performing an actual write.
+
+        `secret.field`/`.version` are not used.
+
+        Args:
+            secret: Secret object identifying the path (and backend url) to check
+
+        Returns:
+            True if the backend's credentials can write to path, False otherwise
+        """
+
+    @abstractmethod
     def list(self, secret: Secret) -> list[str]:
         """List secret keys directly under path.
 

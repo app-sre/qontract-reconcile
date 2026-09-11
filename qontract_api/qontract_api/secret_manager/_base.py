@@ -68,6 +68,10 @@ class SecretManager:
         """List secret keys directly under a path (uncached, matches read_all)."""
         return self.secret_backends[secret.url].list(secret)
 
+    def can_write(self, secret: Secret) -> bool:
+        """Whether this backend's credentials have write permission for secret.path."""
+        return self.secret_backends[secret.url].can_write(secret)
+
     def close(self) -> None:
         for secret_backend in self.secret_backends.values():
             secret_backend.close()

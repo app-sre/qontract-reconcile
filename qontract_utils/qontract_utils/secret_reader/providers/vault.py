@@ -68,6 +68,11 @@ VAULT_READ_RETRY_CONFIG = RetryConfig(
 KV_VERSION_1 = 1
 KV_VERSION_2 = 2
 
+# "sudo" is a modifier, not a standalone grant - it only matters paired with
+# create/update on a root-protected path, and by itself authorizes nothing.
+# Including it here would misreport a read+sudo-only policy as writable.
+_WRITE_CAPABILITIES = frozenset({"create", "update", "root"})
+
 # Kubernetes service account token path (standard location in K8s pods)
 DEFAULT_KUBE_SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"  # ruff: ignore[hardcoded-password-string]
 
@@ -661,6 +666,49 @@ class VaultSecretBackend(SecretBackend):
             raise SecretAccessForbiddenError(
                 f"[{self._settings.server}] Access denied: {secret.path}"
             ) from e
+
+    @invoke_with_hooks(
+        lambda self, path: VaultApiCallContext(
+            method="sys.capabilities_self",
+            id=self._settings.server,
+            path=path,
+        ),
+        retry_config=VAULT_READ_RETRY_CONFIG,
+    )
+    def _capabilities_self(self, path: str) -> list[str]:
+        """Query this token's own ACL capabilities for path via sys/capabilities-self.
+
+        Unlike the KV read/write/list calls, this hvac API takes the full
+        path (mount included) as a single argument - there's no separate
+        mount_point parameter to pass.
+        """
+        response = self._client.sys.get_capabilities(paths=[path])
+        return list(response["capabilities"])
+
+    def can_write(self, secret: Secret) -> bool:
+        """Whether this backend's token has write permission for secret.path.
+
+        Uses Vault's sys/capabilities-self API to check the ACL without
+        performing an actual write. KV v2 ACLs are evaluated against the
+        mount's `data/` sub-path - that's what a real write actually hits:
+        the `metadata/` sub-path (used for list/delete) grants different
+        capabilities and would give a wrong answer here.
+
+        This is a static policy check, not a full guarantee: Vault's KV v2
+        create-vs-update distinction depends on whether a version already
+        exists at the path at write time, which capabilities-self can't see.
+        A policy granting only "update" (assuming the secret already
+        exists) would pass this check but could still be denied on an
+        actual first write.
+        """
+        vault_secret = self._compile_vault_secret(secret.path)
+        api_path = (
+            f"{vault_secret.mount_point}/data/{vault_secret.read_path}"
+            if vault_secret.kv_version == KV_VERSION_2
+            else f"{vault_secret.mount_point}/{vault_secret.read_path}"
+        )
+        capabilities = self._capabilities_self(api_path)
+        return any(capability in _WRITE_CAPABILITIES for capability in capabilities)
 
     @invoke_with_hooks(
         lambda self, path, mount_point: VaultApiCallContext(
