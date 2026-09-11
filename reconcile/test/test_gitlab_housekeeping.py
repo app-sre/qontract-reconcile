@@ -1669,6 +1669,121 @@ def test_healthcheck_preserves_rebase_error_on_api_failure(
     mocked_gl.get_merge_request_pipelines.assert_called_once()
 
 
+def test_pipeline_cache_success_refetches_before_merge(
+    state: Mock,
+    project: Project,
+    can_be_merged_merge_request: Mock,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+    success_merge_request_pipeline: ProjectMergeRequestPipeline,
+) -> None:
+    """Cached SUCCESS is the merge decision; refetch so a newer failure is seen."""
+    mocked_gl = create_autospec(GitLabApi)
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["failed"])
+    cache = {can_be_merged_merge_request.iid: [success_merge_request_pipeline]}
+
+    gl_h.merge_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[can_be_merged_merge_request],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=1,
+        rebase=False,
+        app_sre_usernames=set(),
+        state=state,
+        pipeline_timeout=None,
+        insist=False,
+        wait_for_pipeline=False,
+        users_allowed_to_label=None,
+        pipeline_cache=cache,
+    )
+
+    mocked_gl.get_merge_request_pipelines.assert_called_once()
+    can_be_merged_merge_request.merge.assert_not_called()
+
+
+def test_pipeline_cache_empty_list_is_hit_not_miss(
+    state: Mock,
+    project: Project,
+    can_be_merged_merge_request: Mock,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+) -> None:
+    """Empty [] is a valid cached result; using `or` would refetch."""
+    mocked_gl = create_autospec(GitLabApi)
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+    cache: dict[int, list] = {can_be_merged_merge_request.iid: []}
+
+    gl_h.merge_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[can_be_merged_merge_request],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=1,
+        rebase=False,
+        app_sre_usernames=set(),
+        state=state,
+        pipeline_timeout=None,
+        insist=False,
+        wait_for_pipeline=False,
+        users_allowed_to_label=None,
+        pipeline_cache=cache,
+    )
+
+    mocked_gl.get_merge_request_pipelines.assert_not_called()
+    can_be_merged_merge_request.merge.assert_not_called()
+
+
+def test_pipeline_cache_invalidated_on_reload(
+    state: Mock,
+    project: Project,
+    can_be_merged_merge_request: Mock,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+    success_merge_request_pipeline: ProjectMergeRequestPipeline,
+) -> None:
+    """reload_toggle.reload clears cache so stale lists are not reused."""
+    mocked_gl = create_autospec(GitLabApi)
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+    mocked_gl.get_merge_requests.return_value = [can_be_merged_merge_request]
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        success_merge_request_pipeline
+    ]
+    cache: dict[int, list] = {
+        can_be_merged_merge_request.iid: _make_pipelines(["failed"])
+    }
+
+    gl_h.merge_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[can_be_merged_merge_request],
+        reload_toggle=gl_h.ReloadToggle(reload=True),
+        merge_limit=1,
+        rebase=False,
+        app_sre_usernames=set(),
+        state=state,
+        pipeline_timeout=None,
+        insist=False,
+        wait_for_pipeline=False,
+        users_allowed_to_label=None,
+        pipeline_cache=cache,
+    )
+
+    mocked_gl.get_merge_request_pipelines.assert_called_once()
+    can_be_merged_merge_request.merge.assert_called_once()
+    assert can_be_merged_merge_request.iid not in cache
+
+
 @pytest.mark.parametrize(
     "error_label",
     ["merge-error", "pipeline-error", "rebase-error"],
