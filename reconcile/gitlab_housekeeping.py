@@ -1442,8 +1442,6 @@ def merge_merge_requests(
 ) -> None:
     if reload_toggle.reload:
         project_merge_requests = gl.get_merge_requests(state=MRState.OPENED)
-        # Same dict as run() created. clear() is in-place so the insist
-        # retry does not reuse pipeline lists from before the wait.
         if pipeline_cache is not None:
             pipeline_cache.clear()
     merge_requests = preprocess_merge_requests(
@@ -1507,6 +1505,12 @@ def merge_merge_requests(
 
         if pipeline_cache is not None and mr.iid in pipeline_cache:
             pipelines = pipeline_cache[mr.iid]
+            latest = next(
+                (p for p in pipelines if p.status != PipelineStatus.SKIPPED),
+                None,
+            )
+            if latest is not None and latest.status == PipelineStatus.SUCCESS:
+                pipelines = gl.get_merge_request_pipelines(mr)
         else:
             pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
@@ -1826,8 +1830,6 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
             project_merge_requests = [
                 mr for mr in opened_merge_requests if mr.state == MRState.OPENED
             ]
-            # Per-repo, per-loop. Healthcheck fills it; merge may clear()
-            # this dict on reload. Same object both calls.
             pipeline_cache: dict[int, list[ProjectMergeRequestPipeline]] = {}
             try:
                 run_error_healthcheck(

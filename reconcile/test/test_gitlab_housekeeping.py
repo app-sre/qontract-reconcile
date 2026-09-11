@@ -1669,19 +1669,21 @@ def test_healthcheck_preserves_rebase_error_on_api_failure(
     mocked_gl.get_merge_request_pipelines.assert_called_once()
 
 
-def test_pipeline_cache_hit_avoids_api_call(
+def test_pipeline_cache_success_refetches_before_merge(
     state: Mock,
     project: Project,
     can_be_merged_merge_request: Mock,
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
     success_merge_request_pipeline: ProjectMergeRequestPipeline,
 ) -> None:
+    """Cached SUCCESS is the merge decision; refetch so a newer failure is seen."""
     mocked_gl = create_autospec(GitLabApi)
     project.squash_option = "never"
     mocked_gl.project = project
     mocked_gl.get_merge_request_label_events.return_value = [
         add_lgtm_merge_request_resource_label_event
     ]
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["failed"])
     cache = {can_be_merged_merge_request.iid: [success_merge_request_pipeline]}
 
     gl_h.merge_merge_requests(
@@ -1700,8 +1702,8 @@ def test_pipeline_cache_hit_avoids_api_call(
         pipeline_cache=cache,
     )
 
-    mocked_gl.get_merge_request_pipelines.assert_not_called()
-    can_be_merged_merge_request.merge.assert_called_once()
+    mocked_gl.get_merge_request_pipelines.assert_called_once()
+    can_be_merged_merge_request.merge.assert_not_called()
 
 
 def test_pipeline_cache_empty_list_is_hit_not_miss(
