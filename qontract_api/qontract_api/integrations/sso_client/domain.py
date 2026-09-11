@@ -10,31 +10,15 @@ from qontract_api.models import Secret
 class KeycloakInstanceSecret(BaseModel, frozen=True):
     """A Keycloak instance's issuer URL + the Vault location of its IAT secret.
 
-    The Vault secret itself does not carry the issuer URL (see KeycloakInstanceIat),
-    so the client must supply it explicitly alongside the secret reference.
+    The Vault secret itself does not carry the issuer URL (see
+    qontract_api.keycloak_iat), so the client must supply it explicitly
+    alongside the secret reference.
     """
 
     url: str = Field(..., description="Keycloak realm base URL (issuer)")
     secret: Secret = Field(
         ..., description="Vault reference to the instance's initial-access-token secret"
     )
-
-
-class KeycloakIat(BaseModel, frozen=True):
-    """A single initial-access-token entry as stored in Vault."""
-
-    id: str
-    token: str
-
-
-class KeycloakInstanceIat(BaseModel, frozen=True):
-    """Vault secret schema for a Keycloak instance's initial-access-token.
-
-    Only current_iat is used; previous_iat (used during token rotation) is
-    intentionally not modeled/consumed yet.
-    """
-
-    current_iat: KeycloakIat
 
 
 class SsoClientAuth(BaseModel, frozen=True):

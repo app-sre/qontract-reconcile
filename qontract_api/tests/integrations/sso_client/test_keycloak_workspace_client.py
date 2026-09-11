@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock
 
 import pytest
-from qontract_utils.keycloak_api import KeycloakApi, KeycloakSsoClient
+from qontract_utils.keycloak_api import KeycloakApi, ManagedKeycloakClient
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.integrations.sso_client.keycloak_workspace_client import (
@@ -38,12 +38,11 @@ def test_register_client_acquires_lock_per_client_name(
     mock_keycloak_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
-    mock_keycloak_api.register_client.return_value = KeycloakSsoClient(
+    mock_keycloak_api.register_client.return_value = ManagedKeycloakClient(
         client_id="my-client",
-        client_secret="secret",
+        secret="secret",
         redirect_uris=["https://example.com/callback"],
         registration_access_token="rat",
-        attributes={},
     )
 
     result = client.register_client(
@@ -51,14 +50,58 @@ def test_register_client_acquires_lock_per_client_name(
     )
 
     assert result.client_id == "my-client"
+    assert result.client_secret == "secret"
     mock_cache.lock.assert_called_once_with(
         "keycloak:https://issuer.example.com:my-client"
     )
-    mock_keycloak_api.register_client.assert_called_once_with(
+    mock_keycloak_api.register_client.assert_called_once()
+    sent = mock_keycloak_api.register_client.call_args.args[0]
+    assert sent.client_id == "my-client"
+    assert sent.redirect_uris == ["https://example.com/callback"]
+    assert sent.default_client_scopes == [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email",
+    ]
+    assert sent.extra_attributes == {}
+
+
+def test_register_client_with_group_filter_regex(
+    client: KeycloakWorkspaceClient,
+    mock_keycloak_api: MagicMock,
+) -> None:
+    mock_keycloak_api.register_client.return_value = ManagedKeycloakClient(
+        client_id="my-client",
+        secret="secret",
+        redirect_uris=["https://example.com/callback"],
+        registration_access_token="rat",
+    )
+
+    client.register_client(
         client_name="my-client",
         redirect_uris=["https://example.com/callback"],
-        group_filter_regex=None,
+        group_filter_regex="^my-group-.*$",
     )
+
+    sent = mock_keycloak_api.register_client.call_args.args[0]
+    assert "regex-filtered-groups" in sent.default_client_scopes
+    assert sent.extra_attributes == {"group-filter-regex": "^my-group-.*$"}
+
+
+def test_register_client_raises_when_secret_missing(
+    client: KeycloakWorkspaceClient,
+    mock_keycloak_api: MagicMock,
+) -> None:
+    mock_keycloak_api.register_client.return_value = ManagedKeycloakClient(
+        client_id="my-client", redirect_uris=["https://example.com/callback"]
+    )
+
+    with pytest.raises(ValueError, match="did not return"):
+        client.register_client(
+            client_name="my-client", redirect_uris=["https://example.com/callback"]
+        )
 
 
 def test_delete_client_acquires_lock_per_client_id(
