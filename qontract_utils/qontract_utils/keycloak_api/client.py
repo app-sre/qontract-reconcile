@@ -17,11 +17,8 @@ import structlog
 from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
-from qontract_utils.keycloak_api._raw_client import (
-    RawClientRegistrationRequest,
-    RawKeycloakClient,
-)
-from qontract_utils.keycloak_api.models import KeycloakSsoClient
+from qontract_utils.keycloak_api._raw_client import RawKeycloakClient
+from qontract_utils.keycloak_api.models import ManagedKeycloakClient
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.user_agent import DEFAULT_USER_AGENT
 
@@ -29,8 +26,6 @@ logger = structlog.get_logger(__name__)
 
 TIMEOUT = 30.0
 MAX_RETRIES = 3
-
-DEFAULT_CLIENT_SCOPES = ["web-origins", "acr", "profile", "roles", "email"]
 
 # Prometheus metrics
 keycloak_request = Counter(
@@ -108,9 +103,8 @@ def _request_log_hook(context: KeycloakApiCallContext) -> None:
 class KeycloakApi:
     """Stateless Keycloak API client with hook system.
 
-    Layer 1 (Pure Communication) client following ADR-014. Covers exactly the Keycloak
-    operations needed by reconcile/rhidp/sso_client: registering and deleting dynamically
-    registered SSO clients via Keycloak's native client registration endpoint.
+    Covers registering, fetching, updating, and deleting clients via Keycloak's
+    dynamic client registration endpoint.
 
     Each instance owns its own httpx2.Client - use as a context manager (or call
     close()) to release its underlying HTTP connection when done.
@@ -132,6 +126,8 @@ class KeycloakApi:
         timeout: float = TIMEOUT,
         max_retries: int = MAX_RETRIES,
         user_agent: str = DEFAULT_USER_AGENT,
+        *,
+        require_https: bool = False,
     ) -> None:
         """Initialize the Keycloak API client.
 
@@ -145,8 +141,17 @@ class KeycloakApi:
                 service should pass their own app name/version instead.
             hooks: Optional custom hooks to merge with built-in hooks. Not read here -
                 @with_hooks intercepts and merges it into self._hooks before this body runs.
+            require_https: If True, reject non-https:// URLs (raises ValueError).
+                Opt-in (default False) so the existing OCM-driven sso_client callers and
+                httpserver-based tests (which serve plain HTTP) are unaffected. Callers
+                that pass a tenant-supplied Keycloak instance URL should set this to True
+                as an SSRF guard. Redirect-following needs no separate guard: httpx2.Client
+                already defaults to follow_redirects=False.
         """
         _ = hooks
+        if require_https and not url.startswith("https://"):
+            msg = f"Keycloak instance URL must use https://: {url}"
+            raise ValueError(msg)
         self.url = url
         self._client = httpx2.Client(
             base_url=url,
@@ -155,6 +160,7 @@ class KeycloakApi:
                 "User-Agent": user_agent,
             },
             timeout=timeout,
+            follow_redirects=False,
             transport=httpx2.HTTPTransport(retries=max_retries),
         )
         self._raw = RawKeycloakClient(self._client)
@@ -174,34 +180,15 @@ class KeycloakApi:
             method="clients.register", verb="POST", url=self.url
         )
     )
-    def register_client(
-        self,
-        client_name: str,
-        redirect_uris: list[str],
-        group_filter_regex: str | None = None,
-    ) -> KeycloakSsoClient:
-        """Register a new SSO client via Keycloak's native registration endpoint."""
-        scopes = [*DEFAULT_CLIENT_SCOPES]
-        attributes: dict[str, str] | None = None
-        if group_filter_regex:
-            scopes.append("regex-filtered-groups")
-            attributes = {"group-filter-regex": group_filter_regex}
+    def register_client(self, data: ManagedKeycloakClient) -> ManagedKeycloakClient:
+        """Register a new client via Keycloak's dynamic registration endpoint.
 
-        raw = self._raw.register_client(
-            RawClientRegistrationRequest(
-                client_id=client_name,
-                redirect_uris=list(redirect_uris),
-                default_client_scopes=scopes,
-                attributes=attributes,
-            )
-        )
-        return KeycloakSsoClient(
-            client_id=raw.client_id,
-            client_secret=raw.secret,
-            redirect_uris=raw.redirect_uris,
-            registration_access_token=raw.registration_access_token,
-            attributes=raw.attributes,
-        )
+        Authenticated with whatever bearer token is already set as the default
+        Authorization header on the underlying httpx2.Client (the realm's
+        initial access token).
+        """
+        raw = self._raw.register_client(data.to_raw())
+        return ManagedKeycloakClient.from_raw(raw)
 
     @invoke_with_hooks(
         lambda self: KeycloakApiCallContext(
@@ -209,7 +196,7 @@ class KeycloakApi:
         )
     )
     def delete_client(self, client_id: str, registration_access_token: str) -> None:
-        """Delete a registered SSO client.
+        """Delete a registered client.
 
         Uses the per-client registration_access_token returned at registration time,
         not the realm's initial_access_token used for registration.
@@ -217,3 +204,46 @@ class KeycloakApi:
         self._raw.delete_client(
             client_id=client_id, registration_access_token=registration_access_token
         )
+
+    @invoke_with_hooks(
+        lambda self: KeycloakApiCallContext(
+            method="clients.get", verb="GET", url=self.url
+        )
+    )
+    def get_client(
+        self, client_id: str, registration_access_token: str
+    ) -> ManagedKeycloakClient:
+        """Fetch a client's current live representation from Keycloak.
+
+        Uses the per-client registration_access_token, not the realm's
+        initial_access_token. Does not rotate the token.
+        """
+        raw = self._raw.get_client(
+            client_id=client_id, registration_access_token=registration_access_token
+        )
+        return ManagedKeycloakClient.from_raw(raw)
+
+    @invoke_with_hooks(
+        lambda self: KeycloakApiCallContext(
+            method="clients.update", verb="PUT", url=self.url
+        )
+    )
+    def update_client(
+        self,
+        client_id: str,
+        registration_access_token: str,
+        data: ManagedKeycloakClient,
+    ) -> ManagedKeycloakClient:
+        """Update a client's representation in place.
+
+        Uses the per-client registration_access_token, not the realm's
+        initial_access_token. Rotates the registration access token - the caller
+        MUST persist the returned representation's new token; the one passed in
+        for auth becomes invalid immediately once this call succeeds.
+        """
+        raw = self._raw.update_client(
+            client_id=client_id,
+            registration_access_token=registration_access_token,
+            data=data.to_raw(),
+        )
+        return ManagedKeycloakClient.from_raw(raw)
