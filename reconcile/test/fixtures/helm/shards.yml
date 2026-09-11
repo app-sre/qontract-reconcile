@@ -81,6 +81,14 @@ objects:
               @type grep
               <exclude>
                 key message
+                pattern /could not map \d+ GitHub member/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
                 pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
@@ -279,6 +287,14 @@ objects:
               <exclude>
                 key message
                 pattern /request_id: /
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /could not map \d+ GitHub member/
               </exclude>
             </filter>
 

@@ -40,6 +40,7 @@ def account_dict(name: str) -> dict[str, Any]:
             "field": "some-field",
             "version": None,
             "format": None,
+            "url": None,
         },
         "terraformState": {
             "provider": "s3",
@@ -109,6 +110,7 @@ def secret_reader_side_effect(*args: Any) -> dict[str, Any] | None:
         "field": "some-field",
         "version": None,
         "format": None,
+        "url": None,
     }:
         return {
             "aws_access_key_id": "key_id",

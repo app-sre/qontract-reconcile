@@ -43,6 +43,19 @@ def test_extract_cert_invalid_cert_format(fx: Callable) -> None:
         extract_cert(html_response)
 
 
+def test_extract_cert_surfaces_ca_error_detail(fx: Callable) -> None:
+    html_response = fx("invalid_response_ldap_constraint_violation.html")
+    with pytest.raises(
+        ValueError,
+        match=(
+            r"Could not extract certificate PEM from response "
+            r"\(CA errorCode=1: LDAPException caught from operation\. "
+            r"Constraint violation\)"
+        ),
+    ):
+        extract_cert(html_response)
+
+
 def test_get_cert_expiry() -> None:
     # Test certificate with known expiry: Jan 1 00:00:00 2025 GMT (1735689600 Unix timestamp)
     # Base certificate generated with openssl:

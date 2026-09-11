@@ -45,6 +45,7 @@ def _vault_secret(
         field=field,
         version=1,
         format=None,
+        url=None,
     )
 
 

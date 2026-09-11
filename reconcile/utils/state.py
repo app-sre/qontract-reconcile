@@ -19,7 +19,6 @@ from pydantic import BaseModel
 from reconcile.gql_definitions.common.app_interface_state_settings import (
     AppInterfaceStateConfigurationS3V1,
 )
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.typed_queries.app_interface_state_settings import (
     get_app_interface_state_settings,
 )
@@ -31,6 +30,7 @@ from reconcile.utils.aws_api import aws_config_file_path
 from reconcile.utils.json import json_dumps
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
+    VaultSecretRef,
     create_secret_reader,
 )
 
@@ -141,10 +141,9 @@ def acquire_state_settings(
             f"access state via access credentials from vault secret {state_bucket_vault_secret} version {state_bucket_vault_secret_version or 'latest'})"
         )
         secret = secret_reader.read_all_secret(
-            VaultSecret(
+            VaultSecretRef(
                 path=state_bucket_vault_secret,
                 field="all",
-                format=None,
                 version=int(state_bucket_vault_secret_version)
                 if state_bucket_vault_secret_version
                 else None,

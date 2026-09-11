@@ -1867,6 +1867,7 @@ def test_render_templated_parameters(
                 "field": "secret_key",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
@@ -1876,6 +1877,7 @@ def test_render_templated_parameters(
                 "field": "{{ .GO_PARAM }}-secret_key",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
@@ -1885,6 +1887,7 @@ def test_render_templated_parameters(
                 "field": "secret_key",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
@@ -1894,6 +1897,7 @@ def test_render_templated_parameters(
                 "field": "App-SRE-stage-secret_key",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
         ),
     ]
@@ -1929,6 +1933,7 @@ def test_render_templated_parameters_in_init(
                 "field": "secret_key",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
@@ -1938,6 +1943,7 @@ def test_render_templated_parameters_in_init(
                 "field": "{{ .GO_PARAM }}-secret_key",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
@@ -1947,6 +1953,7 @@ def test_render_templated_parameters_in_init(
                 "field": "secret_key",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
@@ -1956,6 +1963,7 @@ def test_render_templated_parameters_in_init(
                 "field": "App-SRE-stage-secret_key",
                 "version": 1,
                 "format": None,
+                "url": None,
             },
         ),
     ]

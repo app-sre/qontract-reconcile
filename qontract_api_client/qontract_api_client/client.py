@@ -7,6 +7,51 @@ from . import config, schemas
 client = clientele_api.APIClient(config=config.Config())
 
 
+@client.get("/api/v1/external/github-org/members")
+async def github_org_members(
+    result: schemas.GithubOrgMembersResponse,
+    secret_manager_url: str,
+    path: str,
+    org_name: str,
+    field: str | None = None,
+    version: int | None = None,
+) -> schemas.GithubOrgMembersResponse:
+    """Get Org Members
+
+        Get all members of a GitHub organization.
+
+    Lists every member of the organization (any role) using the GitHub API
+    token resolved from Vault. Results are cached for performance (TTL
+    configured in settings).
+    """
+    return result
+
+
+@client.post("/api/v1/external/ldap/github-usernames")
+async def ldap_github_usernames(
+    result: schemas.LdapGithubUsernamesResponse,
+    data: schemas.LdapGithubUsernamesRequest,
+) -> schemas.LdapGithubUsernamesResponse:
+    """Resolve Github Usernames
+
+        Resolve GitHub usernames to LDAP uids via the rhatSocialURL attribute.
+
+    Maps each requested GitHub username to the app-interface org_username (LDAP
+    uid) of the user whose rhatSocialURL points at that GitHub account. The
+    full map is cached for performance; unresolved logins are omitted from the
+    response.
+
+    Args:
+        request: GitHub usernames to resolve and the Vault secret reference
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapGithubUsernamesResponse with resolved username -> org_username pairs
+    """
+    return result
+
+
 @client.post("/api/v1/external/ldap/users/check")
 async def ldap_users_check(
     result: schemas.LdapUsersCheckResponse, data: schemas.LdapUsersCheckRequest

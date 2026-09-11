@@ -23,9 +23,9 @@ if TYPE_CHECKING:
 
 
 def vault_secret_dict(path: str, field: str) -> dict[str, str | None]:
-    return VaultSecret(path=path, field=field, version=None, format=None).model_dump(
-        by_alias=True
-    )
+    return VaultSecret(
+        path=path, field=field, version=None, format=None, url=None
+    ).model_dump(by_alias=True)
 
 
 def automation_token_entry(

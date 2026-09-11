@@ -952,6 +952,228 @@ def build_openshift_resource_2() -> resource.OpenshiftResource:
     )
 
 
+def test_validate_resources_used_exist_skips_missing_namespace(
+    resource_inventory: resource.ResourceInventory,
+    oc_cs1: MagicMock,
+) -> None:
+    oc_cs1.get_resources_used_in_pod_spec.return_value = {
+        "missing-secret": {"required-key"}
+    }
+    oc_cs1.project_exists.return_value = False
+
+    sut._validate_resources_used_exist(
+        resource_inventory,
+        oc_cs1,
+        {"containers": []},
+        "cs1",
+        "ns1",
+        "Deployment",
+        "deployment",
+        "Secret",
+        {},
+    )
+
+    assert not resource_inventory.has_error_registered()
+    oc_cs1.project_exists.assert_called_once_with("ns1")
+    oc_cs1.get.assert_not_called()
+
+
+@pytest.mark.parametrize("used_kind", ["Secret", "ConfigMap"])
+def test_validate_resources_used_exist_reports_missing_resource(
+    resource_inventory: resource.ResourceInventory,
+    oc_cs1: MagicMock,
+    used_kind: str,
+) -> None:
+    oc_cs1.get_resources_used_in_pod_spec.return_value = {
+        f"missing-{used_kind.lower()}": set()
+    }
+    oc_cs1.project_exists.return_value = True
+    oc_cs1.get.return_value = {}
+
+    sut._validate_resources_used_exist(
+        resource_inventory,
+        oc_cs1,
+        {"containers": []},
+        "cs1",
+        "ns1",
+        "Deployment",
+        "deployment",
+        used_kind,
+        {},
+    )
+
+    assert resource_inventory.has_error_registered()
+    oc_cs1.project_exists.assert_called_once_with("ns1")
+    oc_cs1.get.assert_called_once_with(
+        "ns1",
+        used_kind,
+        name=f"missing-{used_kind.lower()}",
+        allow_not_found=True,
+    )
+
+
+def test_validate_resources_used_exist_preserves_resource_errors(
+    resource_inventory: resource.ResourceInventory,
+    oc_cs1: MagicMock,
+) -> None:
+    oc_cs1.get_resources_used_in_pod_spec.return_value = {"secret": set()}
+    oc_cs1.project_exists.return_value = True
+    oc_cs1.get.side_effect = oc.StatusCodeError("Forbidden")
+
+    with pytest.raises(oc.StatusCodeError, match="Forbidden"):
+        sut._validate_resources_used_exist(
+            resource_inventory,
+            oc_cs1,
+            {"containers": []},
+            "cs1",
+            "ns1",
+            "Deployment",
+            "deployment",
+            "Secret",
+            {},
+        )
+
+
+def test_validate_resources_used_exist_preserves_namespace_errors(
+    resource_inventory: resource.ResourceInventory,
+    oc_cs1: MagicMock,
+) -> None:
+    oc_cs1.get_resources_used_in_pod_spec.return_value = {"secret": set()}
+    oc_cs1.project_exists.side_effect = oc.StatusCodeError("Forbidden")
+
+    with pytest.raises(oc.StatusCodeError, match="Forbidden"):
+        sut._validate_resources_used_exist(
+            resource_inventory,
+            oc_cs1,
+            {"containers": []},
+            "cs1",
+            "ns1",
+            "Deployment",
+            "deployment",
+            "Secret",
+            {},
+        )
+
+    oc_cs1.get.assert_not_called()
+
+
+def test_validate_resources_used_exist_validates_desired_resource_keys(
+    resource_inventory: resource.ResourceInventory,
+    oc_cs1: MagicMock,
+) -> None:
+    resource_inventory.initialize_resource_type("cs1", "ns1", "Secret")
+    resource_inventory.add_desired(
+        "cs1",
+        "ns1",
+        "Secret",
+        "secret",
+        build_openshift_resource(
+            kind="Secret", api_version="v1", name="secret", extra_body={"data": {}}
+        ),
+    )
+    oc_cs1.get_resources_used_in_pod_spec.return_value = {"secret": {"required-key"}}
+
+    sut._validate_resources_used_exist(
+        resource_inventory,
+        oc_cs1,
+        {"containers": []},
+        "cs1",
+        "ns1",
+        "Deployment",
+        "deployment",
+        "Secret",
+        {},
+    )
+
+    assert resource_inventory.has_error_registered()
+    oc_cs1.project_exists.assert_not_called()
+    oc_cs1.get.assert_not_called()
+
+
+def test_validate_resources_used_exist_validates_serving_cert_keys(
+    resource_inventory: resource.ResourceInventory,
+    oc_cs1: MagicMock,
+) -> None:
+    resource_inventory.initialize_resource_type("cs1", "ns1", "Service")
+    resource_inventory.add_desired(
+        "cs1",
+        "ns1",
+        "Service",
+        "service",
+        build_openshift_resource(
+            kind="Service",
+            api_version="v1",
+            name="service",
+            extra_body={
+                "metadata": {
+                    "annotations": {
+                        "service.beta.openshift.io/serving-cert-secret-name": "secret"
+                    }
+                }
+            },
+        ),
+    )
+    oc_cs1.get_resources_used_in_pod_spec.return_value = {"secret": {"required-key"}}
+
+    sut._validate_resources_used_exist(
+        resource_inventory,
+        oc_cs1,
+        {"containers": []},
+        "cs1",
+        "ns1",
+        "Deployment",
+        "deployment",
+        "Secret",
+        {},
+    )
+
+    assert resource_inventory.has_error_registered()
+    oc_cs1.project_exists.assert_not_called()
+    oc_cs1.get.assert_not_called()
+
+
+def test_validate_planned_data_caches_namespace_checks(
+    resource_inventory: resource.ResourceInventory,
+    oc_map: oc.OC_Map,
+    oc_cs1: MagicMock,
+) -> None:
+    resource_inventory.initialize_resource_type("cs1", "ns1", "Deployment")
+    resource_inventory.add_desired(
+        "cs1",
+        "ns1",
+        "Deployment",
+        "deployment",
+        build_openshift_resource(
+            kind="Deployment",
+            api_version="apps/v1",
+            name="deployment",
+            extra_body={
+                "spec": {
+                    "template": {
+                        "spec": {"containers": [{"name": "app", "image": "image"}]}
+                    }
+                }
+            },
+        ),
+    )
+
+    def get_used_resources(
+        _spec: Mapping[str, Any], used_kind: str, include_optional: bool
+    ) -> dict[str, set[str]]:
+        assert not include_optional
+        return {f"missing-{used_kind.lower()}": set()}
+
+    oc_cs1.get_resources_used_in_pod_spec.side_effect = get_used_resources
+    oc_cs1.project_exists.return_value = True
+    oc_cs1.get.return_value = {}
+
+    sut.validate_planned_data(resource_inventory, oc_map)
+
+    assert resource_inventory.has_error_registered()
+    oc_cs1.project_exists.assert_called_once_with("ns1")
+    assert oc_cs1.get.call_count == 2
+
+
 @pytest.fixture
 def diff_result() -> DiffResult:
     r1 = build_openshift_resource_1()

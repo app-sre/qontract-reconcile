@@ -95,6 +95,40 @@ def test_paginated_get_403_without_ratelimit_raises_httperror(
         api.get_pending_invitations("my-org")
 
 
+def test_get_members_preserves_case_and_sorts() -> None:
+    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    org = MagicMock()
+    org.get_members.return_value = [
+        MagicMock(login="Bob"),
+        MagicMock(login="alice"),
+        MagicMock(login="Charlie"),
+    ]
+    api._gh = MagicMock()
+    api._gh.get_organization.return_value = org
+
+    members = api.get_members("my-org")
+
+    # original case preserved (no lowercasing), deterministic sort order
+    assert members == sorted(["Bob", "alice", "Charlie"])
+    org.get_members.assert_called_once_with()
+
+
+def test_get_members_raises_rate_limit_error() -> None:
+    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    reset_epoch = 1788542522
+    org = MagicMock()
+    org.get_members.side_effect = RateLimitExceededException(
+        403, {"message": "rate limit"}, {"x-ratelimit-reset": str(reset_epoch)}
+    )
+    api._gh = MagicMock()
+    api._gh.get_organization.return_value = org
+
+    with pytest.raises(GithubRateLimitExceededError) as exc_info:
+        api.get_members("my-org")
+
+    assert exc_info.value.reset_at == datetime.fromtimestamp(reset_epoch, tz=UTC)
+
+
 def test_get_admin_members_raises_rate_limit_error() -> None:
     api = GithubOrgApi(token="token", base_url="https://api.github.com")
     reset_epoch = 1788542522

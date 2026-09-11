@@ -5127,6 +5127,18 @@
                     "description": null,
                     "fields": [
                         {
+                            "name": "url",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "path",
                             "description": null,
                             "args": [],
@@ -8833,9 +8845,13 @@
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "OBJECT",
-                                "name": "AcsInstance_v1",
-                                "ofType": null
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "name": "AcsInstance_v1",
+                                    "kind": "OBJECT",
+                                    "ofType": null
+                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -34632,9 +34648,13 @@
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "OBJECT",
-                                "name": "AcsInstance_v1",
-                                "ofType": null
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "name": "AcsInstance_v1",
+                                    "kind": "OBJECT",
+                                    "ofType": null
+                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -35503,6 +35523,18 @@
                                         "ofType": null
                                     }
                                 }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "github",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "GithubOrg_v1",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null

@@ -11,6 +11,7 @@ permissions:
             field: pd_api_key
             version: null
             format: null
+            url: null
         scheduleID: YXZ1234
         escalationPolicyID: null
     roles:
