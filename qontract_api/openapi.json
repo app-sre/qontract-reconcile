@@ -1,6 +1,16 @@
 {
   "components": {
     "schemas": {
+      "AccessType": {
+        "description": "Keycloak client type.",
+        "enum": [
+          "confidential",
+          "public",
+          "bearer-only"
+        ],
+        "title": "AccessType",
+        "type": "string"
+      },
       "ChatRequest": {
         "description": "Request model for posting a Slack message or DM.\n\nExactly one of `channel` or `user` must be set:\n- `channel`: post to a Slack channel by name\n- `user`: send a DM to a user by org_username",
         "properties": {
@@ -2138,8 +2148,28 @@
         "title": "HealthStatus",
         "type": "object"
       },
+      "KeycloakInstanceRef": {
+        "description": "A Keycloak realm a managed SSO client registers against.",
+        "properties": {
+          "initial_access_token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Vault reference to this realm's initial access token (IAT)"
+          },
+          "url": {
+            "description": "Full realm base URL, e.g. https://host/auth/realms/name",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "initial_access_token"
+        ],
+        "title": "KeycloakInstanceRef",
+        "type": "object"
+      },
       "KeycloakInstanceSecret": {
-        "description": "A Keycloak instance's issuer URL + the Vault location of its IAT secret.\n\nThe Vault secret itself does not carry the issuer URL (see KeycloakInstanceIat),\nso the client must supply it explicitly alongside the secret reference.",
+        "description": "A Keycloak instance's issuer URL + the Vault location of its IAT secret.\n\nThe Vault secret itself does not carry the issuer URL (see\nqontract_api.keycloak_iat), so the client must supply it explicitly\nalongside the secret reference.",
         "properties": {
           "secret": {
             "$ref": "#/components/schemas/Secret",
@@ -2334,6 +2364,303 @@
           }
         },
         "title": "LdapUsersCheckResponse",
+        "type": "object"
+      },
+      "ManagedSsoClientActionCreate": {
+        "description": "Action: register a new managed SSO client with Keycloak.",
+        "properties": {
+          "action_type": {
+            "const": "create",
+            "default": "create",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "client_id": {
+            "description": "Exact Keycloak clientId of the client being created.",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "tenant_secret_path": {
+            "description": "Vault path of the tenant-facing credential secret.",
+            "title": "Tenant Secret Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id",
+          "tenant_secret_path"
+        ],
+        "title": "ManagedSsoClientActionCreate",
+        "type": "object"
+      },
+      "ManagedSsoClientActionDelete": {
+        "description": "Action: delete a managed SSO client no longer present in desired state.",
+        "properties": {
+          "action_type": {
+            "const": "delete",
+            "default": "delete",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "client_id": {
+            "description": "Exact Keycloak clientId of the client being deleted.",
+            "title": "Client Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id"
+        ],
+        "title": "ManagedSsoClientActionDelete",
+        "type": "object"
+      },
+      "ManagedSsoClientActionMoveTenantSecret": {
+        "description": "Action: migrate the tenant secret to a newly-resolved output path.\n\nPure Vault bookkeeping - reuses the client_secret Keycloak already\nissued, no Keycloak call involved. Independent of, and may co-occur\nwith, ManagedSsoClientActionUpdate.",
+        "properties": {
+          "action_type": {
+            "const": "move_tenant_secret",
+            "default": "move_tenant_secret",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "client_id": {
+            "description": "Exact Keycloak clientId of the client whose tenant secret is moving.",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "tenant_secret_path": {
+            "description": "New Vault path of the tenant-facing credential secret.",
+            "title": "Tenant Secret Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id",
+          "tenant_secret_path"
+        ],
+        "title": "ManagedSsoClientActionMoveTenantSecret",
+        "type": "object"
+      },
+      "ManagedSsoClientActionUpdate": {
+        "description": "Action: update an existing managed SSO client's OIDC configuration on Keycloak.\n\nKeycloak-only - a change to the tenant secret's output path is an\nindependent concern, represented by its own ManagedSsoClientActionMoveTenantSecret.",
+        "properties": {
+          "action_type": {
+            "const": "update",
+            "default": "update",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "client_id": {
+            "description": "Exact Keycloak clientId of the client being updated.",
+            "title": "Client Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id"
+        ],
+        "title": "ManagedSsoClientActionUpdate",
+        "type": "object"
+      },
+      "ManagedSsoClientDesiredState": {
+        "description": "Desired state for a single managed SSO client.",
+        "properties": {
+          "client_id": {
+            "description": "Exact Keycloak clientId, taken as-is",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional human-readable description of this client.",
+            "title": "Description"
+          },
+          "enabled": {
+            "default": true,
+            "description": "Whether this client is active on Keycloak. Set to False to deactivate it in place (Keycloak rejects logins/tokens for a disabled client) without deleting this object, which would delete the Keycloak registration and its secret entirely.",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "keycloak_instance": {
+            "$ref": "#/components/schemas/KeycloakInstanceRef",
+            "description": "The Keycloak realm to register/manage this client against."
+          },
+          "oidc": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OidcDesiredState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "OIDC-specific configuration. Required for a working client in this milestone - SAML is not yet supported."
+          },
+          "output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vault path for the tenant-facing credential secret. If None, the reconciler writes to an integration-managed default path."
+          }
+        },
+        "required": [
+          "client_id",
+          "keycloak_instance"
+        ],
+        "title": "ManagedSsoClientDesiredState",
+        "type": "object"
+      },
+      "ManagedSsoClientReconcileRequest": {
+        "description": "Request model for managed-sso-client reconciliation.\n\nPOST requests always queue a background task (async execution).",
+        "properties": {
+          "desired_clients": {
+            "description": "All tenant-declared managed SSO clients across app-interface",
+            "items": {
+              "$ref": "#/components/schemas/ManagedSsoClientDesiredState"
+            },
+            "title": "Desired Clients",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "desired_clients"
+        ],
+        "title": "ManagedSsoClientReconcileRequest",
+        "type": "object"
+      },
+      "ManagedSsoClientTaskResponse": {
+        "description": "Response model for POST /reconcile.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "ManagedSsoClientTaskResponse",
+        "type": "object"
+      },
+      "ManagedSsoClientTaskResult": {
+        "description": "Result model for a completed managed-sso-client reconciliation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "All actions calculated (desired vs. current), including any that failed to apply.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create": "#/components/schemas/ManagedSsoClientActionCreate",
+                  "delete": "#/components/schemas/ManagedSsoClientActionDelete",
+                  "move_tenant_secret": "#/components/schemas/ManagedSsoClientActionMoveTenantSecret",
+                  "update": "#/components/schemas/ManagedSsoClientActionUpdate"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionUpdate"
+                },
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionMoveTenantSecret"
+                },
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionDelete"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (non-dry-run only).",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create": "#/components/schemas/ManagedSsoClientActionCreate",
+                  "delete": "#/components/schemas/ManagedSsoClientActionDelete",
+                  "move_tenant_secret": "#/components/schemas/ManagedSsoClientActionMoveTenantSecret",
+                  "update": "#/components/schemas/ManagedSsoClientActionUpdate"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionUpdate"
+                },
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionMoveTenantSecret"
+                },
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionDelete"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ManagedSsoClientTaskResult",
         "type": "object"
       },
       "NotificationAddUser": {
@@ -3080,6 +3407,143 @@
           "status"
         ],
         "title": "OcmOidcIdpTaskResult",
+        "type": "object"
+      },
+      "OidcDesiredState": {
+        "description": "Desired OIDC configuration for a single managed SSO client.\n\nEvery optional field here is \"unmanaged\" when None, not \"empty\"/\"false\" -\nKeycloak's client-registration PUT merges by field, so an unmanaged field\nis never sent and never diffed for drift - Keycloak's own default applies\non create, and an existing client's value is left untouched on update.\nOnly an explicitly-set value (including an explicit empty list) is\napplied and compared. `access_type` and `direct_access_grants_enabled`\nare the documented exceptions: both always resolve to a concrete value\n(see their validators below), since Keycloak's own create-time defaults\nfor these two - public access type, and enabled direct access grants -\nare insecure (verified against a live instance).\n\nCaution for every other optional field: setting a value and later\nremoving it from the desired state does NOT revert it - it only stops\nmanaging it, freezing Keycloak at whatever was last pushed. To actually\nundo a change, push back the field's previous explicit value (or its\nKeycloak default) rather than deleting the key.",
+        "properties": {
+          "access_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccessType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Keycloak client type/authentication requirement (confidential/public/bearer-only). Defaults to confidential when unset - Keycloak's own create-time default for an omitted access type is public, not confidential."
+          },
+          "consent_required": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "If true, Keycloak shows a consent screen the first time a user authorizes this client, listing requested scopes.",
+            "title": "Consent Required"
+          },
+          "default_client_scopes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Client scopes automatically included in every token issued to this client. Unmanaged if unset (see class docstring).",
+            "title": "Default Client Scopes"
+          },
+          "direct_access_grants_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enables the OAuth2 Resource Owner Password Credentials grant (client collects username/password itself, no browser redirect). Only appropriate for a trusted first-party client such as an internal CLI - never a browser-based or third-party client. Defaults to False when unset - Keycloak's own create-time default for an omitted value is True.",
+            "title": "Direct Access Grants Enabled"
+          },
+          "full_scope_allowed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether this client is automatically granted every realm/client role, instead of only default_client_scopes/optional_client_scopes.",
+            "title": "Full Scope Allowed"
+          },
+          "optional_client_scopes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Client scopes this client may request via the scope parameter but that aren't included by default. Unmanaged if unset (see class docstring).",
+            "title": "Optional Client Scopes"
+          },
+          "post_logout_redirect_uris": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Allowed URIs Keycloak may redirect back to after an RP-initiated logout. Unmanaged if unset (see class docstring).",
+            "title": "Post Logout Redirect Uris"
+          },
+          "redirect_uris": {
+            "description": "Allowed redirect URIs for the standard login flow. Required by Keycloak - a client without at least one cannot log in.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Redirect Uris",
+            "type": "array"
+          },
+          "service_accounts_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enables the OAuth2 Client Credentials grant (the client authenticates as itself for machine-to-machine calls, no end user involved). Requires access_type=confidential.",
+            "title": "Service Accounts Enabled"
+          },
+          "web_origins": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Allowed CORS origins for browser JavaScript calling Keycloak's endpoints directly from this client. Unmanaged if unset (see class docstring).",
+            "title": "Web Origins"
+          }
+        },
+        "required": [
+          "redirect_uris"
+        ],
+        "title": "OidcDesiredState",
         "type": "object"
       },
       "OpenShiftNamespacesReconcileRequest": {
@@ -5632,6 +6096,101 @@
           }
         ],
         "summary": "Glitchtip Reconcile Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/managed-sso-client/reconcile": {
+      "post": {
+        "description": "Queue a managed-sso-client reconciliation task.",
+        "operationId": "managed-sso-client",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagedSsoClientReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedSsoClientTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Managed Sso Client",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/managed-sso-client/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve the reconciliation result (blocking or non-blocking).",
+        "operationId": "managed-sso-client-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedSsoClientTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Managed Sso Client Task Status",
         "tags": [
           "integrations"
         ]

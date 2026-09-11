@@ -8,6 +8,12 @@ import pydantic
 from clientele.schemas import ListResponse  # noqa
 
 
+class AccessType(str, enum.Enum):
+    CONFIDENTIAL = "confidential"
+    PUBLIC = "public"
+    BEARER_ONLY = "bearer-only"
+
+
 class ChatRequest(pydantic.BaseModel):
     channel: str | None = None
     icon_emoji: str | None = None
@@ -458,6 +464,11 @@ class HealthStatus(pydantic.BaseModel):
     status: str
 
 
+class KeycloakInstanceRef(pydantic.BaseModel):
+    initial_access_token: Secret
+    url: str
+
+
 class KeycloakInstanceSecret(pydantic.BaseModel):
     secret: Secret
     url: str
@@ -498,6 +509,72 @@ class LdapUsersCheckRequest(pydantic.BaseModel):
 
 class LdapUsersCheckResponse(pydantic.BaseModel):
     users: list[LdapUserStatus]
+
+
+class ManagedSsoClientActionCreate(pydantic.BaseModel):
+    action_type: typing.Literal["create"] = "create"
+    client_id: str
+    tenant_secret_path: str
+
+
+class ManagedSsoClientActionDelete(pydantic.BaseModel):
+    action_type: typing.Literal["delete"] = "delete"
+    client_id: str
+
+
+class ManagedSsoClientActionMoveTenantSecret(pydantic.BaseModel):
+    action_type: typing.Literal["move_tenant_secret"] = "move_tenant_secret"
+    client_id: str
+    tenant_secret_path: str
+
+
+class ManagedSsoClientActionUpdate(pydantic.BaseModel):
+    action_type: typing.Literal["update"] = "update"
+    client_id: str
+
+
+class ManagedSsoClientDesiredState(pydantic.BaseModel):
+    client_id: str
+    description: str | None = None
+    enabled: bool = True
+    keycloak_instance: KeycloakInstanceRef
+    oidc: OidcDesiredState | None | None = None
+    output: Secret | None | None = None
+
+
+class ManagedSsoClientReconcileRequest(pydantic.BaseModel):
+    desired_clients: list[ManagedSsoClientDesiredState]
+    dry_run: bool = True
+
+
+class ManagedSsoClientTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class ManagedSsoClientTaskResult(pydantic.BaseModel):
+    actions: list[
+        typing.Annotated[
+            ManagedSsoClientActionCreate
+            | ManagedSsoClientActionUpdate
+            | ManagedSsoClientActionMoveTenantSecret
+            | ManagedSsoClientActionDelete,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_actions: list[
+        typing.Annotated[
+            ManagedSsoClientActionCreate
+            | ManagedSsoClientActionUpdate
+            | ManagedSsoClientActionMoveTenantSecret
+            | ManagedSsoClientActionDelete,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
 
 
 class NotificationAddUser(pydantic.BaseModel):
@@ -654,6 +731,19 @@ class OcmOidcIdpTaskResult(pydantic.BaseModel):
     applied_count: int = 0
     errors: list[str] = []
     status: TaskStatus
+
+
+class OidcDesiredState(pydantic.BaseModel):
+    access_type: AccessType | None | None = None
+    consent_required: bool | None = None
+    default_client_scopes: list[str] | None = None
+    direct_access_grants_enabled: bool | None = None
+    full_scope_allowed: bool | None = None
+    optional_client_scopes: list[str] | None = None
+    post_logout_redirect_uris: list[str] | None = None
+    redirect_uris: list[str]
+    service_accounts_enabled: bool | None = None
+    web_origins: list[str] | None = None
 
 
 class OpenShiftNamespacesReconcileRequest(pydantic.BaseModel):
