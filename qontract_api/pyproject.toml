@@ -20,7 +20,7 @@ dependencies = [
     "qontract-api-client",
     "qontract-utils",
     "redis==8.1.0",
-    "sentry-sdk==2.68.1",
+    "sentry-sdk==2.69.1",
     "structlog==26.1.0",
     "uvicorn[standard]==0.52.4",
 ]
