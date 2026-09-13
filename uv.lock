@@ -282,29 +282,29 @@ wheels = [
 
 [[package]]
 name = "boto3"
-version = "1.43.89"
+version = "1.43.91"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/50/26/48b3da85526a72a02df55e564481fc348e93699c15f0f502681b12ac2c8a/boto3-1.43.89.tar.gz", hash = "sha256:c28abbe472e9b7cad08807356311aeec51bde5218c18489da827045d2267bfd9", size = 112702, upload-time = "2026-09-04T19:24:57.143Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/42/76/e5c5fb601b09273599bf9c1a678ea2bc645385e758fbc66a36c9614b6324/boto3-1.43.91.tar.gz", hash = "sha256:98643e500883bf6fcd13d04bb19da983bf97e5f1c600fc11470ce45437fa96b4", size = 112693, upload-time = "2026-09-09T19:24:38.927Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cd/12/e1b5cb4a00a9bfd72cf2d3f982c5826757aacdfc90aa4bd61902dcc94856/boto3-1.43.89-py3-none-any.whl", hash = "sha256:fe4190afe63eb562b6ba6a3911cf4427473b35fa047adde093bf696d3ae09fc0", size = 140028, upload-time = "2026-09-04T19:24:55.929Z" },
+    { url = "https://files.pythonhosted.org/packages/24/3f/0288c2383455f1c94741fd8de819fb6d7360065274d905711a62fc6cd1f2/boto3-1.43.91-py3-none-any.whl", hash = "sha256:5ff948cfac8bff72227930e0894a8542731e1998634d1ffd8a074c20a90af919", size = 140023, upload-time = "2026-09-09T19:24:37.588Z" },
 ]
 
 [[package]]
 name = "boto3-stubs"
-version = "1.43.89"
+version = "1.43.91"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore-stubs" },
     { name = "types-s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f8/62/9d7ef20a961c4ef897770bceca16c640a8f59a24b94b214b5493802e1fdc/boto3_stubs-1.43.89.tar.gz", hash = "sha256:f172322f8c823af200b47a6820eab7dd68132e2e8bcdc90e0e06a90dbdffd883", size = 104634, upload-time = "2026-09-04T21:09:40.155Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/80/86/a13fdec6fe929e5560bb8adf2a45f437e2b47bfd908012a082069c78d40f/boto3_stubs-1.43.91.tar.gz", hash = "sha256:7e9b1743d558855b1a9c8f6fcfed1dc4dfb59a7843abc6e4c25513e86a1f3441", size = 104609, upload-time = "2026-09-09T20:20:56.192Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/1a/ba0446ab710c1e77a0ebe2e650fbc999ce31cd538b6ff9f87474baa4cf01/boto3_stubs-1.43.89-py3-none-any.whl", hash = "sha256:be8217bbc3b97cbf9eb8485dff85dbe86f466aa1ea71cd1ae3f18067624e37ac", size = 71511, upload-time = "2026-09-04T21:09:36.696Z" },
+    { url = "https://files.pythonhosted.org/packages/97/d1/3608d39a39b199bf1abfd3d4a9d531757383cb6aff3d56009b3d60a11a40/boto3_stubs-1.43.91-py3-none-any.whl", hash = "sha256:d1f3bd3fe7dee9a5c4a06d7768c415f1bf972089fba3660d5ba49211a01571f2", size = 71510, upload-time = "2026-09-09T20:20:50.29Z" },
 ]
 
 [package.optional-dependencies]
@@ -362,16 +362,16 @@ support = [
 
 [[package]]
 name = "botocore"
-version = "1.43.89"
+version = "1.43.91"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/53/06/f63fb1befdf77af18539fb24ea01f2da0f13965ed5de091061708ac96416/botocore-1.43.89.tar.gz", hash = "sha256:f0574942970742657b0e0716cf08c2dfe6bef8e6de5fbb7081c3424e262b4cca", size = 16074206, upload-time = "2026-09-04T19:24:52.464Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/1e/c6d26cb1124799e2bee54854813b02aa8a813c57335f97b0b8ed50f902ff/botocore-1.43.91.tar.gz", hash = "sha256:0f12bceb8c5d90a0c60f326e883bf674ded8c7d7c18ee0b559843b3a6c52f2ad", size = 16089153, upload-time = "2026-09-09T19:24:34.426Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9e/9d/96f9dee6d12eedf1c2b4264eefd59c7ac8cac10daadb9a7bfccc9ee881c6/botocore-1.43.89-py3-none-any.whl", hash = "sha256:d7211220c815427fe71225acc6909e4ab5dfab3b03770e72fd16cf9eb86b3d1a", size = 15768272, upload-time = "2026-09-04T19:24:49.769Z" },
+    { url = "https://files.pythonhosted.org/packages/8f/1a/f672cc408d808035397c5d63a1b31a6a56ee95417a9d60d120d96349d182/botocore-1.43.91-py3-none-any.whl", hash = "sha256:f96363d4caf50bce45fe2fdc2d4d86b3bea7f5cd805169d53c1371c2dd4772b6", size = 15782250, upload-time = "2026-09-09T19:24:31.222Z" },
 ]
 
 [[package]]
@@ -831,14 +831,14 @@ wheels = [
 
 [[package]]
 name = "dt"
-version = "1.1.73"
+version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/46/51/5437b988896088c6df8a4a1ab788c4a0e2770e43820bf51ae46cb04e9743/dt-1.1.73.tar.gz", hash = "sha256:16852a636b4b2c484f99728c34b852ccb654ae00bfec3a2fc7cb6d587d07be4f", size = 68884, upload-time = "2025-05-06T16:01:31.839Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cc/b6/81e303e65f21b347b9e215cbdce242d158020a38890c7ec55852235afeb8/dt-1.2.2.tar.gz", hash = "sha256:c2236b924ba92250677a5e38d06bab7984aa6f96024ace7c7f4bf08c0befe537", size = 71851, upload-time = "2026-09-02T20:27:10.249Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a1/d5/a178e5dc8cce0cea36d3c594bd93aade1cea607306a7daa6b593974079a8/dt-1.1.73-py3-none-any.whl", hash = "sha256:558c82c0aec0351c95529deccc48f103ca334c6d64326c437341b6a8e89585f0", size = 110766, upload-time = "2025-05-06T16:01:30.325Z" },
+    { url = "https://files.pythonhosted.org/packages/3d/99/b1300002a01a245c6ef2a24b14c8e493cc513c49a1716edbdd9aa0511284/dt-1.2.2-py3-none-any.whl", hash = "sha256:b1bb16c287c455c810cfa7664a06089ce4d03a1b53bb6b864173d7477804a7a3", size = 113719, upload-time = "2026-09-02T20:27:11.347Z" },
 ]
 
 [[package]]
@@ -2302,15 +2302,15 @@ wheels = [
 
 [[package]]
 name = "python-gitlab"
-version = "6.0.0"
+version = "6.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
     { name = "requests-toolbelt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3b/ba/3ee473d71e32d60c8d6ef7b914f5f3df64a067b816499aa8a6083a397d4f/python_gitlab-6.0.0.tar.gz", hash = "sha256:704bf548c258f1cfe2f09b8ece9af1cc8fa6ae828ac6fe6a1cbe957c98431414", size = 397108, upload-time = "2025-06-04T02:38:33.497Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/bd/b30f1d3b303cb5d3c72e2d57a847d699e8573cbdfd67ece5f1795e49da1c/python_gitlab-6.5.0.tar.gz", hash = "sha256:97553652d94b02de343e9ca92782239aa2b5f6594c5482331a9490d9d5e8737d", size = 400591, upload-time = "2025-10-17T21:40:02.89Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/33/42788d9860c15fffc617d90a7f1ccda596b11f1abedf5a315f3b66da0d73/python_gitlab-6.0.0-py3-none-any.whl", hash = "sha256:d63bb56b5f7781a7eb0a9846a3aed9b783c8036f67107d9d48653e17242a7130", size = 144035, upload-time = "2025-06-04T02:38:31.011Z" },
+    { url = "https://files.pythonhosted.org/packages/34/bd/b0d440685fbcafee462bed793a74aea88541887c4c30556a55ac64914b8d/python_gitlab-6.5.0-py3-none-any.whl", hash = "sha256:494e1e8e5edd15286eaf7c286f3a06652688f1ee20a49e2a0218ddc5cc475e32", size = 144419, upload-time = "2025-10-17T21:40:01.233Z" },
 ]
 
 [[package]]
@@ -2464,7 +2464,7 @@ requires-dist = [
     { name = "qontract-api-client", editable = "qontract_api_client" },
     { name = "qontract-utils", editable = "qontract_utils" },
     { name = "redis", specifier = "==8.1.0" },
-    { name = "sentry-sdk", specifier = "==2.68.1" },
+    { name = "sentry-sdk", specifier = "==2.69.1" },
     { name = "structlog", specifier = "==26.1.0" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.52.4" },
 ]
@@ -2602,14 +2602,14 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anymarkup", specifier = "==0.8.1" },
-    { name = "boto3", specifier = "==1.43.89" },
-    { name = "botocore", specifier = "==1.43.89" },
+    { name = "boto3", specifier = "==1.43.91" },
+    { name = "botocore", specifier = "==1.43.91" },
     { name = "click", specifier = ">=7.0,<9.0" },
     { name = "croniter", specifier = "==6.2.4" },
     { name = "dateparser", specifier = "==1.4.3" },
     { name = "deepdiff", specifier = "==9.1.0" },
     { name = "dnspython", specifier = "~=2.1" },
-    { name = "dt", specifier = "==1.1.73" },
+    { name = "dt", specifier = "==1.2.2" },
     { name = "filetype", specifier = "~=1.2.0" },
     { name = "gql", specifier = "==4.0.0" },
     { name = "hvac", specifier = "==2.4.0" },
@@ -2629,7 +2629,7 @@ requires-dist = [
     { name = "pyjwt", specifier = "~=2.7" },
     { name = "pyopenssl", specifier = "~=26.2" },
     { name = "pypd", specifier = ">=1.1.0,<1.2.0" },
-    { name = "python-gitlab", specifier = "==6.0.0" },
+    { name = "python-gitlab", specifier = "==6.5.0" },
     { name = "qontract-api-client", editable = "qontract_api_client" },
     { name = "qontract-utils", editable = "qontract_utils" },
     { name = "requests", specifier = "~=2.32" },
@@ -2637,7 +2637,7 @@ requires-dist = [
     { name = "rich", specifier = "==15.0.0" },
     { name = "semver", specifier = "~=3.0" },
     { name = "sendgrid", specifier = "==6.12.5" },
-    { name = "sentry-sdk", specifier = "==2.68.1" },
+    { name = "sentry-sdk", specifier = "==2.69.1" },
     { name = "setuptools", specifier = "<82.0.0" },
     { name = "slack-sdk", specifier = ">=3.10,<4.0" },
     { name = "sretoolbox", specifier = "==4.0.1" },
@@ -2651,7 +2651,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 debugger = [{ name = "debugpy", specifier = "~=1.8.17" }]
 dev = [
-    { name = "boto3-stubs", extras = ["accessanalyzer", "account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"], specifier = "==1.43.89" },
+    { name = "boto3-stubs", extras = ["accessanalyzer", "account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"], specifier = "==1.43.91" },
     { name = "moto", extras = ["ec2", "iam", "logs", "s3", "route53"], specifier = "==5.2.3" },
     { name = "mypy", specifier = "==2.3.1" },
     { name = "pyfakefs", specifier = "==6.2.0" },
@@ -2726,8 +2726,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "boto3", specifier = "==1.43.89" },
-    { name = "botocore", specifier = "==1.43.89" },
+    { name = "boto3", specifier = "==1.43.91" },
+    { name = "botocore", specifier = "==1.43.91" },
     { name = "dateparser", specifier = "==1.4.3" },
     { name = "faststream", extras = ["redis"], specifier = "==0.7.5" },
     { name = "httpx2", specifier = "==2.12.0" },
@@ -2738,7 +2738,7 @@ requires-dist = [
     { name = "prometheus-client", specifier = "==0.26.0" },
     { name = "pydantic", specifier = "==2.13.5" },
     { name = "pygithub", specifier = "==1.59.1" },
-    { name = "python-gitlab", specifier = "==6.0.0" },
+    { name = "python-gitlab", specifier = "==6.5.0" },
     { name = "redis", specifier = "==8.1.0" },
     { name = "requests", specifier = "==2.34.2" },
     { name = "ruamel-yaml", specifier = "==0.19.1" },
@@ -2749,7 +2749,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "boto3-stubs", extras = ["accessanalyzer", "account", "cloudformation", "dynamodb", "iam", "logs", "organizations", "s3", "service-quotas", "sts", "support"], specifier = "==1.43.89" },
+    { name = "boto3-stubs", extras = ["accessanalyzer", "account", "cloudformation", "dynamodb", "iam", "logs", "organizations", "s3", "service-quotas", "sts", "support"], specifier = "==1.43.91" },
     { name = "mypy", specifier = "==2.3.1" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = "==1.4.0" },
@@ -2962,15 +2962,15 @@ wheels = [
 
 [[package]]
 name = "sentry-sdk"
-version = "2.68.1"
+version = "2.69.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9a/e7/c504a4bd2d95df2e0ab73714a9161ff1cf6ff1486922685e5f46dfd9eba8/sentry_sdk-2.68.1.tar.gz", hash = "sha256:6a97895230b04bc35d4d8d2e51e3b9e21902dfb0086ccf1f131a80c15c7b997a", size = 1019262, upload-time = "2026-08-24T13:09:38.108Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/10/16/85874f5e51f8d0767ee8c4b4c460c5ea2bc8a1b613d641d9d9577ba39d3a/sentry_sdk-2.69.1.tar.gz", hash = "sha256:f9284b417540b0784b994fa021eb6f1e30ae1cce593d83541274d03c93966eff", size = 1043599, upload-time = "2026-09-08T14:18:19.505Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2b/28/465ad9382be98f2172e691f5836cf87f936773913ad7ab85ba1ba1d6706e/sentry_sdk-2.68.1-py3-none-any.whl", hash = "sha256:775b78871783a0ffd758276ad01b3bb2b1ebcdad8f9d2f0a7723f76b73c99b65", size = 520851, upload-time = "2026-08-24T13:09:36.186Z" },
+    { url = "https://files.pythonhosted.org/packages/43/eb/17040f8a60c300fe4cc349088d3e351b88812f478b57a0af05a49af7cb7c/sentry_sdk-2.69.1-py3-none-any.whl", hash = "sha256:2d2556d9a14db548982b914cbed2a2dc07b6e55d941a620752f89a2afccfd78d", size = 528587, upload-time = "2026-09-08T14:18:18.151Z" },
 ]
 
 [[package]]

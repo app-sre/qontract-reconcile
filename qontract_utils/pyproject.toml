@@ -5,8 +5,8 @@ description = "Shared utilities for qontract-reconcile and qontract-api"
 requires-python = ">=3.14"
 dependencies = [
     # keep in sync with boto3-stubs in dependency-groups.type
-    "boto3==1.43.89",
-    "botocore==1.43.89",
+    "boto3==1.43.91",
+    "botocore==1.43.91",
     "dateparser==1.4.3",
     "faststream[redis]==0.7.5",
     "httpx2==2.12.0",
@@ -17,7 +17,7 @@ dependencies = [
     "prometheus-client==0.26.0",
     "pydantic==2.13.5",
     "pygithub==1.59.1",
-    "python-gitlab==6.0.0",
+    "python-gitlab==6.5.0",
     "redis==8.1.0",
     "requests==2.34.2",
     "ruamel-yaml==0.19.1",
@@ -30,7 +30,7 @@ dependencies = [
 dev = [
     # development and testing tools
     # keep in sync with project.dependencies.boto3
-    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,iam,logs,organizations,s3,service-quotas,sts,support]==1.43.89",
+    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,iam,logs,organizations,s3,service-quotas,sts,support]==1.43.91",
     "mypy==2.3.1",
     "pytest-asyncio==1.4.0",
     "pytest-cov==7.1.0",
