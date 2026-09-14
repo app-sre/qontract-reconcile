@@ -105,9 +105,14 @@ class ManagedSsoClientIntegration(
 
         Derives the Keycloak client_id here rather than server-side, since
         the naming policy is an app-interface concept - see the client_id
-        assignment below for the exact scheme.
+        assignment below for the exact scheme. The scheme is not injective
+        (e.g. app="foo"/name="bar-baz" and app="foo-bar"/name="baz" both
+        derive "foo-bar-baz"), so a collision is detected and rejected here -
+        left undetected, the server's desired_by_id dict (keyed by clientId)
+        would silently discard one tenant's declaration.
         """
         desired: list[ManagedSsoClientDesiredState] = []
+        seen_client_ids: dict[str, ManagedSsoClientV1] = {}
         for client in clients:
             keycloak_instance = KeycloakInstanceRef(
                 url=client.keycloak_instance.url,
@@ -135,6 +140,14 @@ class ManagedSsoClientIntegration(
                         f"{client.app.name}/{client.name}: unsupported protocol "
                         f"{client.protocol!r}"
                     )
+            if client_id in seen_client_ids:
+                other = seen_client_ids[client_id]
+                raise IntegrationError(
+                    f"{client.app.name}/{client.name} and {other.app.name}/{other.name} "
+                    f"both derive the same Keycloak clientId {client_id!r} - "
+                    "rename one of them"
+                )
+            seen_client_ids[client_id] = client
             desired.append(
                 ManagedSsoClientDesiredState(
                     client_id=client_id,

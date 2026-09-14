@@ -15,7 +15,7 @@ The `managed-sso-client` integration lets tenants declaratively request SSO clie
 - Splits credential storage: an AppSRE-owned Vault secret (full Keycloak response, including the `registration_access_token`) and a tenant-facing Vault secret (`client_id`/`client_secret` only)
 - Supports bringing your own Keycloak instance/realm and initial access token (IAT) via a separate `keycloak-instance-1.yml` reference
 - Per-client error isolation: one client's failure does not abort reconciliation for the rest
-- Client naming is derived, not tenant-chosen: `clientId = "<app.name>-<name>"`, guaranteeing uniqueness across the realm
+- Client naming is derived, not tenant-chosen: `clientId = "<app.name>-<name>"`. Not injective by construction (e.g. `app=foo`/`name=bar-baz` and `app=foo-bar`/`name=baz` both derive `foo-bar-baz`) - a collision is detected client-side and rejected with a clear error rather than silently dropping one tenant's declaration
 - Dry-run mode calculates actions (including live-Keycloak diffing) without applying anything
 - Exposes `managed_sso_clients_managed`, a Prometheus gauge tracking how many managed SSO clients are currently tracked in Vault
 

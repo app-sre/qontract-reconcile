@@ -197,6 +197,21 @@ def test_compile_desired_state_rejects_unresolved_protocol() -> None:
         integration.compile_desired_state([client])
 
 
+def test_compile_desired_state_rejects_colliding_derived_client_ids() -> None:
+    """The <app.name>-<name> scheme is not injective - must fail loudly, not silently drop one.
+
+    app="foo"/name="bar-baz" and app="foo-bar"/name="baz" both derive the
+    same clientId "foo-bar-baz". Left undetected, the server's desired_by_id
+    dict (keyed by clientId) would silently discard one tenant's declaration.
+    """
+    integration = _make_integration()
+    client_a = _make_client(name="bar-baz", app_name="foo")
+    client_b = _make_client(name="baz", app_name="foo-bar")
+
+    with pytest.raises(IntegrationError, match="foo-bar-baz"):
+        integration.compile_desired_state([client_a, client_b])
+
+
 def test_compile_desired_state_output_none_when_unset() -> None:
     integration = _make_integration()
     client = _make_client(output=None)
