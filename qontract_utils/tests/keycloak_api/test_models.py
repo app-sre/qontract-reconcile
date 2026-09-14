@@ -52,6 +52,21 @@ def test_to_raw_joins_post_logout_redirect_uris_with_double_hash() -> None:
     )
 
 
+def test_to_raw_sends_explicit_empty_post_logout_redirect_uris_as_empty_value() -> None:
+    """An explicit [] must actually reach the wire, not fall back to omitted.
+
+    A truthy check on the list (`if self.post_logout_redirect_uris:`) would
+    treat [] the same as unset and omit the attribute key entirely - since
+    Keycloak's PUT merges by field, omitting it leaves whatever was
+    previously configured untouched forever, silently ignoring an explicit
+    clear request.
+    """
+    raw = _minimal(post_logout_redirect_uris=[]).to_raw()
+
+    assert raw.attributes is not None
+    assert not raw.attributes["post.logout.redirect.uris"]
+
+
 def test_to_raw_carries_extra_attributes() -> None:
     raw = _minimal(extra_attributes={"group-filter-regex": "^my-group-.*$"}).to_raw()
 
@@ -103,6 +118,23 @@ def test_from_raw_splits_post_logout_redirect_uris() -> None:
     ]
 
 
+def test_from_raw_parses_empty_post_logout_redirect_uris_attribute_as_empty_list() -> (
+    None
+):
+    """The attribute key present with an empty value means "explicitly cleared".
+
+    Must not become [""] - "".split("##") produces [""], not [] - which
+    would round-trip as drift forever against a desired value of [].
+    """
+    raw = RawClientRepresentation(
+        client_id="c", attributes={"post.logout.redirect.uris": ""}
+    )
+
+    parsed = ManagedKeycloakClient.from_raw(raw)
+
+    assert parsed.post_logout_redirect_uris == []
+
+
 def test_from_raw_preserves_unmodeled_attributes_as_extra() -> None:
     raw = RawClientRepresentation(
         client_id="c", attributes={"some.unmodeled.attribute": "value"}
@@ -114,12 +146,13 @@ def test_from_raw_preserves_unmodeled_attributes_as_extra() -> None:
 
 
 def test_from_raw_handles_missing_attributes() -> None:
+    """No attribute key at all means never configured - distinct from explicit []."""
     raw = RawClientRepresentation(client_id="c")
 
     parsed = ManagedKeycloakClient.from_raw(raw)
 
     assert parsed.extra_attributes == {}
-    assert parsed.post_logout_redirect_uris == []
+    assert parsed.post_logout_redirect_uris is None
 
 
 def test_to_raw_from_raw_round_trip() -> None:

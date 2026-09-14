@@ -71,7 +71,10 @@ class ManagedKeycloakClient(BaseModel, frozen=True):
     def to_raw(self) -> RawClientRepresentation:
         """Fold this typed view into Keycloak's wire-level ClientRepresentation."""
         attributes: dict[str, str] = dict(self.extra_attributes)
-        if self.post_logout_redirect_uris:
+        if self.post_logout_redirect_uris is not None:
+            # An explicit [] is a real desired value (clear it), not "unset" -
+            # must still send the attribute key, distinct from omitting it
+            # entirely. "##".join([]) == "" naturally represents that.
             attributes[_POST_LOGOUT_REDIRECT_URIS_ATTRIBUTE_KEY] = "##".join(
                 self.post_logout_redirect_uris
             )
@@ -99,10 +102,12 @@ class ManagedKeycloakClient(BaseModel, frozen=True):
     def from_raw(cls, raw: RawClientRepresentation) -> Self:
         """Unfold Keycloak's wire-level ClientRepresentation into this typed view."""
         raw_attributes = dict(raw.attributes or {})
-        post_logout_redirect_uris: list[str] = []
+        post_logout_redirect_uris: list[str] | None = None
         joined = raw_attributes.pop(_POST_LOGOUT_REDIRECT_URIS_ATTRIBUTE_KEY, None)
-        if joined:
-            post_logout_redirect_uris = joined.split("##")
+        if joined is not None:
+            # "".split("##") == [""], not [] - an empty attribute value means
+            # explicitly cleared, distinct from the key being absent entirely.
+            post_logout_redirect_uris = joined.split("##") if joined else []
         return cls(
             id=raw.id,
             secret=raw.secret,
