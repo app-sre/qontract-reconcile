@@ -17,7 +17,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 PROVIDER = "blackbox-exporter"
 COO_NAMESPACE_NAME = "app-sre-observability-per-cluster"
-MANAGED_TYPES = ["Probe.monitoring.coreos.com", "Probe.monitoring.rhobs"]
+MANAGED_TYPES = ["Probe.monitoring.rhobs"]
 
 LOG = logging.getLogger(__name__)
 
@@ -89,17 +89,6 @@ def build_probe(
         spec["scrapeTimeout"] = provider.timeout
 
     namespace = blackbox_exporter.namespace
-
-    coreos_body: dict[str, Any] = {
-        "apiVersion": "monitoring.coreos.com/v1",
-        "kind": "Probe",
-        "metadata": {
-            "name": provider.name,
-            "namespace": namespace.get("name"),
-            "labels": {"prometheus": "app-sre"},
-        },
-        "spec": spec,
-    }
     coo_namespace: dict[str, Any] = {**namespace, "name": COO_NAMESPACE_NAME}
     rhobs_body: dict[str, Any] = {
         "apiVersion": "monitoring.rhobs/v1",
@@ -112,12 +101,6 @@ def build_probe(
         "spec": spec,
     }
     return [
-        (
-            OpenshiftResource(
-                coreos_body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
-            ),
-            namespace,
-        ),
         (
             OpenshiftResource(
                 rhobs_body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION

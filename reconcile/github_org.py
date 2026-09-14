@@ -5,7 +5,7 @@ import os
 from typing import TYPE_CHECKING, Any
 
 from github import Github
-from github.GithubObject import NotSet  # type: ignore
+from github.GithubObject import NotSet
 from sretoolbox.utils import retry
 
 from reconcile import (

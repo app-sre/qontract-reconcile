@@ -1,12 +1,14 @@
 """LDAP API client with hook system for metrics, logging, and latency tracking."""
 
 import contextvars
+import re
 import time
 import types
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 from typing import Self
+from urllib.parse import urlparse
 
 import structlog
 from ldap3 import NONE, SAFE_SYNC, Connection, Server
@@ -117,6 +119,63 @@ _LDAP_RETRY_CONFIG = RetryConfig(
 )
 
 
+# GitHub usernames: alphanumerics and single hyphens, max 39 chars. We only
+# validate the character set here (not the full hyphen rules) - a value that
+# survives this is safe to compare against real org members.
+_GITHUB_USERNAME_RE = re.compile(r"[A-Za-z0-9-]{1,39}")
+
+# Hosts whose first path segment is a GitHub user login. `*.github.io` (Pages),
+# custom domains and `gist.github.com` are intentionally excluded: their first
+# path segment is not reliably a username.
+_GITHUB_HOSTS = frozenset({"github.com", "www.github.com"})
+
+# 389 Directory Server caps a single search response at ~2000 entries by
+# default and returns LDAP_SIZELIMIT_EXCEEDED past that. Broad searches must
+# follow the RFC 2696 paged-results cookie until the server signals no more
+# pages. `_PAGED_RESULTS_CONTROL` is the paged-results control OID.
+_LDAP_PAGE_SIZE = 1000
+_PAGED_RESULTS_CONTROL = "1.2.840.113556.1.4.319"
+
+
+def _parse_github_login(social_url: str) -> str | None:
+    """Extract a GitHub login from a single `rhatSocialURL` attribute value.
+
+    Values have the form ``<Social>-><URL>`` (e.g.
+    ``Github->http://github.com/chassing``). Only a *bare* profile URL -
+    ``github.com/<login>`` with exactly one path segment - establishes a login.
+    Repo / sub-path URLs (``github.com/<owner>/<repo>``) are rejected: their
+    first segment is not reliably the linking user (it may be an organization
+    they belong to or another user's repository they contribute to), so trusting
+    it would attribute someone else's login to this user. A user who owns a repo
+    also links their bare profile, so no genuine login is lost.
+
+    Returns None for any non-GitHub label, non-github.com host (``*.github.io``
+    Pages, gist, custom domains), multi-segment path, or empty/malformed login.
+    The login is returned with its original casing - callers normalise for
+    comparison.
+    """
+    label, sep, url = social_url.partition("->")
+    if not sep or label.strip().lower() != "github":
+        return None
+
+    parsed = urlparse(url.strip().rstrip("\x00").strip())
+    if parsed.hostname not in _GITHUB_HOSTS:
+        return None
+
+    segments = [
+        cleaned
+        for raw in parsed.path.split("/")
+        if (cleaned := raw.strip().rstrip("\x00").strip())
+    ]
+    if len(segments) != 1:
+        return None
+
+    segment = segments[0]
+    if not _GITHUB_USERNAME_RE.fullmatch(segment):
+        return None
+    return segment
+
+
 def _get_cn_from_dn(dn: str) -> str:
     """Extract CN value from a DN string."""
     rdn = parse_dn(dn)[0]
@@ -200,6 +259,37 @@ class LdapApi:
                 f"LDAP operation failed (error {error_code}: {error_desc})"
             )
 
+    def _paged_search(
+        self, search_base: str, search_filter: str, attributes: list[str]
+    ) -> list[dict]:
+        """Run an LDAP search across all pages, following the paged cookie.
+
+        Uses RFC 2696 paged results so broad searches survive the server's
+        per-response size limit (389 DS defaults to ~2000 entries). Aggregates
+        the entries from every page.
+        """
+        entries: list[dict] = []
+        cookie: bytes | None = None
+        while True:
+            _, status, page, _ = self._connection.search(
+                search_base,
+                search_filter,
+                attributes=attributes,
+                paged_size=_LDAP_PAGE_SIZE,
+                paged_cookie=cookie,
+            )
+            self._check_ldap_response(status)
+            entries.extend(page)
+            cookie = (
+                status.get("controls", {})
+                .get(_PAGED_RESULTS_CONTROL, {})
+                .get("value", {})
+                .get("cookie")
+            )
+            if not cookie:
+                break
+        return entries
+
     @invoke_with_hooks(
         lambda: LdapApiCallContext(method="get_users"),
         retry_config=_LDAP_RETRY_CONFIG,
@@ -271,3 +361,49 @@ class LdapApi:
             )
             for dn, members in groups_and_members.items()
         ]
+
+    @invoke_with_hooks(
+        lambda: LdapApiCallContext(method="get_github_usernames"),
+        retry_config=_LDAP_RETRY_CONFIG,
+    )
+    def get_github_usernames(self) -> dict[str, list[str]]:
+        """Build a GitHub-login -> LDAP uid(s) map from `rhatSocialURL`.
+
+        Searches the active users container for entries whose `rhatSocialURL`
+        holds a bare `Github->...github.com/<login>` value and groups the parsed
+        GitHub login to every uid that claims it. Values that are not bare
+        github.com user URLs are skipped (see `_parse_github_login`).
+
+        Login keys are lowercased (GitHub logins are case-insensitive) and each
+        maps to the sorted list of distinct uids seen for it. This layer only
+        extracts data: a login claimed by more than one uid is *not* resolved
+        here - deciding what to do with such ambiguity is the caller's policy,
+        applied to the specific logins it requested rather than to the whole
+        directory (see `LdapWorkspaceClient.resolve_github_usernames`).
+
+        The search is paged (RFC 2696) so it survives the directory server's
+        per-response size limit - the broad filter can match more entries than
+        389 DS returns in a single response.
+
+        Returns:
+            Mapping of lowercased GitHub login to the sorted list of LDAP uids
+            (org_usernames) that claim it
+
+        Raises:
+            LdapApiError: If the LDAP search fails
+        """
+        results = self._paged_search(
+            f"cn=users,cn=accounts,{self.base_dn}",
+            "(&(objectclass=person)(rhatSocialURL=Github->*github.com/*))",
+            attributes=["uid", "rhatSocialURL"],
+        )
+
+        by_login: dict[str, set[str]] = defaultdict(set[str])
+        for r in results:
+            attributes = r["attributes"]
+            uid = attributes["uid"][0]
+            for value in attributes.get("rhatSocialURL", []):
+                if login := _parse_github_login(value):
+                    by_login[login.lower()].add(uid)
+
+        return {login: sorted(uids) for login, uids in by_login.items()}

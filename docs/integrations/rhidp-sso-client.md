@@ -25,10 +25,10 @@ Desired state is compiled client-side from two sources:
 1. **OCM cluster labels** under the `sre-capabilities.rhidp` namespace, discovered via qontract-api's `/external/ocm/clusters` endpoint and interpreted client-side (label interpretation is deliberately kept out of qontract-api, which stays domain-agnostic):
    - `sre-capabilities.rhidp.name` — auth name (falls back to `--default-auth-name`)
    - `sre-capabilities.rhidp.issuer` — Keycloak issuer URL (falls back to `--default-auth-issuer-url`)
-   - `sre-capabilities.rhidp.status` — `enabled` / `disabled` / `enforced` / `sso-client-only` (the deprecated bare `sre-capabilities.rhidp` label takes precedence over `.status` when both are set; missing entirely defaults to `disabled`)
+   - `sre-capabilities.rhidp.status` — `enabled` / `disabled` / `enforced` / `sso-client-only` / `ignored` (the deprecated bare `sre-capabilities.rhidp` label takes precedence over `.status` when both are set; missing entirely defaults to `disabled`)
    - `sre-capabilities.rhidp.group-filter-regex` — optional group filter regex passed through to Keycloak
-   - Clusters without a console URL, or with external auth enabled, can never get an SSO client and are excluded entirely
-   - Clusters are sent to qontract-api regardless of `status` (not just enabled ones) so the `rhidp_managed_clusters` metric reflects every discovered cluster, matching legacy semantics — only `rhidp_enabled=true` clusters are actually reconciled server-side
+   - Clusters without a console URL, with external auth enabled, or labeled `ignored`, can never get an SSO client and are excluded entirely
+   - Clusters are sent to qontract-api regardless of `status` (not just enabled ones) so the `rhidp_managed_clusters` metric reflects every discovered cluster, matching legacy semantics — only `rhidp_enabled=true` clusters are actually reconciled server-side. `ignored` clusters are the one exception — they're dropped client-side before qontract-api ever sees them, so they aren't counted toward `rhidp_managed_clusters` either
 2. **CLI parameters** — which Keycloak instances exist (issuer URL + Vault secret reference for the instance's initial-access-token), which Vault path to store SSO client secrets under, and default auth name/issuer for clusters without explicit labels
 
 ## Architecture

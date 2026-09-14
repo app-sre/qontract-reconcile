@@ -80,7 +80,7 @@ class NamespaceV1(ConfiguredBaseModel):
 
 
 class OidcPermissionAcsV1(OidcPermissionV1):
-    instance: Optional[AcsInstanceV1] = Field(..., alias="instance")
+    instance: AcsInstanceV1 = Field(..., alias="instance")
     permission_set: str = Field(..., alias="permission_set")
     clusters: Optional[list[ClusterV1]] = Field(..., alias="clusters")
     namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")

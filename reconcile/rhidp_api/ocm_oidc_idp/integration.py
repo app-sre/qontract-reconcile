@@ -74,6 +74,8 @@ def build_clusters(
     semantics (oidc_enabled/enforced), mirror reconcile/rhidp/common.py::ClusterAuth
     exactly. Clusters without a console URL or with external auth enabled are
     excluded entirely, mirroring reconcile/rhidp/common.py::build_cluster_objects.
+    Clusters labeled `ignored` are excluded entirely too - unlike `disabled`, which
+    is still sent so the server can clean up a stale identity provider.
     """
     result: list[OcmOidcIdpCluster] = []
     for cluster in clusters:
@@ -81,6 +83,9 @@ def build_clusters(
             continue
 
         labels: dict[str, Any] = cluster.labels or {}
+        if labels.get(STATUS_LABEL_KEY) == StatusValue.IGNORED.value:
+            continue
+
         status = (
             labels.get(RHIDP_NAMESPACE_LABEL_KEY)
             or labels.get(STATUS_LABEL_KEY)

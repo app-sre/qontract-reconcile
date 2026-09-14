@@ -139,6 +139,27 @@ gql_response:
           - provider: asg
             identifier: test-same-sshConnector-JVMOpts
             defaults: "/terraform/resources/asg-1.yml"
+    - account: app-sre
+      identifier: test-add-sshConnector-prefixStartSlaveCmd
+      sshConnector:
+        credentialsId: jenkins
+        prefixStartSlaveCmd: "cloud-init status --wait && "
+      fsRoot: "/var/lib/jenkins"
+      labelString: rhel7
+      numExecutors: 3
+      namespace:
+        name: app-sre
+        managedExternalResources: true
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+            resourcesDefaultRegion: us-east-1
+          resources:
+          - provider: aws-iam-service-account
+          - provider: asg
+            identifier: test-add-sshConnector-prefixStartSlaveCmd
+            defaults: "/terraform/resources/asg-1.yml"
 
   - name: ci-ext
     workerFleets:

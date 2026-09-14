@@ -134,7 +134,7 @@ class AcsPolicyConditionsImageAgeV1(AcsPolicyConditionsV1):
 
 class AcsPolicyV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    instance: Optional[AcsInstanceV1] = Field(..., alias="instance")
+    instance: AcsInstanceV1 = Field(..., alias="instance")
     description: Optional[str] = Field(..., alias="description")
     severity: str = Field(..., alias="severity")
     categories: list[str] = Field(..., alias="categories")

@@ -63,7 +63,11 @@ def make_ocm_environment(name: str = "prod") -> OCMEnvironment:
         accessTokenClientId="client-id",
         accessTokenUrl="https://sso.redhat.com/token",
         accessTokenClientSecret=VaultSecret(
-            path="app-sre/creds/ocm", field="client_secret", version=None, format=None
+            path="app-sre/creds/ocm",
+            field="client_secret",
+            version=None,
+            format=None,
+            url=None,
         ),
     )
 
@@ -121,6 +125,21 @@ class TestBuildClusters:
         assert result[0].auth.issuer == "https://custom-issuer"
         assert result[0].rhidp_enabled is True
         assert result[0].auth.group_filter_regex == "^team-.*$"
+
+    def test_excludes_ignored_clusters(self) -> None:
+        result = build_clusters(
+            [
+                make_ocm_cluster(
+                    name="ignored-cluster",
+                    labels={"sre-capabilities.rhidp.status": "ignored"},
+                ),
+                make_ocm_cluster(name="not-ignored-cluster"),
+            ],
+            "redhat-sso",
+            "https://default-issuer.example.com",
+        )
+
+        assert [cluster.name for cluster in result] == ["not-ignored-cluster"]
 
     def test_deprecated_bare_rhidp_label_takes_precedence(self) -> None:
         result = build_clusters(

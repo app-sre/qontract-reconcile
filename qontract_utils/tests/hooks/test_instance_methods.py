@@ -124,7 +124,7 @@ def test_error_hook_on_exception() -> None:
     """Test error-hooks are executed when an exception occurs."""
     execution_order: list[str] = []
 
-    def error_hook() -> None:
+    def error_hook(_exc: Exception) -> None:
         execution_order.append("error")
 
     class TestApi:
@@ -147,10 +147,10 @@ def test_multiple_error_hooks() -> None:
     """Test multiple error-hooks are executed in order."""
     execution_order: list[str] = []
 
-    def error_hook_1() -> None:
+    def error_hook_1(_exc: Exception) -> None:
         execution_order.append("error1")
 
-    def error_hook_2() -> None:
+    def error_hook_2(_exc: Exception) -> None:
         execution_order.append("error2")
 
     class TestApi:
@@ -175,7 +175,7 @@ def test_error_hooks_not_called_on_success() -> None:
     """Test error-hooks are NOT executed when no exception occurs."""
     execution_order: list[str] = []
 
-    def error_hook() -> None:
+    def error_hook(_exc: Exception) -> None:
         execution_order.append("error")
 
     class TestApi:
@@ -195,7 +195,7 @@ def test_post_hooks_called_after_error_hooks() -> None:
     """Test post-hooks are executed after error-hooks."""
     execution_order: list[str] = []
 
-    def error_hook() -> None:
+    def error_hook(_exc: Exception) -> None:
         execution_order.append("error")
 
     def post_hook() -> None:
@@ -231,7 +231,7 @@ def test_full_lifecycle_no_error() -> None:
     def post_hook() -> None:
         execution_order.append("post")
 
-    def error_hook() -> None:
+    def error_hook(_exc: Exception) -> None:
         execution_order.append("error")
 
     class TestApi:
@@ -262,7 +262,7 @@ def test_full_lifecycle_with_error() -> None:
     def post_hook() -> None:
         execution_order.append("post")
 
-    def error_hook() -> None:
+    def error_hook(_exc: Exception) -> None:
         execution_order.append("error")
 
     class TestApi:
@@ -332,7 +332,7 @@ def test_context_modification_in_error_hook() -> None:
     """Test error-hooks can access context during error."""
     context_data: dict[str, Any] = {}
 
-    def error_hook(ctx: dict[str, Any]) -> None:
+    def error_hook(ctx: dict[str, Any], _exc: Exception) -> None:
         ctx["error_handled"] = True
         # Store context for verification
         context_data.update(ctx)
@@ -409,7 +409,7 @@ def test_exception_in_post_hook() -> None:
 def test_exception_in_error_hook() -> None:
     """Test exceptions in error-hooks are propagated (last one wins)."""
 
-    def error_hook() -> None:
+    def error_hook(_exc: Exception) -> None:
         raise ValueError("error-hook error")
 
     class TestApi:
@@ -498,14 +498,13 @@ def test_post_hook_executes_even_after_main_error() -> None:
 def test_exception_in_first_error_hook_stops_processing() -> None:
     """Test when first error hook raises, it stops processing other error hooks."""
 
-    def error_hook_1() -> None:
+    def error_hook_1(_exc: Exception) -> None:
         raise ValueError("error1")
 
     context_data: dict[str, Any] = {}
 
-    def error_hook_2(ctx: dict[str, Any]) -> None:
-        ctx["hook2_called"] = True
-        context_data.update(ctx)
+    def error_hook_2(_exc: Exception) -> None:
+        context_data["hook2_called"] = True
 
     class TestApi:
         def __init__(self) -> None:
@@ -572,7 +571,7 @@ def test_complex_context_type() -> None:
     def post_hook(ctx: RequestContext) -> None:
         ctx.status = "completed"
 
-    def error_hook(ctx: RequestContext) -> None:
+    def error_hook(ctx: RequestContext, _exc: Exception) -> None:
         ctx.status = "failed"
 
     context = RequestContext(request_id="123")

@@ -101,7 +101,7 @@ def build_ocm_environment(env_name: str | None = None) -> OCMEnvironment:
         accessTokenClientId="client-id",
         accessTokenUrl="https://token-url",
         accessTokenClientSecret=VaultSecret(
-            path="secret/path", field="field", version=None, format=None
+            path="secret/path", field="field", version=None, format=None, url=None
         ),
         url="https://ocm-url",
     )

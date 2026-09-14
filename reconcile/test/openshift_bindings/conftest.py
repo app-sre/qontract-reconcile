@@ -260,6 +260,7 @@ def test_vault_secret() -> VaultSecret:
         field="token",
         version=None,
         format=None,
+        url=None,
     )
 
 

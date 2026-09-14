@@ -1,8 +1,10 @@
 """Unit tests for GithubOwnersService."""
 
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
+from qontract_utils.github_org import GithubRateLimitExceededError
 
 from qontract_api.config import Settings
 from qontract_api.github import GithubOrgWorkspaceClient
@@ -206,6 +208,106 @@ def test_reconcile_multiple_orgs(
     assert len(result.actions) == 2
     org_names = {a.org_name for a in result.actions}
     assert org_names == {"org-a", "org-b"}
+
+
+def test_reconcile_skips_rate_limited_org_without_error(
+    service: GithubOwnersService,
+    test_org: GithubOrgDesiredState,
+    mock_github_client: MagicMock,
+) -> None:
+    """A rate-limited org is skipped for this cycle without recording an error."""
+    reset_at = datetime.now(UTC) + timedelta(minutes=5)
+    mock_github_client.get_current_members.side_effect = GithubRateLimitExceededError(
+        reset_at
+    )
+
+    result = service.reconcile(organizations=[test_org], dry_run=True)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.errors == []
+    assert result.actions == []
+
+
+def test_reconcile_rate_limited_one_org_others_succeed(
+    service: GithubOwnersService,
+    test_token: Secret,
+    mock_github_client_factory: MagicMock,
+) -> None:
+    """A rate-limited org does not prevent other orgs from being reconciled."""
+    reset_at = datetime.now(UTC) + timedelta(minutes=5)
+    rate_limited_client = MagicMock(spec=GithubOrgWorkspaceClient)
+    rate_limited_client.get_current_members.side_effect = GithubRateLimitExceededError(
+        reset_at
+    )
+    ok_client = MagicMock(spec=GithubOrgWorkspaceClient)
+    ok_client.get_current_members.return_value = []
+    mock_github_client_factory.create_workspace_client.side_effect = [
+        rate_limited_client,
+        ok_client,
+    ]
+
+    orgs = [
+        GithubOrgDesiredState(org_name="org-a", token=test_token, owners=["alice"]),
+        GithubOrgDesiredState(org_name="org-b", token=test_token, owners=["bob"]),
+    ]
+
+    result = service.reconcile(organizations=orgs, dry_run=True)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.errors == []
+    assert len(result.actions) == 1
+    assert result.actions[0].org_name == "org-b"
+
+
+def test_reconcile_rate_limit_during_apply_not_dry_run(
+    service: GithubOwnersService,
+    test_token: Secret,
+    mock_github_client: MagicMock,
+) -> None:
+    """A rate limit hit while applying an action is skipped, not recorded as an error."""
+    reset_at = datetime.now(UTC) + timedelta(minutes=5)
+    mock_github_client.get_current_members.return_value = []
+    mock_github_client.add_member_as_admin.side_effect = GithubRateLimitExceededError(
+        reset_at
+    )
+
+    org = GithubOrgDesiredState(
+        org_name="my-org",
+        token=test_token,
+        owners=["alice"],
+    )
+
+    result = service.reconcile(organizations=[org], dry_run=False)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.errors == []
+    assert result.applied_count == 0
+
+
+def test_reconcile_stops_remaining_actions_for_org_after_rate_limit(
+    service: GithubOwnersService,
+    test_token: Secret,
+    mock_github_client: MagicMock,
+) -> None:
+    """Once rate-limited mid-apply, remaining actions for that org must be skipped."""
+    reset_at = datetime.now(UTC) + timedelta(minutes=5)
+    mock_github_client.get_current_members.return_value = []
+    mock_github_client.add_member_as_admin.side_effect = GithubRateLimitExceededError(
+        reset_at
+    )
+
+    org = GithubOrgDesiredState(
+        org_name="my-org",
+        token=test_token,
+        owners=["alice", "bob"],
+    )
+
+    result = service.reconcile(organizations=[org], dry_run=False)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.errors == []
+    assert result.applied_count == 0
+    mock_github_client.add_member_as_admin.assert_called_once()
 
 
 def test_owners_are_normalized(test_token: Secret) -> None:

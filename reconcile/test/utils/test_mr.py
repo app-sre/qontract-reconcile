@@ -413,7 +413,7 @@ def smtp_settings() -> SmtpSettingsV1:
     return SmtpSettingsV1(
         mailAddress="redhat.com",
         timeout=30,
-        credentials=VaultSecret(path="", field="", version=1, format=""),
+        credentials=VaultSecret(path="", field="", version=1, format="", url=None),
     )
 
 

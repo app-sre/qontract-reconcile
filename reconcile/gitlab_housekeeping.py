@@ -704,7 +704,7 @@ def _try_rebase(
     gl: GitLabApi,
     mr: ProjectMergeRequest,
 ) -> bool:
-    """Attempt to rebase an MR. Returns True on success, False on failure."""
+    """Attempt to rebase a MR. Returns True on success, False on failure."""
     try:
         logging.info(["rebase", gl.project.name, mr.iid])
         if not dry_run:

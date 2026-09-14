@@ -76,7 +76,7 @@ def test_generator_post_hooks_fire_on_close() -> None:
         def __init__(self) -> None:
             self._hooks = Hooks(
                 post_hooks=[lambda: execution_order.append("post")],
-                error_hooks=[lambda: execution_order.append("error")],
+                error_hooks=[lambda _exc: execution_order.append("error")],
                 retry_config=NO_RETRY_CONFIG,
             )
 
@@ -97,7 +97,7 @@ def test_generator_post_hooks_fire_on_close() -> None:
 def test_generator_error_hooks_fire_on_exception() -> None:
     execution_order: list[str] = []
 
-    def error_hook() -> None:
+    def error_hook(_exc: Exception) -> None:
         execution_order.append("error")
 
     def post_hook() -> None:

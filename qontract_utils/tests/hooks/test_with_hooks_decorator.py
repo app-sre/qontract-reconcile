@@ -253,10 +253,10 @@ def test_merges_error_hooks() -> None:
     """Test that decorator error hooks are merged with user error hooks."""
     execution_order: list[str] = []
 
-    def decorator_error_hook(_ctx: Any) -> None:
+    def decorator_error_hook(_ctx: Any, _exc: Exception) -> None:
         execution_order.append("decorator_error")
 
-    def user_error_hook(_ctx: Any) -> None:
+    def user_error_hook(_ctx: Any, _exc: Exception) -> None:
         execution_order.append("user_error")
 
     @with_hooks(

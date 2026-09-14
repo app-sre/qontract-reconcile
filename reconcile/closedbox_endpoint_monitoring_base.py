@@ -168,7 +168,7 @@ def run_for_provider(
             internal=internal,
             integration=integration,
             integration_version=integration_version,
-            override_managed_types=managed_types or ["Probe.monitoring.coreos.com"],
+            override_managed_types=managed_types or ["Probe.monitoring.rhobs"],
         )
         if defer:
             defer(oc_map.cleanup)

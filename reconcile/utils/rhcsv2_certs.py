@@ -66,7 +66,14 @@ def extract_cert(text: str) -> re.Match:
         re.DOTALL,
     )
     if not cert_pem:
-        raise ValueError("Could not extract certificate PEM from response")
+        error_code = re.search(r'errorCode\s*=\s*"([^"]*)"', text)
+        error_reason = re.search(r'errorReason\s*=\s*"([^"]*)"', text)
+        detail = (
+            f" (CA errorCode={error_code.group(1)}: {error_reason.group(1)})"
+            if error_code and error_reason
+            else ""
+        )
+        raise ValueError(f"Could not extract certificate PEM from response{detail}")
     return cert_pem
 
 

@@ -430,8 +430,13 @@ class DashdotdbDORA(DashdotdbBase):
                     commits = self._github_compare_commits(rc, repo_info.name)
                 except GithubException as e:
                     if e.status == 404:
+                        message = (
+                            e.data.get("message", e.data)
+                            if isinstance(e.data, dict)
+                            else e.data
+                        )
                         LOG.info(
-                            f"Ignoring RepoChanges for {rc} because could not calculate them: {e.data['message']}"
+                            f"Ignoring RepoChanges for {rc} because could not calculate them: {message}"
                         )
                         return rc, []
             case "gitlab":

@@ -84,11 +84,12 @@ def test_blackbox_exporter_probe_building(mocker: MockerFixture) -> None:
     provider_endpoints = endpoints.get(provider)
     assert provider_endpoints is not None
     probes = blackbox_exporter_probe_builder(provider, provider_endpoints)
-    assert len(probes) == 2
+    assert len(probes) == 1
 
-    probe_resource, namespace = probes[0]
-    assert probe_resource.body["apiVersion"] == "monitoring.coreos.com/v1"
-    assert namespace["name"] == "openshift-customer-monitoring"
+    # verify COO rhobs probe
+    probe_resource, coo_namespace = probes[0]
+    assert probe_resource.body["apiVersion"] == "monitoring.rhobs/v1"
+    assert coo_namespace["name"] == "app-sre-observability-per-cluster"
 
     # verify prober url decomposition
     spec = probe_resource.body.get("spec", {})
@@ -110,13 +111,6 @@ def test_blackbox_exporter_probe_building(mocker: MockerFixture) -> None:
     assert "https://test1.url" in spec["targets"]["staticConfig"]["static"]
     assert "https://test2.url" in spec["targets"]["staticConfig"]["static"]
 
-    # verify COO rhobs probe
-    coo_probe, coo_namespace = probes[1]
-    assert coo_probe.body["apiVersion"] == "monitoring.rhobs/v1"
-    assert coo_namespace["name"] == "app-sre-observability-per-cluster"
-    assert coo_namespace["cluster"] == namespace["cluster"]
-    assert coo_probe.body["spec"] == spec
-
 
 def test_signalfx_probe_building(mocker: MockerFixture) -> None:
     ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
@@ -129,10 +123,12 @@ def test_signalfx_probe_building(mocker: MockerFixture) -> None:
     provider_endpoints = endpoints.get(provider)
     assert provider_endpoints is not None
     probes = signalfx_probe_builder(provider, provider_endpoints)
-    assert len(probes) == 2
+    assert len(probes) == 1
 
-    probe_resource, namespace = probes[0]
-    assert probe_resource.body["apiVersion"] == "monitoring.coreos.com/v1"
+    # verify COO rhobs probe
+    probe_resource, coo_namespace = probes[0]
+    assert probe_resource.body["apiVersion"] == "monitoring.rhobs/v1"
+    assert coo_namespace["name"] == "app-sre-observability-per-cluster"
 
     # verify prober url decomposition
     spec = probe_resource.body.get("spec", {})
@@ -170,27 +166,8 @@ def test_signalfx_probe_building(mocker: MockerFixture) -> None:
         "targetLabel": "instance",
     } in spec["targets"]["staticConfig"]["relabelingConfigs"]
 
-    # verify COO rhobs probe
-    coo_probe, coo_namespace = probes[1]
-    assert coo_probe.body["apiVersion"] == "monitoring.rhobs/v1"
-    assert coo_namespace["name"] == "app-sre-observability-per-cluster"
-    assert coo_namespace["cluster"] == namespace["cluster"]
-    assert coo_probe.body["spec"] == spec
 
-
-@pytest.mark.parametrize(
-    "probe_idx,expected_namespace,expected_resource_type",
-    [
-        (0, "openshift-customer-monitoring", "Probe.monitoring.coreos.com"),
-        (1, "app-sre-observability-per-cluster", "Probe.monitoring.rhobs"),
-    ],
-)
-def test_blackbox_exporter_filling_desired_state(
-    mocker: MockerFixture,
-    probe_idx: int,
-    expected_namespace: str,
-    expected_resource_type: str,
-) -> None:
+def test_blackbox_exporter_filling_desired_state(mocker: MockerFixture) -> None:
     ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     ep_query.return_value = get_endpoint_fixtures("test_endpoint.yaml")
     add_desired_mock = mocker.patch.object(ResourceInventory, "add_desired")
@@ -198,32 +175,21 @@ def test_blackbox_exporter_filling_desired_state(
     endpoints = get_endpoints(BLACKBOX_EXPORTER_PROVIDER)
     provider = next(iter(endpoints.keys()))
     probes = blackbox_exporter_probe_builder(provider, endpoints[provider])
-    probe, ns = probes[probe_idx]
+    assert len(probes) == 1
+    probe, ns = probes[0]
     fill_desired_state(ns, probe, ResourceInventory())
 
     assert add_desired_mock.call_count == 1
     add_desired_mock.assert_called_with(
         cluster="app-sre-stage-01",
-        namespace=expected_namespace,
-        resource_type=expected_resource_type,
+        namespace="app-sre-observability-per-cluster",
+        resource_type="Probe.monitoring.rhobs",
         name="blackbox-exporter-http-2xx",
         value=ANY,
     )
 
 
-@pytest.mark.parametrize(
-    "probe_idx,expected_namespace,expected_resource_type",
-    [
-        (0, "openshift-customer-monitoring", "Probe.monitoring.coreos.com"),
-        (1, "app-sre-observability-per-cluster", "Probe.monitoring.rhobs"),
-    ],
-)
-def test_signalfx_filling_desired_state(
-    mocker: MockerFixture,
-    probe_idx: int,
-    expected_namespace: str,
-    expected_resource_type: str,
-) -> None:
+def test_signalfx_filling_desired_state(mocker: MockerFixture) -> None:
     ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     ep_query.return_value = get_endpoint_fixtures("test_endpoint.yaml")
     add_desired_mock = mocker.patch.object(ResourceInventory, "add_desired")
@@ -231,15 +197,15 @@ def test_signalfx_filling_desired_state(
     endpoints = get_endpoints(SIGNALFX_PROVIDER)
     provider = next(iter(endpoints.keys()))
     probes = signalfx_probe_builder(provider, endpoints[provider])
-    assert len(probes) == 2
-    probe, ns = probes[probe_idx]
+    assert len(probes) == 1
+    probe, ns = probes[0]
     fill_desired_state(ns, probe, ResourceInventory())
 
     assert add_desired_mock.call_count == 1
     add_desired_mock.assert_called_with(
         cluster="app-sre-stage-01",
-        namespace=expected_namespace,
-        resource_type=expected_resource_type,
+        namespace="app-sre-observability-per-cluster",
+        resource_type="Probe.monitoring.rhobs",
         name="signalfx-exporter-http-2xx",
         value=ANY,
     )

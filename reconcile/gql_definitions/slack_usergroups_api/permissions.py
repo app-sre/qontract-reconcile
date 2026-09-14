@@ -32,6 +32,7 @@ fragment User on User_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
+  url
   path
   field
   version
@@ -60,6 +61,12 @@ query SlackUsergroupApiPermission {
         }
         scheduleID
         escalationPolicyID
+      }
+      github {
+        name
+        token {
+          ...VaultSecret
+        }
       }
       roles {
         users {
@@ -119,6 +126,11 @@ class PagerDutyTargetV1(ConfiguredBaseModel):
     escalation_policy_id: Optional[str] = Field(..., alias="escalationPolicyID")
 
 
+class GithubOrgV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    token: VaultSecret = Field(..., alias="token")
+
+
 class RoleV1(ConfiguredBaseModel):
     users: list[User] = Field(..., alias="users")
 
@@ -154,6 +166,7 @@ class PermissionSlackUsergroupV1(PermissionV1):
     owners_from_repos: Optional[list[str]] = Field(..., alias="ownersFromRepos")
     skip: Optional[bool] = Field(..., alias="skip")
     pagerduty: Optional[list[PagerDutyTargetV1]] = Field(..., alias="pagerduty")
+    github: Optional[GithubOrgV1] = Field(..., alias="github")
     roles: Optional[list[RoleV1]] = Field(..., alias="roles")
     schedule: Optional[ScheduleV1] = Field(..., alias="schedule")
     workspace: SlackWorkspaceV1 = Field(..., alias="workspace")

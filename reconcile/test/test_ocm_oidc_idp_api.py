@@ -57,7 +57,11 @@ def make_ocm_environment(name: str = "prod") -> OCMEnvironment:
         accessTokenClientId="client-id",
         accessTokenUrl="https://sso.redhat.com/token",
         accessTokenClientSecret=VaultSecret(
-            path="app-sre/creds/ocm", field="client_secret", version=None, format=None
+            path="app-sre/creds/ocm",
+            field="client_secret",
+            version=None,
+            format=None,
+            url=None,
         ),
     )
 
@@ -166,6 +170,22 @@ def test_build_clusters_status_label_maps_to_oidc_flags(
     assert len(result) == 1
     assert result[0].auth.oidc_enabled is expected_oidc_enabled
     assert result[0].auth.enforced is expected_enforced
+
+
+def test_build_clusters_excludes_ignored_clusters() -> None:
+    result = build_clusters(
+        [
+            make_ocm_cluster(
+                name="ignored-cluster",
+                labels={"sre-capabilities.rhidp.status": "ignored"},
+            ),
+            make_ocm_cluster(name="not-ignored-cluster"),
+        ],
+        "redhat-sso",
+        "https://default-issuer.example.com",
+    )
+
+    assert [cluster.name for cluster in result] == ["not-ignored-cluster"]
 
 
 def test_build_clusters_deprecated_bare_rhidp_label_takes_precedence() -> None:
