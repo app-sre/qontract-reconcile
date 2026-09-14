@@ -248,8 +248,10 @@ class ManagedSsoClientService:
                 "(registration_access_token rotated) but persisting the new token "
                 f"to Vault failed: {e}. Keycloak and Vault are now INCONSISTENT for "
                 "this client - every future GET/PUT/DELETE will fail until this is "
-                "fixed manually (re-run reconcile once Vault recovers, or delete "
-                "and recreate the client if the token is unrecoverable)."
+                "fixed manually. Simply re-running reconcile will NOT self-heal: the "
+                "old token in Vault is already invalid on Keycloak's side. Manually "
+                "recreate the management secret with the correct token if it can be "
+                "recovered, otherwise delete and recreate the client (new credentials)."
             )
             raise ManagedSsoClientTokenPersistError(msg) from e
 

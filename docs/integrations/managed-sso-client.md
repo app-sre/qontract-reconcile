@@ -30,12 +30,13 @@ Desired state is compiled from `managed_sso_clients_v1` in App-Interface (schema
 - `oidc` — inline OIDC configuration (`/dependencies/managed-sso-client-oidc-1.yml`); `redirectUris` is the only required field
 - `output` — optional Vault path for the tenant-facing credential secret; if omitted, the reconciler picks an integration-managed default path
 
+`description` is schema-level only - the client-side query does not fetch it and qontract-api has no field for it, so it is not sent to or diffed against Keycloak. It exists purely for tenants to document their own client definitions in app-interface.
+
 **Example client definition:**
 
 ```yaml
 $schema: /dependencies/managed-sso-client-1.yml
 name: ci-bot
-description: CI client for my-app
 app:
   $ref: /services/my-app/app.yml
 keycloakInstance:
@@ -280,7 +281,7 @@ oidc:
 
 1. Queries `managed_sso_clients_v1` — a protocol-discriminated GraphQL interface — including the `... on ManagedSsoClientOpenidConnect_v1 { oidc { ... } }` inline fragment and the `keycloakInstance`/`app` crossrefs
 2. Pattern-matches each query result on its concrete generated type (`case ManagedSsoClientOpenidConnectV1(): ...`); a client that doesn't resolve to a known type raises `IntegrationError` via the fallback `case _`
-3. Passes an unset `accessType` through as `None` rather than resolving it to a default - it's unmanaged unless the tenant sets it
+3. Does not resolve `accessType` client-side - passes an unset value through as `None`. The server always resolves it to `confidential` and always includes it in drift detection (see [Client-Side Architecture](#architecture) line above); it is never truly unmanaged, unlike every other optional OIDC field
 4. Sends one `POST /api/v1/integrations/managed-sso-client/reconcile` request for all clients
 5. In **dry-run**: polls `GET /reconcile/{task_id}`, logs actions, raises `IntegrationError` on errors or timeout
 6. In **non-dry-run**: returns immediately after queuing (fire-and-forget)
@@ -303,13 +304,19 @@ qontract-reconcile managed-sso-client --dry-run
 
 - **Symptom:** A client update rotated its Keycloak registration token but the new token failed to persist to Vault
 - **Cause:** Vault outage or connectivity issue coinciding with an update
-- **Solution:** This does not self-heal — investigate immediately. Once Vault recovers, re-run reconcile; if the token is unrecoverable, the client must be deleted and recreated (new credentials)
+- **Solution:** This does not self-heal, and simply re-running reconcile is not a viable recovery path: `PUT` already rotated the registration token on Keycloak's side, so the stale token still in Vault will fail the next reconcile's `GET` before it can even attempt to update the client again. Investigate immediately - manually recreate the management secret with the correct token if it can be recovered from Keycloak's response/logs, otherwise delete and recreate the client (new credentials)
 
-**Issue: 401/403 from Keycloak on update or delete**
+**Issue: 401/403 from Keycloak on update**
 
 - **Symptom:** Diff/apply fails for a client; recorded in `errors`
 - **Cause:** The realm's IAT or the client's stored `registration_access_token` is invalid/expired
 - **Solution:** Verify the `keycloak-instance-1.yml`'s `initialAccessToken` is current; for a stale per-client token, the client may need to be deleted and recreated
+
+**Issue: delete appears to fail but Vault secrets are gone**
+
+- **Symptom:** None - this is expected, not a failure. `_delete_client` treats a 401 or 404 from Keycloak as "already deleted": it logs a warning, then proceeds to remove both Vault secrets normally. Only other statuses (e.g. 403) are re-raised as a real error
+- **Cause:** N/A
+- **Solution:** N/A - if you see a real delete error in `errors`, it is a status other than 401/404 (e.g. 403), which does need investigation separately from the update failure modes above
 
 ## References
 
