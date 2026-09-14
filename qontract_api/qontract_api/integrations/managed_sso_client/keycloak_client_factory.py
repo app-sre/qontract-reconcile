@@ -22,6 +22,24 @@ if TYPE_CHECKING:
     from qontract_api.secret_manager import SecretManager
 
 
+def _build_client(
+    instance: KeycloakInstanceRef,
+    cache: CacheBackend,
+    secret_manager: SecretManager,
+    settings: Settings,
+) -> KeycloakWorkspaceClient:
+    """Build a single KeycloakWorkspaceClient for one realm."""
+    secret = instance.initial_access_token
+    data = secret_manager.read_all(secret)
+    initial_access_token = resolve_initial_access_token(
+        data, secret.field, path=secret.path
+    )
+    api = KeycloakApi(
+        url=instance.url, initial_access_token=initial_access_token, require_https=True
+    )
+    return KeycloakWorkspaceClient(keycloak_api=api, cache=cache, settings=settings)
+
+
 def build_keycloak_instances(
     instances: Sequence[KeycloakInstanceRef],
     cache: CacheBackend,
@@ -35,6 +53,9 @@ def build_keycloak_instances(
     instance - a client is only registered/read/deleted through the workspace
     client for the exact instance it declared. The IAT secret data itself may
     be in either of Vault's two coexisting shapes - see qontract_api.keycloak_iat.
+    If a later instance fails, every client already built for an earlier one
+    is closed before the exception propagates, so a caller never has to
+    guess which connections got orphaned.
 
     Args:
         instances: Keycloak instance refs referenced by the desired clients
@@ -46,20 +67,14 @@ def build_keycloak_instances(
         Dict of realm URL -> KeycloakWorkspaceClient
     """
     clients: dict[str, KeycloakWorkspaceClient] = {}
-    for instance in instances:
-        if instance.url in clients:
-            continue
-        secret = instance.initial_access_token
-        data = secret_manager.read_all(secret)
-        initial_access_token = resolve_initial_access_token(
-            data, secret.field, path=secret.path
-        )
-        api = KeycloakApi(
-            url=instance.url,
-            initial_access_token=initial_access_token,
-            require_https=True,
-        )
-        clients[instance.url] = KeycloakWorkspaceClient(
-            keycloak_api=api, cache=cache, settings=settings
-        )
+    try:
+        for instance in instances:
+            if instance.url not in clients:
+                clients[instance.url] = _build_client(
+                    instance, cache, secret_manager, settings
+                )
+    except Exception:
+        for client in clients.values():
+            client.close()
+        raise
     return clients

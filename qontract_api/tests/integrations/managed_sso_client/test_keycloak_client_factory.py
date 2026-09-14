@@ -8,6 +8,8 @@ resolve to a working KeycloakApi.
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from qontract_api.config import Settings
 from qontract_api.integrations.managed_sso_client.domain import KeycloakInstanceRef
 from qontract_api.integrations.managed_sso_client.keycloak_client_factory import (
@@ -61,3 +63,36 @@ def test_rotation_format_secret_resolves_current_iat_token() -> None:
     mock_api.assert_called_once_with(
         url=INSTANCE_URL, initial_access_token="rotation-token", require_https=True
     )
+
+
+def test_closes_already_built_clients_when_a_later_instance_fails() -> None:
+    """One tenant's malformed IAT must not leak every earlier client's connection."""
+    other_url = "https://sso.example.com/auth/realms/other-realm"
+    other_instance = KeycloakInstanceRef(
+        url=other_url,
+        initial_access_token=Secret(
+            secret_manager_url="https://vault.example.com",
+            path="app-sre/keycloak/other-iat",
+            field="token",
+        ),
+    )
+    secret_manager = MagicMock()
+    secret_manager.read_all.side_effect = [
+        {"token": "plain-token"},
+        RuntimeError("malformed secret"),
+    ]
+
+    with (
+        patch(
+            "qontract_api.integrations.managed_sso_client.keycloak_client_factory.KeycloakApi"
+        ) as mock_api,
+        pytest.raises(RuntimeError, match="malformed secret"),
+    ):
+        build_keycloak_instances(
+            [_instance(field="token"), other_instance],
+            MagicMock(),
+            secret_manager,
+            Settings(),
+        )
+
+    mock_api.return_value.close.assert_called_once()
