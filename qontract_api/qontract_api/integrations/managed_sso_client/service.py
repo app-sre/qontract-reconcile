@@ -34,6 +34,8 @@ from qontract_api.logger import get_logger
 from qontract_api.models import Secret, TaskStatus
 
 if TYPE_CHECKING:
+    from qontract_utils.keycloak_api import ManagedKeycloakClient
+
     from qontract_api.cache import CacheBackend
     from qontract_api.config import Settings
     from qontract_api.integrations.managed_sso_client.domain import (
@@ -114,13 +116,38 @@ class ManagedSsoClientService:
             return None
         return ManagedSsoClientManagementSecret(**data)
 
+    @staticmethod
+    def _rollback_keycloak_registration(
+        keycloak: KeycloakWorkspaceClient, registered: ManagedKeycloakClient
+    ) -> None:
+        """Best-effort delete of a just-registered client after a later step fails."""
+        try:
+            keycloak.delete_client(
+                client_id=registered.client_id,
+                registration_access_token=(registered.registration_access_token or ""),
+            )
+        except Exception:
+            logger.exception(
+                f"Rollback also failed for {registered.client_id}; "
+                f"Keycloak client may be orphaned"
+            )
+
     def _create_client(
         self,
         desired: ManagedSsoClientDesiredState,
         keycloak: KeycloakWorkspaceClient,
         vault_target: Secret,
     ) -> None:
-        """Register a client with Keycloak and persist both its secrets."""
+        """Register a client with Keycloak and persist both its secrets.
+
+        Both writes must succeed for this to leave clean state: if either
+        fails, roll back everything already done so the next reconcile
+        retries from scratch instead of getting silently stuck - the
+        client_id would otherwise already exist in Vault (from a successful
+        management-secret write) with tenant_secret_path already recorded
+        as the desired path, so a diff on the next run would find no drift
+        and never retry the missing tenant secret.
+        """
         tenant_secret = self._tenant_secret(desired, vault_target)
         registered = keycloak.register_client(desired.to_managed_keycloak_client())
         if registered.secret is None and not registered.public_client:
@@ -133,38 +160,43 @@ class ManagedSsoClientService:
             issuer=desired.keycloak_instance.url,
             tenant_secret_path=tenant_secret.path,
         )
+        management_secret = self._management_secret(vault_target, desired.client_id)
         try:
             self.secret_manager.write(
-                self._management_secret(vault_target, desired.client_id),
-                management.model_dump(exclude_none=True),
+                management_secret, management.model_dump(exclude_none=True)
             )
         except Exception:
             logger.exception(
                 f"Failed to persist management secret for {desired.client_id}; "
                 "rolling back Keycloak client registration"
             )
-            try:
-                keycloak.delete_client(
-                    client_id=registered.client_id,
-                    registration_access_token=(
-                        registered.registration_access_token or ""
-                    ),
-                )
-            except Exception:
-                logger.exception(
-                    f"Rollback also failed for {desired.client_id}; "
-                    f"Keycloak client may be orphaned"
-                )
+            self._rollback_keycloak_registration(keycloak, registered)
             raise
 
-        self.secret_manager.write(
-            tenant_secret,
-            ManagedSsoClientTenantSecret(
-                client_id=management.client_id,
-                client_secret=management.client_secret,
-                issuer=management.issuer,
-            ).model_dump(exclude_none=True),
-        )
+        try:
+            self.secret_manager.write(
+                tenant_secret,
+                ManagedSsoClientTenantSecret(
+                    client_id=management.client_id,
+                    client_secret=management.client_secret,
+                    issuer=management.issuer,
+                ).model_dump(exclude_none=True),
+            )
+        except Exception:
+            logger.exception(
+                f"Failed to persist tenant secret for {desired.client_id}; "
+                "rolling back management secret and Keycloak client registration"
+            )
+            try:
+                self.secret_manager.delete(management_secret)
+            except Exception:
+                logger.exception(
+                    f"Rollback of management secret also failed for "
+                    f"{desired.client_id}; it may be orphaned, pointing at a "
+                    "Keycloak client that is about to be deleted"
+                )
+            self._rollback_keycloak_registration(keycloak, registered)
+            raise
 
     def _move_tenant_secret(
         self,

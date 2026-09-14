@@ -228,6 +228,42 @@ def test_create_rolls_back_keycloak_registration_on_vault_write_failure(
     )
 
 
+def test_create_rolls_back_management_secret_and_keycloak_on_tenant_secret_write_failure(
+    service: ManagedSsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    """A failed tenant-secret write must not leave a client Vault can't self-heal.
+
+    If the management secret write succeeds but the tenant secret write then
+    fails, the client must not be left half-created: the next reconcile would
+    otherwise see the management secret's recorded tenant_secret_path already
+    matching desired, believe everything is fine, and never retry.
+    """
+    mock_secret_manager.list.return_value = []
+    mock_secret_manager.write.side_effect = [None, RuntimeError("vault unreachable")]
+    mock_keycloak.register_client.return_value = ManagedKeycloakClient(
+        client_id="my-app-ci-bot",
+        secret="s3cr3t",
+        registration_access_token="reg-token",
+        redirect_uris=["https://example.com/callback"],
+    )
+
+    result = service.reconcile([_desired()], dry_run=False)
+
+    assert result.status == TaskStatus.FAILED
+    assert result.applied_count == 0
+    management_path = (
+        f"{mock_settings.managed_sso_client.vault_path_prefix}/my-app-ci-bot"
+    )
+    mock_secret_manager.delete.assert_called_once()
+    assert mock_secret_manager.delete.call_args.args[0].path == management_path
+    mock_keycloak.delete_client.assert_called_once_with(
+        client_id="my-app-ci-bot", registration_access_token="reg-token"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Update
 # ---------------------------------------------------------------------------
