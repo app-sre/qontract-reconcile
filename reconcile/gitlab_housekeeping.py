@@ -1438,12 +1438,12 @@ def merge_merge_requests(
     users_allowed_to_label: Iterable[str] | None = None,
     must_pass: Iterable[str] | None = None,
     multi_merge: bool = False,
-    pipeline_cache: dict[int, list[ProjectMergeRequestPipeline]] | None = None,
+    *,
+    pipeline_cache: dict[int, list[ProjectMergeRequestPipeline]],
 ) -> None:
     if reload_toggle.reload:
         project_merge_requests = gl.get_merge_requests(state=MRState.OPENED)
-        if pipeline_cache is not None:
-            pipeline_cache.clear()  # in-place; caller holds this dict across insist retries
+        pipeline_cache.clear()  # in-place; caller holds this dict across insist retries
     merge_requests = preprocess_merge_requests(
         dry_run=dry_run,
         gl=gl,
@@ -1503,7 +1503,7 @@ def merge_merge_requests(
         if rebase and not is_rebased(mr, gl):
             continue
 
-        if pipeline_cache is not None and mr.iid in pipeline_cache:
+        if mr.iid in pipeline_cache:
             pipelines = pipeline_cache[mr.iid]
             latest = next(
                 (p for p in pipelines if p.status != PipelineStatus.SKIPPED),
@@ -1597,7 +1597,8 @@ def run_error_healthcheck(
     gl: GitLabApi,
     project_merge_requests: list[ProjectMergeRequest],
     consecutive_failure_limit: int = 3,
-    pipeline_cache: dict[int, list[ProjectMergeRequestPipeline]] | None = None,
+    *,
+    pipeline_cache: dict[int, list[ProjectMergeRequestPipeline]],
 ) -> None:
     """Check error labels for queue-eligible MRs. Apply/remove
     rebase-error based on merge_error field from .get(),
@@ -1673,8 +1674,7 @@ def run_error_healthcheck(
                 gl.remove_label(mr, REBASE_ERROR)
 
         pipelines = gl.get_merge_request_pipelines(mr)
-        if pipeline_cache is not None:
-            pipeline_cache[mr.iid] = pipelines
+        pipeline_cache[mr.iid] = pipelines
         if not pipelines:
             continue
 
