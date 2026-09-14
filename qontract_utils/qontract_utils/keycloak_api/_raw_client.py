@@ -84,9 +84,9 @@ class RawClientRepresentation(BaseModel):
     optional_client_scopes: list[str] | None = Field(
         default=None, alias="optionalClientScopes"
     )
-    default_roles: list[str] = Field(default_factory=list, alias="defaultRoles")
-    authentication_flow_binding_overrides: dict[str, str] = Field(
-        default_factory=dict, alias="authenticationFlowBindingOverrides"
+    default_roles: list[str] | None = Field(default=None, alias="defaultRoles")
+    authentication_flow_binding_overrides: dict[str, str] | None = Field(
+        default=None, alias="authenticationFlowBindingOverrides"
     )
 
     # Keycloak's generic string-to-string map. Any typed, folded view of specific

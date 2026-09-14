@@ -32,6 +32,23 @@ def test_defaults_leave_optional_fields_unset() -> None:
     assert data.attributes is None
     assert data.secret is None
     assert data.registration_access_token is None
+    assert data.default_roles is None
+    assert data.authentication_flow_binding_overrides is None
+
+
+def test_unmanaged_default_roles_and_flow_overrides_omitted_from_wire_payload() -> None:
+    """A field this client never sets must never appear in an update/register body.
+
+    exclude_none=True only drops None - a concrete default_factory=list/dict
+    value would still serialize as an explicit empty value, wiping whatever
+    Keycloak already has for a field we never intended to manage.
+    """
+    data = RawClientRepresentation(client_id="my-client")
+
+    body = data.model_dump(mode="json", exclude_none=True)
+
+    assert "defaultRoles" not in body
+    assert "authenticationFlowBindingOverrides" not in body
 
 
 def test_attributes_is_a_plain_passthrough_map() -> None:
