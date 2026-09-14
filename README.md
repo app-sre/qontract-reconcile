@@ -197,7 +197,7 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   quay-mirror                     Mirrors external images into Quay.
   quay-mirror-org                 Mirrors entire Quay orgs.
   quay-permissions                Manage permissions for Quay Repositories.
-  quay-repos                      Creates and Manages Quay Repos.
+  quay-repos-api                  Creates and Manages Quay Repos.
   quay-robot-accounts             Manages robot accounts in Quay organizations.
   query-validator                 Validate queries to maintain consumer schema
                                   compatibility.

@@ -10,11 +10,13 @@ cluster:
     format: null
     path: path/to/automation_token
     version: null
+    url: null
   clusterAdminAutomationToken:
     field: token
     format: null
     path: path/to/admin_token
     version: null
+    url: null
   disable: null
   insecureSkipTLSVerify: null
   internal: false

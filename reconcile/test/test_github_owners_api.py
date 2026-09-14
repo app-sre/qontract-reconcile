@@ -43,7 +43,7 @@ def make_integration(org_name: str | None = None) -> _TestableIntegration:
 def make_vault_secret(
     path: str = "app-sre/creds/gh", field: str = "token", version: int = 1
 ) -> VaultSecret:
-    return VaultSecret(path=path, field=field, version=version, format=None)
+    return VaultSecret(path=path, field=field, version=version, format=None, url=None)
 
 
 def make_github_org(name: str, vault_path: str = "app-sre/creds/gh") -> GithubOrgV1:
@@ -337,6 +337,7 @@ class TestGetGithubOrgs:
                             "field": "f",
                             "version": 1,
                             "format": None,
+                            "url": None,
                         },
                         "default": None,
                         "managedTeams": None,
@@ -348,6 +349,7 @@ class TestGetGithubOrgs:
                             "field": "f",
                             "version": 1,
                             "format": None,
+                            "url": None,
                         },
                         "default": None,
                         "managedTeams": None,

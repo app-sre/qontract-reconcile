@@ -18,7 +18,7 @@ def _make_instance(name: str) -> AcsInstanceV1:
         name=name,
         url=f"https://{name}.example.com",
         credentials=VaultSecret(
-            path="secret/path", field="token", version=None, format=None
+            path="secret/path", field="token", version=None, format=None, url=None
         ),
         authProvider=AcsInstanceAuthProviderV1(name="sso", id="auth-id"),
     )
