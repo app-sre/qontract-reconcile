@@ -42,7 +42,7 @@ def test_rotation_format_secret_resolves_current_iat_token() -> None:
         build_keycloak_instances([_secret(field=None)], MagicMock(), secret_manager)
 
     mock_api.assert_called_once_with(
-        url=ISSUER_URL, initial_access_token="rotation-token"
+        url=ISSUER_URL, initial_access_token="rotation-token", require_https=True
     )
 
 
@@ -55,4 +55,6 @@ def test_plain_format_secret_resolves_token() -> None:
     ) as mock_api:
         build_keycloak_instances([_secret(field="token")], MagicMock(), secret_manager)
 
-    mock_api.assert_called_once_with(url=ISSUER_URL, initial_access_token="plain-token")
+    mock_api.assert_called_once_with(
+        url=ISSUER_URL, initial_access_token="plain-token", require_https=True
+    )

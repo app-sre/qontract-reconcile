@@ -49,6 +49,6 @@ def build_keycloak_instances(
         token = resolve_initial_access_token(
             data, entry.secret.field, path=entry.secret.path
         )
-        api = KeycloakApi(url=entry.url, initial_access_token=token)
+        api = KeycloakApi(url=entry.url, initial_access_token=token, require_https=True)
         instances[entry.url] = KeycloakWorkspaceClient(keycloak_api=api, cache=cache)
     return instances
