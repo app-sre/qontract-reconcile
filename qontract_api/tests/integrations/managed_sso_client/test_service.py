@@ -1,6 +1,6 @@
 """Unit tests for ManagedSsoClientService."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from qontract_utils.keycloak_api import ManagedKeycloakClient
@@ -650,6 +650,41 @@ def test_reconcile_deletes_client_absent_from_desired_state(
     )
     assert expected_management_path in deleted_paths
     assert management.tenant_secret_path in deleted_paths
+
+
+def test_delete_builds_throwaway_client_when_realm_absent_from_keycloak_instances(
+    service: ManagedSsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_workspace_client_factory: MagicMock,
+) -> None:
+    """Deleting the last desired client for a realm must not KeyError.
+
+    keycloak_instances is built only from currently-desired clients' realms -
+    if the client being deleted was the only one referencing its realm, that
+    realm has no entry. management.issuer is a plain issuer URL, not a Vault
+    secret ref, so there's no way to rebuild a real client with the realm's
+    initial_access_token. delete_client's own auth never uses that token
+    though (only register_client does), so a throwaway client works for this
+    one call.
+    """
+    management = _management("my-app-old-bot")
+    mock_secret_manager.list.return_value = ["my-app-old-bot"]
+    mock_secret_manager.read_all.return_value = management.model_dump()
+    mock_workspace_client_factory.return_value = {}
+
+    with patch(
+        "qontract_api.integrations.managed_sso_client.service.KeycloakApi"
+    ) as mock_api_cls:
+        result = service.reconcile([], dry_run=False)
+
+    assert result.status == TaskStatus.SUCCESS
+    mock_api_cls.assert_called_once_with(
+        url=management.issuer, initial_access_token="", require_https=True
+    )
+    mock_api_cls.return_value.delete_client.assert_called_once_with(
+        client_id="my-app-old-bot", registration_access_token="reg-token"
+    )
+    mock_api_cls.return_value.close.assert_called_once()
 
 
 def test_delete_treats_404_as_already_deleted(

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import httpx2
+from qontract_utils.keycloak_api import KeycloakApi
 from qontract_utils.secret_reader import SecretNotFoundError
 
 from qontract_api.integrations.managed_sso_client.domain import (
@@ -14,6 +15,9 @@ from qontract_api.integrations.managed_sso_client.domain import (
 )
 from qontract_api.integrations.managed_sso_client.keycloak_client_factory import (
     build_keycloak_instances,
+)
+from qontract_api.integrations.managed_sso_client.keycloak_workspace_client import (
+    KeycloakWorkspaceClient,
 )
 from qontract_api.integrations.managed_sso_client.metrics import (
     INTEGRATION_NAME,
@@ -40,9 +44,6 @@ if TYPE_CHECKING:
     from qontract_api.config import Settings
     from qontract_api.integrations.managed_sso_client.domain import (
         ManagedSsoClientDesiredState,
-    )
-    from qontract_api.integrations.managed_sso_client.keycloak_workspace_client import (
-        KeycloakWorkspaceClient,
     )
     from qontract_api.secret_manager import SecretManager
 
@@ -293,27 +294,52 @@ class ManagedSsoClientService:
         keycloak_instances: dict[str, KeycloakWorkspaceClient],
         vault_target: Secret,
     ) -> None:
-        """Delete a client from Keycloak and remove its Vault secrets."""
+        """Delete a client from Keycloak and remove its Vault secrets.
+
+        keycloak_instances is built only from currently-desired clients, so
+        it has no entry for a realm no longer referenced by anything -
+        including the very client being deleted, if it was the last one for
+        that realm. There's no Vault secret reference left to rebuild a real
+        client with that realm's initial_access_token (management.issuer is
+        a plain issuer URL, not a Vault ref) - but delete_client's own auth
+        uses the per-client registration_access_token, never the realm-level
+        token, so a throwaway client is safe for this one call.
+        """
         management_secret = self._management_secret(vault_target, client_id)
         management = ManagedSsoClientManagementSecret(
             **self.secret_manager.read_all(management_secret)
         )
-        keycloak = keycloak_instances[management.issuer]
+        keycloak = keycloak_instances.get(management.issuer)
+        owns_keycloak = keycloak is None
+        if keycloak is None:
+            keycloak = KeycloakWorkspaceClient(
+                keycloak_api=KeycloakApi(
+                    url=management.issuer,
+                    initial_access_token="",
+                    require_https=True,
+                ),
+                cache=self.cache,
+                settings=self.settings,
+            )
         try:
-            keycloak.delete_client(
-                client_id=management.client_id,
-                registration_access_token=management.registration_access_token,
-            )
-        except httpx2.HTTPStatusError as e:
-            if e.response.status_code not in {
-                httpx2.codes.UNAUTHORIZED,
-                httpx2.codes.NOT_FOUND,
-            }:
-                raise
-            logger.warning(
-                f"Failed to delete managed SSO client {client_id}, treating as "
-                f"already deleted: {e}. Continuing to delete Vault secrets."
-            )
+            try:
+                keycloak.delete_client(
+                    client_id=management.client_id,
+                    registration_access_token=management.registration_access_token,
+                )
+            except httpx2.HTTPStatusError as e:
+                if e.response.status_code not in {
+                    httpx2.codes.UNAUTHORIZED,
+                    httpx2.codes.NOT_FOUND,
+                }:
+                    raise
+                logger.warning(
+                    f"Failed to delete managed SSO client {client_id}, treating as "
+                    f"already deleted: {e}. Continuing to delete Vault secrets."
+                )
+        finally:
+            if owns_keycloak:
+                keycloak.close()
         self.secret_manager.delete(management_secret)
         self.secret_manager.delete(
             Secret(
