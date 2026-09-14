@@ -165,9 +165,6 @@ class ManagedSsoClientDesiredState(BaseModel, frozen=True):
     """Desired state for a single managed SSO client."""
 
     client_id: str = Field(..., description="Exact Keycloak clientId, taken as-is")
-    description: str | None = Field(
-        default=None, description="Optional human-readable description of this client."
-    )
     enabled: bool = Field(
         default=True,
         description="Whether this client is active on Keycloak. Set to False "

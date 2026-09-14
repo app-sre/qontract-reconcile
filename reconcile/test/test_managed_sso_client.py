@@ -76,7 +76,6 @@ def _make_client(
 ) -> ManagedSsoClientOpenidConnectV1:
     return ManagedSsoClientOpenidConnectV1(
         name=name,
-        description="test client",
         enabled=enabled,
         app=AppV1(name=app_name),
         protocol="openid-connect",
@@ -97,7 +96,6 @@ def _make_unresolved_protocol_client(
     """
     return ManagedSsoClientV1(
         name=name,
-        description="test client",
         enabled=True,
         app=AppV1(name=app_name),
         protocol=protocol,

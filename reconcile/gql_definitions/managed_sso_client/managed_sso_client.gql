@@ -3,7 +3,6 @@
 query ManagedSsoClient {
   managed_sso_clients: managed_sso_clients_v1 {
     name
-    description
     enabled
     app {
       name

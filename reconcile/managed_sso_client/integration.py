@@ -138,7 +138,6 @@ class ManagedSsoClientIntegration(
             desired.append(
                 ManagedSsoClientDesiredState(
                     client_id=client_id,
-                    description=client.description,
                     enabled=client.enabled if client.enabled is not None else True,
                     keycloak_instance=keycloak_instance,
                     oidc=oidc,

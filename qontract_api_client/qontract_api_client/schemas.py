@@ -535,7 +535,6 @@ class ManagedSsoClientActionUpdate(pydantic.BaseModel):
 
 class ManagedSsoClientDesiredState(pydantic.BaseModel):
     client_id: str
-    description: str | None = None
     enabled: bool = True
     keycloak_instance: KeycloakInstanceRef
     oidc: OidcDesiredState | None | None = None

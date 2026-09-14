@@ -32,7 +32,6 @@ fragment VaultSecret on VaultSecret_v1 {
 query ManagedSsoClient {
   managed_sso_clients: managed_sso_clients_v1 {
     name
-    description
     enabled
     app {
       name
@@ -81,7 +80,6 @@ class KeycloakInstanceV1(ConfiguredBaseModel):
 
 class ManagedSsoClientV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    description: Optional[str] = Field(..., alias="description")
     enabled: Optional[bool] = Field(..., alias="enabled")
     app: AppV1 = Field(..., alias="app")
     protocol: str = Field(..., alias="protocol")

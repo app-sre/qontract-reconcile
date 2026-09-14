@@ -2470,18 +2470,6 @@
             "title": "Client Id",
             "type": "string"
           },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional human-readable description of this client.",
-            "title": "Description"
-          },
           "enabled": {
             "default": true,
             "description": "Whether this client is active on Keycloak. Set to False to deactivate it in place (Keycloak rejects logins/tokens for a disabled client) without deleting this object, which would delete the Keycloak registration and its secret entirely.",
