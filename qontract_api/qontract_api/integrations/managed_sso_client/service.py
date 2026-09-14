@@ -419,6 +419,13 @@ class ManagedSsoClientService:
         if management is None:
             msg = "expected an existing management secret but found none"
             raise ValueError(msg)
+        if desired.keycloak_instance.url != management.issuer:
+            msg = (
+                f"keycloakInstance changed from {management.issuer!r} to "
+                f"{desired.keycloak_instance.url!r} - migrating a client between "
+                "realms is not supported; delete and recreate it manually"
+            )
+            raise ValueError(msg)
         keycloak = keycloak_instances.get(desired.keycloak_instance.url)
         if keycloak is None:
             msg = (

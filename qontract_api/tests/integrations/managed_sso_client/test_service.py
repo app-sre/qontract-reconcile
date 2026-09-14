@@ -570,7 +570,8 @@ def test_check_for_update_unresolvable_instance_error_is_prefixed_with_client_id
     service: ManagedSsoClientService,
     mock_secret_manager: MagicMock,
 ) -> None:
-    # a keycloak_instance the mock_workspace_client_factory fixture never built
+    # same realm as recorded (no keycloakInstance change), but the
+    # mock_workspace_client_factory fixture never built a client for it
     other_instance = KeycloakInstanceRef(
         url="https://sso.example.com/auth/realms/other-realm",
         initial_access_token=Secret(
@@ -586,7 +587,7 @@ def test_check_for_update_unresolvable_instance_error_is_prefixed_with_client_id
     )
     mock_secret_manager.list.return_value = [desired.client_id]
     mock_secret_manager.read_all.return_value = _management(
-        desired.client_id
+        desired.client_id, issuer=other_instance.url
     ).model_dump()
 
     result = service.reconcile([desired], dry_run=True)
@@ -596,6 +597,53 @@ def test_check_for_update_unresolvable_instance_error_is_prefixed_with_client_id
         e.startswith(f"{desired.client_id}: could not build a Keycloak client")
         for e in result.errors
     )
+
+
+def test_check_for_update_rejects_changed_keycloak_instance(
+    service: ManagedSsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_workspace_client_factory: MagicMock,
+    mock_keycloak: MagicMock,
+) -> None:
+    """Changing keycloakInstance on an existing client must fail clearly, not obscurely.
+
+    The management secret's registration_access_token was issued by the OLD
+    realm - authenticating a GET against the NEW realm with it would fail
+    with a confusing low-level error, and neither the old client/secrets nor
+    a new registration would ever get cleaned up or created. Reject it
+    explicitly instead.
+    """
+    new_instance = KeycloakInstanceRef(
+        url="https://sso.example.com/auth/realms/new-realm",
+        initial_access_token=Secret(
+            secret_manager_url="https://vault.example.com",
+            path="app-sre/keycloak/iat",
+            field="token",
+        ),
+    )
+    desired = ManagedSsoClientDesiredState(
+        client_id="my-app-ci-bot",
+        keycloak_instance=new_instance,
+        oidc=OidcDesiredState(redirect_uris=["https://example.com/callback"]),
+    )
+    mock_secret_manager.list.return_value = [desired.client_id]
+    mock_secret_manager.read_all.return_value = _management(
+        desired.client_id
+    ).model_dump()
+    # the new realm is resolvable - the mismatch must still be caught
+    mock_workspace_client_factory.return_value = {
+        "https://sso.example.com/auth/realms/redhat-external": mock_keycloak,
+        new_instance.url: MagicMock(),
+    }
+
+    result = service.reconcile([desired], dry_run=True)
+
+    assert result.status == TaskStatus.FAILED
+    assert any(
+        e.startswith(f"{desired.client_id}: ") and "keycloakInstance" in e
+        for e in result.errors
+    )
+    mock_keycloak.get_client.assert_not_called()
 
 
 def test_check_for_update_fetch_failure_error_is_prefixed_with_client_id(

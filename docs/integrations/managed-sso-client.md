@@ -49,6 +49,8 @@ oidc:
 
 Renaming a client (changing `name`) changes its derived `clientId`, which the reconciler treats as a delete of the old client plus a create of a new one — not an in-place rename — issuing new credentials.
 
+Changing `keycloakInstance` on an existing client (same derived `clientId`, different realm) is **not supported** and is rejected with a clear per-client error: the management secret's `registration_access_token` is only valid on the realm the client was originally registered against, so migrating between realms would require an explicit delete-then-recreate, not an in-place update. Delete the client from App-Interface, let it reconcile away, then recreate it referencing the new `keycloakInstance`.
+
 ## Architecture
 
 **Client-Side (`reconcile/managed_sso_client/integration.py`):**
