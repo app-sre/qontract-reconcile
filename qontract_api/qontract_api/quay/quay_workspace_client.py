@@ -77,15 +77,17 @@ class QuayWorkspaceClient:
     def _clear_cache(self, cache_key: str) -> None:
         """Invalidate a cache key after a successful Quay mutation.
 
-        Lock failures are logged and swallowed: the mutation is already
-        committed, and a later reconcile refreshes the entry after TTL.
+        Invalidation is best-effort: the mutation is already committed, and a
+        later reconcile refreshes the entry after TTL. Cache-backend errors
+        (lock failures, Redis disconnects, timeouts) are logged and swallowed
+        so they are not reported as mutation failures.
         """
         try:
             with self.cache.lock(cache_key):
                 self.cache.delete(cache_key)
-        except RuntimeError as e:
-            logger.warning(
-                f"Could not acquire lock to clear cache for {cache_key}: {e}"
+        except Exception:
+            logger.exception(
+                f"Could not invalidate cache for {cache_key} after Quay mutation"
             )
 
     # ------------------------------------------------------------------

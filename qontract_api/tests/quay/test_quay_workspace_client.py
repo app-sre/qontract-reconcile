@@ -338,10 +338,21 @@ def test_create_robot_invalidates_list_cache(
     mock_cache.delete.assert_called_once_with("quay:https://quay.io:myorg:robots")
 
 
-def test_create_robot_succeeds_when_cache_lock_fails(
-    client: QuayWorkspaceClient, mock_quay_api: MagicMock, mock_cache: MagicMock
+@pytest.mark.parametrize(
+    "error",
+    [
+        RuntimeError("Could not acquire lock"),
+        ConnectionError("redis down"),
+        TimeoutError("cache timeout"),
+    ],
+)
+def test_create_robot_succeeds_when_cache_invalidation_fails(
+    client: QuayWorkspaceClient,
+    mock_quay_api: MagicMock,
+    mock_cache: MagicMock,
+    error: Exception,
 ) -> None:
-    mock_cache.lock.side_effect = RuntimeError("Could not acquire lock")
+    mock_cache.lock.side_effect = error
 
     client.create_robot_account("ci-bot", "CI")
 
