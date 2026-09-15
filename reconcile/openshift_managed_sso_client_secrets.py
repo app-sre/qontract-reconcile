@@ -4,6 +4,8 @@ import logging
 import sys
 from typing import TYPE_CHECKING, Any
 
+from deepdiff import DeepHash
+
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 from reconcile.gql_definitions.openshift_managed_sso_client_secret.namespaces import (
@@ -204,11 +206,22 @@ class OpenshiftManagedSsoClientSecretsIntegration(
             sys.exit(1)
 
     def get_early_exit_desired_state(self) -> dict[str, Any] | None:
-        return {"namespace": self.get_namespaces(gql.get_api().query)}
+        state_for_clusters: dict[str, list[dict[str, Any]]] = {}
+        for ns in self.get_namespaces(gql.get_api().query):
+            state_for_clusters.setdefault(ns.cluster.name, []).append(
+                ns.model_dump(by_alias=True)
+            )
+        return {
+            "state": {
+                cluster: {"shard": cluster, "hash": DeepHash(state).get(state)}
+                for cluster, state in state_for_clusters.items()
+            }
+        }
 
     def get_desired_state_shard_config(self) -> DesiredStateShardConfig:
         return DesiredStateShardConfig(
             shard_arg_name="cluster_name",
+            shard_arg_is_collection=True,
             shard_path_selectors={
                 "state.*.shard",
             },
