@@ -2024,6 +2024,22 @@ def quay_permissions(ctx: click.Context) -> None:
 
 
 @integration.command(
+    short_help="Manages tenant-declared SSO clients in Keycloak via qontract-api."
+)
+@click.pass_context
+def managed_sso_client(ctx: click.Context) -> None:
+    from reconcile.managed_sso_client.integration import (
+        ManagedSsoClientIntegration,
+        ManagedSsoClientIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=ManagedSsoClientIntegration(ManagedSsoClientIntegrationParams()),
+        ctx=ctx,
+    )
+
+
+@integration.command(
     short_help="Removes users which are not found in LDAP search (API)."
 )
 @click.option(

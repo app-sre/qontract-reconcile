@@ -397,6 +397,34 @@ class SsoClientSettings(BaseModel):
     )
 
 
+class ManagedSsoClientSettings(BaseModel):
+    """Managed SSO client (tenant-declared) integration configuration."""
+
+    vault_path_prefix: str = Field(
+        default="app-sre/integrations-throughput/managed-sso-client/management",
+        min_length=1,
+        description=(
+            "Vault path prefix for the AppSRE-owned management secrets (full "
+            "Keycloak registration response per client, keyed by client_id). "
+            "Must stay within a prefix the qontract-api Vault AppRole is "
+            "granted write access to; this mount must be KV v1 (Vault secret "
+            "deletion is not implemented for KV v2)."
+        ),
+    )
+    default_output_vault_path_prefix: str = Field(
+        default="app-sre/integrations-throughput/managed-sso-client/output",
+        min_length=1,
+        description=(
+            "Vault path prefix used for a client's tenant-facing credential "
+            "secret when the data file does not set an explicit `output` path."
+        ),
+    )
+    client_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Managed SSO client representation cache TTL in seconds (1 hour)",
+    )
+
+
 class QuaySettings(BaseModel):
     """Quay API and integration configuration."""
 
@@ -617,6 +645,12 @@ class Settings(BaseSettings):
     sso_client: SsoClientSettings = Field(
         default_factory=SsoClientSettings,
         description="RHIDP SSO client integration configuration",
+    )
+
+    # Managed SSO Client (tenant-declared) Configuration (nested)
+    managed_sso_client: ManagedSsoClientSettings = Field(
+        default_factory=ManagedSsoClientSettings,
+        description="Managed SSO client integration configuration",
     )
 
     # Event Subscriber Configuration (nested)
