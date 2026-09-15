@@ -53,7 +53,7 @@ def make_integration(org_name: str | None = None) -> QuayRobotAccountsIntegratio
 def make_vault_secret(
     path: str = "app-sre/creds/quay", field: str = "token", version: int = 1
 ) -> VaultSecret:
-    return VaultSecret(path=path, field=field, version=version, format=None)
+    return VaultSecret(path=path, field=field, version=version, format=None, url=None)
 
 
 def make_org(

@@ -144,3 +144,14 @@ def test_list_calls_backend_and_bypasses_cache(
     assert result == ["client-1", "client-2"]
     backend.list.assert_called_once_with(secret)
     assert cache.lock_calls == []
+
+
+def test_can_write_calls_backend_and_bypasses_cache(
+    manager: SecretManager, cache: InMemoryCacheBackend, backend: MagicMock
+) -> None:
+    secret = FakeSecret()
+    backend.can_write.return_value = True
+
+    assert manager.can_write(secret) is True
+    backend.can_write.assert_called_once_with(secret)
+    assert cache.lock_calls == []

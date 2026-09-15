@@ -282,6 +282,7 @@ def test_merge_merge_requests(
         insist=True,
         wait_for_pipeline=False,
         users_allowed_to_label=None,
+        pipeline_cache={},
     )
 
     can_be_merged_merge_request.merge.assert_called_once_with(squash=expected_squash)
@@ -328,6 +329,7 @@ def test_merge_merge_requests_with_retry(
             insist=True,
             wait_for_pipeline=True,
             users_allowed_to_label=None,
+            pipeline_cache={},
         )
 
     assert (
@@ -1107,6 +1109,7 @@ def test_merge_applies_merge_error_label_on_closed_error(
         insist=False,
         wait_for_pipeline=False,
         users_allowed_to_label=None,
+        pipeline_cache={},
     )
 
     mocked_gl.add_label_to_merge_request.assert_called_once_with(
@@ -1145,6 +1148,7 @@ def test_merge_error_label_not_applied_in_dry_run(
         insist=False,
         wait_for_pipeline=False,
         users_allowed_to_label=None,
+        pipeline_cache={},
     )
 
     can_be_merged_merge_request.merge.assert_not_called()
@@ -1224,6 +1228,7 @@ def test_pipeline_error_label_applied_on_consecutive_failures(
         gl=mocked_gl,
         project_merge_requests=[mr],
         consecutive_failure_limit=3,
+        pipeline_cache={},
     )
 
     mocked_gl.add_label_to_merge_request.assert_called_once_with(mr, "pipeline-error")
@@ -1249,6 +1254,7 @@ def test_pipeline_error_label_auto_removed_on_recovery(
         gl=mocked_gl,
         project_merge_requests=[mr],
         consecutive_failure_limit=3,
+        pipeline_cache={},
     )
 
     mocked_gl.remove_label.assert_called_once_with(mr, "pipeline-error")
@@ -1274,6 +1280,7 @@ def test_pipeline_error_not_removed_while_pipeline_running(
         gl=mocked_gl,
         project_merge_requests=[mr],
         consecutive_failure_limit=3,
+        pipeline_cache={},
     )
 
     mocked_gl.remove_label.assert_not_called()
@@ -1309,6 +1316,7 @@ def test_merge_error_label_not_removed_without_new_notes(
         gl=mocked_gl,
         project_merge_requests=[mr],
         consecutive_failure_limit=3,
+        pipeline_cache={},
     )
 
     mocked_gl.remove_label.assert_not_called()
@@ -1344,6 +1352,7 @@ def test_merge_error_label_removed_on_new_notes(
         gl=mocked_gl,
         project_merge_requests=[mr],
         consecutive_failure_limit=3,
+        pipeline_cache={},
     )
 
     mocked_gl.remove_label.assert_called_once_with(mr, "merge-error")
@@ -1370,6 +1379,7 @@ def test_configurable_failure_limit(
         gl=mocked_gl,
         project_merge_requests=[mr_3_failures],
         consecutive_failure_limit=5,
+        pipeline_cache={},
     )
 
     mocked_gl.add_label_to_merge_request.assert_not_called()
@@ -1390,6 +1400,7 @@ def test_configurable_failure_limit(
         gl=mocked_gl,
         project_merge_requests=[mr_5_failures],
         consecutive_failure_limit=5,
+        pipeline_cache={},
     )
 
     mocked_gl.add_label_to_merge_request.assert_called_once_with(
@@ -1416,6 +1427,7 @@ def test_already_labeled_mr_with_ongoing_failures_no_api_calls(
         gl=mocked_gl,
         project_merge_requests=[mr],
         consecutive_failure_limit=3,
+        pipeline_cache={},
     )
 
     mocked_gl.add_label_to_merge_request.assert_not_called()
@@ -1440,6 +1452,7 @@ def test_healthcheck_skips_non_queue_eligible_mrs(project: Project) -> None:
         gl=mocked_gl,
         project_merge_requests=mrs,
         consecutive_failure_limit=3,
+        pipeline_cache={},
     )
     mocked_gl.get_merge_request_pipelines.assert_not_called()
     mocked_gl.add_label_to_merge_request.assert_not_called()
@@ -1472,6 +1485,7 @@ def test_healthcheck_applies_rebase_error_on_merge_error_field(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
+        pipeline_cache={},
     )
 
     mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
@@ -1504,6 +1518,7 @@ def test_healthcheck_applies_rebase_error_when_currently_unmergeable(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
+        pipeline_cache={},
     )
 
     mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
@@ -1535,6 +1550,7 @@ def test_healthcheck_removes_rebase_error_when_merge_error_cleared(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
+        pipeline_cache={},
     )
 
     mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
@@ -1562,6 +1578,7 @@ def test_healthcheck_skips_rebase_error_if_already_labeled(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
+        pipeline_cache={},
     )
 
     mocked_gl.add_label_to_merge_request.assert_not_called()
@@ -1588,6 +1605,7 @@ def test_healthcheck_no_rebase_error_when_resolved_despite_stale_detailed_status
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
+        pipeline_cache={},
     )
 
     mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
@@ -1633,6 +1651,7 @@ def test_healthcheck_ignores_non_rebase_merge_error(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
+        pipeline_cache={},
     )
 
     mocked_gl.get_merge_request.assert_called_once_with(mr.iid)
@@ -1662,11 +1681,127 @@ def test_healthcheck_preserves_rebase_error_on_api_failure(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
+        pipeline_cache={},
     )
 
     mocked_gl.add_label_to_merge_request.assert_not_called()
     mocked_gl.remove_label.assert_not_called()
     mocked_gl.get_merge_request_pipelines.assert_called_once()
+
+
+def test_pipeline_cache_success_refetches_before_merge(
+    state: Mock,
+    project: Project,
+    can_be_merged_merge_request: Mock,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+    success_merge_request_pipeline: ProjectMergeRequestPipeline,
+) -> None:
+    """Cached SUCCESS is the merge decision; refetch so a newer failure is seen."""
+    mocked_gl = create_autospec(GitLabApi)
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["failed"])
+    cache = {can_be_merged_merge_request.iid: [success_merge_request_pipeline]}
+
+    gl_h.merge_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[can_be_merged_merge_request],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=1,
+        rebase=False,
+        app_sre_usernames=set(),
+        state=state,
+        pipeline_timeout=None,
+        insist=False,
+        wait_for_pipeline=False,
+        users_allowed_to_label=None,
+        pipeline_cache=cache,
+    )
+
+    mocked_gl.get_merge_request_pipelines.assert_called_once()
+    can_be_merged_merge_request.merge.assert_not_called()
+
+
+def test_pipeline_cache_empty_list_is_hit_not_miss(
+    state: Mock,
+    project: Project,
+    can_be_merged_merge_request: Mock,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+) -> None:
+    """Empty [] is a valid cached result; using `or` would refetch."""
+    mocked_gl = create_autospec(GitLabApi)
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+    cache: dict[int, list] = {can_be_merged_merge_request.iid: []}
+
+    gl_h.merge_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[can_be_merged_merge_request],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=1,
+        rebase=False,
+        app_sre_usernames=set(),
+        state=state,
+        pipeline_timeout=None,
+        insist=False,
+        wait_for_pipeline=False,
+        users_allowed_to_label=None,
+        pipeline_cache=cache,
+    )
+
+    mocked_gl.get_merge_request_pipelines.assert_not_called()
+    can_be_merged_merge_request.merge.assert_not_called()
+
+
+def test_pipeline_cache_invalidated_on_reload(
+    state: Mock,
+    project: Project,
+    can_be_merged_merge_request: Mock,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+    success_merge_request_pipeline: ProjectMergeRequestPipeline,
+) -> None:
+    """reload_toggle.reload clears cache so stale lists are not reused."""
+    mocked_gl = create_autospec(GitLabApi)
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+    mocked_gl.get_merge_requests.return_value = [can_be_merged_merge_request]
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        success_merge_request_pipeline
+    ]
+    cache: dict[int, list] = {
+        can_be_merged_merge_request.iid: _make_pipelines(["failed"])
+    }
+
+    gl_h.merge_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[can_be_merged_merge_request],
+        reload_toggle=gl_h.ReloadToggle(reload=True),
+        merge_limit=1,
+        rebase=False,
+        app_sre_usernames=set(),
+        state=state,
+        pipeline_timeout=None,
+        insist=False,
+        wait_for_pipeline=False,
+        users_allowed_to_label=None,
+        pipeline_cache=cache,
+    )
+
+    mocked_gl.get_merge_request_pipelines.assert_called_once()
+    can_be_merged_merge_request.merge.assert_called_once()
+    assert can_be_merged_merge_request.iid not in cache
 
 
 @pytest.mark.parametrize(
@@ -1707,6 +1842,7 @@ def test_error_mr_skipped_cleanly_with_no_side_effects(
         insist=False,
         wait_for_pipeline=False,
         users_allowed_to_label=None,
+        pipeline_cache={},
     )
 
     can_be_merged_merge_request.merge.assert_not_called()
@@ -1899,6 +2035,7 @@ class TestMergeErrorCycleEndToEnd:
             insist=False,
             wait_for_pipeline=False,
             users_allowed_to_label=None,
+            pipeline_cache={},
         )
 
         gl.add_label_to_merge_request.assert_called_once_with(mr, "merge-error")
@@ -1924,6 +2061,7 @@ class TestMergeErrorCycleEndToEnd:
             insist=False,
             wait_for_pipeline=False,
             users_allowed_to_label=None,
+            pipeline_cache={},
         )
 
         mr.merge.assert_not_called()
@@ -1950,6 +2088,7 @@ class TestMergeErrorCycleEndToEnd:
             gl=gl,
             project_merge_requests=[mr],
             consecutive_failure_limit=3,
+            pipeline_cache={},
         )
 
         gl.remove_label.assert_called_once_with(mr, "merge-error")
@@ -1975,6 +2114,7 @@ class TestMergeErrorCycleEndToEnd:
             insist=False,
             wait_for_pipeline=False,
             users_allowed_to_label=None,
+            pipeline_cache={},
         )
 
         gl.add_label_to_merge_request.assert_called_once_with(mr, "merge-error")
@@ -2006,6 +2146,7 @@ class TestMergeErrorCycleEndToEnd:
             gl=gl,
             project_merge_requests=[mr],
             consecutive_failure_limit=3,
+            pipeline_cache={},
         )
 
         gl.remove_label.assert_called_once_with(mr, "merge-error")
@@ -2031,6 +2172,7 @@ class TestMergeErrorCycleEndToEnd:
             insist=False,
             wait_for_pipeline=False,
             users_allowed_to_label=None,
+            pipeline_cache={},
         )
 
         mr.merge.assert_called_once_with(squash=False)
@@ -2063,6 +2205,7 @@ class TestMergeErrorCycleEndToEnd:
             insist=False,
             wait_for_pipeline=False,
             users_allowed_to_label=None,
+            pipeline_cache={},
         )
 
         gl.add_comment_to_merge_request.assert_not_called()
@@ -2221,6 +2364,7 @@ def _call_merge(
         wait_for_pipeline=wait_for_pipeline,
         users_allowed_to_label=None,
         multi_merge=multi_merge,
+        pipeline_cache={},
     )
 
     return mocked_gl
@@ -3239,6 +3383,7 @@ def test_multi_merge_insist_only_before_first_merge(
             wait_for_pipeline=True,
             users_allowed_to_label=None,
             multi_merge=True,
+            pipeline_cache={},
         )
 
     mr1.merge.assert_not_called()
