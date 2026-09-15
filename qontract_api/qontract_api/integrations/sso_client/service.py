@@ -9,7 +9,6 @@ from urllib.parse import urljoin, urlparse, urlunparse
 import httpx2
 from jose import jwt
 
-from qontract_api.integrations.sso_client.domain import KeycloakInstanceIat
 from qontract_api.integrations.sso_client.keycloak_client_factory import (
     build_keycloak_instances,
 )
@@ -28,6 +27,7 @@ from qontract_api.integrations.sso_client.schemas import (
     SsoClientCreateManualResult,
     SsoClientTaskResult,
 )
+from qontract_api.keycloak_iat import resolve_initial_access_token
 from qontract_api.logger import get_logger
 from qontract_api.models import Secret, TaskStatus
 from qontract_api.rhidp.domain import SsoClientSecret, cluster_vault_secret_id
@@ -113,8 +113,10 @@ class SsoClientService:
     ) -> None:
         for entry in keycloak_secrets:
             data = self.secret_manager.read_all(entry.secret)
-            iat = KeycloakInstanceIat(**data)
-            claims = jwt.get_unverified_claims(iat.current_iat.token)
+            token = resolve_initial_access_token(
+                data, entry.secret.field, path=entry.secret.path
+            )
+            claims = jwt.get_unverified_claims(token)
             rhidp_sso_client_inital_access_token_expiration.labels(
                 INTEGRATION_NAME, ocm_environment, entry.secret.path
             ).set(claims["exp"])
