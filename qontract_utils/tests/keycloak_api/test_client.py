@@ -7,6 +7,7 @@ import pytest
 from pytest_httpserver import HTTPServer
 from qontract_utils.hooks import Hooks
 from qontract_utils.keycloak_api import KeycloakApi
+from qontract_utils.keycloak_api.client import KeycloakBadRequestError
 from qontract_utils.keycloak_api.models import ManagedKeycloakClient
 
 REGISTER_PATH = "/clients-registrations/default"
@@ -138,6 +139,47 @@ def test_register_client_folds_and_sends_extra_attributes(
     body = request.get_json()
     assert "regex-filtered-groups" in body["defaultClientScopes"]
     assert body["attributes"] == {"group-filter-regex": "^my-group-.*$"}
+
+
+def test_register_client_400_raises_bad_request_error_with_client_id_hint(
+    httpserver: HTTPServer,
+) -> None:
+    """A 400 on registration is opaque by default.
+
+    The most common cause is a clientId collision with a client Keycloak
+    already knows about (created manually, by another integration, or by
+    another team). Surface that as an actionable hint instead of a bare
+    HTTP error.
+    """
+    api = _make_api(httpserver, initial_access_token="initial-token")
+    httpserver.expect_request(REGISTER_PATH, method="POST").respond_with_json(
+        {
+            "error": "invalid_client_metadata",
+            "error_description": "Client Already Exists",
+        },
+        status=400,
+    )
+
+    with pytest.raises(KeycloakBadRequestError) as exc_info:
+        api.register_client(_managed_client(client_id="my-client"))
+
+    message = str(exc_info.value)
+    assert "my-client" in message
+    assert "already registered" in message
+    assert "Client Already Exists" in message
+
+
+def test_register_client_non_400_error_passes_through_unchanged(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_api(httpserver, initial_access_token="initial-token")
+    httpserver.expect_request(REGISTER_PATH, method="POST").respond_with_data(
+        status=500
+    )
+
+    with pytest.raises(httpx2.HTTPStatusError) as exc_info:
+        api.register_client(_managed_client())
+    assert exc_info.value.response.status_code == 500
 
 
 #
@@ -331,3 +373,50 @@ def test_update_client_returns_rotated_token(httpserver: HTTPServer) -> None:
     request = next(req for req, _ in httpserver.log if req.path == update_path)
     assert request.headers["Authorization"] == "Bearer old-reg-token"
     assert result.registration_access_token == "new-reg-token"
+
+
+def test_update_client_400_raises_bad_request_error_with_response_body(
+    httpserver: HTTPServer,
+) -> None:
+    """A 400 on update means Keycloak rejected a submitted field value.
+
+    Unlike register, "clientId already in use" makes no sense here (the
+    client already exists under that id), so surface Keycloak's own error
+    body, which names the offending field, instead.
+    """
+    api = _make_api(httpserver, initial_access_token="initial-token")
+    update_path = f"{REGISTER_PATH}/my-client"
+    httpserver.expect_request(update_path, method="PUT").respond_with_json(
+        {
+            "error": "invalid_client_metadata",
+            "error_description": "Invalid redirect uri",
+        },
+        status=400,
+    )
+
+    with pytest.raises(KeycloakBadRequestError) as exc_info:
+        api.update_client(
+            client_id="my-client",
+            registration_access_token="old-reg-token",
+            data=_managed_client(client_id="my-client"),
+        )
+
+    message = str(exc_info.value)
+    assert "my-client" in message
+    assert "Invalid redirect uri" in message
+
+
+def test_update_client_non_400_error_passes_through_unchanged(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_api(httpserver, initial_access_token="initial-token")
+    update_path = f"{REGISTER_PATH}/my-client"
+    httpserver.expect_request(update_path, method="PUT").respond_with_data(status=401)
+
+    with pytest.raises(httpx2.HTTPStatusError) as exc_info:
+        api.update_client(
+            client_id="my-client",
+            registration_access_token="old-reg-token",
+            data=_managed_client(client_id="my-client"),
+        )
+    assert exc_info.value.response.status_code == 401
