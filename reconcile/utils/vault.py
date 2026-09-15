@@ -260,16 +260,18 @@ class VaultClient:
         if version is None:
             msg = f"version can not be null for secret with path '{path}'."
             raise SecretVersionIsNoneError(msg)
-        if version == SECRET_VERSION_LATEST:
-            # https://github.com/hvac/hvac/blob/
-            # ec048ded30d21c13c21cfa950d148c8bfc1467b0/
-            # hvac/api/secrets_engines/kv_v2.py#L85
-            version = None
+        # HVAC types expect int | None; "LATEST" means omit version (latest).
+        # https://github.com/hvac/hvac/blob/
+        # ec048ded30d21c13c21cfa950d148c8bfc1467b0/
+        # hvac/api/secrets_engines/kv_v2.py#L85
+        hvac_version: int | None = (
+            None if version == SECRET_VERSION_LATEST else int(version)
+        )
         try:
             secret = self._client.secrets.kv.v2.read_secret_version(
                 mount_point=mount_point,
                 path=read_path,
-                version=version,
+                version=hvac_version,
             )
         except InvalidPath:
             msg = f"version '{version}' not found for secret with path '{path}'."
@@ -358,12 +360,12 @@ class VaultClient:
         secret_path = secret["path"]
         b64_data = secret["data"]
         if decode_base64:
-            data = {
+            data: dict[str, Any] = {
                 k: base64.b64decode(v or "").decode("utf-8")
                 for k, v in b64_data.items()
             }
         else:
-            data = b64_data
+            data = dict(b64_data)
 
         kv_version = self._get_mount_version_by_secret_path(secret_path)
         if kv_version == 2:
@@ -371,7 +373,7 @@ class VaultClient:
         else:
             self._write_v1(secret_path, data)
 
-    def _write_v2(self, path: str, data: Mapping, force: bool = False) -> None:
+    def _write_v2(self, path: str, data: dict[str, Any], force: bool = False) -> None:
         path_split = path.split("/")
         mount_point = path_split[0]
         write_path = "/".join(path_split[1:])
