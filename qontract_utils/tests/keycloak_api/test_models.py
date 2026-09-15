@@ -94,6 +94,24 @@ def test_to_raw_omits_unset_optional_list_fields_from_wire_payload() -> None:
     assert "optionalClientScopes" not in body
 
 
+def test_to_raw_defaults_public_client_and_direct_access_grants_to_false() -> None:
+    """Verify unset public_client/direct_access_grants_enabled resolve safely.
+
+    Keycloak's own create-time default for an omitted access type is public,
+    with direct access grants enabled - both insecure, verified against a
+    live instance. A caller who builds a ManagedKeycloakClient without
+    thinking about these two fields must still get a confidential,
+    direct-access-disabled client rather than silently inheriting Keycloak's
+    default - unlike every other optional field, these two are never
+    "unmanaged".
+    """
+    raw = _minimal().to_raw()
+    body = raw.model_dump(mode="json", exclude_none=True)
+
+    assert body["publicClient"] is False
+    assert body["directAccessGrantsEnabled"] is False
+
+
 def test_to_raw_sends_explicit_empty_list_when_set() -> None:
     """An explicitly empty list is a real desired value, not "unset"."""
     raw = _minimal(web_origins=[]).to_raw()
