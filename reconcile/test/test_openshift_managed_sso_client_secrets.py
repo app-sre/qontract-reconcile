@@ -371,3 +371,50 @@ def test_run_overrides_orb_qontract_integration_globals(
 
     assert integration.name == orb.QONTRACT_INTEGRATION
     assert integration.integration_version == orb.QONTRACT_INTEGRATION_VERSION
+
+
+#
+# get_early_exit_desired_state / get_desired_state_shard_config
+#
+
+
+def test_early_exit_state_shape_matches_shard_selector(mocker: MockerFixture) -> None:
+    """get_early_exit_desired_state()'s shape must actually match the jsonpath
+    selector declared in get_desired_state_shard_config() - the runtime uses
+    jsonpath_ng to find shard identifiers in exactly this returned object
+    (reconcile/utils/runtime/desired_state_diff.py). A mismatch doesn't raise -
+    jsonpath_ng silently swallows it - it just makes sharded PR-check dry runs
+    always fall back to a full unsharded run instead of scoping to affected
+    clusters.
+    """
+    from jsonpath_ng.ext.parser import parse
+
+    integration = _integration()
+    client = _client()
+    ns = _namespace(
+        name="ns1", cluster=_cluster(name="cluster-a"), resources=[_resource(client)]
+    )
+    mocker.patch.object(integration, "get_namespaces", return_value=[ns])
+    mocker.patch(
+        "reconcile.openshift_managed_sso_client_secrets.gql.get_api",
+        return_value=MagicMock(query=MagicMock()),
+    )
+
+    state = integration.get_early_exit_desired_state()
+
+    shard_config = integration.get_desired_state_shard_config()
+    (selector,) = shard_config.shard_path_selectors
+    matches = [m.value for m in parse(selector).find(state)]
+
+    assert matches == ["cluster-a"]
+
+
+def test_shard_config_marks_cluster_name_as_collection() -> None:
+    """cluster_name is list[str] | None - without shard_arg_is_collection=True,
+    a sharded run degrades it to a bare string (pydantic's model_copy(update=...)
+    does not coerce/validate), turning get_namespaces()'s `in` check from list
+    membership into substring containment.
+    """
+    integration = _integration()
+
+    assert integration.get_desired_state_shard_config().shard_arg_is_collection is True
