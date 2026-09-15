@@ -68,6 +68,33 @@ def test_register_client_acquires_lock_per_client_name(
     assert sent.extra_attributes == {}
 
 
+def test_register_client_requests_confidential_client(
+    client: KeycloakWorkspaceClient,
+    mock_keycloak_api: MagicMock,
+) -> None:
+    """Verify rhidp always requests a confidential client explicitly.
+
+    Keycloak's own create-time default for an omitted access type is public
+    (no secret is issued) - rhidp SSO clients always need a secret and
+    registration_access_token, so public_client/direct_access_grants_enabled
+    must be sent explicitly rather than left to Keycloak's default.
+    """
+    mock_keycloak_api.register_client.return_value = ManagedKeycloakClient(
+        client_id="my-client",
+        secret="secret",
+        redirect_uris=["https://example.com/callback"],
+        registration_access_token="rat",
+    )
+
+    client.register_client(
+        client_name="my-client", redirect_uris=["https://example.com/callback"]
+    )
+
+    sent = mock_keycloak_api.register_client.call_args.args[0]
+    assert sent.public_client is False
+    assert sent.direct_access_grants_enabled is False
+
+
 def test_register_client_with_group_filter_regex(
     client: KeycloakWorkspaceClient,
     mock_keycloak_api: MagicMock,

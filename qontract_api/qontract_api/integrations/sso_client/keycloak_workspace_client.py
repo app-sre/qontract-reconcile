@@ -52,6 +52,13 @@ class KeycloakWorkspaceClient:
                     redirect_uris=list(redirect_uris),
                     default_client_scopes=scopes,
                     extra_attributes=attributes,
+                    # Keycloak's own create-time default for an omitted access
+                    # type is public (no secret issued) and direct access
+                    # grants enabled - both insecure and unusable for an SSO
+                    # client that always needs a secret. Send explicitly
+                    # rather than relying on Keycloak's default.
+                    public_client=False,
+                    direct_access_grants_enabled=False,
                 )
             )
         if registered.secret is None or registered.registration_access_token is None:
