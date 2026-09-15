@@ -38,6 +38,13 @@ class ManagedKeycloakClient(BaseModel, frozen=True):
     `None` when unmanaged (omitted from the wire payload entirely) rather than
     defaulting to an empty list/False - an explicit `[]` is a real desired value
     (actively clears the field on Keycloak), not the same as "don't touch this".
+
+    `public_client` and `direct_access_grants_enabled` are the documented
+    exceptions: Keycloak's own create-time default for an omitted client is
+    public access with direct access grants enabled - both insecure, verified
+    against a live instance - so they default to the secure `False` instead of
+    `None`/unmanaged. A caller that actually wants a public client (or direct
+    access grants enabled) must say so explicitly.
     """
 
     id: str | None = None
@@ -48,9 +55,9 @@ class ManagedKeycloakClient(BaseModel, frozen=True):
     protocol: str = "openid-connect"
     enabled: bool | None = None
 
-    public_client: bool | None = None
+    public_client: bool | None = False
     bearer_only: bool | None = None
-    direct_access_grants_enabled: bool | None = None
+    direct_access_grants_enabled: bool | None = False
     service_accounts_enabled: bool | None = None
 
     redirect_uris: list[str] = Field(default_factory=list)
