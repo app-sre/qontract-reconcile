@@ -27,6 +27,11 @@ logger = structlog.get_logger(__name__)
 TIMEOUT = 30.0
 MAX_RETRIES = 3
 
+
+class KeycloakBadRequestError(Exception):
+    """Keycloak rejected a client-registration request with 400 Bad Request."""
+
+
 # Prometheus metrics
 keycloak_request = Counter(
     "qontract_reconcile_external_api_keycloak_requests_total",
@@ -187,7 +192,17 @@ class KeycloakApi:
         Authorization header on the underlying httpx2.Client (the realm's
         initial access token).
         """
-        raw = self._raw.register_client(data.to_raw())
+        try:
+            raw = self._raw.register_client(data.to_raw())
+        except httpx2.HTTPStatusError as e:
+            if e.response.status_code != httpx2.codes.BAD_REQUEST:
+                raise
+            msg = (
+                f"Keycloak rejected registration of client {data.client_id!r} with "
+                "400 Bad Request; the most common cause is that this clientId is "
+                f"already registered on Keycloak. Keycloak response: {e.response.text}"
+            )
+            raise KeycloakBadRequestError(msg) from e
         return ManagedKeycloakClient.from_raw(raw)
 
     @invoke_with_hooks(
@@ -241,9 +256,18 @@ class KeycloakApi:
         MUST persist the returned representation's new token; the one passed in
         for auth becomes invalid immediately once this call succeeds.
         """
-        raw = self._raw.update_client(
-            client_id=client_id,
-            registration_access_token=registration_access_token,
-            data=data.to_raw(),
-        )
+        try:
+            raw = self._raw.update_client(
+                client_id=client_id,
+                registration_access_token=registration_access_token,
+                data=data.to_raw(),
+            )
+        except httpx2.HTTPStatusError as e:
+            if e.response.status_code != httpx2.codes.BAD_REQUEST:
+                raise
+            msg = (
+                f"Keycloak rejected the update of client {client_id!r} with 400 "
+                f"Bad Request. Keycloak response: {e.response.text}"
+            )
+            raise KeycloakBadRequestError(msg) from e
         return ManagedKeycloakClient.from_raw(raw)

@@ -1,0 +1,32 @@
+# qenerate: plugin=pydantic_v2
+
+query OpenshiftManagedSsoClientSecret {
+  namespaces: namespaces_v1 {
+    name
+    delete
+    clusterAdmin
+    openshiftResources {
+      ...OpenshiftResourceManagedSsoClient
+    }
+    sharedResources {
+      openshiftResources {
+        ...OpenshiftResourceManagedSsoClient
+      }
+    }
+    cluster {
+      name
+      serverUrl
+      insecureSkipTLSVerify
+      automationToken {
+        ...VaultSecret
+      }
+      clusterAdminAutomationToken {
+        ...VaultSecret
+      }
+      internal
+      disable {
+        integrations
+      }
+    }
+  }
+}
