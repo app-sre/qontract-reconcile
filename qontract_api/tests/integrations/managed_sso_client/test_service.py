@@ -264,6 +264,35 @@ def test_create_rolls_back_management_secret_and_keycloak_on_tenant_secret_write
     )
 
 
+def test_create_reports_keycloak_bad_request_error_without_rollback(
+    service: ManagedSsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak: MagicMock,
+) -> None:
+    """A 400 registering a client is reported as a task error, not swallowed.
+
+    Interpreting *why* Keycloak returned 400 (e.g. a clientId collision) is
+    qontract_utils.keycloak_api's job (KeycloakBadRequestError's message) -
+    this only verifies the error surfaces through to the caller and that
+    nothing was rolled back, since register_client itself never succeeded.
+    """
+    from qontract_utils.keycloak_api import KeycloakBadRequestError
+
+    mock_secret_manager.list.return_value = []
+    mock_keycloak.register_client.side_effect = KeycloakBadRequestError(
+        "Keycloak rejected registration of client 'my-app-ci-bot' with 400 Bad "
+        "Request; the most common cause is that this clientId is already "
+        "registered on Keycloak. Keycloak response: {}"
+    )
+
+    result = service.reconcile([_desired()], dry_run=False)
+
+    assert result.status == TaskStatus.FAILED
+    assert result.applied_count == 0
+    assert "already registered on Keycloak" in result.errors[0]
+    mock_keycloak.delete_client.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # Update
 # ---------------------------------------------------------------------------
@@ -322,6 +351,40 @@ def test_reconcile_detects_drift_and_updates(
     _written_path, written_data = mock_secret_manager.write.call_args.args
     assert written_data["registration_access_token"] == "new-reg-token"
     assert written_data["client_secret"] == "s3cr3t"  # unchanged by update
+
+
+def test_update_reports_keycloak_bad_request_error(
+    service: ManagedSsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak: MagicMock,
+) -> None:
+    """A 400 updating a client is reported as a task error, not swallowed.
+
+    Interpreting *why* Keycloak returned 400 (e.g. an invalid field value) is
+    qontract_utils.keycloak_api's job (KeycloakBadRequestError's message) -
+    this only verifies the error surfaces through to the caller.
+    """
+    from qontract_utils.keycloak_api import KeycloakBadRequestError
+
+    desired = _desired(web_origins=["https://new-origin.example.com"])
+    mock_secret_manager.list.return_value = [desired.client_id]
+    mock_secret_manager.read_all.return_value = _management(
+        desired.client_id
+    ).model_dump()
+    mock_keycloak.get_client.return_value = ManagedKeycloakClient(
+        client_id=desired.client_id,
+        redirect_uris=["https://example.com/callback"],
+    )
+    mock_keycloak.update_client.side_effect = KeycloakBadRequestError(
+        f"Keycloak rejected the update of client {desired.client_id!r} with "
+        "400 Bad Request. Keycloak response: Invalid web origin"
+    )
+
+    result = service.reconcile([desired], dry_run=False)
+
+    assert result.status == TaskStatus.FAILED
+    assert result.applied_count == 0
+    assert "Invalid web origin" in result.errors[0]
 
 
 def test_update_token_persist_failure_raises_distinct_error(

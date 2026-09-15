@@ -23,6 +23,7 @@ from qontract_utils.keycloak_api.client import (
     TIMEOUT,
     KeycloakApi,
     KeycloakApiCallContext,
+    KeycloakBadRequestError,
 )
 from qontract_utils.keycloak_api.models import KeycloakSsoClient, ManagedKeycloakClient
 
@@ -30,6 +31,7 @@ __all__ = [
     "TIMEOUT",
     "KeycloakApi",
     "KeycloakApiCallContext",
+    "KeycloakBadRequestError",
     "KeycloakSsoClient",
     "ManagedKeycloakClient",
 ]

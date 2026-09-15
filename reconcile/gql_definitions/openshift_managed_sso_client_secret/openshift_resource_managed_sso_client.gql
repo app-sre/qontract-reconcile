@@ -1,0 +1,14 @@
+# qenerate: plugin=pydantic_v2
+
+fragment OpenshiftResourceManagedSsoClient on NamespaceOpenshiftResourceManagedSsoClient_v1 {
+  name
+  labels
+  annotations
+  managedSsoClient {
+    name
+    app {
+      name
+    }
+    output
+  }
+}
