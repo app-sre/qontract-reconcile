@@ -905,13 +905,8 @@ def test_rebase_stale_success_pipeline_does_not_block_rebase(
     assert merge_requests[1].rebase.call_count == 1
 
 
-@pytest.mark.parametrize(
-    "strategy",
-    [RebaseStrategy.ACTIVE_CAP, RebaseStrategy.OLD_BURST],
-    ids=["active-cap", "old-burst"],
-)
 def test_rebase_uses_refreshed_mr_not_stale_batch_object(
-    mocker: MockerFixture, gitlab_api: Mock, state: Mock, strategy: RebaseStrategy
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
 ) -> None:
     """Regression: is_rebased must receive the refreshed MR from
     get_merge_request, not the stale batch-fetched object.  The stale
@@ -942,7 +937,7 @@ def test_rebase_uses_refreshed_mr_not_stale_batch_object(
         state=state,
         pipeline_timeout=None,
         wait_for_pipeline=False,
-        strategy=strategy,
+        strategy=RebaseStrategy.ACTIVE_CAP,
     )
 
     gitlab_api.get_merge_request.assert_called_once_with(1)
@@ -950,24 +945,16 @@ def test_rebase_uses_refreshed_mr_not_stale_batch_object(
 
 
 @pytest.mark.parametrize(
-    ("error_label", "strategy"),
-    [
-        ("merge-error", RebaseStrategy.ACTIVE_CAP),
-        ("pipeline-error", RebaseStrategy.ACTIVE_CAP),
-        ("rebase-error", RebaseStrategy.ACTIVE_CAP),
-        ("merge-error", RebaseStrategy.OLD_BURST),
-        ("pipeline-error", RebaseStrategy.OLD_BURST),
-        ("rebase-error", RebaseStrategy.OLD_BURST),
-    ],
+    "error_label",
+    ["merge-error", "pipeline-error", "rebase-error"],
 )
 def test_error_mr_skipped_in_rebase(
     mocker: MockerFixture,
     gitlab_api: Mock,
     state: Mock,
     error_label: str,
-    strategy: RebaseStrategy,
 ) -> None:
-    """An MR with an error label is never rebased, regardless of strategy."""
+    """An MR with an error label is never rebased."""
     error_mr = _make_rebase_mr(1, labels=[error_label])
     normal_mr = _make_rebase_mr(2)
 
@@ -977,26 +964,20 @@ def test_error_mr_skipped_in_rebase(
         state,
         [error_mr, normal_mr],
         rebase_limit=2,
-        strategy=strategy,
     )
 
     assert error_mr.rebase.call_count == 0
     assert normal_mr.rebase.call_count == 1
 
 
-@pytest.mark.parametrize(
-    "strategy", [RebaseStrategy.ACTIVE_CAP, RebaseStrategy.OLD_BURST]
-)
 def test_rebase_strategies_pass_skip_unmergeable_false(
     mocker: MockerFixture,
     gitlab_api: Mock,
     state: Mock,
-    strategy: RebaseStrategy,
 ) -> None:
-    """Both rebase strategies must ask preprocessing to include MRs that are
-    currently unmergeable -- otherwise a conflicting MR can never be picked
-    up for a rebase attempt in the first place, regardless of which strategy
-    is active."""
+    """Rebase must ask preprocessing to include MRs that are currently
+    unmergeable -- otherwise a conflicting MR can never be picked up for a
+    rebase attempt in the first place."""
     mocked_get_merge_requests = mocker.patch(
         "reconcile.gitlab_housekeeping.get_merge_requests",
         return_value=[],
@@ -1007,7 +988,6 @@ def test_rebase_strategies_pass_skip_unmergeable_false(
         gl=gitlab_api,
         rebase_limit=2,
         state=state,
-        strategy=strategy,
     )
 
     assert mocked_get_merge_requests.call_args.kwargs.get("skip_unmergeable") is False
@@ -1030,37 +1010,37 @@ def unleash_client(monkeypatch: pytest.MonkeyPatch, mocker: MockerFixture) -> Mo
 
 
 def test_get_rebase_strategy_no_unleash_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Without UNLEASH_API_URL / UNLEASH_CLIENT_ACCESS_TOKEN, falls back to OLD_BURST."""
+    """Without UNLEASH_API_URL / UNLEASH_CLIENT_ACCESS_TOKEN, falls back to ACTIVE_CAP."""
     monkeypatch.delenv("UNLEASH_API_URL", raising=False)
     monkeypatch.delenv("UNLEASH_CLIENT_ACCESS_TOKEN", raising=False)
-    assert gl_h.get_rebase_strategy() == RebaseStrategy.OLD_BURST
+    assert gl_h.get_rebase_strategy() == RebaseStrategy.ACTIVE_CAP
 
 
 def test_get_rebase_strategy_toggle_enabled_no_variant(
     unleash_client: Mock,
 ) -> None:
-    """Toggle enabled but no variant configured → no payload → falls back to OLD_BURST."""
+    """Toggle enabled but no variant configured → no payload → falls back to ACTIVE_CAP."""
     unleash_client.get_variant.return_value = {"name": "disabled", "enabled": True}
-    assert gl_h.get_rebase_strategy() == RebaseStrategy.OLD_BURST
+    assert gl_h.get_rebase_strategy() == RebaseStrategy.ACTIVE_CAP
 
 
 def test_get_rebase_strategy_toggle_enabled_unknown_variant(
     unleash_client: Mock,
 ) -> None:
-    """Toggle enabled with unrecognized variant value → logs warning, falls back to OLD_BURST."""
+    """Toggle enabled with unrecognized variant value → logs warning, falls back to ACTIVE_CAP."""
     unleash_client.get_variant.return_value = {
         "name": "bogus",
         "enabled": True,
         "payload": {"type": "string", "value": "bogus-strategy"},
     }
-    assert gl_h.get_rebase_strategy() == RebaseStrategy.OLD_BURST
+    assert gl_h.get_rebase_strategy() == RebaseStrategy.ACTIVE_CAP
 
 
 @pytest.mark.parametrize(
     ("variant_value", "expected_strategy"),
     [
         ("active-cap", RebaseStrategy.ACTIVE_CAP),
-        ("old-burst", RebaseStrategy.OLD_BURST),
+        ("active-cap-multi-merge", RebaseStrategy.ACTIVE_CAP_MULTI_MERGE),
     ],
 )
 def test_get_rebase_strategy_toggle_enabled_valid_variant(
