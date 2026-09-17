@@ -120,12 +120,12 @@ COPY --from=test-image /is_tested /is_tested
 # STAGE 6 - tested fips-prod-image
 ###############################################################################
 FROM prod-image-pre-test AS fips-prod-image
-ENV OC_VERSION=4.16.2
 
-# oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
-# versions in these environments so in this case we extract an older version of oc and kubectl
-COPY --chown=0:0 --from=quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-oc-master:1.0.1-1@sha256:41643b95b5fd875a096ed7123f68e9f82d10d7ad4a6728ef79e21abcadec199b \
-    /work/${OC_VERSION}/ /usr/local/bin/
+# FedRAMP runs on FIPS-enabled clusters. Source oc/kubectl from the official RHEL9 client
+# image (FIPS-capable and regularly rebuilt for CVEs) pinned to the 4.18 stream to match the
+# in-boundary cluster fleet. Commercial (prod-image) gets its newer oc from the base image.
+COPY --from=registry.redhat.io/openshift4/ose-cli-rhel9:v4.18@sha256:5c8b2fc3d2aacddda5cceba99288e863cadf747528514d35440a30c3aaab7694 \
+    /usr/bin/oc /usr/bin/kubectl /usr/local/bin/
 
 # Lets make sure we run tests when targeting fips-prod-image
 # However, we dont want any installed deps from test image
