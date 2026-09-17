@@ -1229,7 +1229,7 @@ def _early_exit_fetch_resource(spec: Sequence, settings: Mapping) -> dict[str, s
         c = resource["resource"].get("content")
     del resource["resource"]
     resource[IDENTIFIER_FIELD_NAME] = id
-    content_sha = hashlib.md5(str(c).encode("utf-8")).hexdigest()
+    content_sha = hashlib.sha256(str(c).encode("utf-8")).hexdigest()
     return {
         IDENTIFIER_FIELD_NAME: id,
         "cluster": cluster_name,
