@@ -1,7 +1,7 @@
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:2.2.0-1@sha256:7e858b043ef003d76b5b56f59a921f1102fda7f7315091ad5e788a665915f660 AS build-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:2.2.1-1@sha256:d639784b263c73fa312b46b548093c596799c5ca39f13100438335537e805f2d AS build-image
 COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48afb6c5a5c237ca0e67f12e74b8f174b1 /uv /bin/uv
 
 WORKDIR /work
@@ -28,7 +28,7 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:2.2.0-1@sha256:918bc54441031f48f5b9c0b8f99c3ff3fb260aec1390bf5bbd79dbf020730e39 AS dev-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:2.2.1-1@sha256:80eea44e24eec0e772d16c492e3b8d9ec0030e8271536214921278cf66cfd4ff AS dev-image
 COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48afb6c5a5c237ca0e67f12e74b8f174b1 /uv /bin/uv
 
 ENV \
@@ -59,7 +59,7 @@ ENTRYPOINT ["/work/dev/run.sh"]
 ###############################################################################
 # STAGE 3 - prod-image-pre-test
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:2.2.0-1@sha256:918bc54441031f48f5b9c0b8f99c3ff3fb260aec1390bf5bbd79dbf020730e39 AS prod-image-pre-test
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:2.2.1-1@sha256:80eea44e24eec0e772d16c492e3b8d9ec0030e8271536214921278cf66cfd4ff AS prod-image-pre-test
 
 # Tini
 ENV TINI_VERSION=v0.19.0
@@ -120,12 +120,12 @@ COPY --from=test-image /is_tested /is_tested
 # STAGE 6 - tested fips-prod-image
 ###############################################################################
 FROM prod-image-pre-test AS fips-prod-image
-ENV OC_VERSION=4.16.2
 
-# oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
-# versions in these environments so in this case we extract an older version of oc and kubectl
-COPY --chown=0:0 --from=quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-oc-master:1.0.1-1@sha256:41643b95b5fd875a096ed7123f68e9f82d10d7ad4a6728ef79e21abcadec199b \
-    /work/${OC_VERSION}/ /usr/local/bin/
+# FedRAMP runs on FIPS-enabled clusters. Source oc/kubectl from the official RHEL9 client
+# image (FIPS-capable and regularly rebuilt for CVEs) pinned to the 4.18 stream to match the
+# in-boundary cluster fleet. Commercial (prod-image) gets its newer oc from the base image.
+COPY --from=registry.redhat.io/openshift4/ose-cli-rhel9:v4.18@sha256:5c8b2fc3d2aacddda5cceba99288e863cadf747528514d35440a30c3aaab7694 \
+    /usr/bin/oc /usr/bin/kubectl /usr/local/bin/
 
 # Lets make sure we run tests when targeting fips-prod-image
 # However, we dont want any installed deps from test image

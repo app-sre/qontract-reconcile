@@ -159,11 +159,10 @@ omm_group_expanded = Counter(
 class RebaseStrategy(StrEnum):
     ACTIVE_CAP = "active-cap"
     ACTIVE_CAP_MULTI_MERGE = "active-cap-multi-merge"
-    OLD_BURST = "old-burst"
 
 
 REBASE_STRATEGY_TOGGLE = "gitlab-housekeeping-rebase-strategy"
-DEFAULT_REBASE_STRATEGY = RebaseStrategy.OLD_BURST
+DEFAULT_REBASE_STRATEGY = RebaseStrategy.ACTIVE_CAP
 
 
 def get_rebase_strategy() -> RebaseStrategy:
@@ -655,7 +654,6 @@ def rebase_merge_requests(
     dispatch = {
         RebaseStrategy.ACTIVE_CAP: _rebase_merge_requests_active_cap,
         RebaseStrategy.ACTIVE_CAP_MULTI_MERGE: _rebase_merge_requests_active_cap,
-        RebaseStrategy.OLD_BURST: _rebase_merge_requests_old_burst,
     }
 
     fn = dispatch[strategy]
@@ -993,53 +991,6 @@ def _rebase_merge_requests_active_cap(
                 f"rebase limit reached ({already_active + rebases} active/in-flight, limit {rebase_limit}). will try next time",
             ])
             break
-
-
-def _rebase_merge_requests_old_burst(
-    dry_run: bool,
-    gl: GitLabApi,
-    rebase_limit: int,
-    state: State,
-    pipeline_timeout: int | None = None,
-    wait_for_pipeline: bool = False,
-    users_allowed_to_label: Iterable[str] | None = None,
-) -> None:
-    """Old-burst strategy: scan the full queue and rebase up to rebase_limit
-    MRs that are not already rebased.  This is a simple per-run burst
-    counter — it does not consider active pipelines."""
-    rebases = 0
-    merge_requests = [
-        item["mr"]
-        for item in get_merge_requests(
-            dry_run=dry_run,
-            gl=gl,
-            state=state,
-            users_allowed_to_label=users_allowed_to_label,
-            skip_unmergeable=False,
-        )
-        if not item["error"]
-    ]
-    for mr in merge_requests:
-        fresh_mr = gl.get_merge_request(mr.iid)
-        if is_rebased(fresh_mr, gl):
-            continue
-
-        pipelines = gl.get_merge_request_pipelines(mr)
-        _cancel_timed_out_pipelines(dry_run, gl, mr, pipelines, pipeline_timeout)
-
-        if _should_skip_for_running_pipeline(pipelines, wait_for_pipeline):
-            continue
-
-        if rebases < rebase_limit:
-            if _try_rebase(dry_run, gl, mr):
-                rebases += 1
-        else:
-            logging.info([
-                "rebase",
-                gl.project.name,
-                mr.iid,
-                "rebase limit reached for this reconcile loop. will try next time",
-            ])
 
 
 # TODO: this retry is catching all exceptions, which isn't good. _log_exceptions is
