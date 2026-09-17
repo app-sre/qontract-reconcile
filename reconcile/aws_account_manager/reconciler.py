@@ -72,16 +72,48 @@ class AWSReconciler:
         """Create the organization account and return the creation status ID."""
         with self.state.transaction(state_key(name, TASK_CREATE_ACCOUNT)) as state:
             if state.exists:
-                # account already exists, nothing to do
-                return state.value
+                cached = state.value
+                # legacy state format: a plain request id string
+                if isinstance(cached, str):
+                    return cached
+
+                if cached["email"] == email:
+                    # account creation already requested for this email, nothing to do
+                    return cached["request_id"]
+
+                # the desired email changed since the last request - check if the
+                # stale request can be retried with the new email
+                old_status = aws_api.organizations.describe_create_account_status(
+                    create_account_request_id=cached["request_id"]
+                )
+                match old_status.state:
+                    case "FAILED":
+                        logging.info(
+                            f"{name}: Previous account creation failed"
+                            f" ({old_status.failure_reason}), retrying with updated email"
+                        )
+                    case "IN_PROGRESS":
+                        raise AbortStateTransactionError(
+                            f"{name}: Account creation still in progress, cannot change email yet"
+                        )
+                    case "SUCCEEDED":
+                        logging.warning(
+                            f"{name}: Account already created with the previous email,"
+                            " the email change has no effect"
+                        )
+                        return cached["request_id"]
+                    case _:
+                        raise RuntimeError(
+                            f"Unexpected account creation status: {old_status.state}"
+                        )
 
             logging.info(f"{name}: Creating account")
             if self.dry_run:
                 raise AbortStateTransactionError("Dry run")
 
             status = aws_api.organizations.create_account(email=email, name=name)
-            # store the status id for future reference
-            state.value = status.id
+            # store the status id and email for future reference
+            state.value = {"request_id": status.id, "email": email}
             return status.id
 
     def _org_account_exists(
@@ -105,9 +137,14 @@ class AWSReconciler:
                     state.value = status.uid
                     return status.uid
                 case "FAILED":
-                    raise RuntimeError(
-                        f"Account creation failed: {status.failure_reason}"
-                    )
+                    msg = f"Account creation failed: {status.failure_reason}"
+                    if status.failure_reason == "EMAIL_ALREADY_EXISTS":
+                        msg += (
+                            ". The email is already associated with another AWS account."
+                            " Update the owner email in app-interface and the"
+                            " integration will automatically retry."
+                        )
+                    raise RuntimeError(msg)
                 case "IN_PROGRESS":
                     raise AbortStateTransactionError(
                         "Account creation still in progress"
