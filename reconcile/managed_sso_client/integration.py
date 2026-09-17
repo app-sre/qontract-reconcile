@@ -38,6 +38,7 @@ from reconcile.gql_definitions.managed_sso_client.managed_sso_client import (
     query as managed_sso_clients_query,
 )
 from reconcile.utils import gql
+from reconcile.utils.managed_sso_client import derive_managed_sso_client_id
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -131,9 +132,9 @@ class ManagedSsoClientIntegration(
             )
             match client:
                 case ManagedSsoClientOpenidConnectV1():
-                    # OIDC clientId naming scheme: "<app.name>-<name>"
-                    # (design doc's "Client naming" section).
-                    client_id = f"{client.app.name}-{client.name}".lower()
+                    client_id = derive_managed_sso_client_id(
+                        client.app.name, client.name
+                    )
                     oidc = self._compile_oidc(client.oidc)
                 case _:
                     raise IntegrationError(

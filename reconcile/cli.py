@@ -30,6 +30,7 @@ from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gql import GqlApiSingleton
 from reconcile.utils.json import json_dumps
+from reconcile.utils.managed_sso_client import DEFAULT_OUTPUT_VAULT_PATH_PREFIX
 from reconcile.utils.promtool import PROMTOOL_VERSION, PROMTOOL_VERSION_REGEX
 from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
@@ -1752,6 +1753,53 @@ def openshift_rhcs_certs(
         thread_pool_size,
         internal,
         cluster_name=cluster_name,
+    )
+
+
+@integration.command(
+    short_help="Manages OpenShift Secrets for managed SSO client credentials."
+)
+@threaded()
+@binary(["oc"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@internal()
+@cluster_name
+@namespace_name
+@click.option(
+    "--vault-path-prefix",
+    help=(
+        "Vault path prefix used to resolve a managed-sso-client's tenant-facing "
+        "credential secret when its `output` field is unset. Must stay in sync "
+        "with qontract-api's "
+        "ManagedSsoClientSettings.default_output_vault_path_prefix."
+    ),
+    default=DEFAULT_OUTPUT_VAULT_PATH_PREFIX,
+)
+@click.pass_context
+def openshift_managed_sso_client_secrets(
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    cluster_name: Iterable[str] | None,
+    namespace_name: str | None,
+    vault_path_prefix: str,
+) -> None:
+    from reconcile.openshift_managed_sso_client_secrets import (
+        OpenshiftManagedSsoClientSecretsIntegration,
+        OpenshiftManagedSsoClientSecretsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=OpenshiftManagedSsoClientSecretsIntegration(
+            OpenshiftManagedSsoClientSecretsIntegrationParams(
+                thread_pool_size=thread_pool_size,
+                internal=internal,
+                cluster_name=list(cluster_name) if cluster_name else None,
+                namespace_name=namespace_name,
+                vault_path_prefix=vault_path_prefix,
+            )
+        ),
+        ctx=ctx,
     )
 
 
