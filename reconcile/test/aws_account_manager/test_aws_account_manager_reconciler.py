@@ -121,6 +121,122 @@ def test_aws_account_manager_reconcile_create_account_dry_run(
     aws_api.organizations.create_account.assert_not_called()
 
 
+def test_create_account_stores_email_in_state(
+    aws_api: MagicMock, reconciler: AWSReconciler, state: State
+) -> None:
+    aws_api.organizations.create_account.return_value = AWSAccountStatus(
+        Id="req-1", AccountName="account", State="PENDING"
+    )
+    reconciler._create_account(aws_api, "account", "owner@example.com")
+    stored = state[state_key("account", TASK_CREATE_ACCOUNT)]
+    assert stored == {"request_id": "req-1", "email": "owner@example.com"}
+
+
+def test_create_account_state_exists_new_format_same_email(
+    aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
+) -> None:
+    state_exists(
+        state_key("account", TASK_CREATE_ACCOUNT),
+        {"request_id": "req-1", "email": "owner@example.com"},
+    )
+    result = reconciler._create_account(aws_api, "account", "owner@example.com")
+    assert result == "req-1"
+    aws_api.organizations.create_account.assert_not_called()
+    aws_api.organizations.describe_create_account_status.assert_not_called()
+
+
+def test_create_account_email_changed_old_request_failed(
+    aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable, state: State
+) -> None:
+    state_exists(
+        state_key("account", TASK_CREATE_ACCOUNT),
+        {"request_id": "req-old", "email": "old@example.com"},
+    )
+    aws_api.organizations.describe_create_account_status.return_value = (
+        AWSAccountStatus(
+            Id="req-old",
+            AccountName="account",
+            State="FAILED",
+            FailureReason="EMAIL_ALREADY_EXISTS",
+        )
+    )
+    aws_api.organizations.create_account.return_value = AWSAccountStatus(
+        Id="req-new", AccountName="account", State="PENDING"
+    )
+    result = reconciler._create_account(aws_api, "account", "new@example.com")
+    assert result == "req-new"
+    aws_api.organizations.describe_create_account_status.assert_called_once_with(
+        create_account_request_id="req-old"
+    )
+    aws_api.organizations.create_account.assert_called_once_with(
+        email="new@example.com", name="account"
+    )
+    stored = state[state_key("account", TASK_CREATE_ACCOUNT)]
+    assert stored == {"request_id": "req-new", "email": "new@example.com"}
+
+
+def test_create_account_email_changed_old_request_in_progress(
+    aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
+) -> None:
+    state_exists(
+        state_key("account", TASK_CREATE_ACCOUNT),
+        {"request_id": "req-old", "email": "old@example.com"},
+    )
+    aws_api.organizations.describe_create_account_status.return_value = (
+        AWSAccountStatus(Id="req-old", AccountName="account", State="IN_PROGRESS")
+    )
+    result = reconciler._create_account(aws_api, "account", "new@example.com")
+    assert result is None
+    aws_api.organizations.create_account.assert_not_called()
+
+
+def test_create_account_email_changed_old_request_succeeded(
+    aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
+) -> None:
+    state_exists(
+        state_key("account", TASK_CREATE_ACCOUNT),
+        {"request_id": "req-old", "email": "old@example.com"},
+    )
+    aws_api.organizations.describe_create_account_status.return_value = (
+        AWSAccountStatus(
+            Id="req-old",
+            AccountName="account",
+            AccountId="123456789012",
+            State="SUCCEEDED",
+        )
+    )
+    result = reconciler._create_account(aws_api, "account", "new@example.com")
+    assert result == "req-old"
+    aws_api.organizations.create_account.assert_not_called()
+
+
+def test_create_account_state_exists_legacy_format(
+    aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
+) -> None:
+    state_exists(state_key("account", TASK_CREATE_ACCOUNT), "legacy-req-id")
+    result = reconciler._create_account(aws_api, "account", "email@example.com")
+    assert result == "legacy-req-id"
+    aws_api.organizations.create_account.assert_not_called()
+    aws_api.organizations.describe_create_account_status.assert_not_called()
+
+
+def test_org_account_exists_failed_email_already_exists(
+    aws_api: MagicMock, reconciler: AWSReconciler
+) -> None:
+    aws_api.organizations.describe_create_account_status.return_value = (
+        AWSAccountStatus(
+            Id="req-1",
+            AccountName="account",
+            State="FAILED",
+            FailureReason="EMAIL_ALREADY_EXISTS",
+        )
+    )
+    with pytest.raises(
+        RuntimeError, match="already associated with another AWS account"
+    ):
+        reconciler._org_account_exists(aws_api, "account", "req-1")
+
+
 def test_aws_account_manager_reconcile_org_account_exists_succeeded(
     aws_api: MagicMock, reconciler: AWSReconciler
 ) -> None:
