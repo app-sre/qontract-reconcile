@@ -425,6 +425,19 @@ class ManagedSsoClientSettings(BaseModel):
     )
 
 
+class GitlabProjectsSettings(BaseModel):
+    """GitLab projects API and integration configuration."""
+
+    api_timeout: int = Field(
+        default=30,
+        description="GitLab API timeout in seconds",
+    )
+    group_projects_cache_ttl: int = Field(
+        default=60 * 11,
+        description="GitLab group project list cache TTL in seconds (11 minutes)",
+    )
+
+
 class QuaySettings(BaseModel):
     """Quay API and integration configuration."""
 
@@ -651,6 +664,12 @@ class Settings(BaseSettings):
     managed_sso_client: ManagedSsoClientSettings = Field(
         default_factory=ManagedSsoClientSettings,
         description="Managed SSO client integration configuration",
+    )
+
+    # GitLab Projects Configuration (nested)
+    gitlab_projects: GitlabProjectsSettings = Field(
+        default_factory=GitlabProjectsSettings,
+        description="GitLab projects API and integration configuration",
     )
 
     # Event Subscriber Configuration (nested)

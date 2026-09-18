@@ -2541,6 +2541,38 @@ def gitlab_projects(ctx: click.Context) -> None:
     run_integration(reconcile.gitlab_projects, ctx)
 
 
+@integration.command(short_help="Create GitLab projects via qontract-api.")
+@click.option(
+    "--instance-name", help="Reconcile just this GitLab instance.", default=None
+)
+@click.option(
+    "--project-name",
+    default=None,
+    multiple=True,
+    help="Reconcile just this project i.e.: --project-name foo --project-name bar",
+)
+@click.pass_context
+def gitlab_projects_api(
+    ctx: click.Context,
+    instance_name: str | None,
+    project_name: Iterable[str] | None,
+) -> None:
+    from reconcile.gitlab_projects_api import (
+        GitLabProjectsIntegration,
+        GitlabProjectsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=GitLabProjectsIntegration(
+            GitlabProjectsIntegrationParams(
+                instance_name=instance_name,
+                project_names=frozenset(project_name) if project_name else None,
+            )
+        ),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Manage membership in OpenShift groups via OCM.")
 @threaded()
 @click.pass_context
