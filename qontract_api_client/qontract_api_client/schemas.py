@@ -182,6 +182,61 @@ class GithubOwnersTaskResult(pydantic.BaseModel):
     status: TaskStatus
 
 
+class GitlabGroupConfig(pydantic.BaseModel):
+    group: str
+    projects: list[GitlabProjectConfig] | None = None
+
+
+class GitlabInstanceConfig(pydantic.BaseModel):
+    groups: list[GitlabGroupConfig] | None = None
+    name: str
+    ssl_verify: bool = True
+    token: Secret
+    url: str
+
+
+class GitlabProjectActionCreate(pydantic.BaseModel):
+    action_type: typing.Literal["create"] = "create"
+    group: str
+    instance: str
+    project_name: str
+
+
+class GitlabProjectActionCreateSaasBundle(pydantic.BaseModel):
+    action_type: typing.Literal["create_saas_bundle"] = "create_saas_bundle"
+    group: str
+    instance: str
+    project_name: str
+
+
+class GitlabProjectConfig(pydantic.BaseModel):
+    is_saas_bundle: bool = False
+    name: str
+
+
+class GitlabProjectsReconcileRequest(pydantic.BaseModel):
+    dry_run: bool = True
+    instances: list[GitlabInstanceConfig]
+
+
+class GitlabProjectsTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class GitlabProjectsTaskResult(pydantic.BaseModel):
+    actions: (
+        list[GitlabProjectActionCreate | GitlabProjectActionCreateSaasBundle] | None
+    ) = None
+    applied_actions: (
+        list[GitlabProjectActionCreate | GitlabProjectActionCreateSaasBundle] | None
+    ) = None
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
+
+
 class GlitchtipActionAddProjectToTeam(pydantic.BaseModel):
     action_type: typing.Literal["add_project_to_team"] = "add_project_to_team"
     instance: str
