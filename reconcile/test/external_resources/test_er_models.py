@@ -1,19 +1,32 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 from pytest import fixture
 
+from reconcile.external_resources.aws import (
+    AWSVpcEndpointFactory,
+    AWSVpcEndpointServiceFactory,
+)
 from reconcile.external_resources.model import (
     ExternalResource,
     ExternalResourceKey,
+    ExternalResourceModuleConfiguration,
     ExternalResourcesInventory,
+)
+from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
+    NamespaceTerraformProviderResourceAWSV1,
+    NamespaceTerraformResourceVpcEndpointServiceV1,
+    NamespaceTerraformResourceVpcEndpointV1,
 )
 from reconcile.typed_queries.external_resources import NamespaceV1
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from reconcile.external_resources.aws import AWSResourceFactory
 
 
 @fixture
@@ -157,6 +170,79 @@ def test_er_inventory_no_unmanaged_resource(
     er_inventory: ExternalResourcesInventory,
 ) -> None:
     assert len(er_inventory) == 6
+
+
+@pytest.mark.parametrize(
+    "provider, private_dns",
+    [
+        ("vpc-endpoint", True),
+        ("vpc-endpoint", False),
+        ("vpc-endpoint", None),
+        ("vpc-endpoint-service", "service.example.com"),
+        ("vpc-endpoint-service", None),
+    ],
+)
+def test_private_dns_reaches_module_input(
+    namespaces: list[NamespaceV1],
+    gql_class_factory: Callable[
+        ...,
+        NamespaceTerraformResourceVpcEndpointV1
+        | NamespaceTerraformResourceVpcEndpointServiceV1,
+    ],
+    provider: str,
+    private_dns: str | bool | None,
+) -> None:
+    namespace = namespaces[0]
+    assert namespace.external_resources
+    resource_provider = namespace.external_resources[0]
+    assert isinstance(resource_provider, NamespaceTerraformProviderResourceAWSV1)
+    resource_data = {
+        "identifier": "private-dns-test",
+        "provider": provider,
+        "managed_by_erv2": True,
+    }
+    factory_type: type[AWSResourceFactory]
+    if provider == "vpc-endpoint":
+        dns_field = "private_dns_enabled"
+        resource = gql_class_factory(
+            NamespaceTerraformResourceVpcEndpointV1,
+            {
+                **resource_data,
+                "endpoint_service_name": "com.amazonaws.vpce.us-east-1.vpce-svc-0123456789abcdef0",
+                dns_field: private_dns,
+                "vpc": {
+                    "vpc_id": "vpc-0123456789abcdef0",
+                    "region": "us-east-1",
+                    "subnets": [{"id": "subnet-aaaa", "privacy": "private"}],
+                },
+            },
+        )
+        factory_type = AWSVpcEndpointFactory
+    else:
+        dns_field = "private_dns_name"
+        resource = gql_class_factory(
+            NamespaceTerraformResourceVpcEndpointServiceV1,
+            {
+                **resource_data,
+                "openshift_service_name": "myservice",
+                dns_field: private_dns,
+            },
+        )
+        factory_type = AWSVpcEndpointServiceFactory
+    resource_provider.resources = [resource]
+    inventory = ExternalResourcesInventory([namespace])
+    spec = inventory.get_inventory_spec(
+        "aws", "aws-account", provider, "private-dns-test"
+    )
+
+    data = factory_type(inventory, Mock()).resolve(
+        spec, ExternalResourceModuleConfiguration()
+    )
+
+    if private_dns is None:
+        assert dns_field not in data
+    else:
+        assert data[dns_field] == private_dns
 
 
 @pytest.mark.parametrize(
