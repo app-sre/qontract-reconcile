@@ -5,13 +5,15 @@ from unittest.mock import MagicMock
 import pytest
 from qontract_utils.gitlab_api import GitlabGroup, GitlabProject
 
-from qontract_api.integrations.gitlab_projects.schemas import (
+from qontract_api.integrations.gitlab_projects.domain import (
     GitlabGroupConfig,
     GitlabInstanceConfig,
+    GitlabProjectConfig,
+)
+from qontract_api.integrations.gitlab_projects.schemas import (
     GitlabProjectAction,
     GitlabProjectActionCreate,
     GitlabProjectActionCreateSaasBundle,
-    GitlabProjectConfig,
 )
 from qontract_api.integrations.gitlab_projects.service import GitlabProjectsService
 from qontract_api.models import Secret, TaskStatus
