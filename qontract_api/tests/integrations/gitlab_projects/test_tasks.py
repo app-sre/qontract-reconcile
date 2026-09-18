@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock
 
-from qontract_api.integrations.gitlab_projects.schemas import GitlabInstanceConfig
+from qontract_api.integrations.gitlab_projects.domain import GitlabInstanceConfig
 from qontract_api.integrations.gitlab_projects.tasks import generate_lock_key
 from qontract_api.models import Secret
 

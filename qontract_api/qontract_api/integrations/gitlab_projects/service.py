@@ -5,14 +5,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from qontract_utils.differ import diff_any_iterables
+
 from qontract_api.gitlab.gitlab_client_factory import create_gitlab_workspace_client
 from qontract_api.integrations.gitlab_projects.schemas import (
-    GitlabGroupConfig,
-    GitlabInstanceConfig,
     GitlabProjectAction,
     GitlabProjectActionCreate,
     GitlabProjectActionCreateSaasBundle,
-    GitlabProjectConfig,
     GitlabProjectsTaskResult,
 )
 from qontract_api.logger import get_logger
@@ -22,6 +21,11 @@ if TYPE_CHECKING:
     from qontract_api.cache import CacheBackend
     from qontract_api.config import Settings
     from qontract_api.gitlab.gitlab_workspace_client import GitlabWorkspaceClient
+    from qontract_api.integrations.gitlab_projects.domain import (
+        GitlabGroupConfig,
+        GitlabInstanceConfig,
+        GitlabProjectConfig,
+    )
     from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
@@ -64,12 +68,15 @@ class GitlabProjectsService:
         existing_project_names: list[str],
     ) -> list[GitlabProjectAction]:
         # Actions are desired projects whose name isn't already present in the
-        # group. Deletions are deliberately never actioned.
-        existing = set(existing_project_names)
-        missing = sorted(
-            (project for project in desired_projects if project.name not in existing),
-            key=lambda project: project.name,
+        # group. diff.delete (existing but not desired) is deliberately never
+        # actioned - this integration never deletes projects.
+        diff = diff_any_iterables(
+            current=existing_project_names,
+            desired=desired_projects,
+            current_key=lambda name: name,
+            desired_key=lambda project: project.name,
         )
+        missing = sorted(diff.add.values(), key=lambda project: project.name)
 
         actions: list[GitlabProjectAction] = []
         for project_cfg in missing:
