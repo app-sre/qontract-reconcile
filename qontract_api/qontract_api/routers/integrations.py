@@ -7,6 +7,7 @@ ensuring they are isolated under /integrations/* and can share common policies.
 from fastapi import APIRouter
 
 from qontract_api.integrations.github_owners import router as github_owners_router
+from qontract_api.integrations.gitlab_projects import router as gitlab_projects_router
 from qontract_api.integrations.glitchtip import router as glitchtip_router
 from qontract_api.integrations.glitchtip_project_alerts import (
     router as glitchtip_project_alerts_router,
@@ -40,6 +41,7 @@ integrations_router.include_router(quay_repos_router.router)
 integrations_router.include_router(ocm_groups_router.router)
 integrations_router.include_router(ocm_oidc_idp_router.router)
 integrations_router.include_router(managed_sso_client_router.router)
+integrations_router.include_router(gitlab_projects_router.router)
 
 # Future integrations will be added here:
 # - AWS RDS reboot
