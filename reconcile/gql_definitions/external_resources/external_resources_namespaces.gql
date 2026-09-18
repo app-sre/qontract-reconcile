@@ -504,6 +504,7 @@ query ExternalResourcesNamespaces {
           ... on NamespaceTerraformResourceVpcEndpoint_v1 {
             identifier
             endpoint_service_name
+            private_dns_enabled
             vpc {
               vpc_id
               region
@@ -525,6 +526,7 @@ query ExternalResourcesNamespaces {
             region
             identifier
             openshift_service_name
+            private_dns_name
             allowed_consumer_clusters {
               name
               spec {
