@@ -89,8 +89,10 @@ class GitlabWorkspaceClient:
         """Create a project under the group and invalidate its cached project list."""
         cache_key = self._cache_key_group(group_name)
         with self.cache.lock(cache_key):
-            project = self.gitlab_api.create_project(group_id, name)
-            self.cache.delete(cache_key)
+            try:
+                project = self.gitlab_api.create_project(group_id, name)
+            finally:
+                self.cache.delete(cache_key)
             return project
 
     def initiate_saas_bundle_repo(self, project_id: int) -> None:

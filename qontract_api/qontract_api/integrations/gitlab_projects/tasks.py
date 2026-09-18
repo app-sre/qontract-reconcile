@@ -10,7 +10,7 @@ from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
 from qontract_api.event_manager import get_event_manager
 from qontract_api.integrations.gitlab_projects.schemas import (
-    GitlabInstanceConfig,
+    GitlabProjectsErrorEvent,
     GitlabProjectsTaskResult,
 )
 from qontract_api.integrations.gitlab_projects.service import GitlabProjectsService
@@ -21,6 +21,8 @@ from qontract_api.tasks import celery_app, deduplicated_task
 
 if TYPE_CHECKING:
     from celery import Task
+
+    from qontract_api.integrations.gitlab_projects.domain import GitlabInstanceConfig
 
 logger = get_logger(__name__)
 
@@ -94,7 +96,7 @@ def reconcile_gitlab_projects_task(
                     Event(
                         source=__name__,
                         type="qontract-api.gitlab-projects.error",
-                        data={"error": error},
+                        data={"error": GitlabProjectsErrorEvent(error=error)},
                         datacontenttype="application/json",
                     )
                 )

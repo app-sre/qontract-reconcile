@@ -66,6 +66,15 @@ class GitlabProjectsIntegrationParams(PydanticRunParams):
 class GitLabProjectsIntegration(
     QontractReconcileApiIntegration[GitlabProjectsIntegrationParams]
 ):
+    """Create GitLab projects via qontract-api.
+
+    This integration:
+    1. Queries App-Interface for GitLab instances and their requested projects/groups
+    2. Queries App-Interface for app codeComponents, to validate each requested project
+    3. Filters out projects with no matching codeComponent, failing the run if any are found
+    4. Sends the complete desired state to qontract-api for reconciliation
+    """
+
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
@@ -96,25 +105,39 @@ class GitLabProjectsIntegration(
         allowed_instance_name: str | None,
         allowed_project_names: frozenset[str] | None,
     ) -> list[GitlabInstanceV1]:
-        """Narrow instances/projects to the given filters, for targeted debug runs."""
-        if allowed_instance_name:
-            gl_instances[:] = [
-                instance
-                for instance in gl_instances
-                if instance.name == allowed_instance_name
+        """Return instances/projects narrowed to the given filters, for targeted debug runs."""
+        instances = [
+            instance
+            for instance in gl_instances
+            if not allowed_instance_name or instance.name == allowed_instance_name
+        ]
+        if not allowed_project_names:
+            return instances
+
+        filtered_instances = []
+        for instance in instances:
+            project_requests = [
+                project_request.model_copy(
+                    update={
+                        "projects": [
+                            p
+                            for p in project_request.projects
+                            if p in allowed_project_names
+                        ]
+                    }
+                )
+                for project_request in instance.project_requests or []
             ]
-        if allowed_project_names:
-            for instance in gl_instances:
-                for project_request in instance.project_requests or []:
-                    project_request.projects = [
-                        p
-                        for p in project_request.projects
-                        if p in allowed_project_names
-                    ]
-                instance.project_requests = [
-                    pr for pr in instance.project_requests or [] if pr.projects
-                ]
-        return gl_instances
+            filtered_instances.append(
+                instance.model_copy(
+                    update={
+                        "project_requests": [
+                            pr for pr in project_requests if pr.projects
+                        ]
+                    }
+                )
+            )
+        return filtered_instances
 
     def compile_desired_state(
         self,

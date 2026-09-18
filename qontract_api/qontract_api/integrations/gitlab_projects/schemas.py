@@ -1,63 +1,11 @@
 """Pydantic schemas for GitLab projects reconciliation API."""
 
-from collections import Counter
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
-from qontract_api.models import Secret, TaskResult, TaskStatus
-
-
-class GitlabProjectConfig(BaseModel, frozen=True):
-    """Desired state for a single GitLab project."""
-
-    name: str = Field(..., description="Project name")
-    is_saas_bundle: bool = Field(
-        default=False,
-        description=(
-            "Whether this project should be initialized as a SaaS bundle repo "
-            "(README + staging/production branches) rather than left empty"
-        ),
-    )
-
-
-class GitlabGroupConfig(BaseModel, frozen=True):
-    """Configuration for a single GitLab group and its desired projects."""
-
-    group: str = Field(..., description="GitLab group full path")
-    projects: list[GitlabProjectConfig] = Field(
-        default_factory=list, description="Desired projects under this group"
-    )
-
-    @field_validator("projects")
-    @classmethod
-    def project_names_unique(
-        cls, projects: list[GitlabProjectConfig]
-    ) -> list[GitlabProjectConfig]:
-        duplicate_counter = Counter(project.name for project in projects)
-        duplicates = {name for name, count in duplicate_counter.items() if count > 1}
-        if duplicates:
-            raise ValueError(
-                f"duplicate project names: {', '.join(sorted(duplicates))}"
-            )
-        return projects
-
-
-class GitlabInstanceConfig(BaseModel, frozen=True):
-    """Configuration for a single GitLab instance to reconcile."""
-
-    name: str = Field(..., description="GitLab instance name")
-    url: str = Field(..., description="GitLab instance URL")
-    ssl_verify: bool = Field(
-        default=True, description="Whether to verify SSL certificates"
-    )
-    token: Secret = Field(..., description="Secret reference for the instance token")
-    groups: list[GitlabGroupConfig] = Field(
-        default_factory=list, description="Desired group/project state"
-    )
-
-    def lock_key(self) -> str:
-        return self.name
+from qontract_api.integrations.gitlab_projects.domain import GitlabInstanceConfig
+from qontract_api.models import TaskResult, TaskStatus
 
 
 class GitlabProjectsReconcileRequest(BaseModel, frozen=True):
@@ -117,3 +65,16 @@ class GitlabProjectsTaskResponse(BaseModel, frozen=True):
     id: str = Field(..., description="Task ID")
     status: TaskStatus = Field(default=TaskStatus.PENDING)
     status_url: str = Field(..., description="URL to poll for task result")
+
+
+# ---------------------------------------------------------------------------
+# Error models
+# ---------------------------------------------------------------------------
+
+
+class GitlabProjectsErrorEvent(BaseModel, frozen=True):
+    """Payload published when a reconciliation error is recorded."""
+
+    error: str = Field(
+        ..., description="The error message recorded during reconciliation."
+    )
