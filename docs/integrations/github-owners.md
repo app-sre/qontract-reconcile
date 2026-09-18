@@ -359,12 +359,12 @@ curl -s -X POST http://localhost:8000/api/v1/integrations/github-owners/reconcil
 
 **ADRs:**
 
-- [ADR-002: Client-Side GraphQL](../adr/ADR-002-client-side-graphql.md)
+- [ADR-002: Client-Side GraphQL](../adr/ADR-002-client-side-graphql-fetching.md)
 - [ADR-003: Async-Only API with Blocking GET](../adr/ADR-003-async-only-api-with-blocking-get.md)
 - [ADR-008: Integration Naming (_api suffix)](../adr/ADR-008-qontract-api-client-integration-pattern.md)
-- [ADR-011: Dependency Injection](../adr/ADR-011-dependency-injection.md)
-- [ADR-012: Pydantic Models](../adr/ADR-012-pydantic-models.md)
-- [ADR-014: Three-Layer Architecture](../adr/ADR-014-three-layer-architecture.md)
+- [ADR-011: Dependency Injection](../adr/ADR-011-dependency-injection-pattern.md)
+- [ADR-012: Pydantic Models](../adr/ADR-012-typed-models-over-dicts.md)
+- [ADR-014: Three-Layer Architecture](../adr/ADR-014-three-layer-architecture-for-external-apis.md)
 
 **External:**
 

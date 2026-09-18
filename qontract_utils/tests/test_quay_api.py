@@ -70,6 +70,15 @@ def test_quay_api_base_url_no_protocol_gets_https() -> None:
     assert kwargs["base_url"] == "https://quay.io"
 
 
+def test_quay_api_rejects_http_base_url() -> None:
+    with (
+        patch("qontract_utils.quay_api.client.httpx2.Client") as mock_cls,
+        pytest.raises(ValueError, match="must use HTTPS"),
+    ):
+        QuayApi(org="my-org", token="tok", base_url="http://quay.example.com")
+    mock_cls.assert_not_called()
+
+
 def test_quay_api_default_timeout() -> None:
     with patch("qontract_utils.quay_api.client.httpx2.Client") as mock_cls:
         QuayApi(org="my-org", token="tok")
@@ -149,6 +158,29 @@ def test_list_images_follows_pagination(
 def test_list_images_empty_org(quay_api: QuayApi, mock_httpx_client: MagicMock) -> None:
     mock_httpx_client.get.return_value = _ok_response({"repositories": []})
     assert quay_api.list_images() == []
+
+
+def test_list_images_coerces_null_description(
+    quay_api: QuayApi, mock_httpx_client: MagicMock
+) -> None:
+    mock_httpx_client.get.return_value = _ok_response(
+        {
+            "repositories": [
+                {
+                    "name": "repo-a",
+                    "is_public": True,
+                    "description": None,
+                    "namespace": "test-org",
+                }
+            ]
+        }
+    )
+
+    repos = quay_api.list_images()
+
+    assert len(repos) == 1
+    assert repos[0].name == "repo-a"
+    assert not repos[0].description
 
 
 def test_list_images_raises_on_too_many_pages(
