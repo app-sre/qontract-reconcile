@@ -476,8 +476,11 @@ def test_review_queue_includes_approved_mr_with_pipeline_error(
     assert "MR 1" in result.output
 
 
-def test_review_queue_succeeds_when_slack_token_is_revoked(
-    mock_review_queue_gl: Mock, mock_slackapi_from_queries: Mock
+@pytest.mark.parametrize("slack_error", ["token_revoked", "channel_not_found"])
+def test_review_queue_succeeds_when_slack_api_fails(
+    mock_review_queue_gl: Mock,
+    mock_slackapi_from_queries: Mock,
+    slack_error: str,
 ) -> None:
     mock_review_queue_gl.get_merge_requests.return_value = [
         _mock_mr(9, [LGTM, PIPELINE_ERROR])
@@ -486,7 +489,7 @@ def test_review_queue_succeeds_when_slack_token_is_revoked(
         Mock(status=PipelineStatus.FAILED)
     ]
     mock_slackapi_from_queries.return_value.chat_post_message.side_effect = (
-        SlackApiError("token_revoked", response={"error": "token_revoked"})
+        SlackApiError(slack_error, response={"error": slack_error})
     )
 
     runner = CliRunner()
@@ -527,7 +530,7 @@ def test_review_queue_succeeds_when_slack_request_fails(
     assert "MR 10" in result.output
 
 
-def test_review_queue_does_not_suppress_unexpected_slack_errors(
+def test_review_queue_succeeds_when_slack_client_raises_unexpected_error(
     mock_review_queue_gl: Mock, mock_slackapi_from_queries: Mock
 ) -> None:
     mock_review_queue_gl.get_merge_requests.return_value = [
@@ -547,7 +550,8 @@ def test_review_queue_does_not_suppress_unexpected_slack_errors(
         obj={"options": {"output": "table", "sort": True}},
     )
 
-    assert result.exit_code != 0
+    assert result.exit_code == 0
+    assert "MR 11" in result.output
 
 
 def test_review_queue_excludes_approved_mr_without_error(

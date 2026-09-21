@@ -34,7 +34,6 @@ from rich.console import Console, Group
 from rich.prompt import Confirm
 from rich.table import Table
 from rich.tree import Tree
-from slack_sdk.errors import SlackApiError, SlackRequestError
 
 import reconcile.aus.base as aus
 import reconcile.change_owners.change_log_tracking as cl
@@ -2500,12 +2499,13 @@ def app_interface_review_queue(ctx: click.Context) -> None:
     ctx.obj["options"]["sort"] = False  # do not sort
     text = print_output(ctx.obj["options"], queue_data, columns)
     if text:
+        # Slack notification is best effort; the queue output remains authoritative.
         try:
             slack = slackapi_from_queries(
                 "app-interface-review-queue", init_usergroups=False
             )
             slack.chat_post_message("```\n" + text + "\n```")
-        except (SlackApiError, SlackRequestError) as error:
+        except Exception as error:
             logging.warning(
                 "Unable to send app-interface review queue to Slack: %s", error
             )
