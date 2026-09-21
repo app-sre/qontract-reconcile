@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import pytest
 from click.testing import CliRunner
 from gitlab.const import PipelineStatus
+from slack_sdk.errors import SlackApiError, SlackRequestError
 
 from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheStatus
 from reconcile.utils.mr.labels import (
@@ -400,7 +401,14 @@ def test_cidr_blocks_within_invalid_cidr(mock_cidr_deps: Mock) -> None:
 
 
 @pytest.fixture
-def mock_review_queue_gl(mocker: MockerFixture) -> Mock:
+def mock_slackapi_from_queries(mocker: MockerFixture) -> Mock:
+    return mocker.patch("tools.qontract_cli.slackapi_from_queries", autospec=True)
+
+
+@pytest.fixture
+def mock_review_queue_gl(
+    mocker: MockerFixture, mock_slackapi_from_queries: Mock
+) -> Mock:
     mocker.patch(
         "tools.qontract_cli.queries.get_app_interface_settings",
         autospec=True,
@@ -413,7 +421,6 @@ def mock_review_queue_gl(mocker: MockerFixture) -> Mock:
     )
     mocker.patch("tools.qontract_cli.SecretReader", autospec=True)
     mocker.patch("tools.qontract_cli.init_jjb", autospec=True)
-    mocker.patch("tools.qontract_cli.slackapi_from_queries", autospec=True)
 
     mock_gl = mocker.patch("tools.qontract_cli.GitLabApi", autospec=True)
     gl_instance = mock_gl.return_value
@@ -467,6 +474,84 @@ def test_review_queue_includes_approved_mr_with_pipeline_error(
     )
     assert result.exit_code == 0
     assert "MR 1" in result.output
+
+
+@pytest.mark.parametrize("slack_error", ["token_revoked", "channel_not_found"])
+def test_review_queue_succeeds_when_slack_api_fails(
+    mock_review_queue_gl: Mock,
+    mock_slackapi_from_queries: Mock,
+    slack_error: str,
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(9, [LGTM, PIPELINE_ERROR])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.FAILED)
+    ]
+    mock_slackapi_from_queries.return_value.chat_post_message.side_effect = (
+        SlackApiError(slack_error, response={"error": slack_error})
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+
+    assert result.exit_code == 0
+    assert "MR 9" in result.output
+    mock_slackapi_from_queries.assert_called_once_with(
+        "app-interface-review-queue", init_usergroups=False
+    )
+
+
+def test_review_queue_succeeds_when_slack_request_fails(
+    mock_review_queue_gl: Mock, mock_slackapi_from_queries: Mock
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(10, [LGTM, PIPELINE_ERROR])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.FAILED)
+    ]
+    mock_slackapi_from_queries.return_value.chat_post_message.side_effect = (
+        SlackRequestError("Slack connection failed")
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+
+    assert result.exit_code == 0
+    assert "MR 10" in result.output
+
+
+def test_review_queue_succeeds_when_slack_client_raises_unexpected_error(
+    mock_review_queue_gl: Mock, mock_slackapi_from_queries: Mock
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(11, [LGTM, PIPELINE_ERROR])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.FAILED)
+    ]
+    mock_slackapi_from_queries.return_value.chat_post_message.side_effect = (
+        RuntimeError("unexpected Slack client failure")
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+
+    assert result.exit_code == 0
+    assert "MR 11" in result.output
 
 
 def test_review_queue_excludes_approved_mr_without_error(

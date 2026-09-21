@@ -2499,8 +2499,16 @@ def app_interface_review_queue(ctx: click.Context) -> None:
     ctx.obj["options"]["sort"] = False  # do not sort
     text = print_output(ctx.obj["options"], queue_data, columns)
     if text:
-        slack = slackapi_from_queries("app-interface-review-queue")
-        slack.chat_post_message("```\n" + text + "\n```")
+        # Slack notification is best effort; the queue output remains authoritative.
+        try:
+            slack = slackapi_from_queries(
+                "app-interface-review-queue", init_usergroups=False
+            )
+            slack.chat_post_message("```\n" + text + "\n```")
+        except Exception as error:
+            logging.warning(
+                "Unable to send app-interface review queue to Slack: %s", error
+            )
 
 
 @get.command()
