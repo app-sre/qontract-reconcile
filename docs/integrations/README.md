@@ -14,6 +14,7 @@ qontract-api integrations follow a split architecture:
 Available integrations:
 
 - [GitHub Owners](github-owners.md) - Manage GitHub organization admin (owner) membership based on App-Interface roles with add-only safety semantics
+- [GitLab Projects](gitlab-projects.md) - Create GitLab projects declared in App-Interface, cross-validated against codeComponents, with optional SaaS bundle repo initialization
 - [Glitchtip](glitchtip.md) - Manage Glitchtip organizations, teams, projects, and users across instances with LDAP group enrichment
 - [Glitchtip Project Alerts](glitchtip-project-alerts.md) - Manage Glitchtip project alert configurations across instances with email/webhook recipients and Jira integration
 - [LDAP Users](ldap-users.md) - Remove orphaned users from app-interface and infra repos when no longer in LDAP (client-orchestrated pattern)
