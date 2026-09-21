@@ -162,6 +162,44 @@ class GitLabRepoApi:
             return None
 
     @invoke_with_hooks(
+        lambda self: GitLabApiCallContext(method="create_file", repo_url=self.repo_url)
+    )
+    def create_file(
+        self, path: str, branch: str, commit_message: str, content: str
+    ) -> None:
+        """Create a file via a new commit on the given branch.
+
+        Args:
+            path: File path relative to repository root
+            branch: Branch to commit to
+            commit_message: Commit message
+            content: File content
+        """
+        self._project.commits.create(
+            {
+                "branch": branch,
+                "commit_message": commit_message,
+                "actions": [
+                    {"action": "create", "file_path": path, "content": content}
+                ],
+            }
+        )
+
+    @invoke_with_hooks(
+        lambda self: GitLabApiCallContext(
+            method="create_branch", repo_url=self.repo_url
+        )
+    )
+    def create_branch(self, new_branch: str, source_branch: str) -> None:
+        """Create a branch from an existing source branch.
+
+        Args:
+            new_branch: Name of the branch to create
+            source_branch: Branch to cut the new branch from
+        """
+        self._project.branches.create({"branch": new_branch, "ref": source_branch})
+
+    @invoke_with_hooks(
         lambda self: GitLabApiCallContext(
             method="find_merge_request", repo_url=self.repo_url
         ),

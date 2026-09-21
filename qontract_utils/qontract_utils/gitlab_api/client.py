@@ -1,8 +1,9 @@
 """GitLab group/project administration API client with hook system.
 
 Following ADR-014 (Three-Layer Architecture) - Layer 1: Pure Communication.
-Scoped to a single GitLab instance. Provides group listing, project creation,
-and the file/branch primitives needed to bootstrap a SaaS bundle repo.
+Scoped to a single GitLab instance. Provides group listing and project
+creation. File/branch content operations live in
+qontract_utils.vcs.providers.gitlab_client.GitLabRepoApi.
 """
 
 import contextvars
@@ -36,12 +37,6 @@ gitlab_projects_request_duration = Histogram(
 _latency_tracker: contextvars.ContextVar[tuple[float, ...]] = contextvars.ContextVar(
     f"{__name__}.latency_tracker", default=()
 )
-
-DEFAULT_BRANCH = "master"
-SAAS_BUNDLE_BRANCHES = ("staging", "production")
-README_PATH = "README.md"
-README_COMMIT_MESSAGE = "Initial commit"
-README_CONTENT = "Use the staging or the production branches."
 
 
 @dataclass(frozen=True)
@@ -139,51 +134,6 @@ class GitlabApi:
             path_with_namespace=project.path_with_namespace,
             web_url=project.web_url,
         )
-
-    @invoke_with_hooks(
-        lambda self: GitlabApiCallContext(method="create_file", url=self.url)
-    )
-    def create_file(
-        self,
-        project_id: int,
-        branch: str,
-        file_path: str,
-        commit_message: str,
-        content: str,
-    ) -> None:
-        """Create a file via a new commit on the given branch."""
-        project = self._gitlab.projects.get(project_id, lazy=True)
-        project.commits.create(
-            {
-                "branch": branch,
-                "commit_message": commit_message,
-                "actions": [
-                    {"action": "create", "file_path": file_path, "content": content}
-                ],
-            }
-        )
-
-    @invoke_with_hooks(
-        lambda self: GitlabApiCallContext(method="create_branch", url=self.url)
-    )
-    def create_branch(
-        self, project_id: int, new_branch: str, source_branch: str
-    ) -> None:
-        """Create a branch from an existing source branch."""
-        project = self._gitlab.projects.get(project_id, lazy=True)
-        project.branches.create({"branch": new_branch, "ref": source_branch})
-
-    def initiate_saas_bundle_repo(self, project_id: int) -> None:
-        """Bootstrap a SaaS bundle repo: a README commit on `master`, then `staging`/`production` branches cut from it."""
-        self.create_file(
-            project_id,
-            DEFAULT_BRANCH,
-            README_PATH,
-            README_COMMIT_MESSAGE,
-            README_CONTENT,
-        )
-        for branch in SAAS_BUNDLE_BRANCHES:
-            self.create_branch(project_id, branch, DEFAULT_BRANCH)
 
     def close(self) -> None:
         """Close the underlying HTTP session and release connections."""
