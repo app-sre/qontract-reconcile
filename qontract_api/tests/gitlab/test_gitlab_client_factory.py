@@ -103,3 +103,22 @@ def test_factory_cache_key_uses_url(
     )
 
     assert "gitlab.other.com" in client._cache_key_group("team")
+
+
+def test_factory_stores_resolved_token(
+    mock_gitlab_api_cls: MagicMock,
+    mock_cache: MagicMock,
+    mock_secret_manager: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    mock_secret_manager.read.return_value = "test-token"
+
+    client = create_gitlab_workspace_client(
+        secret=_SECRET,
+        url="https://gitlab.example.com",
+        cache=mock_cache,
+        secret_manager=mock_secret_manager,
+        settings=mock_settings,
+    )
+
+    assert client._token == "test-token"

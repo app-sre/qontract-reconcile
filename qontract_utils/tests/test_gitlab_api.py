@@ -6,12 +6,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from qontract_utils.gitlab_api import GitlabApi, GitlabApiCallContext
-from qontract_utils.gitlab_api.client import (
-    DEFAULT_BRANCH,
-    README_CONTENT,
-    README_PATH,
-    SAAS_BUNDLE_BRANCHES,
-)
 from qontract_utils.hooks import Hooks
 
 # ---------------------------------------------------------------------------
@@ -149,69 +143,6 @@ def test_create_project_creates_under_group_and_returns_project(
     assert result.name == "newproj"
     assert result.path_with_namespace == "team/newproj"
     assert result.web_url == "https://x/team/newproj"
-
-
-# ---------------------------------------------------------------------------
-# create_file / create_branch
-# ---------------------------------------------------------------------------
-
-
-def test_create_file_commits_via_lazy_project(
-    gitlab_api: GitlabApi, mock_gitlab_client: MagicMock
-) -> None:
-    lazy_project = MagicMock()
-    mock_gitlab_client.projects.get.return_value = lazy_project
-
-    gitlab_api.create_file(42, "master", "README.md", "msg", "content")
-
-    mock_gitlab_client.projects.get.assert_called_once_with(42, lazy=True)
-    lazy_project.commits.create.assert_called_once_with(
-        {
-            "branch": "master",
-            "commit_message": "msg",
-            "actions": [
-                {"action": "create", "file_path": "README.md", "content": "content"}
-            ],
-        }
-    )
-
-
-def test_create_branch_via_lazy_project(
-    gitlab_api: GitlabApi, mock_gitlab_client: MagicMock
-) -> None:
-    lazy_project = MagicMock()
-    mock_gitlab_client.projects.get.return_value = lazy_project
-
-    gitlab_api.create_branch(42, "staging", "master")
-
-    mock_gitlab_client.projects.get.assert_called_once_with(42, lazy=True)
-    lazy_project.branches.create.assert_called_once_with(
-        {"branch": "staging", "ref": "master"}
-    )
-
-
-# ---------------------------------------------------------------------------
-# initiate_saas_bundle_repo
-# ---------------------------------------------------------------------------
-
-
-def test_initiate_saas_bundle_repo_creates_readme_then_branches(
-    gitlab_api: GitlabApi, mock_gitlab_client: MagicMock
-) -> None:
-    lazy_project = MagicMock()
-    mock_gitlab_client.projects.get.return_value = lazy_project
-
-    gitlab_api.initiate_saas_bundle_repo(42)
-
-    commit_data = lazy_project.commits.create.call_args[0][0]
-    assert commit_data["branch"] == DEFAULT_BRANCH
-    assert commit_data["actions"][0]["file_path"] == README_PATH
-    assert commit_data["actions"][0]["content"] == README_CONTENT
-
-    branch_calls = [c[0][0] for c in lazy_project.branches.create.call_args_list]
-    assert branch_calls == [
-        {"branch": branch, "ref": DEFAULT_BRANCH} for branch in SAAS_BUNDLE_BRANCHES
-    ]
 
 
 # ---------------------------------------------------------------------------

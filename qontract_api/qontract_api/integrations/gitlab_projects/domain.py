@@ -39,7 +39,9 @@ class GitlabGroupConfig(BaseModel, frozen=True):
         cls, projects: list[GitlabProjectConfig]
     ) -> list[GitlabProjectConfig]:
         duplicate_counter = Counter(project.name for project in projects)
-        if duplicates := {name for name, count in duplicate_counter.items() if count > 1}:
+        if duplicates := {
+            name for name, count in duplicate_counter.items() if count > 1
+        }:
             raise ValueError(
                 f"duplicate project names: {', '.join(sorted(duplicates))}"
             )
