@@ -59,6 +59,8 @@ def make_vault_secret(
 def make_org(
     name: str = "test-org",
     *,
+    instance_name: str = "quay-io",
+    instance_url: str = "quay.io",
     has_token: bool = True,
     managed_teams: list[str] | None = None,
     managed_repos: bool = True,
@@ -69,7 +71,7 @@ def make_org(
         managedTeams=managed_teams if managed_teams is not None else ["team1"],
         managedRepos=managed_repos,
         managedRobotAccounts=managed_robot_accounts,
-        instance=QuayInstanceV1(name="quay-io", url="quay.io"),
+        instance=QuayInstanceV1(name=instance_name, url=instance_url),
         automationToken=make_vault_secret() if has_token else None,
     )
 
@@ -138,6 +140,26 @@ def test_compile_desired_state_org_filter() -> None:
     )
     assert len(desired) == 1
     assert desired[0].org_name == "org-b"
+
+
+def test_compile_desired_state_org_filter_instance_qualified() -> None:
+    org_io = make_org("shared-org", instance_name="quay-io")
+    org_stage = make_org("shared-org", instance_name="quay-stage")
+    robots = [make_robot("a", org_io), make_robot("b", org_stage)]
+    desired = make_integration().compile_desired_state(
+        robots, org_name_filter="quay-stage/shared-org"
+    )
+    assert len(desired) == 1
+    assert desired[0].instance_name == "quay-stage"
+    assert desired[0].org_name == "shared-org"
+
+
+def test_compile_desired_state_org_filter_rejects_ambiguous_name() -> None:
+    org_io = make_org("shared-org", instance_name="quay-io")
+    org_stage = make_org("shared-org", instance_name="quay-stage")
+    robots = [make_robot("a", org_io), make_robot("b", org_stage)]
+    with pytest.raises(IntegrationError, match="instance-qualified selector"):
+        make_integration().compile_desired_state(robots, org_name_filter="shared-org")
 
 
 def test_compile_desired_state_missing_token_fails_closed() -> None:

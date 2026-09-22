@@ -34,6 +34,7 @@ from qontract_api_client.schemas import (
 from qontract_utils.exceptions import IntegrationError
 
 from reconcile.gql_definitions.quay_robot_accounts_api.quay_robot_accounts import (
+    QuayOrgV1,
     QuayRobotV1,
 )
 from reconcile.gql_definitions.quay_robot_accounts_api.quay_robot_accounts import (
@@ -62,6 +63,16 @@ class _OrgMeta(TypedDict):
 
 
 QONTRACT_INTEGRATION = "quay-robot-accounts-api"
+
+
+def _org_selector(org: QuayOrgV1) -> str:
+    return f"{org.instance.name}/{org.name}"
+
+
+def _org_matches_filter(org: QuayOrgV1, org_name_filter: str) -> bool:
+    if "/" in org_name_filter:
+        return _org_selector(org) == org_name_filter
+    return org.name == org_name_filter
 
 
 class QuayRobotAccountsIntegrationParams(PydanticRunParams):
@@ -100,7 +111,7 @@ class QuayRobotAccountsIntegration(
             if not robot.quay_org:
                 continue
             org = robot.quay_org
-            if org_name_filter and org.name != org_name_filter:
+            if org_name_filter and not _org_matches_filter(org, org_name_filter):
                 continue
 
             key = (org.instance.name, org.name)
@@ -127,6 +138,17 @@ class QuayRobotAccountsIntegration(
                     repositories=repositories,
                     delete=bool(robot.delete),
                 )
+            )
+
+        if org_name_filter and "/" not in org_name_filter and len(buckets) > 1:
+            instances = sorted(instance for instance, _ in buckets)
+            qualified = ", ".join(
+                f"{instance}/{org_name_filter}" for instance in instances
+            )
+            raise IntegrationError(
+                f"Organization {org_name_filter!r} exists on multiple Quay "
+                f"instances. Pass --org with an instance-qualified selector: "
+                f"{qualified}"
             )
 
         desired: list[QuayOrgDesiredState] = []

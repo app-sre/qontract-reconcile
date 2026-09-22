@@ -376,13 +376,26 @@ def test_add_robot_to_team_prefixes_org(
     mock_quay_api.add_user_to_team.assert_called_once_with("myorg+ci-bot", "sre")
 
 
-def test_set_repo_permission_invalidates_permissions_cache(
+def test_set_repo_permission_invalidates_permissions_and_robots_cache(
     client: QuayWorkspaceClient, mock_cache: MagicMock
 ) -> None:
     client.set_repo_robot_account_permissions("images", "ci-bot", "write")
-    mock_cache.delete.assert_called_once_with(
-        "quay:https://quay.io:myorg:robot:ci-bot:permissions"
-    )
+    deleted = {call.args[0] for call in mock_cache.delete.call_args_list}
+    assert deleted == {
+        "quay:https://quay.io:myorg:robot:ci-bot:permissions",
+        "quay:https://quay.io:myorg:robots",
+    }
+
+
+def test_delete_repo_permission_invalidates_permissions_and_robots_cache(
+    client: QuayWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    client.delete_repo_robot_account_permissions("images", "ci-bot")
+    deleted = {call.args[0] for call in mock_cache.delete.call_args_list}
+    assert deleted == {
+        "quay:https://quay.io:myorg:robot:ci-bot:permissions",
+        "quay:https://quay.io:myorg:robots",
+    }
 
 
 def test_get_robot_account_permissions_cache_miss(

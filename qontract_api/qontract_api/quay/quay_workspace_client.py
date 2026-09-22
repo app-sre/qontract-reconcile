@@ -221,16 +221,18 @@ class QuayWorkspaceClient:
     def set_repo_robot_account_permissions(
         self, repo_name: str, robot_name: str, role: str
     ) -> None:
-        """Set a robot's repository role and invalidate permission cache."""
+        """Set a robot's repository role and invalidate related caches."""
         self.quay_api.set_repo_robot_account_permissions(repo_name, robot_name, role)
         self._clear_cache(self._permissions_cache_key(robot_name))
+        self._clear_cache(self._robots_cache_key())
 
     def delete_repo_robot_account_permissions(
         self, repo_name: str, robot_name: str
     ) -> None:
-        """Remove a robot's repository permission and invalidate cache."""
+        """Remove a robot's repository permission and invalidate related caches."""
         self.quay_api.delete_repo_robot_account_permissions(repo_name, robot_name)
         self._clear_cache(self._permissions_cache_key(robot_name))
+        self._clear_cache(self._robots_cache_key())
 
     def close(self) -> None:
         self.quay_api.close()

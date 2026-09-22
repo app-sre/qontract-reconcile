@@ -299,7 +299,7 @@ automationToken:
 
 **Arguments and Options:**
 
-- `--org`: Filter reconciliation to a single Quay organization name (optional; default: all orgs)
+- `--org`: Filter reconciliation to a single Quay organization as `instance/name`, or a unique org name (optional; default: all orgs). A bare name that matches multiple Quay instances is rejected.
 
 **Client Architecture:**
 
@@ -315,8 +315,8 @@ automationToken:
 ```bash
 qontract-reconcile quay-robot-accounts-api --dry-run
 
-# Filter to one org
-qontract-reconcile quay-robot-accounts-api --org my-org --dry-run
+# Filter to one org (instance-qualified; a unique bare name also works)
+qontract-reconcile quay-robot-accounts-api --org quay-io/my-org --dry-run
 ```
 
 **Example (direct API call):**

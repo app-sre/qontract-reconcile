@@ -15,6 +15,7 @@ from qontract_api.integrations.quay_robot_accounts.schemas import (
 )
 from qontract_api.integrations.quay_robot_accounts.tasks import (
     generate_lock_key,
+    org_lock_key,
     reconcile_quay_robot_accounts_task,
 )
 from qontract_api.models import Secret, TaskStatus
@@ -77,6 +78,12 @@ def test_generate_lock_key_sorted(sample_org: QuayOrgDesiredState) -> None:
     assert key == "quay-io/aaa-org,quay-io/test-org"
 
 
+def test_org_lock_key_uses_instance_org_identifier(
+    sample_org: QuayOrgDesiredState,
+) -> None:
+    assert org_lock_key(sample_org) == "quay-robot-accounts:quay-io/test-org"
+
+
 @patch("qontract_api.integrations.quay_robot_accounts.tasks.get_event_manager")
 @patch("qontract_api.integrations.quay_robot_accounts.tasks.get_secret_manager")
 @patch("qontract_api.integrations.quay_robot_accounts.tasks.get_cache")
@@ -126,3 +133,32 @@ def test_no_events_published_in_dry_run(
     _task_func()(mock_self, [sample_org], dry_run=True)
 
     mock_event_manager.publish_event.assert_not_called()
+
+
+@patch("qontract_api.integrations.quay_robot_accounts.tasks.get_event_manager")
+@patch("qontract_api.integrations.quay_robot_accounts.tasks.get_secret_manager")
+@patch("qontract_api.integrations.quay_robot_accounts.tasks.get_cache")
+@patch("qontract_api.integrations.quay_robot_accounts.tasks.QuayRobotAccountsService")
+def test_acquires_per_org_locks_in_sorted_order(
+    mock_service_cls: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_get_secret_manager: MagicMock,
+    mock_get_event_manager: MagicMock,
+    mock_self: MagicMock,
+    sample_org: QuayOrgDesiredState,
+) -> None:
+    other = sample_org.model_copy(update={"org_name": "aaa-org"})
+    mock_service_cls.return_value.reconcile.return_value = _make_result()
+    mock_cache = MagicMock()
+    mock_get_cache.return_value = mock_cache
+
+    _task_func()(mock_self, [sample_org, other], dry_run=False)
+
+    assert [call.args[0] for call in mock_cache.lock.call_args_list] == [
+        "quay-robot-accounts:quay-io/aaa-org",
+        "quay-robot-accounts:quay-io/test-org",
+    ]
+    assert all(
+        call.kwargs.get("timeout") == 600 for call in mock_cache.lock.call_args_list
+    )
+    mock_service_cls.return_value.reconcile.assert_called_once()
