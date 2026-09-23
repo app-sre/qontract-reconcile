@@ -6,13 +6,14 @@ from datetime import (
     datetime,
     timedelta,
 )
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import gitlab
 from gitlab.const import PipelineStatus
 from sretoolbox.utils import retry
 
 from reconcile import queries
+from reconcile.gitlab_housekeeping.healthcheck import run_error_healthcheck
 from reconcile.gitlab_housekeeping.helpers import (
     EXPIRATION_DATE_FORMAT,
     SQUASH_OPTION_ALWAYS,
@@ -31,7 +32,6 @@ from reconcile.gitlab_housekeeping.helpers import (
     time_to_merge,
 )
 from reconcile.gitlab_housekeeping.labels import (
-    ERROR_LABELS,
     get_tenant_labels,
     is_eligible_for_optimistic_merge,
 )
@@ -50,7 +50,6 @@ from reconcile.gitlab_housekeeping.rebase import (
     get_rebase_strategy,
     rebase_merge_requests,
 )
-from reconcile.gitlab_housekeeping.healthcheck import run_error_healthcheck
 from reconcile.utils.datetime_util import ensure_utc, from_utc_iso_format, utc_now
 from reconcile.utils.gitlab_api import (
     GitLabApi,
@@ -60,7 +59,6 @@ from reconcile.utils.gitlab_api import (
 from reconcile.utils.mr.labels import (
     AUTO_MERGE,
     MERGE_ERROR,
-    OMM_PENDING,
     ONBOARDING,
     SELF_SERVICEABLE,
 )
@@ -70,6 +68,8 @@ from reconcile.utils.state import State, init_state
 if TYPE_CHECKING:
     from collections.abc import (
         Iterable,
+    )
+    from collections.abc import (
         Set as AbstractSet,
     )
 

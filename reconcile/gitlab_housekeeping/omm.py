@@ -46,7 +46,6 @@ if TYPE_CHECKING:
 
     from gitlab.v4.objects import (
         ProjectMergeRequest,
-        ProjectMergeRequestPipeline,
     )
 
     from reconcile.utils.gitlab_api import GitLabApi

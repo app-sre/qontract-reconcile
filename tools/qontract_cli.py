@@ -2385,7 +2385,9 @@ def app_interface_merge_queue(ctx: click.Context) -> None:
 def app_interface_review_queue(ctx: click.Context) -> None:
     from reconcile.gitlab_housekeeping.labels import ERROR_LABELS as glhk_ERROR_LABELS
     from reconcile.gitlab_housekeeping.labels import HOLD_LABELS as glhk_HOLD_LABELS
-    from reconcile.gitlab_housekeeping.labels import is_good_to_merge as glhk_is_good_to_merge
+    from reconcile.gitlab_housekeeping.labels import (
+        is_good_to_merge as glhk_is_good_to_merge,
+    )
 
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
