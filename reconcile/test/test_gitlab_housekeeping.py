@@ -33,8 +33,16 @@ from gitlab.v4.objects import (
 )
 from UnleashClient import UnleashClient
 
-import reconcile.gitlab_housekeeping as gl_h
-from reconcile.gitlab_housekeeping import RebaseStrategy
+import reconcile.gitlab_housekeeping.gitlab_housekeeping as gl_h
+from reconcile.gitlab_housekeeping.healthcheck import check_pipeline_health
+from reconcile.gitlab_housekeeping.labels import (
+    ERROR_LABELS,
+    has_overlapping_labels,
+    is_good_to_merge,
+)
+from reconcile.gitlab_housekeeping.omm import _MemberResult
+from reconcile.gitlab_housekeeping.queue import verify_on_demand_tests
+from reconcile.gitlab_housekeeping.rebase import RebaseStrategy
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import SecretReader
@@ -177,14 +185,14 @@ def test_dry_run(
     mocker: MockerFixture,
     repo_gitlab_housekeeping: dict,
 ) -> None:
-    mocked_queries = mocker.patch("reconcile.gitlab_housekeeping.queries")
+    mocked_queries = mocker.patch("reconcile.gitlab_housekeeping.gitlab_housekeeping.queries")
     mocked_queries.get_repos_gitlab_housekeeping.return_value = [
         repo_gitlab_housekeeping,
     ]
     mocked_gitlab_api = mocker.patch(
-        "reconcile.gitlab_housekeeping.GitLabApi", autospec=True
+        "reconcile.gitlab_housekeeping.gitlab_housekeeping.GitLabApi", autospec=True
     ).return_value.__enter__.return_value
-    mocker.patch("reconcile.gitlab_housekeeping.init_state", autospec=True)
+    mocker.patch("reconcile.gitlab_housekeeping.gitlab_housekeeping.init_state", autospec=True)
 
     gl_h.run(True, False)
 
@@ -346,7 +354,7 @@ def test_close_item_with_enable_closing(
 ) -> None:
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
-    mocked_logging = mocker.patch("reconcile.gitlab_housekeeping.logging")
+    mocked_logging = mocker.patch("reconcile.gitlab_housekeeping.gitlab_housekeeping.logging")
     mocked_issue = create_autospec(ProjectIssue)
     mocked_issue.attributes = {"iid": 1}
 
@@ -368,7 +376,7 @@ def test_close_item_without_enable_closing(
 ) -> None:
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
-    mocked_logging = mocker.patch("reconcile.gitlab_housekeeping.logging")
+    mocked_logging = mocker.patch("reconcile.gitlab_housekeeping.gitlab_housekeeping.logging")
     mocked_issue = create_autospec(ProjectIssue)
     mocked_issue.attributes = {"iid": 1}
 
@@ -432,7 +440,7 @@ def test_verify_ondemend_tests_running(
         )
     ]
 
-    assert not gl_h.verify_on_demand_tests(
+    assert not verify_on_demand_tests(
         False, merge_request, must_pass, gitlab_api, state
     )
     state.get.assert_not_called()
@@ -449,7 +457,7 @@ def test_verify_ondemend_tests_state_fail(
         StatusMock("pr-check", "success")
     ]
 
-    assert not gl_h.verify_on_demand_tests(
+    assert not verify_on_demand_tests(
         False, merge_request, must_pass, gitlab_api, state
     )
     state.add.assert_not_called()
@@ -467,7 +475,7 @@ def test_verify_ondemend_tests_state_pass(
         StatusMock("e2e", "success"),
     ]
 
-    assert gl_h.verify_on_demand_tests(
+    assert verify_on_demand_tests(
         False, merge_request, must_pass, gitlab_api, state
     )
     state.add.assert_not_called()
@@ -484,7 +492,7 @@ def test_verify_ondemend_tests_fail(
         StatusMock("pr-check", "success")
     ]
 
-    assert not gl_h.verify_on_demand_tests(
+    assert not verify_on_demand_tests(
         False, merge_request, must_pass, gitlab_api, state
     )
     state.add.assert_called_once_with("a/b/1/abc", ["e2e"], force=True)
@@ -502,7 +510,7 @@ def test_verify_ondemend_tests_pass(
         StatusMock("e2e", "success"),
     ]
 
-    assert gl_h.verify_on_demand_tests(
+    assert verify_on_demand_tests(
         False, merge_request, must_pass, gitlab_api, state
     )
     state.add.assert_called_once_with("a/b/1/abc", [], force=True)
@@ -539,14 +547,14 @@ def _call_rebase(
     mr_by_iid = {mr.iid: mr for mr in merge_requests}
     gitlab_api.get_merge_request.side_effect = lambda iid: mr_by_iid[iid]
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_merge_requests",
+        "reconcile.gitlab_housekeeping.rebase.get_merge_requests",
         return_value=[
-            {"mr": mr, "error": any(label in gl_h.ERROR_LABELS for label in mr.labels)}
+            {"mr": mr, "error": any(label in ERROR_LABELS for label in mr.labels)}
             for mr in merge_requests
         ],
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.rebase.is_rebased",
         side_effect=lambda mr, gl: mr.iid in rebased_set,
     )
 
@@ -918,7 +926,7 @@ def test_rebase_uses_refreshed_mr_not_stale_batch_object(
     gitlab_api.get_merge_request_pipelines.return_value = []
     gitlab_api.get_merge_request.return_value = fresh_mr
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_merge_requests",
+        "reconcile.gitlab_housekeeping.rebase.get_merge_requests",
         return_value=[{"mr": stale_mr, "error": False}],
     )
 
@@ -926,7 +934,7 @@ def test_rebase_uses_refreshed_mr_not_stale_batch_object(
         return mr is fresh_mr
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.rebase.is_rebased",
         side_effect=_is_rebased,
     )
 
@@ -979,7 +987,7 @@ def test_rebase_strategies_pass_skip_unmergeable_false(
     unmergeable -- otherwise a conflicting MR can never be picked up for a
     rebase attempt in the first place."""
     mocked_get_merge_requests = mocker.patch(
-        "reconcile.gitlab_housekeeping.get_merge_requests",
+        "reconcile.gitlab_housekeeping.rebase.get_merge_requests",
         return_value=[],
     )
 
@@ -1143,31 +1151,31 @@ def _make_pipelines(statuses: list[str]) -> list[ProjectMergeRequestPipeline]:
 def test_check_pipeline_health_all_failures() -> None:
     """Three consecutive failed pipelines marks MR as unhealthy."""
     pipelines = _make_pipelines(["failed", "failed", "failed"])
-    assert gl_h.check_pipeline_health(pipelines) is False
+    assert check_pipeline_health(pipelines) is False
 
 
 def test_check_pipeline_health_all_canceled_is_healthy() -> None:
     """Canceled pipelines are not counted as failures."""
     pipelines = _make_pipelines(["canceled", "canceled", "canceled"])
-    assert gl_h.check_pipeline_health(pipelines) is True
+    assert check_pipeline_health(pipelines) is True
 
 
 def test_check_pipeline_health_canceled_and_skipped_not_counted() -> None:
     """A mix of failed, canceled, and skipped is still considered healthy."""
     pipelines = _make_pipelines(["failed", "canceled", "skipped"])
-    assert gl_h.check_pipeline_health(pipelines) is True
+    assert check_pipeline_health(pipelines) is True
 
 
 def test_check_pipeline_health_mixed_with_success() -> None:
     """A successful pipeline in the window breaks the failure streak."""
     pipelines = _make_pipelines(["failed", "failed", "success"])
-    assert gl_h.check_pipeline_health(pipelines) is True
+    assert check_pipeline_health(pipelines) is True
 
 
 def test_check_pipeline_health_insufficient_history() -> None:
     """Fewer pipelines than the limit is treated as healthy."""
     pipelines = _make_pipelines(["failed", "failed"])
-    assert gl_h.check_pipeline_health(pipelines) is True
+    assert check_pipeline_health(pipelines) is True
 
 
 def _make_healthcheck_mr(
@@ -1848,7 +1856,7 @@ def test_error_labels_visible_in_queue(
     mr.labels = ["lgtm", error_label]
     mr.iid = 1
 
-    assert gl_h.is_good_to_merge(mr.labels) is True
+    assert is_good_to_merge(mr.labels) is True
 
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -2237,7 +2245,7 @@ def test_is_eligible_for_optimistic_merge(labels: list[str], expected: bool) -> 
 def test_has_overlapping_labels(
     mr_labels: set[str], merged_labels: set[str], expected: bool
 ) -> None:
-    assert gl_h.has_overlapping_labels(mr_labels, merged_labels) is expected
+    assert has_overlapping_labels(mr_labels, merged_labels) is expected
 
 
 # --- multi-merge integration tests ---
@@ -2302,19 +2310,19 @@ def _call_merge(
     pipelines_map = pipelines_by_iid or {}
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.preprocess_merge_requests",
+        "reconcile.gitlab_housekeeping.gitlab_housekeeping.preprocess_merge_requests",
         return_value=items,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.gitlab_housekeeping.is_rebased",
         side_effect=lambda mr, gl: mr.iid in rebased_set,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_group_lead",
+        "reconcile.gitlab_housekeeping.gitlab_housekeeping.get_omm_group_lead",
         return_value=None,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.gitlab_housekeeping.get_omm_pending_mrs",
         return_value=[],
     )
 
@@ -2561,15 +2569,15 @@ def _setup_omm_group_mocks(
 ) -> None:
     """Shared setup for _process_omm_group tests."""
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_max_interval",
+        "reconcile.gitlab_housekeeping.omm.get_omm_max_interval",
         return_value=timedelta(minutes=10),
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping._is_omm_window_open",
+        "reconcile.gitlab_housekeeping.omm._is_omm_window_open",
         return_value=window_open,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping._check_post_merge_ci",
+        "reconcile.gitlab_housekeeping.omm._check_post_merge_ci",
         return_value=ci_healthy,
     )
 
@@ -2603,7 +2611,7 @@ def test_omm_group_ejects_error_labeled_mr(
     """MRs with any error label are ejected from OMM groups without
     pipeline fetches or rebase attempts."""
     _setup_omm_group_mocks(mocker)
-    mocker.patch("reconcile.gitlab_housekeeping.clear_omm_group")
+    mocker.patch("reconcile.gitlab_housekeeping.omm.clear_omm_group")
 
     lead = create_autospec(ProjectMergeRequest)
     lead.merge_commit_sha = "abc123"
@@ -2614,7 +2622,7 @@ def test_omm_group_ejects_error_labeled_mr(
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending", error_label])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -2653,7 +2661,7 @@ def test_omm_group_ejects_hold_labeled_mr(
     """MRs with any hold label added after group formation are ejected
     from OMM groups without pipeline fetches or merge attempts."""
     _setup_omm_group_mocks(mocker)
-    mocker.patch("reconcile.gitlab_housekeeping.clear_omm_group")
+    mocker.patch("reconcile.gitlab_housekeeping.omm.clear_omm_group")
 
     lead = create_autospec(ProjectMergeRequest)
     lead.merge_commit_sha = "abc123"
@@ -2664,7 +2672,7 @@ def test_omm_group_ejects_hold_labeled_mr(
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending", hold_label])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -2698,11 +2706,11 @@ def test_omm_group_merge_rejected_applies_merge_error(
     group processing, merge-error is applied and omm-pending is retained."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=True,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -2715,7 +2723,7 @@ def test_omm_group_merge_rejected_applies_merge_error(
     mr.merge.side_effect = GitlabMRClosedError("MR was closed")
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -2749,7 +2757,7 @@ def test_omm_group_head_drift_invalidates_group(
     group is invalidated immediately."""
     _setup_omm_group_mocks(mocker)
     clear_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -2779,7 +2787,7 @@ def test_omm_group_lead_missing_merge_commit_sha(
     return 0 without crashing and leave the group intact for the next loop."""
     _setup_omm_group_mocks(mocker)
     clear_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -2818,11 +2826,11 @@ def test_omm_group_head_advanced_but_reachable_continues(
     still reachable), the group stays valid and processing continues."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=True,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -2834,7 +2842,7 @@ def test_omm_group_head_advanced_but_reachable_continues(
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -2871,7 +2879,7 @@ def test_omm_group_external_merge_dissolves_group(
     merge commit, the group is dissolved (external merge detected)."""
     _setup_omm_group_mocks(mocker)
     clear_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -2920,11 +2928,11 @@ def test_omm_group_omm_member_merge_does_not_dissolve(
     squash_commit_sha, the group continues (no external merge)."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=True,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -2936,7 +2944,7 @@ def test_omm_group_omm_member_merge_does_not_dissolve(
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -2970,11 +2978,11 @@ def test_omm_group_multiple_members_sha_match(
     SHAs means the group is safe."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=True,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -2986,7 +2994,7 @@ def test_omm_group_multiple_members_sha_match(
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -3037,11 +3045,11 @@ def test_omm_group_skip_ci_rebase_on_success_not_rebased(
     gets a skip_ci rebase and keeps the group active."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=False,
     )
     clear_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3053,7 +3061,7 @@ def test_omm_group_skip_ci_rebase_on_success_not_rebased(
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -3090,7 +3098,7 @@ def test_omm_member_refreshes_mr_before_rebased_check(
     the stale sha so the test would fail if the refresh were removed."""
     _setup_omm_group_mocks(mocker)
     clear_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3107,7 +3115,7 @@ def test_omm_member_refreshes_mr_before_rebased_check(
     )
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[stale_mr],
     )
 
@@ -3155,11 +3163,11 @@ def test_omm_group_skip_ci_rebase_failure_ejects_member(
     ejected (omm-pending removed) and counted as a rejection."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=False,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3172,7 +3180,7 @@ def test_omm_group_skip_ci_rebase_failure_ejects_member(
     mr.rebase.side_effect = GitlabMRRebaseError("rebase conflict")
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -3205,11 +3213,11 @@ def test_omm_group_ref_not_found_ejects_member(
     without a rebase attempt and the group can adaptive-close."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         side_effect=GitlabGetError("404 Ref Not Found", 404),
     )
     clear_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3221,7 +3229,7 @@ def test_omm_group_ref_not_found_ejects_member(
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -3256,11 +3264,11 @@ def test_omm_group_merge_limit_enforced(
     is cleared and processing stops."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=True,
     )
     clear_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3273,7 +3281,7 @@ def test_omm_group_merge_limit_enforced(
     mr2 = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr1, mr2],
     )
 
@@ -3324,19 +3332,19 @@ def test_multi_merge_insist_only_before_first_merge(
     items = [_make_merge_item(mr1)]
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.preprocess_merge_requests",
+        "reconcile.gitlab_housekeeping.gitlab_housekeeping.preprocess_merge_requests",
         return_value=items,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.gitlab_housekeeping.is_rebased",
         return_value=True,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_group_lead",
+        "reconcile.gitlab_housekeeping.gitlab_housekeeping.get_omm_group_lead",
         return_value=None,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.gitlab_housekeeping.get_omm_pending_mrs",
         return_value=[],
     )
 
@@ -3521,11 +3529,11 @@ def test_omm_group_skipped_pipeline_filtered_merges_on_pre_rebase_success(
     should filter it out and use the pre-rebase SUCCESS pipeline to merge."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=True,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3537,7 +3545,7 @@ def test_omm_group_skipped_pipeline_filtered_merges_on_pre_rebase_success(
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -3572,11 +3580,11 @@ def test_omm_group_all_skipped_pipelines_rebased_stays_active(
     should stay active (any_active=True) rather than triggering adaptive-close."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=True,
     )
     clear_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3588,7 +3596,7 @@ def test_omm_group_all_skipped_pipelines_rebased_stays_active(
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -3631,11 +3639,11 @@ def test_omm_group_canceled_pipeline_ejects_member(
     active members remaining, adaptive-close fires."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=True,
     )
     clear_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3647,7 +3655,7 @@ def test_omm_group_canceled_pipeline_ejects_member(
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -3681,11 +3689,11 @@ def test_omm_group_unhandled_status_rebased_stays_active(
     should keep the group active rather than triggering adaptive-close."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=True,
     )
     clear_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3697,7 +3705,7 @@ def test_omm_group_unhandled_status_rebased_stays_active(
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -3739,11 +3747,11 @@ def test_omm_group_push_pipeline_filtered_even_at_different_sha(
     push pipelines accumulate at old shas."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=True,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3764,7 +3772,7 @@ def test_omm_group_push_pipeline_filtered_even_at_different_sha(
     )
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -3800,11 +3808,11 @@ def test_omm_group_fork_pipeline_not_rebased_triggers_skip_ci(
     the pipeline when the MR is not yet rebased."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=False,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3824,7 +3832,7 @@ def test_omm_group_fork_pipeline_not_rebased_triggers_skip_ci(
     )
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -3860,11 +3868,11 @@ def test_omm_group_fork_pipeline_running_old_sha_waits(
     mr.sha."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=True,
     )
     clear_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3885,7 +3893,7 @@ def test_omm_group_fork_pipeline_running_old_sha_waits(
     )
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -3923,11 +3931,11 @@ def test_omm_group_fork_push_pipeline_filtered_when_not_rebased(
     leaving the external SUCCESS to drive skip-ci rebase."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=False,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -3947,7 +3955,7 @@ def test_omm_group_fork_push_pipeline_filtered_when_not_rebased(
     )
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -3984,11 +3992,11 @@ def test_omm_group_fork_external_pipeline_preserved_at_current_sha(
     The external pipeline should drive the merge or rebase decision normally."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
-        "reconcile.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
         return_value=False,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
     )
 
     lead = create_autospec(ProjectMergeRequest)
@@ -4008,7 +4016,7 @@ def test_omm_group_fork_external_pipeline_preserved_at_current_sha(
     )
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr],
     )
 
@@ -4116,10 +4124,10 @@ def test_omm_expansion_adds_newcomer_skips_existing(
     """Expansion adds a new non-overlapping MR but does not re-add an MR
     that is already pending in the group."""
     _setup_omm_group_mocks(mocker)
-    mocker.patch("reconcile.gitlab_housekeeping.clear_omm_group")
+    mocker.patch("reconcile.gitlab_housekeeping.omm.clear_omm_group")
     mocker.patch(
-        "reconcile.gitlab_housekeeping._process_omm_member",
-        return_value=gl_h._MemberResult(merged=False, active=True),
+        "reconcile.gitlab_housekeeping.omm._process_omm_member",
+        return_value=_MemberResult(merged=False, active=True),
     )
     lead = _make_omm_lead(sha="abc123", labels=["tenant-lead"])
 
@@ -4127,12 +4135,12 @@ def test_omm_expansion_adds_newcomer_skips_existing(
     newcomer = _make_merge_mr(20, ["approved", "tenant-bar"])
 
     apply_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.apply_omm_pending",
+        "reconcile.gitlab_housekeeping.omm.apply_omm_pending",
         return_value=[newcomer],
     )
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[existing],
     )
 
@@ -4159,12 +4167,12 @@ def test_omm_expansion_overlapping_candidate_not_added(
     """A new MR whose tenant label overlaps with a current pending member
     is not added to the group during expansion."""
     _setup_omm_group_mocks(mocker)
-    mocker.patch("reconcile.gitlab_housekeeping.clear_omm_group")
+    mocker.patch("reconcile.gitlab_housekeeping.omm.clear_omm_group")
     mocker.patch(
-        "reconcile.gitlab_housekeeping._process_omm_member",
-        return_value=gl_h._MemberResult(merged=False, active=True),
+        "reconcile.gitlab_housekeeping.omm._process_omm_member",
+        return_value=_MemberResult(merged=False, active=True),
     )
-    apply_mock = mocker.patch("reconcile.gitlab_housekeeping.apply_omm_pending")
+    apply_mock = mocker.patch("reconcile.gitlab_housekeeping.omm.apply_omm_pending")
 
     lead = _make_omm_lead(sha="abc123", labels=["tenant-lead"])
 
@@ -4172,7 +4180,7 @@ def test_omm_expansion_overlapping_candidate_not_added(
     overlapping = _make_merge_mr(20, ["approved", "tenant-foo"])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[existing],
     )
 
@@ -4198,10 +4206,10 @@ def test_omm_expansion_ejects_pending_mr_with_overlapping_labels(
     """A pending MR whose tenant label now conflicts with another pending MR
     (e.g. due to manual label edit) is ejected from the group."""
     _setup_omm_group_mocks(mocker)
-    mocker.patch("reconcile.gitlab_housekeeping.clear_omm_group")
+    mocker.patch("reconcile.gitlab_housekeeping.omm.clear_omm_group")
     process_member_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping._process_omm_member",
-        return_value=gl_h._MemberResult(merged=False, active=True),
+        "reconcile.gitlab_housekeeping.omm._process_omm_member",
+        return_value=_MemberResult(merged=False, active=True),
     )
 
     lead = _make_omm_lead(sha="abc123", labels=["tenant-lead"])
@@ -4210,7 +4218,7 @@ def test_omm_expansion_ejects_pending_mr_with_overlapping_labels(
     mr2 = _make_merge_mr(11, ["approved", "tenant-foo", "omm-pending"])
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
         return_value=[mr1, mr2],
     )
 

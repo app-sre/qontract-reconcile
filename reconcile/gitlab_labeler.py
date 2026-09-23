@@ -5,7 +5,7 @@ import os
 from typing import TYPE_CHECKING
 
 from reconcile import queries
-from reconcile.gitlab_housekeeping import (
+from reconcile.gitlab_housekeeping.labels import (
     HOLD_LABELS,
     MERGE_LABELS_PRIORITY,
 )
