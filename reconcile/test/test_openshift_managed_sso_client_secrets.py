@@ -352,6 +352,26 @@ def _ri_for(namespaces: list[NamespaceV1]) -> ResourceInventory:
     return ri
 
 
+def test_fetch_desired_state_registers_error_on_duplicate_secret_name() -> None:
+    """openshift_resources_base.fetch_desired_state has the identical
+    ResourceKeyExistsError -> register_error handling for this same scenario
+    (two resources resolving to the same Secret name) - without it,
+    ri.add_desired_resource's raise propagates unhandled through run(),
+    aborting the whole process instead of just the affected cluster.
+    """
+    integration = _integration()
+    client = _client()
+    resources = [_resource(client), _resource(client)]
+    ns = _namespace(resources=resources)
+    ri = _ri_for([ns])
+    secret_reader = MagicMock()
+    secret_reader.read_all.return_value = {"client_id": "my-app-ci-bot"}
+
+    integration.fetch_desired_state([ns], ri, secret_reader, dry_run=False)
+
+    assert ri.has_error_registered(cluster=ns.cluster.name)
+
+
 def test_fetch_desired_state_adds_desired_resource_on_success() -> None:
     integration = _integration()
     client = _client()

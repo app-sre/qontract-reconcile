@@ -26,7 +26,7 @@ from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.oc_map import init_oc_map_from_namespaces
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.openshift_resource import ResourceInventory, ResourceKeyExistsError
 from reconcile.utils.runtime.integration import (
     DesiredStateShardConfig,
     PydanticRunParams,
@@ -208,13 +208,26 @@ class OpenshiftManagedSsoClientSecretsIntegration(
             if not dry_run:
                 ri.register_error(cluster=ns.cluster.name)
             return
-        ri.add_desired_resource(
-            cluster=ns.cluster.name,
-            namespace=ns.name,
-            resource=self.construct_managed_sso_client_secret(
-                resource, client, secret_data
-            ),
-        )
+        secret = self.construct_managed_sso_client_secret(resource, client, secret_data)
+        try:
+            ri.add_desired_resource(
+                cluster=ns.cluster.name,
+                namespace=ns.name,
+                resource=secret,
+            )
+        except ResourceKeyExistsError:
+            # Two managed-sso-client resources in the same namespace can
+            # resolve to the same Secret name (e.g. two clients both named
+            # "ci-bot", or a duplicate between a namespace's own resource and
+            # a shared one). openshift_resources_base.fetch_desired_state has
+            # this identical handling - without it, add_desired_resource's
+            # raise propagates unhandled through run(), aborting every
+            # cluster instead of just the affected one.
+            logging.error(
+                f"[{ns.cluster.name}/{ns.name}] duplicate Secret name "
+                f"'{secret.name}' for managed-sso-client '{client.name}'"
+            )
+            ri.register_error(cluster=ns.cluster.name)
 
     @defer
     def run(self, dry_run: bool, defer: Callable | None = None) -> None:
