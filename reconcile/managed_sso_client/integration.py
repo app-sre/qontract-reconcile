@@ -28,6 +28,7 @@ from qontract_api_client.schemas import (
     TaskStatus,
 )
 from qontract_utils.exceptions import IntegrationError
+from qontract_utils.managed_sso_client import derive_managed_sso_client_id
 
 from reconcile.gql_definitions.managed_sso_client.managed_sso_client import (
     ManagedSsoClientOidcV1,
@@ -38,7 +39,6 @@ from reconcile.gql_definitions.managed_sso_client.managed_sso_client import (
     query as managed_sso_clients_query,
 )
 from reconcile.utils import gql
-from reconcile.utils.managed_sso_client import derive_managed_sso_client_id
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,

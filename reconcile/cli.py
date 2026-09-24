@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import click
 import sentry_sdk
+from qontract_utils.managed_sso_client import DEFAULT_OUTPUT_VAULT_PATH_PREFIX
 from sentry_sdk.integrations.logging import LoggingIntegration
 
 from reconcile.status import (
@@ -30,7 +31,6 @@ from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gql import GqlApiSingleton
 from reconcile.utils.json import json_dumps
-from reconcile.utils.managed_sso_client import DEFAULT_OUTPUT_VAULT_PATH_PREFIX
 from reconcile.utils.promtool import PROMTOOL_VERSION, PROMTOOL_VERSION_REGEX
 from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
@@ -1769,9 +1769,11 @@ def openshift_rhcs_certs(
     "--vault-path-prefix",
     help=(
         "Vault path prefix used to resolve a managed-sso-client's tenant-facing "
-        "credential secret when its `output` field is unset. Must stay in sync "
-        "with qontract-api's "
-        "ManagedSsoClientSettings.default_output_vault_path_prefix."
+        "credential secret when its `output` field is unset. Shares its default "
+        "with qontract-api's ManagedSsoClientSettings.default_output_vault_path_prefix "
+        "via qontract_utils.managed_sso_client.DEFAULT_OUTPUT_VAULT_PATH_PREFIX, but "
+        "if that qontract-api setting is overridden at runtime this flag must be "
+        "passed explicitly to match."
     ),
     default=DEFAULT_OUTPUT_VAULT_PATH_PREFIX,
 )

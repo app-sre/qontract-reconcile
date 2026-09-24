@@ -5,6 +5,10 @@ import sys
 from typing import TYPE_CHECKING, Any
 
 from deepdiff import DeepHash
+from qontract_utils.managed_sso_client import (
+    DEFAULT_OUTPUT_VAULT_PATH_PREFIX,
+    derive_managed_sso_client_id,
+)
 
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
@@ -18,10 +22,6 @@ from reconcile.utils import gql
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
-from reconcile.utils.managed_sso_client import (
-    DEFAULT_OUTPUT_VAULT_PATH_PREFIX,
-    derive_managed_sso_client_id,
-)
 from reconcile.utils.oc_map import init_oc_map_from_namespaces
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory

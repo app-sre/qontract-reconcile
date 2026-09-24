@@ -6,6 +6,8 @@ import json
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
+from qontract_utils.managed_sso_client import DEFAULT_OUTPUT_VAULT_PATH_PREFIX
+
 import reconcile.openshift_resources_base as orb
 from reconcile.gql_definitions.openshift_managed_sso_client_secret.namespaces import (
     ClusterV1,
@@ -22,7 +24,6 @@ from reconcile.openshift_managed_sso_client_secrets import (
     OpenshiftManagedSsoClientSecretsIntegration,
     OpenshiftManagedSsoClientSecretsIntegrationParams,
 )
-from reconcile.utils.managed_sso_client import DEFAULT_OUTPUT_VAULT_PATH_PREFIX
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.secret_reader import SecretNotFoundError
 
