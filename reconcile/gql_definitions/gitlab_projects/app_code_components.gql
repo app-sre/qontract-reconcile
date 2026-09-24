@@ -1,0 +1,10 @@
+# qenerate: plugin=pydantic_v2
+
+query GitlabProjectsAppCodeComponents {
+  apps: apps_v1 {
+    codeComponents {
+      resource
+      url
+    }
+  }
+}

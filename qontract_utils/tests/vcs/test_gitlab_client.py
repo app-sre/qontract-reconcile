@@ -195,6 +195,77 @@ def test_gitlab_api_get_file_returns_none_on_exception(
     assert result is None
 
 
+def test_gitlab_api_create_file_commits_to_branch(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test create_file commits a new file to the given branch."""
+    with patch.object(gitlab_api._project.commits, "create") as mock_commit_create:
+        gitlab_api.create_file(
+            path="README.md",
+            branch="master",
+            commit_message="Initial commit",
+            content="content",
+        )
+
+    mock_commit_create.assert_called_once_with(
+        {
+            "branch": "master",
+            "commit_message": "Initial commit",
+            "actions": [
+                {"action": "create", "file_path": "README.md", "content": "content"}
+            ],
+        }
+    )
+
+
+def test_gitlab_api_create_file_calls_hooks(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test create_file triggers hooks."""
+    pre_hook = MagicMock()
+    gitlab_api._hooks = Hooks(pre_hooks=[pre_hook])
+
+    with patch.object(gitlab_api._project.commits, "create"):
+        gitlab_api.create_file(
+            path="README.md", branch="master", commit_message="msg", content="c"
+        )
+
+    pre_hook.assert_called_once()
+    context = pre_hook.call_args[0][0]
+    assert context.method == "create_file"
+    assert context.repo_url == "https://gitlab.com/test-group/test-project"
+
+
+def test_gitlab_api_create_branch_from_source(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test create_branch cuts a new branch from the given source branch."""
+    with patch.object(gitlab_api._project.branches, "create") as mock_branch_create:
+        gitlab_api.create_branch(new_branch="staging", source_branch="master")
+
+    mock_branch_create.assert_called_once_with({"branch": "staging", "ref": "master"})
+
+
+def test_gitlab_api_create_branch_calls_hooks(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test create_branch triggers hooks."""
+    pre_hook = MagicMock()
+    gitlab_api._hooks = Hooks(pre_hooks=[pre_hook])
+
+    with patch.object(gitlab_api._project.branches, "create"):
+        gitlab_api.create_branch(new_branch="staging", source_branch="master")
+
+    pre_hook.assert_called_once()
+    context = pre_hook.call_args[0][0]
+    assert context.method == "create_branch"
+    assert context.repo_url == "https://gitlab.com/test-group/test-project"
+
+
 def test_gitlab_api_find_merge_request_found(
     gitlab_api: GitLabRepoApi,
     mock_gitlab_client: MagicMock,

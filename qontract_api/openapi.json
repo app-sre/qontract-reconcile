@@ -834,6 +834,258 @@
         "title": "GithubOwnersTaskResult",
         "type": "object"
       },
+      "GitlabGroupConfig": {
+        "description": "Configuration for a single GitLab group and its desired projects.",
+        "properties": {
+          "group": {
+            "description": "GitLab group full path",
+            "title": "Group",
+            "type": "string"
+          },
+          "projects": {
+            "description": "Desired projects under this group",
+            "items": {
+              "$ref": "#/components/schemas/GitlabProjectConfig"
+            },
+            "title": "Projects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "group"
+        ],
+        "title": "GitlabGroupConfig",
+        "type": "object"
+      },
+      "GitlabInstanceConfig": {
+        "description": "Configuration for a single GitLab instance to reconcile.",
+        "properties": {
+          "groups": {
+            "description": "Desired group/project state",
+            "items": {
+              "$ref": "#/components/schemas/GitlabGroupConfig"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "name": {
+            "description": "GitLab instance name",
+            "title": "Name",
+            "type": "string"
+          },
+          "ssl_verify": {
+            "default": true,
+            "description": "Whether to verify SSL certificates",
+            "title": "Ssl Verify",
+            "type": "boolean"
+          },
+          "token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Secret reference for the instance token"
+          },
+          "url": {
+            "description": "GitLab instance URL",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "token"
+        ],
+        "title": "GitlabInstanceConfig",
+        "type": "object"
+      },
+      "GitlabProjectActionCreate": {
+        "description": "Action: Create a new, empty project.",
+        "properties": {
+          "action_type": {
+            "const": "create",
+            "default": "create",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "project_name": {
+            "title": "Project Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "group",
+          "project_name"
+        ],
+        "title": "GitlabProjectActionCreate",
+        "type": "object"
+      },
+      "GitlabProjectActionCreateSaasBundle": {
+        "description": "Action: Create a new project and initialize it as a SaaS bundle repo.",
+        "properties": {
+          "action_type": {
+            "const": "create_saas_bundle",
+            "default": "create_saas_bundle",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "project_name": {
+            "title": "Project Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "group",
+          "project_name"
+        ],
+        "title": "GitlabProjectActionCreateSaasBundle",
+        "type": "object"
+      },
+      "GitlabProjectConfig": {
+        "description": "Desired state for a single GitLab project.",
+        "properties": {
+          "is_saas_bundle": {
+            "default": false,
+            "description": "Whether this project should be initialized as a SaaS bundle repo (README + staging/production branches) rather than left empty",
+            "title": "Is Saas Bundle",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Project name",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "GitlabProjectConfig",
+        "type": "object"
+      },
+      "GitlabProjectsReconcileRequest": {
+        "description": "Request model for GitLab projects reconciliation.",
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "instances": {
+            "description": "List of GitLab instances to reconcile",
+            "items": {
+              "$ref": "#/components/schemas/GitlabInstanceConfig"
+            },
+            "title": "Instances",
+            "type": "array"
+          }
+        },
+        "required": [
+          "instances"
+        ],
+        "title": "GitlabProjectsReconcileRequest",
+        "type": "object"
+      },
+      "GitlabProjectsTaskResponse": {
+        "description": "Immediate response returned when the reconciliation task is queued.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending"
+          },
+          "status_url": {
+            "description": "URL to poll for task result",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "GitlabProjectsTaskResponse",
+        "type": "object"
+      },
+      "GitlabProjectsTaskResult": {
+        "description": "Result of a completed reconciliation task.",
+        "properties": {
+          "actions": {
+            "description": "All actions calculated (desired - current).",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GitlabProjectActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/GitlabProjectActionCreateSaasBundle"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "description": "Actions successfully applied (non-dry-run only).",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GitlabProjectActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/GitlabProjectActionCreateSaasBundle"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "GitlabProjectsTaskResult",
+        "type": "object"
+      },
       "GlitchtipActionAddProjectToTeam": {
         "description": "Action: Add a project to a team.",
         "properties": {
@@ -5894,6 +6146,101 @@
           }
         ],
         "summary": "Github Owners Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/gitlab-projects/reconcile": {
+      "post": {
+        "description": "Queue GitLab projects reconciliation task.\n\nAlways queues a background task and returns immediately with a task_id.\nUse GET /reconcile/{task_id} to retrieve the result.",
+        "operationId": "gitlab-projects",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitlabProjectsReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabProjectsTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Gitlab Projects",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/gitlab-projects/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation result (blocking or non-blocking).\n\nArgs:\n    task_id: Task ID from POST /reconcile response\n    timeout: Maximum seconds to wait (default: non-blocking)",
+        "operationId": "gitlab-projects-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabProjectsTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Gitlab Projects Task Status",
         "tags": [
           "integrations"
         ]
