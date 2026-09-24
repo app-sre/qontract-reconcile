@@ -80,7 +80,6 @@ class OpenshiftManagedSsoClientSecretsIntegration(
                     not self.params.cluster_name
                     or ns.cluster.name in self.params.cluster_name
                 )
-                and ns.openshift_resources
             ):
                 result.append(ns)
         return result

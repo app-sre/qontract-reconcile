@@ -209,7 +209,13 @@ def test_get_namespaces_filters_deleted_namespaces() -> None:
     assert [ns.name for ns in result] == ["kept"]
 
 
-def test_get_namespaces_filters_namespaces_without_resources() -> None:
+def test_get_namespaces_keeps_namespaces_without_resources_for_cleanup() -> None:
+    """A namespace whose last managed-sso-client resource was removed must stay
+    in get_namespaces()'s result so run() still scans/cleans up its current
+    state - excluding it here would orphan the Secret this integration
+    previously created, since fetch_desired_state (which skips namespaces
+    without resources) would never run for it either.
+    """
     integration = _integration()
     namespaces = [
         _namespace(name="empty", resources=None),
@@ -217,7 +223,7 @@ def test_get_namespaces_filters_namespaces_without_resources() -> None:
 
     result = integration.get_namespaces(_query_func(namespaces))
 
-    assert result == []
+    assert [ns.name for ns in result] == ["empty"]
 
 
 def test_get_namespaces_filters_disabled_integration() -> None:
