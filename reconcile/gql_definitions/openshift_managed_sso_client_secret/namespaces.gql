@@ -6,11 +6,35 @@ query OpenshiftManagedSsoClientSecret {
     delete
     clusterAdmin
     openshiftResources {
-      ...OpenshiftResourceManagedSsoClient
+      provider
+      ... on NamespaceOpenshiftResourceManagedSsoClient_v1 {
+        name
+        labels
+        annotations
+        managedSsoClient {
+          name
+          app {
+            name
+          }
+          output
+        }
+      }
     }
     sharedResources {
       openshiftResources {
-        ...OpenshiftResourceManagedSsoClient
+        provider
+        ... on NamespaceOpenshiftResourceManagedSsoClient_v1 {
+          name
+          labels
+          annotations
+          managedSsoClient {
+            name
+            app {
+              name
+            }
+            output
+          }
+        }
       }
     }
     cluster {

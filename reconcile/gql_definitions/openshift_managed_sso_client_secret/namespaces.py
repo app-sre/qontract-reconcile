@@ -17,24 +17,10 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.openshift_managed_sso_client_secret.openshift_resource_managed_sso_client import OpenshiftResourceManagedSsoClient
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
-fragment OpenshiftResourceManagedSsoClient on NamespaceOpenshiftResourceManagedSsoClient_v1 {
-  name
-  labels
-  annotations
-  managedSsoClient {
-    name
-    app {
-      name
-    }
-    output
-  }
-}
-
 fragment VaultSecret on VaultSecret_v1 {
   url
   path
@@ -49,11 +35,35 @@ query OpenshiftManagedSsoClientSecret {
     delete
     clusterAdmin
     openshiftResources {
-      ...OpenshiftResourceManagedSsoClient
+      provider
+      ... on NamespaceOpenshiftResourceManagedSsoClient_v1 {
+        name
+        labels
+        annotations
+        managedSsoClient {
+          name
+          app {
+            name
+          }
+          output
+        }
+      }
     }
     sharedResources {
       openshiftResources {
-        ...OpenshiftResourceManagedSsoClient
+        provider
+        ... on NamespaceOpenshiftResourceManagedSsoClient_v1 {
+          name
+          labels
+          annotations
+          managedSsoClient {
+            name
+            app {
+              name
+            }
+            output
+          }
+        }
       }
     }
     cluster {
@@ -82,8 +92,50 @@ class ConfiguredBaseModel(BaseModel):
     )
 
 
+class NamespaceOpenshiftResourceV1(ConfiguredBaseModel):
+    provider: str = Field(..., alias="provider")
+
+
+class AppV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
+class ManagedSsoClientV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    app: AppV1 = Field(..., alias="app")
+    output: Optional[str] = Field(..., alias="output")
+
+
+class NamespaceOpenshiftResourceManagedSsoClientV1(NamespaceOpenshiftResourceV1):
+    name: Optional[str] = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
+    annotations: Optional[Json] = Field(..., alias="annotations")
+    managed_sso_client: ManagedSsoClientV1 = Field(..., alias="managedSsoClient")
+
+
+class SharedResourcesV1_NamespaceOpenshiftResourceV1(ConfiguredBaseModel):
+    provider: str = Field(..., alias="provider")
+
+
+class SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceManagedSsoClientV1_ManagedSsoClientV1_AppV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
+class SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceManagedSsoClientV1_ManagedSsoClientV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    app: SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceManagedSsoClientV1_ManagedSsoClientV1_AppV1 = Field(..., alias="app")
+    output: Optional[str] = Field(..., alias="output")
+
+
+class SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceManagedSsoClientV1(SharedResourcesV1_NamespaceOpenshiftResourceV1):
+    name: Optional[str] = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
+    annotations: Optional[Json] = Field(..., alias="annotations")
+    managed_sso_client: SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceManagedSsoClientV1_ManagedSsoClientV1 = Field(..., alias="managedSsoClient")
+
+
 class SharedResourcesV1(ConfiguredBaseModel):
-    openshift_resources: list[OpenshiftResourceManagedSsoClient] = Field(..., alias="openshiftResources")
+    openshift_resources: list[Union[SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceManagedSsoClientV1, SharedResourcesV1_NamespaceOpenshiftResourceV1]] = Field(..., alias="openshiftResources")
 
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
@@ -104,7 +156,7 @@ class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     delete: Optional[bool] = Field(..., alias="delete")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
-    openshift_resources: Optional[list[OpenshiftResourceManagedSsoClient]] = Field(..., alias="openshiftResources")
+    openshift_resources: Optional[list[Union[NamespaceOpenshiftResourceManagedSsoClientV1, NamespaceOpenshiftResourceV1]]] = Field(..., alias="openshiftResources")
     shared_resources: Optional[list[SharedResourcesV1]] = Field(..., alias="sharedResources")
     cluster: ClusterV1 = Field(..., alias="cluster")
 

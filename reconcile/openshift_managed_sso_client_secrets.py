@@ -13,7 +13,9 @@ from qontract_utils.managed_sso_client import (
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 from reconcile.gql_definitions.openshift_managed_sso_client_secret.namespaces import (
+    NamespaceOpenshiftResourceManagedSsoClientV1,
     NamespaceV1,
+    SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceManagedSsoClientV1,
 )
 from reconcile.gql_definitions.openshift_managed_sso_client_secret.namespaces import (
     query as managed_sso_client_secrets_query,
@@ -36,11 +38,29 @@ from reconcile.utils.semver_helper import make_semver
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
-    from reconcile.gql_definitions.openshift_managed_sso_client_secret.openshift_resource_managed_sso_client import (
+    from reconcile.gql_definitions.openshift_managed_sso_client_secret.namespaces import (
         ManagedSsoClientV1,
-        OpenshiftResourceManagedSsoClient,
+        SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceManagedSsoClientV1_ManagedSsoClientV1,
     )
     from reconcile.utils.secret_reader import SecretReaderBase
+
+    # openshiftResources is a NamespaceOpenshiftResource_v1 interface field, and
+    # the `... on NamespaceOpenshiftResourceManagedSsoClient_v1 { ... }` type
+    # condition is written at two separate query paths (top-level and
+    # sharedResources-nested) to get qenerate to emit a proper discriminated
+    # union at each - see namespaces.gql. That produces two structurally
+    # identical but nominally distinct classes per level instead of one
+    # shared type, hence these union aliases.
+    AnyManagedSsoClientV1 = (
+        ManagedSsoClientV1
+        | SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceManagedSsoClientV1_ManagedSsoClientV1
+    )
+
+# Real (non-TYPE_CHECKING) alias: used in isinstance() below, not just annotations.
+AnyManagedSsoClientResourceV1 = (
+    NamespaceOpenshiftResourceManagedSsoClientV1
+    | SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceManagedSsoClientV1
+)
 
 QONTRACT_INTEGRATION = "openshift-managed-sso-client-secrets"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
@@ -91,12 +111,30 @@ class OpenshiftManagedSsoClientSecretsIntegration(
                 # those integrations: removing the last managed resource from
                 # openshiftResources can leave a stale Secret behind, uncleaned,
                 # until another resource is added back to that namespace.
-                and ns.openshift_resources
+                and self.managed_sso_client_resources(ns)
             ):
                 result.append(ns)
         return result
 
-    def tenant_secret_vault_path(self, client: ManagedSsoClientV1) -> str:
+    def managed_sso_client_resources(
+        self, ns: NamespaceV1
+    ) -> list[AnyManagedSsoClientResourceV1]:
+        """Narrow openshiftResources to managed-sso-client entries only.
+
+        openshiftResources is heterogeneous (any provider a namespace declares
+        - vault-secret, route, resource, ...), and GraphQL only resolves this
+        integration's fragment fields for items actually of type
+        NamespaceOpenshiftResourceManagedSsoClient_v1 - other items come back
+        with none of those fields set. isinstance narrows to just the matching
+        items instead of assuming every entry is one of ours.
+        """
+        return [
+            r
+            for r in ns.openshift_resources or []
+            if isinstance(r, AnyManagedSsoClientResourceV1)
+        ]
+
+    def tenant_secret_vault_path(self, client: AnyManagedSsoClientV1) -> str:
         """Resolve the Vault path of a managed-sso-client's tenant-facing secret."""
         if client.output:
             return client.output
@@ -105,8 +143,8 @@ class OpenshiftManagedSsoClientSecretsIntegration(
 
     def construct_managed_sso_client_secret(
         self,
-        resource: OpenshiftResourceManagedSsoClient,
-        client: ManagedSsoClientV1,
+        resource: AnyManagedSsoClientResourceV1,
+        client: AnyManagedSsoClientV1,
         secret_data: Mapping[str, str],
     ) -> OR:
         name = resource.name or client.name
@@ -131,7 +169,7 @@ class OpenshiftManagedSsoClientSecretsIntegration(
         dry_run: bool,
     ) -> None:
         for ns in namespaces:
-            for resource in ns.openshift_resources or []:
+            for resource in self.managed_sso_client_resources(ns):
                 self._add_desired_secret(
                     ns,
                     resource,
@@ -144,8 +182,8 @@ class OpenshiftManagedSsoClientSecretsIntegration(
     def _add_desired_secret(
         self,
         ns: NamespaceV1,
-        resource: OpenshiftResourceManagedSsoClient,
-        client: ManagedSsoClientV1,
+        resource: AnyManagedSsoClientResourceV1,
+        client: AnyManagedSsoClientV1,
         ri: ResourceInventory,
         secret_reader: SecretReaderBase,
         dry_run: bool,

@@ -10,15 +10,14 @@ from qontract_utils.managed_sso_client import DEFAULT_OUTPUT_VAULT_PATH_PREFIX
 
 import reconcile.openshift_resources_base as orb
 from reconcile.gql_definitions.openshift_managed_sso_client_secret.namespaces import (
+    AppV1,
     ClusterV1,
     DisableClusterAutomationsV1,
+    ManagedSsoClientV1,
+    NamespaceOpenshiftResourceManagedSsoClientV1,
+    NamespaceOpenshiftResourceV1,
     NamespaceV1,
     SharedResourcesV1,
-)
-from reconcile.gql_definitions.openshift_managed_sso_client_secret.openshift_resource_managed_sso_client import (
-    AppV1,
-    ManagedSsoClientV1,
-    OpenshiftResourceManagedSsoClient,
 )
 from reconcile.openshift_managed_sso_client_secrets import (
     OpenshiftManagedSsoClientSecretsIntegration,
@@ -52,13 +51,24 @@ def _resource(
     name: str | None = None,
     labels: dict[str, str] | None = None,
     annotations: dict[str, str] | None = None,
-) -> OpenshiftResourceManagedSsoClient:
-    return OpenshiftResourceManagedSsoClient(
+) -> NamespaceOpenshiftResourceManagedSsoClientV1:
+    return NamespaceOpenshiftResourceManagedSsoClientV1(
+        provider="managed-sso-client",
         name=name,
         labels=json.dumps(labels) if labels is not None else None,
         annotations=json.dumps(annotations) if annotations is not None else None,
         managedSsoClient=client,
     )
+
+
+def _other_resource(provider: str = "vault-secret") -> NamespaceOpenshiftResourceV1:
+    """A namespace resource of some other provider - openshiftResources is
+    heterogeneous (any provider a namespace declares), and GraphQL only
+    resolves this integration's fragment fields for items that are actually
+    NamespaceOpenshiftResourceManagedSsoClient_v1; other providers come back
+    with none of those fields set.
+    """
+    return NamespaceOpenshiftResourceV1(provider=provider)
 
 
 def _cluster(
@@ -83,8 +93,14 @@ def _namespace(
     name: str = "ns1",
     cluster: ClusterV1 | None = None,
     delete: bool | None = None,
-    resources: list[OpenshiftResourceManagedSsoClient] | None = None,
-    shared_resources: list[OpenshiftResourceManagedSsoClient] | None = None,
+    resources: list[
+        NamespaceOpenshiftResourceManagedSsoClientV1 | NamespaceOpenshiftResourceV1
+    ]
+    | None = None,
+    shared_resources: list[
+        NamespaceOpenshiftResourceManagedSsoClientV1 | NamespaceOpenshiftResourceV1
+    ]
+    | None = None,
 ) -> NamespaceV1:
     return NamespaceV1(
         name=name,
@@ -92,7 +108,17 @@ def _namespace(
         clusterAdmin=None,
         openshiftResources=resources,
         sharedResources=(
-            [SharedResourcesV1(openshiftResources=shared_resources)]
+            [
+                # sharedResources.openshiftResources items are their own
+                # (structurally identical but distinct) qenerate-generated
+                # types, not NamespaceOpenshiftResource*V1 - re-validate via
+                # dict round-trip instead of passing the instances directly.
+                SharedResourcesV1(
+                    openshiftResources=[
+                        r.model_dump(by_alias=True) for r in shared_resources
+                    ]
+                )
+            ]
             if shared_resources is not None
             else None
         ),
@@ -230,6 +256,30 @@ def test_get_namespaces_filters_namespaces_without_resources() -> None:
     assert result == []
 
 
+def test_get_namespaces_ignores_other_provider_resources() -> None:
+    """openshiftResources is a NamespaceOpenshiftResource_v1 interface field -
+    a namespace can freely mix a managed-sso-client resource with resources of
+    any other provider (vault-secret, route, resource, ...). GraphQL only
+    resolves this integration's fragment fields for items that are actually
+    NamespaceOpenshiftResourceManagedSsoClient_v1; other providers come back
+    with none of those fields, which used to make the whole query raise a
+    pydantic ValidationError instead of the other-provider items simply being
+    ignored - confirmed empirically against the raw generated models before
+    fixing the .gql query to select `provider` plus a proper inline fragment.
+    """
+    integration = _integration()
+    client = _client()
+    ns = _namespace(
+        name="mixed",
+        resources=[_other_resource("vault-secret"), _resource(client)],
+    )
+
+    result = integration.get_namespaces(_query_func([ns]))
+
+    assert [n.name for n in result] == ["mixed"]
+    assert len(integration.managed_sso_client_resources(result[0])) == 1
+
+
 def test_get_namespaces_filters_disabled_integration() -> None:
     integration = _integration()
     client = _client()
@@ -268,6 +318,12 @@ def test_get_namespaces_filters_by_cluster_name() -> None:
 
 
 def test_get_namespaces_aggregates_shared_resources() -> None:
+    """sharedResources.openshiftResources items are qenerate-generated as their
+    own distinct (but structurally identical) types, not
+    NamespaceOpenshiftResourceManagedSsoClientV1 - managed_sso_client_resources()
+    must recognize items merged in from shared resources too, not just ones
+    declared directly on the namespace.
+    """
     integration = _integration()
     client = _client()
     namespaces = [
@@ -279,6 +335,7 @@ def test_get_namespaces_aggregates_shared_resources() -> None:
     assert len(result) == 1
     assert result[0].openshift_resources is not None
     assert len(result[0].openshift_resources) == 1
+    assert len(integration.managed_sso_client_resources(result[0])) == 1
 
 
 #
