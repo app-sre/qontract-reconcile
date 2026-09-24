@@ -260,10 +260,18 @@ class OpenshiftManagedSsoClientSecretsIntegration(
         if defer:
             defer(oc_map.cleanup)
         ri = ResourceInventory()
+        # warnings=False: aggregate_shared_resources_typed() merges
+        # sharedResources items into openshiftResources - those are their own
+        # (structurally identical) qenerate-generated classes per query path,
+        # not the top-level Union members, so pydantic's serializer correctly
+        # dumps them via its duck-typed fallback but warns about the type
+        # mismatch on every dump. No data is lost, just noise.
         state_specs = ob.init_specs_to_fetch(
             ri,
             oc_map,
-            namespaces=[ns.model_dump(by_alias=True) for ns in namespaces],
+            namespaces=[
+                ns.model_dump(by_alias=True, warnings=False) for ns in namespaces
+            ],
             override_managed_types=["Secret"],
         )
         for spec in state_specs:
@@ -285,8 +293,9 @@ class OpenshiftManagedSsoClientSecretsIntegration(
     def get_early_exit_desired_state(self) -> dict[str, Any] | None:
         state_for_clusters: dict[str, list[dict[str, Any]]] = {}
         for ns in self.get_namespaces(gql.get_api().query):
+            # warnings=False: see the identical model_dump() call in run().
             state_for_clusters.setdefault(ns.cluster.name, []).append(
-                ns.model_dump(by_alias=True)
+                ns.model_dump(by_alias=True, warnings=False)
             )
         return {
             "state": {

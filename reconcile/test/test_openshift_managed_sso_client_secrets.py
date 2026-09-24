@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
@@ -520,6 +521,37 @@ def test_early_exit_state_shape_matches_shard_selector(mocker: MockerFixture) ->
     matches = [m.value for m in parse(selector).find(state)]
 
     assert matches == ["cluster-a"]
+
+
+def test_early_exit_state_ignores_shared_resources_serialization_warning(
+    mocker: MockerFixture,
+) -> None:
+    """aggregate_shared_resources_typed() merges sharedResources items into
+    openshiftResources as their own (structurally identical) qenerate-generated
+    classes per query path, not the top-level Union members declared on
+    NamespaceV1.openshift_resources - pydantic's serializer still dumps them
+    correctly via its duck-typed fallback (verified: all fields present either
+    way), but warns about the type mismatch on every model_dump(), observed as
+    a real UserWarning in a running instance of this integration.
+    model_dump(warnings=False) suppresses the noise without affecting the data.
+    """
+    integration = _integration()
+    client = _client()
+    ns = _namespace(
+        name="ns1",
+        resources=None,
+        shared_resources=[_other_resource("vault-secret"), _resource(client)],
+    )
+    mocker.patch(
+        "reconcile.openshift_managed_sso_client_secrets.gql.get_api",
+        return_value=MagicMock(query=_query_func([ns])),
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        state = integration.get_early_exit_desired_state()
+
+    assert state is not None
 
 
 def test_shard_config_marks_cluster_name_as_collection() -> None:
