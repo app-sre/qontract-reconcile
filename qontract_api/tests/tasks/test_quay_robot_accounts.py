@@ -162,3 +162,25 @@ def test_acquires_per_org_locks_in_sorted_order(
         call.kwargs.get("timeout") == 600 for call in mock_cache.lock.call_args_list
     )
     mock_service_cls.return_value.reconcile.assert_called_once()
+
+
+@patch("qontract_api.integrations.quay_robot_accounts.tasks.get_event_manager")
+@patch("qontract_api.integrations.quay_robot_accounts.tasks.get_secret_manager")
+@patch("qontract_api.integrations.quay_robot_accounts.tasks.get_cache")
+@patch("qontract_api.integrations.quay_robot_accounts.tasks.QuayRobotAccountsService")
+def test_skips_per_org_locks_in_dry_run(
+    mock_service_cls: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_get_secret_manager: MagicMock,
+    mock_get_event_manager: MagicMock,
+    mock_self: MagicMock,
+    sample_org: QuayOrgDesiredState,
+) -> None:
+    mock_service_cls.return_value.reconcile.return_value = _make_result()
+    mock_cache = MagicMock()
+    mock_get_cache.return_value = mock_cache
+
+    _task_func()(mock_self, [sample_org], dry_run=True)
+
+    mock_cache.lock.assert_not_called()
+    mock_service_cls.return_value.reconcile.assert_called_once()

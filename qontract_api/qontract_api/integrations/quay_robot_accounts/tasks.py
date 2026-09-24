@@ -58,11 +58,13 @@ def _reconcile_with_org_locks(
     *,
     dry_run: bool,
 ) -> QuayRobotAccountsTaskResult:
-    """Hold per-org locks across read, diff, and Quay mutations."""
+    """Hold per-org locks across apply. Dry-run skips locking like deduplicated_task."""
+    if dry_run:
+        return service.reconcile(organizations=organizations, dry_run=True)
     with ExitStack() as stack:
         for key in sorted({org_lock_key(org) for org in organizations}):
             stack.enter_context(cache.lock(key, timeout=_TASK_LOCK_TIMEOUT_SECONDS))
-        return service.reconcile(organizations=organizations, dry_run=dry_run)
+        return service.reconcile(organizations=organizations, dry_run=False)
 
 
 @celery_app.task(bind=True, name="quay-robot-accounts.reconcile", acks_late=True)
