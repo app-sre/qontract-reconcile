@@ -2383,10 +2383,10 @@ def app_interface_merge_queue(ctx: click.Context) -> None:
 @get.command()
 @click.pass_context
 def app_interface_review_queue(ctx: click.Context) -> None:
-    from reconcile.gitlab_housekeeping.labels import ERROR_LABELS as glhk_ERROR_LABELS
-    from reconcile.gitlab_housekeeping.labels import HOLD_LABELS as glhk_HOLD_LABELS
     from reconcile.gitlab_housekeeping.labels import (
-        is_good_to_merge as glhk_is_good_to_merge,
+        ERROR_LABELS,
+        HOLD_LABELS,
+        is_good_to_merge,
     )
 
     settings = queries.get_app_interface_settings()
@@ -2425,8 +2425,8 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 continue
 
             labels = mr.attributes.get("labels") or []
-            good_to_merge = glhk_is_good_to_merge(labels)
-            has_error_label = any(l in glhk_ERROR_LABELS for l in labels)
+            good_to_merge = is_good_to_merge(labels)
+            has_error_label = any(l in ERROR_LABELS for l in labels)
             if good_to_merge and not has_error_label:
                 continue
             if "stale" in labels:
@@ -2470,7 +2470,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 continue
 
             is_last_action_by_app_sre = gl.is_last_action_by_team(
-                mr, app_sre_team_members, glhk_HOLD_LABELS
+                mr, app_sre_team_members, HOLD_LABELS
             )
 
             if is_last_action_by_app_sre and not (good_to_merge and has_error_label):

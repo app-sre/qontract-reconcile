@@ -8,8 +8,8 @@ import gitlab
 from gitlab.const import PipelineStatus
 
 from reconcile.gitlab_housekeeping.helpers import (
-    _cancel_timed_out_pipelines,
-    _should_skip_for_running_pipeline,
+    clean_pipelines,
+    get_timed_out_pipelines,
     is_rebased,
     rebased_merge_requests,
 )
@@ -94,6 +94,35 @@ def rebase_merge_requests(
         wait_for_pipeline=wait_for_pipeline,
         users_allowed_to_label=users_allowed_to_label,
     )
+
+
+def _cancel_timed_out_pipelines(
+    dry_run: bool,
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+    pipelines: list,
+    pipeline_timeout: int | None,
+) -> None:
+    """Cancel pipelines that have exceeded the timeout threshold."""
+    if pipeline_timeout is None:
+        return
+    timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
+    if timed_out_pipelines:
+        clean_pipelines(
+            dry_run=dry_run,
+            gl=gl,
+            fork_project_id=mr.source_project_id,
+            pipelines=timed_out_pipelines,
+        )
+
+
+def _should_skip_for_running_pipeline(pipelines: list, wait_for_pipeline: bool) -> bool:
+    """Return True if the MR should be skipped because a pipeline is still running."""
+    if not wait_for_pipeline:
+        return False
+    if not pipelines:
+        return True
+    return any(p.status == PipelineStatus.RUNNING for p in pipelines)
 
 
 def _rebase_merge_requests_active_cap(

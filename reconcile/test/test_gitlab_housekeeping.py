@@ -34,15 +34,39 @@ from gitlab.v4.objects import (
 from UnleashClient import UnleashClient
 
 import reconcile.gitlab_housekeeping.gitlab_housekeeping as gl_h
-from reconcile.gitlab_housekeeping.healthcheck import check_pipeline_health
+from reconcile.gitlab_housekeeping.healthcheck import (
+    check_pipeline_health,
+    run_error_healthcheck,
+)
+from reconcile.gitlab_housekeeping.helpers import (
+    calculate_time_since_approval,
+    clean_pipelines,
+    get_timed_out_pipelines,
+    is_rebased,
+    merge_batch_size_histogram,
+)
 from reconcile.gitlab_housekeeping.labels import (
     ERROR_LABELS,
+    get_tenant_labels,
     has_overlapping_labels,
+    is_eligible_for_optimistic_merge,
     is_good_to_merge,
 )
-from reconcile.gitlab_housekeeping.omm import _MemberResult
-from reconcile.gitlab_housekeeping.queue import verify_on_demand_tests
-from reconcile.gitlab_housekeeping.rebase import RebaseStrategy
+from reconcile.gitlab_housekeeping.omm import (
+    _MemberResult,
+    apply_omm_pending,
+    form_omm_group,
+    process_omm_group,
+)
+from reconcile.gitlab_housekeeping.queue import (
+    preprocess_merge_requests,
+    verify_on_demand_tests,
+)
+from reconcile.gitlab_housekeeping.rebase import (
+    RebaseStrategy,
+    get_rebase_strategy,
+    rebase_merge_requests,
+)
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import OMM_PENDING
@@ -124,8 +148,8 @@ class TestGitLabHousekeeping:
         dry_run = False
         timeout = 60
 
-        timeout_pipelines = gl_h.get_timed_out_pipelines(pipelines, timeout)
-        gl_h.clean_pipelines(dry_run, gl, 1, timeout_pipelines)
+        timeout_pipelines = get_timed_out_pipelines(pipelines, timeout)
+        clean_pipelines(dry_run, gl, 1, timeout_pipelines)
 
         # Test if mock have this exact calls
         http_post.assert_called_once_with("/projects/1/pipelines/47/cancel")
@@ -134,7 +158,7 @@ class TestGitLabHousekeeping:
 def test_calculate_time_since_approval() -> None:
     one_hour_ago = (datetime.now(tz=UTC) - timedelta(minutes=60)).strftime(DATE_FORMAT)
 
-    time_since_merge = gl_h._calculate_time_since_approval(one_hour_ago)
+    time_since_merge = calculate_time_since_approval(one_hour_ago)
 
     assert round(time_since_merge) == 60
 
@@ -156,7 +180,7 @@ def test_is_rebase() -> None:
 
     mocked_gitlab_api.project.repository_compare.return_value = {"commits": []}
 
-    result = gl_h.is_rebased(mr, mocked_gitlab_api)
+    result = is_rebased(mr, mocked_gitlab_api)
 
     assert result is True
     mocked_gitlab_api.project.commits.list.assert_called_once_with(
@@ -563,7 +587,7 @@ def _call_rebase(
         side_effect=lambda mr, gl: mr.iid in rebased_set,
     )
 
-    gl_h.rebase_merge_requests(
+    rebase_merge_requests(
         dry_run=dry_run,
         gl=gitlab_api,
         rebase_limit=rebase_limit,
@@ -943,7 +967,7 @@ def test_rebase_uses_refreshed_mr_not_stale_batch_object(
         side_effect=_is_rebased,
     )
 
-    gl_h.rebase_merge_requests(
+    rebase_merge_requests(
         dry_run=False,
         gl=gitlab_api,
         rebase_limit=2,
@@ -996,7 +1020,7 @@ def test_rebase_strategies_pass_skip_unmergeable_false(
         return_value=[],
     )
 
-    gl_h.rebase_merge_requests(
+    rebase_merge_requests(
         dry_run=False,
         gl=gitlab_api,
         rebase_limit=2,
@@ -1026,7 +1050,7 @@ def test_get_rebase_strategy_no_unleash_env(monkeypatch: pytest.MonkeyPatch) -> 
     """Without UNLEASH_API_URL / UNLEASH_CLIENT_ACCESS_TOKEN, falls back to ACTIVE_CAP."""
     monkeypatch.delenv("UNLEASH_API_URL", raising=False)
     monkeypatch.delenv("UNLEASH_CLIENT_ACCESS_TOKEN", raising=False)
-    assert gl_h.get_rebase_strategy() == RebaseStrategy.ACTIVE_CAP
+    assert get_rebase_strategy() == RebaseStrategy.ACTIVE_CAP
 
 
 def test_get_rebase_strategy_toggle_enabled_no_variant(
@@ -1034,7 +1058,7 @@ def test_get_rebase_strategy_toggle_enabled_no_variant(
 ) -> None:
     """Toggle enabled but no variant configured → no payload → falls back to ACTIVE_CAP."""
     unleash_client.get_variant.return_value = {"name": "disabled", "enabled": True}
-    assert gl_h.get_rebase_strategy() == RebaseStrategy.ACTIVE_CAP
+    assert get_rebase_strategy() == RebaseStrategy.ACTIVE_CAP
 
 
 def test_get_rebase_strategy_toggle_enabled_unknown_variant(
@@ -1046,7 +1070,7 @@ def test_get_rebase_strategy_toggle_enabled_unknown_variant(
         "enabled": True,
         "payload": {"type": "string", "value": "bogus-strategy"},
     }
-    assert gl_h.get_rebase_strategy() == RebaseStrategy.ACTIVE_CAP
+    assert get_rebase_strategy() == RebaseStrategy.ACTIVE_CAP
 
 
 @pytest.mark.parametrize(
@@ -1067,7 +1091,7 @@ def test_get_rebase_strategy_toggle_enabled_valid_variant(
         "enabled": True,
         "payload": {"type": "string", "value": variant_value},
     }
-    assert gl_h.get_rebase_strategy() == expected_strategy
+    assert get_rebase_strategy() == expected_strategy
 
 
 def test_merge_applies_merge_error_label_on_closed_error(
@@ -1216,7 +1240,7 @@ def test_pipeline_error_label_applied_on_consecutive_failures(
         "failed",
     ])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1242,7 +1266,7 @@ def test_pipeline_error_label_auto_removed_on_recovery(
         "failed",
     ])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1268,7 +1292,7 @@ def test_pipeline_error_not_removed_while_pipeline_running(
         "failed",
     ])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1304,7 +1328,7 @@ def test_merge_error_label_not_removed_without_new_notes(
         "success",
     ])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1340,7 +1364,7 @@ def test_merge_error_label_removed_on_new_notes(
         "success",
     ])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1367,7 +1391,7 @@ def test_configurable_failure_limit(
         "success",
     ])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr_3_failures],
@@ -1388,7 +1412,7 @@ def test_configurable_failure_limit(
         "failed",
     ])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr_5_failures],
@@ -1415,7 +1439,7 @@ def test_already_labeled_mr_with_ongoing_failures_no_api_calls(
         "failed",
     ])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1440,7 +1464,7 @@ def test_healthcheck_skips_non_queue_eligible_mrs(project: Project) -> None:
         "failed",
         "failed",
     ])
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=mrs,
@@ -1474,7 +1498,7 @@ def test_healthcheck_applies_rebase_error_on_merge_error_field(
     mocked_gl.project = project
     mocked_gl.get_merge_request.return_value = fresh_mr
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1507,7 +1531,7 @@ def test_healthcheck_applies_rebase_error_when_currently_unmergeable(
     mocked_gl.project = project
     mocked_gl.get_merge_request.return_value = fresh_mr
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1539,7 +1563,7 @@ def test_healthcheck_removes_rebase_error_when_merge_error_cleared(
     mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1567,7 +1591,7 @@ def test_healthcheck_skips_rebase_error_if_already_labeled(
     mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1594,7 +1618,7 @@ def test_healthcheck_no_rebase_error_when_resolved_despite_stale_detailed_status
     mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1617,7 +1641,7 @@ def test_apply_omm_pending_rebase_error_applies_label(
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
 
-    gl_h.apply_omm_pending(dry_run=False, gl=mocked_gl, mrs=[mr])
+    apply_omm_pending(dry_run=False, gl=mocked_gl, mrs=[mr])
 
     mocked_gl.add_label_to_merge_request.assert_any_call(mr, "omm-pending")
     mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
@@ -1640,7 +1664,7 @@ def test_healthcheck_ignores_non_rebase_merge_error(
     mocked_gl.get_merge_request.return_value = fresh_mr
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1670,7 +1694,7 @@ def test_healthcheck_preserves_rebase_error_on_api_failure(
     mocked_gl.get_merge_request.side_effect = GitlabGetError("500 Server Error")
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(["success"])
 
-    gl_h.run_error_healthcheck(
+    run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1869,7 +1893,7 @@ def test_error_labels_visible_in_queue(
         add_lgtm_merge_request_resource_label_event
     ]
 
-    results = gl_h.preprocess_merge_requests(
+    results = preprocess_merge_requests(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1904,7 +1928,7 @@ def test_preprocess_merge_requests_skips_unmergeable_by_default(
         add_lgtm_merge_request_resource_label_event
     ]
 
-    results = gl_h.preprocess_merge_requests(
+    results = preprocess_merge_requests(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1937,7 +1961,7 @@ def test_preprocess_merge_requests_includes_unmergeable_when_flag_set(
         add_lgtm_merge_request_resource_label_event
     ]
 
-    results = gl_h.preprocess_merge_requests(
+    results = preprocess_merge_requests(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -2076,7 +2100,7 @@ class TestMergeErrorCycleEndToEnd:
         human_note.author = {"username": "developer"}
         mr.notes.list.return_value = [human_note]
 
-        gl_h.run_error_healthcheck(
+        run_error_healthcheck(
             dry_run=False,
             gl=gl,
             project_merge_requests=[mr],
@@ -2134,7 +2158,7 @@ class TestMergeErrorCycleEndToEnd:
         human_note_2.author = {"username": "developer"}
         mr.notes.list.return_value = [human_note_2]
 
-        gl_h.run_error_healthcheck(
+        run_error_healthcheck(
             dry_run=False,
             gl=gl,
             project_merge_requests=[mr],
@@ -2218,7 +2242,7 @@ class TestMergeErrorCycleEndToEnd:
 def test_get_tenant_labels(labels: list[str], expected: set[str]) -> None:
     mr = create_autospec(ProjectMergeRequest)
     mr.labels = labels
-    assert gl_h.get_tenant_labels(mr) == expected
+    assert get_tenant_labels(mr) == expected
 
 
 @pytest.mark.parametrize(
@@ -2233,7 +2257,7 @@ def test_get_tenant_labels(labels: list[str], expected: set[str]) -> None:
 def test_is_eligible_for_optimistic_merge(labels: list[str], expected: bool) -> None:
     mr = create_autospec(ProjectMergeRequest)
     mr.labels = labels
-    assert gl_h.is_eligible_for_optimistic_merge(mr) is expected
+    assert is_eligible_for_optimistic_merge(mr) is expected
 
 
 @pytest.mark.parametrize(
@@ -2633,7 +2657,7 @@ def test_omm_group_ejects_error_labeled_mr(
 
     mocked_gl = _make_omm_gl(head_sha="abc123")
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -2683,7 +2707,7 @@ def test_omm_group_ejects_hold_labeled_mr(
 
     mocked_gl = _make_omm_gl(head_sha="abc123")
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -2735,7 +2759,7 @@ def test_omm_group_merge_rejected_applies_merge_error(
     mocked_gl = _make_omm_gl(head_sha="abc123")
     mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -2774,7 +2798,7 @@ def test_omm_group_head_drift_invalidates_group(
     mocked_gl = _make_omm_gl(head_sha="different-sha")
     mocked_gl.project.repository_compare.return_value = {"commits": ["x"]}
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -2804,7 +2828,7 @@ def test_omm_group_lead_missing_merge_commit_sha(
 
     mocked_gl = _make_omm_gl(head_sha="some-sha")
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -2863,7 +2887,7 @@ def test_omm_group_head_advanced_but_reachable_continues(
     fresh_mr.squash_commit_sha = None
     mocked_gl.get_merge_request.return_value = fresh_mr
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -2904,7 +2928,7 @@ def test_omm_group_external_merge_dissolves_group(
     fresh_mr.squash_commit_sha = None
     mocked_gl.get_merge_request.return_value = fresh_mr
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -2965,7 +2989,7 @@ def test_omm_group_omm_member_merge_does_not_dissolve(
     fresh_mr.squash_commit_sha = member_squash_sha
     mocked_gl.get_merge_request.return_value = fresh_mr
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3025,7 +3049,7 @@ def test_omm_group_multiple_members_sha_match(
 
     mocked_gl.get_merge_request.side_effect = _fresh_mr
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3073,7 +3097,7 @@ def test_omm_group_skip_ci_rebase_on_success_not_rebased(
     mocked_gl = _make_omm_gl(head_sha="abc123")
     mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3140,7 +3164,7 @@ def test_omm_member_refreshes_mr_before_rebased_check(
 
     mocked_gl.project.repository_compare.side_effect = _compare
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3192,7 +3216,7 @@ def test_omm_group_skip_ci_rebase_failure_ejects_member(
     mocked_gl = _make_omm_gl(head_sha="abc123")
     mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3241,7 +3265,7 @@ def test_omm_group_ref_not_found_ejects_member(
     mocked_gl = _make_omm_gl(head_sha="abc123")
     mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3293,7 +3317,7 @@ def test_omm_group_merge_limit_enforced(
     mocked_gl = _make_omm_gl(head_sha="abc123")
     mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3436,7 +3460,7 @@ def test_multi_merge_batch_size_histogram_observed(
     items = [_make_merge_item(mr1), _make_merge_item(mr2), _make_merge_item(mr3)]
 
     observe_mock = mocker.patch.object(
-        gl_h.merge_batch_size_histogram, "labels", return_value=Mock()
+        merge_batch_size_histogram, "labels", return_value=Mock()
     )
 
     _call_merge(
@@ -3560,7 +3584,7 @@ def test_omm_group_skipped_pipeline_filtered_merges_on_pre_rebase_success(
         _success_pipeline(),
     ]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3608,7 +3632,7 @@ def test_omm_group_all_skipped_pipelines_rebased_stays_active(
     mocked_gl = _make_omm_gl(head_sha="abc123")
     mocked_gl.get_merge_request_pipelines.return_value = [_skipped_pipeline()]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3667,7 +3691,7 @@ def test_omm_group_canceled_pipeline_ejects_member(
     mocked_gl = _make_omm_gl(head_sha="abc123")
     mocked_gl.get_merge_request_pipelines.return_value = [_canceled_pipeline()]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3721,7 +3745,7 @@ def test_omm_group_unhandled_status_rebased_stays_active(
     unhandled.source = "external"
     mocked_gl.get_merge_request_pipelines.return_value = [unhandled]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3787,7 +3811,7 @@ def test_omm_group_push_pipeline_filtered_even_at_different_sha(
         _success_pipeline(project_id=fork_id, sha="original-sha", source="external"),
     ]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3846,7 +3870,7 @@ def test_omm_group_fork_pipeline_not_rebased_triggers_skip_ci(
         _success_pipeline(project_id=fork_id, sha=current_sha),
     ]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3907,7 +3931,7 @@ def test_omm_group_fork_pipeline_running_old_sha_waits(
         _running_pipeline(project_id=fork_id, sha=old_sha),
     ]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -3970,7 +3994,7 @@ def test_omm_group_fork_push_pipeline_filtered_when_not_rebased(
         _success_pipeline(project_id=fork_id, sha=current_sha, source="external"),
     ]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -4030,7 +4054,7 @@ def test_omm_group_fork_external_pipeline_preserved_at_current_sha(
         _success_pipeline(project_id=fork_id, sha=current_sha, source="external"),
     ]
 
-    merges = gl_h._process_omm_group(
+    merges = process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -4101,7 +4125,7 @@ def test_form_omm_group_skipped_pipeline_filtered_includes_candidate(
         _success_pipeline(),
     ]
 
-    candidates = gl_h._form_omm_group(mocked_gl, items, set())
+    candidates = form_omm_group(mocked_gl, items, set())
 
     assert candidates == [mr]
 
@@ -4155,7 +4179,7 @@ def test_omm_expansion_adds_newcomer_skips_existing(
     # existing is in both pending and queue — must not be re-added
     queue = [_make_merge_item(existing), _make_merge_item(newcomer)]
 
-    gl_h._process_omm_group(
+    process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -4194,7 +4218,7 @@ def test_omm_expansion_overlapping_candidate_not_added(
 
     queue = [_make_merge_item(existing), _make_merge_item(overlapping)]
 
-    gl_h._process_omm_group(
+    process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,
@@ -4229,7 +4253,7 @@ def test_omm_expansion_ejects_pending_mr_with_overlapping_labels(
 
     mocked_gl = _make_omm_gl(head_sha="abc123")
 
-    gl_h._process_omm_group(
+    process_omm_group(
         dry_run=False,
         gl=mocked_gl,
         lead=lead,

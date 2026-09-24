@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 import gitlab
@@ -12,7 +11,6 @@ from prometheus_client import (
     Histogram,
 )
 
-from reconcile.gitlab_housekeeping.labels import MERGE_LABELS_PRIORITY
 from reconcile.utils.datetime_util import from_utc_iso_format, utc_now
 
 if TYPE_CHECKING:
@@ -86,65 +84,16 @@ omm_group_expanded = Counter(
     labelnames=["project_id"],
 )
 
-EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
 SQUASH_OPTION_ALWAYS = "always"
 
 
-class InsistOnPipelineError(Exception):
-    """Exception used to retry a merge when the pipeline isn't yet complete."""
-
-
-@dataclass
-class ReloadToggle:
-    """A class to toggle the reload of merge requests."""
-
-    reload: bool = False
-
-
-def _log_exception(ex: Exception) -> None:
-    logging.info("Retrying - %s: %s", type(ex).__name__, ex)
-
-
-def _calculate_time_since_approval(approved_at: str) -> float:
+def calculate_time_since_approval(approved_at: str) -> float:
     """
     Returns the number of minutes since a MR has been approved.
     :param approved_at: the datetime the MR was approved in format %Y-%m-%dT%H:%M:%S.%fZ
     """
     time_since_approval = utc_now() - from_utc_iso_format(approved_at)
     return time_since_approval.total_seconds() / 60
-
-
-def _get_approval_info(
-    gl: GitLabApi, mr: ProjectMergeRequest
-) -> tuple[str, str] | None:
-    """Return (priority, approved_at) for a single MR by scanning label events.
-
-    Returns None if no approval label is found.
-
-    Unlike the approval scan in ``preprocess_merge_requests``, this does
-    NOT enforce ``users_allowed_to_label`` — any label-add event counts.
-    This is intentional: OMM-merged MRs already passed authorization
-    during preprocessing in the loop that formed the group, so
-    re-checking here would only add API calls for no safety benefit.
-    The trade-off is that ``approved_at`` may differ slightly from what
-    preprocessing would compute if an unauthorized user re-added a label
-    after group formation, but the metric impact is negligible.
-    """
-    label_events = gl.get_merge_request_label_events(mr)
-    labels = set(mr.labels)
-    for label in reversed(label_events):
-        if label.action != "add" or not label.label:
-            continue
-        label_name = label.label["name"]
-        if label_name in MERGE_LABELS_PRIORITY:
-            label_priority = min(
-                MERGE_LABELS_PRIORITY.index(merge_label)
-                for merge_label in MERGE_LABELS_PRIORITY
-                if merge_label in labels
-            )
-            priority = f"{label_priority} - {MERGE_LABELS_PRIORITY[label_priority]}"
-            return priority, label.created_at
-    return None
 
 
 def get_timed_out_pipelines(
@@ -194,35 +143,6 @@ def clean_pipelines(
                 logging.error(
                     f"unable to cancel {p.web_url} - error message {err.error_message}"
                 )
-
-
-def _cancel_timed_out_pipelines(
-    dry_run: bool,
-    gl: GitLabApi,
-    mr: ProjectMergeRequest,
-    pipelines: list,
-    pipeline_timeout: int | None,
-) -> None:
-    """Cancel pipelines that have exceeded the timeout threshold."""
-    if pipeline_timeout is None:
-        return
-    timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
-    if timed_out_pipelines:
-        clean_pipelines(
-            dry_run=dry_run,
-            gl=gl,
-            fork_project_id=mr.source_project_id,
-            pipelines=timed_out_pipelines,
-        )
-
-
-def _should_skip_for_running_pipeline(pipelines: list, wait_for_pipeline: bool) -> bool:
-    """Return True if the MR should be skipped because a pipeline is still running."""
-    if not wait_for_pipeline:
-        return False
-    if not pipelines:
-        return True
-    return any(p.status == PipelineStatus.RUNNING for p in pipelines)
 
 
 def is_rebased(mr: ProjectMergeRequest, gl: GitLabApi) -> bool:

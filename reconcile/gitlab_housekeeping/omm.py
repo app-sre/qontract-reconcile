@@ -10,8 +10,7 @@ from gitlab.const import PipelineStatus
 
 from reconcile.gitlab_housekeeping.helpers import (
     SQUASH_OPTION_ALWAYS,
-    _calculate_time_since_approval,
-    _get_approval_info,
+    calculate_time_since_approval,
     clean_pipelines,
     get_timed_out_pipelines,
     is_rebased,
@@ -24,6 +23,7 @@ from reconcile.gitlab_housekeeping.helpers import (
 from reconcile.gitlab_housekeeping.labels import (
     ERROR_LABELS,
     HOLD_LABELS,
+    MERGE_LABELS_PRIORITY,
     get_tenant_labels,
     has_overlapping_labels,
     is_eligible_for_optimistic_merge,
@@ -186,7 +186,7 @@ def clear_omm_group(
                 gl.remove_label(mr, OMM_PENDING)
 
 
-def _form_omm_group(
+def form_omm_group(
     gl: GitLabApi,
     merge_requests: list[dict[str, Any]],
     merged_labels: set[str],
@@ -226,6 +226,39 @@ def _form_omm_group(
         group_labels.update(mr_labels)
 
     return candidates
+
+
+def _get_approval_info(
+    gl: GitLabApi, mr: ProjectMergeRequest
+) -> tuple[str, str] | None:
+    """Return (priority, approved_at) for a single MR by scanning label events.
+
+    Returns None if no approval label is found.
+
+    Unlike the approval scan in ``preprocess_merge_requests``, this does
+    NOT enforce ``users_allowed_to_label`` — any label-add event counts.
+    This is intentional: OMM-merged MRs already passed authorization
+    during preprocessing in the loop that formed the group, so
+    re-checking here would only add API calls for no safety benefit.
+    The trade-off is that ``approved_at`` may differ slightly from what
+    preprocessing would compute if an unauthorized user re-added a label
+    after group formation, but the metric impact is negligible.
+    """
+    label_events = gl.get_merge_request_label_events(mr)
+    labels = set(mr.labels)
+    for label in reversed(label_events):
+        if label.action != "add" or not label.label:
+            continue
+        label_name = label.label["name"]
+        if label_name in MERGE_LABELS_PRIORITY:
+            label_priority = min(
+                MERGE_LABELS_PRIORITY.index(merge_label)
+                for merge_label in MERGE_LABELS_PRIORITY
+                if merge_label in labels
+            )
+            priority = f"{label_priority} - {MERGE_LABELS_PRIORITY[label_priority]}"
+            return priority, label.created_at
+    return None
 
 
 def _is_omm_window_open(lead: ProjectMergeRequest, max_interval: timedelta) -> bool:
@@ -472,7 +505,7 @@ def _process_omm_member(
                     priority, approved_at = approval_info
                     time_to_merge.labels(
                         project_id=mr.target_project_id, priority=priority
-                    ).observe(_calculate_time_since_approval(approved_at))
+                    ).observe(calculate_time_since_approval(approved_at))
             except gitlab.exceptions.GitlabMRClosedError as e:
                 logging.error(f"unable to merge {mr.iid}: {e}")
                 gl.add_label_to_merge_request(mr, MERGE_ERROR)
@@ -509,7 +542,7 @@ def _process_omm_member(
     return _MemberResult(active=True)
 
 
-def _process_omm_group(
+def process_omm_group(
     dry_run: bool,
     gl: GitLabApi,
     lead: ProjectMergeRequest,
@@ -607,7 +640,7 @@ def _process_omm_group(
     for mr in pending:
         group_labels.update(get_tenant_labels(mr))
     expansion_queue = [m for m in queue if m["mr"].iid not in pending_iids]
-    new_candidates = _form_omm_group(gl, expansion_queue, group_labels)
+    new_candidates = form_omm_group(gl, expansion_queue, group_labels)
     if new_candidates:
         logging.info([
             "omm-group",

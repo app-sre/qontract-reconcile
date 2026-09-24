@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import (
     datetime,
     timedelta,
@@ -15,12 +16,8 @@ from sretoolbox.utils import retry
 from reconcile import queries
 from reconcile.gitlab_housekeeping.healthcheck import run_error_healthcheck
 from reconcile.gitlab_housekeeping.helpers import (
-    EXPIRATION_DATE_FORMAT,
     SQUASH_OPTION_ALWAYS,
-    InsistOnPipelineError,
-    ReloadToggle,
-    _calculate_time_since_approval,
-    _log_exception,
+    calculate_time_since_approval,
     clean_pipelines,
     get_timed_out_pipelines,
     gitlab_token_expiration,
@@ -36,13 +33,13 @@ from reconcile.gitlab_housekeeping.labels import (
     is_eligible_for_optimistic_merge,
 )
 from reconcile.gitlab_housekeeping.omm import (
-    _form_omm_group,
-    _process_omm_group,
     apply_omm_group_lead,
     apply_omm_pending,
     clear_omm_group,
+    form_omm_group,
     get_omm_group_lead,
     get_omm_pending_mrs,
+    process_omm_group,
 )
 from reconcile.gitlab_housekeeping.queue import preprocess_merge_requests
 from reconcile.gitlab_housekeeping.rebase import (
@@ -80,6 +77,22 @@ if TYPE_CHECKING:
     )
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
+EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
+
+
+class InsistOnPipelineError(Exception):
+    """Exception used to retry a merge when the pipeline isn't yet complete."""
+
+
+@dataclass
+class ReloadToggle:
+    """A class to toggle the reload of merge requests."""
+
+    reload: bool = False
+
+
+def _log_exception(ex: Exception) -> None:
+    logging.info("Retrying - %s: %s", type(ex).__name__, ex)
 
 
 def close_item(
@@ -228,7 +241,7 @@ def merge_merge_requests(
     if multi_merge and rebase:
         lead = get_omm_group_lead(gl)
         if lead:
-            merges = _process_omm_group(
+            merges = process_omm_group(
                 dry_run=dry_run,
                 gl=gl,
                 lead=lead,
@@ -321,7 +334,7 @@ def merge_merge_requests(
                 ).inc()
                 time_to_merge.labels(
                     project_id=mr.target_project_id, priority=merge_request["priority"]
-                ).observe(_calculate_time_since_approval(merge_request["approved_at"]))
+                ).observe(calculate_time_since_approval(merge_request["approved_at"]))
             except gitlab.exceptions.GitlabMRClosedError as e:
                 logging.error(f"unable to merge {mr.iid}: {e}")
                 gl.add_label_to_merge_request(mr, MERGE_ERROR)
@@ -332,7 +345,7 @@ def merge_merge_requests(
 
         if rebase and merges == 1:
             if multi_merge and is_eligible_for_optimistic_merge(mr):
-                candidates = _form_omm_group(
+                candidates = form_omm_group(
                     gl=gl,
                     merge_requests=merge_requests,
                     merged_labels=merged_labels,
