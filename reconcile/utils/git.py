@@ -67,7 +67,12 @@ def is_file_in_git_repo(file_path: str) -> bool:
     dir_path = os.path.dirname(real_path)
     cmd = ["git", "rev-parse", "--is-inside-work-tree"]
     result = subprocess.run(cmd, cwd=dir_path, capture_output=True, check=False)
-    return result.returncode == 0
+    if result.returncode != 0:
+        return False
+    # If git check-ignore returns 0, the path is gitignored — allow it
+    cmd = ["git", "check-ignore", "-q", real_path]
+    result = subprocess.run(cmd, cwd=dir_path, capture_output=True, check=False)
+    return result.returncode != 0
 
 
 def has_uncommited_changes() -> bool:
