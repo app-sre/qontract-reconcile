@@ -43,6 +43,7 @@ from reconcile.gitlab_housekeeping.labels import (
 from reconcile.gitlab_housekeeping.omm import _MemberResult
 from reconcile.gitlab_housekeeping.queue import verify_on_demand_tests
 from reconcile.gitlab_housekeeping.rebase import RebaseStrategy
+from reconcile.utils.mr.labels import OMM_PENDING
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import SecretReader
@@ -3675,7 +3676,7 @@ def test_omm_group_canceled_pipeline_ejects_member(
 
     assert merges == 0
     mr.merge.assert_not_called()
-    mocked_gl.remove_label.assert_called_once_with(mr, gl_h.OMM_PENDING)
+    mocked_gl.remove_label.assert_called_once_with(mr, OMM_PENDING)
     clear_mock.assert_called_once()
 
 
