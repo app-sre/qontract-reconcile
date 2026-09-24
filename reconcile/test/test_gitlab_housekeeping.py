@@ -43,9 +43,9 @@ from reconcile.gitlab_housekeeping.labels import (
 from reconcile.gitlab_housekeeping.omm import _MemberResult
 from reconcile.gitlab_housekeeping.queue import verify_on_demand_tests
 from reconcile.gitlab_housekeeping.rebase import RebaseStrategy
-from reconcile.utils.mr.labels import OMM_PENDING
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.mr.labels import OMM_PENDING
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
 
