@@ -116,11 +116,17 @@ class OpenshiftManagedSsoClientSecretsIntegration(
         namespaces: list[NamespaceV1],
         ri: ResourceInventory,
         secret_reader: SecretReaderBase,
+        dry_run: bool,
     ) -> None:
         for ns in namespaces:
             for resource in ns.openshift_resources or []:
                 self._add_desired_secret(
-                    ns, resource, resource.managed_sso_client, ri, secret_reader
+                    ns,
+                    resource,
+                    resource.managed_sso_client,
+                    ri,
+                    secret_reader,
+                    dry_run,
                 )
 
     def _add_desired_secret(
@@ -130,6 +136,7 @@ class OpenshiftManagedSsoClientSecretsIntegration(
         client: ManagedSsoClientV1,
         ri: ResourceInventory,
         secret_reader: SecretReaderBase,
+        dry_run: bool,
     ) -> None:
         vault_path = self.tenant_secret_vault_path(client)
         try:
@@ -141,7 +148,15 @@ class OpenshiftManagedSsoClientSecretsIntegration(
                 f"'{vault_path}' - has managed-sso-client-api reconciled "
                 "it yet? Skipping until it exists."
             )
-            ri.register_error(cluster=ns.cluster.name)
+            # A brand-new client's secret can't exist before the app-interface
+            # MR declaring it is merged, so the pr_check dry run for that same
+            # MR would always hit this path - hard-failing here would make an
+            # MR that adds a client and wires it into a namespace together
+            # permanently unable to pass its own CI gate. Only register a hard
+            # error on real runs, where a still-missing secret is a meaningful
+            # signal for monitoring.
+            if not dry_run:
+                ri.register_error(cluster=ns.cluster.name)
             return
         ri.add_desired_resource(
             cluster=ns.cluster.name,
@@ -198,7 +213,7 @@ class OpenshiftManagedSsoClientSecretsIntegration(
                     spec.kind,
                     spec.resource_names,
                 )
-        self.fetch_desired_state(namespaces, ri, self.secret_reader)
+        self.fetch_desired_state(namespaces, ri, self.secret_reader, dry_run)
         ob.realize_data(dry_run, oc_map, ri, self.params.thread_pool_size)
         ob.publish_metrics(ri, self.name)
         if ri.has_error_registered():

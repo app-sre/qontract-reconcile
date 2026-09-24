@@ -305,7 +305,7 @@ def test_fetch_desired_state_adds_desired_resource_on_success() -> None:
         "issuer": "https://sso.example.com/auth/realms/example-realm",
     }
 
-    integration.fetch_desired_state([ns], ri, secret_reader)
+    integration.fetch_desired_state([ns], ri, secret_reader, dry_run=False)
 
     desired = ri.get_desired(ns.cluster.name, ns.name, "Secret", "ci-bot")
     assert desired is not None
@@ -315,7 +315,9 @@ def test_fetch_desired_state_adds_desired_resource_on_success() -> None:
     })
 
 
-def test_fetch_desired_state_skips_and_registers_error_when_secret_not_found() -> None:
+def test_fetch_desired_state_skips_and_registers_error_when_secret_not_found_on_real_run() -> (
+    None
+):
     integration = _integration()
     client = _client()
     resource = _resource(client)
@@ -324,10 +326,35 @@ def test_fetch_desired_state_skips_and_registers_error_when_secret_not_found() -
     secret_reader = MagicMock()
     secret_reader.read_all.side_effect = SecretNotFoundError()
 
-    integration.fetch_desired_state([ns], ri, secret_reader)
+    integration.fetch_desired_state([ns], ri, secret_reader, dry_run=False)
 
     assert ri.get_desired(ns.cluster.name, ns.name, "Secret", "ci-bot") is None
     assert ri.has_error_registered(cluster=ns.cluster.name)
+
+
+def test_fetch_desired_state_skips_without_error_when_secret_not_found_during_dry_run() -> (
+    None
+):
+    """A brand-new managed-sso-client's Vault secret cannot exist before the
+    app-interface MR declaring it is merged, so this integration's pr_check
+    dry run would always hit SecretNotFoundError for an MR that adds a
+    client and wires it into a namespace's openshiftResources together.
+    Hard-failing here would make that MR's own CI gate permanently
+    unpassable, so a dry run only warns - only a real run registers a hard
+    error, where a still-missing secret is a meaningful signal to operators.
+    """
+    integration = _integration()
+    client = _client()
+    resource = _resource(client)
+    ns = _namespace(resources=[resource])
+    ri = _ri_for([ns])
+    secret_reader = MagicMock()
+    secret_reader.read_all.side_effect = SecretNotFoundError()
+
+    integration.fetch_desired_state([ns], ri, secret_reader, dry_run=True)
+
+    assert ri.get_desired(ns.cluster.name, ns.name, "Secret", "ci-bot") is None
+    assert not ri.has_error_registered(cluster=ns.cluster.name)
 
 
 #
