@@ -210,12 +210,15 @@ def test_get_namespaces_filters_deleted_namespaces() -> None:
     assert [ns.name for ns in result] == ["kept"]
 
 
-def test_get_namespaces_keeps_namespaces_without_resources_for_cleanup() -> None:
-    """A namespace whose last managed-sso-client resource was removed must stay
-    in get_namespaces()'s result so run() still scans/cleans up its current
-    state - excluding it here would orphan the Secret this integration
-    previously created, since fetch_desired_state (which skips namespaces
-    without resources) would never run for it either.
+def test_get_namespaces_filters_namespaces_without_resources() -> None:
+    """Matches openshift_resources_base.canonicalize_namespaces' own
+    `if ors and providers:` filter, and thus openshift-vault-secrets'
+    behavior for the same scenario: a namespace without a current matching
+    resource is out of scope entirely. Removing the last managed-sso-client
+    resource can leave a stale Secret behind, uncleaned, until another
+    resource is added back - the same known trade-off every other
+    openshiftResources-based integration in this codebase accepts, rather
+    than scanning every namespace on every enabled cluster unconditionally.
     """
     integration = _integration()
     namespaces = [
@@ -224,7 +227,7 @@ def test_get_namespaces_keeps_namespaces_without_resources_for_cleanup() -> None
 
     result = integration.get_namespaces(_query_func(namespaces))
 
-    assert [ns.name for ns in result] == ["empty"]
+    assert result == []
 
 
 def test_get_namespaces_filters_disabled_integration() -> None:

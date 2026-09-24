@@ -80,6 +80,18 @@ class OpenshiftManagedSsoClientSecretsIntegration(
                     not self.params.cluster_name
                     or ns.cluster.name in self.params.cluster_name
                 )
+                # Matches openshift_resources_base.canonicalize_namespaces'
+                # own `if ors and providers:` filter - the same rule every
+                # other openshiftResources-based integration in this
+                # codebase (vault-secret, route, resource, ...) relies on.
+                # Without it, init_specs_to_fetch would build an unbounded
+                # (resource_names=None) "list every Secret" CurrentStateSpec
+                # for every namespace on every enabled cluster, not just ones
+                # this integration actually manages. Same known trade-off as
+                # those integrations: removing the last managed resource from
+                # openshiftResources can leave a stale Secret behind, uncleaned,
+                # until another resource is added back to that namespace.
+                and ns.openshift_resources
             ):
                 result.append(ns)
         return result
