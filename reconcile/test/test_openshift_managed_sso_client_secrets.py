@@ -361,8 +361,7 @@ def test_fetch_desired_state_registers_error_on_duplicate_secret_name() -> None:
     """
     integration = _integration()
     client = _client()
-    resources = [_resource(client), _resource(client)]
-    ns = _namespace(resources=resources)
+    ns = _namespace(resources=[_resource(client), _resource(client)])
     ri = _ri_for([ns])
     secret_reader = MagicMock()
     secret_reader.read_all.return_value = {"client_id": "my-app-ci-bot"}
