@@ -1221,9 +1221,7 @@ def slack_usergroups_api(
 def gitlab_housekeeping(ctx: click.Context, wait_for_pipeline: bool) -> None:
     import reconcile.gitlab_housekeeping.integration
 
-    run_integration(
-        reconcile.gitlab_housekeeping.integration, ctx, wait_for_pipeline
-    )
+    run_integration(reconcile.gitlab_housekeeping.integration, ctx, wait_for_pipeline)
 
 
 @integration.command(short_help="Listen to SQS and creates MRs out of the messages.")

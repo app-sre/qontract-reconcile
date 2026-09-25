@@ -210,18 +210,14 @@ def test_dry_run(
     mocker: MockerFixture,
     repo_gitlab_housekeeping: dict,
 ) -> None:
-    mocked_queries = mocker.patch(
-        "reconcile.gitlab_housekeeping.integration.queries"
-    )
+    mocked_queries = mocker.patch("reconcile.gitlab_housekeeping.integration.queries")
     mocked_queries.get_repos_gitlab_housekeeping.return_value = [
         repo_gitlab_housekeeping,
     ]
     mocked_gitlab_api = mocker.patch(
         "reconcile.gitlab_housekeeping.integration.GitLabApi", autospec=True
     ).return_value.__enter__.return_value
-    mocker.patch(
-        "reconcile.gitlab_housekeeping.integration.init_state", autospec=True
-    )
+    mocker.patch("reconcile.gitlab_housekeeping.integration.init_state", autospec=True)
 
     gl_h.run(True, False)
 
@@ -383,9 +379,7 @@ def test_close_item_with_enable_closing(
 ) -> None:
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
-    mocked_logging = mocker.patch(
-        "reconcile.gitlab_housekeeping.integration.logging"
-    )
+    mocked_logging = mocker.patch("reconcile.gitlab_housekeeping.integration.logging")
     mocked_issue = create_autospec(ProjectIssue)
     mocked_issue.attributes = {"iid": 1}
 
@@ -407,9 +401,7 @@ def test_close_item_without_enable_closing(
 ) -> None:
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
-    mocked_logging = mocker.patch(
-        "reconcile.gitlab_housekeeping.integration.logging"
-    )
+    mocked_logging = mocker.patch("reconcile.gitlab_housekeeping.integration.logging")
     mocked_issue = create_autospec(ProjectIssue)
     mocked_issue.attributes = {"iid": 1}
 
