@@ -2,7 +2,7 @@
 # STAGE 1 - build-image
 ###############################################################################
 FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:2.2.1-1@sha256:d639784b263c73fa312b46b548093c596799c5ca39f13100438335537e805f2d AS build-image
-COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48afb6c5a5c237ca0e67f12e74b8f174b1 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 /uv /bin/uv
 
 WORKDIR /work
 
@@ -29,7 +29,7 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev
 # STAGE 2 - dev-image
 ###############################################################################
 FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:2.2.1-1@sha256:80eea44e24eec0e772d16c492e3b8d9ec0030e8271536214921278cf66cfd4ff AS dev-image
-COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48afb6c5a5c237ca0e67f12e74b8f174b1 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 /uv /bin/uv
 
 ENV \
     # use venv from ubi image
@@ -85,7 +85,7 @@ CMD ["run-integration"]
 # STAGE 4 - unittest image
 ###############################################################################
 FROM prod-image-pre-test AS test-image
-COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48afb6c5a5c237ca0e67f12e74b8f174b1 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 /uv /bin/uv
 
 ENV \
     # use venv from ubi image
