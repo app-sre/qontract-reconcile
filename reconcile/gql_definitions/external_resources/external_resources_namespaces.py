@@ -575,6 +575,7 @@ query ExternalResourcesNamespaces {
           ... on NamespaceTerraformResourceVpcEndpoint_v1 {
             identifier
             endpoint_service_name
+            private_dns_enabled
             vpc {
               vpc_id
               region
@@ -596,6 +597,7 @@ query ExternalResourcesNamespaces {
             region
             identifier
             openshift_service_name
+            private_dns_name
             allowed_consumer_clusters {
               name
               spec {
@@ -1272,6 +1274,7 @@ class NamespaceTerraformResourceVpcEndpointV1_AWSVPCV1(ConfiguredBaseModel):
 class NamespaceTerraformResourceVpcEndpointV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     endpoint_service_name: str = Field(..., alias="endpoint_service_name")
+    private_dns_enabled: Optional[bool] = Field(..., alias="private_dns_enabled")
     vpc: NamespaceTerraformResourceVpcEndpointV1_AWSVPCV1 = Field(..., alias="vpc")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
@@ -1303,6 +1306,7 @@ class NamespaceTerraformResourceVpcEndpointServiceV1(NamespaceTerraformResourceA
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
     openshift_service_name: str = Field(..., alias="openshift_service_name")
+    private_dns_name: Optional[str] = Field(..., alias="private_dns_name")
     allowed_consumer_clusters: Optional[list[NamespaceTerraformResourceVpcEndpointServiceV1_ClusterV1]] = Field(..., alias="allowed_consumer_clusters")
     allowed_principal_arns: Optional[list[str]] = Field(..., alias="allowed_principal_arns")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
@@ -1315,7 +1319,7 @@ class NamespaceTerraformResourceVpcEndpointServiceV1(NamespaceTerraformResourceA
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
     provisioner: AWSAccountV1 = Field(..., alias="provisioner")
-    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceMskConnectV1, NamespaceTerraformResourceVpcEndpointServiceV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceVpcEndpointV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceVpcEndpointServiceV1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceMskConnectV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceVpcEndpointV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class CloudflareAccountV1(ConfiguredBaseModel):

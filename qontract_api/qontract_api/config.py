@@ -10,6 +10,7 @@ from pydantic_settings import (
     SettingsConfigDict,
     YamlConfigSettingsSource,
 )
+from qontract_utils.managed_sso_client import DEFAULT_OUTPUT_VAULT_PATH_PREFIX
 
 
 class Secret(BaseModel):
@@ -412,7 +413,7 @@ class ManagedSsoClientSettings(BaseModel):
         ),
     )
     default_output_vault_path_prefix: str = Field(
-        default="app-sre/integrations-throughput/managed-sso-client/output",
+        default=DEFAULT_OUTPUT_VAULT_PATH_PREFIX,
         min_length=1,
         description=(
             "Vault path prefix used for a client's tenant-facing credential "
