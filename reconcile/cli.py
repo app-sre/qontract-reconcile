@@ -1219,10 +1219,10 @@ def slack_usergroups_api(
 )
 @click.pass_context
 def gitlab_housekeeping(ctx: click.Context, wait_for_pipeline: bool) -> None:
-    import reconcile.gitlab_housekeeping.gitlab_housekeeping
+    import reconcile.gitlab_housekeeping.integration
 
     run_integration(
-        reconcile.gitlab_housekeeping.gitlab_housekeeping, ctx, wait_for_pipeline
+        reconcile.gitlab_housekeeping.integration, ctx, wait_for_pipeline
     )
 
 

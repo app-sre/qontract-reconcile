@@ -2338,7 +2338,7 @@ def sre_checkpoints(ctx: click.Context) -> None:
 @get.command()
 @click.pass_context
 def app_interface_merge_queue(ctx: click.Context) -> None:
-    from reconcile.gitlab_housekeeping.gitlab_housekeeping import QONTRACT_INTEGRATION
+    from reconcile.gitlab_housekeeping.integration import QONTRACT_INTEGRATION
     from reconcile.gitlab_housekeeping.queue import get_merge_requests
 
     settings = queries.get_app_interface_settings()

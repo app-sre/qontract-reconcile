@@ -33,7 +33,7 @@ from gitlab.v4.objects import (
 )
 from UnleashClient import UnleashClient
 
-import reconcile.gitlab_housekeeping.gitlab_housekeeping as gl_h
+import reconcile.gitlab_housekeeping.integration as gl_h
 from reconcile.gitlab_housekeeping.healthcheck import (
     check_pipeline_health,
     run_error_healthcheck,
@@ -211,16 +211,16 @@ def test_dry_run(
     repo_gitlab_housekeeping: dict,
 ) -> None:
     mocked_queries = mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.queries"
+        "reconcile.gitlab_housekeeping.integration.queries"
     )
     mocked_queries.get_repos_gitlab_housekeeping.return_value = [
         repo_gitlab_housekeeping,
     ]
     mocked_gitlab_api = mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.GitLabApi", autospec=True
+        "reconcile.gitlab_housekeeping.integration.GitLabApi", autospec=True
     ).return_value.__enter__.return_value
     mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.init_state", autospec=True
+        "reconcile.gitlab_housekeeping.integration.init_state", autospec=True
     )
 
     gl_h.run(True, False)
@@ -384,7 +384,7 @@ def test_close_item_with_enable_closing(
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
     mocked_logging = mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.logging"
+        "reconcile.gitlab_housekeeping.integration.logging"
     )
     mocked_issue = create_autospec(ProjectIssue)
     mocked_issue.attributes = {"iid": 1}
@@ -408,7 +408,7 @@ def test_close_item_without_enable_closing(
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
     mocked_logging = mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.logging"
+        "reconcile.gitlab_housekeeping.integration.logging"
     )
     mocked_issue = create_autospec(ProjectIssue)
     mocked_issue.attributes = {"iid": 1}
@@ -2339,19 +2339,19 @@ def _call_merge(
     pipelines_map = pipelines_by_iid or {}
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.preprocess_merge_requests",
+        "reconcile.gitlab_housekeeping.integration.preprocess_merge_requests",
         return_value=items,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.integration.is_rebased",
         side_effect=lambda mr, gl: mr.iid in rebased_set,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.get_omm_group_lead",
+        "reconcile.gitlab_housekeeping.integration.get_omm_group_lead",
         return_value=None,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.integration.get_omm_pending_mrs",
         return_value=[],
     )
 
@@ -3361,19 +3361,19 @@ def test_multi_merge_insist_only_before_first_merge(
     items = [_make_merge_item(mr1)]
 
     mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.preprocess_merge_requests",
+        "reconcile.gitlab_housekeeping.integration.preprocess_merge_requests",
         return_value=items,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.is_rebased",
+        "reconcile.gitlab_housekeeping.integration.is_rebased",
         return_value=True,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.get_omm_group_lead",
+        "reconcile.gitlab_housekeeping.integration.get_omm_group_lead",
         return_value=None,
     )
     mocker.patch(
-        "reconcile.gitlab_housekeeping.gitlab_housekeeping.get_omm_pending_mrs",
+        "reconcile.gitlab_housekeeping.integration.get_omm_pending_mrs",
         return_value=[],
     )
 
