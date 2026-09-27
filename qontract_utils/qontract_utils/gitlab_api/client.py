@@ -18,6 +18,7 @@ from prometheus_client import Counter, Histogram
 from qontract_utils.gitlab_api.models import GitlabGroup, GitlabProject
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
+from qontract_utils.user_agent import DEFAULT_USER_AGENT
 
 logger = structlog.get_logger(__name__)
 
@@ -82,6 +83,15 @@ class GitlabApi:
 
     Layer 1 (Pure Communication) client following ADR-014. Scoped to a single
     GitLab instance.
+
+    Args:
+        url: GitLab instance URL
+        token: GitLab personal access token
+        ssl_verify: Whether to verify SSL certificates
+        timeout: Request timeout in seconds
+        hooks: Optional custom hooks to merge with built-in hooks.
+        user_agent: User-Agent header sent with every request. Defaults to
+            identifying qontract-utils itself.
     """
 
     # Set by @with_hooks decorator
@@ -95,6 +105,7 @@ class GitlabApi:
         ssl_verify: bool = True,
         timeout: int = 30,
         hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
+        user_agent: str = DEFAULT_USER_AGENT,
     ) -> None:
         self.url = url
         self._gitlab = gitlab.Gitlab(
@@ -104,6 +115,7 @@ class GitlabApi:
             timeout=timeout,
             per_page=100,
             pagination="keyset",
+            user_agent=user_agent,
         )
 
     @invoke_with_hooks(
