@@ -2338,13 +2338,14 @@ def sre_checkpoints(ctx: click.Context) -> None:
 @get.command()
 @click.pass_context
 def app_interface_merge_queue(ctx: click.Context) -> None:
-    import reconcile.gitlab_housekeeping as glhk
+    from reconcile.gitlab_housekeeping.integration import QONTRACT_INTEGRATION
+    from reconcile.gitlab_housekeeping.queue import get_merge_requests
 
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
-    state = init_state(integration=glhk.QONTRACT_INTEGRATION)
-    merge_requests = glhk.get_merge_requests(True, gl, state=state)
+    state = init_state(integration=QONTRACT_INTEGRATION)
+    merge_requests = get_merge_requests(True, gl, state=state)
 
     columns = [
         "id",
@@ -2382,7 +2383,11 @@ def app_interface_merge_queue(ctx: click.Context) -> None:
 @get.command()
 @click.pass_context
 def app_interface_review_queue(ctx: click.Context) -> None:
-    import reconcile.gitlab_housekeeping as glhk
+    from reconcile.gitlab_housekeeping.labels import (
+        ERROR_LABELS,
+        HOLD_LABELS,
+        is_good_to_merge,
+    )
 
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
@@ -2420,8 +2425,8 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 continue
 
             labels = mr.attributes.get("labels") or []
-            good_to_merge = glhk.is_good_to_merge(labels)
-            has_error_label = any(l in glhk.ERROR_LABELS for l in labels)
+            good_to_merge = is_good_to_merge(labels)
+            has_error_label = any(l in ERROR_LABELS for l in labels)
             if good_to_merge and not has_error_label:
                 continue
             if "stale" in labels:
@@ -2465,7 +2470,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 continue
 
             is_last_action_by_app_sre = gl.is_last_action_by_team(
-                mr, app_sre_team_members, glhk.HOLD_LABELS
+                mr, app_sre_team_members, HOLD_LABELS
             )
 
             if is_last_action_by_app_sre and not (good_to_merge and has_error_label):

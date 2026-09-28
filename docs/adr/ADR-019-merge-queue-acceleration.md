@@ -467,7 +467,9 @@ Defer detailed design until Phase 1 data is available.
 
 ## References
 
-- Implementation: `reconcile/gitlab_housekeeping.py` -- merge loop, rebase logic, priority sorting
+- Implementation: `reconcile/gitlab_housekeeping/integration.py` -- merge loop, stale-item handling, retry infrastructure
+- Implementation: `reconcile/gitlab_housekeeping/rebase.py` -- rebase strategies, active-cap dispatcher
+- Implementation: `reconcile/gitlab_housekeeping/queue.py` -- priority sorting, merge-request preprocessing
 - Implementation: `reconcile/gitlab_labeler.py` -- `tenant-*` label assignment based on changed paths
 - Implementation: `reconcile/utils/gitlab_api.py` -- `get_merge_request_changed_paths()` (used by `gitlab_labeler`, available for future refinements)
 - Implementation: `reconcile/utils/state.py` -- `State` (no longer needed for healthcheck-probe; pipeline history from `gl.get_merge_request_pipelines(mr)` is used instead)
