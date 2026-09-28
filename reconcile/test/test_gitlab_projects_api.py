@@ -8,7 +8,6 @@ import pytest
 from qontract_api_client.schemas import (
     GitlabGroupConfig,
     GitlabInstanceConfig,
-    GitlabProjectConfig,
     GitlabProjectsTaskResponse,
     GitlabProjectsTaskResult,
     TaskStatus,
@@ -63,15 +62,15 @@ def _make_instance(
     )
 
 
-def _make_code_component(url: str, resource: str = "upstream") -> AppCodeComponentsV1:
-    return AppCodeComponentsV1(url=url, resource=resource)
+def _make_code_component(url: str) -> AppCodeComponentsV1:
+    return AppCodeComponentsV1(url=url)
 
 
 def _groups(instance: GitlabInstanceConfig) -> list[GitlabGroupConfig]:
     return instance.groups or []
 
 
-def _projects(group: GitlabGroupConfig) -> list[GitlabProjectConfig]:
+def _projects(group: GitlabGroupConfig) -> list[str]:
     return group.projects or []
 
 
@@ -132,8 +131,8 @@ def test_get_code_components_flattens_across_apps() -> None:
     query_func = MagicMock(
         return_value={
             "apps": [
-                {"codeComponents": [{"url": "https://x/a/b", "resource": "upstream"}]},
-                {"codeComponents": [{"url": "https://x/c/d", "resource": "bundle"}]},
+                {"codeComponents": [{"url": "https://x/a/b"}]},
+                {"codeComponents": [{"url": "https://x/c/d"}]},
                 {"codeComponents": None},
             ]
         }
@@ -208,8 +207,7 @@ def test_compile_desired_state_valid_project_included() -> None:
     assert result[0].name == "gitlab-cee"
     group = _groups(result[0])[0]
     assert group.group == "team"
-    assert _projects(group)[0].name == "foo"
-    assert _projects(group)[0].is_saas_bundle is False
+    assert _projects(group) == ["foo"]
 
 
 def test_compile_desired_state_missing_code_component_raises() -> None:
@@ -234,20 +232,6 @@ def test_compile_desired_state_missing_code_component_error_lists_all_missing() 
 
     assert "team/foo" in str(exc_info.value)
     assert "team/bar" in str(exc_info.value)
-
-
-def test_compile_desired_state_bundle_resource_sets_flag() -> None:
-    integration = _make_integration()
-    instance = _make_instance(
-        project_requests=[GitlabProjectsV1(group="team", projects=["foo"])]
-    )
-    code_components = [
-        _make_code_component("https://gitlab.cee.redhat.com/team/foo", "bundle")
-    ]
-
-    result = integration.compile_desired_state([instance], code_components)
-
-    assert _projects(_groups(result[0])[0])[0].is_saas_bundle is True
 
 
 def test_compile_desired_state_instance_with_only_undeclared_projects_raises() -> None:

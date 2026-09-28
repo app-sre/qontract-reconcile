@@ -843,9 +843,9 @@
             "type": "string"
           },
           "projects": {
-            "description": "Desired projects under this group",
+            "description": "Desired project names under this group",
             "items": {
-              "$ref": "#/components/schemas/GitlabProjectConfig"
+              "type": "string"
             },
             "title": "Projects",
             "type": "array"
@@ -927,57 +927,6 @@
         "title": "GitlabProjectActionCreate",
         "type": "object"
       },
-      "GitlabProjectActionCreateSaasBundle": {
-        "description": "Action: Create a new project and initialize it as a SaaS bundle repo.",
-        "properties": {
-          "action_type": {
-            "const": "create_saas_bundle",
-            "default": "create_saas_bundle",
-            "title": "Action Type",
-            "type": "string"
-          },
-          "group": {
-            "title": "Group",
-            "type": "string"
-          },
-          "instance": {
-            "title": "Instance",
-            "type": "string"
-          },
-          "project_name": {
-            "title": "Project Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "instance",
-          "group",
-          "project_name"
-        ],
-        "title": "GitlabProjectActionCreateSaasBundle",
-        "type": "object"
-      },
-      "GitlabProjectConfig": {
-        "description": "Desired state for a single GitLab project.",
-        "properties": {
-          "is_saas_bundle": {
-            "default": false,
-            "description": "Whether this project should be initialized as a SaaS bundle repo (README + staging/production branches) rather than left empty",
-            "title": "Is Saas Bundle",
-            "type": "boolean"
-          },
-          "name": {
-            "description": "Project name",
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "GitlabProjectConfig",
-        "type": "object"
-      },
       "GitlabProjectsReconcileRequest": {
         "description": "Request model for GitLab projects reconciliation.",
         "properties": {
@@ -1033,14 +982,7 @@
           "actions": {
             "description": "All actions calculated (desired - current).",
             "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/GitlabProjectActionCreate"
-                },
-                {
-                  "$ref": "#/components/schemas/GitlabProjectActionCreateSaasBundle"
-                }
-              ]
+              "$ref": "#/components/schemas/GitlabProjectActionCreate"
             },
             "title": "Actions",
             "type": "array"
@@ -1048,14 +990,7 @@
           "applied_actions": {
             "description": "Actions successfully applied (non-dry-run only).",
             "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/GitlabProjectActionCreate"
-                },
-                {
-                  "$ref": "#/components/schemas/GitlabProjectActionCreateSaasBundle"
-                }
-              ]
+              "$ref": "#/components/schemas/GitlabProjectActionCreate"
             },
             "title": "Applied Actions",
             "type": "array"

@@ -96,7 +96,9 @@ def reconcile_gitlab_projects_task(
                     Event(
                         source=__name__,
                         type="qontract-api.gitlab-projects.error",
-                        data=GitlabProjectsErrorEvent(error=error).model_dump(mode="json"),
+                        data=GitlabProjectsErrorEvent(error=error).model_dump(
+                            mode="json"
+                        ),
                         datacontenttype="application/json",
                     )
                 )

@@ -23,7 +23,6 @@ from qontract_api_client.client import gitlab_projects as gitlab_projects_reconc
 from qontract_api_client.schemas import (
     GitlabGroupConfig,
     GitlabInstanceConfig,
-    GitlabProjectConfig,
     GitlabProjectsReconcileRequest,
     GitlabProjectsTaskResponse,
     GitlabProjectsTaskResult,
@@ -147,23 +146,18 @@ class GitLabProjectsIntegration(
         """Filter each requested project to those declared via an app-interface
         codeComponent.
 
-        A project whose codeComponent has `resource: bundle` is flagged so it
-        can be initialized as a SaaS bundle repo (README + staging/production
-        branches) instead of a plain empty repo.
-
         Raises:
             IntegrationError: If any requested project has no matching
                 codeComponent.
         """
         declared_urls = {c.url for c in code_components}
-        bundle_urls = {c.url for c in code_components if c.resource == "bundle"}
 
         instances: list[GitlabInstanceConfig] = []
         missing_urls: list[str] = []
         for instance in gl_instances:
             group_requests: list[GitlabGroupConfig] = []
             for project_request in instance.project_requests or []:
-                valid_projects: list[GitlabProjectConfig] = []
+                valid_projects: list[str] = []
                 for project_name in project_request.projects:
                     project_url = (
                         f"{instance.url}/{project_request.group}/{project_name}"
@@ -172,12 +166,7 @@ class GitLabProjectsIntegration(
                         logging.error(f"{project_url} missing from all codeComponents")
                         missing_urls.append(project_url)
                         continue
-                    valid_projects.append(
-                        GitlabProjectConfig(
-                            name=project_name,
-                            is_saas_bundle=project_url in bundle_urls,
-                        )
-                    )
+                    valid_projects.append(project_name)
                 if valid_projects:
                     group_requests.append(
                         GitlabGroupConfig(

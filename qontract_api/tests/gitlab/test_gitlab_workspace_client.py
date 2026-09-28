@@ -2,19 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from qontract_utils.gitlab_api import GitlabGroup, GitlabProject
 
 from qontract_api.gitlab.gitlab_workspace_client import (
-    DEFAULT_BRANCH,
-    README_COMMIT_MESSAGE,
-    README_CONTENT,
-    README_PATH,
-    SAAS_BUNDLE_BRANCHES,
     CachedGroup,
     GitlabWorkspaceClient,
 )
@@ -23,13 +17,6 @@ if TYPE_CHECKING:
     from qontract_api.config import Settings
 
 URL = "https://gitlab.example.com"
-TOKEN = "test-token"
-
-
-@pytest.fixture
-def mock_gitlab_repo_api_cls() -> Generator[MagicMock]:
-    with patch("qontract_api.gitlab.gitlab_workspace_client.GitLabRepoApi") as mock_cls:
-        yield mock_cls
 
 
 @pytest.fixture
@@ -43,7 +30,6 @@ def client(
         url=URL,
         cache=mock_cache,
         settings=mock_settings,
-        token=TOKEN,
     )
 
 
@@ -88,7 +74,6 @@ def test_cache_key_strips_trailing_slash(
         url="https://gitlab.example.com/",
         cache=mock_cache,
         settings=mock_settings,
-        token=TOKEN,
     )
     assert (
         c._cache_key_group("team")
@@ -251,54 +236,6 @@ def test_lock_failure_prevents_create_project(
     mock_cache.delete.assert_not_called()
 
 
-def test_initiate_saas_bundle_repo_builds_project_scoped_vcs_client(
-    client: GitlabWorkspaceClient,
-    mock_gitlab_repo_api_cls: MagicMock,
-    mock_settings: Settings,
-) -> None:
-    client.initiate_saas_bundle_repo(42)
-
-    mock_gitlab_repo_api_cls.assert_called_once_with(
-        project_id="42",
-        token=TOKEN,
-        gitlab_url=URL,
-        timeout=mock_settings.gitlab_projects.api_timeout,
-    )
-
-
-def test_initiate_saas_bundle_repo_creates_readme_then_branches(
-    client: GitlabWorkspaceClient,
-    mock_gitlab_repo_api_cls: MagicMock,
-) -> None:
-    mock_vcs_client = mock_gitlab_repo_api_cls.return_value
-
-    client.initiate_saas_bundle_repo(42)
-
-    mock_vcs_client.create_file.assert_called_once_with(
-        path=README_PATH,
-        branch=DEFAULT_BRANCH,
-        commit_message=README_COMMIT_MESSAGE,
-        content=README_CONTENT,
-    )
-    branch_calls = [c.kwargs for c in mock_vcs_client.create_branch.call_args_list]
-    assert branch_calls == [
-        {"new_branch": branch, "source_branch": DEFAULT_BRANCH}
-        for branch in SAAS_BUNDLE_BRANCHES
-    ]
-
-
-def test_initiate_saas_bundle_repo_does_not_touch_group_cache(
-    client: GitlabWorkspaceClient,
-    mock_gitlab_repo_api_cls: MagicMock,
-    mock_cache: MagicMock,
-) -> None:
-    """Group membership is unaffected by bootstrapping a repo's content."""
-    client.initiate_saas_bundle_repo(42)
-
-    mock_cache.lock.assert_not_called()
-    mock_cache.delete.assert_not_called()
-
-
 # ---------------------------------------------------------------------------
 # Cache key isolation
 # ---------------------------------------------------------------------------
@@ -318,7 +255,6 @@ def test_cache_key_isolated_by_instance(
         url="https://gitlab.other.com",
         cache=mock_cache,
         settings=mock_settings,
-        token=TOKEN,
     )
     assert (
         c._cache_key_group("team")

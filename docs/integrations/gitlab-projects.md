@@ -1,17 +1,16 @@
 # GitLab Projects Integration
 
-**Last Updated:** 2026-09-21
+**Last Updated:** 2026-09-28
 
 ## Description
 
-The `gitlab-projects-api` integration creates GitLab projects declared in App-Interface under configured GitLab instances/groups. It can optionally bootstrap new projects as "SaaS bundle" repos (README + `staging`/`production` branches).
+The `gitlab-projects-api` integration creates GitLab projects declared in App-Interface under configured GitLab instances/groups.
 
 Every requested project is cross-validated against App-Interface `codeComponents`.
 
 ## Features
 
 - Creates GitLab projects that are declared (via `projectRequests`) but don't yet exist in the target group
-- Initializes new projects as SaaS bundle repos (README commit + `staging`/`production` branches) when the matching codeComponent has `resource: bundle`
 - Cross-validates every requested project against App-Interface `codeComponents` before sending desired state to the server — fails the entire run if any project has no matching codeComponent, so misconfigurations are caught before merge instead of silently dropped
 - Never deletes projects — a project that exists in GitLab but is no longer requested is left untouched
 - Supports targeted debug runs via `--instance-name` and `--project-name` CLI filters
@@ -22,11 +21,9 @@ Every requested project is cross-validated against App-Interface `codeComponents
 Desired state comes from two independent App-Interface GraphQL sources:
 
 1. **`gitlabinstance_v1`** — declares GitLab instances, each with a `url`, `sslVerify`, a Vault `token` reference, and a list of `projectRequests` (`group` + `projects` names)
-2. **`apps_v1.codeComponents`** — each app declares its repos as codeComponents with a `url` and a `resource` type (`upstream`, `bundle`, `other`, ...)
+2. **`apps_v1.codeComponents`** — each app declares its repos as codeComponents with a `url`
 
 Every `(group, project)` pair from `projectRequests` is reconstructed into a full repo URL (`{instance.url}/{group}/{project}`) and matched by exact string against the set of declared codeComponent URLs. A project with no matching codeComponent causes the entire run to fail with an `IntegrationError` listing every offending project — a deliberate fail-fast, since the server-side reconciliation never learns about codeComponents or apps at all, so a misconfigured `projectRequests` entry must be caught and fixed in App-Interface before the desired state is ever sent to qontract-api.
-
-If the matching codeComponent has `resource: bundle`, the project is flagged as a SaaS bundle repo and initialized accordingly instead of being left empty.
 
 **Example app-interface config:**
 
@@ -42,18 +39,13 @@ token:
 projectRequests:
 - group: service
   projects:
-  - saas-my-operator-bundle
   - my-plain-project
 ```
 
 ```yaml
 # data/services/my-app/app.yml
 codeComponents:
-- name: saas-my-operator-bundle
-  resource: bundle
-  url: https://gitlab.cee.redhat.com/service/saas-my-operator-bundle
 - name: my-plain-project
-  resource: upstream
   url: https://gitlab.cee.redhat.com/service/my-plain-project
 ```
 
@@ -63,16 +55,15 @@ codeComponents:
 
 - Queries `gitlabinstance_v1` and `apps_v1.codeComponents` from App-Interface using qenerate-generated types
 - Optionally narrows instances/projects to `--instance-name`/`--project-name` filters for targeted debug runs
-- Cross-validates every requested project against declared codeComponents, flags `resource: bundle` projects, and raises `IntegrationError` if any project has no match
+- Cross-validates every requested project against declared codeComponents, and raises `IntegrationError` if any project has no match
 - Builds `GitlabInstanceConfig` per instance with a Vault `Secret` reference (path/field/version) - no token values leave the client
 - Sends the complete desired state to qontract-api in a single request
 
 **Server-Side (`qontract_api/integrations/gitlab_projects/`):**
 
 - Fetches each group's current project list from GitLab via `GitlabWorkspaceClient` (Layer 2 — cached)
-- Computes the diff using `qontract_utils.differ.diff_any_iterables`: only creates are ever generated, deletions are deliberately never actioned
+- Computes the diff using `qontract_utils.differ.diff_iterables`: only creates are ever generated, deletions are deliberately never actioned
 - Executes actions per group (if not dry-run), isolating errors per action and per group/instance
-- Bootstraps SaaS bundle repos via `qontract_utils.vcs.providers.gitlab_client.GitLabRepoApi` (the GitLab VCS client) — a README commit followed by `staging`/`production` branches cut from it
 
 ## API Endpoints
 
@@ -95,10 +86,7 @@ Follows the standard async-only pattern (ADR-003): `POST /api/v1/integrations/gi
       "groups": [
         {
           "group": "service",
-          "projects": [
-            { "name": "saas-my-operator-bundle", "is_saas_bundle": true },
-            { "name": "my-plain-project", "is_saas_bundle": false }
-          ]
+          "projects": ["my-plain-project"]
         }
       ]
     }
@@ -128,17 +116,10 @@ Follows the standard async-only pattern (ADR-003): `POST /api/v1/integrations/gi
 
 **GitlabGroupConfig Fields:**
 
-| Field      | Type                         | Required | Description                                              |
-| ---------- | ---------------------------- | -------- | --------------------------------------------------------- |
-| `group`    | `string`                     | Yes      | GitLab group full path                                    |
-| `projects` | `list[GitlabProjectConfig]`  | No       | Desired projects under this group (names must be unique)  |
-
-**GitlabProjectConfig Fields:**
-
-| Field            | Type     | Required | Default | Description                                                     |
-| ---------------- | -------- | -------- | ------- | ----------------------------------------------------------------|
-| `name`           | `string` | Yes      | -       | Project name                                                     |
-| `is_saas_bundle` | `bool`   | No       | `false` | Whether to initialize as a SaaS bundle repo (README + branches)  |
+| Field      | Type        | Required | Description                                              |
+| ---------- | ----------- | -------- | --------------------------------------------------------- |
+| `group`    | `string`    | Yes      | GitLab group full path                                    |
+| `projects` | `list[str]` | No       | Desired project names under this group (must be unique)   |
 
 **Validation Rules:**
 
@@ -173,23 +154,6 @@ The integration can perform these reconciliation actions:
 }
 ```
 
-`create_saas_bundle`:
-
-**Description:** Create a new project and initialize it as a SaaS bundle repo (README commit on `master`, then `staging`/`production` branches cut from it).
-
-**Fields:** `instance`, `group`, `project_name`
-
-**Example:**
-
-```json
-{
-  "action_type": "create_saas_bundle",
-  "instance": "gitlab-cee",
-  "group": "service",
-  "project_name": "saas-my-operator-bundle"
-}
-```
-
 ## Limits and Constraints
 
 
@@ -208,10 +172,6 @@ The integration can perform these reconciliation actions:
 - One CloudEvent published per applied action: `qontract-api.gitlab-projects.<action_type>`
 - One CloudEvent published per error: `qontract-api.gitlab-projects.error`
 
-**Known limitation:**
-
-- If a `create_saas_bundle` action creates the project but fails partway through README/branch creation, the error is logged and surfaced once, but the project is not retried on subsequent runs (the diff sees the project already exists by name). See Troubleshooting below.
-
 ## Required Components
 
 **Vault Secrets:**
@@ -223,7 +183,7 @@ The integration can perform these reconciliation actions:
 - GitLab API (v4, via [python-gitlab](https://python-gitlab.readthedocs.io/))
   - Base URL: per-instance `url` (e.g. `https://gitlab.cee.redhat.com`)
   - Authentication: private token (`private_token`)
-  - Two separate Layer 1 clients are used: `qontract_utils.gitlab_api.GitlabApi` for group listing/project creation (administration), and `qontract_utils.vcs.providers.gitlab_client.GitLabRepoApi` for the SaaS bundle README/branch operations (content)
+  - Client: `qontract_utils.gitlab_api.GitlabApi` for group listing/project creation
 
 **Cache Backend:**
 
@@ -287,12 +247,6 @@ projectRequests:
 - **Cause:** The same project name appears twice under one group's `projectRequests`
 - **Solution:** Remove the duplicate entry
 
-**SaaS bundle partially initialized**
-
-- **Symptom:** An error for a `create_saas_bundle` action appears once, then the project is never retried on subsequent runs
-- **Cause:** `create_project` succeeded but a later step (README commit or branch creation) failed; since the project already exists by name, the diff no longer flags it as missing on the next run
-- **Solution:** Manually complete the missing step(s) (README/branch) directly in GitLab
-
 **Task timeout in dry-run**
 
 - **Symptom:** `IntegrationError: gitlab-projects-api: task did not complete within the timeout period`
@@ -306,7 +260,6 @@ projectRequests:
 - Server: [qontract_api/qontract_api/integrations/gitlab_projects/](../../qontract_api/qontract_api/integrations/gitlab_projects/)
 - Client: [reconcile/gitlab_projects_api.py](../../reconcile/gitlab_projects_api.py)
 - Layer 1 (administration): [qontract_utils/qontract_utils/gitlab_api/](../../qontract_utils/qontract_utils/gitlab_api/)
-- Layer 1 (VCS/content): [qontract_utils/qontract_utils/vcs/providers/gitlab_client.py](../../qontract_utils/qontract_utils/vcs/providers/gitlab_client.py)
 
 **External:**
 

@@ -22,7 +22,6 @@ DEFINITION = """
 query GitlabProjectsAppCodeComponents {
   apps: apps_v1 {
     codeComponents {
-      resource
       url
     }
   }
@@ -37,7 +36,6 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class AppCodeComponentsV1(ConfiguredBaseModel):
-    resource: str = Field(..., alias="resource")
     url: str = Field(..., alias="url")
 
 
