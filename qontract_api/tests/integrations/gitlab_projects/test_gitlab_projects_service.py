@@ -8,12 +8,9 @@ from qontract_utils.gitlab_api import GitlabGroup, GitlabProject
 from qontract_api.integrations.gitlab_projects.domain import (
     GitlabGroupConfig,
     GitlabInstanceConfig,
-    GitlabProjectConfig,
 )
 from qontract_api.integrations.gitlab_projects.schemas import (
-    GitlabProjectAction,
     GitlabProjectActionCreate,
-    GitlabProjectActionCreateSaasBundle,
 )
 from qontract_api.integrations.gitlab_projects.service import GitlabProjectsService
 from qontract_api.models import Secret, TaskStatus
@@ -87,12 +84,8 @@ def _instance(
     )
 
 
-def _project(name: str, *, is_saas_bundle: bool = False) -> GitlabProjectConfig:
-    return GitlabProjectConfig(name=name, is_saas_bundle=is_saas_bundle)
-
-
 def _group_cfg(
-    group: str = "team", projects: list[GitlabProjectConfig] | None = None
+    group: str = "team", projects: list[str] | None = None
 ) -> GitlabGroupConfig:
     return GitlabGroupConfig(group=group, projects=projects or [])
 
@@ -118,7 +111,7 @@ def _gitlab_project(project_id: int = 1, name: str = "proj") -> GitlabProject:
 
 def test_calculate_actions_creates_missing_project() -> None:
     actions = GitlabProjectsService._calculate_actions(
-        "gitlab-cee", "team", [_project("foo")], existing_project_names=[]
+        "gitlab-cee", "team", ["foo"], existing_project_names=[]
     )
 
     assert len(actions) == 1
@@ -130,7 +123,7 @@ def test_calculate_actions_creates_missing_project() -> None:
 
 def test_calculate_actions_skips_existing_project() -> None:
     actions = GitlabProjectsService._calculate_actions(
-        "gitlab-cee", "team", [_project("foo")], existing_project_names=["foo"]
+        "gitlab-cee", "team", ["foo"], existing_project_names=["foo"]
     )
 
     assert actions == []
@@ -145,36 +138,11 @@ def test_calculate_actions_ignores_removed_project() -> None:
     assert actions == []
 
 
-def test_calculate_actions_single_action_for_saas_bundle_project() -> None:
-    actions = GitlabProjectsService._calculate_actions(
-        "gitlab-cee",
-        "team",
-        [_project("bundle-repo", is_saas_bundle=True)],
-        existing_project_names=[],
-    )
-
-    assert len(actions) == 1
-    assert isinstance(actions[0], GitlabProjectActionCreateSaasBundle)
-    assert actions[0].project_name == "bundle-repo"
-
-
-def test_calculate_actions_no_bundle_init_for_plain_project() -> None:
-    actions = GitlabProjectsService._calculate_actions(
-        "gitlab-cee",
-        "team",
-        [_project("plain", is_saas_bundle=False)],
-        existing_project_names=[],
-    )
-
-    assert len(actions) == 1
-    assert isinstance(actions[0], GitlabProjectActionCreate)
-
-
 def test_calculate_actions_deterministic_order() -> None:
     actions = GitlabProjectsService._calculate_actions(
         "gitlab-cee",
         "team",
-        [_project("zzz"), _project("aaa")],
+        ["zzz", "aaa"],
         existing_project_names=[],
     )
 
@@ -192,7 +160,7 @@ def test_apply_actions_create_success(
     mock_workspace_client.create_project.return_value = _gitlab_project(
         project_id=42, name="foo"
     )
-    actions: list[GitlabProjectAction] = [
+    actions: list[GitlabProjectActionCreate] = [
         GitlabProjectActionCreate(instance="i", group="team", project_name="foo")
     ]
 
@@ -203,54 +171,12 @@ def test_apply_actions_create_success(
     mock_workspace_client.create_project.assert_called_once_with("team", 1, "foo")
 
 
-def test_apply_actions_create_saas_bundle_success(
-    service: GitlabProjectsService, mock_workspace_client: MagicMock
-) -> None:
-    mock_workspace_client.create_project.return_value = _gitlab_project(
-        project_id=42, name="bundle-repo"
-    )
-    actions: list[GitlabProjectAction] = [
-        GitlabProjectActionCreateSaasBundle(
-            instance="i", group="team", project_name="bundle-repo"
-        ),
-    ]
-
-    applied, errors = service._apply_actions(mock_workspace_client, "i", 1, actions)
-
-    assert applied == actions
-    assert errors == []
-    mock_workspace_client.initiate_saas_bundle_repo.assert_called_once_with(42)
-
-
-def test_apply_actions_failed_create_reports_error_without_init(
+def test_apply_actions_failed_create_reports_error(
     service: GitlabProjectsService, mock_workspace_client: MagicMock
 ) -> None:
     mock_workspace_client.create_project.side_effect = RuntimeError("boom")
-    actions: list[GitlabProjectAction] = [
-        GitlabProjectActionCreateSaasBundle(
-            instance="i", group="team", project_name="bundle-repo"
-        ),
-    ]
-
-    applied, errors = service._apply_actions(mock_workspace_client, "i", 1, actions)
-
-    assert applied == []
-    assert len(errors) == 1
-    assert "boom" in errors[0]
-    mock_workspace_client.initiate_saas_bundle_repo.assert_not_called()
-
-
-def test_apply_actions_failed_saas_bundle_init_reports_error(
-    service: GitlabProjectsService, mock_workspace_client: MagicMock
-) -> None:
-    mock_workspace_client.create_project.return_value = _gitlab_project(
-        project_id=42, name="bundle-repo"
-    )
-    mock_workspace_client.initiate_saas_bundle_repo.side_effect = RuntimeError("boom")
-    actions: list[GitlabProjectAction] = [
-        GitlabProjectActionCreateSaasBundle(
-            instance="i", group="team", project_name="bundle-repo"
-        ),
+    actions: list[GitlabProjectActionCreate] = [
+        GitlabProjectActionCreate(instance="i", group="team", project_name="foo"),
     ]
 
     applied, errors = service._apply_actions(mock_workspace_client, "i", 1, actions)
@@ -269,7 +195,7 @@ def test_apply_actions_isolates_errors_across_projects(
         return _gitlab_project(project_id=1, name=name)
 
     mock_workspace_client.create_project.side_effect = create_side_effect
-    actions: list[GitlabProjectAction] = [
+    actions: list[GitlabProjectActionCreate] = [
         GitlabProjectActionCreate(instance="i", group="team", project_name="bad"),
         GitlabProjectActionCreate(instance="i", group="team", project_name="good"),
     ]
@@ -289,7 +215,7 @@ def test_reconcile_dry_run_computes_actions_without_applying(
     service: GitlabProjectsService, mock_workspace_client: MagicMock
 ) -> None:
     mock_workspace_client.get_group.return_value = _gitlab_group()
-    instances = [_instance(groups=[_group_cfg(projects=[_project("foo")])])]
+    instances = [_instance(groups=[_group_cfg(projects=["foo"])])]
 
     result = service.reconcile(instances, dry_run=True)
 
@@ -305,7 +231,7 @@ def test_reconcile_non_dry_run_applies_actions(
 ) -> None:
     mock_workspace_client.get_group.return_value = _gitlab_group()
     mock_workspace_client.create_project.return_value = _gitlab_project(name="foo")
-    instances = [_instance(groups=[_group_cfg(projects=[_project("foo")])])]
+    instances = [_instance(groups=[_group_cfg(projects=["foo"])])]
 
     result = service.reconcile(instances, dry_run=False)
 
@@ -330,8 +256,8 @@ def test_reconcile_isolates_errors_across_groups(
     instances = [
         _instance(
             groups=[
-                _group_cfg(group="bad-group", projects=[_project("foo")]),
-                _group_cfg(group="good-group", projects=[_project("bar")]),
+                _group_cfg(group="bad-group", projects=["foo"]),
+                _group_cfg(group="good-group", projects=["bar"]),
             ]
         )
     ]
@@ -367,10 +293,8 @@ def test_reconcile_isolates_errors_across_instances(
         workspace_client_factory=factory,
     )
     instances = [
-        _instance(name="bad-instance", groups=[_group_cfg(projects=[_project("foo")])]),
-        _instance(
-            name="good-instance", groups=[_group_cfg(projects=[_project("bar")])]
-        ),
+        _instance(name="bad-instance", groups=[_group_cfg(projects=["foo"])]),
+        _instance(name="good-instance", groups=[_group_cfg(projects=["bar"])]),
     ]
 
     result = service.reconcile(instances, dry_run=True)

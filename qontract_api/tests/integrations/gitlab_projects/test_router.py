@@ -22,14 +22,9 @@ class _TokenPayload(TypedDict):
     path: str
 
 
-class _ProjectPayload(TypedDict):
-    name: str
-    is_saas_bundle: bool
-
-
 class _GroupPayload(TypedDict):
     group: str
-    projects: list[_ProjectPayload]
+    projects: list[str]
 
 
 class _InstancePayload(TypedDict):
@@ -65,7 +60,7 @@ def sample_reconcile_request() -> ReconcileRequestPayload:
                 "groups": [
                     {
                         "group": "team",
-                        "projects": [{"name": "myproj", "is_saas_bundle": False}],
+                        "projects": ["myproj"],
                     }
                 ],
             }
@@ -189,8 +184,8 @@ def test_post_reconcile_duplicate_project_names_rejected(
     sample_reconcile_request: ReconcileRequestPayload,
 ) -> None:
     sample_reconcile_request["instances"][0]["groups"][0]["projects"] = [
-        {"name": "myproj", "is_saas_bundle": False},
-        {"name": "myproj", "is_saas_bundle": True},
+        "myproj",
+        "myproj",
     ]
     response = client.post(
         "/api/v1/integrations/gitlab-projects/reconcile",

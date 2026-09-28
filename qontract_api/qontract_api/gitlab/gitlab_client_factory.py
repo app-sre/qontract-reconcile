@@ -52,5 +52,4 @@ def create_gitlab_workspace_client(
         url=url,
         cache=cache,
         settings=settings,
-        token=token,
     )

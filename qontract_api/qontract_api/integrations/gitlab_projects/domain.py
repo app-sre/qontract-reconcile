@@ -12,33 +12,18 @@ from pydantic import BaseModel, Field, field_validator
 from qontract_api.models import Secret
 
 
-class GitlabProjectConfig(BaseModel, frozen=True):
-    """Desired state for a single GitLab project."""
-
-    name: str = Field(..., description="Project name")
-    is_saas_bundle: bool = Field(
-        default=False,
-        description=(
-            "Whether this project should be initialized as a SaaS bundle repo "
-            "(README + staging/production branches) rather than left empty"
-        ),
-    )
-
-
 class GitlabGroupConfig(BaseModel, frozen=True):
     """Configuration for a single GitLab group and its desired projects."""
 
     group: str = Field(..., description="GitLab group full path")
-    projects: list[GitlabProjectConfig] = Field(
-        default_factory=list, description="Desired projects under this group"
+    projects: list[str] = Field(
+        default_factory=list, description="Desired project names under this group"
     )
 
     @field_validator("projects")
     @classmethod
-    def project_names_unique(
-        cls, projects: list[GitlabProjectConfig]
-    ) -> list[GitlabProjectConfig]:
-        duplicate_counter = Counter(project.name for project in projects)
+    def project_names_unique(cls, projects: list[str]) -> list[str]:
+        duplicate_counter = Counter(projects)
         if duplicates := {
             name for name, count in duplicate_counter.items() if count > 1
         }:

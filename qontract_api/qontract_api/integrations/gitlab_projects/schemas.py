@@ -29,18 +29,6 @@ class GitlabProjectActionCreate(BaseModel, frozen=True):
     project_name: str
 
 
-class GitlabProjectActionCreateSaasBundle(BaseModel, frozen=True):
-    """Action: Create a new project and initialize it as a SaaS bundle repo."""
-
-    action_type: Literal["create_saas_bundle"] = "create_saas_bundle"
-    instance: str
-    group: str
-    project_name: str
-
-
-GitlabProjectAction = GitlabProjectActionCreate | GitlabProjectActionCreateSaasBundle
-
-
 # ---------------------------------------------------------------------------
 # Response models
 # ---------------------------------------------------------------------------
@@ -49,11 +37,11 @@ GitlabProjectAction = GitlabProjectActionCreate | GitlabProjectActionCreateSaasB
 class GitlabProjectsTaskResult(TaskResult, frozen=True):
     """Result of a completed reconciliation task."""
 
-    actions: list[GitlabProjectAction] = Field(
+    actions: list[GitlabProjectActionCreate] = Field(
         default_factory=list,
         description="All actions calculated (desired - current).",
     )
-    applied_actions: list[GitlabProjectAction] = Field(
+    applied_actions: list[GitlabProjectActionCreate] = Field(
         default_factory=list,
         description="Actions successfully applied (non-dry-run only).",
     )

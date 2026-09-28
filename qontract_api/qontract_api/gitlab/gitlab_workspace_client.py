@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Self
 
 from pydantic import BaseModel
 from qontract_utils.gitlab_api import GitlabApi, GitlabGroup, GitlabProject
-from qontract_utils.vcs.providers.gitlab_client import GitLabRepoApi
 
 from qontract_api.logger import get_logger
 
@@ -20,12 +19,6 @@ if TYPE_CHECKING:
     from qontract_api.config import Settings
 
 logger = get_logger(__name__)
-
-DEFAULT_BRANCH = "master"
-SAAS_BUNDLE_BRANCHES = ("staging", "production")
-README_PATH = "README.md"
-README_COMMIT_MESSAGE = "Initial commit"
-README_CONTENT = "Use the staging or the production branches."
 
 
 class CachedGroup(BaseModel, frozen=True):
@@ -44,13 +37,11 @@ class GitlabWorkspaceClient:
         url: str,
         cache: CacheBackend,
         settings: Settings,
-        token: str,
     ) -> None:
         self.gitlab_api = gitlab_api
         self._url = url.rstrip("/")
         self.cache = cache
         self.settings = settings
-        self._token = token
 
     def _cache_key_group(self, group_name: str) -> str:
         return f"gitlab:{self._url}:group:{group_name}:projects"
@@ -108,35 +99,6 @@ class GitlabWorkspaceClient:
                 path_with_namespace=project.path_with_namespace,
             )
             return project
-
-    def initiate_saas_bundle_repo(self, project_id: int) -> None:
-        """Bootstrap a project as a SaaS bundle repo: README on master, then staging/production branches cut from it."""
-        vcs_client = GitLabRepoApi(
-            project_id=str(project_id),
-            token=self._token,
-            gitlab_url=self._url,
-            timeout=self.settings.gitlab_projects.api_timeout,
-        )
-        vcs_client.create_file(
-            path=README_PATH,
-            branch=DEFAULT_BRANCH,
-            commit_message=README_COMMIT_MESSAGE,
-            content=README_CONTENT,
-        )
-        logger.info(
-            "Added README",
-            project_id=project_id,
-            branch=DEFAULT_BRANCH,
-            path=README_PATH,
-        )
-        for branch in SAAS_BUNDLE_BRANCHES:
-            vcs_client.create_branch(new_branch=branch, source_branch=DEFAULT_BRANCH)
-            logger.info(
-                "Created branch",
-                project_id=project_id,
-                branch=branch,
-                source_branch=DEFAULT_BRANCH,
-            )
 
     def close(self) -> None:
         self.gitlab_api.close()

@@ -184,7 +184,7 @@ class GithubOwnersTaskResult(pydantic.BaseModel):
 
 class GitlabGroupConfig(pydantic.BaseModel):
     group: str
-    projects: list[GitlabProjectConfig] | None = None
+    projects: list[str] | None = None
 
 
 class GitlabInstanceConfig(pydantic.BaseModel):
@@ -202,18 +202,6 @@ class GitlabProjectActionCreate(pydantic.BaseModel):
     project_name: str
 
 
-class GitlabProjectActionCreateSaasBundle(pydantic.BaseModel):
-    action_type: typing.Literal["create_saas_bundle"] = "create_saas_bundle"
-    group: str
-    instance: str
-    project_name: str
-
-
-class GitlabProjectConfig(pydantic.BaseModel):
-    is_saas_bundle: bool = False
-    name: str
-
-
 class GitlabProjectsReconcileRequest(pydantic.BaseModel):
     dry_run: bool = True
     instances: list[GitlabInstanceConfig]
@@ -226,12 +214,8 @@ class GitlabProjectsTaskResponse(pydantic.BaseModel):
 
 
 class GitlabProjectsTaskResult(pydantic.BaseModel):
-    actions: (
-        list[GitlabProjectActionCreate | GitlabProjectActionCreateSaasBundle] | None
-    ) = None
-    applied_actions: (
-        list[GitlabProjectActionCreate | GitlabProjectActionCreateSaasBundle] | None
-    ) = None
+    actions: list[GitlabProjectActionCreate] | None = None
+    applied_actions: list[GitlabProjectActionCreate] | None = None
     applied_count: int = 0
     errors: list[str] = []
     status: TaskStatus

@@ -5,13 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from qontract_utils.differ import diff_any_iterables
+from qontract_utils.differ import diff_iterables
 
 from qontract_api.gitlab.gitlab_client_factory import create_gitlab_workspace_client
 from qontract_api.integrations.gitlab_projects.schemas import (
-    GitlabProjectAction,
     GitlabProjectActionCreate,
-    GitlabProjectActionCreateSaasBundle,
     GitlabProjectsTaskResult,
 )
 from qontract_api.logger import get_logger
@@ -24,7 +22,6 @@ if TYPE_CHECKING:
     from qontract_api.integrations.gitlab_projects.domain import (
         GitlabGroupConfig,
         GitlabInstanceConfig,
-        GitlabProjectConfig,
     )
     from qontract_api.secret_manager import SecretManager
 
@@ -64,39 +61,27 @@ class GitlabProjectsService:
     def _calculate_actions(
         instance_name: str,
         group_name: str,
-        desired_projects: list[GitlabProjectConfig],
+        desired_projects: list[str],
         existing_project_names: list[str],
-    ) -> list[GitlabProjectAction]:
+    ) -> list[GitlabProjectActionCreate]:
         # Actions are desired projects whose name isn't already present in the
         # group. diff.delete (existing but not desired) is deliberately never
         # actioned - this integration never deletes projects.
-        diff = diff_any_iterables(
+        diff = diff_iterables(
             current=existing_project_names,
             desired=desired_projects,
-            current_key=lambda name: name,
-            desired_key=lambda project: project.name,
+            key=lambda name: name,
         )
-        missing = sorted(diff.add.values(), key=lambda project: project.name)
+        missing = sorted(diff.add.values())
 
-        actions: list[GitlabProjectAction] = []
-        for project_cfg in missing:
-            if project_cfg.is_saas_bundle:
-                actions.append(
-                    GitlabProjectActionCreateSaasBundle(
-                        instance=instance_name,
-                        group=group_name,
-                        project_name=project_cfg.name,
-                    )
-                )
-            else:
-                actions.append(
-                    GitlabProjectActionCreate(
-                        instance=instance_name,
-                        group=group_name,
-                        project_name=project_cfg.name,
-                    )
-                )
-        return actions
+        return [
+            GitlabProjectActionCreate(
+                instance=instance_name,
+                group=group_name,
+                project_name=project_name,
+            )
+            for project_name in missing
+        ]
 
     # ------------------------------------------------------------------
     # Execute
@@ -107,9 +92,9 @@ class GitlabProjectsService:
         client: GitlabWorkspaceClient,
         instance_name: str,
         group_id: int,
-        actions: list[GitlabProjectAction],
-    ) -> tuple[list[GitlabProjectAction], list[str]]:
-        applied: list[GitlabProjectAction] = []
+        actions: list[GitlabProjectActionCreate],
+    ) -> tuple[list[GitlabProjectActionCreate], list[str]]:
+        applied: list[GitlabProjectActionCreate] = []
         errors: list[str] = []
 
         for action in actions:
@@ -129,25 +114,13 @@ class GitlabProjectsService:
     def _execute_action(
         client: GitlabWorkspaceClient,
         group_id: int,
-        action: GitlabProjectAction,
+        action: GitlabProjectActionCreate,
     ) -> None:
-        match action:
-            case GitlabProjectActionCreate():
-                logger.info(
-                    f"Creating project {action.instance}/{action.group}/{action.project_name}",
-                    action_type=action.action_type,
-                )
-                client.create_project(action.group, group_id, action.project_name)
-
-            case GitlabProjectActionCreateSaasBundle():
-                logger.info(
-                    f"Creating SaaS bundle project {action.instance}/{action.group}/{action.project_name}",
-                    action_type=action.action_type,
-                )
-                project = client.create_project(
-                    action.group, group_id, action.project_name
-                )
-                client.initiate_saas_bundle_repo(project.id)
+        logger.info(
+            f"Creating project {action.instance}/{action.group}/{action.project_name}",
+            action_type=action.action_type,
+        )
+        client.create_project(action.group, group_id, action.project_name)
 
     # ------------------------------------------------------------------
     # Per-group / per-instance reconciliation
@@ -160,7 +133,9 @@ class GitlabProjectsService:
         group_cfg: GitlabGroupConfig,
         *,
         dry_run: bool,
-    ) -> tuple[list[GitlabProjectAction], list[GitlabProjectAction], list[str]]:
+    ) -> tuple[
+        list[GitlabProjectActionCreate], list[GitlabProjectActionCreate], list[str]
+    ]:
         group = client.get_group(group_cfg.group)
         actions = self._calculate_actions(
             instance_name, group_cfg.group, group_cfg.projects, group.project_names
@@ -178,9 +153,11 @@ class GitlabProjectsService:
         instance: GitlabInstanceConfig,
         *,
         dry_run: bool,
-    ) -> tuple[list[GitlabProjectAction], list[GitlabProjectAction], list[str]]:
-        all_actions: list[GitlabProjectAction] = []
-        all_applied: list[GitlabProjectAction] = []
+    ) -> tuple[
+        list[GitlabProjectActionCreate], list[GitlabProjectActionCreate], list[str]
+    ]:
+        all_actions: list[GitlabProjectActionCreate] = []
+        all_applied: list[GitlabProjectActionCreate] = []
         all_errors: list[str] = []
 
         with self._workspace_client_factory(
@@ -219,8 +196,8 @@ class GitlabProjectsService:
         dry_run: bool = True,
     ) -> GitlabProjectsTaskResult:
         """Reconcile GitLab projects across all provided instances."""
-        all_actions: list[GitlabProjectAction] = []
-        all_applied: list[GitlabProjectAction] = []
+        all_actions: list[GitlabProjectActionCreate] = []
+        all_applied: list[GitlabProjectActionCreate] = []
         all_errors: list[str] = []
 
         for instance in instances:
