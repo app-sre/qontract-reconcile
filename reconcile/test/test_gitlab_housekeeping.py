@@ -3802,7 +3802,7 @@ def _omm_pending_add(created_at: str) -> Mock:
                 )
             ],
             _COMMIT_BEFORE_LABEL,
-            True,
+            False,
             id="running",
         ),
         pytest.param(
@@ -3814,7 +3814,7 @@ def _omm_pending_add(created_at: str) -> Mock:
                 )
             ],
             _COMMIT_BEFORE_LABEL,
-            True,
+            False,
             id="failed",
         ),
         pytest.param(
@@ -3831,7 +3831,7 @@ def _omm_pending_add(created_at: str) -> Mock:
                 ),
             ],
             _COMMIT_BEFORE_LABEL,
-            True,
+            False,
             id="cascade",
         ),
         pytest.param(
@@ -3895,6 +3895,7 @@ def test_omm_group_post_label_external_pipeline_ignored(
     )
 
     mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request.return_value = mr
     mocked_gl.get_merge_request_label_events.return_value = [
         _omm_pending_add(_OMM_LABEL_ADDED_AT)
     ]
@@ -3977,6 +3978,7 @@ def test_omm_group_waiting_for_commit_no_pipeline_yet(
     )
 
     mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request.return_value = mr
     mocked_gl.get_merge_request_label_events.return_value = [
         _omm_pending_add(_OMM_LABEL_ADDED_AT)
     ]

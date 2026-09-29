@@ -467,10 +467,13 @@ def _filter_skip_ci_pipelines(
     surviving = _without_push_or_skipped(kept)
     surviving_shas = {p.sha for p in surviving}
     head_sha = getattr(mr, "sha", None)
+    # Wait when the head has no surviving pipeline AND is either new code
+    # (authored after label) or classified as noise (could be amend, not
+    # just a rebase — authored_date is preserved by both).
     waiting = (
         head_sha is not None
-        and head_sha in commit_shas
         and head_sha not in surviving_shas
+        and (head_sha in commit_shas or head_sha in noise_shas)
     )
     return surviving, waiting
 
@@ -529,11 +532,13 @@ def _process_omm_member(
                 pipelines=timed_out,
             )
 
+    # Fetch fresh MR before classifying pipelines so the waiting guard
+    # uses the current head SHA, not the stale one from the list API.
+    fresh_mr = gl.get_merge_request(mr.iid)
+
     # Classify SHAs on the full list, then drop push/SKIPPED shells.
     # See _filter_skip_ci_pipelines.
-    pipelines, waiting_for_commit = _filter_skip_ci_pipelines(gl, mr, pipelines)
-
-    fresh_mr = gl.get_merge_request(mr.iid)
+    pipelines, waiting_for_commit = _filter_skip_ci_pipelines(gl, fresh_mr, pipelines)
     try:
         mr_is_rebased = is_rebased(fresh_mr, gl)
     except gitlab.exceptions.GitlabGetError as e:
