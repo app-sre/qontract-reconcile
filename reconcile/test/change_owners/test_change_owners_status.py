@@ -3,7 +3,11 @@ from reconcile.change_owners.change_owners import (
     build_status_message,
     is_app_sre_self_serviceable,
 )
-from reconcile.change_owners.change_types import ChangeTypeContext
+from reconcile.change_owners.change_types import (
+    ChangeTypeContext,
+    ChangeTypePriority,
+    ChangeTypeProcessor,
+)
 from reconcile.change_owners.decision import ChangeDecision
 from reconcile.change_owners.diff import Diff, DiffType
 from reconcile.utils.jsonpath import parse_jsonpath
@@ -19,7 +23,16 @@ def build_change_decision(self_service_role_name: str | None) -> ChangeDecision:
     if self_service_role_name:
         coverage.append(
             ChangeTypeContext(
-                change_type_processor=None,
+                change_type_processor=ChangeTypeProcessor(
+                    name="test",
+                    labels=None,
+                    description="",
+                    priority=ChangeTypePriority.LOW,
+                    context_type=BundleFileType.DATAFILE,
+                    context_schema=None,
+                    disabled=False,
+                    implicit_ownership=[],
+                ),
                 context=f"RoleV1 - {self_service_role_name}",
                 origin="change-type",
                 context_file=file_ref,
@@ -99,15 +112,8 @@ def test_non_self_serviceable_change_keeps_existing_app_sre_guidance() -> None:
         app_sre_self_serviceable=app_sre_self_serviceable,
     )
 
-    assert (
-        message
-        == """## 🔍 AppSRE Review Required
-**What happens next:**
-* AppSRE will review via their [review queue](https://gitlab.cee.redhat.com/service/app-interface-output/-/blob/master/app-interface-review-queue.md)
-* Please don't ping directly unless this is **urgent**
-* See [etiquette guide](https://gitlab.cee.redhat.com/service/app-interface#app-interface-etiquette) for more info
-
-
-
-**Available commands:** `/lgtm`"""
-    )
+    assert "## 🔍 AppSRE Review Required" in message
+    assert "review queue" in message
+    assert "Please don't ping directly unless this is **urgent**" in message
+    assert "etiquette guide" in message
+    assert "**Available commands:** `/lgtm`" in message

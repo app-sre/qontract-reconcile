@@ -153,9 +153,9 @@ Your changes need `/ok-to-test` approval from a listed approver before review ca
         app_sre_review_guidance = ""
         if app_sre_self_serviceable:
             app_sre_review_guidance = """**What happens next:**
-* AppSRE will review via their [review queue](https://gitlab.cee.redhat.com/service/app-interface-output/-/blob/master/app-interface-review-queue.md)
+* AppSRE will review via their review queue
 * Please don't ping directly unless this is **urgent**
-* See [etiquette guide](https://gitlab.cee.redhat.com/service/app-interface#app-interface-etiquette) for more info
+* See the etiquette guide for more info
 
 """
         return f"""## ✅ Ready for Review
