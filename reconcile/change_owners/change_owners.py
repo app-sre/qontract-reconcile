@@ -149,24 +149,24 @@ Your changes need `/ok-to-test` approval from a listed approver before review ca
     if not authoritative:
         code_warning = "⚠️ **Code changes outside of data and resources detected** - please review carefully\n\n"
 
-    if self_serviceable:
-        app_sre_review_guidance = ""
-        if app_sre_self_serviceable:
-            app_sre_review_guidance = """**What happens next:**
-* AppSRE will review via their review queue
-* Please don't ping directly unless this is **urgent**
-* See the etiquette guide for more info
-
-"""
+    if self_serviceable and not app_sre_self_serviceable:
         return f"""## ✅ Ready for Review
 Get `/lgtm` approval from the listed approvers below.
 
-{app_sre_review_guidance}{code_warning}{approver_section}
+{code_warning}{approver_section}
 
 {commands_text}"""
 
-    return f"""## 🔍 AppSRE Review Required
-**What happens next:**
+    status_heading = (
+        "## ✅ Ready for Review" if self_serviceable else "## 🔍 AppSRE Review Required"
+    )
+    review_preamble = (
+        "Get `/lgtm` approval from the listed approvers below.\n\n"
+        if self_serviceable
+        else ""
+    )
+    return f"""{status_heading}
+{review_preamble}**What happens next:**
 * AppSRE will review via their [review queue](https://gitlab.cee.redhat.com/service/app-interface-output/-/blob/master/app-interface-review-queue.md)
 * Please don't ping directly unless this is **urgent**
 * See [etiquette guide](https://gitlab.cee.redhat.com/service/app-interface#app-interface-etiquette) for more info

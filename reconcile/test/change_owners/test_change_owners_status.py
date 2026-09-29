@@ -61,17 +61,30 @@ def test_app_sre_self_serviceable_change_gets_review_queue_guidance() -> None:
 
     message = build_status_message(
         self_serviceable=True,
-        authoritative=True,
+        authoritative=False,
         change_admitted=True,
         approver_reachability=set(),
         supported_commands=["/lgtm"],
         app_sre_self_serviceable=app_sre_self_serviceable,
     )
+    existing_review_message = build_status_message(
+        self_serviceable=False,
+        authoritative=False,
+        change_admitted=True,
+        approver_reachability=set(),
+        supported_commands=["/lgtm"],
+    )
+    reused_review_message = message.replace(
+        "## ✅ Ready for Review\n"
+        "Get `/lgtm` approval from the listed approvers below.\n\n",
+        "## 🔍 AppSRE Review Required\n",
+        1,
+    )
 
     assert "## ✅ Ready for Review" in message
     assert "Get `/lgtm` approval from the listed approvers below." in message
-    assert "review queue" in message
-    assert "Please don't ping directly unless this is **urgent**" in message
+    assert reused_review_message == existing_review_message
+    assert "Code changes outside of data and resources detected" in message
 
 
 def test_other_self_service_role_does_not_get_app_sre_guidance() -> None:
