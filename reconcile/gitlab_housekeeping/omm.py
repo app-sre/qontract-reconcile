@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
 import gitlab
@@ -348,6 +348,126 @@ class _MemberResult:
     active: bool = False
 
 
+def _latest_omm_pending_added_at(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+) -> datetime | None:
+    """Timestamp of latest omm-pending add, or None to skip filtering."""
+    try:
+        events = gl.get_merge_request_label_events(mr)
+    except gitlab.exceptions.GitlabError as e:
+        logging.warning([
+            "omm-group",
+            "skip-ci-label-events-unavailable",
+            gl.project.name,
+            mr.iid,
+            str(e),
+        ])
+        return None
+
+    latest: datetime | None = None
+    for event in events:
+        if event.action != "add" or not event.label:
+            continue
+        if event.label["name"] != OMM_PENDING:
+            continue
+        try:
+            added_at = from_utc_iso_format(event.created_at)
+        except TypeError, ValueError:
+            continue
+        if latest is None or added_at > latest:
+            latest = added_at
+    return latest
+
+
+def _commit_shas_authored_after_label(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+    label_added_at: datetime,
+) -> set[str] | None:
+    """SHAs of commits authored after label_added_at, or None on failure."""
+    try:
+        commits = list(mr.commits())
+    except gitlab.exceptions.GitlabError as e:
+        logging.warning([
+            "omm-group",
+            "skip-ci-commits-unavailable",
+            gl.project.name,
+            mr.iid,
+            str(e),
+        ])
+        return None
+
+    shas: set[str] = set()
+    for commit in commits:
+        try:
+            authored_at = from_utc_iso_format(commit.authored_date)
+        except TypeError, ValueError, AttributeError:
+            return None
+        if authored_at > label_added_at:
+            shas.add(commit.id)
+    return shas
+
+
+def _without_push_or_skipped(pipelines: list[Any]) -> list[Any]:
+    """Drop SKIPPED and source=push pipelines (no CI signal)."""
+    return [
+        p
+        for p in pipelines
+        if not (p.status == PipelineStatus.SKIPPED or p.source == "push")
+    ]
+
+
+def _filter_skip_ci_pipelines(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+    pipelines: list[Any],
+) -> tuple[list[Any], bool]:
+    """Drop noise pipelines from skip-ci rebases. Returns (filtered, waiting).
+
+    waiting is True when a post-label commit has no surviving pipeline yet.
+    Classify SHAs on the full list, then strip push/SKIPPED shells.
+    """
+    label_added_at = _latest_omm_pending_added_at(gl, mr)
+    if label_added_at is None:
+        return _without_push_or_skipped(pipelines), False
+
+    commit_shas = _commit_shas_authored_after_label(gl, mr, label_added_at)
+    if commit_shas is None:
+        return _without_push_or_skipped(pipelines), False
+
+    pre_label_shas: set[str] = set()
+    post_label_shas: set[str] = set()
+    for pipeline in pipelines:
+        created_at = getattr(pipeline, "created_at", None)
+        if not created_at:
+            continue
+        try:
+            created = from_utc_iso_format(created_at)
+        except TypeError, ValueError:
+            continue
+        if created > label_added_at:
+            post_label_shas.add(pipeline.sha)
+        else:
+            pre_label_shas.add(pipeline.sha)
+
+    noise_shas = post_label_shas - pre_label_shas - commit_shas
+    kept = [p for p in pipelines if p.sha not in noise_shas]
+    if noise_shas:
+        logging.info([
+            "omm-group",
+            "skip-ci-pipelines-ignored",
+            gl.project.name,
+            mr.iid,
+            sorted(noise_shas),
+        ])
+
+    surviving = _without_push_or_skipped(kept)
+    surviving_shas = {p.sha for p in surviving}
+    waiting = any(sha not in surviving_shas for sha in commit_shas)
+    return surviving, waiting
+
+
 def _process_omm_member(
     dry_run: bool,
     gl: GitLabApi,
@@ -402,14 +522,9 @@ def _process_omm_member(
                 pipelines=timed_out,
             )
 
-    # Filter pipelines that carry no CI signal:
-    # - SKIPPED: placeholder from skip_ci rebase
-    # - PUSH: empty 0-job shells from skip_ci rebase (real CI is source=external)
-    pipelines = [
-        p
-        for p in pipelines
-        if not (p.status == PipelineStatus.SKIPPED or p.source == "push")
-    ]
+    # Classify SHAs on the full list, then drop push/SKIPPED shells.
+    # See _filter_skip_ci_pipelines.
+    pipelines, waiting_for_commit = _filter_skip_ci_pipelines(gl, mr, pipelines)
 
     fresh_mr = gl.get_merge_request(mr.iid)
     try:
@@ -432,6 +547,15 @@ def _process_omm_member(
             reason="ref_not_found",
         ).inc()
         return _MemberResult()
+
+    if waiting_for_commit:
+        logging.info([
+            "omm-group",
+            "waiting-for-commit",
+            gl.project.name,
+            mr.iid,
+        ])
+        return _MemberResult(active=True)
 
     if not pipelines:
         if mr_is_rebased:

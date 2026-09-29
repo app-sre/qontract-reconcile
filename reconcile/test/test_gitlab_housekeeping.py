@@ -2618,6 +2618,7 @@ def _make_omm_gl(*, head_sha: str = "abc123") -> Mock:
     branch_mock.commit = {"id": head_sha}
     project.branches.get.return_value = branch_mock
     mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = []
     return mocked_gl
 
 
@@ -3753,19 +3754,112 @@ def test_omm_group_unhandled_status_rebased_stays_active(
 # --- Push pipeline filtering in OMM group ---
 
 
+_OMM_LABEL_ADDED_AT = "2026-09-28T16:00:00+00:00"
+_PIPELINE_BEFORE_LABEL = "2026-09-28T15:00:00+00:00"
+_PIPELINE_AFTER_LABEL = "2026-09-28T16:05:00+00:00"
+_COMMIT_BEFORE_LABEL = "2026-09-28T14:00:00+00:00"
+_COMMIT_AFTER_LABEL = "2026-09-28T16:30:00+00:00"
+
+
+def _dated_pipeline(
+    status: PipelineStatus,
+    sha: str,
+    created_at: str,
+    *,
+    project_id: int = 99,
+    source: str = "external",
+) -> Mock:
+    pipeline = create_autospec(ProjectMergeRequestPipeline, status=status)
+    pipeline.project_id = project_id
+    pipeline.sha = sha
+    pipeline.source = source
+    pipeline.created_at = created_at
+    return pipeline
+
+
+def _omm_pending_add(created_at: str) -> Mock:
+    event = Mock()
+    event.action = "add"
+    event.created_at = created_at
+    event.label = {"name": OMM_PENDING}
+    return event
+
+
 @pytest.mark.parametrize(
     "merge_sha, squash_sha",
     [("abc123", None), (None, "abc123")],
     ids=["merge-commit", "squash-commit"],
 )
-def test_omm_group_push_pipeline_filtered_even_at_different_sha(
+@pytest.mark.parametrize(
+    ("noise", "authored_date", "should_merge"),
+    [
+        pytest.param(
+            [
+                (
+                    PipelineStatus.RUNNING,
+                    "rebased-sha",
+                    _PIPELINE_AFTER_LABEL,
+                )
+            ],
+            _COMMIT_BEFORE_LABEL,
+            True,
+            id="running",
+        ),
+        pytest.param(
+            [
+                (
+                    PipelineStatus.FAILED,
+                    "rebased-sha",
+                    _PIPELINE_AFTER_LABEL,
+                )
+            ],
+            _COMMIT_BEFORE_LABEL,
+            True,
+            id="failed",
+        ),
+        pytest.param(
+            [
+                (
+                    PipelineStatus.RUNNING,
+                    "second-rebase-sha",
+                    "2026-09-28T16:10:00+00:00",
+                ),
+                (
+                    PipelineStatus.FAILED,
+                    "first-rebase-sha",
+                    _PIPELINE_AFTER_LABEL,
+                ),
+            ],
+            _COMMIT_BEFORE_LABEL,
+            True,
+            id="cascade",
+        ),
+        pytest.param(
+            [
+                (
+                    PipelineStatus.RUNNING,
+                    "new-commit-sha",
+                    _PIPELINE_AFTER_LABEL,
+                )
+            ],
+            _COMMIT_AFTER_LABEL,
+            False,
+            id="new-commit",
+        ),
+    ],
+)
+def test_omm_group_post_label_external_pipeline_ignored(
     mocker: MockerFixture,
     merge_sha: str | None,
     squash_sha: str | None,
+    noise: list[tuple[str, str, str]],
+    authored_date: str,
+    should_merge: bool,
 ) -> None:
-    """Push pipelines from a prior skip-ci rebase (sha != mr.sha) must still
-    be filtered.  This covers stale list-API sha and cascading rebases where
-    push pipelines accumulate at old shas."""
+    """Skip-ci rebases on GitLab 19.2 create source=external pipelines on new
+    SHAs. Those SHAs appeared only after omm-pending was added, so they are
+    ignored and the pre-label success merges. A commit authored after the
+    label is new code and its pipeline is kept."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
         "reconcile.gitlab_housekeeping.omm.is_rebased",
@@ -3782,8 +3876,7 @@ def test_omm_group_push_pipeline_filtered_even_at_different_sha(
     lead.labels = []
 
     fork_id = 99
-    current_sha = "current-sha"
-    prior_rebase_sha = "prior-rebase-sha"
+    current_sha = noise[0][1]
 
     mr = _make_merge_mr(
         11,
@@ -3791,6 +3884,10 @@ def test_omm_group_push_pipeline_filtered_even_at_different_sha(
         source_project_id=fork_id,
         sha=current_sha,
     )
+    commit = Mock()
+    commit.authored_date = authored_date
+    commit.id = current_sha if authored_date == _COMMIT_AFTER_LABEL else "original-sha"
+    mr.commits.return_value = [commit]
 
     mocker.patch(
         "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
@@ -3798,9 +3895,20 @@ def test_omm_group_push_pipeline_filtered_even_at_different_sha(
     )
 
     mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_label_events.return_value = [
+        _omm_pending_add(_OMM_LABEL_ADDED_AT)
+    ]
     mocked_gl.get_merge_request_pipelines.return_value = [
-        _running_pipeline(project_id=fork_id, sha=prior_rebase_sha, source="push"),
-        _success_pipeline(project_id=fork_id, sha="original-sha", source="external"),
+        *[
+            _dated_pipeline(status, sha, created_at, project_id=fork_id)
+            for status, sha, created_at in noise
+        ],
+        _dated_pipeline(
+            PipelineStatus.SUCCESS,
+            "original-sha",
+            _PIPELINE_BEFORE_LABEL,
+            project_id=fork_id,
+        ),
     ]
 
     merges = process_omm_group(
@@ -3810,8 +3918,90 @@ def test_omm_group_push_pipeline_filtered_even_at_different_sha(
         app_sre_usernames=set(),
     )
 
-    assert merges == 1
-    mr.merge.assert_called_once()
+    if should_merge:
+        assert merges == 1
+        mr.merge.assert_called_once()
+        mocked_gl.remove_label.assert_not_called()
+    else:
+        assert merges == 0
+        mr.merge.assert_not_called()
+        mr.rebase.assert_not_called()
+        mocked_gl.remove_label.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "merge_sha, squash_sha",
+    [("abc123", None), (None, "abc123")],
+    ids=["merge-commit", "squash-commit"],
+)
+def test_omm_group_waiting_for_commit_no_pipeline_yet(
+    mocker: MockerFixture,
+    merge_sha: str | None,
+    squash_sha: str | None,
+) -> None:
+    """A new commit authored after omm-pending was added has no pipeline yet.
+    The pre-label SUCCESS on the old SHA must NOT cause a merge; the MR stays
+    active until CI arrives for the new commit."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.omm.is_rebased",
+        return_value=True,
+    )
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.omm.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = merge_sha
+    lead.squash_commit_sha = squash_sha
+    lead.target_branch = "master"
+    lead.labels = []
+
+    fork_id = 99
+    new_commit_sha = "new-commit-sha"
+
+    mr = _make_merge_mr(
+        11,
+        ["approved", "tenant-bar", "omm-pending"],
+        source_project_id=fork_id,
+        sha=new_commit_sha,
+    )
+    commit = Mock()
+    commit.authored_date = _COMMIT_AFTER_LABEL
+    commit.id = new_commit_sha
+    mr.commits.return_value = [commit]
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.omm.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_label_events.return_value = [
+        _omm_pending_add(_OMM_LABEL_ADDED_AT)
+    ]
+    # Only the old pre-label SUCCESS — no pipeline on new_commit_sha at all
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _dated_pipeline(
+            PipelineStatus.SUCCESS,
+            "original-sha",
+            _PIPELINE_BEFORE_LABEL,
+            project_id=fork_id,
+        ),
+    ]
+
+    merges = process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
+    mr.rebase.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
+    clear_mock.assert_not_called()
 
 
 @pytest.mark.parametrize(
