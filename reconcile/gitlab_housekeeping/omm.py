@@ -425,7 +425,9 @@ def _filter_skip_ci_pipelines(
 ) -> tuple[list[Any], bool]:
     """Drop noise pipelines from skip-ci rebases. Returns (filtered, waiting).
 
-    waiting is True when a post-label commit has no surviving pipeline yet.
+    waiting is True when the current MR head is a post-label commit with no
+    surviving pipeline yet. Only the head is checked because GitLab runs CI
+    on the MR head, not on every intermediate commit in a push.
     Classify SHAs on the full list, then strip push/SKIPPED shells.
     """
     label_added_at = _latest_omm_pending_added_at(gl, mr)
@@ -464,7 +466,12 @@ def _filter_skip_ci_pipelines(
 
     surviving = _without_push_or_skipped(kept)
     surviving_shas = {p.sha for p in surviving}
-    waiting = any(sha not in surviving_shas for sha in commit_shas)
+    head_sha = getattr(mr, "sha", None)
+    waiting = (
+        head_sha is not None
+        and head_sha in commit_shas
+        and head_sha not in surviving_shas
+    )
     return surviving, waiting
 
 
