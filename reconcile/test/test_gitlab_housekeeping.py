@@ -2291,8 +2291,12 @@ def _make_merge_mr(
     mr.author = {"username": author}
     mr.merge_status = "can_be_merged"
     mr.draft = False
-    mr.commits.return_value = [create_autospec(ProjectCommit)]
     mr.sha = sha if sha is not None else f"sha-{iid}"
+    mr.commits.return_value = [
+        create_autospec(
+            ProjectCommit, id=mr.sha, authored_date="2026-09-28T14:00:00+00:00"
+        )
+    ]
     mr.target_branch = "master"
     return mr
 
@@ -2618,7 +2622,12 @@ def _make_omm_gl(*, head_sha: str = "abc123") -> Mock:
     branch_mock.commit = {"id": head_sha}
     project.branches.get.return_value = branch_mock
     mocked_gl.project = project
-    mocked_gl.get_merge_request_label_events.return_value = []
+    mocked_gl.get_merge_request_label_events.return_value = [
+        _omm_pending_add("2026-09-28T16:00:00+00:00")
+    ]
+    mocked_gl.get_merge_request.return_value = _make_merge_mr(
+        11, ["approved", "tenant-bar", "omm-pending"]
+    )
     return mocked_gl
 
 
@@ -2875,7 +2884,7 @@ def test_omm_group_head_advanced_but_reachable_continues(
     merged_member = Mock()
     merged_member.iid = 99
     mocked_gl.project.mergerequests.list.return_value = [merged_member]
-    fresh_mr = Mock()
+    fresh_mr = _make_merge_mr(mr.iid, mr.labels)
     fresh_mr.merge_commit_sha = "advanced-sha"
     fresh_mr.squash_commit_sha = None
     mocked_gl.get_merge_request.return_value = fresh_mr
@@ -2977,7 +2986,7 @@ def test_omm_group_omm_member_merge_does_not_dissolve(
     merged_member = Mock()
     merged_member.iid = 50
     mocked_gl.project.mergerequests.list.return_value = [merged_member]
-    fresh_mr = Mock()
+    fresh_mr = _make_merge_mr(mr.iid, mr.labels)
     fresh_mr.merge_commit_sha = member_merge_sha
     fresh_mr.squash_commit_sha = member_squash_sha
     mocked_gl.get_merge_request.return_value = fresh_mr
@@ -3031,7 +3040,7 @@ def test_omm_group_multiple_members_sha_match(
     mocked_gl.project.mergerequests.list.return_value = [merged_1, merged_2]
 
     def _fresh_mr(iid: int) -> Mock:
-        m = Mock()
+        m = _make_merge_mr(iid, mr.labels)
         if iid == 50:
             m.merge_commit_sha = "first-member-sha"
             m.squash_commit_sha = None
@@ -3802,7 +3811,7 @@ def _omm_pending_add(created_at: str) -> Mock:
                 )
             ],
             _COMMIT_BEFORE_LABEL,
-            False,
+            True,
             id="running",
         ),
         pytest.param(
@@ -3814,7 +3823,7 @@ def _omm_pending_add(created_at: str) -> Mock:
                 )
             ],
             _COMMIT_BEFORE_LABEL,
-            False,
+            True,
             id="failed",
         ),
         pytest.param(
@@ -3831,7 +3840,7 @@ def _omm_pending_add(created_at: str) -> Mock:
                 ),
             ],
             _COMMIT_BEFORE_LABEL,
-            False,
+            True,
             id="cascade",
         ),
         pytest.param(
@@ -3935,14 +3944,22 @@ def test_omm_group_post_label_external_pipeline_ignored(
     [("abc123", None), (None, "abc123")],
     ids=["merge-commit", "squash-commit"],
 )
+@pytest.mark.parametrize("dry_run", [True, False])
+@pytest.mark.parametrize(
+    "metadata_failure",
+    [None, "labels", "commits", "missing-label", "invalid-commit-date"],
+)
 def test_omm_group_waiting_for_commit_no_pipeline_yet(
     mocker: MockerFixture,
     merge_sha: str | None,
     squash_sha: str | None,
+    dry_run: bool,
+    metadata_failure: str | None,
 ) -> None:
     """A new commit authored after omm-pending was added has no pipeline yet.
     The pre-label SUCCESS on the old SHA must NOT cause a merge; the MR stays
-    active until CI arrives for the new commit."""
+    active until CI arrives for the new commit, including when metadata
+    is unavailable and the new commit cannot be classified."""
     _setup_omm_group_mocks(mocker)
     mocker.patch(
         "reconcile.gitlab_housekeeping.omm.is_rebased",
@@ -3982,6 +3999,16 @@ def test_omm_group_waiting_for_commit_no_pipeline_yet(
     mocked_gl.get_merge_request_label_events.return_value = [
         _omm_pending_add(_OMM_LABEL_ADDED_AT)
     ]
+    if metadata_failure == "labels":
+        mocked_gl.get_merge_request_label_events.side_effect = GitlabGetError(
+            "Label events unavailable", 500
+        )
+    elif metadata_failure == "commits":
+        mr.commits.side_effect = GitlabGetError("Commits unavailable", 500)
+    elif metadata_failure == "missing-label":
+        mocked_gl.get_merge_request_label_events.return_value = []
+    elif metadata_failure == "invalid-commit-date":
+        commit.authored_date = "invalid-date"
     # Only the old pre-label SUCCESS — no pipeline on new_commit_sha at all
     mocked_gl.get_merge_request_pipelines.return_value = [
         _dated_pipeline(
@@ -3993,7 +4020,7 @@ def test_omm_group_waiting_for_commit_no_pipeline_yet(
     ]
 
     merges = process_omm_group(
-        dry_run=False,
+        dry_run=dry_run,
         gl=mocked_gl,
         lead=lead,
         app_sre_usernames=set(),

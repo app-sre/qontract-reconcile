@@ -352,7 +352,7 @@ def _latest_omm_pending_added_at(
     gl: GitLabApi,
     mr: ProjectMergeRequest,
 ) -> datetime | None:
-    """Timestamp of latest omm-pending add, or None to skip filtering."""
+    """Timestamp of latest omm-pending add, or None if unavailable."""
     try:
         events = gl.get_merge_request_label_events(mr)
     except gitlab.exceptions.GitlabError as e:
@@ -425,18 +425,25 @@ def _filter_skip_ci_pipelines(
 ) -> tuple[list[Any], bool]:
     """Drop noise pipelines from skip-ci rebases. Returns (filtered, waiting).
 
+    Noise = pipelines on SHAs that appeared only after omm-pending was added
+    and are not from commits authored after the label (new code).
+
     waiting is True when the current MR head is a post-label commit with no
-    surviving pipeline yet. Only the head is checked because GitLab runs CI
-    on the MR head, not on every intermediate commit in a push.
-    Classify SHAs on the full list, then strip push/SKIPPED shells.
+    surviving pipeline yet — CI hasn't arrived for new code. Also wait
+    when label or commit metadata is unavailable to verify the pipelines.
+
+    Known limitation: an amend that preserves authored_date is
+    indistinguishable from a rebase.  Content verification (V2) will
+    address this; the risk is negligible for bot-generated app-interface
+    MRs within the 5-minute OMM window.
     """
     label_added_at = _latest_omm_pending_added_at(gl, mr)
     if label_added_at is None:
-        return _without_push_or_skipped(pipelines), False
+        return _without_push_or_skipped(pipelines), True
 
     commit_shas = _commit_shas_authored_after_label(gl, mr, label_added_at)
     if commit_shas is None:
-        return _without_push_or_skipped(pipelines), False
+        return _without_push_or_skipped(pipelines), True
 
     pre_label_shas: set[str] = set()
     post_label_shas: set[str] = set()
@@ -467,13 +474,10 @@ def _filter_skip_ci_pipelines(
     surviving = _without_push_or_skipped(kept)
     surviving_shas = {p.sha for p in surviving}
     head_sha = getattr(mr, "sha", None)
-    # Wait when the head has no surviving pipeline AND is either new code
-    # (authored after label) or classified as noise (could be amend, not
-    # just a rebase — authored_date is preserved by both).
     waiting = (
         head_sha is not None
+        and head_sha in commit_shas
         and head_sha not in surviving_shas
-        and (head_sha in commit_shas or head_sha in noise_shas)
     )
     return surviving, waiting
 
@@ -626,7 +630,7 @@ def _process_omm_member(
         if not dry_run:
             try:
                 squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
-                mr.merge(squash=squash)
+                mr.merge(squash=squash, sha=fresh_mr.sha)
                 labels = mr.labels
                 merged_merge_requests.labels(
                     project_id=mr.target_project_id,
@@ -643,6 +647,15 @@ def _process_omm_member(
                         project_id=mr.target_project_id, priority=priority
                     ).observe(calculate_time_since_approval(approved_at))
             except gitlab.exceptions.GitlabMRClosedError as e:
+                if getattr(e, "response_code", None) == 409:
+                    logging.info([
+                        "omm-group",
+                        "sha-mismatch",
+                        gl.project.name,
+                        mr.iid,
+                        str(e),
+                    ])
+                    return _MemberResult(active=True)
                 logging.error(f"unable to merge {mr.iid}: {e}")
                 gl.add_label_to_merge_request(mr, MERGE_ERROR)
                 optimistic_merge_rejected.labels(
