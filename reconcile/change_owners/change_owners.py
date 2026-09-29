@@ -183,6 +183,7 @@ def is_app_sre_self_serviceable(
         context.self_service_role_name == APP_SRE_SELF_SERVICE_ROLE_NAME
         for decision in change_decisions
         for context in decision.coverage
+        if not context.disabled
     )
 
 

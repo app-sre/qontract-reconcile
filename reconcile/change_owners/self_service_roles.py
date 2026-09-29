@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from reconcile.change_owners.changes import BundleFileChange
 
 CHANGE_OWNERS_LABELS_LABEL = "change-owners-labels"
+# This name is coupled to the configured RoleV1.name in app-interface.
 APP_SRE_SELF_SERVICE_ROLE_NAME = "app-sre"
 
 
