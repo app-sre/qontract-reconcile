@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from reconcile.change_owners.changes import BundleFileChange
 
 CHANGE_OWNERS_LABELS_LABEL = "change-owners-labels"
+APP_SRE_SELF_SERVICE_ROLE_NAME = "app-sre"
 
 
 class NoApproversInSelfServiceRoleError(Exception):
@@ -197,6 +198,7 @@ def change_type_contexts_for_self_service_roles(
                             approver_reachability=approver_reachability_from_role(role),
                             change_owner_labels=change_type_labels_from_role(role),
                             context_file=ownership.context_file_ref,
+                            self_service_role_name=role.name,
                         ),
                     )
                     for role in owning_roles.values()

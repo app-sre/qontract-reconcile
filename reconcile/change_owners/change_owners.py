@@ -33,6 +33,7 @@ from reconcile.change_owners.implicit_ownership import (
     cover_changes_with_implicit_ownership,
 )
 from reconcile.change_owners.self_service_roles import (
+    APP_SRE_SELF_SERVICE_ROLE_NAME,
     cover_changes_with_self_service_roles,
     fetch_self_service_roles,
 )
@@ -126,6 +127,7 @@ def build_status_message(
     change_admitted: bool,
     approver_reachability: set[str],
     supported_commands: list[str],
+    app_sre_self_serviceable: bool = False,
 ) -> str:
     """
     Build a user-friendly status message based on the MR state.
@@ -148,10 +150,18 @@ Your changes need `/ok-to-test` approval from a listed approver before review ca
         code_warning = "⚠️ **Code changes outside of data and resources detected** - please review carefully\n\n"
 
     if self_serviceable:
+        app_sre_review_guidance = ""
+        if app_sre_self_serviceable:
+            app_sre_review_guidance = """**What happens next:**
+* AppSRE will review via their [review queue](https://gitlab.cee.redhat.com/service/app-interface-output/-/blob/master/app-interface-review-queue.md)
+* Please don't ping directly unless this is **urgent**
+* See [etiquette guide](https://gitlab.cee.redhat.com/service/app-interface#app-interface-etiquette) for more info
+
+"""
         return f"""## ✅ Ready for Review
 Get `/lgtm` approval from the listed approvers below.
 
-{code_warning}{approver_section}
+{app_sre_review_guidance}{code_warning}{approver_section}
 
 {commands_text}"""
 
@@ -164,6 +174,16 @@ Get `/lgtm` approval from the listed approvers below.
 {code_warning}{approver_section}
 
 {commands_text}"""
+
+
+def is_app_sre_self_serviceable(
+    self_serviceable: bool, change_decisions: list[ChangeDecision]
+) -> bool:
+    return self_serviceable and any(
+        context.self_service_role_name == APP_SRE_SELF_SERVICE_ROLE_NAME
+        for decision in change_decisions
+        for context in decision.coverage
+    )
 
 
 def _build_approver_contact_section(approver_reachability: set[str]) -> str:
@@ -252,6 +272,9 @@ def write_coverage_report_to_mr(
         change_admitted=change_admitted,
         approver_reachability=approver_reachability,
         supported_commands=supported_commands,
+        app_sre_self_serviceable=is_app_sre_self_serviceable(
+            self_serviceable, change_decisions
+        ),
     )
 
     # Create the full comment
