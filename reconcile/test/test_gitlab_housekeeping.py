@@ -3852,7 +3852,7 @@ def test_omm_group_post_label_external_pipeline_ignored(
     mocker: MockerFixture,
     merge_sha: str | None,
     squash_sha: str | None,
-    noise: list[tuple[str, str, str]],
+    noise: list[tuple[PipelineStatus, str, str]],
     authored_date: str,
     should_merge: bool,
 ) -> None:
