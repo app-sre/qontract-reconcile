@@ -129,7 +129,7 @@ class OpenShiftNamespacesIntegration(
         clusters = self.compile_desired_state(filtered)
 
         if not clusters:
-            logging.warning("No desired state found, nothing to reconcile")
+            logging.debug("No desired state found, nothing to reconcile")
             return
 
         task = await self.reconcile(clusters=clusters, dry_run=dry_run)

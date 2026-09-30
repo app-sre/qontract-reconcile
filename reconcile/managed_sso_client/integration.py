@@ -182,7 +182,7 @@ class ManagedSsoClientIntegration(
         desired_clients = self.compile_desired_state(clients)
 
         if not desired_clients:
-            logging.warning("No desired state found, nothing to reconcile")
+            logging.debug("No desired state found, nothing to reconcile")
             return
 
         task = await self.reconcile(desired_clients=desired_clients, dry_run=dry_run)
