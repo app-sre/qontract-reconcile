@@ -23,8 +23,6 @@ from qontract_api.integrations.sso_client.schemas import (
     SsoClientAction,
     SsoClientActionCreate,
     SsoClientActionDelete,
-    SsoClientCreateManualRequest,
-    SsoClientCreateManualResult,
     SsoClientTaskResult,
 )
 from qontract_api.keycloak_iat import resolve_initial_access_token
@@ -200,47 +198,6 @@ class SsoClientService:
             ),
         )
         return True
-
-    def create_manual(
-        self, request: SsoClientCreateManualRequest
-    ) -> SsoClientCreateManualResult:
-        """Register a one-off SSO client (not tied to an OCM cluster) and store it in Vault.
-
-        Used for ad-hoc client creation (e.g. via qontract-cli), as opposed to the
-        cluster-driven reconcile() flow. The Vault path is server-derived (not
-        caller-specified) so OPA can restrict the calling token's role tightly.
-        """
-        keycloak_instances = build_keycloak_instances(
-            [request.keycloak_instance], self.cache, self.secret_manager
-        )
-        keycloak = keycloak_instances[request.keycloak_instance.url]
-        target_secret = Secret(
-            secret_manager_url=self.settings.secrets.default_provider_url,
-            path=f"{self.settings.sso_client.manual_vault_path_prefix}/{request.client_name}",
-        )
-        try:
-            self._register_and_persist_client(
-                client_name=request.client_name,
-                redirect_uris=request.redirect_uris,
-                group_filter_regex=request.group_filter_regex,
-                issuer=request.keycloak_instance.url,
-                keycloak=keycloak,
-                target_secret=target_secret,
-            )
-        except Exception as e:
-            logger.exception(f"Failed to create SSO client {request.client_name}")
-            return SsoClientCreateManualResult(
-                status=TaskStatus.FAILED,
-                errors=[f"Failed to create SSO client {request.client_name}: {e}"],
-            )
-        finally:
-            keycloak.close()
-
-        return SsoClientCreateManualResult(
-            status=TaskStatus.SUCCESS,
-            applied_count=1,
-            vault_secret_path=target_secret.path,
-        )
 
     def _delete_sso_client(
         self,

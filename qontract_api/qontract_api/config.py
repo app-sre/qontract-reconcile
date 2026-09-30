@@ -383,21 +383,6 @@ class SecretSettings(BaseModel):
     )
 
 
-class SsoClientSettings(BaseModel):
-    """RHIDP SSO client integration configuration."""
-
-    manual_vault_path_prefix: str = Field(
-        default="app-sre/integrations-throughput/rhidp/manual",
-        min_length=1,
-        description=(
-            "Vault path prefix for ad-hoc (qontract-cli) SSO client secrets. "
-            "The client name is appended to form the full path. Must stay "
-            "within a prefix the qontract-api Vault AppRole is granted write "
-            "access to."
-        ),
-    )
-
-
 class ManagedSsoClientSettings(BaseModel):
     """Managed SSO client (tenant-declared) integration configuration."""
 
@@ -644,12 +629,6 @@ class Settings(BaseSettings):
     quay: QuaySettings = Field(
         default_factory=QuaySettings,
         description="Quay API and integration configuration",
-    )
-
-    # SSO Client (RHIDP) Configuration (nested)
-    sso_client: SsoClientSettings = Field(
-        default_factory=SsoClientSettings,
-        description="RHIDP SSO client integration configuration",
     )
 
     # Managed SSO Client (tenant-declared) Configuration (nested)
