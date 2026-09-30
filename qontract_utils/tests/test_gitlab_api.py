@@ -4,6 +4,7 @@
 from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
+import gitlab
 import pytest
 from qontract_utils.gitlab_api import GitlabApi, GitlabApiCallContext
 from qontract_utils.hooks import Hooks
@@ -144,6 +145,20 @@ def test_create_project_creates_under_group_and_returns_project(
     assert result.path_with_namespace == "team/newproj"
     assert result.web_url == "https://x/team/newproj"
 
+
+def test_create_project_raises_exception_from_gitlab_api(
+    gitlab_api: GitlabApi, mock_gitlab_client: MagicMock
+) -> None:
+    mock_gitlab_client.projects.create.side_effect = gitlab.exceptions.GitlabCreateError(
+        "Failed to create project"
+    )
+
+    with pytest.raises(gitlab.exceptions.GitlabCreateError):
+        gitlab_api.create_project(group_id=99, name="newproj")
+
+    mock_gitlab_client.projects.create.assert_called_once_with(
+        {"name": "newproj", "namespace_id": 99}
+    )
 
 # ---------------------------------------------------------------------------
 # close / context manager
