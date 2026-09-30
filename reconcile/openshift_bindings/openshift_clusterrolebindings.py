@@ -20,6 +20,7 @@ from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils import expiration
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
+from reconcile.utils.oc_connection_parameters import resolve_automation_token
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -74,7 +75,11 @@ class OpenShiftClusterRoleBindingsIntegration(
         clusters = [
             cluster.model_dump(by_alias=True)
             for cluster in get_clusters()
-            if cluster.managed_cluster_roles and cluster.automation_token is not None
+            if cluster.managed_cluster_roles
+            and resolve_automation_token(
+                cluster.automation_tokens, cluster.automation_token
+            )
+            is not None
         ]
         return ob.fetch_current_state(
             clusters=clusters,

@@ -17,7 +17,7 @@ from reconcile.gql_definitions.fragments.saas_slo_document import (
     SLONamespacesV1,
 )
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
-from reconcile.utils.oc_connection_parameters import find_active_list_token
+from reconcile.utils.oc_connection_parameters import resolve_automation_token
 from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth
 
 if TYPE_CHECKING:
@@ -188,11 +188,11 @@ class PrometheusClientMap:
                 auth=auth,
             )
         cluster = namespace.namespace.cluster
-        token_secret = (
-            find_active_list_token(getattr(cluster, "automation_tokens", None))
-            or cluster.automation_token
-        )
-        if not token_secret:
+        if not (
+            token_secret := resolve_automation_token(
+                cluster.automation_tokens, cluster.automation_token
+            )
+        ):
             raise Exception(
                 f"cluster {cluster.name} does not have automation token set"
             )

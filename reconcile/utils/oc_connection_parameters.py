@@ -17,7 +17,7 @@ from reconcile.utils.secret_reader import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
 
 
 class OCConnectionError(Exception):
@@ -40,7 +40,7 @@ def is_active_token_entry(entry: TokenEntry) -> bool:
     return bool(entry.active) and not bool(entry.delete) and entry.secret is not None
 
 
-def find_active_list_token(entries: list[TokenEntry] | None) -> HasSecret | None:
+def find_active_list_token(entries: Sequence[TokenEntry] | None) -> HasSecret | None:
     """Return the secret from the first active, non-deleted list token entry that has a secret."""
     if not entries:
         return None
@@ -48,6 +48,13 @@ def find_active_list_token(entries: list[TokenEntry] | None) -> HasSecret | None
         if is_active_token_entry(entry):
             return entry.secret
     return None
+
+
+def resolve_automation_token(
+    tokens: Sequence[TokenEntry] | None, legacy: HasSecret | None
+) -> HasSecret | None:
+    """Prefer the active entry from a rotation-aware token list, falling back to the legacy singular field."""
+    return find_active_list_token(tokens) or legacy
 
 
 class Disable(Protocol):

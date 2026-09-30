@@ -304,10 +304,12 @@ class MockQueryCluster:
         name: str = "test-cluster",
         managed_cluster_roles: bool = True,
         automation_token: VaultSecret | None = None,
+        automation_tokens: list | None = None,
     ) -> None:
         self.name = name
         self.managed_cluster_roles = managed_cluster_roles
         self.automation_token = automation_token
+        self.automation_tokens = automation_tokens
 
     def model_dump(self, by_alias: bool = False) -> dict:
         """Return dict representation."""
