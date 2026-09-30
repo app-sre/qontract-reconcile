@@ -810,7 +810,7 @@ class SlackUsergroupsIntegration(
         )
 
         if not workspaces:
-            logging.warning("No desired state found, nothing to reconcile")
+            logging.debug("No desired state found, nothing to reconcile")
             return
 
         task = await self.reconcile(workspaces=workspaces, dry_run=dry_run)
