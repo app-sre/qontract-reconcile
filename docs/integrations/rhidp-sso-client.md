@@ -217,7 +217,7 @@ The integration can perform these reconciliation actions:
 
 **Other Constraints:**
 
-- The Vault secret schema written for a created SSO client must stay **byte-compatible** with legacy `reconcile/utils/keycloak.py::SSOClient`, since the not-yet-migrated `ocm_oidc_idp` integration reads it directly via `SSOClient(**secret_reader.read_all_secret(secret))`
+- The Vault secret schema written for a created SSO client must stay **byte-compatible** with `qontract_api.rhidp.domain.SsoClientSecret`, which the `ocm_oidc_idp` integration also reads directly via `SsoClientSecret(**self.secret_manager.read_all(secret))`
 - Vault delete only supports KV v1 mounts (inherited from `qontract_utils`'s `VaultSecretBackend.delete()`)
 - **`KeycloakInstanceSecret.url` must be the full per-realm issuer URL** (e.g. `https://auth.redhat.com/auth/realms/EmployeeIDP`), not just the Keycloak server domain. It's used both as the HTTP client's base URL for the (realm-scoped) dynamic client registration API, and as an exact-string dict key matched against `cluster.auth.issuer` — a bare domain will misroute requests and fail lookups.
 
