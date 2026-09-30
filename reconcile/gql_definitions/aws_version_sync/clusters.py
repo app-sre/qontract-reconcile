@@ -36,6 +36,15 @@ query AwsExporterCluster {
     automationToken {
       ...VaultSecret
     }
+    automationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        ...VaultSecret
+      }
+    }
     disable {
       integrations
     }
@@ -50,6 +59,14 @@ class ConfiguredBaseModel(BaseModel):
     )
 
 
+class AutomationTokenEntryV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    namespace: str = Field(..., alias="namespace")
+    active: Optional[bool] = Field(..., alias="active")
+    delete: Optional[bool] = Field(..., alias="delete")
+    secret: Optional[VaultSecret] = Field(..., alias="secret")
+
+
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
 
@@ -58,6 +75,7 @@ class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     prometheus_url: str = Field(..., alias="prometheusUrl")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
+    automation_tokens: Optional[list[AutomationTokenEntryV1]] = Field(..., alias="automationTokens")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 
 

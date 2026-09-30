@@ -80,6 +80,15 @@ fragment SLODocument on SLODocument_v1 {
         automationToken {
           ...VaultSecret
         }
+        automationTokens {
+          name
+          namespace
+          active
+          delete
+          secret {
+            ...VaultSecret
+          }
+        }
         prometheusUrl
         spec {
           private

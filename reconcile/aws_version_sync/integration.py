@@ -40,6 +40,7 @@ from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.oc_connection_parameters import find_active_list_token
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -228,10 +229,12 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
         metrics: list[ExternalResource] = []
         # compile a list of all RDS metrics from all AWS resource exporter clusters; ignore duplicated clusters
         for cluster in uniquify(key=lambda c: c.name, items=clusters):
+            token_secret = (
+                find_active_list_token(getattr(cluster, "automation_tokens", None))
+                or cluster.automation_token
+            )
             token = (
-                self.secret_reader.read_secret(cluster.automation_token)
-                if cluster.automation_token
-                else None
+                self.secret_reader.read_secret(token_secret) if token_secret else None
             )
 
             # RDS resources

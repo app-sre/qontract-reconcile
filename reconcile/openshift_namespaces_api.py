@@ -22,6 +22,7 @@ from qontract_utils.exceptions import IntegrationError
 
 from reconcile.typed_queries.namespaces_minimal import get_namespaces_minimal
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.oc_connection_parameters import find_active_list_token
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -82,7 +83,12 @@ class OpenShiftNamespacesIntegration(
         result: list[ClusterNamespaces] = []
         for cluster_name, desired_namespaces in by_cluster.items():
             ns_ref = cluster_info[cluster_name]
-            token_ref = ns_ref.cluster.cluster_admin_automation_token
+            token_ref = (
+                find_active_list_token(
+                    getattr(ns_ref.cluster, "cluster_admin_automation_tokens", None)
+                )
+                or ns_ref.cluster.cluster_admin_automation_token
+            )
             if not token_ref:
                 logging.warning(
                     f"No clusterAdminAutomationToken for cluster '{cluster_name}' — skipping"

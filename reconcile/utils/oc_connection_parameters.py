@@ -40,7 +40,7 @@ def is_active_token_entry(entry: TokenEntry) -> bool:
     return bool(entry.active) and not bool(entry.delete) and entry.secret is not None
 
 
-def _find_active_list_token(entries: list[TokenEntry] | None) -> HasSecret | None:
+def find_active_list_token(entries: list[TokenEntry] | None) -> HasSecret | None:
     """Return the secret from the first active, non-deleted list token entry that has a secret."""
     if not entries:
         return None
@@ -148,7 +148,7 @@ class OCConnectionParameters:
 
         if cluster_admin:
             token_secret = (
-                _find_active_list_token(
+                find_active_list_token(
                     getattr(cluster, "cluster_admin_automation_tokens", None)
                 )
                 or cluster.cluster_admin_automation_token
@@ -174,7 +174,7 @@ class OCConnectionParameters:
                 )
         else:
             token_secret = (
-                _find_active_list_token(getattr(cluster, "automation_tokens", None))
+                find_active_list_token(getattr(cluster, "automation_tokens", None))
                 or cluster.automation_token
             )  # TODO(APPSRE-13941): remove fallback once all clusters migrated to automationTokens
             if token_secret:
