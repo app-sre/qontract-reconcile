@@ -1141,6 +1141,7 @@ async def test_async_run_no_workspaces_returns_early(
         patches[7],
         patches[8],
         patch.object(integration, "reconcile", new=AsyncMock()) as mock_recon,
+        caplog.at_level(logging.DEBUG),
     ):
         await integration.async_run(dry_run=True)
     mock_recon.assert_not_called()
