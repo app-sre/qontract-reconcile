@@ -45,6 +45,7 @@ from reconcile.utils.mr.labels import (
     NOT_SELF_SERVICEABLE,
     RESTRICTED,
     SELF_SERVICEABLE,
+    SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
     change_owner_label,
     prioritized_approval_label,
 )
@@ -119,6 +120,20 @@ def manage_conditional_label(
             if not dry_run:
                 new_labels.remove(label)
     return set(new_labels)
+
+
+def update_change_owner_labels(
+    labels: set[str],
+    configured_labels: set[str],
+    app_sre_self_serviceable: bool,
+) -> set[str]:
+    updated_labels = {
+        label for label in labels if not label.startswith("change-owner/")
+    }
+    updated_labels.update(change_owner_label(label) for label in configured_labels)
+    if app_sre_self_serviceable:
+        updated_labels.add(SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE)
+    return updated_labels
 
 
 def build_status_message(
@@ -219,6 +234,7 @@ def write_coverage_report_to_mr(
     authoritative: bool,
     merge_request: ProjectMergeRequest,
     gl: GitLabApi,
+    app_sre_self_serviceable: bool,
 ) -> None:
     """
     adds the change coverage report and decision summary as a comment
@@ -273,9 +289,7 @@ def write_coverage_report_to_mr(
         change_admitted=change_admitted,
         approver_reachability=approver_reachability,
         supported_commands=supported_commands,
-        app_sre_self_serviceable=is_app_sre_self_serviceable(
-            self_serviceable, change_decisions
-        ),
+        app_sre_self_serviceable=app_sre_self_serviceable,
     )
 
     # Create the full comment
@@ -497,6 +511,9 @@ def run(
                 },
                 mr_author=mr_author,
             )
+            app_sre_self_serviceable = is_app_sre_self_serviceable(
+                self_serviceable, change_decisions
+            )
             hold = any(d.is_held() for d in change_decisions)
             approved = all(
                 d.is_approved() and not d.is_held() for d in change_decisions
@@ -515,6 +532,7 @@ def run(
                     == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE,
                     merge_request,
                     gl,
+                    app_sre_self_serviceable,
                 )
             write_coverage_report_to_stdout(change_decisions)
 
@@ -545,15 +563,11 @@ def run(
             )
 
             # change-owner labels
-            labels = {
-                co_label
-                for co_label in labels
-                if not co_label.startswith("change-owner/")
-            }
-            for bc in changes:
-                labels.update(
-                    change_owner_label(label) for label in bc.change_owner_labels
-                )
+            labels = update_change_owner_labels(
+                labels,
+                {label for bc in changes for label in bc.change_owner_labels},
+                app_sre_self_serviceable,
+            )
 
             if mr_management_enabled:
                 gl.set_labels_on_merge_request(merge_request, labels)
