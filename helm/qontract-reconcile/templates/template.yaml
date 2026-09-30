@@ -21,6 +21,7 @@ objects:
       ignore-check.kube-linter.io/no-readiness-probe: "qontract-reconcile integrations are not getting traffic"
       ignore-check.kube-linter.io/no-liveness-probe: "qontract-reconcile integrations are monitored for being stuck"
       ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
+      ignore-check.kube-linter.io/no-anti-affinity: "spread is handled via topologySpreadConstraints, not yet recognized by kube-linter's no-anti-affinity check"
     name: qontract-reconcile-{{ $integration.name }}{{ $shard.shard_name_suffix }}
   spec:
     {{- if $integration.cache }}
@@ -50,6 +51,13 @@ objects:
           component: qontract-reconcile
       spec:
         serviceAccountName: qontract-reconcile
+        topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              component: qontract-reconcile
         initContainers:
         {{- if $integration.internalCertificates }}
         - name: internal-certificates
