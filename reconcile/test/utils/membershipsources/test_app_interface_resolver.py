@@ -12,6 +12,7 @@ from reconcile.gql_definitions.membershipsources.roles import (
 from reconcile.utils.membershipsources import app_interface_resolver
 from reconcile.utils.membershipsources.app_interface_resolver import (
     resolve_app_interface_membership_source,
+    resolve_app_interface_membership_source_async,
 )
 
 if TYPE_CHECKING:
@@ -80,3 +81,27 @@ def test_resolve_app_interface_membership_source(
 
     assert ("provider", "role1") in groups
     assert {m.org_username for m in groups["provider", "role1"]} == {"user", "bot"}
+
+
+@pytest.mark.asyncio
+async def test_resolve_app_interface_membership_source_async_delegates_to_sync(
+    mocker: MockerFixture,
+    app_interface_membership_provider: AppInterfaceMembershipProviderSourceV1,
+) -> None:
+    """The async wrapper must run the same sync resolution (off the event
+    loop) and return its result unchanged - this is what gives
+    async_resolver.resolve_role_members feature parity with the sync
+    resolve_role_members for the app-interface provider."""
+    sync_mock = mocker.patch.object(
+        app_interface_resolver, "resolve_app_interface_membership_source"
+    )
+    sync_mock.return_value = {("provider", "role1"): []}
+
+    result = await resolve_app_interface_membership_source_async(
+        "provider", app_interface_membership_provider, {"group1"}
+    )
+
+    assert result == {("provider", "role1"): []}
+    sync_mock.assert_called_once_with(
+        "provider", app_interface_membership_provider, {"group1"}
+    )

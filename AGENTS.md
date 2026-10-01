@@ -208,6 +208,7 @@ Do NOT create a barrel re-export `models.py` — import directly from `domain.py
 - Raise exceptions on invalid state — never set empty-string fallbacks when config is always populated
 - Don't add hard-coded fallback values for fields that are always set via configuration
 - Don't import from legacy integration modules (e.g. `reconcile/ocm_groups.py`). If a utility is needed elsewhere, move it to `qontract_utils/`
+- **Shared framework code under `reconcile/utils/` must not import concrete classes from `reconcile/gql_definitions/`** (not even from shared `fragments/`), including in `TYPE_CHECKING`-only imports. Define a local `typing.Protocol` describing exactly the attributes the framework needs instead — the real generated classes satisfy it structurally, with zero import. Integration-specific code (`reconcile/<integration>/`, `reconcile/<integration>_api.py`) and test fixtures are NOT subject to this rule — they routinely construct and import concrete generated classes directly, which is expected. When a union-typed GraphQL interface needs a discriminator (e.g. distinguishing provider variants), prefer selecting the discriminator field at the interface level in the `.gql` query (so every variant inherits it) and dispatching on its string value, over `isinstance`/`match` against the generated subclasses — see `reconcile/utils/membershipsources/` (`MembershipProviderSource` Protocol + `resolver.get_resolver_for_provider_source()` dispatching on `source.provider`) for the reference implementation.
 
 ## Service Layer Patterns
 
