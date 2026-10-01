@@ -160,7 +160,7 @@ class GitLabProjectsIntegration(
                 valid_projects: list[str] = []
                 for project_name in project_request.projects:
                     project_url = (
-                        f"{instance.url}/{project_request.group}/{project_name}"
+                        f"{instance.url.rstrip('/')}/{project_request.group}/{project_name}"
                     )
                     if project_url not in declared_urls:
                         logging.error(f"{project_url} missing from all codeComponents")

@@ -115,6 +115,7 @@ class GitlabApi:
             timeout=timeout,
             per_page=100,
             pagination="keyset",
+            order_by="name",
             user_agent=user_agent,
         )
 
