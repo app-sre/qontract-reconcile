@@ -186,6 +186,21 @@ def _get_cn_from_dn(dn: str) -> str:
     return rdn[1]
 
 
+def _canonicalize_dn(dn: str) -> tuple[tuple[str, str], ...]:
+    """Build a case-insensitive canonical form of a DN.
+
+    LDAP attribute type names are always case-insensitive, and DN-syntax
+    attribute values (e.g. the `cn` RDNs used throughout this module) are too
+    for any directory using case-insensitive matching rules - comparing raw
+    DN strings can silently miss semantically-identical DNs that differ only
+    in case.
+    """
+    return tuple(
+        (attr_type.strip().lower(), attr_value.strip().lower())
+        for attr_type, attr_value, _ in parse_dn(dn)
+    )
+
+
 @with_hooks(
     hooks=Hooks(
         pre_hooks=[_metrics_hook, _request_log_hook, _latency_start_hook],
@@ -347,11 +362,20 @@ class LdapApi:
 
         self._check_ldap_response(status)
 
+        # Map each requested DN's canonical form back to the exact string the
+        # caller passed in, so a server-returned memberOf value that differs
+        # only in case still matches - a raw string comparison here would
+        # silently drop members whose DN representation doesn't match
+        # byte-for-byte, even though it's the same DN.
+        requested_by_canonical = {_canonicalize_dn(dn): dn for dn in groups_dns}
+
         groups_and_members: dict[str, set[str]] = defaultdict(set[str])
         for u in users:
             uid = u["attributes"]["uid"][0]
-            for group in set(u["attributes"]["memberOf"]).intersection(groups_dns):
-                groups_and_members[group].add(uid)
+            for member_of in u["attributes"]["memberOf"]:
+                requested_dn = requested_by_canonical.get(_canonicalize_dn(member_of))
+                if requested_dn is not None:
+                    groups_and_members[requested_dn].add(uid)
 
         return [
             LdapGroup(

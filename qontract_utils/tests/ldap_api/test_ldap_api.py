@@ -606,6 +606,65 @@ def test_get_group_members_escapes_special_characters(
     assert "\\29" in filter_str  # ) -> \29
 
 
+def test_get_group_members_matches_differently_cased_member_of(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members matches a memberOf value differing only in case.
+
+    A raw string comparison would silently drop the member and make a real
+    group look confirmed-empty.
+    """
+    requested_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    differently_cased_member_of = "CN=Admins,OU=Groups,DC=Example,DC=Com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {
+                "attributes": {
+                    "uid": ["alice"],
+                    "memberOf": [differently_cased_member_of],
+                }
+            },
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([requested_dn])
+
+    assert len(result) == 1
+    # The returned dn/cn reflect the originally requested DN, not the
+    # server's differently-cased representation.
+    assert result[0].dn == requested_dn
+    assert result[0].cn == "admins"
+    assert {u.username for u in result[0].members} == {"alice"}
+
+
+def test_get_group_members_ignores_unrelated_differently_cased_member_of(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test canonicalized matching does not become overly permissive.
+
+    An unrelated group (even if cased differently) is still excluded.
+    """
+    requested_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    unrelated_dn = "CN=Other,OU=Groups,DC=Example,DC=Com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {"attributes": {"uid": ["alice"], "memberOf": [unrelated_dn]}},
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([requested_dn])
+
+    assert result == []
+
+
 # --- check_groups_exist ---
 
 
