@@ -478,6 +478,44 @@ class TestOCMapInit(TestCase):
         self.assertIsInstance(oc_map.get(cluster["name"]), OC)
         self.assertEqual(oc_map.clusters(), [cluster["name"]])
 
+    @patch.object(reconcile.utils.oc, "OC", autospec=True)
+    @patch.object(SecretReader, "read_all", autospec=True)
+    def test_list_only_cluster_admin_automationtoken(
+        self, mock_secret_reader: MagicMock, mock_oc: MagicMock
+    ) -> None:
+        """
+        Same as test_list_only_automationtoken, but for the privileged
+        (clusterAdminAutomationToken/clusterAdminAutomationTokens) branch,
+        which has separate, independently-regressable logic in init_oc_client.
+        """
+        mock_secret_reader.return_value = {
+            "server": "http://localhost",
+            "some-field": "bar",
+        }
+
+        cluster: Cluster = {
+            "name": "test-1",
+            "serverUrl": "http://localhost",
+            "automationToken": None,
+            "clusterAdminAutomationToken": None,
+            "internal": False,
+            "disable": None,
+            "clusterAdminAutomationTokens": [
+                {
+                    "name": "test-1-admin-token",
+                    "namespace": "openshift-app-sre",
+                    "active": True,
+                    "delete": False,
+                    "secret": {"path": "some-path", "field": "some-field"},
+                }
+            ],
+        }
+
+        oc_map = OC_Map(clusters=[cluster], cluster_admin=True)
+
+        self.assertIsInstance(oc_map.get(cluster["name"], privileged=True), OC)
+        self.assertEqual(oc_map.clusters(privileged=True), [cluster["name"]])
+
     @patch.object(SecretReader, "read_all", autospec=True)
     def test_automationtoken_not_found(self, mock_secret_reader: MagicMock) -> None:
         mock_secret_reader.side_effect = SecretNotFoundError

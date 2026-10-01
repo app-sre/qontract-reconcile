@@ -265,6 +265,35 @@ class TestOpenShiftClusterRoleBindingsIntegrationFetchCurrentState:
         assert "clusters" in call_kwargs
         assert len(call_kwargs["clusters"]) == 1
 
+    def test_fetch_current_state_includes_cluster_with_only_list_token(
+        self,
+        clusterrolebindings_integration: OpenShiftClusterRoleBindingsIntegration,
+        query_cluster_with_list_token_only: MockQueryCluster,
+        query_cluster_without_token: MockQueryCluster,
+        mocker: MockerFixture,
+    ) -> None:
+        """A cluster with only a rotation-list automationTokens entry (no legacy
+        automationToken) must still pass the filter - this is the scenario that
+        was silently dropped before the automationTokens migration was wired in.
+        """
+        mocker.patch(
+            "reconcile.openshift_bindings.openshift_clusterrolebindings.get_clusters",
+            return_value=[
+                query_cluster_with_list_token_only,
+                query_cluster_without_token,
+            ],
+        )
+        mock_fetch = mocker.patch(
+            "reconcile.openshift_bindings.openshift_clusterrolebindings.ob.fetch_current_state",
+            return_value=(ResourceInventory(), MockOCMap()),
+        )
+
+        clusterrolebindings_integration.fetch_current_state()
+
+        call_kwargs = mock_fetch.call_args.kwargs
+        assert len(call_kwargs["clusters"]) == 1
+        assert call_kwargs["clusters"][0]["name"] == "test-cluster-list-token"
+
 
 class TestOpenShiftClusterRoleBindingsIntegrationFetchDesiredState:
     """Tests for OpenShiftClusterRoleBindingsIntegration.fetch_desired_state."""
