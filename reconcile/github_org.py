@@ -87,6 +87,10 @@ CLUSTERS_QUERY = """
       # ... on ClusterAuthOIDC_v1 {
       # }
     }
+    # APPSRE-13941: automationTokens (list) intentionally omitted here.
+    # fetch_desired_state() below never reads cluster["automationToken"];
+    # it's unused dead data (audited 2026-10-01). If this starts being
+    # consumed to build an OC connection, add automationTokens too.
     automationToken {
       path
       field

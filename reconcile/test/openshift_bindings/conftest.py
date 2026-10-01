@@ -1,5 +1,7 @@
 """Shared fixtures for openshift_bindings tests."""
 
+from dataclasses import dataclass
+
 import pytest
 
 from reconcile.gql_definitions.common.app_interface_clusterrole import (
@@ -304,10 +306,12 @@ class MockQueryCluster:
         name: str = "test-cluster",
         managed_cluster_roles: bool = True,
         automation_token: VaultSecret | None = None,
+        automation_tokens: list | None = None,
     ) -> None:
         self.name = name
         self.managed_cluster_roles = managed_cluster_roles
         self.automation_token = automation_token
+        self.automation_tokens = automation_tokens
 
     def model_dump(self, by_alias: bool = False) -> dict:
         """Return dict representation."""
@@ -348,4 +352,26 @@ def query_cluster_without_token() -> MockQueryCluster:
         name="test-cluster-no-token",
         managed_cluster_roles=True,
         automation_token=None,
+    )
+
+
+@dataclass
+class MockTokenEntry:
+    """Mock automationTokens list entry (TokenEntry protocol: active/delete/secret)."""
+
+    active: bool | None = True
+    delete: bool | None = False
+    secret: VaultSecret | None = None
+
+
+@pytest.fixture
+def query_cluster_with_list_token_only(
+    test_vault_secret: VaultSecret,
+) -> MockQueryCluster:
+    """Query cluster with only a rotation-list automationTokens entry, no legacy token."""
+    return MockQueryCluster(
+        name="test-cluster-list-token",
+        managed_cluster_roles=True,
+        automation_token=None,
+        automation_tokens=[MockTokenEntry(active=True, secret=test_vault_secret)],
     )

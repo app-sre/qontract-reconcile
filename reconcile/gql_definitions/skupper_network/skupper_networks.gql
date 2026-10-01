@@ -26,8 +26,26 @@ query SkupperNetworks {
         automationToken {
           ...VaultSecret
         }
+        automationTokens {
+          name
+          namespace
+          active
+          delete
+          secret {
+            ...VaultSecret
+          }
+        }
         clusterAdminAutomationToken {
           ...VaultSecret
+        }
+        clusterAdminAutomationTokens {
+          name
+          namespace
+          active
+          delete
+          secret {
+            ...VaultSecret
+          }
         }
         internal
         disable {

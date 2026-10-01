@@ -211,11 +211,35 @@ NAMESPACES_QUERY = """
         version
         format
       }
+      automationTokens {
+        name
+        namespace
+        active
+        delete
+        secret {
+          path
+          field
+          version
+          format
+        }
+      }
       clusterAdminAutomationToken {
         path
         field
         version
         format
+      }
+      clusterAdminAutomationTokens {
+        name
+        namespace
+        active
+        delete
+        secret {
+          path
+          field
+          version
+          format
+        }
       }
       internal
       disable {

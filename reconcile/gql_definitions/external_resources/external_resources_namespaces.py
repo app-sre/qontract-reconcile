@@ -668,6 +668,11 @@ query ExternalResourcesNamespaces {
       name
       serverUrl
       insecureSkipTLSVerify
+      # APPSRE-13941: automationTokens/clusterAdminAutomationTokens (lists)
+      # intentionally omitted here. Audited 2026-10-01: external_resources
+      # only reads account.automation_token (AWS creds) for Terraform; it
+      # never builds an OC/K8s connection from this cluster's token. If
+      # that changes, add the lists here too.
       automationToken {
         ...VaultSecret
       }

@@ -80,7 +80,9 @@ def _cluster(
         serverUrl="https://cluster1.example.com",
         insecureSkipTLSVerify=None,
         automationToken=None,
+        automationTokens=None,
         clusterAdminAutomationToken=None,
+        clusterAdminAutomationTokens=None,
         internal=None,
         disable=(
             DisableClusterAutomationsV1(integrations=disable_integrations)

@@ -80,6 +80,15 @@ fragment SLODocument on SLODocument_v1 {
         automationToken {
           ...VaultSecret
         }
+        automationTokens {
+          name
+          namespace
+          active
+          delete
+          secret {
+            ...VaultSecret
+          }
+        }
         prometheusUrl
         spec {
           private
@@ -143,6 +152,12 @@ fragment SaasTargetNamespace on Namespace_v1 {
     internal
     insecureSkipTLSVerify
     labels
+    # APPSRE-13941: automationTokens/clusterAdminAutomationTokens (lists)
+    # intentionally omitted here. Audited 2026-10-01: none of this
+    # fragment's consumers (typed_queries/saas_files.py,
+    # saas_auto_promotions_manager/subscriber.py and .../renderer.py)
+    # build an OC/K8s connection from this field. If that changes, add
+    # the lists here too.
     automationToken {
       ...VaultSecret
     }

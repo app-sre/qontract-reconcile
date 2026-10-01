@@ -12,12 +12,14 @@ cluster:
     path: path/to/automation_token
     version: null
     url: null
+  automationTokens: null
   clusterAdminAutomationToken:
     field: token
     format: null
     path: path/to/admin_token
     version: null
     url: null
+  clusterAdminAutomationTokens: null
   disable: null
   insecureSkipTLSVerify: null
   internal: false

@@ -17,6 +17,7 @@ from reconcile.gql_definitions.fragments.saas_slo_document import (
     SLONamespacesV1,
 )
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
+from reconcile.utils.oc_connection_parameters import resolve_automation_token
 from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth
 
 if TYPE_CHECKING:
@@ -186,13 +187,16 @@ class PrometheusClientMap:
                 max_retries=self.max_retries,
                 auth=auth,
             )
-        if not namespace.namespace.cluster.automation_token:
-            raise Exception(
-                f"cluster {namespace.namespace.cluster.name} does not have automation token set"
+        cluster = namespace.namespace.cluster
+        if not (
+            token_secret := resolve_automation_token(
+                cluster.automation_tokens, cluster.automation_token
             )
-        auth = BearerTokenAuth(
-            self.secret_reader.read_secret(namespace.namespace.cluster.automation_token)
-        )
+        ):
+            raise Exception(
+                f"cluster {cluster.name} does not have automation token set"
+            )
+        auth = BearerTokenAuth(self.secret_reader.read_secret(token_secret))
         return PrometheusClient(
             host=namespace.namespace.cluster.prometheus_url,
             read_timeout=self.read_timeout,
