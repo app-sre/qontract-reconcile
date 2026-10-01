@@ -30,8 +30,16 @@ query SlackUsergroupApiPermission {
         }
       }
       roles {
+        name
         users {
           ...User
+        }
+        bots {
+          name
+          org_username
+        }
+        memberSources {
+          ...RoleMembershipSource
         }
       }
       schedule {
