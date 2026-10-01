@@ -497,6 +497,26 @@ class LdapGithubUsernamesResponse(pydantic.BaseModel):
     users: list[LdapGithubUser]
 
 
+class LdapGroupMember(pydantic.BaseModel):
+    github_username: str | None = None
+    org_username: str
+
+
+class LdapGroupMembersRequest(pydantic.BaseModel):
+    groups: list[str]
+    include_github_usernames: bool = True
+    secret: LdapDirectSecret
+
+
+class LdapGroupMembersResponse(pydantic.BaseModel):
+    groups: list[LdapGroupResult]
+
+
+class LdapGroupResult(pydantic.BaseModel):
+    group: str
+    members: list[LdapGroupMember] | None = None
+
+
 class LdapUserStatus(pydantic.BaseModel):
     exists: bool
     username: str

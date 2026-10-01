@@ -4,22 +4,30 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from qontract_utils.ldap_api import LdapApi
-from qontract_utils.ldap_api.models import LdapUser
+from qontract_utils.ldap_api.models import LdapGroup, LdapUser
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import LdapSettings, Settings
+from qontract_api.exceptions import ValidationError
 from qontract_api.external.ldap.ldap_workspace_client import (
     CachedGithubUsernames,
+    CachedGroupMembers,
     CachedUserCheck,
     LdapWorkspaceClient,
 )
-from qontract_api.external.ldap.schemas import LdapUserStatus
+from qontract_api.external.ldap.schemas import (
+    LdapGroupMember,
+    LdapGroupResult,
+    LdapUserStatus,
+)
 
 
 @pytest.fixture
 def mock_api() -> MagicMock:
     """Create mock LdapApi."""
-    return MagicMock(spec=LdapApi)
+    api = MagicMock(spec=LdapApi)
+    api.base_dn = "dc=example,dc=com"
+    return api
 
 
 @pytest.fixture
@@ -324,3 +332,258 @@ def test_resolve_github_usernames_no_log_for_non_requested_ambiguous(
 
     assert result == {"AliceGH": "alice"}
     mock_logger.warning.assert_not_called()
+
+
+# --- get_group_members ---
+
+
+def test_get_group_members_resolves_existing_group(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+) -> None:
+    """Test get_group_members resolves a group's members via check + fetch."""
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.check_groups_exist.return_value = {"team-a"}
+    mock_api.get_group_members.return_value = [
+        LdapGroup(
+            cn="team-a",
+            dn="cn=team-a,cn=groups,cn=accounts,dc=example,dc=com",
+            members=frozenset({LdapUser(username="alice"), LdapUser(username="bob")}),
+        )
+    ]
+    mock_api.get_github_usernames.return_value = {}
+
+    result = workspace_client.get_group_members(["team-a"])
+
+    assert result == [
+        LdapGroupResult(
+            group="team-a",
+            members=[
+                LdapGroupMember(org_username="alice"),
+                LdapGroupMember(org_username="bob"),
+            ],
+        )
+    ]
+    mock_api.check_groups_exist.assert_called_once_with(["team-a"])
+    mock_api.get_group_members.assert_called_once_with([
+        "cn=team-a,cn=groups,cn=accounts,dc=example,dc=com"
+    ])
+
+
+def test_get_group_members_confirmed_empty_group(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+) -> None:
+    """A group that exists but has no members is present with an empty member list."""
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.check_groups_exist.return_value = {"empty-team"}
+    mock_api.get_group_members.return_value = []  # no members found for any group
+    mock_api.get_github_usernames.return_value = {}
+
+    result = workspace_client.get_group_members(["empty-team"])
+
+    assert result == [LdapGroupResult(group="empty-team", members=[])]
+
+
+def test_get_group_members_omits_unresolved_group(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+) -> None:
+    """A group CN that doesn't exist in LDAP is omitted, not returned as empty."""
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.check_groups_exist.return_value = set()  # "ghost-team" does not exist
+    mock_api.get_group_members.return_value = []
+    mock_api.get_github_usernames.return_value = {}
+
+    result = workspace_client.get_group_members(["ghost-team"])
+
+    assert result == []
+    mock_api.get_group_members.assert_called_once_with([])
+
+
+def test_get_group_members_enriches_with_github_username(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+) -> None:
+    """Test get_group_members enriches members with github_username by default."""
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.check_groups_exist.return_value = {"team-a"}
+    mock_api.get_group_members.return_value = [
+        LdapGroup(
+            cn="team-a",
+            dn="cn=team-a,...",
+            members=frozenset({LdapUser(username="alice")}),
+        )
+    ]
+    mock_api.get_github_usernames.return_value = {"alicegh": ["alice"]}
+
+    result = workspace_client.get_group_members(["team-a"])
+
+    assert result == [
+        LdapGroupResult(
+            group="team-a",
+            members=[LdapGroupMember(org_username="alice", github_username="alicegh")],
+        )
+    ]
+
+
+def test_get_group_members_skips_github_enrichment_when_disabled(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+) -> None:
+    """Test get_group_members does not call get_github_usernames when disabled."""
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.check_groups_exist.return_value = {"team-a"}
+    mock_api.get_group_members.return_value = [
+        LdapGroup(
+            cn="team-a",
+            dn="cn=team-a,...",
+            members=frozenset({LdapUser(username="alice")}),
+        )
+    ]
+
+    result = workspace_client.get_group_members(
+        ["team-a"], include_github_usernames=False
+    )
+
+    assert result == [
+        LdapGroupResult(group="team-a", members=[LdapGroupMember(org_username="alice")])
+    ]
+    mock_api.get_github_usernames.assert_not_called()
+
+
+def test_get_group_members_skips_and_logs_ambiguous_github_username(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+) -> None:
+    """An org_username claiming >1 GitHub login is enriched with None, and logged."""
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.check_groups_exist.return_value = {"team-a"}
+    mock_api.get_group_members.return_value = [
+        LdapGroup(
+            cn="team-a",
+            dn="cn=team-a,...",
+            members=frozenset({LdapUser(username="alice")}),
+        )
+    ]
+    # alice's rhatSocialURL ambiguously resolves to two different github logins
+    mock_api.get_github_usernames.return_value = {
+        "alice-gh-1": ["alice"],
+        "alice-gh-2": ["alice"],
+    }
+
+    with patch(
+        "qontract_api.external.ldap.ldap_workspace_client.logger"
+    ) as mock_logger:
+        result = workspace_client.get_group_members(["team-a"])
+
+    assert result == [
+        LdapGroupResult(group="team-a", members=[LdapGroupMember(org_username="alice")])
+    ]
+    mock_logger.warning.assert_called_once()
+    _, kwargs = mock_logger.warning.call_args
+    assert kwargs["org_username"] == "alice"
+    assert kwargs["github_logins"] == ["alice-gh-1", "alice-gh-2"]
+
+
+def test_get_group_members_fail_closed_on_oversized_group(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """A group exceeding max_group_size raises instead of being truncated."""
+    workspace_client.settings = Settings(ldap=LdapSettings(max_group_size=1))
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.check_groups_exist.return_value = {"big-team"}
+    mock_api.get_group_members.return_value = [
+        LdapGroup(
+            cn="big-team",
+            dn="cn=big-team,...",
+            members=frozenset({LdapUser(username="alice"), LdapUser(username="bob")}),
+        )
+    ]
+    mock_api.get_github_usernames.return_value = {}
+
+    with pytest.raises(ValidationError, match="big-team"):
+        workspace_client.get_group_members(["big-team"])
+
+    # a failed (oversized) resolution must never be cached (the github-usernames
+    # map itself is a separate, legitimate cache entry populated as a side effect)
+    cached_keys = [call.args[0] for call in mock_cache.set_obj.call_args_list]
+    assert not any(
+        key.startswith("ldap:test-prefix:groups:members:") for key in cached_keys
+    )
+
+
+def test_get_group_members_cache_hit(
+    workspace_client: LdapWorkspaceClient,
+    mock_cache: MagicMock,
+    mock_api: MagicMock,
+) -> None:
+    """Test get_group_members returns cached data on cache hit."""
+    cached = CachedGroupMembers(groups=[LdapGroupResult(group="team-a", members=[])])
+    mock_cache.get_obj.return_value = cached
+
+    result = workspace_client.get_group_members(["team-a"])
+
+    assert result == [LdapGroupResult(group="team-a", members=[])]
+    mock_api.check_groups_exist.assert_not_called()
+
+
+def test_get_group_members_double_check_locking(
+    workspace_client: LdapWorkspaceClient,
+    mock_cache: MagicMock,
+    mock_api: MagicMock,
+) -> None:
+    """Test get_group_members uses double-check locking pattern."""
+    cached = CachedGroupMembers(groups=[LdapGroupResult(group="team-a", members=[])])
+    mock_cache.get_obj.side_effect = [None, cached]
+
+    result = workspace_client.get_group_members(["team-a"])
+
+    assert result == [LdapGroupResult(group="team-a", members=[])]
+    mock_api.check_groups_exist.assert_not_called()
+    mock_cache.lock.assert_called_once()
+
+
+def test_get_group_members_caches_result_with_ttl(
+    workspace_client: LdapWorkspaceClient,
+    mock_cache: MagicMock,
+    mock_api: MagicMock,
+    ldap_settings: Settings,
+) -> None:
+    """Test get_group_members stores the result in cache with the configured TTL."""
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.check_groups_exist.return_value = {"team-a"}
+    mock_api.get_group_members.return_value = []
+    mock_api.get_github_usernames.return_value = {}
+
+    workspace_client.get_group_members(["team-a"])
+
+    groups_call = next(
+        call
+        for call in mock_cache.set_obj.call_args_list
+        if call.args[0].startswith("ldap:test-prefix:groups:members:")
+    )
+    assert groups_call.kwargs["ttl"] == ldap_settings.ldap.groups_cache_ttl
+
+
+def test_get_group_members_empty_input(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Test get_group_members with empty input returns empty list without calls."""
+    result = workspace_client.get_group_members([])
+
+    assert result == []
+    mock_api.check_groups_exist.assert_not_called()
+    mock_cache.get_obj.assert_not_called()
