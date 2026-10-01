@@ -186,7 +186,7 @@ def _get_cn_from_dn(dn: str) -> str:
     return rdn[1]
 
 
-def _canonicalize_dn(dn: str) -> tuple[tuple[str, str], ...]:
+def _canonicalize_dn(dn: str) -> tuple[tuple[str, str, str], ...]:
     """Build a case-insensitive canonical form of a DN.
 
     LDAP attribute type names are always case-insensitive, and DN-syntax
@@ -194,10 +194,16 @@ def _canonicalize_dn(dn: str) -> tuple[tuple[str, str], ...]:
     for any directory using case-insensitive matching rules - comparing raw
     DN strings can silently miss semantically-identical DNs that differ only
     in case.
+
+    The separator returned by parse_dn (the third tuple element) must be kept
+    as part of the key: it is `+` between attribute-value pairs within the
+    same multi-valued RDN and `,` (or empty, at the end) between separate
+    RDNs. Dropping it would make e.g. `cn=admins+ou=groups,dc=...` (one RDN)
+    indistinguishable from `cn=admins,ou=groups,dc=...` (two RDNs).
     """
     return tuple(
-        (attr_type.strip().lower(), attr_value.strip().lower())
-        for attr_type, attr_value, _ in parse_dn(dn)
+        (attr_type.strip().lower(), attr_value.strip().lower(), separator)
+        for attr_type, attr_value, separator in parse_dn(dn)
     )
 
 
