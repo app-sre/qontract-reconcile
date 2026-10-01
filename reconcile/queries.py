@@ -185,6 +185,10 @@ INTEGRATIONS_QUERY = """
           name
           serverUrl
           insecureSkipTLSVerify
+          # APPSRE-13941: automationTokens (list) intentionally omitted here.
+          # get_integrations() has no callers as of 2026-10-01, so this
+          # automationToken is unused dead data. If a caller appears and
+          # builds an OC connection from it, add automationTokens too.
           automationToken {
             path
             field
@@ -992,6 +996,13 @@ CLUSTERS_QUERY = """
         value
       }
     }
+    # APPSRE-13941: automationTokens/clusterAdminAutomationTokens (lists)
+    # intentionally omitted here. Audited 2026-10-01: every caller of
+    # queries.get_clusters() (ocm_addons, ocm_groups, ocm_additional_routers,
+    # ocm_external_configuration_labels, ocm_aws_infrastructure_access,
+    # ocm_clusters, terraform_resources' use of this query) only builds an
+    # OCMMap (OCM API) or reads unrelated metadata - none build an OC/K8s
+    # client from this field. If a caller starts doing that, add the lists.
     automationToken {
       path
       field
@@ -1040,6 +1051,10 @@ CLUSTERS_MINIMAL_QUERY = """
     spec {
         private
     }
+    # APPSRE-13941: automationTokens (list) intentionally omitted here.
+    # This feeds the same get_clusters(minimal=True) callers as
+    # CLUSTERS_QUERY above - none build an OC/K8s client from this field
+    # (audited 2026-10-01). If a caller starts doing that, add it.
     automationToken {
       path
       field
@@ -1570,11 +1585,35 @@ NAMESPACES_QUERY = """
         version
         format
       }
+      automationTokens {
+        name
+        namespace
+        active
+        delete
+        secret {
+          path
+          field
+          version
+          format
+        }
+      }
       clusterAdminAutomationToken {
         path
         field
         version
         format
+      }
+      clusterAdminAutomationTokens {
+        name
+        namespace
+        active
+        delete
+        secret {
+          path
+          field
+          version
+          format
+        }
       }
       internal
       disable {
@@ -1642,6 +1681,10 @@ NAMESPACES_MINIMAL_QUERY = """
       name
       serverUrl
       insecureSkipTLSVerify
+      # APPSRE-13941: automationTokens (list) intentionally omitted here.
+      # get_namespaces(minimal=True) has zero callers as of 2026-10-01 -
+      # this whole query is dead code. If a caller appears and builds an
+      # OC connection from it, add automationTokens too.
       automationToken {
         path
         field
@@ -2252,6 +2295,18 @@ PIPELINES_PROVIDERS_QUERY = """
             version
             format
           }
+          automationTokens {
+            name
+            namespace
+            active
+            delete
+            secret {
+              path
+              field
+              version
+              format
+            }
+          }
           internal
           disable {
             integrations
@@ -2676,6 +2731,18 @@ GABI_INSTANCES_QUERY = """
             version
             format
           }
+          automationTokens {
+            name
+            namespace
+            active
+            delete
+            secret {
+              path
+              field
+              version
+              format
+            }
+          }
           internal
           disable {
             integrations
@@ -2728,6 +2795,17 @@ CLOSED_BOX_MONITORING_PROBES_QUERY = """
                     field
                     version
                   }
+                  automationTokens {
+                    name
+                    namespace
+                    active
+                    delete
+                    secret {
+                      path
+                      field
+                      version
+                    }
+                  }
                   internal
                 }
               }
@@ -2747,6 +2825,17 @@ CLOSED_BOX_MONITORING_PROBES_QUERY = """
                     path
                     field
                     version
+                  }
+                  automationTokens {
+                    name
+                    namespace
+                    active
+                    delete
+                    secret {
+                      path
+                      field
+                      version
+                    }
                   }
                   internal
                 }

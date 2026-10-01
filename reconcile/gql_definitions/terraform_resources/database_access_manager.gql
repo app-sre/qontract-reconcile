@@ -12,6 +12,18 @@ query DatabaseAccessManager {
         version
         format
       }
+      automationTokens {
+        name
+        namespace
+        active
+        delete
+        secret {
+          path
+          field
+          version
+          format
+        }
+      }
       internal
     }
     externalResources {

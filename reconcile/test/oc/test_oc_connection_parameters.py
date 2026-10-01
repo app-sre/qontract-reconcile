@@ -169,6 +169,42 @@ def test_from_cluster_admin_prefers_list_token() -> None:
     secret_reader.read_all_secret.assert_called_once_with(_ACTIVE_SECRET)
 
 
+def test_from_cluster_with_null_list_field_uses_singular() -> None:
+    """Clusters whose query includes automationTokens, but whose GraphQL
+    response has it set to null (no rotation configured for this cluster),
+    must still resolve to the legacy singular automationToken.
+    """
+    cluster = _FakeCluster(
+        automation_tokens=None,
+        automation_token=_FALLBACK_SECRET,
+    )
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_all_secret.return_value = _VAULT_RESPONSE
+
+    params = OCConnectionParameters.from_cluster(
+        cluster=cluster, secret_reader=secret_reader, cluster_admin=False
+    )
+
+    assert params.automation_token == "tok"
+    secret_reader.read_all_secret.assert_called_once_with(_FALLBACK_SECRET)
+
+
+def test_from_cluster_admin_with_null_list_field_uses_singular() -> None:
+    cluster = _FakeCluster(
+        cluster_admin_automation_tokens=None,
+        cluster_admin_automation_token=_FALLBACK_SECRET,
+    )
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_all_secret.return_value = _VAULT_RESPONSE
+
+    params = OCConnectionParameters.from_cluster(
+        cluster=cluster, secret_reader=secret_reader, cluster_admin=True
+    )
+
+    assert params.cluster_admin_automation_token == "tok"
+    secret_reader.read_all_secret.assert_called_once_with(_FALLBACK_SECRET)
+
+
 def test_from_cluster_without_list_attr_uses_singular() -> None:
     """Clusters from GQL queries that don't include automationTokens still work."""
     test_cluster = load_cluster_for_connection_parameters("cluster_no_jumphost.yml")

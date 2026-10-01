@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from subprocess import CompletedProcess
-from typing import TYPE_CHECKING, Any, TypedDict, cast
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, cast
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
@@ -27,6 +27,7 @@ from reconcile.utils.oc import (
     PodNotReadyError,
     StatusCodeError,
     equal_spec_template,
+    find_active_list_token_dict,
     validate_labels,
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
@@ -357,6 +358,42 @@ class Cluster(TypedDict):
     clusterAdminAutomationToken: dict[str, str] | None
     internal: bool | None
     disable: dict[str, list[str]] | None
+    automationTokens: NotRequired[list[dict[str, Any]] | None]
+    clusterAdminAutomationTokens: NotRequired[list[dict[str, Any]] | None]
+
+
+def test_find_active_list_token_dict_none() -> None:
+    assert find_active_list_token_dict(None) is None
+
+
+def test_find_active_list_token_dict_empty() -> None:
+    assert find_active_list_token_dict([]) is None
+
+
+def test_find_active_list_token_dict_no_active_entry() -> None:
+    entries = [
+        {"active": False, "delete": False, "secret": {"path": "p", "field": "f"}}
+    ]
+    assert find_active_list_token_dict(entries) is None
+
+
+def test_find_active_list_token_dict_active_but_deleted() -> None:
+    entries = [{"active": True, "delete": True, "secret": {"path": "p", "field": "f"}}]
+    assert find_active_list_token_dict(entries) is None
+
+
+def test_find_active_list_token_dict_active_without_secret() -> None:
+    entries = [{"active": True, "delete": False, "secret": None}]
+    assert find_active_list_token_dict(entries) is None
+
+
+def test_find_active_list_token_dict_returns_active_secret() -> None:
+    secret = {"path": "p", "field": "f"}
+    entries = [
+        {"active": False, "delete": False, "secret": {"path": "old", "field": "f"}},
+        {"active": True, "delete": False, "secret": secret},
+    ]
+    assert find_active_list_token_dict(entries) == secret
 
 
 class TestOCMapInit(TestCase):
@@ -402,6 +439,44 @@ class TestOCMapInit(TestCase):
             f"[{cluster['name']}] has no automation token",
         )
         self.assertEqual(len(oc_map.clusters()), 0)
+
+    @patch.object(reconcile.utils.oc, "OC", autospec=True)
+    @patch.object(SecretReader, "read_all", autospec=True)
+    def test_list_only_automationtoken(
+        self, mock_secret_reader: MagicMock, mock_oc: MagicMock
+    ) -> None:
+        """
+        A cluster relying solely on the rotation-aware automationTokens list
+        (no legacy singular automationToken) must still get a real OC client,
+        not be treated as if it had no credential at all.
+        """
+        mock_secret_reader.return_value = {
+            "server": "http://localhost",
+            "some-field": "bar",
+        }
+
+        cluster: Cluster = {
+            "name": "test-1",
+            "serverUrl": "http://localhost",
+            "automationToken": None,
+            "clusterAdminAutomationToken": None,
+            "internal": False,
+            "disable": None,
+            "automationTokens": [
+                {
+                    "name": "test-1-token",
+                    "namespace": "dedicated-admin",
+                    "active": True,
+                    "delete": False,
+                    "secret": {"path": "some-path", "field": "some-field"},
+                }
+            ],
+        }
+
+        oc_map = OC_Map(clusters=[cluster])
+
+        self.assertIsInstance(oc_map.get(cluster["name"]), OC)
+        self.assertEqual(oc_map.clusters(), [cluster["name"]])
 
     @patch.object(SecretReader, "read_all", autospec=True)
     def test_automationtoken_not_found(self, mock_secret_reader: MagicMock) -> None:

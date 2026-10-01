@@ -20,6 +20,15 @@ query Integrations {
           automationToken {
             ...VaultSecret
           }
+          automationTokens {
+            name
+            namespace
+            active
+            delete
+            secret {
+              ...VaultSecret
+            }
+          }
         }
       }
       spec {
