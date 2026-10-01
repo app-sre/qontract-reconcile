@@ -665,6 +665,38 @@ def test_get_group_members_ignores_unrelated_differently_cased_member_of(
     assert result == []
 
 
+def test_get_group_members_distinguishes_multi_valued_rdn_from_separate_rdns(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Canonicalization must preserve RDN boundaries.
+
+    A multi-valued RDN (`cn=admins+ou=groups,...`, one RDN made of two
+    attribute-value pairs joined by `+`) is structurally different from two
+    separate RDNs (`cn=admins,ou=groups,...`, joined by `,`) - collapsing both
+    to the same canonical key would silently merge two distinct groups'
+    memberships.
+    """
+    multi_valued_rdn_dn = "cn=admins+ou=groups,dc=example,dc=com"
+    separate_rdns_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {"attributes": {"uid": ["alice"], "memberOf": [multi_valued_rdn_dn]}},
+            {"attributes": {"uid": ["bob"], "memberOf": [separate_rdns_dn]}},
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([multi_valued_rdn_dn, separate_rdns_dn])
+
+    by_dn = {group.dn: group for group in result}
+    assert len(result) == 2
+    assert {u.username for u in by_dn[multi_valued_rdn_dn].members} == {"alice"}
+    assert {u.username for u in by_dn[separate_rdns_dn].members} == {"bob"}
+
+
 # --- check_groups_exist ---
 
 
