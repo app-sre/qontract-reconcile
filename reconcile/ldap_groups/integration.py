@@ -28,6 +28,10 @@ from reconcile.utils.internal_groups.models import (
     EntityType,
     Group,
 )
+from reconcile.utils.membershipsources.validation import (
+    CircularMembershipError,
+    find_circular_memberships,
+)
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -105,6 +109,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
             default_owners=[owner],
         )
         desired_groups = desired_groups_for_roles + desired_groups_for_aws_roles
+        self.validate_no_circular_memberships(roles, desired_groups)
 
         group_names = self.get_managed_groups(state_obj)
         # take desired groups into account to support overtaking existing ones
@@ -157,6 +162,30 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
                 logging.error(f"{dup} is already in use by another role.")
             raise ValueError("Duplicate ldapGroup value(s) found.")
         return roles
+
+    @staticmethod
+    def validate_no_circular_memberships(
+        roles: Iterable[RoleV1], desired_groups: Iterable[Group]
+    ) -> None:
+        """Raise if any role's memberSources references a group that
+        ldap-groups itself publishes to (via another role's ldapGroup).
+
+        Without this guard, role A could read LDAP group X as a
+        memberSources input while role B publishes its own membership TO
+        group X via ldapGroup, forming a cross-role cycle where
+        reconciliation order decides which side's membership wins.
+        """
+        if conflicts := find_circular_memberships(
+            roles, published_ldap_groups=(g.name for g in desired_groups)
+        ):
+            conflict_desc = ", ".join(
+                f"role '{role}' reads group '{group}'" for role, group in conflicts
+            )
+            raise CircularMembershipError(
+                "Circular membership dependency detected: a role's memberSources "
+                "cannot reference a group that ldap-groups also publishes to "
+                f"(via another role's ldapGroup): {conflict_desc}"
+            )
 
     def get_desired_groups_for_roles(
         self,
