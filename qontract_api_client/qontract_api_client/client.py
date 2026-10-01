@@ -52,6 +52,37 @@ async def ldap_github_usernames(
     return result
 
 
+@client.post("/api/v1/external/ldap/groups/members")
+async def ldap_group_members(
+    result: schemas.LdapGroupMembersResponse, data: schemas.LdapGroupMembersRequest
+) -> schemas.LdapGroupMembersResponse:
+    """Group Members
+
+        Resolve members of one or more LDAP groups (cached, FreeIPA-authenticated).
+
+    Groups are referenced by short CN (e.g. "my-ldap-group"); the full DN is
+    constructed server-side from the configured base DN. Only groups confirmed
+    to exist in LDAP are present in the response - a requested group that does
+    not exist is omitted, distinct from a confirmed-empty group (present with
+    an empty member list). Callers must treat a missing group as unresolved,
+    not as empty, and must not delete existing members based on it.
+
+    Args:
+        request: Group CNs to resolve, the Vault secret reference, and
+            whether to enrich members with their GitHub username
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapGroupMembersResponse with resolved membership per existing group
+
+    Raises:
+        ValidationError (422): If any resolved group exceeds the configured
+            max_group_size
+    """
+    return result
+
+
 @client.post("/api/v1/external/ldap/users/check")
 async def ldap_users_check(
     result: schemas.LdapUsersCheckResponse, data: schemas.LdapUsersCheckRequest

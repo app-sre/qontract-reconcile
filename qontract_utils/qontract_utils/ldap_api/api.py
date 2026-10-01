@@ -363,6 +363,42 @@ class LdapApi:
         ]
 
     @invoke_with_hooks(
+        lambda: LdapApiCallContext(method="check_groups_exist"),
+        retry_config=_LDAP_RETRY_CONFIG,
+    )
+    def check_groups_exist(self, group_cns: Collection[str]) -> set[str]:
+        """Return the subset of the given group CNs that exist in LDAP.
+
+        Searches the groups container directly by CN, independent of
+        membership. Used to distinguish a confirmed-empty group (exists,
+        zero members) from an unresolved one (CN not found) - both look
+        identical as "no entry" from get_group_members alone, since that
+        method only ever learns about a group by finding a member pointing
+        at it via memberOf.
+
+        Args:
+            group_cns: Short group CNs to check (e.g. "my-ldap-group")
+
+        Returns:
+            The subset of group_cns that exist as group entries in LDAP
+
+        Raises:
+            LdapApiError: If the LDAP search fails
+        """
+        if not group_cns:
+            return set()
+
+        cn_filter = "".join(f"(cn={escape_filter_chars(cn)})" for cn in group_cns)
+        _, status, results, _ = self._connection.search(
+            f"cn=groups,cn=accounts,{self.base_dn}",
+            f"(|{cn_filter})",
+            attributes=["cn"],
+        )
+        self._check_ldap_response(status)
+
+        return {r["attributes"]["cn"][0] for r in results}
+
+    @invoke_with_hooks(
         lambda: LdapApiCallContext(method="get_github_usernames"),
         retry_config=_LDAP_RETRY_CONFIG,
     )

@@ -606,6 +606,133 @@ def test_get_group_members_escapes_special_characters(
     assert "\\29" in filter_str  # ) -> \29
 
 
+# --- check_groups_exist ---
+
+
+def test_check_groups_exist_returns_existing_cns(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist returns the subset of CNs found in LDAP."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {"attributes": {"cn": ["admins"]}},
+            {"attributes": {"cn": ["devs"]}},
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.check_groups_exist(["admins", "devs", "ghost-group"])
+
+    assert result == {"admins", "devs"}
+
+
+def test_check_groups_exist_empty_input(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist with empty input returns empty set without searching."""
+    with ldap_api:
+        result = ldap_api.check_groups_exist([])
+
+    assert result == set()
+    mock_ldap3.connection.search.assert_not_called()
+
+
+def test_check_groups_exist_none_found(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist returns empty set when no requested CN exists."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.check_groups_exist(["ghost-group"])
+
+    assert result == set()
+
+
+def test_check_groups_exist_searches_groups_container(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist searches the groups container, not base_dn directly."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        ldap_api.check_groups_exist(["admins"])
+
+    call_args = mock_ldap3.connection.search.call_args
+    assert call_args[0][0] == "cn=groups,cn=accounts,dc=example,dc=com"
+    assert "(cn=admins)" in call_args[0][1]
+
+
+def test_check_groups_exist_search_failure_raises_error(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist raises LdapApiError on search failure."""
+    mock_ldap3.connection.search.return_value = (
+        False,
+        {"result": 53, "description": "Server Unwilling to Perform"},
+        [],
+        None,
+    )
+
+    with ldap_api, pytest.raises(LdapApiError, match="LDAP operation failed"):
+        ldap_api.check_groups_exist(["admins"])
+
+
+def test_check_groups_exist_escapes_special_characters(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist escapes LDAP filter special characters in CNs."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        ldap_api.check_groups_exist(["group(test)"])
+
+    filter_str = mock_ldap3.connection.search.call_args[0][1]
+    assert "(cn=group(test))" not in filter_str
+    assert "\\28" in filter_str  # ( -> \28
+    assert "\\29" in filter_str  # ) -> \29
+
+
+def test_check_groups_exist_calls_hooks(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist triggers hooks with correct context."""
+    pre_hook = MagicMock()
+    ldap_api._hooks = Hooks(pre_hooks=[pre_hook])
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        ldap_api.check_groups_exist(["admins"])
+
+    pre_hook.assert_called_once()
+    context = pre_hook.call_args[0][0]
+    assert isinstance(context, LdapApiCallContext)
+    assert context.method == "check_groups_exist"
+
+
 # --- _parse_github_login ---
 
 

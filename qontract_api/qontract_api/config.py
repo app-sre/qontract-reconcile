@@ -289,6 +289,20 @@ class LdapSettings(BaseModel):
         description="LDAP GitHub-username -> uid map cache TTL in seconds (six hours)",
     )
 
+    groups_cache_ttl: int = Field(
+        default=6 * 60 * 60,
+        description="LDAP group membership cache TTL in seconds (six hours)",
+    )
+
+    max_group_size: int = Field(
+        default=500,
+        description=(
+            "Maximum number of members a single LDAP group may resolve to. "
+            "A group exceeding this is treated as an error (fail-closed), "
+            "not truncated, so a role membership source never silently loses members."
+        ),
+    )
+
 
 class OcmSettings(BaseModel):
     """OCM API and integration configuration."""

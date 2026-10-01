@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import hashlib
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
-from qontract_api.external.ldap.schemas import LdapUserStatus
+from qontract_api.exceptions import ValidationError
+from qontract_api.external.ldap.schemas import (
+    LdapGroupMember,
+    LdapGroupResult,
+    LdapUserStatus,
+)
 from qontract_api.logger import get_logger
 
 if TYPE_CHECKING:
@@ -36,6 +42,12 @@ class CachedGithubUsernames(BaseModel, frozen=True):
     """
 
     mapping: dict[str, list[str]]
+
+
+class CachedGroupMembers(BaseModel, frozen=True):
+    """Cached LDAP group membership resolution (for two-tier cache serialization)."""
+
+    groups: list[LdapGroupResult]
 
 
 class LdapWorkspaceClient:
@@ -178,3 +190,126 @@ class LdapWorkspaceClient:
                 continue
             resolved[login] = uids[0]
         return resolved
+
+    def _get_org_username_to_github_map(self) -> dict[str, str]:
+        """Invert the GitHub-login -> uid(s) map to org_username -> GitHub login.
+
+        An org_username that claims more than one distinct GitHub login is
+        ambiguous - skipped and logged, mirroring resolve_github_usernames'
+        per-login ambiguity handling in the other direction.
+        """
+        login_to_uids = self._get_github_username_map()
+        uids_to_logins: dict[str, set[str]] = defaultdict(set)
+        for login, uids in login_to_uids.items():
+            for uid in uids:
+                uids_to_logins[uid].add(login)
+
+        resolved: dict[str, str] = {}
+        for uid, logins in uids_to_logins.items():
+            if len(logins) > 1:
+                logger.warning(
+                    "Ambiguous LDAP uid claims multiple GitHub logins; skipping",
+                    org_username=uid,
+                    github_logins=sorted(logins),
+                )
+                continue
+            resolved[uid] = next(iter(logins))
+        return resolved
+
+    def _group_members_cache_key(
+        self, groups: Iterable[str], *, include_github_usernames: bool
+    ) -> str:
+        """Generate a deterministic cache key for a set of groups + enrichment flag."""
+        sorted_groups = ",".join(sorted(groups))
+        key_material = f"{sorted_groups}|{include_github_usernames}"
+        group_hash = hashlib.sha256(key_material.encode()).hexdigest()[:16]
+        return f"ldap:{self.cache_key_prefix}:groups:members:{group_hash}"
+
+    def _group_dn(self, cn: str) -> str:
+        """Build the full DN for a group CN under the FreeIPA groups container."""
+        return f"cn={cn},cn=groups,cn=accounts,{self.api.base_dn}"
+
+    def get_group_members(
+        self, groups: Iterable[str], *, include_github_usernames: bool = True
+    ) -> list[LdapGroupResult]:
+        """Resolve members of one or more LDAP groups (cached with distributed locking).
+
+        Fail-closed: raises ValidationError if any group's membership exceeds
+        settings.ldap.max_group_size, rather than truncating it - a role
+        membership source must never silently lose members.
+
+        Only groups confirmed to exist in LDAP are present in the result; a
+        requested group CN that does not exist is omitted entirely, so callers
+        can distinguish a confirmed-empty group (present, empty members) from
+        an unresolved one (absent from the result) and must not treat the
+        latter as empty.
+
+        Args:
+            groups: Short group CNs to resolve (e.g. "my-ldap-group")
+            include_github_usernames: Whether to enrich each member with its
+                GitHub username (resolved via rhatSocialURL)
+
+        Returns:
+            List of LdapGroupResult, one per group confirmed to exist
+
+        Raises:
+            ValidationError: If any resolved group exceeds max_group_size
+        """
+        group_list = sorted(set(groups))
+        if not group_list:
+            return []
+
+        cache_key = self._group_members_cache_key(
+            group_list, include_github_usernames=include_github_usernames
+        )
+
+        if cached := self.cache.get_obj(cache_key, CachedGroupMembers):
+            return cached.groups
+
+        with self.cache.lock(cache_key):
+            if cached := self.cache.get_obj(cache_key, CachedGroupMembers):
+                return cached.groups
+
+            with self.api:
+                existing_cns = self.api.check_groups_exist(group_list)
+                dn_by_cn = {cn: self._group_dn(cn) for cn in existing_cns}
+                ldap_groups = self.api.get_group_members(list(dn_by_cn.values()))
+
+            members_by_cn: dict[str, set[str]] = {cn: set() for cn in existing_cns}
+            for ldap_group in ldap_groups:
+                members_by_cn[ldap_group.cn] = {u.username for u in ldap_group.members}
+
+            github_by_org_username = (
+                self._get_org_username_to_github_map()
+                if include_github_usernames
+                else {}
+            )
+
+            results = [
+                LdapGroupResult(
+                    group=cn,
+                    members=[
+                        LdapGroupMember(
+                            org_username=org_username,
+                            github_username=github_by_org_username.get(org_username),
+                        )
+                        for org_username in sorted(members_by_cn[cn])
+                    ],
+                )
+                for cn in sorted(existing_cns)
+            ]
+
+            for result in results:
+                if len(result.members) > self.settings.ldap.max_group_size:
+                    raise ValidationError(
+                        f"LDAP group '{result.group}' has {len(result.members)} "
+                        f"members, exceeding the configured max_group_size of "
+                        f"{self.settings.ldap.max_group_size}"
+                    )
+
+            self.cache.set_obj(
+                cache_key,
+                CachedGroupMembers(groups=results),
+                ttl=self.settings.ldap.groups_cache_ttl,
+            )
+            return results
