@@ -33,6 +33,7 @@ from reconcile.change_owners.implicit_ownership import (
     cover_changes_with_implicit_ownership,
 )
 from reconcile.change_owners.self_service_roles import (
+    APP_SRE_SELF_SERVICE_ROLE_NAME,
     cover_changes_with_self_service_roles,
     fetch_self_service_roles,
 )
@@ -44,6 +45,7 @@ from reconcile.utils.mr.labels import (
     NOT_SELF_SERVICEABLE,
     RESTRICTED,
     SELF_SERVICEABLE,
+    SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
     change_owner_label,
     prioritized_approval_label,
 )
@@ -120,12 +122,27 @@ def manage_conditional_label(
     return set(new_labels)
 
 
+def update_change_owner_labels(
+    labels: set[str],
+    configured_labels: set[str],
+    app_sre_self_serviceable: bool,
+) -> set[str]:
+    updated_labels = {
+        label for label in labels if not label.startswith("change-owner/")
+    }
+    updated_labels.update(change_owner_label(label) for label in configured_labels)
+    if app_sre_self_serviceable:
+        updated_labels.add(SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE)
+    return updated_labels
+
+
 def build_status_message(
     self_serviceable: bool,
     authoritative: bool,
     change_admitted: bool,
     approver_reachability: set[str],
     supported_commands: list[str],
+    app_sre_self_serviceable: bool = False,
 ) -> str:
     """
     Build a user-friendly status message based on the MR state.
@@ -147,7 +164,7 @@ Your changes need `/ok-to-test` approval from a listed approver before review ca
     if not authoritative:
         code_warning = "⚠️ **Code changes outside of data and resources detected** - please review carefully\n\n"
 
-    if self_serviceable:
+    if self_serviceable and not app_sre_self_serviceable:
         return f"""## ✅ Ready for Review
 Get `/lgtm` approval from the listed approvers below.
 
@@ -155,8 +172,16 @@ Get `/lgtm` approval from the listed approvers below.
 
 {commands_text}"""
 
-    return f"""## 🔍 AppSRE Review Required
-**What happens next:**
+    status_heading = (
+        "## ✅ Ready for Review" if self_serviceable else "## 🔍 AppSRE Review Required"
+    )
+    review_preamble = (
+        "Get `/lgtm` approval from the listed approvers below.\n\n"
+        if self_serviceable
+        else ""
+    )
+    return f"""{status_heading}
+{review_preamble}**What happens next:**
 * AppSRE will review via their [review queue](https://gitlab.cee.redhat.com/service/app-interface-output/-/blob/master/app-interface-review-queue.md)
 * Please don't ping directly unless this is **urgent**
 * See [etiquette guide](https://gitlab.cee.redhat.com/service/app-interface#app-interface-etiquette) for more info
@@ -164,6 +189,17 @@ Get `/lgtm` approval from the listed approvers below.
 {code_warning}{approver_section}
 
 {commands_text}"""
+
+
+def is_app_sre_self_serviceable(
+    self_serviceable: bool, change_decisions: list[ChangeDecision]
+) -> bool:
+    return self_serviceable and any(
+        context.self_service_role_name == APP_SRE_SELF_SERVICE_ROLE_NAME
+        for decision in change_decisions
+        for context in decision.coverage
+        if not context.disabled
+    )
 
 
 def _build_approver_contact_section(approver_reachability: set[str]) -> str:
@@ -198,6 +234,7 @@ def write_coverage_report_to_mr(
     authoritative: bool,
     merge_request: ProjectMergeRequest,
     gl: GitLabApi,
+    app_sre_self_serviceable: bool,
 ) -> None:
     """
     adds the change coverage report and decision summary as a comment
@@ -252,6 +289,7 @@ def write_coverage_report_to_mr(
         change_admitted=change_admitted,
         approver_reachability=approver_reachability,
         supported_commands=supported_commands,
+        app_sre_self_serviceable=app_sre_self_serviceable,
     )
 
     # Create the full comment
@@ -473,6 +511,9 @@ def run(
                 },
                 mr_author=mr_author,
             )
+            app_sre_self_serviceable = is_app_sre_self_serviceable(
+                self_serviceable, change_decisions
+            )
             hold = any(d.is_held() for d in change_decisions)
             approved = all(
                 d.is_approved() and not d.is_held() for d in change_decisions
@@ -491,6 +532,7 @@ def run(
                     == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE,
                     merge_request,
                     gl,
+                    app_sre_self_serviceable,
                 )
             write_coverage_report_to_stdout(change_decisions)
 
@@ -521,15 +563,11 @@ def run(
             )
 
             # change-owner labels
-            labels = {
-                co_label
-                for co_label in labels
-                if not co_label.startswith("change-owner/")
-            }
-            for bc in changes:
-                labels.update(
-                    change_owner_label(label) for label in bc.change_owner_labels
-                )
+            labels = update_change_owner_labels(
+                labels,
+                {label for bc in changes for label in bc.change_owner_labels},
+                app_sre_self_serviceable,
+            )
 
             if mr_management_enabled:
                 gl.set_labels_on_merge_request(merge_request, labels)
