@@ -96,19 +96,67 @@ async def test_resolve_calls_endpoint_and_maps_result() -> None:
 
 
 @pytest.mark.asyncio
-async def test_resolve_omits_unresolved_groups() -> None:
-    """A group absent from the response (unresolved) stays absent in the result."""
+async def test_resolve_raises_for_unresolved_group() -> None:
+    """A group absent from the response (unresolved) must fail closed.
+
+    The endpoint omits a group entirely when it doesn't exist in LDAP; the
+    resolver must not treat that omission as if the group were confirmed
+    empty, since that would silently remove real members from whatever
+    role/usergroup depends on it.
+    """
     resolver = create_ldap_membership_resolver(
         _ldap_settings(), "https://vault.example.com"
     )
 
     with patch(f"{_MOD}.ldap_group_members", new_callable=AsyncMock) as mock_client:
         mock_client.return_value = LdapGroupMembersResponse(groups=[])
+        with pytest.raises(RuntimeError, match="ghost-team"):
+            await resolver(
+                "corp-ldap", MembershipProviderSourceV1(provider="ldap"), {"ghost-team"}
+            )
+
+
+@pytest.mark.asyncio
+async def test_resolve_confirmed_empty_group_does_not_raise() -> None:
+    """A group present in the response with no members is confirmed empty,
+    not unresolved - this must not raise."""
+    resolver = create_ldap_membership_resolver(
+        _ldap_settings(), "https://vault.example.com"
+    )
+
+    with patch(f"{_MOD}.ldap_group_members", new_callable=AsyncMock) as mock_client:
+        mock_client.return_value = LdapGroupMembersResponse(
+            groups=[LdapGroupResult(group="empty-team", members=[])]
+        )
         result = await resolver(
-            "corp-ldap", MembershipProviderSourceV1(provider="ldap"), {"ghost-team"}
+            "corp-ldap", MembershipProviderSourceV1(provider="ldap"), {"empty-team"}
         )
 
-    assert result == {}
+    assert result == {("corp-ldap", "empty-team"): []}
+
+
+@pytest.mark.asyncio
+async def test_resolve_raises_naming_only_the_unresolved_groups() -> None:
+    """When some requested groups resolve and others don't, only the
+    unresolved ones are named in the error - a partial failure must not be
+    reported as if every group were missing."""
+    resolver = create_ldap_membership_resolver(
+        _ldap_settings(), "https://vault.example.com"
+    )
+
+    with patch(f"{_MOD}.ldap_group_members", new_callable=AsyncMock) as mock_client:
+        mock_client.return_value = LdapGroupMembersResponse(
+            groups=[LdapGroupResult(group="team-a", members=[])]
+        )
+        with pytest.raises(RuntimeError) as exc_info:
+            await resolver(
+                "corp-ldap",
+                MembershipProviderSourceV1(provider="ldap"),
+                {"team-a", "ghost-team"},
+            )
+
+    assert "ghost-team" in str(exc_info.value)
+    assert "team-a" not in str(exc_info.value)
 
 
 def test_create_ldap_membership_resolver_sync_wraps_async_resolver() -> None:

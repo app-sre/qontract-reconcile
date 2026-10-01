@@ -73,10 +73,19 @@ def create_ldap_membership_resolver(
                 ),
             )
         )
-        return {
+        resolved: dict[ProviderGroup, list[ProviderMember]] = {
             (provider_name, group.group): list(group.members or [])
             for group in response.groups
         }
+        # The endpoint omits a group entirely when it doesn't exist in LDAP,
+        # distinct from a confirmed-empty group (present with members=[]).
+        # Treating an omission the same as empty would silently remove real
+        # members from whatever role/usergroup depends on this group - fail
+        # closed instead, matching the design's "unresolved != empty"
+        # requirement.
+        if missing := groups - {g for _, g in resolved}:
+            raise RuntimeError(f"LDAP groups could not be resolved: {sorted(missing)}")
+        return resolved
 
     return resolve
 
