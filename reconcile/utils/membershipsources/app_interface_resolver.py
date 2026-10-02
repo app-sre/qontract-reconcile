@@ -66,7 +66,20 @@ def resolve_app_interface_membership_source(
             ).roles
             or []
         )
-        return {(provider_name, r.name): build_member_list(r) for r in roles}
+        resolved: dict[ProviderGroup, list[ProviderMember]] = {
+            (provider_name, r.name): build_member_list(r) for r in roles
+        }
+        # A requested role name absent from the response means it doesn't
+        # exist on the remote instance (renamed/removed) - distinct from a
+        # role that exists with no users/bots. Treating the omission as
+        # empty would silently remove real members from whatever
+        # role/usergroup depends on it - fail closed instead, matching the
+        # LDAP resolver's "unresolved != empty" handling.
+        if missing := groups - {g for _, g in resolved}:
+            raise RuntimeError(
+                f"App-interface roles could not be resolved: {sorted(missing)}"
+            )
+        return resolved
 
 
 async def resolve_app_interface_membership_source_async(
