@@ -267,6 +267,8 @@ class LdapApi:
 
     Supports both anonymous and authenticated (FreeIPA) binds.
     Use as a context manager to manage connection lifecycle.
+    All searches use RFC 2696 pagination and raise on any page failure,
+    rather than returning partial lookup results.
 
     Args:
         server_url: LDAP server URL (e.g., "ldap://ldap.example.com")
@@ -383,12 +385,11 @@ class LdapApi:
         if not usernames:
             return []
         user_filter = "".join(f"(uid={escape_filter_chars(u)})" for u in usernames)
-        _, status, results, _ = self._connection.search(
+        results = self._paged_search(
             f"cn=users,cn=accounts,{self.base_dn}",
             f"(&(objectclass=person)(|{user_filter}))",
             attributes=["uid"],
         )
-        self._check_ldap_response(status)
 
         return [LdapUser(username=r["attributes"]["uid"][0]) for r in results]
 
@@ -412,13 +413,11 @@ class LdapApi:
         # get_users' filter pattern.
         search_filter = f"(&(objectclass=person)(|{member_filter}))"
 
-        _, status, users, _ = self._connection.search(
+        users = self._paged_search(
             self.base_dn,
             search_filter,
             attributes=["uid", "memberOf"],
         )
-
-        self._check_ldap_response(status)
 
         # Map each requested DN's canonical form back to the exact string the
         # caller passed in, so a server-returned memberOf value that differs
@@ -477,12 +476,11 @@ class LdapApi:
             return set()
 
         cn_filter = "".join(f"(cn={escape_filter_chars(cn)})" for cn in group_cns)
-        _, status, results, _ = self._connection.search(
+        results = self._paged_search(
             f"cn=groups,cn=accounts,{self.base_dn}",
             f"(|{cn_filter})",
             attributes=["cn"],
         )
-        self._check_ldap_response(status)
 
         return {r["attributes"]["cn"][0] for r in results}
 

@@ -912,6 +912,108 @@ def test_check_groups_exist_calls_hooks(
     assert context.method == "check_groups_exist"
 
 
+@pytest.mark.parametrize(
+    "method", ["get_users", "get_group_members", "check_groups_exist"]
+)
+def test_ldap_search_methods_paginate_across_pages(
+    mock_ldap3: MagicMock, ldap_api: LdapApi, method: str
+) -> None:
+    """All lookup methods consume every page and forward the server cookie."""
+    group_dn = "cn=admins,cn=groups,cn=accounts,dc=example,dc=com"
+    mock_ldap3.connection.search.side_effect = [
+        (
+            True,
+            {
+                "result": 0,
+                "controls": {_PAGED_RESULTS_CONTROL: {"value": {"cookie": cookie}}},
+            },
+            [{"attributes": {"uid": [uid], "cn": [cn], "memberOf": [group_dn]}}],
+            None,
+        )
+        for uid, cn, cookie in [
+            ("alice", "admins", b"next-page"),
+            ("bob", "devs", b""),
+        ]
+    ]
+
+    with ldap_api:
+        match method:
+            case "get_users":
+                assert ldap_api.get_users(["alice", "bob"]) == [
+                    LdapUser(username="alice"),
+                    LdapUser(username="bob"),
+                ]
+            case "get_group_members":
+                assert ldap_api.get_group_members([group_dn]) == [
+                    LdapGroup(
+                        cn="admins",
+                        dn=group_dn,
+                        members=frozenset(
+                            {
+                                LdapUser(username="alice"),
+                                LdapUser(username="bob"),
+                            }
+                        ),
+                    )
+                ]
+            case "check_groups_exist":
+                assert ldap_api.check_groups_exist(["admins", "devs"]) == {
+                    "admins",
+                    "devs",
+                }
+
+    first_call, second_call = mock_ldap3.connection.search.call_args_list
+    assert first_call.kwargs["paged_size"] == _LDAP_PAGE_SIZE
+    assert first_call.kwargs["paged_cookie"] is None
+    assert second_call.kwargs["paged_size"] == _LDAP_PAGE_SIZE
+    assert second_call.kwargs["paged_cookie"] == b"next-page"
+
+
+@pytest.mark.parametrize(
+    "method",
+    ["get_users", "get_group_members", "check_groups_exist", "get_github_usernames"],
+)
+def test_ldap_search_methods_fail_closed_on_later_page_error(
+    mock_ldap3: MagicMock, ldap_api: LdapApi, method: str
+) -> None:
+    """A later page error must raise rather than return partial results."""
+    group_dn = "cn=admins,cn=groups,cn=accounts,dc=example,dc=com"
+    mock_ldap3.connection.search.side_effect = [
+        (
+            True,
+            {
+                "result": 0,
+                "controls": {
+                    _PAGED_RESULTS_CONTROL: {"value": {"cookie": b"next-page"}}
+                },
+            },
+            [
+                {
+                    "attributes": {
+                        "uid": ["alice"],
+                        "cn": ["admins"],
+                        "memberOf": [group_dn],
+                        "rhatSocialURL": ["Github->https://github.com/alice-gh"],
+                    }
+                }
+            ],
+            None,
+        ),
+        (False, {"result": 4, "description": "sizeLimitExceeded"}, [], None),
+    ]
+
+    with ldap_api, pytest.raises(LdapApiError, match="sizeLimitExceeded"):
+        match method:
+            case "get_users":
+                ldap_api.get_users(["alice"])
+            case "get_group_members":
+                ldap_api.get_group_members([group_dn])
+            case "check_groups_exist":
+                ldap_api.check_groups_exist(["admins"])
+            case "get_github_usernames":
+                ldap_api.get_github_usernames()
+
+
 # --- _parse_github_login ---
 
 
