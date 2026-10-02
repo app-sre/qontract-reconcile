@@ -1,0 +1,16 @@
+# qenerate: plugin=pydantic_v2
+
+query GitlabProjectsInstances {
+  instances: gitlabinstance_v1 {
+    name
+    url
+    sslVerify
+    token {
+      ...VaultSecret
+    }
+    projectRequests {
+      group
+      projects
+    }
+  }
+}
