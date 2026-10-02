@@ -2,6 +2,7 @@
 
 import contextvars
 import re
+import string
 import time
 import types
 from collections import defaultdict
@@ -186,6 +187,72 @@ def _get_cn_from_dn(dn: str) -> str:
     return rdn[1]
 
 
+_HEX_DIGITS = frozenset(string.hexdigits)
+
+
+def _decode_dn_value(value: str) -> str:
+    r"""Decode RFC 4514 escape sequences in a DN attribute value.
+
+    parse_dn() returns attribute values with escapes intact, and a literal
+    special character can legitimately be spelled either way (e.g. a comma as
+    `\\,` or as the hex-pair escape `\\2C`) - comparing the raw escaped text
+    would treat two semantically-identical values as different. Collects
+    every decoded byte (literal characters, `\\c`-escaped literals, and
+    `\\XX` hex-escaped bytes) into one buffer and UTF-8 decodes it once at the
+    end, so a multi-byte character split across consecutive hex escapes is
+    reassembled correctly.
+    """
+    raw = bytearray()
+    i = 0
+    n = len(value)
+    while i < n:
+        c = value[i]
+        if (
+            c == "\\"
+            and i + 2 < n
+            and value[i + 1] in _HEX_DIGITS
+            and value[i + 2] in _HEX_DIGITS
+        ):
+            raw.append(int(value[i + 1 : i + 3], 16))
+            i += 3
+        elif c == "\\" and i + 1 < n:
+            raw.extend(value[i + 1].encode())
+            i += 2
+        else:
+            raw.extend(c.encode())
+            i += 1
+    return raw.decode()
+
+
+def _canonicalize_dn(dn: str) -> tuple[tuple[str, str, str], ...]:
+    r"""Build a case-insensitive canonical form of a DN.
+
+    LDAP attribute type names are always case-insensitive, and DN-syntax
+    attribute values (e.g. the `cn` RDNs used throughout this module) are too
+    for any directory using case-insensitive matching rules - comparing raw
+    DN strings can silently miss semantically-identical DNs that differ only
+    in case.
+
+    The separator returned by parse_dn (the third tuple element) must be kept
+    as part of the key: it is `+` between attribute-value pairs within the
+    same multi-valued RDN and `,` (or empty, at the end) between separate
+    RDNs. Dropping it would make e.g. `cn=admins+ou=groups,dc=...` (one RDN)
+    indistinguishable from `cn=admins,ou=groups,dc=...` (two RDNs).
+
+    Attribute values must be unescaped before lowercasing: two DNs can encode
+    the same literal value with different RFC 4514 escape spellings (e.g. a
+    comma as `\\,` or `\\2C`), which parse_dn() does not normalize.
+    """
+    return tuple(
+        (
+            attr_type.strip().lower(),
+            _decode_dn_value(attr_value.strip()).lower(),
+            separator,
+        )
+        for attr_type, attr_value, separator in parse_dn(dn)
+    )
+
+
 @with_hooks(
     hooks=Hooks(
         pre_hooks=[_metrics_hook, _request_log_hook, _latency_start_hook],
@@ -200,6 +267,8 @@ class LdapApi:
 
     Supports both anonymous and authenticated (FreeIPA) binds.
     Use as a context manager to manage connection lifecycle.
+    All searches use RFC 2696 pagination and raise on any page failure,
+    rather than returning partial lookup results.
 
     Args:
         server_url: LDAP server URL (e.g., "ldap://ldap.example.com")
@@ -316,12 +385,11 @@ class LdapApi:
         if not usernames:
             return []
         user_filter = "".join(f"(uid={escape_filter_chars(u)})" for u in usernames)
-        _, status, results, _ = self._connection.search(
+        results = self._paged_search(
             f"cn=users,cn=accounts,{self.base_dn}",
             f"(&(objectclass=person)(|{user_filter}))",
             attributes=["uid"],
         )
-        self._check_ldap_response(status)
 
         return [LdapUser(username=r["attributes"]["uid"][0]) for r in results]
 
@@ -337,21 +405,40 @@ class LdapApi:
         if not groups_dns:
             return []
 
-        group_filter = f"(|{''.join([f'(memberOf={escape_filter_chars(dn)})' for dn in sorted(groups_dns)])})"
+        member_filter = "".join(
+            f"(memberOf={escape_filter_chars(dn)})" for dn in sorted(groups_dns)
+        )
+        # FreeIPA groups can nest other groups or Kerberos service entries as
+        # members; restricting to person entries excludes those, matching
+        # get_users' filter pattern.
+        search_filter = f"(&(objectclass=person)(|{member_filter}))"
 
-        _, status, users, _ = self._connection.search(
+        users = self._paged_search(
             self.base_dn,
-            group_filter,
+            search_filter,
             attributes=["uid", "memberOf"],
         )
 
-        self._check_ldap_response(status)
+        # Map each requested DN's canonical form back to the exact string the
+        # caller passed in, so a server-returned memberOf value that differs
+        # only in case still matches - a raw string comparison here would
+        # silently drop members whose DN representation doesn't match
+        # byte-for-byte, even though it's the same DN.
+        requested_by_canonical = {_canonicalize_dn(dn): dn for dn in groups_dns}
 
         groups_and_members: dict[str, set[str]] = defaultdict(set[str])
         for u in users:
-            uid = u["attributes"]["uid"][0]
-            for group in set(u["attributes"]["memberOf"]).intersection(groups_dns):
-                groups_and_members[group].add(uid)
+            if not (uid_values := u["attributes"].get("uid")):
+                # A nested group's own entry has memberOf pointing at its
+                # parent and can still match despite the objectclass=person
+                # filter in some directory configurations - skip it rather
+                # than crash resolution for the group's real (user) members.
+                continue
+            uid = uid_values[0]
+            for member_of in u["attributes"]["memberOf"]:
+                requested_dn = requested_by_canonical.get(_canonicalize_dn(member_of))
+                if requested_dn is not None:
+                    groups_and_members[requested_dn].add(uid)
 
         return [
             LdapGroup(
@@ -361,6 +448,41 @@ class LdapApi:
             )
             for dn, members in groups_and_members.items()
         ]
+
+    @invoke_with_hooks(
+        lambda: LdapApiCallContext(method="check_groups_exist"),
+        retry_config=_LDAP_RETRY_CONFIG,
+    )
+    def check_groups_exist(self, group_cns: Collection[str]) -> set[str]:
+        """Return the subset of the given group CNs that exist in LDAP.
+
+        Searches the groups container directly by CN, independent of
+        membership. Used to distinguish a confirmed-empty group (exists,
+        zero members) from an unresolved one (CN not found) - both look
+        identical as "no entry" from get_group_members alone, since that
+        method only ever learns about a group by finding a member pointing
+        at it via memberOf.
+
+        Args:
+            group_cns: Short group CNs to check (e.g. "my-ldap-group")
+
+        Returns:
+            The subset of group_cns that exist as group entries in LDAP
+
+        Raises:
+            LdapApiError: If the LDAP search fails
+        """
+        if not group_cns:
+            return set()
+
+        cn_filter = "".join(f"(cn={escape_filter_chars(cn)})" for cn in group_cns)
+        results = self._paged_search(
+            f"cn=groups,cn=accounts,{self.base_dn}",
+            f"(|{cn_filter})",
+            attributes=["cn"],
+        )
+
+        return {r["attributes"]["cn"][0] for r in results}
 
     @invoke_with_hooks(
         lambda: LdapApiCallContext(method="get_github_usernames"),

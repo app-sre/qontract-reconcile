@@ -27,7 +27,7 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class MembershipProviderSourceV1(ConfiguredBaseModel):
-    ...
+    provider: str = Field(..., alias="provider")
 
 
 class AppInterfaceMembershipProviderSourceV1(MembershipProviderSourceV1):

@@ -478,6 +478,59 @@ def test_get_group_members_builds_correct_filter(
     assert f"(memberOf={group_dn})" in filter_str
 
 
+def test_get_group_members_restricts_to_person_entries(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members restricts the search to person entries.
+
+    FreeIPA groups can nest other groups or Kerberos service entries as
+    members - without an objectclass restriction, such an entry would match
+    the memberOf filter too, and reading its (nonexistent) uid attribute
+    would crash the whole group resolution.
+    """
+    group_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        ldap_api.get_group_members([group_dn])
+
+    filter_str = mock_ldap3.connection.search.call_args[0][1]
+    assert "(objectclass=person)" in filter_str
+
+
+def test_get_group_members_skips_nested_group_without_uid(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members skips a matching entry that has no uid.
+
+    A nested group's own LDAP entry can have memberOf pointing at its parent
+    group, so it can still match the search even with the objectclass=person
+    filter in some directory configurations - this must not crash resolution
+    for the rest of the group's real (user) members.
+    """
+    group_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {"attributes": {"memberOf": [group_dn]}},  # nested group, no uid
+            {"attributes": {"uid": ["alice"], "memberOf": [group_dn]}},
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([group_dn])
+
+    assert len(result) == 1
+    assert {u.username for u in result[0].members} == {"alice"}
+
+
 def test_get_group_members_search_failure_raises_error(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:
@@ -604,6 +657,361 @@ def test_get_group_members_escapes_special_characters(
     assert f"(memberOf={dn_with_parens})" not in filter_str
     assert "\\28" in filter_str  # ( -> \28
     assert "\\29" in filter_str  # ) -> \29
+
+
+def test_get_group_members_matches_differently_cased_member_of(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members matches a memberOf value differing only in case.
+
+    A raw string comparison would silently drop the member and make a real
+    group look confirmed-empty.
+    """
+    requested_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    differently_cased_member_of = "CN=Admins,OU=Groups,DC=Example,DC=Com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {
+                "attributes": {
+                    "uid": ["alice"],
+                    "memberOf": [differently_cased_member_of],
+                }
+            },
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([requested_dn])
+
+    assert len(result) == 1
+    # The returned dn/cn reflect the originally requested DN, not the
+    # server's differently-cased representation.
+    assert result[0].dn == requested_dn
+    assert result[0].cn == "admins"
+    assert {u.username for u in result[0].members} == {"alice"}
+
+
+def test_get_group_members_ignores_unrelated_differently_cased_member_of(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test canonicalized matching does not become overly permissive.
+
+    An unrelated group (even if cased differently) is still excluded.
+    """
+    requested_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    unrelated_dn = "CN=Other,OU=Groups,DC=Example,DC=Com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {"attributes": {"uid": ["alice"], "memberOf": [unrelated_dn]}},
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([requested_dn])
+
+    assert result == []
+
+
+def test_get_group_members_distinguishes_multi_valued_rdn_from_separate_rdns(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Canonicalization must preserve RDN boundaries.
+
+    A multi-valued RDN (`cn=admins+ou=groups,...`, one RDN made of two
+    attribute-value pairs joined by `+`) is structurally different from two
+    separate RDNs (`cn=admins,ou=groups,...`, joined by `,`) - collapsing both
+    to the same canonical key would silently merge two distinct groups'
+    memberships.
+    """
+    multi_valued_rdn_dn = "cn=admins+ou=groups,dc=example,dc=com"
+    separate_rdns_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {"attributes": {"uid": ["alice"], "memberOf": [multi_valued_rdn_dn]}},
+            {"attributes": {"uid": ["bob"], "memberOf": [separate_rdns_dn]}},
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([multi_valued_rdn_dn, separate_rdns_dn])
+
+    by_dn = {group.dn: group for group in result}
+    assert len(result) == 2
+    assert {u.username for u in by_dn[multi_valued_rdn_dn].members} == {"alice"}
+    assert {u.username for u in by_dn[separate_rdns_dn].members} == {"bob"}
+
+
+def test_get_group_members_matches_equivalent_dn_escape_encodings(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    r"""Canonicalization must decode RFC 4514 escapes before comparing.
+
+    A literal comma in an attribute value can be spelled as a backslash
+    escape (`\\,`) or as a hex-pair escape (`\\2C`) - both represent the same
+    literal string, but parse_dn() preserves whichever spelling was used. A
+    raw (post-lowercase) string comparison would treat the two spellings as
+    different DNs and silently drop the member.
+    """
+    requested_dn = r"cn=sales\,admins,ou=groups,dc=example,dc=com"
+    differently_escaped_member_of = r"cn=sales\2Cadmins,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {
+                "attributes": {
+                    "uid": ["alice"],
+                    "memberOf": [differently_escaped_member_of],
+                }
+            },
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([requested_dn])
+
+    assert len(result) == 1
+    assert result[0].dn == requested_dn
+    assert {u.username for u in result[0].members} == {"alice"}
+
+
+# --- check_groups_exist ---
+
+
+def test_check_groups_exist_returns_existing_cns(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist returns the subset of CNs found in LDAP."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {"attributes": {"cn": ["admins"]}},
+            {"attributes": {"cn": ["devs"]}},
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.check_groups_exist(["admins", "devs", "ghost-group"])
+
+    assert result == {"admins", "devs"}
+
+
+def test_check_groups_exist_empty_input(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist with empty input returns empty set without searching."""
+    with ldap_api:
+        result = ldap_api.check_groups_exist([])
+
+    assert result == set()
+    mock_ldap3.connection.search.assert_not_called()
+
+
+def test_check_groups_exist_none_found(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist returns empty set when no requested CN exists."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.check_groups_exist(["ghost-group"])
+
+    assert result == set()
+
+
+def test_check_groups_exist_searches_groups_container(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist searches the groups container, not base_dn directly."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        ldap_api.check_groups_exist(["admins"])
+
+    call_args = mock_ldap3.connection.search.call_args
+    assert call_args[0][0] == "cn=groups,cn=accounts,dc=example,dc=com"
+    assert "(cn=admins)" in call_args[0][1]
+
+
+def test_check_groups_exist_search_failure_raises_error(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist raises LdapApiError on search failure."""
+    mock_ldap3.connection.search.return_value = (
+        False,
+        {"result": 53, "description": "Server Unwilling to Perform"},
+        [],
+        None,
+    )
+
+    with ldap_api, pytest.raises(LdapApiError, match="LDAP operation failed"):
+        ldap_api.check_groups_exist(["admins"])
+
+
+def test_check_groups_exist_escapes_special_characters(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist escapes LDAP filter special characters in CNs."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        ldap_api.check_groups_exist(["group(test)"])
+
+    filter_str = mock_ldap3.connection.search.call_args[0][1]
+    assert "(cn=group(test))" not in filter_str
+    assert "\\28" in filter_str  # ( -> \28
+    assert "\\29" in filter_str  # ) -> \29
+
+
+def test_check_groups_exist_calls_hooks(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test check_groups_exist triggers hooks with correct context."""
+    pre_hook = MagicMock()
+    ldap_api._hooks = Hooks(pre_hooks=[pre_hook])
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        ldap_api.check_groups_exist(["admins"])
+
+    pre_hook.assert_called_once()
+    context = pre_hook.call_args[0][0]
+    assert isinstance(context, LdapApiCallContext)
+    assert context.method == "check_groups_exist"
+
+
+@pytest.mark.parametrize(
+    "method", ["get_users", "get_group_members", "check_groups_exist"]
+)
+def test_ldap_search_methods_paginate_across_pages(
+    mock_ldap3: MagicMock, ldap_api: LdapApi, method: str
+) -> None:
+    """All lookup methods consume every page and forward the server cookie."""
+    group_dn = "cn=admins,cn=groups,cn=accounts,dc=example,dc=com"
+    mock_ldap3.connection.search.side_effect = [
+        (
+            True,
+            {
+                "result": 0,
+                "controls": {_PAGED_RESULTS_CONTROL: {"value": {"cookie": cookie}}},
+            },
+            [{"attributes": {"uid": [uid], "cn": [cn], "memberOf": [group_dn]}}],
+            None,
+        )
+        for uid, cn, cookie in [
+            ("alice", "admins", b"next-page"),
+            ("bob", "devs", b""),
+        ]
+    ]
+
+    with ldap_api:
+        match method:
+            case "get_users":
+                assert ldap_api.get_users(["alice", "bob"]) == [
+                    LdapUser(username="alice"),
+                    LdapUser(username="bob"),
+                ]
+            case "get_group_members":
+                assert ldap_api.get_group_members([group_dn]) == [
+                    LdapGroup(
+                        cn="admins",
+                        dn=group_dn,
+                        members=frozenset(
+                            {
+                                LdapUser(username="alice"),
+                                LdapUser(username="bob"),
+                            }
+                        ),
+                    )
+                ]
+            case "check_groups_exist":
+                assert ldap_api.check_groups_exist(["admins", "devs"]) == {
+                    "admins",
+                    "devs",
+                }
+
+    first_call, second_call = mock_ldap3.connection.search.call_args_list
+    assert first_call.kwargs["paged_size"] == _LDAP_PAGE_SIZE
+    assert first_call.kwargs["paged_cookie"] is None
+    assert second_call.kwargs["paged_size"] == _LDAP_PAGE_SIZE
+    assert second_call.kwargs["paged_cookie"] == b"next-page"
+
+
+@pytest.mark.parametrize(
+    "method",
+    ["get_users", "get_group_members", "check_groups_exist", "get_github_usernames"],
+)
+def test_ldap_search_methods_fail_closed_on_later_page_error(
+    mock_ldap3: MagicMock, ldap_api: LdapApi, method: str
+) -> None:
+    """A later page error must raise rather than return partial results."""
+    group_dn = "cn=admins,cn=groups,cn=accounts,dc=example,dc=com"
+    mock_ldap3.connection.search.side_effect = [
+        (
+            True,
+            {
+                "result": 0,
+                "controls": {
+                    _PAGED_RESULTS_CONTROL: {"value": {"cookie": b"next-page"}}
+                },
+            },
+            [
+                {
+                    "attributes": {
+                        "uid": ["alice"],
+                        "cn": ["admins"],
+                        "memberOf": [group_dn],
+                        "rhatSocialURL": ["Github->https://github.com/alice-gh"],
+                    }
+                }
+            ],
+            None,
+        ),
+        (False, {"result": 4, "description": "sizeLimitExceeded"}, [], None),
+    ]
+
+    with ldap_api, pytest.raises(LdapApiError, match="sizeLimitExceeded"):
+        match method:
+            case "get_users":
+                ldap_api.get_users(["alice"])
+            case "get_group_members":
+                ldap_api.get_group_members([group_dn])
+            case "check_groups_exist":
+                ldap_api.check_groups_exist(["admins"])
+            case "get_github_usernames":
+                ldap_api.get_github_usernames()
 
 
 # --- _parse_github_login ---

@@ -28457,18 +28457,6 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "enableDynatraceLogging",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "Boolean",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
                             "name": "description",
                             "description": null,
                             "args": [],
@@ -38154,6 +38142,11 @@
                             "kind": "OBJECT",
                             "name": "AppInterfaceMembershipProviderSource_V1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "LdapMembershipProviderSource_V1",
+                            "ofType": null
                         }
                     ]
                 },
@@ -38220,6 +38213,39 @@
                                 "ofType": {
                                     "name": "VaultSecret_v1",
                                     "kind": "OBJECT",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "MembershipProviderSource_V1",
+                            "ofType": null
+                        }
+                    ],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "LdapMembershipProviderSource_V1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "provider",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "name": "String",
+                                    "kind": "SCALAR",
                                     "ofType": null
                                 }
                             },

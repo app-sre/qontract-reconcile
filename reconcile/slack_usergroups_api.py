@@ -80,6 +80,7 @@ from reconcile.typed_queries.vcs import Vcs, get_vcs_instances
 from reconcile.utils import expiration, gql
 from reconcile.utils.datetime_util import ensure_utc, utc_now
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.membershipsources.async_resolver import resolve_role_members
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -107,6 +108,17 @@ def slack_identity(user: _UserWithSlackIdentity) -> str:
     fall back to org_username (commercial Slack / LDAP).
     """
     return user.gov_slack_email_local_part or user.org_username
+
+
+class SlackRoleUser(BaseModel, extra="ignore"):
+    """Role member shape needed to compute a Slack identity.
+
+    Deliberately minimal: memberSources-resolved members (e.g. from LDAP)
+    only ever populate org_username, so every other field must be optional.
+    """
+
+    org_username: str
+    gov_slack_email_local_part: str | None = None
 
 
 class SlackWorkspace(BaseModel, arbitrary_types_allowed=True):
@@ -235,19 +247,44 @@ class SlackUsergroupsIntegration(
                 all_usernames.extend(slack_identity(u) for u in entry.users)
         return all_usernames
 
-    @staticmethod
-    def compile_users_from_roles(roles: list[RoleV1] | None) -> list[str]:
-        """Extract usernames from roles.
+    async def compile_users_from_roles(
+        self,
+        roles: list[RoleV1] | None,
+        ldap_settings: LdapSettingsV1,
+        *,
+        app_interface_users: Iterable[UserV1],
+    ) -> list[str]:
+        """Extract Slack identities from roles - explicit users + memberSources.
 
         Args:
-            roles: List of role objects with users
+            roles: List of role objects with users and/or memberSources
+            ldap_settings: App-interface LDAP settings, used to resolve
+                LDAP-sourced memberSources (if any)
+            app_interface_users: Local users whose Gov Slack overrides take
+                precedence, even without explicit membership in the role
 
         Returns:
-            List of usernames from roles
+            List of Slack identities from every source, deduplicated by
+            org_username (see membershipsources.async_resolver.resolve_role_members)
         """
+        if not roles:
+            return []
 
+        members_by_role = await resolve_role_members(
+            roles,
+            user_cls=SlackRoleUser,
+            ldap_settings=ldap_settings,
+            secret_manager_url=self.secret_manager_url,
+        )
+        gov_slack_by_org_username = {
+            user.org_username: user.gov_slack_email_local_part
+            for user in app_interface_users
+            if user.gov_slack_email_local_part
+        }
         return [
-            slack_identity(user) for role in roles or [] for user in role.users or []
+            gov_slack_by_org_username.get(member.org_username) or slack_identity(member)
+            for members in members_by_role.values()
+            for member in members
         ]
 
     async def fetch_owners(
@@ -539,8 +576,14 @@ class SlackUsergroupsIntegration(
                 f"[{workspace.name}] usergroup '{usergroup_handle}' not in 'managedUsergroups' of the Slack workspace '{workspace.path}'"
             )
 
-        # Add users from the permission roles
-        users = set(self.compile_users_from_roles(permission.roles))
+        # Add users from the permission roles (explicit users + memberSources)
+        users = set(
+            await self.compile_users_from_roles(
+                permission.roles,
+                ldap_settings,
+                app_interface_users=app_interface_users,
+            )
+        )
         # Add users from the permission schedule (time-based on-call rotations)
         users.update(self.compile_users_from_schedule(permission.schedule))
         # Add users from git repo owners file
