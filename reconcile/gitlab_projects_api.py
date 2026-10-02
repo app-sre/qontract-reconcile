@@ -183,7 +183,7 @@ class GitLabProjectsIntegration(
                         instance.ssl_verify if instance.ssl_verify is not None else True
                     ),
                     token=Secret(
-                        secret_manager_url=self.secret_manager_url,
+                        secret_manager_url=instance.token.url or self.secret_manager_url,
                         path=instance.token.path,
                         field=instance.token.field,
                         version=instance.token.version,
