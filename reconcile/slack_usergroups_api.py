@@ -251,6 +251,8 @@ class SlackUsergroupsIntegration(
         self,
         roles: list[RoleV1] | None,
         ldap_settings: LdapSettingsV1,
+        *,
+        app_interface_users: Iterable[UserV1],
     ) -> list[str]:
         """Extract Slack identities from roles - explicit users + memberSources.
 
@@ -258,6 +260,8 @@ class SlackUsergroupsIntegration(
             roles: List of role objects with users and/or memberSources
             ldap_settings: App-interface LDAP settings, used to resolve
                 LDAP-sourced memberSources (if any)
+            app_interface_users: Local users whose Gov Slack overrides take
+                precedence, even without explicit membership in the role
 
         Returns:
             List of Slack identities from every source, deduplicated by
@@ -272,8 +276,13 @@ class SlackUsergroupsIntegration(
             ldap_settings=ldap_settings,
             secret_manager_url=self.secret_manager_url,
         )
+        gov_slack_by_org_username = {
+            user.org_username: user.gov_slack_email_local_part
+            for user in app_interface_users
+            if user.gov_slack_email_local_part
+        }
         return [
-            slack_identity(member)
+            gov_slack_by_org_username.get(member.org_username) or slack_identity(member)
             for members in members_by_role.values()
             for member in members
         ]
@@ -569,7 +578,11 @@ class SlackUsergroupsIntegration(
 
         # Add users from the permission roles (explicit users + memberSources)
         users = set(
-            await self.compile_users_from_roles(permission.roles, ldap_settings)
+            await self.compile_users_from_roles(
+                permission.roles,
+                ldap_settings,
+                app_interface_users=app_interface_users,
+            )
         )
         # Add users from the permission schedule (time-based on-call rotations)
         users.update(self.compile_users_from_schedule(permission.schedule))

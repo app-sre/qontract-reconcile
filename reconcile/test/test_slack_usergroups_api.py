@@ -464,7 +464,12 @@ def test_compile_users_from_schedule_inactive_window() -> None:
 async def test_compile_users_from_roles_none(
     integration: SlackUsergroupsIntegration,
 ) -> None:
-    assert await integration.compile_users_from_roles(None, _ldap_settings()) == []
+    assert (
+        await integration.compile_users_from_roles(
+            None, _ldap_settings(), app_interface_users=[]
+        )
+        == []
+    )
 
 
 @pytest.mark.asyncio
@@ -478,7 +483,9 @@ async def test_compile_users_from_roles(
         ),
         _role(name="role2", users=[_frag_user("bob")]),
     ]
-    result = await integration.compile_users_from_roles(roles, _ldap_settings())
+    result = await integration.compile_users_from_roles(
+        roles, _ldap_settings(), app_interface_users=[]
+    )
     assert sorted(result) == ["alice.gov", "bob"]
 
 
@@ -491,7 +498,9 @@ async def test_compile_users_from_roles_without_member_sources_skips_ldap_call(
     with patch(
         f"{_LDAP_RESOLVER_MOD}.ldap_group_members", new_callable=AsyncMock
     ) as mock_client:
-        result = await integration.compile_users_from_roles(roles, _ldap_settings())
+        result = await integration.compile_users_from_roles(
+            roles, _ldap_settings(), app_interface_users=[]
+        )
 
     assert result == ["alice"]
     mock_client.assert_not_called()
@@ -517,7 +526,9 @@ async def test_compile_users_from_roles_resolves_ldap_source(
                 )
             ]
         )
-        result = await integration.compile_users_from_roles(roles, _ldap_settings())
+        result = await integration.compile_users_from_roles(
+            roles, _ldap_settings(), app_interface_users=[]
+        )
 
     assert sorted(result) == ["alice", "bob"]
 
@@ -543,9 +554,59 @@ async def test_compile_users_from_roles_dedup_prefers_explicit_gov_slack(
                 )
             ]
         )
-        result = await integration.compile_users_from_roles(roles, _ldap_settings())
+        result = await integration.compile_users_from_roles(
+            roles, _ldap_settings(), app_interface_users=[]
+        )
 
     assert result == ["shared.gov"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("gov_slack_email_local_part", [None, "alice.gov"])
+async def test_process_permission_applies_local_gov_slack_to_ldap_members(
+    integration: SlackUsergroupsIntegration,
+    gov_slack_email_local_part: str | None,
+) -> None:
+    """Local Gov Slack overrides apply without explicit role membership."""
+    permission = _permission(
+        roles=[
+            _role(
+                users=[_frag_user("charlie", gov_slack_email_local_part="charlie.gov")],
+                member_sources=[_ldap_membership_source()],
+            )
+        ]
+    )
+    users = [
+        _app_user(
+            "alice", "alice-gh", gov_slack_email_local_part=gov_slack_email_local_part
+        ),
+        _app_user("charlie", "charlie-gh"),
+        _app_user("unrelated", "unrelated-gh", gov_slack_email_local_part="other.gov"),
+    ]
+    with patch(
+        f"{_LDAP_RESOLVER_MOD}.ldap_group_members", new_callable=AsyncMock
+    ) as mock_client:
+        mock_client.return_value = LdapGroupMembersResponse(
+            groups=[
+                LdapGroupResult(
+                    group="team-a",
+                    members=[
+                        LdapGroupMember(org_username="alice"),
+                        LdapGroupMember(org_username="bob"),
+                    ],
+                )
+            ]
+        )
+        result = await integration._process_permission(
+            permission, users, [], _ldap_settings(), None, None
+        )
+
+    assert result is not None
+    assert result[1].config.users == sorted([
+        gov_slack_email_local_part or "alice",
+        "bob",
+        "charlie.gov",
+    ])
 
 
 # --- compute_cluster_user_group + include_user_to_cluster_usergroup ---
