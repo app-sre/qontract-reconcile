@@ -47,7 +47,7 @@ def find_circular_memberships(
     Returns:
         (role_name, group) pairs for every offending memberSources entry
     """
-    published = set(published_ldap_groups)
+    published = {group.lower() for group in published_ldap_groups}
     if not published:
         return []
     return [
@@ -55,5 +55,5 @@ def find_circular_memberships(
         for role in roles
         for member_source in role.member_sources or []
         if member_source.provider.source.provider == "ldap"
-        and member_source.group in published
+        and member_source.group.lower() in published
     ]
