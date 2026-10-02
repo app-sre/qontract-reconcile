@@ -478,6 +478,59 @@ def test_get_group_members_builds_correct_filter(
     assert f"(memberOf={group_dn})" in filter_str
 
 
+def test_get_group_members_restricts_to_person_entries(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members restricts the search to person entries.
+
+    FreeIPA groups can nest other groups or Kerberos service entries as
+    members - without an objectclass restriction, such an entry would match
+    the memberOf filter too, and reading its (nonexistent) uid attribute
+    would crash the whole group resolution.
+    """
+    group_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        ldap_api.get_group_members([group_dn])
+
+    filter_str = mock_ldap3.connection.search.call_args[0][1]
+    assert "(objectclass=person)" in filter_str
+
+
+def test_get_group_members_skips_nested_group_without_uid(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members skips a matching entry that has no uid.
+
+    A nested group's own LDAP entry can have memberOf pointing at its parent
+    group, so it can still match the search even with the objectclass=person
+    filter in some directory configurations - this must not crash resolution
+    for the rest of the group's real (user) members.
+    """
+    group_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {"attributes": {"memberOf": [group_dn]}},  # nested group, no uid
+            {"attributes": {"uid": ["alice"], "memberOf": [group_dn]}},
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([group_dn])
+
+    assert len(result) == 1
+    assert {u.username for u in result[0].members} == {"alice"}
+
+
 def test_get_group_members_search_failure_raises_error(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:

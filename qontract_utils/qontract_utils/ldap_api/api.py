@@ -358,11 +358,17 @@ class LdapApi:
         if not groups_dns:
             return []
 
-        group_filter = f"(|{''.join([f'(memberOf={escape_filter_chars(dn)})' for dn in sorted(groups_dns)])})"
+        member_filter = "".join(
+            f"(memberOf={escape_filter_chars(dn)})" for dn in sorted(groups_dns)
+        )
+        # FreeIPA groups can nest other groups or Kerberos service entries as
+        # members; restricting to person entries excludes those, matching
+        # get_users' filter pattern.
+        search_filter = f"(&(objectclass=person)(|{member_filter}))"
 
         _, status, users, _ = self._connection.search(
             self.base_dn,
-            group_filter,
+            search_filter,
             attributes=["uid", "memberOf"],
         )
 
@@ -377,7 +383,13 @@ class LdapApi:
 
         groups_and_members: dict[str, set[str]] = defaultdict(set[str])
         for u in users:
-            uid = u["attributes"]["uid"][0]
+            if not (uid_values := u["attributes"].get("uid")):
+                # A nested group's own entry has memberOf pointing at its
+                # parent and can still match despite the objectclass=person
+                # filter in some directory configurations - skip it rather
+                # than crash resolution for the group's real (user) members.
+                continue
+            uid = uid_values[0]
             for member_of in u["attributes"]["memberOf"]:
                 requested_dn = requested_by_canonical.get(_canonicalize_dn(member_of))
                 if requested_dn is not None:
