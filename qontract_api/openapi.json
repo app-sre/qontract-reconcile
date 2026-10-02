@@ -6677,7 +6677,7 @@
     },
     "/api/v1/integrations/gitlab-projects/reconcile/{task_id}": {
       "get": {
-        "description": "Retrieve reconciliation result (blocking or non-blocking).\n\nArgs:\n    task_id: Task ID from POST /reconcile response\n    timeout: Maximum seconds to wait (default: non-blocking)",
+        "description": "Retrieve reconciliation result (blocking or non-blocking).\n\nArgs:\n    task_id: Task ID from POST /reconcile response\n    timeout: Maximum seconds to wait (default: non-blocking)\n\nReturns:\n    GitlabProjectsTaskResult with lists of calculated and applied actions.\n\nRaises:\n    HTTPException:\n        - 404 Not Found: Task ID not found\n        - 408 Request Timeout: Task still pending after timeout (blocking mode only)",
         "operationId": "gitlab-projects-task-status",
         "parameters": [
           {
