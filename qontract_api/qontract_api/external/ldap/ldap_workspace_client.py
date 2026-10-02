@@ -194,13 +194,19 @@ class LdapWorkspaceClient:
     def _get_org_username_to_github_map(self) -> dict[str, str]:
         """Invert the GitHub-login -> uid(s) map to org_username -> GitHub login.
 
-        An org_username that claims more than one distinct GitHub login is
-        ambiguous - skipped and logged, mirroring resolve_github_usernames'
-        per-login ambiguity handling in the other direction.
+        Shared logins and org_usernames claiming multiple distinct logins are
+        ambiguous and skipped with a warning.
         """
         login_to_uids = self._get_github_username_map()
         uids_to_logins: dict[str, set[str]] = defaultdict(set)
         for login, uids in login_to_uids.items():
+            if len(uids) > 1:
+                logger.warning(
+                    "Ambiguous GitHub login maps to multiple LDAP uids; skipping",
+                    github_login=login,
+                    uids=uids,
+                )
+                continue
             for uid in uids:
                 uids_to_logins[uid].add(login)
 

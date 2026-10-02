@@ -492,6 +492,51 @@ def test_get_group_members_skips_and_logs_ambiguous_github_username(
     assert kwargs["github_logins"] == ["alice-gh-1", "alice-gh-2"]
 
 
+@pytest.mark.parametrize("include_unique_login", [False, True])
+def test_get_group_members_skips_shared_github_login(
+    workspace_client: LdapWorkspaceClient,
+    mock_api: MagicMock,
+    *,
+    include_unique_login: bool,
+) -> None:
+    """A login claimed by multiple LDAP uids must not identify either one."""
+    mock_api.check_groups_exist.return_value = {"team-a"}
+    mock_api.get_group_members.return_value = [
+        LdapGroup(
+            cn="team-a",
+            dn="cn=team-a,cn=groups,cn=accounts,dc=example,dc=com",
+            members=frozenset({LdapUser(username="alice"), LdapUser(username="bob")}),
+        )
+    ]
+    mapping = {"shared-gh": ["alice", "bob"]}
+    if include_unique_login:
+        mapping["alice-gh"] = ["alice"]
+    mock_api.get_github_usernames.return_value = mapping
+
+    with patch(
+        "qontract_api.external.ldap.ldap_workspace_client.logger"
+    ) as mock_logger:
+        result = workspace_client.get_group_members(["team-a"])
+
+    assert result == [
+        LdapGroupResult(
+            group="team-a",
+            members=[
+                LdapGroupMember(
+                    org_username="alice",
+                    github_username="alice-gh" if include_unique_login else None,
+                ),
+                LdapGroupMember(org_username="bob"),
+            ],
+        )
+    ]
+    mock_logger.warning.assert_called_once()
+    assert mock_logger.warning.call_args.kwargs == {
+        "github_login": "shared-gh",
+        "uids": ["alice", "bob"],
+    }
+
+
 def test_get_group_members_fail_closed_on_oversized_group(
     workspace_client: LdapWorkspaceClient,
     mock_api: MagicMock,
