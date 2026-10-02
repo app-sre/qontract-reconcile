@@ -750,6 +750,41 @@ def test_get_group_members_distinguishes_multi_valued_rdn_from_separate_rdns(
     assert {u.username for u in by_dn[separate_rdns_dn].members} == {"bob"}
 
 
+def test_get_group_members_matches_equivalent_dn_escape_encodings(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    r"""Canonicalization must decode RFC 4514 escapes before comparing.
+
+    A literal comma in an attribute value can be spelled as a backslash
+    escape (`\\,`) or as a hex-pair escape (`\\2C`) - both represent the same
+    literal string, but parse_dn() preserves whichever spelling was used. A
+    raw (post-lowercase) string comparison would treat the two spellings as
+    different DNs and silently drop the member.
+    """
+    requested_dn = r"cn=sales\,admins,ou=groups,dc=example,dc=com"
+    differently_escaped_member_of = r"cn=sales\2Cadmins,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {
+                "attributes": {
+                    "uid": ["alice"],
+                    "memberOf": [differently_escaped_member_of],
+                }
+            },
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([requested_dn])
+
+    assert len(result) == 1
+    assert result[0].dn == requested_dn
+    assert {u.username for u in result[0].members} == {"alice"}
+
+
 # --- check_groups_exist ---
 
 

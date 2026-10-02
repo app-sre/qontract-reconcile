@@ -2,6 +2,7 @@
 
 import contextvars
 import re
+import string
 import time
 import types
 from collections import defaultdict
@@ -186,8 +187,45 @@ def _get_cn_from_dn(dn: str) -> str:
     return rdn[1]
 
 
+_HEX_DIGITS = frozenset(string.hexdigits)
+
+
+def _decode_dn_value(value: str) -> str:
+    r"""Decode RFC 4514 escape sequences in a DN attribute value.
+
+    parse_dn() returns attribute values with escapes intact, and a literal
+    special character can legitimately be spelled either way (e.g. a comma as
+    `\\,` or as the hex-pair escape `\\2C`) - comparing the raw escaped text
+    would treat two semantically-identical values as different. Collects
+    every decoded byte (literal characters, `\\c`-escaped literals, and
+    `\\XX` hex-escaped bytes) into one buffer and UTF-8 decodes it once at the
+    end, so a multi-byte character split across consecutive hex escapes is
+    reassembled correctly.
+    """
+    raw = bytearray()
+    i = 0
+    n = len(value)
+    while i < n:
+        c = value[i]
+        if (
+            c == "\\"
+            and i + 2 < n
+            and value[i + 1] in _HEX_DIGITS
+            and value[i + 2] in _HEX_DIGITS
+        ):
+            raw.append(int(value[i + 1 : i + 3], 16))
+            i += 3
+        elif c == "\\" and i + 1 < n:
+            raw.extend(value[i + 1].encode())
+            i += 2
+        else:
+            raw.extend(c.encode())
+            i += 1
+    return raw.decode()
+
+
 def _canonicalize_dn(dn: str) -> tuple[tuple[str, str, str], ...]:
-    """Build a case-insensitive canonical form of a DN.
+    r"""Build a case-insensitive canonical form of a DN.
 
     LDAP attribute type names are always case-insensitive, and DN-syntax
     attribute values (e.g. the `cn` RDNs used throughout this module) are too
@@ -200,9 +238,17 @@ def _canonicalize_dn(dn: str) -> tuple[tuple[str, str, str], ...]:
     same multi-valued RDN and `,` (or empty, at the end) between separate
     RDNs. Dropping it would make e.g. `cn=admins+ou=groups,dc=...` (one RDN)
     indistinguishable from `cn=admins,ou=groups,dc=...` (two RDNs).
+
+    Attribute values must be unescaped before lowercasing: two DNs can encode
+    the same literal value with different RFC 4514 escape spellings (e.g. a
+    comma as `\\,` or `\\2C`), which parse_dn() does not normalize.
     """
     return tuple(
-        (attr_type.strip().lower(), attr_value.strip().lower(), separator)
+        (
+            attr_type.strip().lower(),
+            _decode_dn_value(attr_value.strip()).lower(),
+            separator,
+        )
         for attr_type, attr_value, separator in parse_dn(dn)
     )
 
