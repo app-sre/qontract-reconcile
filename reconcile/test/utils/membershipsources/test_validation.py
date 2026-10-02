@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from reconcile.test.utils.membershipsources.fixtures import (
     build_ldap_membership_source,
     build_role,
@@ -20,6 +22,27 @@ def test_find_circular_memberships_detects_conflict() -> None:
     conflicts = find_circular_memberships(roles, published_ldap_groups={"team-x"})
 
     assert conflicts == [("role-a", "team-x")]
+
+
+@pytest.mark.parametrize(
+    ("source_group", "published_group"),
+    [("TEAM-X", "team-x"), ("team-x", "TEAM-X"), ("Team-X", "tEAM-x")],
+)
+def test_find_circular_memberships_matches_case_insensitively(
+    source_group: str, published_group: str
+) -> None:
+    roles = [
+        build_role(
+            name="role-a",
+            member_sources=[
+                build_ldap_membership_source(name="corp-ldap", group=source_group)
+            ],
+        )
+    ]
+
+    assert find_circular_memberships(roles, {published_group}) == [
+        ("role-a", source_group)
+    ]
 
 
 def test_find_circular_memberships_no_conflict_for_disjoint_groups() -> None:
