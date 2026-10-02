@@ -73,8 +73,19 @@ def create_ldap_membership_resolver(
                 ),
             )
         )
+        # LDAP CN matching is case-insensitive, so the endpoint can return a
+        # group's stored spelling (e.g. "team-a") even when the caller
+        # requested a different casing (e.g. "Team-A", as configured in
+        # app-interface). resolve_role() looks members up by the requested
+        # spelling, so the result key must use that spelling too - otherwise
+        # a genuinely resolved group would look both missing (triggering the
+        # fail-closed check below) and empty to the caller.
+        requested_by_lower = {g.lower(): g for g in groups}
         resolved: dict[ProviderGroup, list[ProviderMember]] = {
-            (provider_name, group.group): list(group.members or [])
+            (
+                provider_name,
+                requested_by_lower.get(group.group.lower(), group.group),
+            ): list(group.members or [])
             for group in response.groups
         }
         # The endpoint omits a group entirely when it doesn't exist in LDAP,

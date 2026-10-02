@@ -159,6 +159,39 @@ async def test_resolve_raises_naming_only_the_unresolved_groups() -> None:
     assert "team-a" not in str(exc_info.value)
 
 
+@pytest.mark.asyncio
+async def test_resolve_preserves_requested_group_casing() -> None:
+    """The result key must use the requested spelling, not the stored one.
+
+    LDAP CN matching is case-insensitive, so the endpoint can return a group
+    using its stored spelling (e.g. "team-a") even though the caller
+    requested a different casing (e.g. "Team-A", as configured in
+    app-interface). resolve_role() looks members up by the *requested*
+    spelling, so returning the stored spelling here would make a genuinely
+    resolved group look both missing (spurious fail-closed RuntimeError) and,
+    if that check didn't exist, silently empty.
+    """
+    resolver = create_ldap_membership_resolver(
+        _ldap_settings(), "https://vault.example.com"
+    )
+
+    with patch(f"{_MOD}.ldap_group_members", new_callable=AsyncMock) as mock_client:
+        mock_client.return_value = LdapGroupMembersResponse(
+            groups=[
+                LdapGroupResult(
+                    group="team-a",  # stored spelling, different case
+                    members=[LdapGroupMember(org_username="alice")],
+                )
+            ]
+        )
+        result = await resolver(
+            "corp-ldap", MembershipProviderSourceV1(provider="ldap"), {"Team-A"}
+        )
+
+    assert ("corp-ldap", "Team-A") in result
+    assert {m.org_username for m in result["corp-ldap", "Team-A"]} == {"alice"}
+
+
 def test_create_ldap_membership_resolver_sync_wraps_async_resolver() -> None:
     """The sync factory is dependency-injected - ldap_settings and
     secret_manager_url come from the caller, never fetched from global
