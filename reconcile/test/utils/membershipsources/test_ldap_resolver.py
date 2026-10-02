@@ -192,6 +192,31 @@ async def test_resolve_preserves_requested_group_casing() -> None:
     assert {m.org_username for m in result["corp-ldap", "Team-A"]} == {"alice"}
 
 
+@pytest.mark.asyncio
+async def test_resolve_rejects_case_duplicate_group_names() -> None:
+    """Two requested spellings normalizing to the same LDAP CN are rejected
+    up front, before the endpoint is even called.
+
+    `groups` is batched across every role sharing a provider name
+    (build_resolver_jobs), so two roles configuring the same LDAP group with
+    different casing (e.g. "Team-A" and "team-a") can land in the same
+    request set. Mapping both to a single result key is ambiguous (which
+    spelling wins?) - reject explicitly instead of silently picking one.
+    """
+    resolver = create_ldap_membership_resolver(
+        _ldap_settings(), "https://vault.example.com"
+    )
+
+    with patch(f"{_MOD}.ldap_group_members", new_callable=AsyncMock) as mock_client:
+        with pytest.raises(RuntimeError, match="Team-A"):
+            await resolver(
+                "corp-ldap",
+                MembershipProviderSourceV1(provider="ldap"),
+                {"Team-A", "team-a"},
+            )
+        mock_client.assert_not_called()
+
+
 def test_create_ldap_membership_resolver_sync_wraps_async_resolver() -> None:
     """The sync factory is dependency-injected - ldap_settings and
     secret_manager_url come from the caller, never fetched from global

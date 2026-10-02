@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import defaultdict
 from typing import TYPE_CHECKING, Protocol
 
 from qontract_api_client.client import ldap_group_members
@@ -59,6 +60,24 @@ def create_ldap_membership_resolver(
     ) -> dict[ProviderGroup, list[ProviderMember]]:
         if not ldap_settings.credentials:
             raise RuntimeError("LDAP credentials not found in settings")
+
+        # LDAP CN matching is case-insensitive, so two requested spellings
+        # (e.g. "Team-A" and "team-a", from two different roles sharing this
+        # provider - build_resolver_jobs batches groups across all of them)
+        # can refer to the same underlying group. Mapping both to one result
+        # key is ambiguous - reject up front rather than silently picking one
+        # and dropping the other.
+        spellings_by_lower: dict[str, list[str]] = defaultdict(list)
+        for g in groups:
+            spellings_by_lower[g.lower()].append(g)
+        if ambiguous := [
+            sorted(spellings)
+            for spellings in spellings_by_lower.values()
+            if len(spellings) > 1
+        ]:
+            raise RuntimeError(
+                f"Ambiguous LDAP group names differing only in case: {ambiguous}"
+            )
 
         response = await ldap_group_members(
             LdapGroupMembersRequest(
