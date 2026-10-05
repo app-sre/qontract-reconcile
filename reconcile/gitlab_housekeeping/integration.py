@@ -33,6 +33,7 @@ from reconcile.gitlab_housekeeping.labels import (
     is_eligible_for_optimistic_merge,
 )
 from reconcile.gitlab_housekeeping.omm import (
+    _without_skip_ci_bot_pipelines,
     apply_omm_group_lead,
     apply_omm_pending,
     clear_omm_group,
@@ -297,6 +298,9 @@ def merge_merge_requests(
                 )
 
         pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
+        # Same skip-ci drop as OMM. After a group expires, a failed pipeline
+        # on a skip-ci SHA must not block serial merge of the older success.
+        pipelines = _without_skip_ci_bot_pipelines(gl, mr, pipelines)
         if not pipelines:
             continue
 

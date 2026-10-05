@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
+from operator import itemgetter
 from typing import TYPE_CHECKING, Any, cast
 
 import gitlab
@@ -186,6 +187,208 @@ def clear_omm_group(
                 gl.remove_label(mr, OMM_PENDING)
 
 
+def _bot_commit_emails(gl: GitLabApi) -> set[str]:
+    """Emails the rebase API writes as committer. Empty strings never match."""
+    emails: set[str] = set()
+    for raw in (
+        getattr(gl.user, "commit_email", None),
+        getattr(gl.user, "email", None),
+    ):
+        if isinstance(raw, str) and raw.strip():
+            emails.add(raw.strip().lower())
+    return emails
+
+
+def _event_label_name(event: Any) -> str | None:
+    label = getattr(event, "label", None)
+    if isinstance(label, dict):
+        name = label.get("name")
+    else:
+        name = getattr(label, "name", None)
+    if isinstance(name, str) and name:
+        return name
+    return None
+
+
+def _omm_pending_on_intervals(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+) -> list[tuple[datetime, datetime | None]] | None:
+    """Stretches when omm-pending was on. None if the events cannot be read.
+
+    An open interval (end is None) means the label is still on.
+    """
+    try:
+        events = gl.get_merge_request_label_events(mr)
+    except gitlab.exceptions.GitlabError as e:
+        logging.warning([
+            "omm-group",
+            "skip-ci-label-events-unavailable",
+            gl.project.name,
+            mr.iid,
+            str(e),
+        ])
+        return None
+    if not isinstance(events, list):
+        return None
+
+    stamped: list[tuple[datetime, str]] = []
+    for event in events:
+        if _event_label_name(event) != OMM_PENDING:
+            continue
+        action = getattr(event, "action", None)
+        created_at = getattr(event, "created_at", None)
+        if action not in {"add", "remove"} or not isinstance(created_at, str):
+            continue
+        try:
+            stamped.append((from_utc_iso_format(created_at), action))
+        except TypeError, ValueError:
+            logging.warning([
+                "omm-group",
+                "skip-ci-label-events-unparsed",
+                gl.project.name,
+                mr.iid,
+            ])
+            return None
+    stamped.sort(key=itemgetter(0))
+
+    intervals: list[tuple[datetime, datetime | None]] = []
+    open_start: datetime | None = None
+    for when, action in stamped:
+        if action == "add":
+            if open_start is None:
+                open_start = when
+        elif open_start is not None:
+            intervals.append((open_start, when))
+            open_start = None
+    if open_start is not None:
+        intervals.append((open_start, None))
+    return intervals
+
+
+def _committed_during_label(
+    committed_at: datetime,
+    intervals: list[tuple[datetime, datetime | None]],
+) -> bool:
+    for start, end in intervals:
+        if committed_at < start:
+            continue
+        if end is None or committed_at < end:
+            return True
+    return False
+
+
+def _sha_commit(
+    gl: GitLabApi,
+    project_id: int | str,
+    sha: str,
+    cache: dict[tuple[int | str, str], tuple[str, datetime] | None],
+) -> tuple[str, datetime] | None:
+    """(committer_email, committed_at) for sha, or None if it cannot be read."""
+    key = (project_id, sha)
+    if key in cache:
+        return cache[key]
+    try:
+        commit = gl.get_commit(project_id, sha)
+        email = getattr(commit, "committer_email", None)
+        committed_at = getattr(commit, "committed_date", None)
+        if not isinstance(email, str) or not email.strip():
+            cache[key] = None
+            return None
+        if not isinstance(committed_at, str):
+            cache[key] = None
+            return None
+        parsed = (email.strip().lower(), from_utc_iso_format(committed_at))
+    except (gitlab.exceptions.GitlabError, TypeError, ValueError) as e:
+        logging.warning([
+            "omm-group",
+            "skip-ci-commit-unavailable",
+            project_id,
+            sha,
+            str(e),
+        ])
+        cache[key] = None
+        return None
+    cache[key] = parsed
+    return parsed
+
+
+def _without_skip_ci_bot_pipelines(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+    pipelines: list[Any],
+) -> list[Any]:
+    """Drop pipelines on bot commits written while omm-pending was on.
+
+    Lookup failure keeps the pipelines. Committer alone is not a drop.
+    """
+    intervals = _omm_pending_on_intervals(gl, mr)
+    if not intervals:
+        return pipelines
+    emails = _bot_commit_emails(gl)
+    if not emails:
+        return pipelines
+
+    cache: dict[tuple[int | str, str], tuple[str, datetime] | None] = {}
+    kept: list[Any] = []
+    dropped: list[str] = []
+    for pipeline in pipelines:
+        project_id = getattr(pipeline, "project_id", None)
+        sha = getattr(pipeline, "sha", None)
+        if project_id is None or not isinstance(sha, str):
+            kept.append(pipeline)
+            continue
+        commit = _sha_commit(gl, project_id, sha, cache)
+        if commit is None:
+            kept.append(pipeline)
+            continue
+        email, committed_at = commit
+        if email in emails and _committed_during_label(committed_at, intervals):
+            dropped.append(sha)
+            continue
+        kept.append(pipeline)
+    if dropped:
+        logging.info([
+            "omm-group",
+            "skip-ci-bot-pipeline-ignored",
+            gl.project.name,
+            mr.iid,
+            sorted(set(dropped)),
+        ])
+    return kept
+
+
+def _bot_head_awaiting_pipeline(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+    pipelines: list[Any],
+) -> bool:
+    """True when a normal bot rebase has landed and Jenkins has not posted yet.
+
+    A bot head already inside an omm-pending on-interval is a skip-ci commit.
+    That MR can be admitted. The member filter ignores pipelines on that SHA.
+    """
+    sha = getattr(mr, "sha", None)
+    if not isinstance(sha, str):
+        return False
+    if any(getattr(p, "sha", None) == sha for p in pipelines):
+        return False
+    emails = _bot_commit_emails(gl)
+    if not emails:
+        return False
+    project_id = getattr(mr, "source_project_id", None)
+    if project_id is None:
+        return False
+    commit = _sha_commit(gl, project_id, sha, {})
+    if commit is None:
+        return False
+    email, committed_at = commit
+    if email not in emails:
+        return False
+    intervals = _omm_pending_on_intervals(gl, mr)
+    return not (intervals and _committed_during_label(committed_at, intervals))
+
+
 def form_omm_group(
     gl: GitLabApi,
     merge_requests: list[dict[str, Any]],
@@ -213,14 +416,43 @@ def form_omm_group(
         if has_overlapping_labels(mr_labels, group_labels):
             continue
         pipelines = gl.get_merge_request_pipelines(mr)
-        pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
-        if not pipelines:
+        visible = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
+        visible = _without_skip_ci_bot_pipelines(gl, mr, visible)
+        if not visible:
             continue
-        if pipelines[0].status not in {
+        if visible[0].status not in {
             PipelineStatus.RUNNING,
             PipelineStatus.PENDING,
             PipelineStatus.SUCCESS,
         }:
+            continue
+        try:
+            fresh = gl.get_merge_request(mr.iid, include_rebase_in_progress=True)
+        except gitlab.exceptions.GitlabError as e:
+            logging.warning([
+                "omm-group",
+                "skip-admission-mr-unavailable",
+                gl.project.name,
+                mr.iid,
+                str(e),
+            ])
+            continue
+        if getattr(fresh, "rebase_in_progress", None) is True:
+            logging.info([
+                "omm-group",
+                "skip-admission-rebase-in-progress",
+                gl.project.name,
+                mr.iid,
+            ])
+            continue
+        if _bot_head_awaiting_pipeline(gl, fresh, pipelines):
+            logging.info([
+                "omm-group",
+                "skip-admission-bot-head-awaiting-pipeline",
+                gl.project.name,
+                mr.iid,
+                fresh.sha,
+            ])
             continue
         candidates.append(mr)
         group_labels.update(mr_labels)
@@ -405,11 +637,13 @@ def _process_omm_member(
     # Filter pipelines that carry no CI signal:
     # - SKIPPED: placeholder from skip_ci rebase
     # - PUSH: empty 0-job shells from skip_ci rebase (real CI is source=external)
+    # - bot commits written while omm-pending was on: post-19.2 skip-ci Jenkins
     pipelines = [
         p
         for p in pipelines
         if not (p.status == PipelineStatus.SKIPPED or p.source == "push")
     ]
+    pipelines = _without_skip_ci_bot_pipelines(gl, mr, pipelines)
 
     fresh_mr = gl.get_merge_request(mr.iid)
     try:
