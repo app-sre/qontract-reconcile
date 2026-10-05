@@ -12,6 +12,7 @@ from qontract_api.integrations.glitchtip import router as glitchtip_router
 from qontract_api.integrations.glitchtip_project_alerts import (
     router as glitchtip_project_alerts_router,
 )
+from qontract_api.integrations.ldap_groups import router as ldap_groups_router
 from qontract_api.integrations.managed_sso_client import (
     router as managed_sso_client_router,
 )
@@ -37,6 +38,7 @@ integrations_router = APIRouter(
 integrations_router.include_router(slack_usergroups_router.router)
 integrations_router.include_router(glitchtip_project_alerts_router.router)
 integrations_router.include_router(github_owners_router.router)
+integrations_router.include_router(ldap_groups_router.router)
 integrations_router.include_router(glitchtip_router.router)
 integrations_router.include_router(openshift_namespaces_router.router)
 integrations_router.include_router(sso_client_router.router)

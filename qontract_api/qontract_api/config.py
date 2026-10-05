@@ -304,6 +304,15 @@ class LdapSettings(BaseModel):
     )
 
 
+class InternalGroupsSettings(BaseModel):
+    """Internal Groups API integration configuration."""
+
+    group_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Internal Groups GET group cache TTL in seconds (one hour)",
+    )
+
+
 class OcmSettings(BaseModel):
     """OCM API and integration configuration."""
 
@@ -626,6 +635,12 @@ class Settings(BaseSettings):
     ldap: LdapSettings = Field(
         default_factory=LdapSettings,
         description="LDAP external integration configuration",
+    )
+
+    # Internal Groups Configuration (nested)
+    internal_groups: InternalGroupsSettings = Field(
+        default_factory=InternalGroupsSettings,
+        description="Internal Groups API integration configuration",
     )
 
     # OCM Configuration (nested)
