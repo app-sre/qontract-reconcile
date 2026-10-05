@@ -479,6 +479,24 @@ async def glitchtip_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/ldap-groups/reconcile")
+async def ldap_groups(
+    result: schemas.LdapGroupsTaskResponse, data: schemas.LdapGroupsReconcileRequest
+) -> schemas.LdapGroupsTaskResponse:
+    """Ldap Groups"""
+    return result
+
+
+@client.get("/api/v1/integrations/ldap-groups/reconcile/{task_id}")
+async def ldap_groups_task_status(
+    result: schemas.LdapGroupsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.LdapGroupsTaskResult:
+    """Ldap Groups Task Status"""
+    return result
+
+
 @client.post("/api/v1/integrations/managed-sso-client/reconcile")
 async def managed_sso_client(
     result: schemas.ManagedSsoClientTaskResponse,
