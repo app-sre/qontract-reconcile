@@ -149,8 +149,8 @@ def test_create_project_creates_under_group_and_returns_project(
 def test_create_project_raises_exception_from_gitlab_api(
     gitlab_api: GitlabApi, mock_gitlab_client: MagicMock
 ) -> None:
-    mock_gitlab_client.projects.create.side_effect = gitlab.exceptions.GitlabCreateError(
-        "Failed to create project"
+    mock_gitlab_client.projects.create.side_effect = (
+        gitlab.exceptions.GitlabCreateError("Failed to create project")
     )
 
     with pytest.raises(gitlab.exceptions.GitlabCreateError):
@@ -159,6 +159,7 @@ def test_create_project_raises_exception_from_gitlab_api(
     mock_gitlab_client.projects.create.assert_called_once_with(
         {"name": "newproj", "namespace_id": 99}
     )
+
 
 # ---------------------------------------------------------------------------
 # close / context manager

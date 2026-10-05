@@ -159,9 +159,7 @@ class GitLabProjectsIntegration(
             for project_request in instance.project_requests or []:
                 valid_projects: list[str] = []
                 for project_name in project_request.projects:
-                    project_url = (
-                        f"{instance.url.rstrip('/')}/{project_request.group}/{project_name}"
-                    )
+                    project_url = f"{instance.url.rstrip('/')}/{project_request.group}/{project_name}"
                     if project_url not in declared_urls:
                         logging.error(f"{project_url} missing from all codeComponents")
                         missing_urls.append(project_url)
@@ -183,7 +181,8 @@ class GitLabProjectsIntegration(
                         instance.ssl_verify if instance.ssl_verify is not None else True
                     ),
                     token=Secret(
-                        secret_manager_url=instance.token.url or self.secret_manager_url,
+                        secret_manager_url=instance.token.url
+                        or self.secret_manager_url,
                         path=instance.token.path,
                         field=instance.token.field,
                         version=instance.token.version,

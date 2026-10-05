@@ -369,6 +369,14 @@ async def gitlab_projects_task_status(
     Args:
         task_id: Task ID from POST /reconcile response
         timeout: Maximum seconds to wait (default: non-blocking)
+
+    Returns:
+        GitlabProjectsTaskResult with lists of calculated and applied actions.
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Task ID not found
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
     """
     return result
 
