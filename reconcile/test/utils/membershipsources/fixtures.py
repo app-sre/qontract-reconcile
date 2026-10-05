@@ -55,3 +55,18 @@ def build_app_interface_membership_source(
         ),
         group=group,
     )
+
+
+def build_ldap_membership_source(
+    name: str,
+    group: str,
+    has_audit_trail: bool = False,
+) -> RoleMembershipSource:
+    return RoleMembershipSource(
+        provider=MembershipProviderV1(
+            name=name,
+            hasAuditTrail=has_audit_trail,
+            source=MembershipProviderSourceV1(provider="ldap"),
+        ),
+        group=group,
+    )

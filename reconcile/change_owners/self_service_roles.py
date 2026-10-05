@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
+from pydantic import BaseModel
+
 from reconcile.change_owners.approver import (
     Approver,
     ApproverReachability,
@@ -22,11 +24,6 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     RoleV1,
 )
 from reconcile.utils import expiration, gql
-from reconcile.utils.membershipsources.models import (
-    RoleBot,
-    RoleMember,
-    RoleUser,
-)
 from reconcile.utils.membershipsources.resolver import resolve_role_members
 
 if TYPE_CHECKING:
@@ -141,7 +138,9 @@ def change_type_contexts_for_self_service_roles(
                     ].append(r)
 
     # resolve approvers for self-service roles, either directly or via member sources
-    resolved_approvers = resolve_role_members([r for r in roles if r.self_service])
+    resolved_approvers = resolve_role_members(
+        [r for r in roles if r.self_service], user_cls=ApproverUser
+    )
 
     # match every BundleChange with every relevant ChangeTypeV1
     change_type_contexts: list[tuple[BundleFileChange, ChangeTypeContext]] = []
@@ -204,22 +203,26 @@ def change_type_contexts_for_self_service_roles(
     return change_type_contexts
 
 
-def build_approver(role_member: RoleMember) -> Approver | None:
+class ApproverUser(BaseModel, extra="ignore"):
+    """Role member shape needed to build a change-owners Approver.
+
+    Deliberately minimal: memberSources-resolved members (e.g. from LDAP)
+    only ever populate org_username, so every other field must be optional.
+    """
+
+    org_username: str
+    tag_on_merge_requests: bool | None = False
+
+
+def build_approver(role_member: ApproverUser) -> Approver | None:
     """
     Builds an approver from a role member. Can return None if the passed
     approver is not considered valid within this context, e.g. not having
     an org username.
     """
-    match role_member:
-        case RoleUser():
-            return Approver(role_member.org_username, role_member.tag_on_merge_requests)
-        case RoleBot() if role_member.org_username:
-            return (
-                Approver(role_member.org_username, False)
-                if role_member.org_username
-                else None
-            )
-    return None
+    if not role_member.org_username:
+        return None
+    return Approver(role_member.org_username, role_member.tag_on_merge_requests)
 
 
 def change_type_labels_from_role(role: RoleV1) -> set[str]:

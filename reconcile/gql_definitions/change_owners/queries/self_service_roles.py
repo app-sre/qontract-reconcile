@@ -27,6 +27,7 @@ fragment RoleMembershipSource on RoleMembershipSource_V1 {
     name
     hasAuditTrail
     source {
+      provider
       ... on AppInterfaceMembershipProviderSource_V1 {
         url
         username {

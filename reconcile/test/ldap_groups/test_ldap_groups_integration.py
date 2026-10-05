@@ -4,13 +4,20 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from reconcile.gql_definitions.fragments.membership_source import (
+    MembershipProviderSourceV1,
+    MembershipProviderV1,
+    RoleMembershipSource,
+)
 from reconcile.gql_definitions.ldap_groups.roles import RoleV1
+from reconcile.ldap_groups.integration import LdapGroupsIntegration
 from reconcile.utils.internal_groups.client import NotFoundError
 from reconcile.utils.internal_groups.models import (
     Entity,
     EntityType,
     Group,
 )
+from reconcile.utils.membershipsources.validation import CircularMembershipError
 
 if TYPE_CHECKING:
     from collections.abc import (
@@ -20,8 +27,6 @@ if TYPE_CHECKING:
         Sequence,
     )
     from unittest.mock import Mock
-
-    from reconcile.ldap_groups.integration import LdapGroupsIntegration
 
 
 def test_get_early_exit_desired_state(
@@ -336,6 +341,54 @@ def test_ldap_groups_integration_get_desired_groups_for_aws_roles(
             namespace=None,
         ),
     ]
+
+
+def _role_with_member_source(*, name: str, group: str) -> RoleV1:
+    return RoleV1(
+        name=name,
+        ldapGroup=None,
+        users=[],
+        memberSources=[
+            RoleMembershipSource(
+                group=group,
+                provider=MembershipProviderV1(
+                    name="corp-ldap",
+                    hasAuditTrail=False,
+                    source=MembershipProviderSourceV1(provider="ldap"),
+                ),
+            )
+        ],
+        user_policies=None,
+        aws_groups=None,
+    )
+
+
+def _minimal_desired_group(name: str) -> Group:
+    return Group(
+        name=name,
+        description="d",
+        contact_list="email@example.org",
+        owners=[],
+        display_name=name,
+    )
+
+
+def test_validate_no_circular_memberships_raises_on_conflict() -> None:
+    role = _role_with_member_source(name="role-a", group="team-x")
+
+    with pytest.raises(CircularMembershipError, match="role-a"):
+        LdapGroupsIntegration.validate_no_circular_memberships(
+            [role], [_minimal_desired_group("team-x")]
+        )
+
+
+def test_validate_no_circular_memberships_passes_for_disjoint_groups() -> None:
+    role = _role_with_member_source(name="role-a", group="team-x")
+
+    # should not raise
+    LdapGroupsIntegration.validate_no_circular_memberships(
+        [role], [_minimal_desired_group("team-y")]
+    )
 
 
 def test_ldap_groups_integration_fetch_current_state(

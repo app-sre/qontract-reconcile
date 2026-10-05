@@ -18,6 +18,9 @@ from qontract_api_client.schemas import (
     GithubOrgMembersResponse,
     LdapGithubUser,
     LdapGithubUsernamesResponse,
+    LdapGroupMember,
+    LdapGroupMembersResponse,
+    LdapGroupResult,
     PagerDutyUser,
     RepoOwnersResponse,
     ScheduleUsersResponse,
@@ -34,6 +37,11 @@ from qontract_api_client.schemas import (
 from qontract_utils.vcs import Provider
 
 from reconcile.gql_definitions.common.ldap_settings import LdapSettingsV1
+from reconcile.gql_definitions.fragments.membership_source import (
+    MembershipProviderSourceV1,
+    MembershipProviderV1,
+    RoleMembershipSource,
+)
 from reconcile.gql_definitions.fragments.user import User
 from reconcile.gql_definitions.fragments.vault_secret import (
     VaultSecret as LdapVaultSecret,
@@ -45,6 +53,7 @@ from reconcile.gql_definitions.slack_usergroups_api.clusters import (
     DisableClusterAutomationsV1,
 )
 from reconcile.gql_definitions.slack_usergroups_api.permissions import (
+    BotV1,
     GithubOrgV1,
     PagerDutyInstanceV1,
     PagerDutyTargetV1,
@@ -86,6 +95,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
 _MOD = "reconcile.slack_usergroups_api"
+_LDAP_RESOLVER_MOD = "reconcile.utils.membershipsources.ldap_resolver"
 
 
 # --- factories ---
@@ -146,6 +156,34 @@ def _cluster_user(
         tag_on_merge_requests=None,
         gov_slack_email_local_part=None,
         tag_on_cluster_updates=tag_on_cluster_updates,
+    )
+
+
+def _role(
+    *,
+    name: str = "role",
+    users: list[User] | None = None,
+    bots: list[BotV1] | None = None,
+    member_sources: list[RoleMembershipSource] | None = None,
+) -> RoleV1:
+    return RoleV1(
+        name=name,
+        users=users or [],
+        bots=bots or [],
+        memberSources=member_sources,
+    )
+
+
+def _ldap_membership_source(
+    *, name: str = "corp-ldap", group: str = "team-a"
+) -> RoleMembershipSource:
+    return RoleMembershipSource(
+        provider=MembershipProviderV1(
+            name=name,
+            hasAuditTrail=False,
+            source=MembershipProviderSourceV1(provider="ldap"),
+        ),
+        group=group,
     )
 
 
@@ -422,17 +460,153 @@ def test_compile_users_from_schedule_inactive_window() -> None:
 # --- compile_users_from_roles ---
 
 
-def test_compile_users_from_roles_none() -> None:
-    assert SlackUsergroupsIntegration.compile_users_from_roles(None) == []
+@pytest.mark.asyncio
+async def test_compile_users_from_roles_none(
+    integration: SlackUsergroupsIntegration,
+) -> None:
+    assert (
+        await integration.compile_users_from_roles(
+            None, _ldap_settings(), app_interface_users=[]
+        )
+        == []
+    )
 
 
-def test_compile_users_from_roles() -> None:
+@pytest.mark.asyncio
+async def test_compile_users_from_roles(
+    integration: SlackUsergroupsIntegration,
+) -> None:
     roles = [
-        RoleV1(users=[_frag_user("alice", gov_slack_email_local_part="alice.gov")]),
-        RoleV1(users=[_frag_user("bob")]),
+        _role(
+            name="role1",
+            users=[_frag_user("alice", gov_slack_email_local_part="alice.gov")],
+        ),
+        _role(name="role2", users=[_frag_user("bob")]),
     ]
-    result = SlackUsergroupsIntegration.compile_users_from_roles(roles)
+    result = await integration.compile_users_from_roles(
+        roles, _ldap_settings(), app_interface_users=[]
+    )
     assert sorted(result) == ["alice.gov", "bob"]
+
+
+@pytest.mark.asyncio
+async def test_compile_users_from_roles_without_member_sources_skips_ldap_call(
+    integration: SlackUsergroupsIntegration,
+) -> None:
+    """Roles without memberSources never hit the LDAP endpoint."""
+    roles = [_role(users=[_frag_user("alice")])]
+    with patch(
+        f"{_LDAP_RESOLVER_MOD}.ldap_group_members", new_callable=AsyncMock
+    ) as mock_client:
+        result = await integration.compile_users_from_roles(
+            roles, _ldap_settings(), app_interface_users=[]
+        )
+
+    assert result == ["alice"]
+    mock_client.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_compile_users_from_roles_resolves_ldap_source(
+    integration: SlackUsergroupsIntegration,
+) -> None:
+    roles = [
+        _role(
+            users=[_frag_user("alice")],
+            member_sources=[_ldap_membership_source()],
+        )
+    ]
+    with patch(
+        f"{_LDAP_RESOLVER_MOD}.ldap_group_members", new_callable=AsyncMock
+    ) as mock_client:
+        mock_client.return_value = LdapGroupMembersResponse(
+            groups=[
+                LdapGroupResult(
+                    group="team-a", members=[LdapGroupMember(org_username="bob")]
+                )
+            ]
+        )
+        result = await integration.compile_users_from_roles(
+            roles, _ldap_settings(), app_interface_users=[]
+        )
+
+    assert sorted(result) == ["alice", "bob"]
+
+
+@pytest.mark.asyncio
+async def test_compile_users_from_roles_dedup_prefers_explicit_gov_slack(
+    integration: SlackUsergroupsIntegration,
+) -> None:
+    """An explicit user's gov_slack_email_local_part wins over an LDAP duplicate."""
+    roles = [
+        _role(
+            users=[_frag_user("shared", gov_slack_email_local_part="shared.gov")],
+            member_sources=[_ldap_membership_source()],
+        )
+    ]
+    with patch(
+        f"{_LDAP_RESOLVER_MOD}.ldap_group_members", new_callable=AsyncMock
+    ) as mock_client:
+        mock_client.return_value = LdapGroupMembersResponse(
+            groups=[
+                LdapGroupResult(
+                    group="team-a", members=[LdapGroupMember(org_username="shared")]
+                )
+            ]
+        )
+        result = await integration.compile_users_from_roles(
+            roles, _ldap_settings(), app_interface_users=[]
+        )
+
+    assert result == ["shared.gov"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("gov_slack_email_local_part", [None, "alice.gov"])
+async def test_process_permission_applies_local_gov_slack_to_ldap_members(
+    integration: SlackUsergroupsIntegration,
+    gov_slack_email_local_part: str | None,
+) -> None:
+    """Local Gov Slack overrides apply without explicit role membership."""
+    permission = _permission(
+        roles=[
+            _role(
+                users=[_frag_user("charlie", gov_slack_email_local_part="charlie.gov")],
+                member_sources=[_ldap_membership_source()],
+            )
+        ]
+    )
+    users = [
+        _app_user(
+            "alice", "alice-gh", gov_slack_email_local_part=gov_slack_email_local_part
+        ),
+        _app_user("charlie", "charlie-gh"),
+        _app_user("unrelated", "unrelated-gh", gov_slack_email_local_part="other.gov"),
+    ]
+    with patch(
+        f"{_LDAP_RESOLVER_MOD}.ldap_group_members", new_callable=AsyncMock
+    ) as mock_client:
+        mock_client.return_value = LdapGroupMembersResponse(
+            groups=[
+                LdapGroupResult(
+                    group="team-a",
+                    members=[
+                        LdapGroupMember(org_username="alice"),
+                        LdapGroupMember(org_username="bob"),
+                    ],
+                )
+            ]
+        )
+        result = await integration._process_permission(
+            permission, users, [], _ldap_settings(), None, None
+        )
+
+    assert result is not None
+    assert result[1].config.users == sorted([
+        gov_slack_email_local_part or "alice",
+        "bob",
+        "charlie.gov",
+    ])
 
 
 # --- compute_cluster_user_group + include_user_to_cluster_usergroup ---
@@ -880,7 +1054,7 @@ async def test_process_permission_builds_usergroup_with_notifications(
     integration: SlackUsergroupsIntegration,
 ) -> None:
     permission = _permission(
-        roles=[RoleV1(users=[_frag_user("alice"), _frag_user("bob")])],
+        roles=[_role(users=[_frag_user("alice"), _frag_user("bob")])],
         channels=["#b", "#a", "#a"],
         notifications=[
             SlackUsergroupNotificationV1(action="addUser", message="welcome"),
@@ -907,7 +1081,7 @@ async def test_process_permission_unknown_notification_raises(
     integration: SlackUsergroupsIntegration,
 ) -> None:
     permission = _permission(
-        roles=[RoleV1(users=[_frag_user("alice")])],
+        roles=[_role(users=[_frag_user("alice")])],
         notifications=[
             SlackUsergroupNotificationV1(action="bogus", message="x"),
         ],
@@ -925,7 +1099,7 @@ async def test_process_permission_unknown_notification_raises(
 async def test_compile_desired_state_from_permissions_builds_workspace(
     integration: SlackUsergroupsIntegration,
 ) -> None:
-    permission = _permission(roles=[RoleV1(users=[_frag_user("alice")])])
+    permission = _permission(roles=[_role(users=[_frag_user("alice")])])
     workspaces = await integration.compile_desired_state_from_permissions(
         permissions=[permission],
         app_interface_users=[],
@@ -946,7 +1120,7 @@ async def test_compile_desired_state_skips_workspace_without_integration(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     permission = _permission(
-        roles=[RoleV1(users=[_frag_user("alice")])],
+        roles=[_role(users=[_frag_user("alice")])],
         workspace=_workspace(managed=["team-handle"], with_integration=False),
     )
     workspaces = await integration.compile_desired_state_from_permissions(

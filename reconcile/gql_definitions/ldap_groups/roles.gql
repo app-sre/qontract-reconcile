@@ -11,6 +11,9 @@ query LdapGroupsRolesQuery {
     users {
       org_username
     }
+    memberSources {
+      ...RoleMembershipSource
+    }
     user_policies {
       account {
         ...AWSAccountSSO
