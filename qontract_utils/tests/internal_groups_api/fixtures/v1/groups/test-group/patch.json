@@ -1,0 +1,25 @@
+{
+  "name": "test-group",
+  "description": "description",
+  "memberApprovalType": "self-service",
+  "owners": [
+    {
+      "id": "service-account-1",
+      "type": "serviceaccount"
+    }
+  ],
+  "contactList": "email@example.com",
+  "displayName": "best group ever",
+  "notes": null,
+  "members": [
+    {
+      "id": "user-1",
+      "type": "user"
+    },
+    {
+      "id": "user-2",
+      "type": "user"
+    }
+  ],
+  "namespace": "test"
+}
