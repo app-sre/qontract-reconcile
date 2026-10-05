@@ -18,6 +18,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.aws_account_sso import AWSAccountSSO
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
 
 
 DEFINITION = """
@@ -30,6 +31,34 @@ fragment AWSAccountSSO on AWSAccount_v1 {
   }
 }
 
+fragment RoleMembershipSource on RoleMembershipSource_V1 {
+  group
+  provider {
+    name
+    hasAuditTrail
+    source {
+      provider
+      ... on AppInterfaceMembershipProviderSource_V1 {
+        url
+        username {
+          ...VaultSecret
+        }
+        password {
+          ...VaultSecret
+        }
+      }
+    }
+  }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+  url
+  path
+  field
+  version
+  format
+}
+
 query LdapGroupsRolesQuery {
   roles: roles_v1 {
     name
@@ -40,6 +69,9 @@ query LdapGroupsRolesQuery {
     }
     users {
       org_username
+    }
+    memberSources {
+      ...RoleMembershipSource
     }
     user_policies {
       account {
@@ -84,6 +116,7 @@ class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     ldap_group: Optional[LdapGroupV1] = Field(..., alias="ldapGroup")
     users: list[UserV1] = Field(..., alias="users")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
     user_policies: Optional[list[AWSUserPolicyV1]] = Field(..., alias="user_policies")
     aws_groups: Optional[list[AWSGroupV1]] = Field(..., alias="aws_groups")
 

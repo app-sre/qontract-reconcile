@@ -153,6 +153,10 @@ from reconcile.utils.mr.labels import (
 from reconcile.utils.oc import (
     OC_Map,
     OCLogMsg,
+    find_active_list_token_dict,
+)
+from reconcile.utils.oc_connection_parameters import (
+    resolve_automation_token,
 )
 from reconcile.utils.oc_map import (
     init_oc_map_from_clusters,
@@ -1427,10 +1431,18 @@ def bot_login(ctx: click.Context, cluster_name: str, cluster_admin: bool) -> Non
 
     cluster = clusters[0]
     server = cluster["serverUrl"]
-    automation_token_name = (
-        "clusterAdminAutomationToken" if cluster_admin else "automationToken"
-    )
-    token = secret_reader.read(cluster[automation_token_name])
+    if cluster_admin:
+        token_secret = find_active_list_token_dict(
+            cluster.get("clusterAdminAutomationTokens")
+        ) or cluster.get("clusterAdminAutomationToken")
+    else:
+        token_secret = find_active_list_token_dict(
+            cluster.get("automationTokens")
+        ) or cluster.get("automationToken")
+    if token_secret is None:
+        print(f"{cluster_name} has no automation token set.")
+        sys.exit(1)
+    token = secret_reader.read(token_secret)
     print(f"oc login --server {server} --token {token}")
 
 
@@ -3174,10 +3186,13 @@ def logs(ctx: click.Context, integration_name: str, environment_name: str) -> No
         return
     namespace = namespaces[0]
     cluster = namespaces[0].cluster
-    if not cluster.automation_token:
+    automation_token = resolve_automation_token(
+        cluster.automation_tokens, cluster.automation_token
+    )
+    if not automation_token:
         print("cluster automation token not found")
         return
-    token = secret_reader.read_secret(cluster.automation_token)
+    token = secret_reader.read_secret(automation_token)
 
     command = f"oc --server {cluster.server_url} --token {token} --namespace {namespace.name} logs -c int -l app=qontract-reconcile-{integration.name}"
     print(command)

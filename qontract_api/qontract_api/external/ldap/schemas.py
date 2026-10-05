@@ -75,3 +75,53 @@ class LdapGithubUsernamesResponse(BaseModel, frozen=True):
         ...,
         description="Resolved GitHub username to org_username mappings",
     )
+
+
+class LdapGroupMembersRequest(BaseModel, frozen=True):
+    """Request to resolve members of one or more LDAP groups."""
+
+    groups: list[str] = Field(
+        ..., description="Short group CNs to resolve (e.g. 'my-ldap-group')"
+    )
+    secret: LdapDirectSecret = Field(
+        ..., description="Vault secret reference for LDAP credentials"
+    )
+    include_github_usernames: bool = Field(
+        default=True,
+        description="Whether to enrich each member with its GitHub username",
+    )
+
+
+class LdapGroupMember(BaseModel, frozen=True):
+    """A single resolved LDAP group member."""
+
+    org_username: str = Field(..., description="LDAP uid (app-interface org_username)")
+    github_username: str | None = Field(
+        default=None,
+        description="GitHub username resolved via rhatSocialURL, if requested and found",
+    )
+
+
+class LdapGroupResult(BaseModel, frozen=True):
+    """Resolved membership of a single LDAP group."""
+
+    group: str = Field(..., description="Short group CN, as requested")
+    members: list[LdapGroupMember] = Field(
+        default_factory=list,
+        description="Members of the group; empty for a confirmed-empty group",
+    )
+
+
+class LdapGroupMembersResponse(BaseModel, frozen=True):
+    """Response with resolved membership for each requested group.
+
+    Only contains entries for groups that exist in LDAP - a group CN that
+    does not resolve to an entry is omitted (distinct from a confirmed-empty
+    group, which is present with an empty `members` list). Callers must
+    treat a missing group as unresolved, not as empty.
+    """
+
+    groups: list[LdapGroupResult] = Field(
+        default_factory=list,
+        description="Resolved membership per existing requested group",
+    )

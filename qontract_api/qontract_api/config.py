@@ -289,6 +289,20 @@ class LdapSettings(BaseModel):
         description="LDAP GitHub-username -> uid map cache TTL in seconds (six hours)",
     )
 
+    groups_cache_ttl: int = Field(
+        default=6 * 60 * 60,
+        description="LDAP group membership cache TTL in seconds (six hours)",
+    )
+
+    max_group_size: int = Field(
+        default=500,
+        description=(
+            "Maximum number of members a single LDAP group may resolve to. "
+            "A group exceeding this is treated as an error (fail-closed), "
+            "not truncated, so a role membership source never silently loses members."
+        ),
+    )
+
 
 class OcmSettings(BaseModel):
     """OCM API and integration configuration."""
@@ -408,6 +422,19 @@ class ManagedSsoClientSettings(BaseModel):
     client_cache_ttl: int = Field(
         default=60 * 60,
         description="Managed SSO client representation cache TTL in seconds (1 hour)",
+    )
+
+
+class GitlabProjectsSettings(BaseModel):
+    """GitLab projects API and integration configuration."""
+
+    api_timeout: int = Field(
+        default=30,
+        description="GitLab API timeout in seconds",
+    )
+    group_projects_cache_ttl: int = Field(
+        default=60 * 11,
+        description="GitLab group project list cache TTL in seconds (11 minutes)",
     )
 
 
@@ -635,6 +662,12 @@ class Settings(BaseSettings):
     managed_sso_client: ManagedSsoClientSettings = Field(
         default_factory=ManagedSsoClientSettings,
         description="Managed SSO client integration configuration",
+    )
+
+    # GitLab Projects Configuration (nested)
+    gitlab_projects: GitlabProjectsSettings = Field(
+        default_factory=GitlabProjectsSettings,
+        description="GitLab projects API and integration configuration",
     )
 
     # Event Subscriber Configuration (nested)

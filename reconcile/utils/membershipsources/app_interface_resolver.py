@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from reconcile import queries
 from reconcile.gql_definitions.membershipsources.roles import RoleV1
@@ -10,25 +11,34 @@ from reconcile.gql_definitions.membershipsources.roles import (
     query as mebershipsource_query,
 )
 from reconcile.utils import gql
-from reconcile.utils.membershipsources.models import (
-    ProviderGroup,
-    RoleBot,
-    RoleMember,
-    RoleUser,
-)
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import HasSecret, SecretReader
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from reconcile.gql_definitions.fragments.membership_source import (
-        AppInterfaceMembershipProviderSourceV1,
-    )
+    from reconcile.utils.membershipsources.models import ProviderGroup, ProviderMember
+
+
+class AppInterfaceProviderSource(Protocol):
+    """Structural shape needed to reach a remote app-interface instance.
+
+    Satisfied by the real AppInterfaceMembershipProviderSourceV1 (and by
+    anything else with this shape) without importing it.
+    """
+
+    @property
+    def url(self) -> str: ...
+
+    @property
+    def username(self) -> HasSecret: ...
+
+    @property
+    def password(self) -> HasSecret: ...
 
 
 @contextmanager
 def gql_api_for_source(
-    source: AppInterfaceMembershipProviderSourceV1,
+    source: AppInterfaceProviderSource,
 ) -> Generator[gql.GqlApi]:
     settings = queries.get_secret_reader_settings()
     secret_reader = SecretReader(settings=settings)
@@ -46,9 +56,9 @@ def gql_api_for_source(
 
 def resolve_app_interface_membership_source(
     provider_name: str,
-    source: AppInterfaceMembershipProviderSourceV1,
+    source: AppInterfaceProviderSource,
     groups: set[str],
-) -> dict[ProviderGroup, list[RoleMember]]:
+) -> dict[ProviderGroup, list[ProviderMember]]:
     with gql_api_for_source(source) as gql_api:
         roles = (
             mebershipsource_query(
@@ -56,13 +66,46 @@ def resolve_app_interface_membership_source(
             ).roles
             or []
         )
-        return {(provider_name, r.name): build_member_list(r) for r in roles}
+        resolved: dict[ProviderGroup, list[ProviderMember]] = {
+            (provider_name, r.name): build_member_list(r) for r in roles
+        }
+        # A requested role name absent from the response means it doesn't
+        # exist on the remote instance (renamed/removed) - distinct from a
+        # role that exists with no users/bots. Treating the omission as
+        # empty would silently remove real members from whatever
+        # role/usergroup depends on it - fail closed instead, matching the
+        # LDAP resolver's "unresolved != empty" handling.
+        if missing := groups - {g for _, g in resolved}:
+            raise RuntimeError(
+                f"App-interface roles could not be resolved: {sorted(missing)}"
+            )
+        return resolved
 
 
-def build_member_list(role: RoleV1) -> list[RoleMember]:
-    members: list[RoleMember] = []
-    members.extend([RoleUser(**u.model_dump()) for u in role.users or []])
-    members.extend([
-        RoleBot(**b.model_dump()) for b in role.bots or [] if b.org_username
-    ])
+async def resolve_app_interface_membership_source_async(
+    provider_name: str,
+    source: AppInterfaceProviderSource,
+    groups: set[str],
+) -> dict[ProviderGroup, list[ProviderMember]]:
+    """Async wrapper for async_resolver.resolve_role_members, so the app-interface
+    provider is available on both the sync and async paths - the same
+    feature set, not just LDAP.
+
+    The underlying GQL client call is synchronous/blocking; running it in
+    a thread keeps it off the event loop without duplicating the query
+    logic.
+    """
+    return await asyncio.to_thread(
+        resolve_app_interface_membership_source, provider_name, source, groups
+    )
+
+
+def build_member_list(role: RoleV1) -> list[ProviderMember]:
+    """Return the role's users/bots as-is; they already satisfy ProviderMember.
+
+    The resolver framework converts each one to the caller-supplied user_cls -
+    this function must not narrow their attributes to any particular shape.
+    """
+    members: list[ProviderMember] = list(role.users or [])
+    members.extend(b for b in role.bots or [] if b.org_username)
     return members

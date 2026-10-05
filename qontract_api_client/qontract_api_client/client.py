@@ -52,6 +52,37 @@ async def ldap_github_usernames(
     return result
 
 
+@client.post("/api/v1/external/ldap/groups/members")
+async def ldap_group_members(
+    result: schemas.LdapGroupMembersResponse, data: schemas.LdapGroupMembersRequest
+) -> schemas.LdapGroupMembersResponse:
+    """Group Members
+
+        Resolve members of one or more LDAP groups (cached, FreeIPA-authenticated).
+
+    Groups are referenced by short CN (e.g. "my-ldap-group"); the full DN is
+    constructed server-side from the configured base DN. Only groups confirmed
+    to exist in LDAP are present in the response - a requested group that does
+    not exist is omitted, distinct from a confirmed-empty group (present with
+    an empty member list). Callers must treat a missing group as unresolved,
+    not as empty, and must not delete existing members based on it.
+
+    Args:
+        request: Group CNs to resolve, the Vault secret reference, and
+            whether to enrich members with their GitHub username
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapGroupMembersResponse with resolved membership per existing group
+
+    Raises:
+        ValidationError (422): If any resolved group exceeds the configured
+            max_group_size
+    """
+    return result
+
+
 @client.post("/api/v1/external/ldap/users/check")
 async def ldap_users_check(
     result: schemas.LdapUsersCheckResponse, data: schemas.LdapUsersCheckRequest
@@ -301,6 +332,46 @@ async def github_owners_task_status(
 
     Returns:
         GithubOwnersTaskResult with status, actions, applied_count, and errors
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Task ID not found
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/gitlab-projects/reconcile")
+async def gitlab_projects(
+    result: schemas.GitlabProjectsTaskResponse,
+    data: schemas.GitlabProjectsReconcileRequest,
+) -> schemas.GitlabProjectsTaskResponse:
+    """Gitlab Projects
+
+        Queue GitLab projects reconciliation task.
+
+    Always queues a background task and returns immediately with a task_id.
+    Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/gitlab-projects/reconcile/{task_id}")
+async def gitlab_projects_task_status(
+    result: schemas.GitlabProjectsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.GitlabProjectsTaskResult:
+    """Gitlab Projects Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        timeout: Maximum seconds to wait (default: non-blocking)
+
+    Returns:
+        GitlabProjectsTaskResult with lists of calculated and applied actions.
 
     Raises:
         HTTPException:

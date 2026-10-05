@@ -996,24 +996,45 @@ CLUSTERS_QUERY = """
         value
       }
     }
-    # APPSRE-13941: automationTokens/clusterAdminAutomationTokens (lists)
-    # intentionally omitted here. Audited 2026-10-01: every caller of
-    # queries.get_clusters() (ocm_addons, ocm_groups, ocm_additional_routers,
-    # ocm_external_configuration_labels, ocm_aws_infrastructure_access,
-    # ocm_clusters, terraform_resources' use of this query) only builds an
-    # OCMMap (OCM API) or reads unrelated metadata - none build an OC/K8s
-    # client from this field. If a caller starts doing that, add the lists.
+    # APPSRE-13941: tools/qontract_cli.py's bot-login command builds an oc
+    # login command from this query, so the rotation-aware lists are needed
+    # here (unlike the reconcile/-only callers of get_clusters(), which only
+    # build an OCMMap or read unrelated metadata).
     automationToken {
       path
       field
       version
       format
     }
+    automationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        path
+        field
+        version
+        format
+      }
+    }
     clusterAdminAutomationToken {
       path
       field
       version
       format
+    }
+    clusterAdminAutomationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        path
+        field
+        version
+        format
+      }
     }
     clusterAdmin
     internal
@@ -1051,15 +1072,26 @@ CLUSTERS_MINIMAL_QUERY = """
     spec {
         private
     }
-    # APPSRE-13941: automationTokens (list) intentionally omitted here.
-    # This feeds the same get_clusters(minimal=True) callers as
-    # CLUSTERS_QUERY above - none build an OC/K8s client from this field
-    # (audited 2026-10-01). If a caller starts doing that, add it.
+    # APPSRE-13941: tools/qontract_cli.py's root-owner command feeds this
+    # query straight into OC_Map, which builds an OC/K8s client from it, so
+    # the rotation-aware list is needed here too.
     automationToken {
       path
       field
       version
       format
+    }
+    automationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        path
+        field
+        version
+        format
+      }
     }
     internal
     disable {

@@ -182,6 +182,45 @@ class GithubOwnersTaskResult(pydantic.BaseModel):
     status: TaskStatus
 
 
+class GitlabGroupConfig(pydantic.BaseModel):
+    group: str
+    projects: list[str] | None = None
+
+
+class GitlabInstanceConfig(pydantic.BaseModel):
+    groups: list[GitlabGroupConfig] | None = None
+    name: str
+    ssl_verify: bool = True
+    token: Secret
+    url: str
+
+
+class GitlabProjectActionCreate(pydantic.BaseModel):
+    action_type: typing.Literal["create"] = "create"
+    group: str
+    instance: str
+    project_name: str
+
+
+class GitlabProjectsReconcileRequest(pydantic.BaseModel):
+    dry_run: bool = True
+    instances: list[GitlabInstanceConfig]
+
+
+class GitlabProjectsTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class GitlabProjectsTaskResult(pydantic.BaseModel):
+    actions: list[GitlabProjectActionCreate] | None = None
+    applied_actions: list[GitlabProjectActionCreate] | None = None
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
+
+
 class GlitchtipActionAddProjectToTeam(pydantic.BaseModel):
     action_type: typing.Literal["add_project_to_team"] = "add_project_to_team"
     instance: str
@@ -495,6 +534,26 @@ class LdapGithubUsernamesRequest(pydantic.BaseModel):
 
 class LdapGithubUsernamesResponse(pydantic.BaseModel):
     users: list[LdapGithubUser]
+
+
+class LdapGroupMember(pydantic.BaseModel):
+    github_username: str | None = None
+    org_username: str
+
+
+class LdapGroupMembersRequest(pydantic.BaseModel):
+    groups: list[str]
+    include_github_usernames: bool = True
+    secret: LdapDirectSecret
+
+
+class LdapGroupMembersResponse(pydantic.BaseModel):
+    groups: list[LdapGroupResult]
+
+
+class LdapGroupResult(pydantic.BaseModel):
+    group: str
+    members: list[LdapGroupMember] | None = None
 
 
 class LdapUserStatus(pydantic.BaseModel):
