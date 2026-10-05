@@ -19,7 +19,9 @@ dependencies = [
     "pygithub==1.59.1",
     "python-gitlab==6.0.0",
     "redis==8.1.0",
+    "oauthlib>=3.2.2",
     "requests==2.34.2",
+    "requests-oauthlib~=2.0",
     "ruamel-yaml==0.19.1",
     "slack_sdk==3.44.1",
     "stamina==26.1.0",
@@ -105,6 +107,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"qontract_utils/internal_groups_api/api.py" = ["unused-lambda-argument"]
 "tests/**" = [
     "import-outside-top-level",               # Import not at top level (lazy imports in tests)
     "magic-value-comparison",                 # Magic value in comparison (acceptable in tests)
