@@ -239,7 +239,13 @@ def _omm_pending_on_intervals(
         action = getattr(event, "action", None)
         created_at = getattr(event, "created_at", None)
         if action not in {"add", "remove"} or not isinstance(created_at, str):
-            continue
+            logging.warning([
+                "omm-group",
+                "skip-ci-label-events-unparsed",
+                gl.project.name,
+                mr.iid,
+            ])
+            return None
         try:
             stamped.append((from_utc_iso_format(created_at), action))
         except TypeError, ValueError:

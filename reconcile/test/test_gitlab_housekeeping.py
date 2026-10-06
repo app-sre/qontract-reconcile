@@ -4693,6 +4693,44 @@ def test_omm_label_event_failure_does_not_drop_running_pipeline(
     mocked_gl.remove_label.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    ("remove_action", "remove_created_at"),
+    [
+        (None, _LABEL_OFF),
+        ("update", _LABEL_OFF),
+        ("remove", None),
+        ("remove", 123),
+    ],
+)
+def test_omm_malformed_label_removal_does_not_drop_later_normal_bot_failure(
+    mocker: MockerFixture,
+    remove_action: object,
+    remove_created_at: object,
+) -> None:
+    """A skipped malformed removal must not leave the add interval open."""
+    bad_remove = Mock()
+    bad_remove.action = remove_action
+    bad_remove.created_at = remove_created_at
+    bad_remove.label = {"name": "omm-pending"}
+    merges, mr, gl = _run_pending_member(
+        mocker,
+        [
+            _pipeline(PipelineStatus.FAILED, "normal-sha"),
+            _pipeline(PipelineStatus.SUCCESS, "older-sha"),
+        ],
+        {
+            "normal-sha": _commit(_BOT_EMAIL, _DURING_GROUP2),
+            "older-sha": _commit(_BOT_EMAIL, _BEFORE_LABEL),
+        },
+        [_label_event("add", _LABEL_ON), bad_remove],
+        sha="normal-sha",
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
+    gl.remove_label.assert_called_once_with(mr, "omm-pending")
+
+
 def _form_gl() -> Mock:
     mocked_gl = create_autospec(GitLabApi)
     project = Mock()
