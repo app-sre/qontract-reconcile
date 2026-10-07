@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol
 
+from pydantic import BaseModel
 from qontract_utils.internal_groups_api.models import Entity, EntityType, Group
 
 from reconcile.gql_definitions.ldap_groups.roles import RoleV1
 from reconcile.gql_definitions.ldap_groups.roles import query as roles_query
 from reconcile.gql_definitions.ldap_groups.settings import LdapGroupsSettingsV1
 from reconcile.gql_definitions.ldap_groups.settings import query as settings_query
-from reconcile.utils.aws_helper import unique_sso_aws_accounts_for_ldap_groups
+from reconcile.utils.disabled_integrations import (
+    HasDisableIntegrations,
+    disabled_integrations,
+)
 from reconcile.utils.exceptions import (
     AppInterfaceLdapGroupsSettingsError,
     AppInterfaceSettingsError,
@@ -23,7 +27,7 @@ from reconcile.utils.membershipsources.validation import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Callable, Iterable, Mapping
 
 QONTRACT_INTEGRATION = "ldap-groups-api"
 
@@ -67,17 +71,34 @@ def validate_no_circular_memberships(
         )
 
 
+class LdapGroupMember(BaseModel, extra="ignore"):
+    """Minimal member shape for resolve_role_members output.
+
+    memberSources-resolved members only populate org_username, so every
+    other field must be optional.
+    """
+
+    org_username: str
+
+
 def get_desired_groups_for_roles(
     roles: Iterable[RoleV1],
     default_owners: list[Entity],
     contact_list: str,
+    resolved_members: Mapping[str, list[LdapGroupMember]] | None = None,
 ) -> list[Group]:
     groups: list[Group] = []
     for role in roles:
         if not role.ldap_group:
             continue
+        if resolved_members is not None:
+            role_members = resolved_members.get(role.name, [])
+        else:
+            role_members = [
+                LdapGroupMember(org_username=u.org_username) for u in role.users
+            ]
         members = [
-            Entity(type=EntityType.USER, id=user.org_username) for user in role.users
+            Entity(type=EntityType.USER, id=m.org_username) for m in role_members
         ]
         groups.append(
             Group(
@@ -93,6 +114,41 @@ def get_desired_groups_for_roles(
             )
         )
     return groups
+
+
+# Both names during ldap-groups → ldap-groups-api cutover (disable.integrations).
+_LDAP_GROUPS_AWS_DISABLE_NAMES = frozenset({"ldap-groups", "ldap-groups-api"})
+
+
+class AccountSSO(HasDisableIntegrations, Protocol):
+    name: str
+    uid: str
+    sso: bool | None
+
+
+def ldap_groups_aws_integration_enabled(
+    disable_obj: Mapping[str, Any] | HasDisableIntegrations | None,
+) -> bool:
+    disabled = set(disabled_integrations(disable_obj))
+    return not disabled.intersection(_LDAP_GROUPS_AWS_DISABLE_NAMES)
+
+
+def unique_sso_aws_accounts_for_ldap_groups(
+    accounts: Iterable[AccountSSO], account_name: str | None = None
+) -> list[AccountSSO]:
+    """Unique SSO AWS accounts eligible for ldap-groups rover group generation."""
+    filtered_account: dict[str, AccountSSO] = {}
+    for account in accounts:
+        if account_name and account.name != account_name:
+            continue
+        if not account.sso:
+            continue
+        if not ldap_groups_aws_integration_enabled(account):
+            continue
+        if account.uid in filtered_account:
+            continue
+        filtered_account[account.uid] = account
+    return list(filtered_account.values())
 
 
 def get_desired_groups_for_aws_roles(
