@@ -553,6 +553,7 @@ def _call_rebase(
     pipeline_timeout: int | None = None,
     wait_for_pipeline: bool = False,
     strategy: RebaseStrategy = RebaseStrategy.ACTIVE_CAP,
+    fresh_mrs: dict[int, Mock] | None = None,
 ) -> None:
     """Invoke rebase_merge_requests with standard patches.
 
@@ -566,7 +567,13 @@ def _call_rebase(
         mr.iid, []
     )
     mr_by_iid = {mr.iid: mr for mr in merge_requests}
-    gitlab_api.get_merge_request.side_effect = lambda iid: mr_by_iid[iid]
+
+    def _fresh(iid: int) -> Mock:
+        if fresh_mrs is not None and iid in fresh_mrs:
+            return fresh_mrs[iid]
+        return mr_by_iid[iid]
+
+    gitlab_api.get_merge_request.side_effect = _fresh
     mocker.patch(
         "reconcile.gitlab_housekeeping.rebase.get_merge_requests",
         return_value=[
@@ -829,6 +836,46 @@ def test_rebase_over_committed_clamps_to_zero(
 
     assert merge_requests[3].rebase.call_count == 0
     assert merge_requests[4].rebase.call_count == 0
+
+
+def test_rebase_skips_omm_pending_on_listed_mr(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
+    """OMM pending MRs stay on the skip-ci path even when the list is the fresh fetch."""
+    pending = _make_rebase_mr(1, labels=["omm-pending"])
+    other = _make_rebase_mr(2)
+
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        [pending, other],
+        rebase_limit=2,
+    )
+
+    assert pending.rebase.call_count == 0
+    assert other.rebase.call_count == 1
+
+
+def test_rebase_skips_omm_pending_added_after_list(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
+    """A label added after the queue snapshot must still skip the CI rebase."""
+    listed = _make_rebase_mr(1)
+    fresh = _make_rebase_mr(1, labels=["omm-pending"])
+    other = _make_rebase_mr(2)
+
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        [listed, other],
+        rebase_limit=2,
+        fresh_mrs={1: fresh},
+    )
+
+    assert listed.rebase.call_count == 0
+    assert other.rebase.call_count == 1
 
 
 def test_rebase_mr_without_pipelines_not_counted_active(

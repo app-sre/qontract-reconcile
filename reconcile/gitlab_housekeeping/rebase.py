@@ -172,7 +172,7 @@ def _rebase_merge_requests_active_cap(
 
         # OMM pending MRs are managed by _process_omm_group which uses
         # skip-ci rebases. Don't re-rebase them here with CI enabled.
-        if OMM_PENDING in mr.labels:
+        if OMM_PENDING in fresh_mr.labels:
             logging.debug(["rebase", gl.project.name, mr.iid, "skip-omm-pending"])
             continue
 
