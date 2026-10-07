@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import TYPE_CHECKING, Any
 
+from botocore.exceptions import ClientError
 from qontract_api_client.client import ldap_groups as reconcile_ldap_groups
+from qontract_api_client.schemas import (
+    Group as ApiGroup,
+)
 from qontract_api_client.schemas import (
     InternalGroupsConnectionSecret,
     LdapGroupsReconcileRequest,
@@ -18,6 +23,7 @@ from qontract_utils.internal_groups_api.models import Entity, EntityType
 
 from reconcile.ldap_groups_api.models import (
     QONTRACT_INTEGRATION,
+    LdapGroupMember,
     get_desired_groups_for_aws_roles,
     get_desired_groups_for_roles,
     get_integration_settings,
@@ -25,6 +31,7 @@ from reconcile.ldap_groups_api.models import (
     validate_no_circular_memberships,
 )
 from reconcile.utils import gql
+from reconcile.utils.membershipsources.async_resolver import resolve_role_members
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -37,6 +44,8 @@ if TYPE_CHECKING:
     from reconcile.gql_definitions.ldap_groups.roles import RoleV1
     from reconcile.gql_definitions.ldap_groups.settings import LdapGroupsSettingsV1
     from reconcile.utils.state import State
+
+LEGACY_INTEGRATION = "ldap-groups"
 
 
 class LdapGroupsApiIntegrationParams(PydanticRunParams):
@@ -79,6 +88,26 @@ class LdapGroupsApiIntegration(
         finally:
             state_obj.cleanup()
 
+    @staticmethod
+    def _load_managed_groups(state_obj: State) -> list[str]:
+        """Load managed groups, falling back to legacy ldap-groups state for cutover."""
+        try:
+            return sorted(state_obj["managed_groups"])
+        except KeyError:
+            pass
+        legacy_key = f"state/{LEGACY_INTEGRATION}/managed_groups"
+        try:
+            resp = state_obj.client.get_object(Bucket=state_obj.bucket, Key=legacy_key)
+            groups: list[str] = json.loads(resp["Body"].read())
+            logging.info(
+                "Inherited %d managed groups from legacy %s state",
+                len(groups),
+                LEGACY_INTEGRATION,
+            )
+            return sorted(groups)
+        except ClientError, json.JSONDecodeError:
+            return []
+
     async def _run_reconcile(
         self,
         dry_run: bool,
@@ -91,10 +120,14 @@ class LdapGroupsApiIntegration(
             type=EntityType.SERVICE_ACCOUNT,
             id=f"service-account-{secret['client_id']}",
         )
+
+        resolved_members = await resolve_role_members(roles, user_cls=LdapGroupMember)
+
         desired_groups = get_desired_groups_for_roles(
             roles,
             contact_list=settings.contact_list,
             default_owners=[owner],
+            resolved_members=resolved_members,
         ) + get_desired_groups_for_aws_roles(
             roles,
             contact_list=settings.contact_list,
@@ -103,13 +136,7 @@ class LdapGroupsApiIntegration(
         )
         validate_no_circular_memberships(roles, desired_groups)
 
-        try:
-            managed_group_names = sorted(state_obj["managed_groups"])
-        except KeyError:
-            managed_group_names = []
-
-        group_names = set(managed_group_names)
-        group_names.update(g.name for g in desired_groups)
+        managed_group_names = self._load_managed_groups(state_obj)
 
         connection = InternalGroupsConnectionSecret(
             secret_manager_url=self.secret_manager_url,
@@ -121,10 +148,15 @@ class LdapGroupsApiIntegration(
             client_id=secret["client_id"],
         )
 
+        # OpenAPI Group type differs from qontract_utils.Group; convert at the boundary.
+        api_groups = [
+            ApiGroup.model_validate(g.model_dump(by_alias=True)) for g in desired_groups
+        ]
+
         request = LdapGroupsReconcileRequest(
             connection=connection,
-            desired_groups=desired_groups,
-            managed_group_names=sorted(group_names),
+            desired_groups=api_groups,
+            managed_group_names=managed_group_names,
             dry_run=dry_run,
         )
 
@@ -132,9 +164,19 @@ class LdapGroupsApiIntegration(
             response: LdapGroupsTaskResponse = await reconcile_ldap_groups(request)
         logging.info(f"request_id: {response.id}")
 
-        task_result = await self.poll_task_status(
-            status_url=response.status_url, result_type=LdapGroupsTaskResult
-        )
+        try:
+            task_result = await self.poll_task_status(
+                status_url=response.status_url, result_type=LdapGroupsTaskResult
+            )
+        except Exception:
+            logging.exception(
+                "Polling failed for task %s at %s. "
+                "Preserving existing managed-groups bookmark.",
+                response.id,
+                response.status_url,
+            )
+            raise
+
         if task_result.status == TaskStatus.PENDING:
             raise IntegrationError(
                 "ldap-groups-api: task did not complete within the timeout period"
@@ -143,9 +185,13 @@ class LdapGroupsApiIntegration(
         for action in task_result.actions or []:
             logging.info(f"{action.action_type=} {action.name=}")
 
-        # Persist bookmark even on partial failure so the next run tracks groups
-        # the server already mutated. Still fail the job below if errors exist.
-        if not dry_run and task_result.updated_managed_groups is not None:
+        # Persist on FAILED as well as SUCCESS when the server returns partial state.
+        # Do not persist on PENDING (poll timeout) or other non-terminal statuses.
+        if (
+            not dry_run
+            and task_result.status in {TaskStatus.SUCCESS, TaskStatus.FAILED}
+            and task_result.updated_managed_groups is not None
+        ):
             state_obj["managed_groups"] = task_result.updated_managed_groups
 
         if errors_summary := "; ".join(task_result.errors or []):
