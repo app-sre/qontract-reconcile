@@ -57,6 +57,14 @@ LdapGroupsAction = Annotated[
 ]
 
 
+class LdapGroupsErrorEvent(BaseModel, frozen=True):
+    """Payload published when a reconciliation error is recorded."""
+
+    error: str = Field(
+        ..., description="The error message recorded during reconciliation."
+    )
+
+
 class LdapGroupsTaskResult(TaskResult, frozen=True):
     """Result for a completed ldap-groups reconciliation task."""
 

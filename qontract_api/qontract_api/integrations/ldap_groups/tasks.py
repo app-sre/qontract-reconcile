@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from qontract_utils.events import Event
+
 from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
-from qontract_api.integrations.ldap_groups.schemas import LdapGroupsTaskResult
+from qontract_api.event_manager import get_event_manager
+from qontract_api.integrations.ldap_groups.schemas import (
+    LdapGroupsErrorEvent,
+    LdapGroupsTaskResult,
+)
 from qontract_api.integrations.ldap_groups.service import LdapGroupsService
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
@@ -43,6 +49,7 @@ def reconcile_ldap_groups_task(
 ) -> LdapGroupsTaskResult:
     request_id = self.request.id
     try:
+        event_manager = get_event_manager()
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
         service = LdapGroupsService(
@@ -58,6 +65,7 @@ def reconcile_ldap_groups_task(
         )
     except Exception as err:
         logger.exception(f"Task {request_id} failed with error")
+        # Echo the input bookmark so the client does not treat a crash as empty state.
         return LdapGroupsTaskResult(
             status=TaskStatus.FAILED,
             actions=[],
@@ -73,4 +81,28 @@ def reconcile_ldap_groups_task(
         applied_count=result.applied_count,
         errors=result.errors,
     )
+
+    if not dry_run and event_manager:
+        try:
+            for action in result.applied_actions:
+                event_manager.publish_event(
+                    Event(
+                        source=__name__,
+                        type=f"qontract-api.ldap-groups.{action.action_type}",
+                        data=action.model_dump(mode="json"),
+                        datacontenttype="application/json",
+                    )
+                )
+            for error in result.errors or []:
+                event_manager.publish_event(
+                    Event(
+                        source=__name__,
+                        type="qontract-api.ldap-groups.error",
+                        data=LdapGroupsErrorEvent(error=error).model_dump(mode="json"),
+                        datacontenttype="application/json",
+                    )
+                )
+        except Exception:
+            logger.exception(f"Task {request_id} failed to publish events")
+
     return result
