@@ -36,21 +36,27 @@ class InternalGroupsWorkspaceClient:
         environment_key: str,
     ) -> None:
         self._api_factory = api_factory
-        self._api: InternalGroupsApi | None = None
+        self._raw_api: InternalGroupsApi | None = None
         self.cache = cache
         self.settings = settings
         self.environment_key = environment_key
 
+    @property
+    def api(self) -> InternalGroupsApi:
+        if self._raw_api is None:
+            raise RuntimeError("InternalGroupsWorkspaceClient is not entered")
+        return self._raw_api
+
     def __enter__(self) -> Self:
-        self._api = self._api_factory()
-        self._api.__enter__()
+        self._raw_api = self._api_factory()
+        self._raw_api.__enter__()
         return self
 
     def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
-        if self._api is not None:
-            self._api.__exit__(exc_type, exc_value, traceback)
-            self._api.close()
-            self._api = None
+        if self._raw_api is not None:
+            self._raw_api.__exit__(exc_type, exc_value, traceback)
+            self._raw_api.close()
+            self._raw_api = None
 
     def _cache_key(self, group_name: str) -> str:
         return f"internal_groups:{self.environment_key}:group:{group_name}"
@@ -63,49 +69,51 @@ class InternalGroupsWorkspaceClient:
         except RuntimeError as err:
             logger.warning(f"Could not acquire lock for {key}: {err}")
 
+    def _fetch_and_cache(self, key: str, name: str) -> Group | None:
+        """Fetch group from API and populate cache (call only while holding the lock)."""
+        if cached := self.cache.get_obj(key, CachedGroup):
+            return cached.group
+        try:
+            group = Group(**self.api.group(name))
+        except NotFoundError:
+            return None
+        self.cache.set_obj(
+            key,
+            CachedGroup(group=group),
+            ttl=self.settings.internal_groups.group_cache_ttl,
+        )
+        return group
+
     def get_group(self, name: str) -> Group | None:
-        """Return group by name, or None if not found."""
+        """Return group by name, or None if not found (cached with distributed locking)."""
         key = self._cache_key(name)
         if cached := self.cache.get_obj(key, CachedGroup):
             return cached.group
 
-        api = self._require_api()
-        try:
-            group = Group(**api.group(name))
-        except NotFoundError:
-            return None
-
         try:
             with self.cache.lock(key):
-                if self.cache.get_obj(key, CachedGroup) is None:
-                    self.cache.set_obj(
-                        key,
-                        CachedGroup(group=group),
-                        ttl=self.settings.internal_groups.group_cache_ttl,
-                    )
+                return self._fetch_and_cache(key, name)
         except RuntimeError as err:
-            logger.warning(f"Could not cache group {name}: {err}")
-        return group
+            logger.warning(f"Could not acquire lock for {key}: {err}")
+            # Lock unavailable: still serve API data, skip cache write.
+            try:
+                return Group(**self.api.group(name))
+            except NotFoundError:
+                return None
 
     def create_group(self, group: Group) -> Group:
-        api = self._require_api()
-        created = Group(**api.create_group(group.model_dump(by_alias=True)))
+        created = Group(**self.api.create_group(group.model_dump(by_alias=True)))
         self._invalidate(group.name)
         return created
 
     def update_group(self, group: Group) -> Group:
-        api = self._require_api()
-        updated = Group(**api.update_group(group.name, group.model_dump(by_alias=True)))
+        updated = Group(
+            **self.api.update_group(group.name, group.model_dump(by_alias=True))
+        )
         self._invalidate(group.name)
         return updated
 
     def delete_group(self, name: str) -> None:
-        api = self._require_api()
         with contextlib.suppress(NotFoundError):
-            api.delete_group(name)
+            self.api.delete_group(name)
         self._invalidate(name)
-
-    def _require_api(self) -> InternalGroupsApi:
-        if self._api is None:
-            raise RuntimeError("InternalGroupsWorkspaceClient is not entered")
-        return self._api
