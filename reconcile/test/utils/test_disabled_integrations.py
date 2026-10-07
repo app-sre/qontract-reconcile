@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from pydantic import BaseModel
 
+from reconcile.ldap_groups_api.models import ldap_groups_aws_integration_enabled
 from reconcile.utils.disabled_integrations import (
     HasDisableIntegrations,
     disabled_integrations,
     integration_is_enabled,
-    ldap_groups_aws_integration_enabled,
 )
 
 if TYPE_CHECKING:
