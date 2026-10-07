@@ -5147,3 +5147,131 @@ def test_serial_merge_skips_post_label_bot_head_without_ci(
     )
 
     mr.merge.assert_not_called()
+
+
+def test_serial_merge_refetches_cache_when_skip_ci_filter_exposes_success(
+    mocker: MockerFixture,
+) -> None:
+    """Cached skip-ci failure plus older SUCCESS must refetch before merge."""
+    mr = _make_merge_mr(10, ["approved", "tenant-foo"], sha="a1", source_project_id=99)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.preprocess_merge_requests",
+        return_value=[_make_merge_item(mr)],
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.is_rebased",
+        return_value=True,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.get_omm_group_lead",
+        return_value=None,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.get_omm_pending_mrs",
+        return_value=[],
+    )
+    mocked_gl = create_autospec(GitLabApi)
+    project = create_autospec(Project)
+    project.id = "proj-1"
+    project.name = "test-project"
+    project.squash_option = "never"
+    mocked_gl.project = project
+    cached = [
+        _pipeline(PipelineStatus.FAILED, "a1"),
+        _pipeline(PipelineStatus.SUCCESS, "a0"),
+    ]
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _pipeline(PipelineStatus.FAILED, "real-fail"),
+        _pipeline(PipelineStatus.SUCCESS, "a0"),
+    ]
+    mocked_gl.get_merge_request.return_value = mr
+    _arm_skip_ci_lookups(
+        mocked_gl,
+        {
+            "a1": _commit(_BOT_EMAIL, _DURING_LABEL),
+            "a0": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+            "real-fail": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        [
+            _label_event("add", _LABEL_ON),
+            _label_event("remove", _LABEL_OFF),
+        ],
+    )
+
+    gl_h.merge_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=10,
+        rebase=True,
+        app_sre_usernames=set(),
+        state=create_autospec(State),
+        multi_merge=False,
+        pipeline_cache={10: cached},
+    )
+
+    mocked_gl.get_merge_request_pipelines.assert_called_once()
+    mr.merge.assert_not_called()
+
+
+def test_serial_merge_cached_skip_ci_failure_still_merges_after_refetch(
+    mocker: MockerFixture,
+) -> None:
+    """After refetch, skip-ci failure is still dropped and older SUCCESS merges."""
+    mr = _make_merge_mr(10, ["approved", "tenant-foo"], sha="a1", source_project_id=99)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.preprocess_merge_requests",
+        return_value=[_make_merge_item(mr)],
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.is_rebased",
+        return_value=True,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.get_omm_group_lead",
+        return_value=None,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.get_omm_pending_mrs",
+        return_value=[],
+    )
+    mocked_gl = create_autospec(GitLabApi)
+    project = create_autospec(Project)
+    project.id = "proj-1"
+    project.name = "test-project"
+    project.squash_option = "never"
+    mocked_gl.project = project
+    pipelines = [
+        _pipeline(PipelineStatus.FAILED, "a1"),
+        _pipeline(PipelineStatus.SUCCESS, "a0"),
+    ]
+    mocked_gl.get_merge_request_pipelines.return_value = pipelines
+    mocked_gl.get_merge_request.return_value = mr
+    _arm_skip_ci_lookups(
+        mocked_gl,
+        {
+            "a1": _commit(_BOT_EMAIL, _DURING_LABEL),
+            "a0": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        [
+            _label_event("add", _LABEL_ON),
+            _label_event("remove", _LABEL_OFF),
+        ],
+    )
+
+    gl_h.merge_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=10,
+        rebase=True,
+        app_sre_usernames=set(),
+        state=create_autospec(State),
+        multi_merge=False,
+        pipeline_cache={10: pipelines},
+    )
+
+    mocked_gl.get_merge_request_pipelines.assert_called_once()
+    mr.merge.assert_called_once()

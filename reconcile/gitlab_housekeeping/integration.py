@@ -275,7 +275,8 @@ def merge_merge_requests(
         if rebase and not is_rebased(mr, gl):
             continue
 
-        if mr.iid in pipeline_cache:
+        cached = mr.iid in pipeline_cache
+        if cached:
             pipelines = pipeline_cache[mr.iid]
             latest = next(
                 (p for p in pipelines if p.status != PipelineStatus.SKIPPED),
@@ -284,27 +285,41 @@ def merge_merge_requests(
             if latest is not None and latest.status == PipelineStatus.SUCCESS:
                 # cached success can be stale; a newer pipeline may have failed
                 pipelines = gl.get_merge_request_pipelines(mr)
+                cached = False
         else:
             pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
             continue
 
-        if pipeline_timeout is not None:
-            timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
-            if timed_out_pipelines:
-                clean_pipelines(
-                    dry_run=dry_run,
-                    gl=gl,
-                    fork_project_id=mr.source_project_id,
-                    pipelines=timed_out_pipelines,
-                )
+        def _usable_pipelines(
+            raw: list[ProjectMergeRequestPipeline],
+        ) -> list[ProjectMergeRequestPipeline]:
+            if pipeline_timeout is not None:
+                timed_out_pipelines = get_timed_out_pipelines(raw, pipeline_timeout)
+                if timed_out_pipelines:
+                    clean_pipelines(
+                        dry_run=dry_run,
+                        gl=gl,
+                        fork_project_id=mr.source_project_id,
+                        pipelines=timed_out_pipelines,
+                    )
+            kept = [p for p in raw if p.status != PipelineStatus.SKIPPED]
+            # Same skip-ci drop as OMM. After a group expires, a failed
+            # pipeline on a skip-ci SHA must not block older success.
+            return _without_skip_ci_bot_pipelines(gl, mr, kept)
 
-        pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
-        # Same skip-ci drop as OMM. After a group expires, a failed pipeline
-        # on a skip-ci SHA must not block serial merge of the older success.
-        pipelines = _without_skip_ci_bot_pipelines(gl, mr, pipelines)
+        pipelines = _usable_pipelines(pipelines)
         if not pipelines:
             continue
+        # Cached skip-ci failure is not refetched above. Filtering it can
+        # leave an older SUCCESS; refetch so a newer real failure is seen.
+        if cached and pipelines[0].status == PipelineStatus.SUCCESS:
+            pipelines = gl.get_merge_request_pipelines(mr)
+            if not pipelines:
+                continue
+            pipelines = _usable_pipelines(pipelines)
+            if not pipelines:
+                continue
 
         # Same tip wait as OMM admission. A post-label bot rebase without
         # Jenkins must not merge on older SUCCESS. In-window skip-ci may.
