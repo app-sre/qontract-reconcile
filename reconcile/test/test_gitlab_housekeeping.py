@@ -4163,6 +4163,11 @@ def test_form_omm_group_skipped_pipeline_filtered_includes_candidate(
         _skipped_pipeline(),
         _success_pipeline(),
     ]
+    fresh = Mock()
+    fresh.rebase_in_progress = False
+    fresh.sha = "pipeline-sha"
+    fresh.source_project_id = 3
+    mocked_gl.get_merge_request.return_value = fresh
 
     candidates = form_omm_group(mocked_gl, items, set())
 
@@ -4963,6 +4968,52 @@ def test_form_omm_group_admits_on_older_success_when_skip_ci_failed() -> None:
     candidates = form_omm_group(mocked_gl, [_make_merge_item(mr)], set())
 
     assert candidates == [mr]
+
+
+def test_form_omm_group_skips_when_head_commit_lookup_fails() -> None:
+    """An unreadable tip is not proof it is safe to join on older SUCCESS."""
+    mr = _make_merge_mr(11, ["approved", "tenant-bar"], sha="old", source_project_id=99)
+    fresh = Mock()
+    fresh.rebase_in_progress = False
+    fresh.sha = "bot-head"
+    fresh.source_project_id = 99
+    mocked_gl = _form_gl()
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _pipeline(PipelineStatus.SUCCESS, "old"),
+    ]
+    mocked_gl.get_merge_request.return_value = fresh
+    _arm_skip_ci_lookups(
+        mocked_gl,
+        {"old": _commit(_HUMAN_EMAIL, _BEFORE_LABEL)},
+        _one_group_events(),
+    )
+    mocked_gl.get_commit.side_effect = GitlabGetError(response_code=403)
+
+    candidates = form_omm_group(mocked_gl, [_make_merge_item(mr)], set())
+
+    assert candidates == []
+
+
+def test_form_omm_group_skips_when_bot_email_unconfigured() -> None:
+    """Missing token emails cannot classify the tip. Do not admit."""
+    mr = _make_merge_mr(11, ["approved", "tenant-bar"], sha="old", source_project_id=99)
+    fresh = Mock()
+    fresh.rebase_in_progress = False
+    fresh.sha = "bot-head"
+    fresh.source_project_id = 99
+    mocked_gl = _form_gl()
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _pipeline(PipelineStatus.SUCCESS, "old"),
+    ]
+    mocked_gl.get_merge_request.return_value = fresh
+    user = Mock()
+    user.commit_email = ""
+    user.email = ""
+    mocked_gl.user = user
+
+    candidates = form_omm_group(mocked_gl, [_make_merge_item(mr)], set())
+
+    assert candidates == []
 
 
 def test_serial_merge_drops_failed_skip_ci_and_merges_older_success(

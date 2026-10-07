@@ -377,10 +377,13 @@ def _bot_head_awaiting_pipeline(
     real CI. No match plus an older SUCCESS means wait, unless the head is
     itself an in-window skip-ci commit. That MR is admitted; the member path
     ignores pipelines on that SHA.
+
+    If the tip has no usable pipeline and the commit cannot be classified,
+    wait. Lookup failure is not proof it is safe to join on older SUCCESS.
     """
     sha = getattr(mr, "sha", None)
     if not isinstance(sha, str):
-        return False
+        return True
     if any(
         getattr(p, "sha", None) == sha
         and getattr(p, "status", None) != PipelineStatus.SKIPPED
@@ -390,13 +393,19 @@ def _bot_head_awaiting_pipeline(
         return False
     emails = _bot_commit_emails(gl)
     if not emails:
-        return False
+        logging.warning([
+            "omm-group",
+            "skip-ci-bot-email-unavailable",
+            gl.project.name,
+            mr.iid,
+        ])
+        return True
     project_id = getattr(mr, "source_project_id", None)
     if project_id is None:
-        return False
+        return True
     commit = _sha_commit(gl, project_id, sha, {})
     if commit is None:
-        return False
+        return True
     email, committed_at = commit
     if email not in emails:
         return False
