@@ -4828,6 +4828,90 @@ def test_form_omm_group_skips_bot_head_without_pipeline() -> None:
     assert candidates == []
 
 
+def test_form_omm_group_skips_bot_head_with_only_skipped_pipeline() -> None:
+    """A SKIPPED row on the head is not CI. Wait even if an older SUCCESS remains."""
+    mr = _make_merge_mr(11, ["approved", "tenant-bar"], sha="old", source_project_id=99)
+    fresh = Mock()
+    fresh.rebase_in_progress = False
+    fresh.sha = "bot-head"
+    fresh.source_project_id = 99
+    mocked_gl = _form_gl()
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _pipeline(PipelineStatus.SKIPPED, "bot-head"),
+        _pipeline(PipelineStatus.SUCCESS, "old"),
+    ]
+    mocked_gl.get_merge_request.return_value = fresh
+    _arm_skip_ci_lookups(
+        mocked_gl,
+        {
+            "bot-head": _commit(_BOT_EMAIL, _BEFORE_LABEL),
+            "old": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        _one_group_events(),
+    )
+
+    candidates = form_omm_group(mocked_gl, [_make_merge_item(mr)], set())
+
+    assert candidates == []
+
+
+def test_form_omm_group_skips_bot_head_with_only_push_shell() -> None:
+    """A source=push shell on the head is not CI."""
+    mr = _make_merge_mr(11, ["approved", "tenant-bar"], sha="old", source_project_id=99)
+    fresh = Mock()
+    fresh.rebase_in_progress = False
+    fresh.sha = "bot-head"
+    fresh.source_project_id = 99
+    mocked_gl = _form_gl()
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _pipeline(PipelineStatus.SUCCESS, "bot-head", source="push"),
+        _pipeline(PipelineStatus.SUCCESS, "old"),
+    ]
+    mocked_gl.get_merge_request.return_value = fresh
+    _arm_skip_ci_lookups(
+        mocked_gl,
+        {
+            "bot-head": _commit(_BOT_EMAIL, _BEFORE_LABEL),
+            "old": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        _one_group_events(),
+    )
+
+    candidates = form_omm_group(mocked_gl, [_make_merge_item(mr)], set())
+
+    assert candidates == []
+
+
+def test_form_omm_group_admits_skip_ci_head_with_only_skipped_pipeline() -> None:
+    """In-window skip-ci head may join on older SUCCESS; a SKIPPED row is not a wait."""
+    mr = _make_merge_mr(11, ["approved", "tenant-bar"], sha="a1", source_project_id=99)
+    fresh = Mock()
+    fresh.rebase_in_progress = False
+    fresh.sha = "a1"
+    fresh.source_project_id = 99
+    mocked_gl = _form_gl()
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _pipeline(PipelineStatus.SKIPPED, "a1"),
+        _pipeline(PipelineStatus.SUCCESS, "a0"),
+    ]
+    mocked_gl.get_merge_request.return_value = fresh
+    _arm_skip_ci_lookups(
+        mocked_gl,
+        {
+            "a1": _commit(_BOT_EMAIL, _DURING_LABEL),
+            "a0": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        [
+            _label_event("add", _LABEL_ON),
+            _label_event("remove", _LABEL_OFF),
+        ],
+    )
+
+    candidates = form_omm_group(mocked_gl, [_make_merge_item(mr)], set())
+
+    assert candidates == [mr]
+
+
 def test_form_omm_group_admits_once_normal_bot_pipeline_exists() -> None:
     mr = _make_merge_mr(
         11, ["approved", "tenant-bar"], sha="bot-head", source_project_id=99

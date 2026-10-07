@@ -371,13 +371,22 @@ def _bot_head_awaiting_pipeline(
 ) -> bool:
     """True when a normal bot rebase has landed and Jenkins has not posted yet.
 
-    A bot head already inside an omm-pending on-interval is a skip-ci commit.
-    That MR can be admitted. The member filter ignores pipelines on that SHA.
+    SKIPPED rows and source=push shells do not count. Those are placeholders,
+    not Jenkins. Caller should pass the usable list (placeholders and in-window
+    skip-ci bot pipelines already dropped). Then a match means this head has
+    real CI. No match plus an older SUCCESS means wait, unless the head is
+    itself an in-window skip-ci commit. That MR is admitted; the member path
+    ignores pipelines on that SHA.
     """
     sha = getattr(mr, "sha", None)
     if not isinstance(sha, str):
         return False
-    if any(getattr(p, "sha", None) == sha for p in pipelines):
+    if any(
+        getattr(p, "sha", None) == sha
+        and getattr(p, "status", None) != PipelineStatus.SKIPPED
+        and getattr(p, "source", None) != "push"
+        for p in pipelines
+    ):
         return False
     emails = _bot_commit_emails(gl)
     if not emails:
@@ -422,7 +431,11 @@ def form_omm_group(
         if has_overlapping_labels(mr_labels, group_labels):
             continue
         pipelines = gl.get_merge_request_pipelines(mr)
-        visible = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
+        visible = [
+            p
+            for p in pipelines
+            if not (p.status == PipelineStatus.SKIPPED or p.source == "push")
+        ]
         visible = _without_skip_ci_bot_pipelines(gl, mr, visible)
         if not visible:
             continue
@@ -451,7 +464,7 @@ def form_omm_group(
                 mr.iid,
             ])
             continue
-        if _bot_head_awaiting_pipeline(gl, fresh, pipelines):
+        if _bot_head_awaiting_pipeline(gl, fresh, visible):
             logging.info([
                 "omm-group",
                 "skip-admission-bot-head-awaiting-pipeline",
