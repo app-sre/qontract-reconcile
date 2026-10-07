@@ -33,6 +33,8 @@ from reconcile.gitlab_housekeeping.labels import (
     is_eligible_for_optimistic_merge,
 )
 from reconcile.gitlab_housekeeping.omm import (
+    _bot_commit_emails,
+    _bot_head_awaiting_pipeline,
     _without_skip_ci_bot_pipelines,
     apply_omm_group_lead,
     apply_omm_pending,
@@ -302,6 +304,19 @@ def merge_merge_requests(
         # on a skip-ci SHA must not block serial merge of the older success.
         pipelines = _without_skip_ci_bot_pipelines(gl, mr, pipelines)
         if not pipelines:
+            continue
+
+        # Same tip wait as OMM admission. A post-label bot rebase without
+        # Jenkins must not merge on older SUCCESS. In-window skip-ci may.
+        # No token emails: cannot classify a bot tip, keep prior serial rule.
+        if _bot_commit_emails(gl) and _bot_head_awaiting_pipeline(gl, mr, pipelines):
+            logging.info([
+                "skip merge",
+                "bot-head-awaiting-pipeline",
+                gl.project.name,
+                mr.iid,
+                getattr(mr, "sha", None),
+            ])
             continue
 
         if wait_for_pipeline:

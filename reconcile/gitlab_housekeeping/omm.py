@@ -190,9 +190,12 @@ def clear_omm_group(
 def _bot_commit_emails(gl: GitLabApi) -> set[str]:
     """Emails the rebase API writes as committer. Empty strings never match."""
     emails: set[str] = set()
+    user = getattr(gl, "user", None)
+    if user is None:
+        return emails
     for raw in (
-        getattr(gl.user, "commit_email", None),
-        getattr(gl.user, "email", None),
+        getattr(user, "commit_email", None),
+        getattr(user, "email", None),
     ):
         if isinstance(raw, str) and raw.strip():
             emails.add(raw.strip().lower())
