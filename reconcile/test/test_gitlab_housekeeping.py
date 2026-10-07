@@ -5293,7 +5293,7 @@ def test_serial_merge_refetches_cache_when_skip_ci_filter_exposes_success(
         app_sre_usernames=set(),
         state=create_autospec(State),
         multi_merge=False,
-        pipeline_cache={10: cached},
+        pipeline_cache={10: cached},  # type: ignore[dict-item]
     )
 
     mocked_gl.get_merge_request_pipelines.assert_called_once()
@@ -5355,7 +5355,7 @@ def test_serial_merge_cached_skip_ci_failure_still_merges_after_refetch(
         app_sre_usernames=set(),
         state=create_autospec(State),
         multi_merge=False,
-        pipeline_cache={10: pipelines},
+        pipeline_cache={10: pipelines},  # type: ignore[dict-item]
     )
 
     mocked_gl.get_merge_request_pipelines.assert_called_once()
