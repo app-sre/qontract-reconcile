@@ -348,6 +348,7 @@ def _role_with_member_source(*, name: str, group: str) -> RoleV1:
         name=name,
         ldapGroup=None,
         users=[],
+        bots=[],
         memberSources=[
             RoleMembershipSource(
                 group=group,
