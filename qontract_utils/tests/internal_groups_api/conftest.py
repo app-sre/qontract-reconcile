@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-import requests
 from pytest_httpserver import HTTPServer
 from qontract_utils.internal_groups_api.api import InternalGroupsApi
 from qontract_utils.internal_groups_api.client import InternalGroupsClient
@@ -73,17 +72,26 @@ def internal_groups_server_full_api_response(
 
 @pytest.fixture
 def internal_groups_api_minimal(
-    internal_groups_url: str, issuer_url: str, client_id: str, client_secret: str
+    internal_groups_url: str,
+    issuer_url: str,
+    client_id: str,
+    client_secret: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> InternalGroupsApi:
-    InternalGroupsApi.__enter__ = lambda self: self  # type: ignore[method-assign]
-    api = InternalGroupsApi(
+
+    def _fake_access_token(*_args: object, **_kwargs: object) -> str:
+        return "fake-token"
+
+    monkeypatch.setattr(
+        "qontract_utils.internal_groups_api.api._fetch_access_token",
+        _fake_access_token,
+    )
+    return InternalGroupsApi(
         api_url=internal_groups_url,
         issuer_url=issuer_url,
         client_id=client_id,
         client_secret=client_secret,
     )
-    api._client = requests.Session()  # type: ignore[assignment]
-    return api
 
 
 @pytest.fixture
