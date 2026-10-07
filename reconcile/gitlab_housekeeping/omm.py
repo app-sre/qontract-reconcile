@@ -282,7 +282,12 @@ def _committed_during_label(
     for start, end in intervals:
         if committed_at < start:
             continue
-        if end is None or committed_at < end:
+        if end is None:
+            return True
+        # Git commit times are whole seconds; label events keep fractions.
+        # A post-remove rebase at 00:10:00.900 is stored as 00:10:00.000.
+        # Floor the remove so that second is not treated as still in-window.
+        if committed_at < end.replace(microsecond=0):
             return True
     return False
 
