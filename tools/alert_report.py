@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 QONTRACT_INTEGRATION = "alert-report"
 
+CLUSTER_PREFIX_RE = re.compile(r"^\[(?P<cluster>[^\]]+)\]")
+
 
 @dataclass
 class Alert:
@@ -79,6 +81,16 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
                 logging.debug(f"no alert name in title {at['title']}. Skipping")
                 continue
 
+            # Classic incoming-webhook posts carry a per-cluster "username"; bot
+            # OAuth app posts (used since the webhook was rotated) only carry
+            # "bot_id", which is the same for every cluster. Prefer the cluster
+            # name from the title prefix (present since the 2026-05-18 template
+            # change) to keep grouping/dedup per-cluster; fall back to bot_id
+            # only when neither is available.
+            cluster_match = CLUSTER_PREFIX_RE.match(at["title"])
+            cluster = cluster_match.group("cluster") if cluster_match else None
+            username = m.get("username") or cluster or m.get("bot_id", "unknown")
+
             # If there's only one alert related to the alert_name, message will be part
             # of the title. If not, alert messages will be part of the text under
             # "Alerts Firing" / "Alerts Resolved"
@@ -89,7 +101,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
                         state=alert_state,
                         message=alert_message,
                         timestamp=timestamp,
-                        username=m["username"],
+                        username=username,
                         responsed=responsed,
                     )
                 )
@@ -104,7 +116,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
                             state=alert_state,
                             message="placeholder",
                             timestamp=timestamp,
-                            username=m["username"],
+                            username=username,
                             responsed=responsed,
                         )
                     )
@@ -126,7 +138,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
                                 state=alert_state,
                                 message=alert_message,
                                 timestamp=timestamp,
-                                username=m["username"],
+                                username=username,
                                 responsed=responsed,
                             )
                         )
