@@ -11,8 +11,8 @@ from reconcile.gql_definitions.ldap_groups.roles import RoleV1
 from reconcile.gql_definitions.ldap_groups.roles import query as roles_query
 from reconcile.gql_definitions.ldap_groups.settings import LdapGroupsSettingsV1
 from reconcile.gql_definitions.ldap_groups.settings import query as settings_query
+from reconcile.ldap_groups_api.models import unique_sso_aws_accounts_for_ldap_groups
 from reconcile.utils import gql
-from reconcile.utils.aws_helper import unique_sso_aws_accounts_for_ldap_groups
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import (
     AppInterfaceLdapGroupsSettingsError,

@@ -45,14 +45,3 @@ def integration_is_enabled(
 ) -> bool:
     """A convenient method to check whether an integration is enabled or not."""
     return integration not in disabled_integrations(disable_obj)
-
-
-# AWS SSO rover groups only: honor legacy and -api names in account.disable.integrations.
-_LDAP_GROUPS_AWS_DISABLE_NAMES = frozenset({"ldap-groups", "ldap-groups-api"})
-
-
-def ldap_groups_aws_integration_enabled(
-    disable_obj: Mapping[str, Any] | HasDisableIntegrations | None,
-) -> bool:
-    disabled = set(disabled_integrations(disable_obj))
-    return not disabled.intersection(_LDAP_GROUPS_AWS_DISABLE_NAMES)

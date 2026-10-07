@@ -15,9 +15,9 @@ from reconcile.ldap_groups_api.models import (
     get_desired_groups_for_roles,
     get_integration_settings,
     get_roles,
+    unique_sso_aws_accounts_for_ldap_groups,
     validate_no_circular_memberships,
 )
-from reconcile.utils.aws_helper import unique_sso_aws_accounts_for_ldap_groups
 from reconcile.utils.exceptions import AppInterfaceLdapGroupsSettingsError
 from reconcile.utils.membershipsources.validation import CircularMembershipError
 
@@ -44,14 +44,14 @@ def test_validate_no_circular_memberships_no_conflict() -> None:
 
 @dataclass
 class _Disable:
-    integrations: list[str]
+    integrations: list[str] | None
 
 
 @dataclass
 class _AwsAccount:
     name: str
     uid: str
-    sso: bool = True
+    sso: bool | None = True
     disable: _Disable | None = None
 
 
@@ -99,7 +99,10 @@ def test_get_desired_groups_for_roles(
         default_owners=[owner],
         contact_list="email@example.org",
     )
-    assert {g.name for g in groups} == {"ai-dev-test-group", "ai-dev-test-group-with-notes"}
+    assert {g.name for g in groups} == {
+        "ai-dev-test-group",
+        "ai-dev-test-group-with-notes",
+    }
     assert groups[1].owners == [owner] + groups[1].members
 
 
