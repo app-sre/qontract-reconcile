@@ -7,19 +7,17 @@ import time
 from dataclasses import dataclass
 from typing import Any, Self
 
-import requests
+import httpx2
 import structlog
-from oauthlib.oauth2 import BackendApplicationClient, TokenExpiredError
 from prometheus_client import Counter, Histogram
-from requests import Response
-from requests_oauthlib import OAuth2Session
 
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 
 logger = structlog.get_logger(__name__)
 
-REQUEST_TIMEOUT = 30
+REQUEST_TIMEOUT = 30.0
+MAX_RETRIES = 3
 _HTTP_NOT_FOUND = 404
 
 internal_groups_request = Counter(
@@ -76,6 +74,26 @@ def _request_log_hook(context: InternalGroupsApiCallContext) -> None:
     logger.debug("API request", method=context.method, verb=context.verb)
 
 
+def _fetch_access_token(
+    token_url: str,
+    client_id: str,
+    client_secret: str,
+    timeout: float,
+) -> str:
+    response = httpx2.post(
+        token_url,
+        data={
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": client_secret,
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    return str(response.json()["access_token"])
+
+
 @with_hooks(
     hooks=Hooks(
         pre_hooks=[
@@ -87,7 +105,12 @@ def _request_log_hook(context: InternalGroupsApiCallContext) -> None:
     )
 )
 class InternalGroupsApi:
-    """Stateless Internal Groups API client."""
+    """Stateless Internal Groups API client using httpx2 with OAuth2 client credentials.
+
+    Layer 1 client following ADR-014. Fetches a client-credentials bearer token once
+    at construction (same pattern as OcmApi). HTTPTransport handles transient failures;
+    auth errors are not retried in-process.
+    """
 
     _hooks: Hooks
 
@@ -97,35 +120,30 @@ class InternalGroupsApi:
         issuer_url: str,
         client_id: str,
         client_secret: str,
-        hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] — handled by @with_hooks
+        hooks: Hooks | None = None,
+        timeout: float = REQUEST_TIMEOUT,
+        max_retries: int = MAX_RETRIES,
     ) -> None:
+        _ = hooks
         self.api_url = api_url.rstrip("/")
-        self.issuer_url = issuer_url.rstrip("/")
-        self.client_id = client_id
-        self.client_secret = client_secret
-        client = BackendApplicationClient(client_id=self.client_id)
-        self._client = OAuth2Session(self.client_id, client=client)
-
-    def _fetch_token(self) -> dict[str, Any]:
-        self._client.token = {}
-        return self._client.fetch_token(
-            token_url=f"{self.issuer_url}/protocol/openid-connect/token",
-            client_id=self.client_id,
-            client_secret=self.client_secret,
+        token_url = f"{issuer_url.rstrip('/')}/protocol/openid-connect/token"
+        access_token = _fetch_access_token(token_url, client_id, client_secret, timeout)
+        self._client = httpx2.Client(
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {access_token}",
+            },
+            timeout=timeout,
+            transport=httpx2.HTTPTransport(retries=max_retries),
         )
 
     @staticmethod
-    def _check_response(resp: requests.Response) -> None:
-        try:
-            resp.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            if e.response is not None and e.response.status_code == _HTTP_NOT_FOUND:
-                raise NotFoundError(e.response.text) from e
-            raise
+    def _check_response(resp: httpx2.Response) -> None:
+        if resp.status_code == _HTTP_NOT_FOUND:
+            raise NotFoundError(resp.text)
+        resp.raise_for_status()
 
     def __enter__(self) -> Self:
-        if not self._client.token:
-            self._client.token = self._fetch_token()
         return self
 
     def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
@@ -139,24 +157,8 @@ class InternalGroupsApi:
         method: str,
         url: str,
         json: dict[Any, Any] | None = None,
-        timeout: int = REQUEST_TIMEOUT,
-    ) -> Response:
-        last_error: TokenExpiredError | None = None
-        for _ in range(2):
-            try:
-                return self._client.request(
-                    method=method,
-                    url=url,
-                    json=json,
-                    headers={"Content-Type": "application/json"},
-                    timeout=timeout,
-                )
-            except TokenExpiredError as err:
-                self._client.token = self._fetch_token()
-                last_error = err
-        if last_error is not None:
-            raise last_error
-        raise RuntimeError("unreachable")
+    ) -> httpx2.Response:
+        return self._client.request(method=method, url=url, json=json)
 
     @invoke_with_hooks(
         lambda self, name: InternalGroupsApiCallContext(method="group", verb="GET")
