@@ -763,6 +763,19 @@ def _process_omm_member(
         ])
         return _MemberResult(active=mr_is_rebased)
 
+    # Same tip check as admission and serial. In-window skip-ci may still
+    # merge on older SUCCESS. A post-label bot head without CI must not.
+    # No token emails: cannot classify a bot tip, keep prior member rule.
+    if _bot_commit_emails(gl) and _bot_head_awaiting_pipeline(gl, fresh_mr, pipelines):
+        logging.info([
+            "omm-group",
+            "bot-head-awaiting-pipeline",
+            gl.project.name,
+            mr.iid,
+            getattr(fresh_mr, "sha", None),
+        ])
+        return _MemberResult(active=True)
+
     # --- SUCCESS: the only path that differs on rebased state ---
     if mr_is_rebased:
         logging.info(["omm-group", "merge", gl.project.name, mr.iid])

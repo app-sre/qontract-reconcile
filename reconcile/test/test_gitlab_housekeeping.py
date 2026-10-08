@@ -4483,6 +4483,7 @@ def test_omm_normal_bot_rebase_failure_ejects_despite_later_skip_ci(
             "normal-sha": _commit(_BOT_EMAIL, _BEFORE_LABEL),
         },
         _one_group_events(),
+        sha="skip-sha",
     )
 
     assert merges == 0
@@ -4504,10 +4505,34 @@ def test_omm_normal_bot_rebase_success_merges_despite_skip_ci(
             "normal-sha": _commit(_BOT_EMAIL, _BEFORE_LABEL),
         },
         _one_group_events(),
+        sha="skip-sha",
     )
 
     assert merges == 1
     mr.merge.assert_called_once()
+    gl.remove_label.assert_not_called()
+
+
+def test_omm_member_skips_merge_when_head_changed_with_only_older_success(
+    mocker: MockerFixture,
+) -> None:
+    """Live head is a post-label bot commit with no CI. Do not merge on older SUCCESS."""
+    merges, mr, gl = _run_pending_member(
+        mocker,
+        [_pipeline(PipelineStatus.SUCCESS, "old")],
+        {
+            "bot-head": _commit(_BOT_EMAIL, _BEFORE_LABEL),
+            "old": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        [
+            _label_event("add", _LABEL_ON),
+            _label_event("remove", _LABEL_OFF),
+        ],
+        sha="bot-head",
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
     gl.remove_label.assert_not_called()
 
 
