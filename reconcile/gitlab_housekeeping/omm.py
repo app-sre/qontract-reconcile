@@ -406,11 +406,14 @@ def _prior_revision_requires_wait(
     Formation rebases the admitted SHA to a skip-ci commit. The skip-ci row is
     dropped, so pipelines[0] can be an older SHA's SUCCESS while the pre-rebase
     CI is still running or has failed. Use commit time, not created_at.
-    Unreadable remaining commits wait: that is not proof the prior SHA is green.
+    Git commit times are whole seconds. Different SHAs in that second are not
+    ordered, so wait unless every one of them is SUCCESS. The same SHA twice
+    is not a tie. Unreadable remaining commits wait: that is not proof the
+    prior SHA is green.
     """
     cache: dict[tuple[int | str, str], tuple[str, datetime] | None] = {}
     best_at: datetime | None = None
-    best_sha: str | None = None
+    best_shas: set[str] = set()
     for pipeline in pipelines:
         sha = getattr(pipeline, "sha", None)
         if not isinstance(sha, str):
@@ -430,12 +433,19 @@ def _prior_revision_requires_wait(
         _email, committed_at = commit
         if best_at is None or committed_at > best_at:
             best_at = committed_at
-            best_sha = sha
-    if best_sha is None:
+            best_shas = {sha}
+        elif committed_at == best_at:
+            best_shas.add(sha)
+    if not best_shas:
         return True
-    return _status_requires_wait(
-        _usable_sha_status(pipelines, best_sha),
-        require_success=require_success,
+    if len(best_shas) == 1:
+        return _status_requires_wait(
+            _usable_sha_status(pipelines, next(iter(best_shas))),
+            require_success=require_success,
+        )
+    return any(
+        _usable_sha_status(pipelines, sha) != PipelineStatus.SUCCESS
+        for sha in best_shas
     )
 
 
@@ -458,8 +468,9 @@ def _bot_head_awaiting_pipeline(
     No usable row: wait, unless the head is an in-window skip-ci commit.
 
     An in-window skip-ci head still waits when the newest remaining revision
-    (by commit time) is not SUCCESS. Leftover SUCCESS on an older SHA must not
-    authorize merge while the pre-rebase CI is running or failed.
+    (by commit time) is not SUCCESS. Different SHAs that share that second wait
+    unless every one of them is SUCCESS. Leftover SUCCESS on an older SHA must
+    not authorize merge while the pre-rebase CI is running or failed.
 
     If the tip has no usable pipeline and the commit cannot be classified,
     wait. Lookup failure is not proof it is safe to join on older SUCCESS.

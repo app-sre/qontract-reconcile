@@ -4610,6 +4610,61 @@ def test_omm_member_skip_ci_head_follows_pre_rebase_revision(
         gl.remove_label.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "tested_status",
+    [PipelineStatus.RUNNING, PipelineStatus.FAILED],
+)
+def test_omm_member_tied_commit_time_does_not_merge_on_older_success(
+    mocker: MockerFixture,
+    tested_status: str,
+) -> None:
+    """Same commit second cannot prefer the first SHA. That SHA can be an older SUCCESS."""
+    merges, mr, gl = _run_pending_member(
+        mocker,
+        [
+            _pipeline(PipelineStatus.FAILED, "skip-ci-head"),
+            _pipeline(PipelineStatus.SUCCESS, "older-revision"),
+            _pipeline(tested_status, "tested-head"),
+        ],
+        {
+            "skip-ci-head": _commit(_BOT_EMAIL, _DURING_LABEL),
+            "tested-head": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+            "older-revision": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        _one_group_events(),
+        sha="skip-ci-head",
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
+    gl.remove_label.assert_not_called()
+
+
+def test_omm_member_tied_commit_time_merges_when_every_sha_succeeded(
+    mocker: MockerFixture,
+) -> None:
+    """A tied second where every SHA succeeded is still safe to merge."""
+    merges, mr, gl = _run_pending_member(
+        mocker,
+        [
+            _pipeline(PipelineStatus.FAILED, "skip-ci-head"),
+            _pipeline(PipelineStatus.SUCCESS, "older-revision"),
+            _pipeline(PipelineStatus.SUCCESS, "tested-head"),
+        ],
+        {
+            "skip-ci-head": _commit(_BOT_EMAIL, _DURING_LABEL),
+            "tested-head": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+            "older-revision": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        _one_group_events(),
+        sha="skip-ci-head",
+    )
+
+    assert merges == 1
+    mr.merge.assert_called_once()
+    gl.remove_label.assert_not_called()
+
+
 def test_omm_member_skips_merge_when_head_changed_with_only_older_success(
     mocker: MockerFixture,
 ) -> None:
