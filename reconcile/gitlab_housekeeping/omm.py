@@ -377,14 +377,16 @@ def _bot_head_awaiting_pipeline(
     mr: ProjectMergeRequest,
     pipelines: list[Any],
 ) -> bool:
-    """True when a normal bot rebase has landed and Jenkins has not posted yet.
+    """True when the live head must not join or merge on an older SUCCESS.
 
     SKIPPED rows and source=push shells do not count. Those are placeholders,
     not Jenkins. Caller should pass the usable list (placeholders and in-window
-    skip-ci bot pipelines already dropped). Then a match means this head has
-    real CI. No match plus an older SUCCESS means wait, unless the head is
-    itself an in-window skip-ci commit. That MR is admitted; the member path
-    ignores pipelines on that SHA.
+    skip-ci bot pipelines already dropped).
+
+    Decision uses this SHA's newest usable row, not pipelines[0] across SHAs.
+    SUCCESS on this SHA: do not wait. RUNNING, PENDING, FAILED, or CANCELED:
+    wait, even if an older SHA later got a SUCCESS. No usable row plus an
+    older SUCCESS: wait, unless the head is an in-window skip-ci commit.
 
     If the tip has no usable pipeline and the commit cannot be classified,
     wait. Lookup failure is not proof it is safe to join on older SUCCESS.
@@ -392,13 +394,20 @@ def _bot_head_awaiting_pipeline(
     sha = getattr(mr, "sha", None)
     if not isinstance(sha, str):
         return True
-    if any(
-        getattr(p, "sha", None) == sha
-        and getattr(p, "status", None) != PipelineStatus.SKIPPED
-        and getattr(p, "source", None) != "push"
-        for p in pipelines
-    ):
+    head_status = next(
+        (
+            getattr(p, "status", None)
+            for p in pipelines
+            if getattr(p, "sha", None) == sha
+            and getattr(p, "status", None) != PipelineStatus.SKIPPED
+            and getattr(p, "source", None) != "push"
+        ),
+        None,
+    )
+    if head_status == PipelineStatus.SUCCESS:
         return False
+    if head_status is not None:
+        return True
     emails = _bot_commit_emails(gl)
     if not emails:
         logging.warning([

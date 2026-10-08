@@ -4890,6 +4890,33 @@ def test_form_omm_group_skips_bot_head_without_pipeline() -> None:
     assert candidates == []
 
 
+def test_form_omm_group_skips_when_older_success_outranks_head_failure() -> None:
+    """Newest created_at can be an older SHA. Head FAILED must still wait."""
+    mr = _make_merge_mr(11, ["approved", "tenant-bar"], sha="old", source_project_id=99)
+    fresh = Mock()
+    fresh.rebase_in_progress = False
+    fresh.sha = "bot-head"
+    fresh.source_project_id = 99
+    mocked_gl = _form_gl()
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _pipeline(PipelineStatus.SUCCESS, "old"),
+        _pipeline(PipelineStatus.FAILED, "bot-head"),
+    ]
+    mocked_gl.get_merge_request.return_value = fresh
+    _arm_skip_ci_lookups(
+        mocked_gl,
+        {
+            "bot-head": _commit(_BOT_EMAIL, _BEFORE_LABEL),
+            "old": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        _one_group_events(),
+    )
+
+    candidates = form_omm_group(mocked_gl, [_make_merge_item(mr)], set())
+
+    assert candidates == []
+
+
 def test_form_omm_group_skips_bot_head_with_only_skipped_pipeline() -> None:
     """A SKIPPED row on the head is not CI. Wait even if an older SUCCESS remains."""
     mr = _make_merge_mr(11, ["approved", "tenant-bar"], sha="old", source_project_id=99)
@@ -5147,6 +5174,73 @@ def test_serial_merge_skips_stale_list_sha_after_bot_rebase(
         {
             "bbb": _commit(_BOT_EMAIL, _BEFORE_LABEL),
             "aaa": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        [
+            _label_event("add", _LABEL_ON),
+            _label_event("remove", _LABEL_OFF),
+        ],
+    )
+
+    gl_h.merge_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=10,
+        rebase=True,
+        app_sre_usernames=set(),
+        state=create_autospec(State),
+        multi_merge=False,
+        pipeline_cache={},
+    )
+
+    listed.merge.assert_not_called()
+    fresh.merge.assert_not_called()
+
+
+def test_serial_merge_skips_when_older_success_outranks_head_failure(
+    mocker: MockerFixture,
+) -> None:
+    """Newest created_at can be an older SHA. Head FAILED must not merge."""
+    listed = _make_merge_mr(
+        10, ["approved", "tenant-foo"], sha="old", source_project_id=99
+    )
+    fresh = _make_merge_mr(
+        10, ["approved", "tenant-foo"], sha="bot-head", source_project_id=99
+    )
+    fresh.rebase_in_progress = False
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.preprocess_merge_requests",
+        return_value=[_make_merge_item(listed)],
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.is_rebased",
+        return_value=True,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.get_omm_group_lead",
+        return_value=None,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.get_omm_pending_mrs",
+        return_value=[],
+    )
+    mocked_gl = create_autospec(GitLabApi)
+    project = create_autospec(Project)
+    project.id = "proj-1"
+    project.name = "test-project"
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _pipeline(PipelineStatus.SUCCESS, "old"),
+        _pipeline(PipelineStatus.FAILED, "bot-head"),
+    ]
+    mocked_gl.get_merge_request.return_value = fresh
+    _arm_skip_ci_lookups(
+        mocked_gl,
+        {
+            "bot-head": _commit(_BOT_EMAIL, _BEFORE_LABEL),
+            "old": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
         },
         [
             _label_event("add", _LABEL_ON),
