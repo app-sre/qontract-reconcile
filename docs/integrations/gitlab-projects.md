@@ -1,6 +1,6 @@
 # GitLab Projects Integration
 
-**Last Updated:** 2026-09-28
+**Last Updated:** 2026-10-08
 
 ## Description
 
@@ -232,6 +232,104 @@ projectRequests:
 
 - Builds desired state entirely from GraphQL before calling qontract-api, including the codeComponent cross-reference validation
 - Passes Vault `Secret` *references* (path + field + version) — no token values in the request body
+
+## Local Testing with a Personal GitLab Group
+
+As most do not have the needed permissions to delete projects on the usual
+target of this integration, this sections describe how to test using a
+personal Gitlab project, [qontract-development-cli](https://github.com/app-sre/qontract-development-cli)
+and [app-interface-dev-data](https://gitlab.cee.redhat.com/app-sre/app-interface-dev-data).
+
+Use a personal GitLab group and **local Vault**, not shared production
+credentials. Create a personal access token (PAT) with the `api` scope and
+permission to create projects in that group (subject to the group's project
+creation settings). Store the PAT in Vault at the exact `token.path` and
+`token.field` configured below. Be sure to update the vault target in both
+the toml config specified in your qd env and by the qontract-api `.env`
+file, refer to the example provided at [qontract-api/.env.example](https://github.com/app-sre/qontract-reconcile/blob/master/qontract_api/.env.example).
+
+### Dev-data Example Files
+
+In `app-interface-dev-data`, either replace
+`data/dependencies/gitlab/gitlab.yml` with your personal test configuration,
+or create a new instance file such as
+`data/dependencies/gitlab/gitlab-personal-test.yml`. If you keep the existing
+instance and add a new one, **pass `--instance-name gitlab-com-personal-test`**
+when running the integration to select only your test instance. The flag
+matches the YAML `name`, not the filename or group name. Without it, the API
+integration considers all configured GitLab instances.
+
+Example GitLab instance file:
+
+```yaml
+---
+$schema: /dependencies/gitlab-instance-1.yml
+
+name: gitlab-com-personal-test
+description: Personal GitLab project creation test
+url: https://gitlab.com
+
+managedGroups: []
+backupOrgs: []
+
+projectRequests:
+- group: your-gitlab-group-12345
+  projects:
+  - qontract-reconcile-api-test
+
+token:
+  path: cred/gitlab-personal-test
+  field: gitlab-token
+
+sslVerify: true
+```
+
+Replace `your-gitlab-group-12345` with the **actual group path assigned by
+GitLab, as shown in the URL**, including any appended numbers. Do not use the
+display name or just the name you originally chose. For a group at
+`https://gitlab.com/your-gitlab-group-12345`, use
+`your-gitlab-group-12345` in both `projectRequests[].group` and the project URL.
+The group must already exist; this integration creates projects, not groups.
+
+For this example, the local Vault secret at `cred/gitlab-personal-test` must
+contain the PAT in the `gitlab-token` field. Adjust both the Vault secret and
+the YAML reference together if you use another path or field.
+
+Add the following `codeComponents` section to
+`data/services/app-interface-test-service/app.yml`, preserving the app's
+other fields (append to the list if it already exists):
+
+```yaml
+codeComponents:
+- name: qontract-reconcile-api-test
+  resource: other
+  url: https://gitlab.com/your-gitlab-group-12345/qontract-reconcile-api-test
+  showInReviewQueue: false
+```
+
+The URL must exactly match the GitLab instance URL, group path, and requested
+project name. A missing code component fails validation before reconciliation.
+
+Also register the integration in dev-data. Either update the existing
+`data/integrations/qontract-reconcile-gitlab-projects.yml` or add
+`data/integrations/qontract-reconcile-gitlab-projects-api.yml`, retaining the
+existing integration file's schema allowlist and deployment fields and setting:
+
+```yaml
+name: gitlab-projects-api
+pr_check:
+  cmd: gitlab-projects-api
+```
+
+Do not leave two integration records named `gitlab-projects-api`. Reload the
+dev-data in qontract-server before running the integration.
+
+### Run the Integration
+
+Execute a dry-run first to validate the setup.
+Review the planned changes and confirm they target only your personal group.
+Then repeat without `--dry-run` to create the project. Verify subsequent
+runs do not try to recreate the project.
 
 ## Troubleshooting
 
