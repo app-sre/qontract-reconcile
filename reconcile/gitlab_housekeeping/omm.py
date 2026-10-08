@@ -376,17 +376,19 @@ def _bot_head_awaiting_pipeline(
     gl: GitLabApi,
     mr: ProjectMergeRequest,
     pipelines: list[Any],
+    *,
+    require_success: bool = False,
 ) -> bool:
-    """True when the live head must not join or merge on an older SUCCESS.
+    """True when the live head must not proceed on an older SUCCESS.
 
     SKIPPED rows and source=push shells do not count. Those are placeholders,
     not Jenkins. Caller should pass the usable list (placeholders and in-window
     skip-ci bot pipelines already dropped).
 
     Decision uses this SHA's newest usable row, not pipelines[0] across SHAs.
-    SUCCESS on this SHA: do not wait. RUNNING, PENDING, FAILED, or CANCELED:
-    wait, even if an older SHA later got a SUCCESS. No usable row plus an
-    older SUCCESS: wait, unless the head is an in-window skip-ci commit.
+    SUCCESS: proceed. FAILED or CANCELED: do not. RUNNING or PENDING: proceed
+    for admission (join and wait); block when require_success=True (merge).
+    No usable row: wait, unless the head is an in-window skip-ci commit.
 
     If the tip has no usable pipeline and the commit cannot be classified,
     wait. Lookup failure is not proof it is safe to join on older SUCCESS.
@@ -406,6 +408,8 @@ def _bot_head_awaiting_pipeline(
     )
     if head_status == PipelineStatus.SUCCESS:
         return False
+    if head_status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
+        return require_success
     if head_status is not None:
         return True
     emails = _bot_commit_emails(gl)
@@ -763,10 +767,9 @@ def _process_omm_member(
         ])
         return _MemberResult(active=mr_is_rebased)
 
-    # Same tip check as admission and serial. In-window skip-ci may still
-    # merge on older SUCCESS. A post-label bot head without CI must not.
-    # No token emails: cannot classify a bot tip, keep prior member rule.
-    if _bot_commit_emails(gl) and _bot_head_awaiting_pipeline(gl, fresh_mr, pipelines):
+    # Same tip check as serial merge. In-window skip-ci may still merge on
+    # older SUCCESS. A failed or untested post-label bot head must not.
+    if _bot_head_awaiting_pipeline(gl, fresh_mr, pipelines, require_success=True):
         logging.info([
             "omm-group",
             "bot-head-awaiting-pipeline",

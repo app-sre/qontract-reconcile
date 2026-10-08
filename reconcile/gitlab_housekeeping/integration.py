@@ -346,19 +346,6 @@ def merge_merge_requests(
         if rebase and not is_rebased(fresh, gl):
             continue
 
-        # Same tip wait as OMM admission. A post-label bot rebase without
-        # Jenkins must not merge on older SUCCESS. In-window skip-ci may.
-        # Empty token emails: helper waits; do not merge on older SUCCESS.
-        if _bot_head_awaiting_pipeline(gl, fresh, pipelines):
-            logging.info([
-                "skip merge",
-                "bot-head-awaiting-pipeline",
-                gl.project.name,
-                mr.iid,
-                getattr(fresh, "sha", None),
-            ])
-            continue
-
         if wait_for_pipeline:
             running_pipelines = [
                 p for p in pipelines if p.status == PipelineStatus.RUNNING
@@ -373,6 +360,18 @@ def merge_merge_requests(
 
         last_pipeline_result = pipelines[0].status
         if last_pipeline_result != PipelineStatus.SUCCESS:
+            continue
+
+        # Merge-only: RUNNING may join or hit wait_for_pipeline above.
+        # Do not merge leftover SUCCESS if this SHA is not green.
+        if _bot_head_awaiting_pipeline(gl, fresh, pipelines, require_success=True):
+            logging.info([
+                "skip merge",
+                "bot-head-awaiting-pipeline",
+                gl.project.name,
+                mr.iid,
+                getattr(fresh, "sha", None),
+            ])
             continue
 
         logging.info(["merge", gl.project.name, mr.iid])
