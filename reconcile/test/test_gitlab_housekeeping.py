@@ -4654,6 +4654,26 @@ def test_omm_member_tied_commit_time_merges_when_every_sha_succeeded(
     gl.remove_label.assert_not_called()
 
 
+def test_omm_member_skips_merge_when_human_head_has_no_pipeline(
+    mocker: MockerFixture,
+) -> None:
+    """A person's new tip with no CI must not merge on an older SUCCESS."""
+    merges, mr, gl = _run_pending_member(
+        mocker,
+        [_pipeline(PipelineStatus.SUCCESS, "old")],
+        {
+            "human-head": _commit(_HUMAN_EMAIL, _DURING_LABEL),
+            "old": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        _one_group_events(),
+        sha="human-head",
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
+    gl.remove_label.assert_not_called()
+
+
 def test_omm_member_skips_merge_when_head_changed_with_only_older_success(
     mocker: MockerFixture,
 ) -> None:

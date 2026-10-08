@@ -465,7 +465,8 @@ def _bot_head_awaiting_pipeline(
     Decision uses this SHA's newest usable row, not pipelines[0] across SHAs.
     SUCCESS: proceed. FAILED or CANCELED: do not. RUNNING or PENDING: proceed
     for admission (join and wait); block when require_success=True (merge).
-    No usable row: wait, unless the head is an in-window skip-ci commit.
+    No usable row: wait, unless the head is an in-window skip-ci bot commit.
+    A non-bot tip with no CI waits too. An older SUCCESS must not merge it.
 
     An in-window skip-ci head still waits when the newest remaining revision
     (by commit time) is not SUCCESS. Different SHAs that share that second wait
@@ -497,8 +498,9 @@ def _bot_head_awaiting_pipeline(
     if commit is None:
         return True
     email, committed_at = commit
+    # Only an in-window skip-ci bot commit may fall through to older CI.
     if email not in emails:
-        return False
+        return True
     intervals = _omm_pending_on_intervals(gl, mr)
     if not (intervals and _committed_during_label(committed_at, intervals)):
         return True
