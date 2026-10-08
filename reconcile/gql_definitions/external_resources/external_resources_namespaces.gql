@@ -223,16 +223,6 @@ query ExternalResourcesNamespaces {
             annotations
             tags
           }
-          ... on NamespaceTerraformResourceS3SQS_v1 {
-            region
-            identifier
-            defaults
-            kms_encryption
-            output_resource_name
-            storage_class
-            annotations
-            tags
-          }
           ... on NamespaceTerraformResourceCloudWatch_v1 {
             region
             identifier
