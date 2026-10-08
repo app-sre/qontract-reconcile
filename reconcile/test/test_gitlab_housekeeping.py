@@ -2392,7 +2392,7 @@ def _make_merge_mr(
     mr.merge_status = "can_be_merged"
     mr.draft = False
     mr.commits.return_value = [create_autospec(ProjectCommit)]
-    mr.sha = sha if sha is not None else f"sha-{iid}"
+    mr.sha = sha if sha is not None else "pipeline-sha"
     mr.target_branch = "master"
     return mr
 
@@ -3280,7 +3280,9 @@ def test_omm_member_refreshes_mr_before_rebased_check(
 
     head_sha = "abc123"
     mocked_gl = _make_omm_gl(head_sha=head_sha)
-    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _success_pipeline(sha="fresh-sha-rebased")
+    ]
     mocked_gl.get_merge_request.return_value = fresh_mr
 
     head_commit = Mock()
@@ -3942,7 +3944,7 @@ def test_omm_group_push_pipeline_filtered_even_at_different_sha(
     mocked_gl = _make_omm_gl(head_sha="abc123", merge_request=mr)
     mocked_gl.get_merge_request_pipelines.return_value = [
         _running_pipeline(project_id=fork_id, sha=prior_rebase_sha, source="push"),
-        _success_pipeline(project_id=fork_id, sha="original-sha", source="external"),
+        _success_pipeline(project_id=fork_id, sha=current_sha, source="external"),
     ]
 
     merges = process_omm_group(
