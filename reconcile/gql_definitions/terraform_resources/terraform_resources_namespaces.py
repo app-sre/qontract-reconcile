@@ -17,30 +17,10 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.aws_vpc import AWSVPC
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
-fragment AWSVPC on AWSVPC_v1 {
-  name
-  description
-  account {
-    name
-    uid
-    terraformUsername
-    automationToken {
-      ...VaultSecret
-    }
-  }
-  region
-  vpc_id
-  cidr_block
-  subnets {
-    id
-  }
-}
-
 fragment VaultSecret on VaultSecret_v1 {
   url
   path
@@ -289,95 +269,6 @@ query TerraformResourcesNamespaces {
             identifier
             secret {
               ...VaultSecret
-            }
-            output_resource_name
-            annotations
-          }
-          ... on NamespaceTerraformResourceALB_v1 {
-            region
-            identifier
-            vpc {
-              ...AWSVPC
-            }
-            certificate_arn
-            ingress_cidr_blocks
-            idle_timeout
-            enable_http2
-            ip_address_type
-            access_logs
-            ssl_policy
-            mutual_authentication {
-              mode
-              ca_cert_bundle_s3_bucket_name
-              ca_cert_bundle_s3_bucket_key
-            }
-            targets {
-              name
-              default
-              ips
-              openshift_service
-              protocol
-              protocol_version
-              health_check {
-                unhealthy_threshold
-                timeout
-                interval
-                healthy_threshold
-                path
-                port
-                protocol
-              }
-            }
-            rules {
-              condition {
-                type
-                ... on NamespaceTerraformResourceALBConditionHostHeader_v1 {
-                  host_header
-                }
-                ... on NamespaceTerraformResourceALBConditionHTTPRequestMethod_v1 {
-                  http_request_method
-                }
-                ... on NamespaceTerraformResourceALBConditionPathPattern_v1 {
-                  path_pattern
-                }
-                ... on NamespaceTerraformResourceALBConditionSourceIP_v1 {
-                  source_ip
-                }
-                ... on NamespaceTerraformResourceALBConditionQueryString_v1 {
-                  query_string {
-                    key
-                    value
-                  }
-                }
-              }
-              action {
-                type
-                ... on NamespaceTerraformResourceALBActionForward_v1 {
-                  forward {
-                    target_group {
-                      target
-                      weight
-                    }
-                  }
-                }
-                ... on NamespaceTerraformResourceALBActionFixedResponse_v1 {
-                  fixed_response {
-                    content_type
-                    message_body
-                    status_code
-                  }
-                }
-                ... on NamespaceTerraformResourceALBActionRedirect_v1 {
-                  redirect {
-                    host
-                    path
-                    port
-                    protocol
-                    query
-                    status_code
-                  }
-                }
-              }
             }
             output_resource_name
             annotations
@@ -854,124 +745,6 @@ class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(NamespaceTerraformResour
     annotations: Optional[str] = Field(..., alias="annotations")
 
 
-class NamespaceTerraformResourceALBMutualAuthenticationV1(ConfiguredBaseModel):
-    mode: str = Field(..., alias="mode")
-    ca_cert_bundle_s3_bucket_name: Optional[str] = Field(..., alias="ca_cert_bundle_s3_bucket_name")
-    ca_cert_bundle_s3_bucket_key: Optional[str] = Field(..., alias="ca_cert_bundle_s3_bucket_key")
-
-
-class NamespaceTerraformResourceALBTargetHealthcheckV1(ConfiguredBaseModel):
-    unhealthy_threshold: Optional[int] = Field(..., alias="unhealthy_threshold")
-    timeout: Optional[int] = Field(..., alias="timeout")
-    interval: Optional[int] = Field(..., alias="interval")
-    healthy_threshold: Optional[int] = Field(..., alias="healthy_threshold")
-    path: Optional[str] = Field(..., alias="path")
-    port: Optional[int] = Field(..., alias="port")
-    protocol: Optional[str] = Field(..., alias="protocol")
-
-
-class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    default: bool = Field(..., alias="default")
-    ips: Optional[list[str]] = Field(..., alias="ips")
-    openshift_service: Optional[str] = Field(..., alias="openshift_service")
-    protocol: Optional[str] = Field(..., alias="protocol")
-    protocol_version: Optional[str] = Field(..., alias="protocol_version")
-    health_check: Optional[NamespaceTerraformResourceALBTargetHealthcheckV1] = Field(..., alias="health_check")
-
-
-class NamespaceTerraformResourceALBConditionV1(ConfiguredBaseModel):
-    q_type: str = Field(..., alias="type")
-
-
-class NamespaceTerraformResourceALBConditionHostHeaderV1(NamespaceTerraformResourceALBConditionV1):
-    host_header: list[str] = Field(..., alias="host_header")
-
-
-class NamespaceTerraformResourceALBConditionHTTPRequestMethodV1(NamespaceTerraformResourceALBConditionV1):
-    http_request_method: list[str] = Field(..., alias="http_request_method")
-
-
-class NamespaceTerraformResourceALBConditionPathPatternV1(NamespaceTerraformResourceALBConditionV1):
-    path_pattern: list[str] = Field(..., alias="path_pattern")
-
-
-class NamespaceTerraformResourceALBConditionSourceIPV1(NamespaceTerraformResourceALBConditionV1):
-    source_ip: list[str] = Field(..., alias="source_ip")
-
-
-class NamespaceTerraformResourceALBConditionQueryStringKeyValueV1(ConfiguredBaseModel):
-    key: Optional[str] = Field(..., alias="key")
-    value: str = Field(..., alias="value")
-
-
-class NamespaceTerraformResourceALBConditionQueryStringV1(NamespaceTerraformResourceALBConditionV1):
-    query_string: list[NamespaceTerraformResourceALBConditionQueryStringKeyValueV1] = Field(..., alias="query_string")
-
-
-class NamespaceTerraformResourceALBActionV1(ConfiguredBaseModel):
-    q_type: str = Field(..., alias="type")
-
-
-class NamespaceTerraformResourceALBTargetGroupV1(ConfiguredBaseModel):
-    target: str = Field(..., alias="target")
-    weight: int = Field(..., alias="weight")
-
-
-class NamespaceTerraformResourceALBActionForwardSettingsV1(ConfiguredBaseModel):
-    target_group: list[NamespaceTerraformResourceALBTargetGroupV1] = Field(..., alias="target_group")
-
-
-class NamespaceTerraformResourceALBActionForwardV1(NamespaceTerraformResourceALBActionV1):
-    forward: NamespaceTerraformResourceALBActionForwardSettingsV1 = Field(..., alias="forward")
-
-
-class NamespaceTerraformResourceALBActionFixedResponseSettingsV1(ConfiguredBaseModel):
-    content_type: str = Field(..., alias="content_type")
-    message_body: str = Field(..., alias="message_body")
-    status_code: str = Field(..., alias="status_code")
-
-
-class NamespaceTerraformResourceALBActionFixedResponseV1(NamespaceTerraformResourceALBActionV1):
-    fixed_response: NamespaceTerraformResourceALBActionFixedResponseSettingsV1 = Field(..., alias="fixed_response")
-
-
-class NamespaceTerraformResourceALBActionRedirectSettingsV1(ConfiguredBaseModel):
-    host: Optional[str] = Field(..., alias="host")
-    path: Optional[str] = Field(..., alias="path")
-    port: Optional[int] = Field(..., alias="port")
-    protocol: Optional[str] = Field(..., alias="protocol")
-    query: Optional[str] = Field(..., alias="query")
-    status_code: Optional[str] = Field(..., alias="status_code")
-
-
-class NamespaceTerraformResourceALBActionRedirectV1(NamespaceTerraformResourceALBActionV1):
-    redirect: NamespaceTerraformResourceALBActionRedirectSettingsV1 = Field(..., alias="redirect")
-
-
-class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
-    condition: list[Union[NamespaceTerraformResourceALBConditionHostHeaderV1, NamespaceTerraformResourceALBConditionHTTPRequestMethodV1, NamespaceTerraformResourceALBConditionPathPatternV1, NamespaceTerraformResourceALBConditionSourceIPV1, NamespaceTerraformResourceALBConditionQueryStringV1, NamespaceTerraformResourceALBConditionV1]] = Field(..., alias="condition")
-    action: Union[NamespaceTerraformResourceALBActionForwardV1, NamespaceTerraformResourceALBActionFixedResponseV1, NamespaceTerraformResourceALBActionRedirectV1, NamespaceTerraformResourceALBActionV1] = Field(..., alias="action")
-
-
-class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):
-    region: Optional[str] = Field(..., alias="region")
-    identifier: str = Field(..., alias="identifier")
-    vpc: AWSVPC = Field(..., alias="vpc")
-    certificate_arn: str = Field(..., alias="certificate_arn")
-    ingress_cidr_blocks: list[str] = Field(..., alias="ingress_cidr_blocks")
-    idle_timeout: Optional[int] = Field(..., alias="idle_timeout")
-    enable_http2: Optional[bool] = Field(..., alias="enable_http2")
-    ip_address_type: Optional[str] = Field(..., alias="ip_address_type")
-    access_logs: Optional[bool] = Field(..., alias="access_logs")
-    ssl_policy: Optional[str] = Field(..., alias="ssl_policy")
-    mutual_authentication: Optional[NamespaceTerraformResourceALBMutualAuthenticationV1] = Field(..., alias="mutual_authentication")
-    targets: list[NamespaceTerraformResourceALBTargetsV1] = Field(..., alias="targets")
-    rules: list[NamespaceTerraformResourceALBRulesV1] = Field(..., alias="rules")
-    output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[str] = Field(..., alias="annotations")
-
-
 class NamespaceTerraformResourceSecretsManagerV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
@@ -1125,7 +898,7 @@ class NamespaceTerraformResourceVpcEndpointV1(NamespaceTerraformResourceAWSV1):
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
-    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceMskConnectV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceVpcEndpointServiceV1, NamespaceTerraformResourceVpcEndpointV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceMskConnectV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceVpcEndpointServiceV1, NamespaceTerraformResourceVpcEndpointV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class EnvironmentV1(ConfiguredBaseModel):
