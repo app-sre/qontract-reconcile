@@ -1879,6 +1879,7 @@ def test_pipeline_cache_invalidated_on_reload(
         add_lgtm_merge_request_resource_label_event
     ]
     mocked_gl.get_merge_requests.return_value = [can_be_merged_merge_request]
+    mocked_gl.get_merge_request.return_value = can_be_merged_merge_request
     mocked_gl.get_merge_request_pipelines.return_value = [
         success_merge_request_pipeline
     ]
@@ -4564,6 +4565,49 @@ def test_omm_normal_bot_rebase_success_merges_despite_skip_ci(
     assert merges == 1
     mr.merge.assert_called_once()
     gl.remove_label.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("tested_status", "should_merge"),
+    [
+        (PipelineStatus.SUCCESS, True),
+        (PipelineStatus.RUNNING, False),
+        (PipelineStatus.FAILED, False),
+    ],
+)
+def test_omm_member_skip_ci_head_follows_pre_rebase_revision(
+    mocker: MockerFixture,
+    tested_status: str,
+    should_merge: bool,
+) -> None:
+    """After formation skip-ci rebase, merge follows the admitted SHA's CI.
+
+    Older SUCCESS can sit at pipelines[0] by created_at. That must not merge
+    while the pre-rebase revision is still running or has failed.
+    """
+    skip_ci = _pipeline(PipelineStatus.FAILED, "skip-ci-head")
+    old_success = _pipeline(PipelineStatus.SUCCESS, "older-revision")
+    tested = _pipeline(tested_status, "tested-head")
+    merges, mr, gl = _run_pending_member(
+        mocker,
+        [skip_ci, old_success, tested],
+        {
+            "skip-ci-head": _commit(_BOT_EMAIL, _DURING_LABEL),
+            "tested-head": _commit(_BOT_EMAIL, _BEFORE_LABEL),
+            "older-revision": _commit(_HUMAN_EMAIL, "2025-12-31T22:00:00+00:00"),
+        },
+        _one_group_events(),
+        sha="skip-ci-head",
+    )
+
+    if should_merge:
+        assert merges == 1
+        mr.merge.assert_called_once()
+        gl.remove_label.assert_not_called()
+    else:
+        assert merges == 0
+        mr.merge.assert_not_called()
+        gl.remove_label.assert_not_called()
 
 
 def test_omm_member_skips_merge_when_head_changed_with_only_older_success(

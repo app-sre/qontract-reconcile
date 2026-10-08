@@ -372,6 +372,73 @@ def _without_skip_ci_bot_pipelines(
     return kept
 
 
+def _status_requires_wait(status: Any, *, require_success: bool) -> bool:
+    """True when this pipeline status must not proceed on leftover SUCCESS."""
+    if status == PipelineStatus.SUCCESS:
+        return False
+    if status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
+        return require_success
+    return True
+
+
+def _usable_sha_status(pipelines: list[Any], sha: str) -> Any:
+    return next(
+        (
+            getattr(p, "status", None)
+            for p in pipelines
+            if getattr(p, "sha", None) == sha
+            and getattr(p, "status", None) != PipelineStatus.SKIPPED
+            and getattr(p, "source", None) != "push"
+        ),
+        None,
+    )
+
+
+def _prior_revision_requires_wait(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+    pipelines: list[Any],
+    *,
+    require_success: bool,
+) -> bool:
+    """Skip-ci tip: judge the newest remaining revision, not leftover SUCCESS.
+
+    Formation rebases the admitted SHA to a skip-ci commit. The skip-ci row is
+    dropped, so pipelines[0] can be an older SHA's SUCCESS while the pre-rebase
+    CI is still running or has failed. Use commit time, not created_at.
+    Unreadable remaining commits wait: that is not proof the prior SHA is green.
+    """
+    cache: dict[tuple[int | str, str], tuple[str, datetime] | None] = {}
+    best_at: datetime | None = None
+    best_sha: str | None = None
+    for pipeline in pipelines:
+        sha = getattr(pipeline, "sha", None)
+        if not isinstance(sha, str):
+            continue
+        if getattr(pipeline, "status", None) == PipelineStatus.SKIPPED:
+            continue
+        if getattr(pipeline, "source", None) == "push":
+            continue
+        project_id = getattr(pipeline, "project_id", None)
+        if project_id is None:
+            project_id = getattr(mr, "source_project_id", None)
+        if project_id is None:
+            return True
+        commit = _sha_commit(gl, project_id, sha, cache)
+        if commit is None:
+            return True
+        _email, committed_at = commit
+        if best_at is None or committed_at > best_at:
+            best_at = committed_at
+            best_sha = sha
+    if best_sha is None:
+        return True
+    return _status_requires_wait(
+        _usable_sha_status(pipelines, best_sha),
+        require_success=require_success,
+    )
+
+
 def _bot_head_awaiting_pipeline(
     gl: GitLabApi,
     mr: ProjectMergeRequest,
@@ -390,28 +457,19 @@ def _bot_head_awaiting_pipeline(
     for admission (join and wait); block when require_success=True (merge).
     No usable row: wait, unless the head is an in-window skip-ci commit.
 
+    An in-window skip-ci head still waits when the newest remaining revision
+    (by commit time) is not SUCCESS. Leftover SUCCESS on an older SHA must not
+    authorize merge while the pre-rebase CI is running or failed.
+
     If the tip has no usable pipeline and the commit cannot be classified,
     wait. Lookup failure is not proof it is safe to join on older SUCCESS.
     """
     sha = getattr(mr, "sha", None)
     if not isinstance(sha, str):
         return True
-    head_status = next(
-        (
-            getattr(p, "status", None)
-            for p in pipelines
-            if getattr(p, "sha", None) == sha
-            and getattr(p, "status", None) != PipelineStatus.SKIPPED
-            and getattr(p, "source", None) != "push"
-        ),
-        None,
-    )
-    if head_status == PipelineStatus.SUCCESS:
-        return False
-    if head_status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
-        return require_success
+    head_status = _usable_sha_status(pipelines, sha)
     if head_status is not None:
-        return True
+        return _status_requires_wait(head_status, require_success=require_success)
     emails = _bot_commit_emails(gl)
     if not emails:
         logging.warning([
@@ -431,7 +489,11 @@ def _bot_head_awaiting_pipeline(
     if email not in emails:
         return False
     intervals = _omm_pending_on_intervals(gl, mr)
-    return not (intervals and _committed_during_label(committed_at, intervals))
+    if not (intervals and _committed_during_label(committed_at, intervals)):
+        return True
+    return _prior_revision_requires_wait(
+        gl, mr, pipelines, require_success=require_success
+    )
 
 
 def form_omm_group(
