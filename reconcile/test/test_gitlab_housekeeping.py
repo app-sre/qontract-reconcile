@@ -246,6 +246,7 @@ def can_be_merged_merge_request() -> Mock:
     mr.target_project_id = 3
     mr.squash = False
     mr.author = {"username": "user"}
+    mr.sha = "head-sha"
     return mr
 
 
@@ -263,10 +264,13 @@ def add_lgtm_merge_request_resource_label_event() -> (
 
 @pytest.fixture
 def success_merge_request_pipeline() -> ProjectMergeRequestPipeline:
-    return create_autospec(
+    pipeline = create_autospec(
         ProjectMergeRequestPipeline,
         status="success",
     )
+    pipeline.sha = "head-sha"
+    pipeline.source = "external"
+    return pipeline
 
 
 @pytest.mark.parametrize(
@@ -352,6 +356,19 @@ def test_merge_merge_requests_with_retry(
     mocked_gl.get_merge_request_pipelines.return_value = [
         running_merge_request_pipeline
     ]
+    running_merge_request_pipeline.sha = "running-sha"
+    running_merge_request_pipeline.source = "external"
+    can_be_merged_merge_request.sha = "head-sha"
+    can_be_merged_merge_request.source_project_id = 99
+    mocked_gl.get_merge_request.return_value = can_be_merged_merge_request
+    user = Mock()
+    user.commit_email = "bot@example.com"
+    user.email = "account@example.com"
+    mocked_gl.user = user
+    mocked_gl.get_commit.return_value = Mock(
+        committer_email="human@example.com",
+        committed_date="2025-12-31T23:00:00+00:00",
+    )
 
     with pytest.raises(gl_h.InsistOnPipelineError) as e:
         gl_h.merge_merge_requests(
@@ -1136,6 +1153,7 @@ def test_merge_applies_merge_error_label_on_closed_error(
     mocked_gl.get_merge_request_pipelines.return_value = [
         success_merge_request_pipeline
     ]
+    mocked_gl.get_merge_request.return_value = can_be_merged_merge_request
     can_be_merged_merge_request.merge.side_effect = GitlabMRClosedError("MR closed")
 
     gl_h.merge_merge_requests(
@@ -2090,7 +2108,10 @@ class TestMergeErrorCycleEndToEnd:
 
     @pytest.fixture
     def success_pipeline(self) -> ProjectMergeRequestPipeline:
-        return create_autospec(ProjectMergeRequestPipeline, status="success")
+        pipeline = create_autospec(ProjectMergeRequestPipeline, status="success")
+        pipeline.sha = "head-sha"
+        pipeline.source = "external"
+        return pipeline
 
     def test_full_merge_error_cycle(
         self,
@@ -5096,6 +5117,65 @@ def test_form_omm_group_skips_when_bot_email_unconfigured() -> None:
     candidates = form_omm_group(mocked_gl, [_make_merge_item(mr)], set())
 
     assert candidates == []
+
+
+def test_serial_merge_skips_when_bot_email_unconfigured(
+    mocker: MockerFixture,
+) -> None:
+    """Missing token emails cannot classify the tip. Do not merge on older SUCCESS."""
+    listed = _make_merge_mr(
+        10, ["approved", "tenant-foo"], sha="old", source_project_id=99
+    )
+    fresh = _make_merge_mr(
+        10, ["approved", "tenant-foo"], sha="bot-head", source_project_id=99
+    )
+    fresh.rebase_in_progress = False
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.preprocess_merge_requests",
+        return_value=[_make_merge_item(listed)],
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.is_rebased",
+        return_value=True,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.get_omm_group_lead",
+        return_value=None,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.get_omm_pending_mrs",
+        return_value=[],
+    )
+    mocked_gl = create_autospec(GitLabApi)
+    project = create_autospec(Project)
+    project.id = "proj-1"
+    project.name = "test-project"
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _pipeline(PipelineStatus.SUCCESS, "old"),
+    ]
+    mocked_gl.get_merge_request.return_value = fresh
+    user = Mock()
+    user.commit_email = ""
+    user.email = ""
+    mocked_gl.user = user
+
+    gl_h.merge_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=10,
+        rebase=True,
+        app_sre_usernames=set(),
+        state=create_autospec(State),
+        multi_merge=False,
+        pipeline_cache={},
+    )
+
+    listed.merge.assert_not_called()
+    fresh.merge.assert_not_called()
 
 
 def test_serial_merge_drops_failed_skip_ci_and_merges_older_success(
