@@ -21,6 +21,7 @@ from reconcile.gql_definitions.gitlab_members.gitlab_instances import (
 )
 from reconcile.gql_definitions.gitlab_members.permissions import (
     PermissionGitlabGroupMembershipV1,
+    UserV1,
 )
 from reconcile.gql_definitions.gitlab_members.permissions import (
     query as permissions_query,
@@ -29,6 +30,7 @@ from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.membershipsources.resolver import resolve_role_members
 from reconcile.utils.pagerduty_api import (
     PagerDutyMap,
     get_pagerduty_map,
@@ -37,9 +39,10 @@ from reconcile.utils.pagerduty_api import (
 from reconcile.utils.secret_reader import SecretReader
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Collection
 
     from reconcile.gql_definitions.fragments.user import User
+    from reconcile.gql_definitions.gitlab_members.permissions import BotV1
 
 QONTRACT_INTEGRATION = "gitlab-members"
 
@@ -106,29 +109,55 @@ def build_desired_state_spec(
     all_users: list[User],
 ) -> DesiredStateSpec:
     desired_state_spec = DesiredStateSpec(members={})
-    for p in permissions:
-        if p.group == group_name:
-            p_access_level = GitLabApi.get_access_level(p.access)
-            for r in p.roles or []:
-                for u in (r.users or []) + (r.bots or []):
-                    gu = GitlabUser(user=u.org_username, access_level=p_access_level)
-                    add_or_update_user(desired_state_spec, gu)
-            if p.pagerduty:
-                usernames_from_pagerduty = get_usernames_from_pagerduty(
-                    p.pagerduty,
-                    all_users,
-                    group_name,
-                    pagerduty_map,
-                    get_username_method=lambda u: u.org_username,
+    for permission in permissions:
+        if permission.group != group_name:
+            continue
+        access_level = GitLabApi.get_access_level(permission.access)
+        for role in permission.roles or []:
+            members: list[UserV1 | BotV1] = [*role.users, *(role.bots or [])]
+            for member in members:
+                if username := member.org_username:
+                    add_or_update_user(
+                        desired_state_spec,
+                        GitlabUser(user=username, access_level=access_level),
+                    )
+        if permission.pagerduty:
+            for username in get_usernames_from_pagerduty(
+                permission.pagerduty,
+                all_users,
+                group_name,
+                pagerduty_map,
+                get_username_method=lambda user: user.org_username,
+            ):
+                add_or_update_user(
+                    desired_state_spec,
+                    GitlabUser(user=username, access_level=access_level),
                 )
-                for pu in usernames_from_pagerduty:
-                    gu = GitlabUser(user=pu, access_level=p_access_level)
-                    add_or_update_user(desired_state_spec, gu)
     return desired_state_spec
 
 
-def get_permissions(query_func: Callable) -> list[PermissionGitlabGroupMembershipV1]:
-    """Get all permissions from app-interface."""
+def get_permissions(
+    query_func: Callable, *, managed_groups: Collection[str] | None = None
+) -> list[PermissionGitlabGroupMembershipV1]:
+    """Fetch selected GitLab permissions with resolved role memberships."""
+    permissions = [
+        permission.model_copy()
+        for permission in _query_permissions(query_func)
+        if managed_groups is None or permission.group in managed_groups
+    ]
+    resolved_roles = resolve_role_members(
+        [role for permission in permissions for role in permission.roles or []],
+        user_cls=UserV1,
+        query_func=query_func,
+    )
+    roles_by_name = {role.name: role for role in resolved_roles}
+    for permission in permissions:
+        if permission.roles is not None:
+            permission.roles = [roles_by_name[role.name] for role in permission.roles]
+    return permissions
+
+
+def _query_permissions(query_func: Callable) -> list[PermissionGitlabGroupMembershipV1]:
     return [
         p
         for p in permissions_query(query_func=query_func).permissions
@@ -158,7 +187,9 @@ def run(
     gqlapi = gql.get_api()
     # queries
     instance = get_gitlab_instance(gqlapi.query)
-    permissions = get_permissions(gqlapi.query)
+    permissions = get_permissions(
+        query_func=gqlapi.query, managed_groups=instance.managed_groups
+    )
     all_users = users_query(query_func=gqlapi.query).users or []
     pagerduty_instances = pagerduty_instances_query(
         query_func=gqlapi.query
@@ -239,5 +270,5 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     gqlapi = gql.get_api()
     return {
         "instance": get_gitlab_instance(gqlapi.query).model_dump(),
-        "permissions": [p.model_dump() for p in get_permissions(gqlapi.query)],
+        "permissions": [p.model_dump() for p in _query_permissions(gqlapi.query)],
     }

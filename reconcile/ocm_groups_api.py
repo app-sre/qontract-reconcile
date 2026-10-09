@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 
+from pydantic import BaseModel, Field
 from qontract_api_client.client import ocm_groups as reconcile_ocm_groups
 from qontract_api_client.schemas import (
     OcmConnectionParams,
@@ -29,6 +30,7 @@ from qontract_api_client.schemas import (
 from qontract_utils.exceptions import IntegrationError
 
 import reconcile.openshift_base as ob
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
 from reconcile.gql_definitions.ocm_groups_api.clusters import (
     ClusterV1,
 )
@@ -36,10 +38,14 @@ from reconcile.gql_definitions.ocm_groups_api.clusters import (
     query as clusters_query,
 )
 from reconcile.gql_definitions.ocm_groups_api.roles import (
+    AccessV1,
+)
+from reconcile.gql_definitions.ocm_groups_api.roles import (
     query as roles_query,
 )
 from reconcile.utils import expiration, gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.membershipsources.async_resolver import resolve_role_members
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -47,6 +53,25 @@ from reconcile.utils.runtime.integration import (
 
 QONTRACT_INTEGRATION = "ocm-groups-api"
 VALID_OCM_GROUPS = frozenset({"dedicated-admins", "cluster-admins"})
+
+
+class GroupUser(BaseModel, frozen=True):
+    """OCM authentication identity with an optional GitHub profile."""
+
+    org_username: str
+    github_username: str | None = None
+
+
+class GroupRole(BaseModel, frozen=True):
+    """Integration-owned role for external membership identities."""
+
+    name: str
+    users: list[GroupUser]
+    access: list[AccessV1] | None = None
+    member_sources: list[RoleMembershipSource] | None = Field(
+        None, alias="memberSources"
+    )
+    expiration_date: str | None = Field(None, alias="expirationDate")
 
 
 class OcmGroupsIntegrationParams(PydanticRunParams):
@@ -60,7 +85,7 @@ def _get_clusters() -> list[ClusterV1]:
     return data.clusters or []
 
 
-def _fetch_desired_state(cluster_names: list[str]) -> list[OcmGroupUser]:
+async def _fetch_desired_state(cluster_names: list[str]) -> list[OcmGroupUser]:
     """Fetch desired group memberships from roles (client-side per ADR-002).
 
     Mirrors reconcile/openshift_groups.fetch_desired_state but uses the
@@ -69,9 +94,26 @@ def _fetch_desired_state(cluster_names: list[str]) -> list[OcmGroupUser]:
     gqlapi = gql.get_api()
     data = roles_query(gqlapi.query)
     roles = expiration.filter(data.roles or [])
+    roles = [
+        role
+        for role in roles
+        if any(
+            access.cluster
+            and access.group in VALID_OCM_GROUPS
+            and access.cluster.name in cluster_names
+            for access in role.access or []
+        )
+    ]
+    resolved_roles = await resolve_role_members(
+        roles,
+        user_cls=GroupUser,
+        role_cls=GroupRole,
+        query_func=gqlapi.query,
+    )
     desired_state: list[OcmGroupUser] = []
 
-    for r in roles:
+    for resolved_role in resolved_roles:
+        r = resolved_role
         for a in r.access or []:
             if not a.cluster or not a.group:
                 continue
@@ -82,17 +124,23 @@ def _fetch_desired_state(cluster_names: list[str]) -> list[OcmGroupUser]:
                 a.cluster.name,
                 a.cluster.auth,
             )
-            for u in r.users:
+            for user in resolved_role.users:
+                usernames: set[str] = set()
+                username: str | None
                 for user_key in user_keys:
-                    if (username := getattr(u, user_key, None)) is None:
-                        continue
-                    desired_state.append(
-                        OcmGroupUser(
-                            cluster=a.cluster.name,
-                            group=a.group,
-                            user=username,
-                        )
-                    )
+                    match user_key:
+                        case "org_username":
+                            username = user.org_username
+                        case "github_username":
+                            username = user.github_username
+                        case _:
+                            raise ValueError(f"Unsupported OCM user key: {user_key}")
+                    if username:
+                        usernames.add(username)
+                desired_state.extend(
+                    OcmGroupUser(cluster=a.cluster.name, group=a.group, user=name)
+                    for name in usernames
+                )
 
     return desired_state
 
@@ -223,7 +271,7 @@ class OcmGroupsIntegration(QontractReconcileApiIntegration[OcmGroupsIntegrationP
         # Fetch desired state from GraphQL (client-side per ADR-002)
         desired_state_all = [
             ds
-            for ds in _fetch_desired_state(cluster_names=cluster_names)
+            for ds in await _fetch_desired_state(cluster_names=cluster_names)
             if ds.group in VALID_OCM_GROUPS
         ]
 

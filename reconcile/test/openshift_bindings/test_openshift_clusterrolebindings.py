@@ -23,7 +23,11 @@ from reconcile.gql_definitions.common.app_interface_clusterrole import (
 from reconcile.gql_definitions.common.app_interface_clusterrole import (
     UserV1 as ClusterUserV1,
 )
-from reconcile.openshift_bindings.models import ClusterRoleBindingSpec, OCResource
+from reconcile.openshift_bindings.models import (
+    ClusterRoleBindingRole,
+    ClusterRoleBindingSpec,
+    OCResource,
+)
 from reconcile.openshift_bindings.openshift_clusterrolebindings import (
     NAMESPACE_CLUSTER_SCOPE,
     QONTRACT_INTEGRATION_MANAGED_TYPE,
@@ -63,6 +67,7 @@ def get_app_interface_test_cluster_roles() -> list[ClusterRoleV1]:
                 ),
             ],
             expirationDate=None,
+            memberSources=None,
         ),
         ClusterRoleV1(
             name="test-cluster-role-2",
@@ -83,6 +88,7 @@ def get_app_interface_test_cluster_roles() -> list[ClusterRoleV1]:
                 ),
             ],
             expirationDate=None,
+            memberSources=None,
         ),
         ClusterRoleV1(
             name="expired-cluster-role",
@@ -103,6 +109,7 @@ def get_app_interface_test_cluster_roles() -> list[ClusterRoleV1]:
                 )
             ],
             expirationDate="2023-07-10",
+            memberSources=None,
         ),
     ]
 
@@ -120,7 +127,9 @@ class TestGetOcResources:
         test_cluster_roles = get_app_interface_test_cluster_roles()
         cluster_role_binding_specs = (
             ClusterRoleBindingSpec.create_cluster_role_binding_specs(
-                test_cluster_roles[0]
+                ClusterRoleBindingRole.model_validate(
+                    test_cluster_roles[0].model_dump(by_alias=True)
+                )
             )
         )
         oc_resources = cluster_role_binding_specs[0].get_openshift_resources(

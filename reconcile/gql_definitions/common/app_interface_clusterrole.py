@@ -17,11 +17,44 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
+
 
 DEFINITION = """
+fragment RoleMembershipSource on RoleMembershipSource_V1 {
+  group
+  provider {
+    name
+    hasAuditTrail
+    source {
+      provider
+      ... on AppInterfaceMembershipProviderSource_V1 {
+        url
+        username {
+          ...VaultSecret
+        }
+        password {
+          ...VaultSecret
+        }
+      }
+    }
+  }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+  url
+  path
+  field
+  version
+  format
+}
+
 query AppInterfaceClusterRoles {
     clusterRoles: roles_v1 {
     name
+    memberSources {
+      ...RoleMembershipSource
+    }
     users {
       org_username
       github_username
@@ -75,6 +108,7 @@ class AccessV1(ConfiguredBaseModel):
 
 class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
     users: list[UserV1] = Field(..., alias="users")
     bots: list[BotV1] = Field(..., alias="bots")
     access: Optional[list[AccessV1]] = Field(..., alias="access")

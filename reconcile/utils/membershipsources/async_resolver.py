@@ -2,19 +2,24 @@ from __future__ import annotations
 
 import asyncio
 from itertools import chain
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
+from reconcile.typed_queries.ldap_settings import get_ldap_settings
+from reconcile.utils.config import get_config
+from reconcile.utils.membershipsources import resolver
 from reconcile.utils.membershipsources.app_interface_resolver import (
     resolve_app_interface_membership_source_async,
 )
 from reconcile.utils.membershipsources.ldap_resolver import (
     create_ldap_membership_resolver,
 )
-from reconcile.utils.membershipsources.models import resolve_role
-from reconcile.utils.membershipsources.resolver import build_resolver_jobs
+from reconcile.utils.membershipsources.models import (
+    has_ldap_sources,
+    resolve_role,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
 
     from pydantic import BaseModel
 
@@ -23,7 +28,7 @@ if TYPE_CHECKING:
         AsyncProviderResolver,
         ProviderGroup,
         ProviderMember,
-        RoleWithMemberships,
+        RoleMembershipFields,
     )
     from reconcile.utils.membershipsources.resolver import GroupResolverJob
 
@@ -47,13 +52,67 @@ async def _resolve_job(
     return await resolver(job.provider.name, job.provider.source, job.groups)
 
 
-async def resolve_role_members[U: BaseModel](
-    roles: Sequence[RoleWithMemberships],
+@overload
+async def resolve_role_members[R: RoleMembershipFields, U: BaseModel](
+    roles: Sequence[R],
     user_cls: type[U],
     *,
     ldap_settings: LdapSettings | None = None,
     secret_manager_url: str | None = None,
-) -> dict[str, list[U]]:
+    member_filter: Callable[[ProviderMember], bool] | None = None,
+    query_func: Callable | None = None,
+    role_cls: None = None,
+) -> list[R]: ...
+
+
+@overload
+async def resolve_role_members[
+    R: RoleMembershipFields,
+    U: BaseModel,
+    T: RoleMembershipFields,
+](
+    roles: Sequence[R],
+    user_cls: type[U],
+    *,
+    ldap_settings: LdapSettings | None = None,
+    secret_manager_url: str | None = None,
+    member_filter: Callable[[ProviderMember], bool] | None = None,
+    query_func: Callable | None = None,
+    role_cls: type[T],
+) -> list[T]: ...
+
+
+@overload
+async def resolve_role_members[
+    R: RoleMembershipFields,
+    U: BaseModel,
+    T: RoleMembershipFields,
+](
+    roles: Sequence[R],
+    user_cls: type[U],
+    *,
+    ldap_settings: LdapSettings | None = None,
+    secret_manager_url: str | None = None,
+    member_filter: Callable[[ProviderMember], bool] | None = None,
+    query_func: Callable | None = None,
+    role_cls: type[T] | None,
+) -> list[R | T]: ...
+
+
+async def resolve_role_members[
+    R: RoleMembershipFields,
+    U: BaseModel,
+    T: RoleMembershipFields,
+](
+    roles: Sequence[R],
+    user_cls: type[U],
+    *,
+    ldap_settings: LdapSettings | None = None,
+    secret_manager_url: str | None = None,
+    member_filter: Callable[[ProviderMember], bool] | None = None,
+    query_func: Callable | None = None,
+    role_cls: type[T] | None = None,
+) -> list[R] | list[T] | list[R | T]:
     """Async counterpart of resolver.resolve_role_members.
 
     Resolves every role's members, from every source, as instances of the
@@ -62,18 +121,21 @@ async def resolve_role_members[U: BaseModel](
     and win over a memberSources-resolved member with the same
     org_username, since they carry richer, integration-specific data.
 
-    Feature parity with the sync resolve_role_members: the app-interface
-    provider is always available (it needs no injected dependencies - see
-    resolve_app_interface_membership_source), while LDAP is registered only
-    when ldap_settings and secret_manager_url are passed. Future providers
-    follow the same pattern (an optional kwarg that, when set, registers
-    itself).
+    The app-interface provider is always available. LDAP settings and the Vault
+    URL are loaded only for LDAP-backed roles, unless supplied by the caller.
+    query_func preserves comparison-bundle configuration for authorization.
+    Client lifecycle belongs to the existing async integration runner; the sync
+    entry point closes clients before its event loop exits.
 
     Raises:
-        ValueError: If a role references a provider source with no
-            registered resolver (e.g. ldap_settings was not passed but a
-            role has an LDAP memberSources entry).
+        ValueError: If injected LDAP settings lack a secret manager URL or a
+            role references an unsupported provider.
     """
+    if ldap_settings is None and has_ldap_sources(roles):
+        ldap_settings = get_ldap_settings(query_func=query_func)
+        if secret_manager_url is None:
+            secret_manager_url = get_config()["vault"]["server"]
+
     resolvers: dict[str, AsyncProviderResolver] = {
         "app-interface": resolve_app_interface_membership_source_async,
     }
@@ -87,10 +149,19 @@ async def resolve_role_members[U: BaseModel](
         )
 
     resolved_groups: dict[ProviderGroup, list[ProviderMember]] = {}
-    if jobs := build_resolver_jobs(roles):
+    if jobs := resolver.build_resolver_jobs(roles):
         job_results = await asyncio.gather(*[
             _resolve_job(job, resolvers) for job in jobs
         ])
         resolved_groups = dict(chain.from_iterable(r.items() for r in job_results))
 
-    return {role.name: resolve_role(role, user_cls, resolved_groups) for role in roles}
+    return [
+        resolve_role(
+            role,
+            user_cls,
+            resolved_groups,
+            member_filter=member_filter,
+            role_cls=role_cls,
+        )
+        for role in roles
+    ]

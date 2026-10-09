@@ -15,7 +15,11 @@ from reconcile.gql_definitions.common.app_interface_roles import (
     RoleV1,
     UserV1,
 )
-from reconcile.openshift_bindings.models import OCResource, RoleBindingSpec
+from reconcile.openshift_bindings.models import (
+    OCResource,
+    RoleBindingRole,
+    RoleBindingSpec,
+)
 from reconcile.openshift_bindings.openshift_rolebindings import (
     QONTRACT_INTEGRATION_MANAGED_TYPE,
     QONTRACT_INTEGRATION_VERSION,
@@ -58,6 +62,7 @@ def get_app_interface_test_roles() -> list[RoleV1]:
                 ),
             ],
             expirationDate=None,
+            memberSources=None,
         ),
         RoleV1(
             name="test-role",
@@ -103,6 +108,7 @@ def get_app_interface_test_roles() -> list[RoleV1]:
                 ),
             ],
             expirationDate=None,
+            memberSources=None,
         ),
         RoleV1(
             name="expiredtest-role-2",
@@ -129,6 +135,7 @@ def get_app_interface_test_roles() -> list[RoleV1]:
                 )
             ],
             expirationDate="2023-07-10",
+            memberSources=None,
         ),
     ]
 
@@ -150,7 +157,9 @@ class TestGetOcResources:
 
         test_role = get_app_interface_test_roles()
         role_binding_spec_list = RoleBindingSpec.create_rb_specs_from_role(
-            test_role[0], None, support_role_ref=False
+            RoleBindingRole.model_validate(test_role[0].model_dump(by_alias=True)),
+            None,
+            support_role_ref=False,
         )
         oc_resources = role_binding_spec_list[0].get_openshift_resources(
             integration_name="openshift-rolebindings",
@@ -227,7 +236,9 @@ class TestGetOcResources:
 
         test_role = get_app_interface_test_roles()
         role_binding_spec_list = RoleBindingSpec.create_rb_specs_from_role(
-            test_role[0], None, support_role_ref=True
+            RoleBindingRole.model_validate(test_role[0].model_dump(by_alias=True)),
+            None,
+            support_role_ref=True,
         )
         oc_resources = role_binding_spec_list[0].get_openshift_resources(
             integration_name="openshift-rolebindings",

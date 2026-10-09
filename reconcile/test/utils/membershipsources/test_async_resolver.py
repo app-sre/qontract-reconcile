@@ -14,6 +14,7 @@ from qontract_api_client.schemas import (
 from reconcile.gql_definitions.common.ldap_settings import LdapSettingsV1
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.test.utils.membershipsources.fixtures import (
+    CustomRole,
     build_app_interface_membership_source,
     build_ldap_membership_source,
     build_role,
@@ -27,7 +28,6 @@ if TYPE_CHECKING:
     from reconcile.gql_definitions.fragments.membership_source import (
         AppInterfaceMembershipProviderSourceV1,
     )
-    from reconcile.utils.membershipsources.models import Bot, User
 
 _MOD = "reconcile.utils.membershipsources.ldap_resolver"
 
@@ -56,9 +56,11 @@ async def test_resolve_role_members_no_sources_returns_explicit_only() -> None:
     """No memberSources on any role: no provider resolution happens at all."""
     roles = [build_role(name="role1", users=["alice"], bots=["bot1"])]
 
-    result = await resolve_role_members(roles, user_cls=Member)
+    result = await resolve_role_members(
+        roles, user_cls=Member, role_cls=CustomRole[Member]
+    )
 
-    assert {m.org_username for m in result["role1"]} == {"alice", "bot1"}
+    assert {m.org_username for m in result[0].users} == {"alice"}
 
 
 @pytest.mark.asyncio
@@ -84,9 +86,10 @@ async def test_resolve_role_members_ldap_settings_unused_does_not_raise() -> Non
             user_cls=Member,
             ldap_settings=_ldap_settings(),
             secret_manager_url="https://vault.example.com",
+            role_cls=CustomRole[Member],
         )
 
-    assert {m.org_username for m in result["role1"]} == {"alice"}
+    assert {m.org_username for m in result[0].users} == {"alice"}
     mock_client.assert_not_called()
 
 
@@ -106,7 +109,8 @@ async def test_resolve_role_members_resolves_ldap_source() -> None:
         mock_client.return_value = LdapGroupMembersResponse(
             groups=[
                 LdapGroupResult(
-                    group="team-a", members=[LdapGroupMember(org_username="bob")]
+                    group="team-a",
+                    members=[LdapGroupMember(name="bob", org_username="bob")],
                 )
             ]
         )
@@ -115,9 +119,10 @@ async def test_resolve_role_members_resolves_ldap_source() -> None:
             user_cls=Member,
             ldap_settings=_ldap_settings(),
             secret_manager_url="https://vault.example.com",
+            role_cls=CustomRole[Member],
         )
 
-    assert {m.org_username for m in result["role1"]} == {"alice", "bob"}
+    assert {m.org_username for m in result[0].users} == {"alice", "bob"}
 
 
 @pytest.mark.asyncio
@@ -138,7 +143,9 @@ async def test_resolve_role_members_dedup_prefers_explicit_user() -> None:
             groups=[
                 LdapGroupResult(
                     group="team-a",
-                    members=[LdapGroupMember(org_username="shared-user")],
+                    members=[
+                        LdapGroupMember(name="shared-user", org_username="shared-user")
+                    ],
                 )
             ]
         )
@@ -147,12 +154,13 @@ async def test_resolve_role_members_dedup_prefers_explicit_user() -> None:
             user_cls=Member,
             ldap_settings=_ldap_settings(),
             secret_manager_url="https://vault.example.com",
+            role_cls=CustomRole[Member],
         )
 
-    assert len(result["role1"]) == 1
+    assert len(result[0].users) == 1
     # MockUser fixture always sets github_username; but the important check
     # here is that only one member (not two duplicates) survived.
-    assert result["role1"][0].org_username == "shared-user"
+    assert result[0].users[0].org_username == "shared-user"
 
 
 @pytest.mark.asyncio
@@ -182,9 +190,11 @@ async def test_resolve_role_members_resolves_app_interface_source(
         )
     ]
 
-    result = await resolve_role_members(roles, user_cls=Member)
+    result = await resolve_role_members(
+        roles, user_cls=Member, role_cls=CustomRole[Member]
+    )
 
-    assert {m.org_username for m in result["role1"]} == {"alice", "remote-user"}
+    assert {m.org_username for m in result[0].users} == {"alice", "remote-user"}
 
 
 @pytest.mark.asyncio
@@ -210,11 +220,10 @@ async def test_resolve_role_members_unregistered_provider_raises() -> None:
         group = "group1"
         provider = FakeProvider()
 
-    class FakeRole:
-        name = "role1"
-        users: list[User] = []
-        bots: list[Bot] = []
-        member_sources = [FakeMemberSource()]
+    class FakeRole(BaseModel, arbitrary_types_allowed=True):
+        name: str = "role1"
+        users: list[Member] = []
+        member_sources: list[FakeMemberSource] = [FakeMemberSource()]
 
     with pytest.raises(ValueError, match="No async resolver registered"):
         await resolve_role_members([FakeRole()], user_cls=Member)

@@ -24,8 +24,8 @@ from reconcile.change_owners.changes import (
 )
 from reconcile.change_owners.self_service_roles import (
     change_type_contexts_for_self_service_roles,
+    fetch_self_service_roles,
 )
-from reconcile.gql_definitions.change_owners.queries import self_service_roles
 from reconcile.utils import gql
 
 if TYPE_CHECKING:
@@ -245,9 +245,7 @@ def get_changetype_processor_by_name(
 def get_self_service_role_by_name(
     role_name: str,
 ) -> RoleV1 | None:
-    result = self_service_roles.query(
-        gql.get_api().query, variables={"name": role_name}
-    ).roles
+    result = fetch_self_service_roles(gql.get_api(), name=role_name)
     if result:
         return result[0]
     return None

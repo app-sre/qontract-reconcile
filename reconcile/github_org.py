@@ -12,6 +12,22 @@ from reconcile import (
     openshift_users,
     queries,
 )
+from reconcile.gql_definitions.github_org.clusters import (
+    ClusterAuthGithubOrgTeamV1,
+    ClusterAuthGithubOrgV1,
+)
+from reconcile.gql_definitions.github_org.clusters import (
+    query as clusters_query,
+)
+from reconcile.gql_definitions.github_org.orgs import GithubOrgV1
+from reconcile.gql_definitions.github_org.orgs import query as orgs_query
+from reconcile.gql_definitions.github_org.roles import (
+    PermissionGithubOrgTeamV1,
+    UserV1,
+)
+from reconcile.gql_definitions.github_org.roles import (
+    query as roles_query,
+)
 from reconcile.utils import (
     expiration,
     gql,
@@ -19,6 +35,10 @@ from reconcile.utils import (
 from reconcile.utils.aggregated_list import (
     AggregatedDiffRunner,
     AggregatedList,
+)
+from reconcile.utils.membershipsources.resolver import (
+    has_github_username,
+    resolve_role_members,
 )
 from reconcile.utils.raw_github_api import RawGithubApi
 from reconcile.utils.secret_reader import SecretReader
@@ -31,82 +51,12 @@ if TYPE_CHECKING:
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 
-ORGS_QUERY = """
-{
-  orgs: githuborg_v1 {
-    name
-    token {
-      path
-      field
-      version
-      format
-    }
-    default
-    managedTeams
-  }
-}
-"""
-
-ROLES_QUERY = """
-{
-  roles: roles_v1 {
-    name
-    users {
-      github_username
-    }
-    bots {
-      github_username
-    }
-    permissions {
-      ...on PermissionGithubOrgTeam_v1 {
-        service
-        org
-        team
-      }
-    }
-    expirationDate
-  }
-}
-"""
-
-
-CLUSTERS_QUERY = """
-{
-  clusters: clusters_v1 {
-    name
-    serverUrl
-    auth {
-      service
-      ... on ClusterAuthGithubOrg_v1 {
-        org
-      }
-      ... on ClusterAuthGithubOrgTeam_v1 {
-        org
-        team
-      }
-      # ... on ClusterAuthOIDC_v1 {
-      # }
-    }
-    # APPSRE-13941: automationTokens (list) intentionally omitted here.
-    # fetch_desired_state() below never reads cluster["automationToken"];
-    # it's unused dead data (audited 2026-10-01). If this starts being
-    # consumed to build an OC connection, add automationTokens too.
-    automationToken {
-      path
-      field
-      version
-      format
-    }
-  }
-}
-"""
-
 QONTRACT_INTEGRATION = "github"
 
 
-def get_orgs() -> list[dict[str, Any]]:
+def get_orgs() -> list[GithubOrgV1]:
     gqlapi = gql.get_api()
-    return gqlapi.query(ORGS_QUERY)["orgs"]
+    return orgs_query(gqlapi.query).orgs or []
 
 
 def get_config(default: bool = False) -> dict[str, Any]:
@@ -115,13 +65,13 @@ def get_config(default: bool = False) -> dict[str, Any]:
     config: dict[str, Any] = {"github": {}}
     found_defaults = []
     for org in orgs:
-        org_name = org["name"]
-        if org.get("default"):
+        org_name = org.name
+        if org.default:
             found_defaults.append(org_name)
         elif default:
             continue
-        token = secret_reader.read(org["token"])
-        org_config = {"token": token, "managed_teams": org["managedTeams"]}
+        token = secret_reader.read_secret(org.token)
+        org_config = {"token": token, "managed_teams": org.managed_teams}
         config["github"][org_name] = org_config
 
     if default:
@@ -220,30 +170,56 @@ def fetch_desired_state(infer_clusters: bool = True) -> AggregatedList:
     gqlapi = gql.get_api()
     state = AggregatedList()
 
-    roles: list[dict[str, Any]] = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
-    for role in roles:
-        permissions = list(
-            filter(
-                lambda p: p.get("service") == "github-org-team",
-                role["permissions"],
-            )
+    roles = expiration.filter(roles_query(gqlapi.query).roles or [])
+    roles = [
+        role
+        for role in roles
+        if any(
+            isinstance(permission, PermissionGithubOrgTeamV1)
+            for permission in role.permissions or []
         )
-
-        if not permissions:
+    ]
+    resolved_roles = resolve_role_members(
+        roles,
+        user_cls=UserV1,
+        query_func=gqlapi.query,
+        member_filter=has_github_username,
+    )
+    for role in resolved_roles:
+        if not (
+            permissions := [
+                permission
+                for permission in role.permissions or []
+                if isinstance(permission, PermissionGithubOrgTeamV1)
+            ]
+        ):
             continue
 
-        user_members = [user["github_username"] for user in role["users"]]
-        bot_members = [
-            bot["github_username"] for bot in role["bots"] if "github_username" in bot
+        members = [
+            username.lower()
+            for username in [
+                *(user.github_username for user in role.users if user.github_username),
+                *(
+                    bot.github_username
+                    for bot in role.bots or []
+                    if bot.github_username
+                ),
+            ]
         ]
-        members = [m.lower() for m in user_members + bot_members]
 
         for permission in permissions:
-            state.add(permission, members)
+            state.add(
+                {
+                    "service": permission.service,
+                    "org": permission.org,
+                    "team": permission.team,
+                },
+                members,
+            )
             state.add(
                 {
                     "service": "github-org",
-                    "org": permission["org"],
+                    "org": permission.org,
                 },
                 members,
             )
@@ -251,16 +227,18 @@ def fetch_desired_state(infer_clusters: bool = True) -> AggregatedList:
     if not infer_clusters:
         return state
 
-    clusters = gqlapi.query(CLUSTERS_QUERY)["clusters"]
+    clusters = clusters_query(gqlapi.query).clusters or []
     openshift_users_desired_state = openshift_users.fetch_desired_state(
         oc_map=None, enforced_user_keys=["github_username"]
     )
     for cluster in clusters:
-        for auth in cluster["auth"]:
-            if auth["service"] not in {"github-org", "github-org-team"}:
+        for auth in cluster.auth:
+            if not isinstance(
+                auth, (ClusterAuthGithubOrgV1, ClusterAuthGithubOrgTeamV1)
+            ):
                 continue
 
-            cluster_name = cluster["name"]
+            cluster_name = cluster.name
             members = [
                 ou["user"].lower()
                 for ou in openshift_users_desired_state
@@ -270,16 +248,16 @@ def fetch_desired_state(infer_clusters: bool = True) -> AggregatedList:
             state.add(
                 {
                     "service": "github-org",
-                    "org": auth["org"],
+                    "org": auth.org,
                 },
                 members,
             )
-            if auth["service"] == "github-org-team":
+            if isinstance(auth, ClusterAuthGithubOrgTeamV1):
                 state.add(
                     {
                         "service": "github-org-team",
-                        "org": auth["org"],
-                        "team": auth["team"],
+                        "org": auth.org,
+                        "team": auth.team,
                     },
                     members,
                 )
@@ -501,6 +479,6 @@ def run(dry_run: bool) -> None:
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return {
-        "github_orgs": get_orgs(),
+        "github_orgs": [org.model_dump(by_alias=True) for org in get_orgs()],
         "github_org_members": fetch_desired_state().dump(),
     }

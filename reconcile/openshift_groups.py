@@ -4,11 +4,16 @@ import itertools
 import logging
 from typing import TYPE_CHECKING
 
+from pydantic import BaseModel, Field
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
 from reconcile.gql_definitions.openshift_groups.managed_groups import (
     query as query_managed_groups,
+)
+from reconcile.gql_definitions.openshift_groups.managed_roles import (
+    AccessV1,
 )
 from reconcile.gql_definitions.openshift_groups.managed_roles import (
     query as query_managed_roles,
@@ -23,6 +28,9 @@ from reconcile.utils import (
 )
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
+from reconcile.utils.membershipsources.resolver import (
+    resolve_role_members,
+)
 from reconcile.utils.oc_map import (
     OCLogMsg,
     OCMap,
@@ -43,6 +51,25 @@ if TYPE_CHECKING:
     from reconcile.openshift_base import ClusterMap
 
 QONTRACT_INTEGRATION = "openshift-groups"
+
+
+class GroupUser(BaseModel, frozen=True):
+    """Identity used by cluster authentication, including LDAP-only users."""
+
+    org_username: str
+    github_username: str | None = None
+
+
+class GroupRole(BaseModel, frozen=True):
+    """Integration role with nullable external GitHub identities."""
+
+    name: str
+    users: list[GroupUser]
+    access: list[AccessV1] | None = None
+    member_sources: list[RoleMembershipSource] | None = Field(
+        None, alias="memberSources"
+    )
+    expiration_date: str | None = Field(None, alias="expirationDate")
 
 
 def get_cluster_state(
@@ -113,9 +140,22 @@ def fetch_desired_state(
 ) -> list[dict[str, str]]:
     gqlapi = gql.get_api()
     roles = expiration.filter(query_managed_roles(query_func=gqlapi.query).roles or [])
+    roles = [
+        role
+        for role in roles
+        if any(
+            access.cluster
+            and access.group
+            and (not clusters or access.cluster.name in clusters)
+            for access in role.access or []
+        )
+    ]
+    resolved_roles = resolve_role_members(
+        roles, user_cls=GroupUser, query_func=gqlapi.query, role_cls=GroupRole
+    )
     desired_state: list[dict[str, str]] = []
 
-    for r in roles:
+    for r in resolved_roles:
         for a in r.access or []:
             if not a.cluster or not a.group:
                 continue
@@ -127,16 +167,25 @@ def fetch_desired_state(
                 a.cluster.auth,
                 enforced_user_keys=enforced_user_keys,
             )
-            for u in r.users:
-                for username in {getattr(u, user_key) for user_key in user_keys}:
-                    if username is None:
-                        continue
-
-                    desired_state.append({
-                        "cluster": a.cluster.name,
-                        "group": a.group,
-                        "user": username,
-                    })
+            for user in r.users:
+                usernames: set[str] = set()
+                username: str | None
+                for user_key in user_keys:
+                    match user_key:
+                        case "org_username":
+                            username = user.org_username
+                        case "github_username":
+                            username = user.github_username
+                        case _:
+                            raise ValueError(
+                                f"Unsupported OpenShift user key: {user_key}"
+                            )
+                    if username:
+                        usernames.add(username)
+                desired_state.extend(
+                    {"cluster": a.cluster.name, "group": a.group, "user": name}
+                    for name in usernames
+                )
 
     return desired_state
 

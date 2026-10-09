@@ -28,7 +28,9 @@ from reconcile.gql_definitions.common.app_interface_roles import (
     UserV1,
 )
 from reconcile.openshift_bindings.models import (
+    ClusterRoleBindingRole,
     ClusterRoleBindingSpec,
+    RoleBindingRole,
     RoleBindingSpec,
     ServiceAccountSpec,
     get_usernames_from_users,
@@ -278,7 +280,9 @@ class TestRoleBindingSpec:
             return_value=["org_username"],
         )
 
-        specs = RoleBindingSpec.create_rb_specs_from_role(test_role)
+        specs = RoleBindingSpec.create_rb_specs_from_role(
+            RoleBindingRole.model_validate(test_role.model_dump(by_alias=True))
+        )
 
         assert len(specs) == 1
         assert specs[0].role_name == "test-role"
@@ -291,7 +295,9 @@ class TestRoleBindingSpec:
             "reconcile.openshift_bindings.models.is_valid_namespace", return_value=False
         )
 
-        specs = RoleBindingSpec.create_rb_specs_from_role(test_role)
+        specs = RoleBindingSpec.create_rb_specs_from_role(
+            RoleBindingRole.model_validate(test_role.model_dump(by_alias=True))
+        )
 
         assert specs == []
 
@@ -380,7 +386,9 @@ class TestClusterRoleBindingSpec:
         )
 
         specs = ClusterRoleBindingSpec.create_cluster_role_binding_specs(
-            test_cluster_role
+            ClusterRoleBindingRole.model_validate(
+                test_cluster_role.model_dump(by_alias=True)
+            )
         )
 
         assert len(specs) == 1
@@ -398,9 +406,14 @@ class TestClusterRoleBindingSpec:
             bots=[],
             access=[ClusterAccessV1(cluster=None, clusterRole="test-role")],
             expirationDate=None,
+            memberSources=None,
         )
 
-        specs = ClusterRoleBindingSpec.create_cluster_role_binding_specs(cluster_role)
+        specs = ClusterRoleBindingSpec.create_cluster_role_binding_specs(
+            ClusterRoleBindingRole.model_validate(
+                cluster_role.model_dump(by_alias=True)
+            )
+        )
 
         assert specs == []
 
@@ -416,9 +429,14 @@ class TestClusterRoleBindingSpec:
                 ClusterAccessV1(cluster=test_cluster_role_cluster, clusterRole=None)
             ],
             expirationDate=None,
+            memberSources=None,
         )
 
-        specs = ClusterRoleBindingSpec.create_cluster_role_binding_specs(cluster_role)
+        specs = ClusterRoleBindingSpec.create_cluster_role_binding_specs(
+            ClusterRoleBindingRole.model_validate(
+                cluster_role.model_dump(by_alias=True)
+            )
+        )
 
         assert specs == []
 
