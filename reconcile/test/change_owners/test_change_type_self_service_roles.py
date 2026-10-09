@@ -115,8 +115,8 @@ def test_invalid_self_service_role_no_approvers() -> None:
 
 def test_change_type_contexts_for_self_service_roles_schema() -> None:
     role = RoleV1(
-        name="role",
-        path="/role.yaml",
+        name="app-sre",
+        path="/app-sre.yaml",
         self_service=[
             SelfServiceConfigV1(
                 change_type=ChangeTypeV1(
@@ -157,6 +157,15 @@ def test_change_type_contexts_for_self_service_roles_schema() -> None:
         bundle_changes=[self_serviceable_change],
     )
     assert self_serviceable_change.all_changes_covered()
+    self_service_contexts = [
+        context
+        for diff_coverage in self_serviceable_change.diff_coverage
+        for context in diff_coverage.coverage
+    ]
+    assert self_service_contexts
+    assert all(
+        context.self_service_role_name == role.name for context in self_service_contexts
+    )
 
     not_self_serviceable_change = df.create_bundle_change(
         jsonpath_patches={"restricted_path": "new_value"}
