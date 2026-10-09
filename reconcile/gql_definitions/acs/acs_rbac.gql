@@ -1,27 +1,30 @@
 # qenerate: plugin=pydantic_v2
 
 query AcsRbac {
-  acs_rbacs: users_v1 {
-    org_username
-    roles {
+  acs_rbacs: roles_v1 {
+    name
+    users {
+      org_username
+    }
+    memberSources {
+      ...RoleMembershipSource
+    }
+    oidc_permissions {
       name
-      oidc_permissions {
-        name
-        description
-        service
-        ... on OidcPermissionAcs_v1 {
-          instance {
+      description
+      service
+      ... on OidcPermissionAcs_v1 {
+        instance {
+          name
+        }
+        permission_set
+        clusters {
+          name
+        }
+        namespaces {
+          name
+          cluster {
             name
-          }
-          permission_set
-          clusters {
-            name
-          }
-          namespaces {
-            name
-            cluster {
-              name
-            }
           }
         }
       }

@@ -1,0 +1,12 @@
+# qenerate: plugin=pydantic_v2
+
+query GithubOrgConfigs {
+  orgs: githuborg_v1 {
+    name
+    token {
+      ...VaultSecret
+    }
+    default
+    managedTeams
+  }
+}

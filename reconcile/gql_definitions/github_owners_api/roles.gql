@@ -3,10 +3,14 @@ query GithubOwnersApiRoles {
   roles: roles_v1 {
     name
     users {
+      org_username
       github_username
     }
     bots {
       github_username
+    }
+    memberSources {
+      ...RoleMembershipSource
     }
     permissions {
       ... on PermissionGithubOrgTeam_v1 {

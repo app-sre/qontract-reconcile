@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+import pytest
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.fragments.membership_source import (
@@ -11,11 +12,12 @@ from reconcile.gql_definitions.fragments.membership_source import (
     MembershipProviderV1,
 )
 from reconcile.test.utils.membershipsources.fixtures import (
+    CustomRole,
     build_app_interface_membership_source,
     build_ldap_membership_source,
     build_role,
 )
-from reconcile.utils.membershipsources import resolver
+from reconcile.utils.membershipsources import async_resolver, resolver
 from reconcile.utils.membershipsources.resolver import (
     GroupResolverJob,
     build_resolver_jobs,
@@ -33,6 +35,16 @@ class Member(BaseModel, extra="ignore"):
 
     name: str = ""
     org_username: str
+
+
+@pytest.mark.parametrize("github_username", [None, "", "alice-gh"])
+def test_github_membership_filter_is_silent(
+    github_username: str | None, mocker: MockerFixture
+) -> None:
+    member = mocker.Mock(org_username="alice", github_username=github_username)
+    warning = mocker.patch("logging.warning")
+    assert resolver.has_github_username(member) is bool(github_username)
+    warning.assert_not_called()
 
 
 def test_build_resolver_jobs_grouping(
@@ -155,11 +167,12 @@ def test_resolve_role_members(
         ),
     ]
 
-    members_by_role = resolver.resolve_role_members(roles, user_cls=Member)
-    assert "role1" in members_by_role
-    assert {u.org_username for u in members_by_role["role1"]} == {
+    members_by_role = resolver.resolve_role_members(
+        roles, user_cls=Member, role_cls=CustomRole[Member]
+    )
+    assert members_by_role[0].name == "role1"
+    assert {u.org_username for u in members_by_role[0].users} == {
         "local-user",
-        "local-bot",
         "a-i-user",
         "a-i-bot",
     }
@@ -192,22 +205,23 @@ def test_resolve_role_members_dedup_prefers_explicit_user(
         ),
     ]
 
-    members_by_role = resolver.resolve_role_members(roles, user_cls=Member)
-    assert len(members_by_role["role1"]) == 1
-    assert members_by_role["role1"][0].name == "shared-user"
+    members_by_role = resolver.resolve_role_members(
+        roles, user_cls=Member, role_cls=CustomRole[Member]
+    )
+    assert len(members_by_role[0].users) == 1
+    assert members_by_role[0].users[0].name == "shared-user"
 
 
 def test_resolve_role_members_ldap_source(mocker: MockerFixture) -> None:
     """Test resolve_role_members resolves LDAP-sourced members end-to-end,
     given injected ldap_settings/secret_manager_url."""
 
-    def fake_resolve(
-        provider_name: str, source: object, groups: set[str]
-    ) -> dict[tuple[str, str], list[Member]]:
-        return {("corp-ldap", "team-a"): [Member(org_username="ldap-user")]}
+    fake_resolve = mocker.AsyncMock(
+        return_value={("corp-ldap", "team-a"): [Member(org_username="ldap-user")]}
+    )
 
     mocker.patch.object(
-        resolver, "create_ldap_membership_resolver_sync", return_value=fake_resolve
+        async_resolver, "create_ldap_membership_resolver", return_value=fake_resolve
     )
     roles = [
         build_role(
@@ -224,31 +238,31 @@ def test_resolve_role_members_ldap_source(mocker: MockerFixture) -> None:
         user_cls=Member,
         ldap_settings=MagicMock(),
         secret_manager_url="https://vault.example.com",
+        role_cls=CustomRole[Member],
     )
-    assert {u.org_username for u in members_by_role["role1"]} == {
+    assert {u.org_username for u in members_by_role[0].users} == {
         "local-user",
         "ldap-user",
     }
 
 
-def test_resolve_role_members_ldap_source_without_settings_raises() -> None:
-    """A role with an LDAP memberSources entry errors if ldap_settings
-    wasn't passed - LDAP support is opt-in per caller, not implicit."""
+@pytest.mark.usefixtures("ldap_endpoint")
+def test_resolve_role_members_ldap_source_loads_settings(mocker: MockerFixture) -> None:
+    """The public resolver loads configuration when LDAP dependencies are omitted."""
     roles = [
         build_role(
             name="role1",
             member_sources=[
-                build_ldap_membership_source(name="corp-ldap", group="team-a")
+                build_ldap_membership_source(name="corp-ldap", group="source-team")
             ],
         ),
     ]
 
-    try:
-        resolver.resolve_role_members(roles, user_cls=Member)
-    except ValueError as e:
-        assert "ldap" in e.args
-    else:
-        raise AssertionError("expected ValueError")
+    lookup = mocker.spy(async_resolver, "get_ldap_settings")
+    assert resolver.resolve_role_members(
+        roles, user_cls=Member, role_cls=CustomRole[Member]
+    )[0].users == [Member(name="Alice Example", org_username="alice")]
+    lookup.assert_called_once_with(query_func=None)
 
 
 def test_resolve_role_members_ldap_settings_without_secret_manager_url_raises() -> None:
@@ -267,7 +281,9 @@ def test_build_resolver_jobs_ignores_roles_without_member_sources() -> None:
     memberSources are present, without triggering any provider resolution."""
     roles = [build_role(name="role1", users=["local-user"])]
 
-    members_by_role = resolver.resolve_role_members(roles, user_cls=Member)
+    members_by_role = resolver.resolve_role_members(
+        roles, user_cls=Member, role_cls=CustomRole[Member]
+    )
 
-    assert {u.org_username for u in members_by_role["role1"]} == {"local-user"}
+    assert {u.org_username for u in members_by_role[0].users} == {"local-user"}
     assert build_resolver_jobs(roles) == []

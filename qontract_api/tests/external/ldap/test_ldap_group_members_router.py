@@ -65,8 +65,10 @@ def test_group_members_returns_resolved_groups(
         LdapGroupResult(
             group="team-a",
             members=[
-                LdapGroupMember(org_username="alice", github_username="alicegh"),
-                LdapGroupMember(org_username="bob"),
+                LdapGroupMember(
+                    name="alice", org_username="alice", github_username="alicegh"
+                ),
+                LdapGroupMember(name="bob", org_username="bob"),
             ],
         )
     ]
@@ -86,8 +88,12 @@ def test_group_members_returns_resolved_groups(
         {
             "group": "team-a",
             "members": [
-                {"org_username": "alice", "github_username": "alicegh"},
-                {"org_username": "bob", "github_username": None},
+                {
+                    "name": "alice",
+                    "org_username": "alice",
+                    "github_username": "alicegh",
+                },
+                {"name": "bob", "org_username": "bob", "github_username": None},
             ],
         }
     ]

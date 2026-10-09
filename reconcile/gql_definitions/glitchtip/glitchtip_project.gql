@@ -9,6 +9,10 @@ query Projects {
     teams {
       name
       roles {
+        name
+        memberSources {
+          ...RoleMembershipSource
+        }
         glitchtip_roles {
           organization {
             name

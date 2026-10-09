@@ -28,11 +28,13 @@ from reconcile.gql_definitions.automated_actions.instance import (
     AutomatedActionsInstanceV1,
     AutomatedActionV1,
     AWSAccountV1,
+    UserV1,
 )
 from reconcile.gql_definitions.automated_actions.instance import query as instance_query
 from reconcile.utils import expiration, gql
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.membershipsources.resolver import resolve_role_members
 from reconcile.utils.oc_map import init_oc_map_from_namespaces
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
 from reconcile.utils.runtime.integration import (
@@ -48,6 +50,7 @@ if TYPE_CHECKING:
         Iterable,
     )
 
+    from reconcile.gql_definitions.automated_actions.instance import BotV1
     from reconcile.utils.oc import OCCli
 
 QONTRACT_INTEGRATION = "automated-actions-config"
@@ -91,16 +94,43 @@ class AutomatedActionsConfigIntegration(
             query_func = gql.get_api().query
         return {
             "automated_actions_instances": [
-                c.model_dump() for c in self.get_automated_actions_instances(query_func)
+                c.model_dump()
+                for c in self._query_automated_actions_instances(query_func)
             ]
         }
 
     def get_automated_actions_instances(
         self, query_func: Callable
     ) -> Generator[AutomatedActionsInstanceV1]:
-        """Return all automated actions."""
+        """Fetch enabled instances with resolved action-role memberships."""
+        instances = list(self._query_automated_actions_instances(query_func))
+        resolved_roles = resolve_role_members(
+            [
+                role
+                for instance in instances
+                for action in instance.actions or []
+                for permission in action.permissions or []
+                for role in permission.roles or []
+            ],
+            user_cls=UserV1,
+            query_func=query_func,
+        )
+        roles_by_name = {role.name: role for role in resolved_roles}
+        for instance in instances:
+            for action in instance.actions or []:
+                for permission in action.permissions or []:
+                    if permission.roles is not None:
+                        permission.roles = [
+                            roles_by_name[role.name] for role in permission.roles
+                        ]
+            yield instance
+
+    def _query_automated_actions_instances(
+        self, query_func: Callable
+    ) -> Generator[AutomatedActionsInstanceV1]:
         data = instance_query(query_func, variables={})
-        for instance in data.automated_actions_instances_v1 or []:
+        for original in data.automated_actions_instances_v1 or []:
+            instance = original.model_copy(deep=True)
             if instance.deployment.delete:
                 continue
             instance.actions = list(self.filter_actions(instance.actions or []))
@@ -150,17 +180,20 @@ class AutomatedActionsConfigIntegration(
     ) -> list[AutomatedActionsUser]:
         """Compile a list of all automated actions users with their role relations."""
         users: dict[str, AutomatedActionsUser] = {}
-        for action in actions:
-            for permission in action.permissions or []:
-                for role in permission.roles or []:
-                    for user in (role.users or []) + (role.bots or []):
-                        if not user.org_username:
-                            continue
-                        aa_user = users.setdefault(
-                            user.org_username,
-                            AutomatedActionsUser(username=user.org_username, roles=[]),
-                        )
-                        aa_user.roles.add(role.name)
+        roles = [
+            role
+            for action in actions
+            for permission in action.permissions or []
+            for role in permission.roles or []
+        ]
+        for role in roles:
+            members: list[UserV1 | BotV1] = [*role.users, *(role.bots or [])]
+            for member in members:
+                if username := member.org_username:
+                    aa_user = users.setdefault(
+                        username, AutomatedActionsUser(username=username, roles=set())
+                    )
+                    aa_user.roles.add(role.name)
 
         return list(users.values())
 
@@ -326,15 +359,18 @@ class AutomatedActionsConfigIntegration(
         data: str,
     ) -> None:
         """Build the automated actions configmap."""
+        body = ApiClient().sanitize_for_serialization(
+            V1ConfigMap(
+                api_version="v1",
+                kind="ConfigMap",
+                metadata=V1ObjectMeta(name=name),
+                data={"roles.yml": data},
+            )
+        )
+        if not isinstance(body, dict):
+            raise TypeError("Serialized ConfigMap must be a dictionary")
         osr = OpenshiftResource(
-            body=ApiClient().sanitize_for_serialization(
-                V1ConfigMap(
-                    api_version="v1",
-                    kind="ConfigMap",
-                    metadata=V1ObjectMeta(name=name),
-                    data={"roles.yml": data},
-                )
-            ),
+            body=body,
             integration=QONTRACT_INTEGRATION,
             integration_version=QONTRACT_INTEGRATION_VERSION,
         ).annotate()

@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Self
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import reconcile.openshift_base as ob
+from reconcile.gql_definitions.common.app_interface_clusterrole import (
+    AccessV1 as ClusterAccessV1,
+)
 from reconcile.gql_definitions.common.app_interface_clusterrole import (
     BotV1 as ClusterBotV1,
 )
@@ -14,15 +17,11 @@ from reconcile.gql_definitions.common.app_interface_clusterrole import (
     ClusterV1 as ClusterRoleClusterV1,
 )
 from reconcile.gql_definitions.common.app_interface_clusterrole import (
-    RoleV1 as ClusterRoleV1,
-)
-from reconcile.gql_definitions.common.app_interface_clusterrole import (
     UserV1 as ClusterUserV1,
 )
 from reconcile.gql_definitions.common.app_interface_roles import (
     AccessV1,
     NamespaceV1,
-    RoleV1,
     UserV1,
 )
 from reconcile.gql_definitions.common.app_interface_roles import (
@@ -31,6 +30,7 @@ from reconcile.gql_definitions.common.app_interface_roles import (
 from reconcile.gql_definitions.common.app_interface_roles import (
     ClusterV1 as RoleClusterV1,
 )
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
 from reconcile.openshift_bindings.constants import (
     CLUSTER_ROLE_BINDING_RESOURCE_KIND,
     CLUSTER_ROLE_KIND,
@@ -44,8 +44,41 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
+class BindingUser(BaseModel, frozen=True):
+    """OpenShift identity, including users without GitHub accounts."""
+
+    org_username: str
+    github_username: str | None = None
+
+
+class RoleBindingRole(BaseModel, frozen=True):
+    """Namespace binding role with external user identities."""
+
+    name: str
+    users: list[BindingUser]
+    bots: list[RoleBotV1]
+    access: list[AccessV1] | None = None
+    member_sources: list[RoleMembershipSource] | None = Field(
+        None, alias="memberSources"
+    )
+    expiration_date: str | None = Field(None, alias="expirationDate")
+
+
+class ClusterRoleBindingRole(BaseModel, frozen=True):
+    """Cluster binding role with external user identities."""
+
+    name: str
+    users: list[BindingUser]
+    bots: list[ClusterBotV1]
+    access: list[ClusterAccessV1] | None = None
+    member_sources: list[RoleMembershipSource] | None = Field(
+        None, alias="memberSources"
+    )
+    expiration_date: str | None = Field(None, alias="expirationDate")
+
+
 def get_usernames_from_users(
-    users: Sequence[UserV1 | ClusterUserV1] | None,
+    users: Sequence[UserV1 | ClusterUserV1 | BindingUser] | None,
     user_keys: list[str] | None = None,
 ) -> set[str]:
     return {
@@ -172,9 +205,9 @@ class RoleBindingSpec(BindingSpec):
     def create_role_binding_spec(
         cls,
         access: AccessV1,
-        users: list[UserV1] | None = None,
+        users: Sequence[UserV1 | BindingUser] | None = None,
         enforced_user_keys: list[str] | None = None,
-        bots: list[RoleBotV1] | None = None,
+        bots: Sequence[RoleBotV1] | None = None,
         support_role_ref: bool = False,
     ) -> Self | None:
         """Create a RoleBindingSpec from access configuration."""
@@ -210,7 +243,7 @@ class RoleBindingSpec(BindingSpec):
     @classmethod
     def create_rb_specs_from_role(
         cls,
-        role: RoleV1,
+        role: RoleBindingRole,
         enforced_user_keys: list[str] | None = None,
         support_role_ref: bool = False,
     ) -> list[Self]:
@@ -240,14 +273,17 @@ class ClusterRoleBindingSpec(BindingSpec):
 
     @classmethod
     def create_cluster_role_binding_specs(
-        cls, cluster_role: ClusterRoleV1
+        cls,
+        cluster_role: ClusterRoleBindingRole,
+        *,
+        enforced_user_keys: list[str] | None = None,
     ) -> list[Self]:
         cluster_role_binding_specs = [
             cls(
                 cluster=access.cluster,
                 usernames=get_usernames_from_users(
                     users=cluster_role.users,
-                    user_keys=cls.get_user_keys(access.cluster),
+                    user_keys=enforced_user_keys or cls.get_user_keys(access.cluster),
                 ),
                 openshift_service_accounts=ServiceAccountSpec.from_bots(
                     cluster_role.bots

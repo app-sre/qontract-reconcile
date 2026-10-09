@@ -16,6 +16,9 @@ query AutomatedActionsInstances {
       permissions {
         roles {
           name
+          memberSources {
+            ...RoleMembershipSource
+          }
           users {
             org_username
           }

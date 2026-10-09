@@ -17,10 +17,31 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
 from reconcile.gql_definitions.fragments.user import User
 
 
 DEFINITION = """
+fragment RoleMembershipSource on RoleMembershipSource_V1 {
+  group
+  provider {
+    name
+    hasAuditTrail
+    source {
+      provider
+      ... on AppInterfaceMembershipProviderSource_V1 {
+        url
+        username {
+          ...VaultSecret
+        }
+        password {
+          ...VaultSecret
+        }
+      }
+    }
+  }
+}
+
 fragment User on User_v1 {
   name
   org_username
@@ -28,6 +49,14 @@ fragment User on User_v1 {
   pagerduty_username
   tag_on_merge_requests
   gov_slack_email_local_part
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+  url
+  path
+  field
+  version
+  format
 }
 
 query SlackUsergroupsApiRoles {
@@ -53,6 +82,9 @@ query SlackUsergroupsApiRoles {
       }
     }
     expirationDate
+    memberSources {
+      ...RoleMembershipSource
+    }
     users {
       ...User
       tag_on_cluster_updates
@@ -109,6 +141,7 @@ class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     access: Optional[list[AccessV1]] = Field(..., alias="access")
     expiration_date: Optional[str] = Field(..., alias="expirationDate")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
     users: list[UserV1] = Field(..., alias="users")
     tag_on_cluster_updates: Optional[bool] = Field(..., alias="tag_on_cluster_updates")
 

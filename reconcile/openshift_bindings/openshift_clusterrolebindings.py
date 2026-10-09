@@ -12,7 +12,11 @@ import reconcile.openshift_base as ob
 from reconcile.openshift_bindings.constants import (
     OPENSHIFT_CLUSTERROLEBINDINGS_INTEGRATION_NAME,
 )
-from reconcile.openshift_bindings.models import ClusterRoleBindingSpec
+from reconcile.openshift_bindings.models import (
+    BindingUser,
+    ClusterRoleBindingRole,
+    ClusterRoleBindingSpec,
+)
 from reconcile.typed_queries.app_interface_clusterroles import (
     get_app_interface_clusterroles,
 )
@@ -20,6 +24,9 @@ from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils import expiration
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
+from reconcile.utils.membershipsources.resolver import (
+    resolve_role_members,
+)
 from reconcile.utils.oc_connection_parameters import resolve_automation_token
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
@@ -102,9 +109,26 @@ class OpenShiftClusterRoleBindingsIntegration(
         cluster_roles: list[RoleV1] = expiration.filter(
             get_app_interface_clusterroles()
         )
+        cluster_roles = [
+            role
+            for role in cluster_roles
+            if any(
+                access.cluster
+                and access.cluster_role
+                and (
+                    allowed_clusters is None or access.cluster.name in allowed_clusters
+                )
+                for access in role.access or []
+            )
+        ]
+        resolved_roles = resolve_role_members(
+            cluster_roles,
+            user_cls=BindingUser,
+            role_cls=ClusterRoleBindingRole,
+        )
         cluster_role_binding_specs = [
             cluster_role_binding_spec
-            for cluster_role in cluster_roles
+            for cluster_role in resolved_roles
             for cluster_role_binding_spec in ClusterRoleBindingSpec.create_cluster_role_binding_specs(
                 cluster_role
             )

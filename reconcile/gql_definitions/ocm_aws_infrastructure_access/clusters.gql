@@ -1,0 +1,46 @@
+# qenerate: plugin=pydantic_v2
+
+query InfrastructureAccessClusters {
+  clusters: clusters_v1 {
+    name
+    disable {
+      integrations
+    }
+    spec {
+      product
+    }
+    ocm {
+      name
+      environment {
+        ...OCMEnvironment
+      }
+      orgId
+      accessTokenClientId
+      accessTokenUrl
+      accessTokenClientSecret {
+        ...VaultSecret
+      }
+    }
+    awsInfrastructureAccess {
+      accessLevel
+      awsGroup {
+        account {
+          ...AWSAccountCommon
+        }
+        roles {
+          name
+          users {
+            org_username
+            aws_username
+          }
+          memberSources {
+            ...RoleMembershipSource
+          }
+        }
+      }
+    }
+    awsInfrastructureManagementAccounts {
+      ...AWSInfrastructureManagementAccount
+    }
+  }
+}

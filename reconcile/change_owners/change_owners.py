@@ -35,6 +35,7 @@ from reconcile.change_owners.implicit_ownership import (
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
     fetch_self_service_roles,
+    validate_self_service_roles,
 )
 from reconcile.gql_definitions.change_owners.queries import change_types
 from reconcile.utils import gql
@@ -400,7 +401,7 @@ def run(
         fetch_change_type_processors(gql.get_api(), file_diff_resolver)
         # also verify that self service roles are configured correctly, e.g. if change-types
         # are brought together only with compatible schema files
-        fetch_self_service_roles(gql.get_api())
+        validate_self_service_roles(gql.get_api())
     except Exception as e:
         logging.error(e)
         sys.exit(1)

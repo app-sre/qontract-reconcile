@@ -1,0 +1,17 @@
+# qenerate: plugin=pydantic_v2
+
+query GithubOrgClusters {
+  clusters: clusters_v1 {
+    name
+    auth {
+      service
+      ... on ClusterAuthGithubOrg_v1 {
+        org
+      }
+      ... on ClusterAuthGithubOrgTeam_v1 {
+        org
+        team
+      }
+    }
+  }
+}

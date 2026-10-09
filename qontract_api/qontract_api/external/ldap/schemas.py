@@ -96,6 +96,7 @@ class LdapGroupMember(BaseModel, frozen=True):
     """A single resolved LDAP group member."""
 
     org_username: str = Field(..., description="LDAP uid (app-interface org_username)")
+    name: str = Field(..., description="Person's name from the LDAP cn attribute")
     github_username: str | None = Field(
         default=None,
         description="GitHub username resolved via rhatSocialURL, if requested and found",

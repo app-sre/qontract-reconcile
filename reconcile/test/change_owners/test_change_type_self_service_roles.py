@@ -9,7 +9,6 @@ from reconcile.change_owners.approver import (
 )
 from reconcile.change_owners.self_service_roles import (
     CHANGE_OWNERS_LABELS_LABEL,
-    ApproverUser,
     DatafileIncompatibleWithChangeTypeError,
     NoApproversInSelfServiceRoleError,
     approver_reachability_from_role,
@@ -248,22 +247,22 @@ def test_self_service_role_empty_change_owner_labels() -> None:
     "member,approver",
     [
         (
-            ApproverUser(org_username="user", tag_on_merge_requests=True),
+            UserV1(name="User", org_username="user", tag_on_merge_requests=True),
             Approver("user", True),
         ),
         (
-            ApproverUser(org_username="user", tag_on_merge_requests=False),
+            UserV1(name="User", org_username="user", tag_on_merge_requests=False),
             Approver("user", False),
         ),
         (
-            ApproverUser(org_username="bot"),
-            Approver("bot", False),
+            UserV1(name="Bot", org_username="bot", tag_on_merge_requests=None),
+            Approver("bot", None),
         ),
         (
-            ApproverUser(org_username=""),
+            UserV1(name="Invalid", org_username="", tag_on_merge_requests=None),
             None,
         ),
     ],
 )
-def test_build_approver(member: ApproverUser, approver: Approver | None) -> None:
+def test_build_approver(member: UserV1, approver: Approver | None) -> None:
     assert build_approver(member) == approver

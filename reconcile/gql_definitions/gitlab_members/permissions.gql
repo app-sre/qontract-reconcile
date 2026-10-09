@@ -18,6 +18,10 @@ query Permission {
         escalationPolicyID
       }
       roles {
+        name
+        memberSources {
+          ...RoleMembershipSource
+        }
         users {
           org_username
         }

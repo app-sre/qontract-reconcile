@@ -1,0 +1,16 @@
+# qenerate: plugin=pydantic_v2
+
+query SendgridTeammateRoles {
+  roles: roles_v1 {
+    name
+    users {
+      org_username
+    }
+    memberSources {
+      ...RoleMembershipSource
+    }
+    sendgrid_accounts {
+      name
+    }
+  }
+}

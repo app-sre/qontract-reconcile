@@ -83,16 +83,18 @@ from reconcile.gql_definitions.slack_usergroups_api.roles import (
 from reconcile.gql_definitions.slack_usergroups_api.users import UserV1
 from reconcile.slack_usergroups_api import (
     QONTRACT_INTEGRATION,
+    SlackUsergroupPermission,
     SlackUsergroupsIntegration,
     SlackUsergroupsIntegrationParams,
     SlackWorkspace,
     get_token_from_url,
-    slack_identity,
 )
 from reconcile.typed_queries.vcs import Vcs
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+    from pytest_mock import MockerFixture
 
 _MOD = "reconcile.slack_usergroups_api"
 _LDAP_RESOLVER_MOD = "reconcile.utils.membershipsources.ldap_resolver"
@@ -130,6 +132,7 @@ def _app_user(
     pagerduty_username: str | None = None,
     tag_on_merge_requests: bool | None = None,
     gov_slack_email_local_part: str | None = None,
+    tag_on_cluster_updates: bool | None = None,
 ) -> UserV1:
     return UserV1(
         name=org_username,
@@ -138,7 +141,7 @@ def _app_user(
         pagerduty_username=pagerduty_username,
         tag_on_merge_requests=tag_on_merge_requests,
         gov_slack_email_local_part=gov_slack_email_local_part,
-        tag_on_cluster_updates=None,
+        tag_on_cluster_updates=tag_on_cluster_updates,
         roles=None,
     )
 
@@ -259,6 +262,14 @@ def _permission(
     )
 
 
+def _resolved_permission(
+    permission: PermissionSlackUsergroupV1,
+) -> SlackUsergroupPermission:
+    return SlackUsergroupPermission.model_validate(
+        permission.model_dump(), by_name=True
+    )
+
+
 @pytest.fixture
 def integration() -> Generator[SlackUsergroupsIntegration]:
     inst = SlackUsergroupsIntegration(
@@ -272,17 +283,9 @@ def integration() -> Generator[SlackUsergroupsIntegration]:
         yield inst
 
 
-# --- slack_identity ---
-
-
-def test_slack_identity_prefers_gov_slack() -> None:
-    user = _frag_user("alice", gov_slack_email_local_part="alice.gov")
-    assert slack_identity(user) == "alice.gov"
-
-
-def test_slack_identity_falls_back_to_org_username() -> None:
-    user = _frag_user("alice")
-    assert slack_identity(user) == "alice"
+@pytest.fixture
+def permission_query(mocker: MockerFixture) -> MagicMock:
+    return mocker.patch(f"{_MOD}.permissions_query")
 
 
 # --- get_token_from_url ---
@@ -362,21 +365,25 @@ def test_integration_name(integration: SlackUsergroupsIntegration) -> None:
     assert integration.name == QONTRACT_INTEGRATION == "slack-usergroups-api"
 
 
-def test_get_permissions_filters_slack_usergroup_type() -> None:
+@pytest.mark.asyncio
+async def test_get_permissions_filters_slack_usergroup_type(
+    integration: SlackUsergroupsIntegration,
+) -> None:
     slack_perm = _permission()
     other_perm = MagicMock()  # a non-slack PermissionV1
     query_result = MagicMock()
     query_result.permissions = [slack_perm, other_perm]
     with patch(f"{_MOD}.permissions_query", return_value=query_result):
-        result = SlackUsergroupsIntegration.get_permissions(MagicMock())
-    assert result == [slack_perm]
+        result = await integration.get_permissions(query_func=MagicMock())
+    assert [permission.handle for permission in result] == [slack_perm.handle]
 
 
-def test_get_permissions_empty() -> None:
+@pytest.mark.asyncio
+async def test_get_permissions_empty(integration: SlackUsergroupsIntegration) -> None:
     query_result = MagicMock()
     query_result.permissions = []
     with patch(f"{_MOD}.permissions_query", return_value=query_result):
-        assert SlackUsergroupsIntegration.get_permissions(MagicMock()) == []
+        assert await integration.get_permissions(query_func=MagicMock()) == []
 
 
 def test_get_users() -> None:
@@ -401,11 +408,21 @@ def test_get_clusters_filters_disabled() -> None:
     assert [c.name for c in result] == ["enabled"]
 
 
-def test_get_roles_filters_expired() -> None:
+@pytest.mark.asyncio
+async def test_get_roles_filters_expired(
+    integration: SlackUsergroupsIntegration,
+) -> None:
     active = ClusterAccessRole(
         name="active",
-        access=None,
+        access=[
+            AccessV1(
+                cluster=AccessClusterV1(name="prod", auth=[]),
+                group="admins",
+                namespace=None,
+            )
+        ],
         expirationDate=None,
+        memberSources=None,
         users=[],
         tag_on_cluster_updates=None,
     )
@@ -413,13 +430,14 @@ def test_get_roles_filters_expired() -> None:
         name="expired",
         access=None,
         expirationDate="2000-01-01",
+        memberSources=None,
         users=[],
         tag_on_cluster_updates=None,
     )
     query_result = MagicMock()
     query_result.roles = [active, expired]
     with patch(f"{_MOD}.roles_query", return_value=query_result):
-        result = SlackUsergroupsIntegration.get_roles(MagicMock())
+        result = await integration.get_roles(query_func=MagicMock())
     assert [r.name for r in result] == ["active"]
 
 
@@ -460,20 +478,13 @@ def test_compile_users_from_schedule_inactive_window() -> None:
 # --- compile_users_from_roles ---
 
 
-@pytest.mark.asyncio
-async def test_compile_users_from_roles_none(
+def test_compile_users_from_roles_none(
     integration: SlackUsergroupsIntegration,
 ) -> None:
-    assert (
-        await integration.compile_users_from_roles(
-            None, _ldap_settings(), app_interface_users=[]
-        )
-        == []
-    )
+    assert integration.compile_users_from_roles(None) == []
 
 
-@pytest.mark.asyncio
-async def test_compile_users_from_roles(
+def test_compile_users_from_roles(
     integration: SlackUsergroupsIntegration,
 ) -> None:
     roles = [
@@ -483,14 +494,11 @@ async def test_compile_users_from_roles(
         ),
         _role(name="role2", users=[_frag_user("bob")]),
     ]
-    result = await integration.compile_users_from_roles(
-        roles, _ldap_settings(), app_interface_users=[]
-    )
-    assert sorted(result) == ["alice.gov", "bob"]
+    result = integration.compile_users_from_roles(roles)
+    assert sorted(result) == ["alice", "bob"]
 
 
-@pytest.mark.asyncio
-async def test_compile_users_from_roles_without_member_sources_skips_ldap_call(
+def test_compile_users_from_roles_without_member_sources_skips_ldap_call(
     integration: SlackUsergroupsIntegration,
 ) -> None:
     """Roles without memberSources never hit the LDAP endpoint."""
@@ -498,9 +506,7 @@ async def test_compile_users_from_roles_without_member_sources_skips_ldap_call(
     with patch(
         f"{_LDAP_RESOLVER_MOD}.ldap_group_members", new_callable=AsyncMock
     ) as mock_client:
-        result = await integration.compile_users_from_roles(
-            roles, _ldap_settings(), app_interface_users=[]
-        )
+        result = integration.compile_users_from_roles(roles)
 
     assert result == ["alice"]
     mock_client.assert_not_called()
@@ -509,6 +515,7 @@ async def test_compile_users_from_roles_without_member_sources_skips_ldap_call(
 @pytest.mark.asyncio
 async def test_compile_users_from_roles_resolves_ldap_source(
     integration: SlackUsergroupsIntegration,
+    permission_query: MagicMock,
 ) -> None:
     roles = [
         _role(
@@ -522,22 +529,26 @@ async def test_compile_users_from_roles_resolves_ldap_source(
         mock_client.return_value = LdapGroupMembersResponse(
             groups=[
                 LdapGroupResult(
-                    group="team-a", members=[LdapGroupMember(org_username="bob")]
+                    group="team-a",
+                    members=[LdapGroupMember(name="bob", org_username="bob")],
                 )
             ]
         )
-        result = await integration.compile_users_from_roles(
-            roles, _ldap_settings(), app_interface_users=[]
+        permission_query.return_value.permissions = [_permission(roles=roles)]
+        permissions = await integration.get_permissions(
+            query_func=MagicMock(), ldap_settings=_ldap_settings()
         )
+        result = integration.compile_users_from_roles(permissions[0].roles)
 
     assert sorted(result) == ["alice", "bob"]
 
 
 @pytest.mark.asyncio
-async def test_compile_users_from_roles_dedup_prefers_explicit_gov_slack(
+async def test_compile_users_from_roles_dedup_uses_canonical_username(
     integration: SlackUsergroupsIntegration,
+    permission_query: MagicMock,
 ) -> None:
-    """An explicit user's gov_slack_email_local_part wins over an LDAP duplicate."""
+    """Explicit and LDAP duplicates remain one canonical identity."""
     roles = [
         _role(
             users=[_frag_user("shared", gov_slack_email_local_part="shared.gov")],
@@ -550,24 +561,28 @@ async def test_compile_users_from_roles_dedup_prefers_explicit_gov_slack(
         mock_client.return_value = LdapGroupMembersResponse(
             groups=[
                 LdapGroupResult(
-                    group="team-a", members=[LdapGroupMember(org_username="shared")]
+                    group="team-a",
+                    members=[LdapGroupMember(name="shared", org_username="shared")],
                 )
             ]
         )
-        result = await integration.compile_users_from_roles(
-            roles, _ldap_settings(), app_interface_users=[]
+        permission_query.return_value.permissions = [_permission(roles=roles)]
+        permissions = await integration.get_permissions(
+            query_func=MagicMock(), ldap_settings=_ldap_settings()
         )
+        result = integration.compile_users_from_roles(permissions[0].roles)
 
-    assert result == ["shared.gov"]
+    assert result == ["shared"]
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("gov_slack_email_local_part", [None, "alice.gov"])
-async def test_process_permission_applies_local_gov_slack_to_ldap_members(
+async def test_process_permission_keeps_canonical_usernames_for_ldap_members(
     integration: SlackUsergroupsIntegration,
     gov_slack_email_local_part: str | None,
+    permission_query: MagicMock,
 ) -> None:
-    """Local Gov Slack overrides apply without explicit role membership."""
+    """Gov overrides are deferred until request construction."""
     permission = _permission(
         roles=[
             _role(
@@ -591,21 +606,25 @@ async def test_process_permission_applies_local_gov_slack_to_ldap_members(
                 LdapGroupResult(
                     group="team-a",
                     members=[
-                        LdapGroupMember(org_username="alice"),
-                        LdapGroupMember(org_username="bob"),
+                        LdapGroupMember(name="alice", org_username="alice"),
+                        LdapGroupMember(name="bob", org_username="bob"),
                     ],
                 )
             ]
         )
+        permission_query.return_value.permissions = [permission]
+        permissions = await integration.get_permissions(
+            query_func=MagicMock(), ldap_settings=_ldap_settings()
+        )
         result = await integration._process_permission(
-            permission, users, [], _ldap_settings(), None, None
+            permissions[0], users, [], _ldap_settings(), None, None
         )
 
     assert result is not None
     assert result[1].config.users == sorted([
-        gov_slack_email_local_part or "alice",
+        "alice",
         "bob",
-        "charlie.gov",
+        "charlie",
     ])
 
 
@@ -621,7 +640,12 @@ def test_compute_cluster_user_group() -> None:
 
 def _cluster_role(tag: bool | None) -> ClusterAccessRole:
     return ClusterAccessRole(
-        name="r", access=None, expirationDate=None, users=[], tag_on_cluster_updates=tag
+        name="r",
+        access=None,
+        expirationDate=None,
+        memberSources=None,
+        users=[],
+        tag_on_cluster_updates=tag,
     )
 
 
@@ -858,7 +882,7 @@ async def test_github_org_resolves_via_app_interface(
             app_interface_users=users,
             ldap_settings=_ldap_settings(),
         )
-    assert result == ["alice", "bob.gov"]
+    assert result == ["alice", "bob"]
     mock_ldap.assert_not_called()
 
 
@@ -999,7 +1023,12 @@ async def test_process_permission_skip(
     integration: SlackUsergroupsIntegration,
 ) -> None:
     result = await integration._process_permission(
-        _permission(skip=True), [], [], _ldap_settings(), None, None
+        _resolved_permission(_permission(skip=True)),
+        [],
+        [],
+        _ldap_settings(),
+        None,
+        None,
     )
     assert result is None
 
@@ -1010,7 +1039,7 @@ async def test_process_permission_no_managed_usergroups(
 ) -> None:
     permission = _permission(workspace=_workspace(managed=[]))
     result = await integration._process_permission(
-        permission, [], [], _ldap_settings(), None, None
+        _resolved_permission(permission), [], [], _ldap_settings(), None, None
     )
     assert result is None
 
@@ -1020,7 +1049,12 @@ async def test_process_permission_workspace_filter_mismatch(
     integration: SlackUsergroupsIntegration,
 ) -> None:
     result = await integration._process_permission(
-        _permission(), [], [], _ldap_settings(), "other-workspace", None
+        _resolved_permission(_permission()),
+        [],
+        [],
+        _ldap_settings(),
+        "other-workspace",
+        None,
     )
     assert result is None
 
@@ -1030,7 +1064,12 @@ async def test_process_permission_usergroup_filter_mismatch(
     integration: SlackUsergroupsIntegration,
 ) -> None:
     result = await integration._process_permission(
-        _permission(), [], [], _ldap_settings(), None, "other-handle"
+        _resolved_permission(_permission()),
+        [],
+        [],
+        _ldap_settings(),
+        None,
+        "other-handle",
     )
     assert result is None
 
@@ -1045,7 +1084,7 @@ async def test_process_permission_handle_not_managed_raises(
     )
     with pytest.raises(KeyError, match="not in 'managedUsergroups'"):
         await integration._process_permission(
-            permission, [], [], _ldap_settings(), None, None
+            _resolved_permission(permission), [], [], _ldap_settings(), None, None
         )
 
 
@@ -1062,7 +1101,7 @@ async def test_process_permission_builds_usergroup_with_notifications(
         ],
     )
     result = await integration._process_permission(
-        permission, [], [], _ldap_settings(), None, None
+        _resolved_permission(permission), [], [], _ldap_settings(), None, None
     )
     assert result is not None
     workspace_name, usergroup = result
@@ -1088,7 +1127,7 @@ async def test_process_permission_unknown_notification_raises(
     )
     with pytest.raises(ValueError, match="Unknown notification action"):
         await integration._process_permission(
-            permission, [], [], _ldap_settings(), None, None
+            _resolved_permission(permission), [], [], _ldap_settings(), None, None
         )
 
 
@@ -1101,7 +1140,7 @@ async def test_compile_desired_state_from_permissions_builds_workspace(
 ) -> None:
     permission = _permission(roles=[_role(users=[_frag_user("alice")])])
     workspaces = await integration.compile_desired_state_from_permissions(
-        permissions=[permission],
+        permissions=[_resolved_permission(permission)],
         app_interface_users=[],
         vcs_instances=[],
         ldap_settings=_ldap_settings(),
@@ -1124,7 +1163,7 @@ async def test_compile_desired_state_skips_workspace_without_integration(
         workspace=_workspace(managed=["team-handle"], with_integration=False),
     )
     workspaces = await integration.compile_desired_state_from_permissions(
-        permissions=[permission],
+        permissions=[_resolved_permission(permission)],
         app_interface_users=[],
         vcs_instances=[],
         ldap_settings=_ldap_settings(),
@@ -1162,6 +1201,7 @@ def test_cluster_usergroups_from_cluster_group_access(
         expirationDate=None,
         users=[_cluster_user("alice")],
         tag_on_cluster_updates=None,
+        memberSources=None,
     )
     workspaces = integration.compile_desired_state_cluster_usergroups(
         workspaces=[_slack_workspace()],
@@ -1191,6 +1231,7 @@ def test_cluster_usergroups_from_namespace_access(
         expirationDate=None,
         users=[_cluster_user("alice")],
         tag_on_cluster_updates=None,
+        memberSources=None,
     )
     workspaces = integration.compile_desired_state_cluster_usergroups(
         workspaces=[_slack_workspace()],
@@ -1228,6 +1269,7 @@ def test_cluster_usergroups_respects_usergroup_filter(
         expirationDate=None,
         users=[_cluster_user("alice")],
         tag_on_cluster_updates=None,
+        memberSources=None,
     )
     workspaces = integration.compile_desired_state_cluster_usergroups(
         workspaces=[_slack_workspace()],
@@ -1236,6 +1278,205 @@ def test_cluster_usergroups_respects_usergroup_filter(
         desired_usergroup_name="other-cluster",
     )
     assert workspaces[0].usergroups == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("role_tag", "explicit_tag", "expected"),
+    [
+        (None, None, {"alice", "bob"}),
+        (True, False, {"alice"}),
+        (False, True, {"bob"}),
+        (False, None, set()),
+    ],
+)
+async def test_cluster_get_roles_preserves_tagging_and_canonical_usernames(
+    integration: SlackUsergroupsIntegration,
+    ldap_endpoint: AsyncMock,
+    mocker: MockerFixture,
+    role_tag: bool | None,
+    explicit_tag: bool | None,
+    expected: set[str],
+) -> None:
+    role = ClusterAccessRole(
+        name="role",
+        access=[
+            AccessV1(
+                cluster=AccessClusterV1(name="prod", auth=[]),
+                group="admins",
+                namespace=None,
+            )
+        ],
+        expirationDate=None,
+        memberSources=[_ldap_membership_source(group="source-team")],
+        users=[_cluster_user("bob", tag_on_cluster_updates=explicit_tag)],
+        tag_on_cluster_updates=role_tag,
+    )
+    ldap_endpoint.return_value.groups[0].members[0].github_username = None
+    mocker.patch(f"{_MOD}.roles_query", return_value=MagicMock(roles=[role]))
+    roles = await integration.get_roles(query_func=MagicMock(), cluster_names={"prod"})
+    assert [user.org_username for user in roles[0].users] == ["bob", "alice"]
+    assert [user.org_username for user in role.users] == ["bob"]
+    resolver = mocker.patch(
+        f"{_MOD}.resolve_role_members",
+        side_effect=AssertionError("Compiler must not resolve memberships"),
+    )
+    workspaces = integration.compile_desired_state_cluster_usergroups(
+        workspaces=[_slack_workspace()],
+        clusters=[EnabledClusterV1(name="prod", auth=[], disable=None)],
+        roles=roles,
+        app_interface_users=[
+            _app_user("alice", "alice-gh", gov_slack_email_local_part="alice.gov")
+        ],
+    )
+    assert {
+        user for group in workspaces[0].usergroups for user in group.config.users
+    } == expected
+    resolver.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("user_tag", "role_tag", "expected"),
+    [
+        (False, True, set()),
+        (True, False, {"alice"}),
+        (None, True, {"alice"}),
+        (None, False, set()),
+    ],
+)
+async def test_ldap_cluster_members_preserve_local_user_tagging_override(
+    integration: SlackUsergroupsIntegration,
+    ldap_endpoint: AsyncMock,
+    mocker: MockerFixture,
+    user_tag: bool | None,
+    role_tag: bool,
+    expected: set[str],
+) -> None:
+    role = ClusterAccessRole(
+        name="role",
+        expirationDate=None,
+        users=[],
+        tag_on_cluster_updates=role_tag,
+        access=[
+            AccessV1(
+                cluster=AccessClusterV1(name="prod", auth=[]),
+                group="admins",
+                namespace=None,
+            )
+        ],
+        memberSources=[_ldap_membership_source(group="source-team")],
+    )
+    mocker.patch(f"{_MOD}.roles_query", return_value=MagicMock(roles=[role]))
+    roles = await integration.get_roles(query_func=MagicMock(), cluster_names={"prod"})
+    workspaces = integration.compile_desired_state_cluster_usergroups(
+        workspaces=[_slack_workspace()],
+        clusters=[EnabledClusterV1(name="prod", auth=[], disable=None)],
+        roles=roles,
+        app_interface_users=[
+            _app_user("alice", "alice-gh", tag_on_cluster_updates=user_tag)
+        ],
+    )
+    assert {
+        user for group in workspaces[0].usergroups for user in group.config.users
+    } == expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source_path", ["permissions", "clusters"])
+@pytest.mark.parametrize("dry_run", [True, False])
+async def test_slack_unresolved_sources_abort_before_submission(
+    integration: SlackUsergroupsIntegration,
+    ldap_endpoint: AsyncMock,
+    mocker: MockerFixture,
+    source_path: str,
+    dry_run: bool,
+) -> None:
+    permission = _permission(
+        roles=[_role(member_sources=[_ldap_membership_source(group="source-team")])]
+        if source_path == "permissions"
+        else []
+    )
+    role = ClusterAccessRole(
+        name="role",
+        expirationDate=None,
+        tag_on_cluster_updates=None,
+        users=[],
+        access=[
+            AccessV1(
+                cluster=AccessClusterV1(name="prod", auth=[]),
+                group="admins",
+                namespace=None,
+            )
+        ],
+        memberSources=[_ldap_membership_source(group="source-team")]
+        if source_path == "clusters"
+        else None,
+    )
+    mocker.patch(
+        f"{_MOD}.permissions_query", return_value=MagicMock(permissions=[permission])
+    )
+    mocker.patch(f"{_MOD}.roles_query", return_value=MagicMock(roles=[role]))
+    mocker.patch.object(integration, "get_users", return_value=[])
+    mocker.patch.object(
+        integration,
+        "get_clusters",
+        return_value=[EnabledClusterV1(name="prod", auth=[], disable=None)],
+    )
+    mocker.patch(f"{_MOD}.get_vcs_instances", return_value=[])
+    mocker.patch(f"{_MOD}.get_ldap_settings", return_value=_ldap_settings())
+    submit = mocker.patch(f"{_MOD}.slack_usergroups", new_callable=AsyncMock)
+    ldap_endpoint.return_value = LdapGroupMembersResponse(groups=[])
+    with pytest.raises(RuntimeError, match="could not be resolved"):
+        await integration.async_run(dry_run=dry_run)
+    submit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("getter", ["permissions", "roles"])
+async def test_slack_filters_unselected_sources_before_resolution(
+    integration: SlackUsergroupsIntegration,
+    ldap_endpoint: AsyncMock,
+    mocker: MockerFixture,
+    getter: str,
+) -> None:
+    ldap_endpoint.side_effect = AssertionError(
+        "Unselected configuration must not query LDAP"
+    )
+    if getter == "permissions":
+        integration.params.usergroup_name = "selected"
+        permission = _permission(
+            handle="unselected",
+            roles=[_role(member_sources=[_ldap_membership_source()])],
+        )
+        mocker.patch(
+            f"{_MOD}.permissions_query",
+            return_value=MagicMock(permissions=[permission]),
+        )
+        assert await integration.get_permissions(query_func=MagicMock()) == []
+    else:
+        role = ClusterAccessRole(
+            name="role",
+            expirationDate=None,
+            tag_on_cluster_updates=None,
+            users=[],
+            access=[
+                AccessV1(
+                    cluster=AccessClusterV1(name="unselected", auth=[]),
+                    group="admins",
+                    namespace=None,
+                )
+            ],
+            memberSources=[_ldap_membership_source()],
+        )
+        mocker.patch(f"{_MOD}.roles_query", return_value=MagicMock(roles=[role]))
+        assert (
+            await integration.get_roles(
+                query_func=MagicMock(), cluster_names={"selected"}
+            )
+            == []
+        )
+    ldap_endpoint.assert_not_awaited()
 
 
 # --- reconcile ---
@@ -1260,12 +1501,178 @@ async def test_reconcile_builds_request_and_returns_response(
         mock_recon.return_value = SlackUsergroupsTaskResponse(
             id="req-1", status_url="http://api/status/req-1"
         )
-        response = await integration.reconcile(workspaces=[workspace], dry_run=True)
+        response = await integration.reconcile(
+            workspaces=[workspace], dry_run=True, app_interface_users=[]
+        )
     assert response.id == "req-1"
     request = mock_recon.call_args.args[0]
     assert request.dry_run is True
     assert request.workspaces[0].name == "coreos"
     assert request.workspaces[0].token.path == "secret/slack/token"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("dry_run", [True, False])
+async def test_reconcile_translates_only_post_payload_usernames(
+    integration: SlackUsergroupsIntegration, mocker: MockerFixture, dry_run: bool
+) -> None:
+    from qontract_api_client.schemas import NotificationAddUser, NotificationRemoveUser
+
+    canonical_users = [
+        "alice",
+        "commercial",
+        "ldap-only",
+        "bot",
+        "shared-a",
+        "shared-b",
+        "alice",
+    ]
+    group = SlackUsergroup(
+        handle="team",
+        config=SlackUsergroupConfig(
+            users=canonical_users,
+            description="Team",
+            channels=["#team"],
+            notifications=[
+                NotificationAddUser(message="added"),
+                NotificationRemoveUser(message="removed"),
+            ],
+        ),
+    )
+    workspace = _slack_workspace()
+    workspace.usergroups = [group]
+    workspace.managed_usergroups = ["team"]
+    before = workspace.model_dump()
+    submit = mocker.patch(
+        f"{_MOD}.slack_usergroups",
+        new_callable=AsyncMock,
+        return_value=SlackUsergroupsTaskResponse(id="task", status_url="/tasks/task"),
+    )
+    await integration.reconcile(
+        workspaces=[workspace],
+        dry_run=dry_run,
+        app_interface_users=[
+            _app_user("alice", "alice-gh", gov_slack_email_local_part="alice.gov"),
+            _app_user("commercial", "commercial-gh", gov_slack_email_local_part=""),
+            _app_user("bot", "bot-gh", gov_slack_email_local_part="bot.gov"),
+            _app_user("shared-a", "a-gh", gov_slack_email_local_part="shared.gov"),
+            _app_user("shared-b", "b-gh", gov_slack_email_local_part="shared.gov"),
+        ],
+    )
+    request = submit.call_args.args[0]
+    assert request.dry_run is dry_run
+    submitted_group = request.workspaces[0].usergroups[0]
+    assert submitted_group.config.users == [
+        "alice.gov",
+        "bot.gov",
+        "commercial",
+        "ldap-only",
+        "shared.gov",
+    ]
+    assert submitted_group.handle == group.handle
+    assert submitted_group.config.description == group.config.description
+    assert submitted_group.config.channels == group.config.channels
+    assert submitted_group.config.notifications == group.config.notifications
+    assert request.workspaces[0].managed_usergroups == workspace.managed_usergroups
+    assert workspace.model_dump() == before
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("gov_slack_username", "expected"),
+    [("alice.gov", "alice.gov"), (None, "alice"), ("", "alice")],
+)
+async def test_reconcile_applies_gov_slack_override_at_post_boundary(
+    integration: SlackUsergroupsIntegration,
+    mocker: MockerFixture,
+    gov_slack_username: str | None,
+    expected: str,
+) -> None:
+    workspace = _slack_workspace()
+    workspace.usergroups = [
+        SlackUsergroup(handle="team", config=SlackUsergroupConfig(users=["alice"]))
+    ]
+    submit = mocker.patch(
+        f"{_MOD}.slack_usergroups",
+        new_callable=AsyncMock,
+        return_value=SlackUsergroupsTaskResponse(id="task", status_url="/tasks/task"),
+    )
+    await integration.reconcile(
+        workspaces=[workspace],
+        dry_run=True,
+        app_interface_users=[
+            _app_user(
+                "alice", "alice-gh", gov_slack_email_local_part=gov_slack_username
+            )
+        ],
+    )
+    assert submit.call_args.args[0].workspaces[0].usergroups[0].config.users == [
+        expected
+    ]
+    assert workspace.usergroups[0].config.users == ["alice"]
+
+
+@pytest.mark.asyncio
+async def test_pagerduty_uses_canonical_username_until_gov_slack_post_translation(
+    integration: SlackUsergroupsIntegration, mocker: MockerFixture
+) -> None:
+    users = [
+        _app_user(
+            "alice",
+            "alice-gh",
+            pagerduty_username="alice-pd",
+            gov_slack_email_local_part="alice.gov",
+        )
+    ]
+    target = PagerDutyTargetV1(
+        name="schedule",
+        instance=PagerDutyInstanceV1(token=_vault_secret()),
+        scheduleID="schedule",
+        escalationPolicyID=None,
+    )
+    mocker.patch(
+        f"{_MOD}.pagerduty_schedule_users",
+        new_callable=AsyncMock,
+        return_value=ScheduleUsersResponse(users=[PagerDutyUser(username="alice-pd")]),
+    )
+    canonical_users = await integration.compile_users_from_pagerduty_schedules(
+        pagerduties=[target],
+        app_interface_users=users,
+    )
+    assert canonical_users == ["alice"]
+    workspace = _slack_workspace()
+    workspace.usergroups = [
+        SlackUsergroup(
+            handle="team", config=SlackUsergroupConfig(users=canonical_users)
+        )
+    ]
+    submit = mocker.patch(
+        f"{_MOD}.slack_usergroups",
+        new_callable=AsyncMock,
+        return_value=SlackUsergroupsTaskResponse(id="task", status_url="/tasks/task"),
+    )
+    await integration.reconcile(
+        workspaces=[workspace], dry_run=True, app_interface_users=users
+    )
+    assert submit.call_args.args[0].workspaces[0].usergroups[0].config.users == [
+        "alice.gov"
+    ]
+    assert workspace.usergroups[0].config.users == ["alice"]
+
+
+def test_schedule_collector_keeps_canonical_org_usernames(
+    integration: SlackUsergroupsIntegration,
+) -> None:
+    schedule = ScheduleV1(
+        schedule=[
+            ScheduleEntryV1(
+                start="2000-01-01 00:00",
+                end="2100-01-01 00:00",
+                users=[_frag_user("alice", gov_slack_email_local_part="alice.gov")],
+            )
+        ]
+    )
+    assert integration.compile_users_from_schedule(schedule) == ["alice"]
 
 
 # --- async_run ---
