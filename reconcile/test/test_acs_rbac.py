@@ -35,116 +35,62 @@ AUTH_PROVIDER_ID = "6a41743c-792b-11ee-b962-0242ac120002"
 def query_data_desired_state() -> AcsRbacQueryData:
     return AcsRbacQueryData(
         acs_rbacs=[
-            UserV1(
-                org_username="foo",
-                roles=[
-                    RoleV1(
-                        name="app-sre-admin",
-                        oidc_permissions=[
-                            OidcPermissionAcsV1(
-                                name="app-sre-acs-admin",
-                                description="admin access to acs instance",
-                                service="acs",
-                                instance=AcsInstanceV1(name="app-sre-acs"),
-                                permission_set="admin",
-                                clusters=[],
-                                namespaces=[],
-                            )
-                        ],
+            RoleV1(
+                name="app-sre-admin",
+                users=[UserV1(org_username="foo"), UserV1(org_username="bar")],
+                memberSources=None,
+                oidc_permissions=[
+                    OidcPermissionAcsV1(
+                        name="app-sre-acs-admin",
+                        description="admin access to acs instance",
+                        service="acs",
+                        instance=AcsInstanceV1(name="app-sre-acs"),
+                        permission_set="admin",
+                        clusters=[],
+                        namespaces=[],
                     )
                 ],
             ),
-            UserV1(
-                org_username="bar",
-                roles=[
-                    RoleV1(
-                        name="app-sre-admin",
-                        oidc_permissions=[
-                            OidcPermissionAcsV1(
-                                name="app-sre-acs-admin",
-                                description="admin access to acs instance",
-                                service="acs",
-                                instance=AcsInstanceV1(name="app-sre-acs"),
-                                permission_set="admin",
-                                clusters=[],
-                                namespaces=[],
-                            )
+            RoleV1(
+                name="tenant-role-a",
+                users=[UserV1(org_username="foofoo"), UserV1(org_username="barbar")],
+                memberSources=None,
+                oidc_permissions=[
+                    OidcPermissionAcsV1(
+                        name="cluster-analyst",
+                        description="analyst access to clusters in acs instance",
+                        service="acs",
+                        instance=AcsInstanceV1(name="app-sre-acs"),
+                        permission_set="analyst",
+                        clusters=[
+                            ClusterV1(name="clusterA"),
+                            ClusterV1(name="clusterB"),
                         ],
+                        namespaces=[],
                     )
                 ],
             ),
-            UserV1(
-                org_username="foofoo",
-                roles=[
-                    RoleV1(
-                        name="tenant-role-a",
-                        oidc_permissions=[
-                            OidcPermissionAcsV1(
-                                name="cluster-analyst",
-                                description="analyst access to clusters in acs instance",
-                                service="acs",
-                                instance=AcsInstanceV1(name="app-sre-acs"),
-                                permission_set="analyst",
-                                clusters=[
-                                    ClusterV1(name="clusterA"),
-                                    ClusterV1(name="clusterB"),
-                                ],
-                                namespaces=[],
-                            )
-                        ],
-                    )
-                ],
-            ),
-            UserV1(
-                org_username="barbar",
-                roles=[
-                    RoleV1(
-                        name="tenant-role-a",
-                        oidc_permissions=[
-                            OidcPermissionAcsV1(
-                                name="cluster-analyst",
-                                description="analyst access to clusters in acs instance",
-                                service="acs",
-                                instance=AcsInstanceV1(name="app-sre-acs"),
-                                permission_set="analyst",
-                                clusters=[
-                                    ClusterV1(name="clusterA"),
-                                    ClusterV1(name="clusterB"),
-                                ],
-                                namespaces=[],
-                            )
-                        ],
-                    )
-                ],
-            ),
-            UserV1(
-                org_username="foobar",
-                roles=[
-                    RoleV1(
-                        name="tenant-role-b",
-                        oidc_permissions=[
-                            OidcPermissionAcsV1(
-                                name="service-vuln-admin",
-                                description="vuln-admin access to service namespaces in acs instance",
-                                service="acs",
-                                instance=AcsInstanceV1(name="app-sre-acs"),
-                                permission_set="vuln-admin",
-                                clusters=[],
-                                namespaces=[
-                                    NamespaceV1(
-                                        name="serviceA-stage",
-                                        cluster=NamespaceV1_ClusterV1(
-                                            name="stage-cluster"
-                                        ),
-                                    ),
-                                    NamespaceV1(
-                                        name="serviceA-prod",
-                                        cluster=NamespaceV1_ClusterV1(
-                                            name="prod-cluster"
-                                        ),
-                                    ),
-                                ],
-                            )
+            RoleV1(
+                name="tenant-role-b",
+                users=[UserV1(org_username="foobar")],
+                memberSources=None,
+                oidc_permissions=[
+                    OidcPermissionAcsV1(
+                        name="service-vuln-admin",
+                        description="vuln-admin access to service namespaces in acs instance",
+                        service="acs",
+                        instance=AcsInstanceV1(name="app-sre-acs"),
+                        permission_set="vuln-admin",
+                        clusters=[],
+                        namespaces=[
+                            NamespaceV1(
+                                name="serviceA-stage",
+                                cluster=NamespaceV1_ClusterV1(name="stage-cluster"),
+                            ),
+                            NamespaceV1(
+                                name="serviceA-prod",
+                                cluster=NamespaceV1_ClusterV1(name="prod-cluster"),
+                            ),
                         ],
                     )
                 ],

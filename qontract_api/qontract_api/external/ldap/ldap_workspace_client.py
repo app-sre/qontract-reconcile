@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from qontract_utils.ldap_api import LdapApi
+    from qontract_utils.ldap_api.models import LdapUser
 
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
@@ -229,7 +230,7 @@ class LdapWorkspaceClient:
         sorted_groups = ",".join(sorted(groups))
         key_material = f"{sorted_groups}|{include_github_usernames}"
         group_hash = hashlib.sha256(key_material.encode()).hexdigest()[:16]
-        return f"ldap:{self.cache_key_prefix}:groups:members:{group_hash}"
+        return f"ldap:{self.cache_key_prefix}:groups:members:v2:{group_hash}"
 
     def _group_dn(self, cn: str) -> str:
         """Build the full DN for a group CN under the FreeIPA groups container."""
@@ -281,9 +282,11 @@ class LdapWorkspaceClient:
                 dn_by_cn = {cn: self._group_dn(cn) for cn in existing_cns}
                 ldap_groups = self.api.get_group_members(list(dn_by_cn.values()))
 
-            members_by_cn: dict[str, set[str]] = {cn: set() for cn in existing_cns}
+            members_by_cn: dict[str, frozenset[LdapUser]] = {
+                cn: frozenset() for cn in existing_cns
+            }
             for ldap_group in ldap_groups:
-                members_by_cn[ldap_group.cn] = {u.username for u in ldap_group.members}
+                members_by_cn[ldap_group.cn] = ldap_group.members
 
             github_by_org_username = (
                 self._get_org_username_to_github_map()
@@ -291,19 +294,22 @@ class LdapWorkspaceClient:
                 else {}
             )
 
-            results = [
-                LdapGroupResult(
-                    group=cn,
-                    members=[
-                        LdapGroupMember(
-                            org_username=org_username,
-                            github_username=github_by_org_username.get(org_username),
+            results: list[LdapGroupResult] = []
+            for cn in sorted(existing_cns):
+                resolved_members: list[LdapGroupMember] = []
+                for member in sorted(members_by_cn[cn], key=lambda user: user.username):
+                    if not member.name:
+                        raise ValidationError(
+                            f"LDAP user '{member.username}' has no name"
                         )
-                        for org_username in sorted(members_by_cn[cn])
-                    ],
-                )
-                for cn in sorted(existing_cns)
-            ]
+                    resolved_members.append(
+                        LdapGroupMember(
+                            name=member.name,
+                            org_username=member.username,
+                            github_username=github_by_org_username.get(member.username),
+                        )
+                    )
+                results.append(LdapGroupResult(group=cn, members=resolved_members))
 
             for result in results:
                 if len(result.members) > self.settings.ldap.max_group_size:

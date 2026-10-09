@@ -22,6 +22,9 @@ query SlackUsergroupsApiRoles {
       }
     }
     expirationDate
+    memberSources {
+      ...RoleMembershipSource
+    }
     users {
       ...User
       tag_on_cluster_updates

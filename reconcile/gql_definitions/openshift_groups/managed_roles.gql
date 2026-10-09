@@ -6,6 +6,9 @@ query OpenshiftGroupsManagedRoles {
     users {
       ...User
     }
+    memberSources {
+      ...RoleMembershipSource
+    }
     expirationDate
     access {
       cluster {

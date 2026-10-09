@@ -12,7 +12,11 @@ import reconcile.openshift_base as ob
 from reconcile.openshift_bindings.constants import (
     OPENSHIFT_ROLEBINDINGS_INTEGRATION_NAME,
 )
-from reconcile.openshift_bindings.models import RoleBindingSpec
+from reconcile.openshift_bindings.models import (
+    BindingUser,
+    RoleBindingRole,
+    RoleBindingSpec,
+)
 from reconcile.openshift_bindings.utils import (
     is_valid_namespace,
 )
@@ -21,6 +25,9 @@ from reconcile.typed_queries.namespaces import get_namespaces
 from reconcile.utils import expiration
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
+from reconcile.utils.membershipsources.resolver import (
+    resolve_role_members,
+)
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -102,10 +109,31 @@ class OpenShiftRoleBindingsIntegration(
         if ri is None:
             return
         roles: list[RoleV1] = expiration.filter(get_app_interface_roles())
-        for role in roles:
+        roles = [
+            role
+            for role in roles
+            if any(
+                access.namespace
+                and is_valid_namespace(access.namespace)
+                and (access.role or access.cluster_role)
+                and (
+                    allowed_clusters is None
+                    or access.namespace.cluster.name in allowed_clusters
+                )
+                for access in role.access or []
+            )
+        ]
+        resolved_roles = resolve_role_members(
+            roles,
+            user_cls=BindingUser,
+            role_cls=RoleBindingRole,
+        )
+        for role in resolved_roles:
             rolebindings: list[RoleBindingSpec] = (
                 RoleBindingSpec.create_rb_specs_from_role(
-                    role, enforced_user_keys, support_role_ref
+                    role,
+                    enforced_user_keys,
+                    support_role_ref,
                 )
             )
             if allowed_clusters is not None:

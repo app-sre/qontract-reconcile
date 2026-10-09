@@ -419,6 +419,44 @@ def test_ldap_api_call_context_immutable() -> None:
 # --- get_group_members ---
 
 
+def test_get_group_members_preserves_person_name(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    group_dn = "cn=team,cn=groups,cn=accounts,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {
+                "attributes": {
+                    "uid": ["alice"],
+                    "cn": ["Alice Example"],
+                    "memberOf": [group_dn],
+                }
+            }
+        ],
+        None,
+    )
+    with ldap_api:
+        groups = ldap_api.get_group_members([group_dn])
+    assert next(iter(groups[0].members)).name == "Alice Example"
+    assert "cn" in mock_ldap3.connection.search.call_args.kwargs["attributes"]
+
+
+def test_get_group_members_rejects_missing_person_name(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    group_dn = "cn=team,cn=groups,cn=accounts,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [{"attributes": {"uid": ["alice"], "cn": [], "memberOf": [group_dn]}}],
+        None,
+    )
+    with ldap_api, pytest.raises(LdapApiError, match="alice has no cn attribute"):
+        ldap_api.get_group_members([group_dn])
+
+
 def test_get_group_members_returns_groups_with_members(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:
@@ -429,8 +467,14 @@ def test_get_group_members_returns_groups_with_members(
         True,
         {"result": 0, "description": "success"},
         [
-            {"attributes": {"uid": ["alice"], "memberOf": [group1_dn, group2_dn]}},
-            {"attributes": {"uid": ["bob"], "memberOf": [group1_dn]}},
+            {
+                "attributes": {
+                    "uid": ["alice"],
+                    "cn": ["alice"],
+                    "memberOf": [group1_dn, group2_dn],
+                }
+            },
+            {"attributes": {"uid": ["bob"], "cn": ["bob"], "memberOf": [group1_dn]}},
         ],
         None,
     )
@@ -519,7 +563,7 @@ def test_get_group_members_skips_nested_group_without_uid(
         {"result": 0, "description": "success"},
         [
             {"attributes": {"memberOf": [group_dn]}},  # nested group, no uid
-            {"attributes": {"uid": ["alice"], "memberOf": [group_dn]}},
+            {"attributes": {"uid": ["alice"], "cn": ["alice"], "memberOf": [group_dn]}},
         ],
         None,
     )
@@ -556,7 +600,13 @@ def test_get_group_members_ignores_unrelated_memberships(
         True,
         {"result": 0, "description": "success"},
         [
-            {"attributes": {"uid": ["alice"], "memberOf": [requested_dn, other_dn]}},
+            {
+                "attributes": {
+                    "uid": ["alice"],
+                    "cn": ["alice"],
+                    "memberOf": [requested_dn, other_dn],
+                }
+            },
         ],
         None,
     )
@@ -603,7 +653,15 @@ def test_get_group_members_retries_on_transient_error(
         (
             True,
             {"result": 0, "description": "success"},
-            [{"attributes": {"uid": ["alice"], "memberOf": [group_dn]}}],
+            [
+                {
+                    "attributes": {
+                        "uid": ["alice"],
+                        "cn": ["alice"],
+                        "memberOf": [group_dn],
+                    }
+                }
+            ],
             None,
         ),
     ]
@@ -625,7 +683,7 @@ def test_get_group_members_members_are_ldap_user_models(
         True,
         {"result": 0, "description": "success"},
         [
-            {"attributes": {"uid": ["alice"], "memberOf": [group_dn]}},
+            {"attributes": {"uid": ["alice"], "cn": ["alice"], "memberOf": [group_dn]}},
         ],
         None,
     )
@@ -676,6 +734,7 @@ def test_get_group_members_matches_differently_cased_member_of(
             {
                 "attributes": {
                     "uid": ["alice"],
+                    "cn": ["alice"],
                     "memberOf": [differently_cased_member_of],
                 }
             },
@@ -707,7 +766,13 @@ def test_get_group_members_ignores_unrelated_differently_cased_member_of(
         True,
         {"result": 0, "description": "success"},
         [
-            {"attributes": {"uid": ["alice"], "memberOf": [unrelated_dn]}},
+            {
+                "attributes": {
+                    "uid": ["alice"],
+                    "cn": ["alice"],
+                    "memberOf": [unrelated_dn],
+                }
+            },
         ],
         None,
     )
@@ -735,8 +800,20 @@ def test_get_group_members_distinguishes_multi_valued_rdn_from_separate_rdns(
         True,
         {"result": 0, "description": "success"},
         [
-            {"attributes": {"uid": ["alice"], "memberOf": [multi_valued_rdn_dn]}},
-            {"attributes": {"uid": ["bob"], "memberOf": [separate_rdns_dn]}},
+            {
+                "attributes": {
+                    "uid": ["alice"],
+                    "cn": ["alice"],
+                    "memberOf": [multi_valued_rdn_dn],
+                }
+            },
+            {
+                "attributes": {
+                    "uid": ["bob"],
+                    "cn": ["bob"],
+                    "memberOf": [separate_rdns_dn],
+                }
+            },
         ],
         None,
     )
@@ -770,6 +847,7 @@ def test_get_group_members_matches_equivalent_dn_escape_encodings(
             {
                 "attributes": {
                     "uid": ["alice"],
+                    "cn": ["alice"],
                     "memberOf": [differently_escaped_member_of],
                 }
             },
@@ -950,8 +1028,8 @@ def test_ldap_search_methods_paginate_across_pages(
                         dn=group_dn,
                         members=frozenset(
                             {
-                                LdapUser(username="alice"),
-                                LdapUser(username="bob"),
+                                LdapUser(username="alice", name="admins"),
+                                LdapUser(username="bob", name="devs"),
                             }
                         ),
                     )

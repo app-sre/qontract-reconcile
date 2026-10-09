@@ -1,12 +1,19 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Coroutine, Mapping, Sequence
 from typing import (
     Any,
     Protocol,
+    Self,
     TypeVar,
+    get_args,
+    overload,
+    runtime_checkable,
 )
 
 from pydantic import (
     BaseModel,
+    ValidationError,
 )
 
 
@@ -45,25 +52,15 @@ class MembershipSourceEntry(Protocol):
 
 class User(Protocol):
     @property
-    def name(self) -> str: ...
-
-    @property
     def org_username(self) -> str: ...
 
     def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
-class Bot(Protocol):
-    @property
-    def name(self) -> str: ...
+@runtime_checkable
+class RoleMembershipFields(Protocol):
+    """Shared membership fields, including queries that do not select bots."""
 
-    @property
-    def org_username(self) -> str | None: ...
-
-    def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]: ...
-
-
-class RoleWithMemberships(Protocol):
     @property
     def name(self) -> str: ...
 
@@ -71,10 +68,39 @@ class RoleWithMemberships(Protocol):
     def users(self) -> Sequence[User]: ...
 
     @property
-    def bots(self) -> Sequence[Bot]: ...
+    def member_sources(self) -> Sequence[MembershipSourceEntry] | None: ...
+
+    def model_dump(
+        self, *, by_alias: bool = False, round_trip: bool = False
+    ) -> dict[str, Any]: ...
+
+    @classmethod
+    def model_validate(cls, obj: Any) -> Self: ...
+
+
+@runtime_checkable
+class RoleWithMemberships(RoleMembershipFields, Protocol):
+    """A role that also exposes an optional collection of generated bot models."""
 
     @property
-    def member_sources(self) -> Sequence[MembershipSourceEntry] | None: ...
+    def bots(self) -> Sequence[BaseModel] | None: ...
+
+
+@runtime_checkable
+class GithubIdentity(Protocol):
+    """Structural GitHub identity, which can be absent on provider users."""
+
+    @property
+    def github_username(self) -> str | None: ...
+
+
+def has_ldap_sources(roles: Sequence[RoleMembershipFields]) -> bool:
+    """Whether the selected roles need LDAP connectivity."""
+    return any(
+        source.provider.source.provider == "ldap"
+        for role in roles
+        for source in role.member_sources or []
+    )
 
 
 class ProviderMember(Protocol):
@@ -84,11 +110,11 @@ class ProviderMember(Protocol):
     the framework convert a raw provider result (e.g. an LDAP group member,
     or a remote app-interface UserV1/BotV1) into the caller-supplied
     user_cls, so a provider never needs to know about any integration's
-    user attributes. User and Bot both satisfy this structurally too.
+    user attributes. Providers return users only; native bots are not resolved.
     """
 
     @property
-    def org_username(self) -> str | None: ...
+    def org_username(self) -> str: ...
 
     def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
@@ -108,43 +134,102 @@ AsyncProviderResolver = Callable[
 ]
 
 
-def resolve_role[U: BaseModel](
-    role: RoleWithMemberships,
+@overload
+def resolve_role[R: RoleMembershipFields, U: BaseModel](
+    role: R,
     user_cls: type[U],
     resolved_groups: Mapping[ProviderGroup, list[ProviderMember]],
-) -> list[U]:
-    """Merge a role's explicit users/bots with memberSources-resolved members.
+    *,
+    member_filter: Callable[[ProviderMember], bool] | None = None,
+    role_cls: None = None,
+) -> R: ...
+
+
+@overload
+def resolve_role[R: RoleMembershipFields, U: BaseModel, T: RoleMembershipFields](
+    role: R,
+    user_cls: type[U],
+    resolved_groups: Mapping[ProviderGroup, list[ProviderMember]],
+    *,
+    member_filter: Callable[[ProviderMember], bool] | None = None,
+    role_cls: type[T],
+) -> T: ...
+
+
+@overload
+def resolve_role[R: RoleMembershipFields, U: BaseModel, T: RoleMembershipFields](
+    role: R,
+    user_cls: type[U],
+    resolved_groups: Mapping[ProviderGroup, list[ProviderMember]],
+    *,
+    member_filter: Callable[[ProviderMember], bool] | None = None,
+    role_cls: type[T] | None,
+) -> R | T: ...
+
+
+def resolve_role[R: RoleMembershipFields, U: BaseModel, T: RoleMembershipFields](
+    role: R,
+    user_cls: type[U],
+    resolved_groups: Mapping[ProviderGroup, list[ProviderMember]],
+    *,
+    member_filter: Callable[[ProviderMember], bool] | None = None,
+    role_cls: type[T] | None = None,
+) -> R | T:
+    """Return the original or supplied role type with users resolved, leaving bots unchanged.
 
     Shared by both the sync and async resolvers - only how resolved_groups
-    gets built differs between them. Converts every member to user_cls via
-    user_cls(**member.model_dump()) and deduplicates by org_username:
-    explicit users/bots are added first and win over a memberSources-resolved
+    gets built differs between them. Projects source attributes onto user_cls
+    and validates them. Missing required nullable fields become None; users
+    rejected by the target model are skipped silently. Deduplicates by org_username:
+    valid explicit users are added first and win over a memberSources-resolved
     member sharing the same org_username, since they carry richer,
     integration-specific data.
 
-    user_cls itself is not required to declare org_username as a type-checked
-    field (it is caller-supplied and free-form), so the dedup key is read
-    back off the constructed instance defensively via getattr.
+    An optional member_filter excludes ineligible identities before conversion,
+    such as members without GitHub accounts for GitHub-only consumers.
     """
     seen: set[str] = set()
-    members: list[U] = []
+    users: list[U] = []
 
     def add(source: ProviderMember) -> None:
-        member = user_cls(**source.model_dump())
-        org_username: str | None = getattr(member, "org_username", None)
-        if org_username and org_username not in seen:
-            seen.add(org_username)
-            members.append(member)
+        org_username = source.org_username
+        if not org_username or org_username in seen:
+            return
+        if member_filter is not None and not member_filter(source):
+            return
+        values = source.model_dump()
+        projected = {
+            name: value
+            for name, value in values.items()
+            if name in user_cls.model_fields
+        }
+        for name, field in user_cls.model_fields.items():
+            if (
+                name not in projected
+                and field.is_required()
+                and type(None) in get_args(field.annotation)
+            ):
+                projected[name] = None
+        try:
+            member = user_cls.model_validate(projected, by_name=True)
+        except ValidationError:
+            return
+        seen.add(org_username)
+        users.append(member)
 
     for user in role.users or []:
         add(user)
-    for bot in role.bots or []:
-        if bot.org_username:
-            add(bot)
-
     for member_source in role.member_sources or []:
         key = (member_source.provider.name, member_source.group)
-        for provider_member in resolved_groups.get(key, []):
+        if key not in resolved_groups:
+            raise ValueError(f"Membership source group could not be resolved: {key}")
+        for provider_member in resolved_groups[key]:
             add(provider_member)
 
-    return members
+    data = role.model_dump(by_alias=True, round_trip=True)
+    data["users"] = [user.model_dump(by_alias=True, round_trip=True) for user in users]
+    return (
+        role_cls.model_validate(data)
+        if role_cls is not None
+        else role.model_validate(data)
+    )

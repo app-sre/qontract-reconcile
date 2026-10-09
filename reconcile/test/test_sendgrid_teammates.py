@@ -1,8 +1,12 @@
-from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
 
+from reconcile.gql_definitions.sendgrid_teammates.roles import (
+    RoleV1,
+    SendGridAccountV1,
+    UserV1,
+)
 from reconcile.sendgrid_teammates import (
     SendGridAPIError,
     Teammate,
@@ -10,9 +14,6 @@ from reconcile.sendgrid_teammates import (
     fetch_desired_state,
     raise_if_error,
 )
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 
 @pytest.fixture
@@ -60,17 +61,15 @@ def test_fetch_desired_state_empty() -> None:
 
 
 def test_fetch_desired_state_with_accounts() -> None:
-    users: list[Mapping[str, Any]] = [
-        {
-            "org_username": "alice",
-            "roles": [{"sendgrid_accounts": [{"name": "acct-1"}]}],
-        },
-        {
-            "org_username": "bob",
-            "roles": [{"sendgrid_accounts": [{"name": "acct-1"}]}],
-        },
+    roles = [
+        RoleV1(
+            name="team",
+            users=[UserV1(org_username="alice"), UserV1(org_username="bob")],
+            memberSources=None,
+            sendgrid_accounts=[SendGridAccountV1(name="acct-1")],
+        )
     ]
-    result = fetch_desired_state(users)
+    result = fetch_desired_state(roles)
     assert "acct-1" in result
     assert len(result["acct-1"]) == 2
     assert {t.email for t in result["acct-1"]} == {
@@ -80,8 +79,15 @@ def test_fetch_desired_state_with_accounts() -> None:
 
 
 def test_fetch_desired_state_no_roles() -> None:
-    users: list[Mapping[str, Any]] = [{"org_username": "alice", "roles": None}]
-    assert fetch_desired_state(users) == {}
+    roles = [
+        RoleV1(
+            name="team",
+            users=[UserV1(org_username="alice")],
+            memberSources=None,
+            sendgrid_accounts=None,
+        )
+    ]
+    assert fetch_desired_state(roles) == {}
 
 
 def test_raise_if_error_success() -> None:

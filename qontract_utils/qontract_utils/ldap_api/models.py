@@ -8,9 +8,11 @@ class LdapUser(BaseModel, frozen=True):
 
     Attributes:
         username: LDAP uid attribute value
+        name: LDAP cn returned by group membership searches; not fetched by get_users
     """
 
     username: str
+    name: str | None = None
 
 
 class LdapGroup(BaseModel, frozen=True):

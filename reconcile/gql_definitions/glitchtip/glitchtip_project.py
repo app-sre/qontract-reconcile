@@ -17,10 +17,31 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
+fragment RoleMembershipSource on RoleMembershipSource_V1 {
+  group
+  provider {
+    name
+    hasAuditTrail
+    source {
+      provider
+      ... on AppInterfaceMembershipProviderSource_V1 {
+        url
+        username {
+          ...VaultSecret
+        }
+        password {
+          ...VaultSecret
+        }
+      }
+    }
+  }
+}
+
 fragment VaultSecret on VaultSecret_v1 {
   url
   path
@@ -38,6 +59,10 @@ query Projects {
     teams {
       name
       roles {
+        name
+        memberSources {
+          ...RoleMembershipSource
+        }
         glitchtip_roles {
           organization {
             name
@@ -138,6 +163,8 @@ class UserV1(ConfiguredBaseModel):
 
 
 class RoleV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
     glitchtip_roles: Optional[list[GlitchtipRoleV1]] = Field(..., alias="glitchtip_roles")
     users: list[UserV1] = Field(..., alias="users")
 

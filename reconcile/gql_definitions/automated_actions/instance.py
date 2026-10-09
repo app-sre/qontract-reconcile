@@ -18,6 +18,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.oc_connection_cluster import OcConnectionCluster
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
 
 
 DEFINITION = """
@@ -55,6 +56,26 @@ fragment OcConnectionCluster on Cluster_v1 {
   }
 }
 
+fragment RoleMembershipSource on RoleMembershipSource_V1 {
+  group
+  provider {
+    name
+    hasAuditTrail
+    source {
+      provider
+      ... on AppInterfaceMembershipProviderSource_V1 {
+        url
+        username {
+          ...VaultSecret
+        }
+        password {
+          ...VaultSecret
+        }
+      }
+    }
+  }
+}
+
 fragment VaultSecret on VaultSecret_v1 {
   url
   path
@@ -79,6 +100,9 @@ query AutomatedActionsInstances {
       permissions {
         roles {
           name
+          memberSources {
+            ...RoleMembershipSource
+          }
           users {
             org_username
           }
@@ -252,6 +276,7 @@ class BotV1(ConfiguredBaseModel):
 
 class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
     users: list[UserV1] = Field(..., alias="users")
     bots: list[BotV1] = Field(..., alias="bots")
     expiration_date: Optional[str] = Field(..., alias="expirationDate")

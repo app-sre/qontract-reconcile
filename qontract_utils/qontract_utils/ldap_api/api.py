@@ -416,7 +416,7 @@ class LdapApi:
         users = self._paged_search(
             self.base_dn,
             search_filter,
-            attributes=["uid", "memberOf"],
+            attributes=["uid", "cn", "memberOf"],
         )
 
         # Map each requested DN's canonical form back to the exact string the
@@ -426,7 +426,7 @@ class LdapApi:
         # byte-for-byte, even though it's the same DN.
         requested_by_canonical = {_canonicalize_dn(dn): dn for dn in groups_dns}
 
-        groups_and_members: dict[str, set[str]] = defaultdict(set[str])
+        groups_and_members: dict[str, set[LdapUser]] = defaultdict(set[LdapUser])
         for u in users:
             if not (uid_values := u["attributes"].get("uid")):
                 # A nested group's own entry has memberOf pointing at its
@@ -435,16 +435,19 @@ class LdapApi:
                 # than crash resolution for the group's real (user) members.
                 continue
             uid = uid_values[0]
+            if not (names := u["attributes"].get("cn")):
+                raise LdapApiError(f"LDAP user {uid} has no cn attribute")
+            member = LdapUser(username=uid, name=names[0])
             for member_of in u["attributes"]["memberOf"]:
                 requested_dn = requested_by_canonical.get(_canonicalize_dn(member_of))
                 if requested_dn is not None:
-                    groups_and_members[requested_dn].add(uid)
+                    groups_and_members[requested_dn].add(member)
 
         return [
             LdapGroup(
                 cn=_get_cn_from_dn(dn),
                 dn=dn,
-                members=frozenset(LdapUser(username=uid) for uid in members),
+                members=frozenset(members),
             )
             for dn, members in groups_and_members.items()
         ]

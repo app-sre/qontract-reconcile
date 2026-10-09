@@ -538,6 +538,7 @@ class LdapGithubUsernamesResponse(pydantic.BaseModel):
 
 class LdapGroupMember(pydantic.BaseModel):
     github_username: str | None = None
+    name: str
     org_username: str
 
 

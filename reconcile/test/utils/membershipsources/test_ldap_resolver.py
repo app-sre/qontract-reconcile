@@ -74,9 +74,11 @@ async def test_resolve_calls_endpoint_and_maps_result() -> None:
                     group="team-a",
                     members=[
                         LdapGroupMember(
-                            org_username="alice", github_username="alicegh"
+                            name="alice",
+                            org_username="alice",
+                            github_username="alicegh",
                         ),
-                        LdapGroupMember(org_username="bob"),
+                        LdapGroupMember(name="bob", org_username="bob"),
                     ],
                 )
             ]
@@ -180,7 +182,7 @@ async def test_resolve_preserves_requested_group_casing() -> None:
             groups=[
                 LdapGroupResult(
                     group="team-a",  # stored spelling, different case
-                    members=[LdapGroupMember(org_username="alice")],
+                    members=[LdapGroupMember(name="alice", org_username="alice")],
                 )
             ]
         )
@@ -225,7 +227,8 @@ def test_create_ldap_membership_resolver_sync_wraps_async_resolver() -> None:
         mock_client.return_value = LdapGroupMembersResponse(
             groups=[
                 LdapGroupResult(
-                    group="team-a", members=[LdapGroupMember(org_username="alice")]
+                    group="team-a",
+                    members=[LdapGroupMember(name="alice", org_username="alice")],
                 )
             ]
         )
