@@ -32,7 +32,7 @@ dependencies = [
     "jsonpatch~=1.33",
     "jsonpath-ng==1.8.0",
     "jsonpointer==3.1.1",
-    "kubernetes==36.0.3",
+    "kubernetes==37.0.0",
     "ldap3>=2.9.1,<2.10.0",
     "networkx~=3.6",
     "prometheus-client==0.26.0",
