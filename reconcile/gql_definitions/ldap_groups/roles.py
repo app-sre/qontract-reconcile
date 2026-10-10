@@ -68,6 +68,11 @@ query LdapGroupsRolesQuery {
       membersAreOwners
     }
     users {
+      name
+      org_username
+    }
+    bots {
+      name
       org_username
     }
     memberSources {
@@ -101,7 +106,13 @@ class LdapGroupV1(ConfiguredBaseModel):
 
 
 class UserV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
     org_username: str = Field(..., alias="org_username")
+
+
+class BotV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    org_username: Optional[str] = Field(..., alias="org_username")
 
 
 class AWSUserPolicyV1(ConfiguredBaseModel):
@@ -116,6 +127,7 @@ class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     ldap_group: Optional[LdapGroupV1] = Field(..., alias="ldapGroup")
     users: list[UserV1] = Field(..., alias="users")
+    bots: list[BotV1] = Field(..., alias="bots")
     member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
     user_policies: Optional[list[AWSUserPolicyV1]] = Field(..., alias="user_policies")
     aws_groups: Optional[list[AWSGroupV1]] = Field(..., alias="aws_groups")

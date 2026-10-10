@@ -18,6 +18,7 @@ Available integrations:
 - [Glitchtip](glitchtip.md) - Manage Glitchtip organizations, teams, projects, and users across instances with LDAP group enrichment
 - [Glitchtip Project Alerts](glitchtip-project-alerts.md) - Manage Glitchtip project alert configurations across instances with email/webhook recipients and Jira integration
 - [LDAP Users](ldap-users.md) - Remove orphaned users from app-interface and infra repos when no longer in LDAP (client-orchestrated pattern)
+- [LDAP Groups](ldap-groups.md) - Reconcile Internal Groups from App-Interface roles with client-side S3 `managed_groups` state
 - [Managed SSO Client](managed-sso-client.md) - Let tenants declaratively request OIDC clients on Keycloak, reconciled via live create/update/delete against the client-registration API
 - [OCM Groups](ocm-groups.md) - Reconcile OCM cluster group memberships (dedicated-admins, cluster-admins) by diffing App-Interface roles against live OCM state
 - [OCM OIDC Identity Provider](ocm-oidc-idp.md) - Reconcile OCM OIDC identity providers for RHIDP-enabled clusters against the SSO client secrets sso-client-api writes to Vault

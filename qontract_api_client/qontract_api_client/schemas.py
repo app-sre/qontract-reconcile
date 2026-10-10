@@ -57,6 +57,19 @@ class DesiredNamespace(pydantic.BaseModel):
     name: str
 
 
+class Entity(pydantic.BaseModel):
+    id: str
+    type_: EntityType = pydantic.Field(alias="type")
+
+    model_config = pydantic.ConfigDict(populate_by_name=True)
+
+
+class EntityType(str, enum.Enum):
+    USER = "user"
+    SERVICEACCOUNT = "serviceaccount"
+    DELETEDUSER = "deleteduser"
+
+
 class EscalationPolicyUsersResponse(pydantic.BaseModel):
     users: list[PagerDutyUser]
 
@@ -487,6 +500,32 @@ class GlitchtipUser(pydantic.BaseModel):
     role: str = "member"
 
 
+class Group(pydantic.BaseModel):
+    contact_list: str = pydantic.Field(alias="contactList")
+    description: str
+    display_name: str = pydantic.Field(alias="displayName")
+    member_approval_type: str = pydantic.Field(
+        default="self-service", alias="memberApprovalType"
+    )
+    member_of: list[str] | None = pydantic.Field(default=None, alias="memberOf")
+    members: list[Entity] = []
+    name: str
+    namespace: str | None = None
+    notes: str | None = None
+    owners: list[Entity]
+    rover_group_exclusions: list[Entity] | None = pydantic.Field(
+        default=None, alias="roverGroupExclusions"
+    )
+    rover_group_inclusions: list[Entity] | None = pydantic.Field(
+        default=None, alias="roverGroupInclusions"
+    )
+    rover_group_member_query: str | None = pydantic.Field(
+        default=None, alias="roverGroupMemberQuery"
+    )
+
+    model_config = pydantic.ConfigDict(populate_by_name=True)
+
+
 class HTTPValidationError(pydantic.BaseModel):
     detail: list[ValidationError]
 
@@ -501,6 +540,16 @@ class HealthResponse(pydantic.BaseModel):
 class HealthStatus(pydantic.BaseModel):
     message: str | None = None
     status: str
+
+
+class InternalGroupsConnectionSecret(pydantic.BaseModel):
+    api_url: str
+    client_id: str
+    field: str | None = None
+    issuer_url: str
+    path: str
+    secret_manager_url: str
+    version: int | None = None
 
 
 class KeycloakInstanceRef(pydantic.BaseModel):
@@ -554,6 +603,69 @@ class LdapGroupMembersResponse(pydantic.BaseModel):
 class LdapGroupResult(pydantic.BaseModel):
     group: str
     members: list[LdapGroupMember] | None = None
+
+
+class LdapGroupsActionCreate(pydantic.BaseModel):
+    action_type: typing.Literal["create_ldap_group"] = "create_ldap_group"
+    members: list[str] | None = None
+    name: str
+    notes: str | None = None
+    owners: list[str] | None = None
+
+
+class LdapGroupsActionDelete(pydantic.BaseModel):
+    action_type: typing.Literal["delete_ldap_group"] = "delete_ldap_group"
+    name: str
+
+
+class LdapGroupsActionUpdate(pydantic.BaseModel):
+    action_type: typing.Literal["update_ldap_group"] = "update_ldap_group"
+    members: list[str] | None = None
+    name: str
+    notes: str | None = None
+    owners: list[str] | None = None
+
+
+class LdapGroupsReconcileRequest(pydantic.BaseModel):
+    connection: InternalGroupsConnectionSecret
+    desired_groups: list[Group]
+    dry_run: bool = True
+    managed_group_names: list[str] = []
+
+
+class LdapGroupsTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class LdapGroupsTaskResult(pydantic.BaseModel):
+    actions: (
+        list[
+            typing.Annotated[
+                LdapGroupsActionCreate
+                | LdapGroupsActionUpdate
+                | LdapGroupsActionDelete,
+                pydantic.Field(discriminator="action_type"),
+            ]
+        ]
+        | None
+    ) = None
+    applied_actions: (
+        list[
+            typing.Annotated[
+                LdapGroupsActionCreate
+                | LdapGroupsActionUpdate
+                | LdapGroupsActionDelete,
+                pydantic.Field(discriminator="action_type"),
+            ]
+        ]
+        | None
+    ) = None
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
+    updated_managed_groups: list[str] | None = None
 
 
 class LdapUserStatus(pydantic.BaseModel):

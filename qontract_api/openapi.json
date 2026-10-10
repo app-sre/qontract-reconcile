@@ -257,6 +257,32 @@
         "title": "DesiredNamespace",
         "type": "object"
       },
+      "Entity": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/EntityType"
+          }
+        },
+        "required": [
+          "type",
+          "id"
+        ],
+        "title": "Entity",
+        "type": "object"
+      },
+      "EntityType": {
+        "enum": [
+          "user",
+          "serviceaccount",
+          "deleteduser"
+        ],
+        "title": "EntityType",
+        "type": "string"
+      },
       "EscalationPolicyUsersResponse": {
         "description": "Response model for escalation policy users endpoint.\n\nImmutable response containing list of users in an escalation policy.\n\nAttributes:\n    users: List of users in escalation policy",
         "properties": {
@@ -2260,6 +2286,130 @@
         "title": "GlitchtipUser",
         "type": "object"
       },
+      "Group": {
+        "properties": {
+          "contactList": {
+            "title": "Contactlist",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "displayName": {
+            "title": "Displayname",
+            "type": "string"
+          },
+          "memberApprovalType": {
+            "default": "self-service",
+            "title": "Memberapprovaltype",
+            "type": "string"
+          },
+          "memberOf": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memberof"
+          },
+          "members": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Entity"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/Entity"
+            },
+            "title": "Owners",
+            "type": "array"
+          },
+          "roverGroupExclusions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rovergroupexclusions"
+          },
+          "roverGroupInclusions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rovergroupinclusions"
+          },
+          "roverGroupMemberQuery": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rovergroupmemberquery"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "contactList",
+          "owners",
+          "displayName"
+        ],
+        "title": "Group",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2333,6 +2483,69 @@
           "status"
         ],
         "title": "HealthStatus",
+        "type": "object"
+      },
+      "InternalGroupsConnectionSecret": {
+        "description": "Vault reference for Internal Groups API OAuth credentials.\n\n``read_all`` must return api_url, issuer_url, client_id, and client_secret.",
+        "properties": {
+          "api_url": {
+            "description": "Internal Groups API base URL",
+            "title": "Api Url",
+            "type": "string"
+          },
+          "client_id": {
+            "description": "OAuth client id",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Specific field within the secret",
+            "title": "Field"
+          },
+          "issuer_url": {
+            "description": "OIDC issuer URL for client-credentials token",
+            "title": "Issuer Url",
+            "type": "string"
+          },
+          "path": {
+            "description": "Path to the secret",
+            "title": "Path",
+            "type": "string"
+          },
+          "secret_manager_url": {
+            "description": "Secret Manager URL",
+            "title": "Secret Manager Url",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version of the secret",
+            "title": "Version"
+          }
+        },
+        "required": [
+          "secret_manager_url",
+          "path",
+          "api_url",
+          "issuer_url",
+          "client_id"
+        ],
+        "title": "InternalGroupsConnectionSecret",
         "type": "object"
       },
       "KeycloakInstanceRef": {
@@ -2586,6 +2799,260 @@
           "group"
         ],
         "title": "LdapGroupResult",
+        "type": "object"
+      },
+      "LdapGroupsActionCreate": {
+        "properties": {
+          "action_type": {
+            "const": "create_ldap_group",
+            "default": "create_ldap_group",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "owners": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Owners",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "LdapGroupsActionCreate",
+        "type": "object"
+      },
+      "LdapGroupsActionDelete": {
+        "properties": {
+          "action_type": {
+            "const": "delete_ldap_group",
+            "default": "delete_ldap_group",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "LdapGroupsActionDelete",
+        "type": "object"
+      },
+      "LdapGroupsActionUpdate": {
+        "properties": {
+          "action_type": {
+            "const": "update_ldap_group",
+            "default": "update_ldap_group",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "owners": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Owners",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "LdapGroupsActionUpdate",
+        "type": "object"
+      },
+      "LdapGroupsReconcileRequest": {
+        "description": "Request model for ldap-groups reconciliation.",
+        "properties": {
+          "connection": {
+            "$ref": "#/components/schemas/InternalGroupsConnectionSecret",
+            "description": "Internal Groups API connection and Vault credentials"
+          },
+          "desired_groups": {
+            "description": "Desired groups compiled from App-Interface roles",
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            },
+            "title": "Desired Groups",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "managed_group_names": {
+            "default": [],
+            "description": "Previously managed group names from client S3 state",
+            "items": {
+              "type": "string"
+            },
+            "title": "Managed Group Names",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connection",
+          "desired_groups"
+        ],
+        "title": "LdapGroupsReconcileRequest",
+        "type": "object"
+      },
+      "LdapGroupsTaskResponse": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending"
+          },
+          "status_url": {
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "LdapGroupsTaskResponse",
+        "type": "object"
+      },
+      "LdapGroupsTaskResult": {
+        "description": "Result for a completed ldap-groups reconciliation task.",
+        "properties": {
+          "actions": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create_ldap_group": "#/components/schemas/LdapGroupsActionCreate",
+                  "delete_ldap_group": "#/components/schemas/LdapGroupsActionDelete",
+                  "update_ldap_group": "#/components/schemas/LdapGroupsActionUpdate"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/LdapGroupsActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/LdapGroupsActionUpdate"
+                },
+                {
+                  "$ref": "#/components/schemas/LdapGroupsActionDelete"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create_ldap_group": "#/components/schemas/LdapGroupsActionCreate",
+                  "delete_ldap_group": "#/components/schemas/LdapGroupsActionDelete",
+                  "update_ldap_group": "#/components/schemas/LdapGroupsActionUpdate"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/LdapGroupsActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/LdapGroupsActionUpdate"
+                },
+                {
+                  "$ref": "#/components/schemas/LdapGroupsActionDelete"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          },
+          "updated_managed_groups": {
+            "description": "Managed group names after reconciliation (persist to S3 client-side)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Updated Managed Groups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "LdapGroupsTaskResult",
         "type": "object"
       },
       "LdapUserStatus": {
@@ -6918,6 +7385,99 @@
           }
         ],
         "summary": "Glitchtip Reconcile Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/ldap-groups/reconcile": {
+      "post": {
+        "operationId": "ldap-groups",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LdapGroupsReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LdapGroupsTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ldap Groups",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/ldap-groups/reconcile/{task_id}": {
+      "get": {
+        "operationId": "ldap-groups-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LdapGroupsTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ldap Groups Task Status",
         "tags": [
           "integrations"
         ]
