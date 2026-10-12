@@ -361,8 +361,23 @@ class GitLabApi:
     def get_issues(self, state: str) -> list[ProjectIssue]:
         return self.project.issues.list(state=state, get_all=True)
 
-    def get_merge_request(self, mr_id: str | int) -> ProjectMergeRequest:
+    def get_merge_request(
+        self,
+        mr_id: str | int,
+        *,
+        include_rebase_in_progress: bool = False,
+    ) -> ProjectMergeRequest:
+        if include_rebase_in_progress:
+            return self.project.mergerequests.get(
+                mr_id, include_rebase_in_progress=True
+            )
         return self.project.mergerequests.get(mr_id)
+
+    @retry()
+    def get_commit(self, project_id: int | str, sha: str) -> Any:
+        """Return the commit object for sha in project_id."""
+        project = self.gl.projects.get(project_id)
+        return project.commits.get(sha)
 
     def get_merge_requests(self, state: str) -> list[ProjectMergeRequest]:
         return self.project.mergerequests.list(state=state, get_all=True)
