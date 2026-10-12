@@ -20,7 +20,7 @@ def sre_capability_label_key(
 ) -> str:
     """
     Generates label keys compliant with the naming schema defined in
-    https://service.pages.redhat.com/dev-guidelines/docs/sre-capabilities/framework/ocm-labels/
+    https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/platform-users/platform-services/sre-capabilities/ocm-labels.md
     """
     if config_atom is None:
         return f"sre-capabilities.{sre_capability}"
