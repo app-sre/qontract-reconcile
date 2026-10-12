@@ -5,7 +5,6 @@ import sys
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
-from botocore.config import Config
 from pydantic import BaseModel
 from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 from qontract_utils.differ import diff_iterables
@@ -180,7 +179,6 @@ def fetch_desired_state(clusters: Iterable[ClusterV1]) -> list[InfrastructureGra
                     secret_access_key=credentials.aws_secret_access_key,
                     region=account.resources_default_region,
                 ),
-                config=Config(use_fips_endpoint=account.partition == "aws-us-gov"),
             ) as aws_api:
                 _require_iam_users(
                     aws_api.iam,

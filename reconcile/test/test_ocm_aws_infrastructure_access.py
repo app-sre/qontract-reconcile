@@ -19,13 +19,12 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.parametrize(
-    ("partition", "region", "use_fips"),
-    [("aws", "us-east-1", False), ("aws-us-gov", "us-gov-west-1", True)],
+    ("partition", "region"),
+    [("aws", "us-east-1"), ("aws-us-gov", "us-gov-west-1")],
 )
 def test_infrastructure_prerequisite_uses_typed_iam_client(
     partition: str,
     region: str,
-    use_fips: bool,
     gql_class_factory: Callable,
     mocker: MockerFixture,
 ) -> None:
@@ -86,7 +85,7 @@ def test_infrastructure_prerequisite_uses_typed_iam_client(
     assert constructor.call_args.args[0] == AWSStaticCredentials(
         access_key_id="test-access", secret_access_key="test-secret", region=region
     )
-    assert constructor.call_args.kwargs["config"].use_fips_endpoint is use_fips
+    assert constructor.call_args.kwargs == {}
     client.iam.list_users.assert_called_once_with()
     client._get_account_users.assert_not_called()
     reader.read_all_secret.assert_called_once_with(

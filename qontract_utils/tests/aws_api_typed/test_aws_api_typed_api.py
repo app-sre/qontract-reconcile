@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 from boto3 import Session
-from botocore.config import Config
 from pytest_mock import MockerFixture
 from qontract_utils.aws_api_typed.account import AWSApiAccount
 from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
@@ -23,31 +22,75 @@ def aws_api() -> AWSApi:
         AWSStaticCredentials(
             access_key_id="access_key_id",
             secret_access_key="secret_access_key",
-            region="region",
+            region="us-east-1",
         )
     )
 
 
-@pytest.mark.parametrize("use_fips", [True, False])
-def test_aws_api_typed_api_preserves_client_config(
-    mocker: MockerFixture, *, use_fips: bool
+@pytest.mark.parametrize(
+    ("region", "partition", "expected_fips"),
+    [
+        ("us-east-1", "aws", None),
+        ("us-gov-west-1", "aws-us-gov", True),
+        ("us-gov-east-1", "aws-us-gov", True),
+        ("cn-north-1", "aws-cn", None),
+    ],
+)
+def test_aws_api_typed_api_selects_govcloud_fips_internally(
+    mocker: MockerFixture, *, region: str, partition: str, expected_fips: bool | None
 ) -> None:
-    """Caller endpoint settings retain standard retries and client cleanup."""
+    """The shared client owns GovCloud policy without changing other partitions."""
     credentials = mocker.Mock(spec=AWSStaticCredentials)
     session = credentials.build_session.return_value
+    session.region_name = region
+    session.get_partition_for_region.return_value = partition
     client = session.client.return_value
-    with AWSApi(credentials, config=Config(use_fips_endpoint=use_fips)) as api:
+    with AWSApi(credentials) as api:
         assert api.iam.client is client
         config = session.client.call_args.kwargs["config"]
-        assert config.use_fips_endpoint is use_fips
+        assert config.use_fips_endpoint is expected_fips
         assert config.retries["mode"] == "standard"
         assert config.retries["total_max_attempts"] == 10
+    session.get_partition_for_region.assert_called_once_with(region)
     session.client.return_value.close.assert_called_once()
 
 
 def test_aws_api_typed_api_init(aws_api: AWSApi) -> None:
     assert isinstance(aws_api.session, Session)
-    assert aws_api.session.region_name == "region"
+    assert aws_api.session.region_name == "us-east-1"
+
+
+@pytest.mark.parametrize("region", ["us-gov-west-1", "us-gov-east-1"])
+@pytest.mark.parametrize("use_assume_role", [True, False])
+def test_govcloud_derived_sessions_keep_internal_fips_policy(
+    mocker: MockerFixture, *, region: str, use_assume_role: bool
+) -> None:
+    """Assumed-role and temporary sessions select FIPS without caller options."""
+    sts = mocker.patch.object(AWSApi, "sts")
+    credentials = AWSCredentials(
+        AccessKeyId="test-access",
+        SecretAccessKey="test-secret",
+        SessionToken="test-token",
+        Expiration="1",
+    )
+    sts.assume_role.return_value = credentials
+    sts.get_session_token.return_value = credentials
+    client = mocker.patch("qontract_utils.aws_api_typed.api.Session.client")
+    with AWSApi(
+        AWSStaticCredentials(
+            access_key_id="test-access", secret_access_key="test-secret", region=region
+        )
+    ) as api:
+        derived = (
+            api.assume_role("123456789012", "role")
+            if use_assume_role
+            else api.temporary_session()
+        )
+        with derived:
+            assert isinstance(derived.iam, AWSApiIam)
+            assert derived.session.region_name == region
+            assert client.call_args.kwargs["config"].use_fips_endpoint is True
+    client.return_value.close.assert_called_once()
 
 
 def test_aws_api_typed_api_context_manager(

@@ -133,15 +133,20 @@ class AWSApi:
 
     This new fully-tested and fully-typed API will replace the old one in the near future.
     Feel free to implement missing methods and AWS servcies as needed.
+
+    GovCloud sessions select FIPS endpoints centrally from the SDK partition
+    for their configured region. Other partitions retain the SDK defaults.
     """
 
-    def __init__(
-        self, aws_credentials: AWSCredentials, *, config: Config | None = None
-    ) -> None:
-        self._client_config = (
-            DEFAULT_CONFIG.merge(config) if config is not None else DEFAULT_CONFIG
-        )
+    def __init__(self, aws_credentials: AWSCredentials) -> None:
         self.session = aws_credentials.build_session()
+        self._client_config = DEFAULT_CONFIG
+        if (
+            self.session.region_name
+            and self.session.get_partition_for_region(self.session.region_name)
+            == "aws-us-gov"
+        ):
+            self._client_config = DEFAULT_CONFIG.merge(Config(use_fips_endpoint=True))
         self._session_clients: list[BaseClient] = []
 
     def __enter__(self) -> Self:
@@ -253,7 +258,6 @@ class AWSApi:
                 session_token=credentials.session_token,
                 region=self.session.region_name,
             ),
-            config=self._client_config,
         )
 
     def temporary_session(self, duration_seconds: int = 900) -> AWSApi:
@@ -273,5 +277,4 @@ class AWSApi:
                 session_token=tmp_creds.session_token,
                 region=self.session.region_name,
             ),
-            config=self._client_config,
         )
