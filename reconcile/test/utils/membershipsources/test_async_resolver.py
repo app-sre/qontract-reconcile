@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from threading import get_ident
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
@@ -23,6 +24,8 @@ from reconcile.utils.membershipsources import async_resolver
 from reconcile.utils.membershipsources.async_resolver import resolve_role_members
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_mock import MockerFixture
 
     from reconcile.gql_definitions.fragments.membership_source import (
@@ -49,6 +52,47 @@ def _ldap_settings() -> LdapSettingsV1:
             url=None,
         ),
     )
+
+
+@pytest.mark.asyncio
+async def test_lazy_ldap_settings_query_runs_off_event_loop(
+    mocker: MockerFixture,
+) -> None:
+    comparison_query = mocker.Mock()
+    event_loop_thread = get_ident()
+    lookup_threads = []
+
+    def read_settings(*, query_func: Callable) -> LdapSettingsV1:
+        assert query_func is comparison_query
+        lookup_threads.append(get_ident())
+        return _ldap_settings()
+
+    lookup = mocker.patch.object(
+        async_resolver, "get_ldap_settings", side_effect=read_settings
+    )
+    mocker.patch(
+        f"{_MOD}.ldap_group_members",
+        new_callable=AsyncMock,
+        return_value=LdapGroupMembersResponse(
+            groups=[LdapGroupResult(group="team-a", members=[])]
+        ),
+    )
+    role = build_role(
+        name="role",
+        users=["alice"],
+        member_sources=[build_ldap_membership_source("ldap", "team-a")],
+    )
+    result = await resolve_role_members(
+        [role],
+        user_cls=Member,
+        role_cls=CustomRole[Member],
+        query_func=comparison_query,
+        secret_manager_url="https://vault.example.com",
+    )
+    assert [user.org_username for user in result[0].users] == ["alice"]
+    lookup.assert_called_once_with(query_func=comparison_query)
+    assert len(lookup_threads) == 1
+    assert lookup_threads[0] != event_loop_thread
 
 
 @pytest.mark.asyncio

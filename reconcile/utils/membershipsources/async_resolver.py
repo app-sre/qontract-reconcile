@@ -132,7 +132,9 @@ async def resolve_role_members[
             role references an unsupported provider.
     """
     if ldap_settings is None and has_ldap_sources(roles):
-        ldap_settings = get_ldap_settings(query_func=query_func)
+        ldap_settings = await asyncio.to_thread(
+            get_ldap_settings, query_func=query_func
+        )
         if secret_manager_url is None:
             secret_manager_url = get_config()["vault"]["server"]
 
