@@ -30,6 +30,7 @@ from reconcile.typed_queries.saas_files import (
 )
 from reconcile.utils.jenkins_api import JobBuildState
 from reconcile.utils.jjb_client import JJB
+from reconcile.utils.oc import OC_Map
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.promotion_state import PromotionData
 from reconcile.utils.saasherder import SaasHerder
@@ -54,6 +55,7 @@ if TYPE_CHECKING:
     )
 
     from pydantic import BaseModel
+    from pytest_mock import MockerFixture
 
     from reconcile.utils.saasherder.interfaces import SaasFile as SaasFileInterface
 
@@ -88,6 +90,64 @@ class MockSecretReader(SecretReaderBase):
         self, path: str, field: str, format: str | None, version: int | None
     ) -> dict[str, str]:
         return {"param": "secret"}
+
+
+@pytest.mark.parametrize("cluster_admin", [False, True])
+def test_saas_target_token_lists_reach_oc_map(
+    cluster_admin: bool,
+    gql_class_factory: Callable[..., SaasFile],
+    mocker: MockerFixture,
+) -> None:
+    raw = Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+    raw["resourceTemplates"] = raw["resourceTemplates"][:1]
+    raw["resourceTemplates"][0]["targets"] = raw["resourceTemplates"][0]["targets"][:1]
+    raw["clusterAdmin"] = cluster_admin
+    cluster = raw["resourceTemplates"][0]["targets"][0]["namespace"]["cluster"]
+    cluster["automationToken"] = None
+    cluster["clusterAdminAutomationToken"] = None
+    for field, token_path in (
+        ("automationTokens", "tokens/regular"),
+        ("clusterAdminAutomationTokens", "tokens/admin"),
+    ):
+        cluster[field] = [
+            {
+                "name": "automation-bot",
+                "namespace": "automation",
+                "active": True,
+                "delete": False,
+                "secret": {"path": token_path, "field": "token"},
+            }
+        ]
+
+    saas_file = gql_class_factory(SaasFile, raw)
+    saasherder = SaasHerder(
+        [saas_file],
+        secret_reader=MockSecretReader(),
+        thread_pool_size=1,
+        integration="openshift-saas-deploy",
+        integration_version="1.0.0",
+        hash_length=7,
+        repo_url="https://repo-url.com",
+    )
+    secret_reader = mocker.patch("reconcile.utils.oc.SecretReader").return_value
+    secret_reader.read_all.return_value = {
+        "server": cluster["serverUrl"],
+        "token": "test-token",
+    }
+    oc_factory = mocker.patch("reconcile.utils.oc.OC")
+
+    oc_map = OC_Map(
+        namespaces=[ns.model_dump(by_alias=True) for ns in saasherder.namespaces],
+        cluster_admin=bool(saasherder.cluster_admin),
+    )
+
+    assert oc_map.get_cluster(cluster["name"], cluster_admin) is oc_factory.return_value
+    expected_paths = ["tokens/regular"]
+    if cluster_admin:
+        expected_paths.append("tokens/admin")
+    assert [
+        call.args[0]["path"] for call in secret_reader.read_all.call_args_list
+    ] == expected_paths
 
 
 @pytest.fixture()
