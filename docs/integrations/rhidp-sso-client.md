@@ -217,7 +217,7 @@ The integration can perform these reconciliation actions:
 
 **Other Constraints:**
 
-- The Vault secret schema written for a created SSO client must stay **byte-compatible** with legacy `reconcile/utils/keycloak.py::SSOClient`, since the not-yet-migrated `ocm_oidc_idp` integration reads it directly via `SSOClient(**secret_reader.read_all_secret(secret))`
+- The Vault secret schema written for a created SSO client must stay **byte-compatible** with `qontract_api.rhidp.domain.SsoClientSecret`, which the `ocm_oidc_idp` integration also reads directly via `SsoClientSecret(**self.secret_manager.read_all(secret))`
 - Vault delete only supports KV v1 mounts (inherited from `qontract_utils`'s `VaultSecretBackend.delete()`)
 - **`KeycloakInstanceSecret.url` must be the full per-realm issuer URL** (e.g. `https://auth.redhat.com/auth/realms/EmployeeIDP`), not just the Keycloak server domain. It's used both as the HTTP client's base URL for the (realm-scoped) dynamic client registration API, and as an exact-string dict key matched against `cluster.auth.issuer` — a bare domain will misroute requests and fail lookups.
 
@@ -225,7 +225,7 @@ The integration can perform these reconciliation actions:
 
 **Vault Secrets:**
 
-- One IAT secret per Keycloak instance, referenced via `keycloak_secrets[].secret` — shape `{"current_iat": {"id": ..., "token": ...}, "previous_iat": ...}`. Only `current_iat.token` (a JWT) is used; `previous_iat` (used during token rotation) is not yet consumed. This secret commonly lives in a **different Vault instance** than everything else.
+- One IAT secret per Keycloak instance, referenced via `keycloak_secrets[].secret`. Accepts either of Vault's two coexisting IAT shapes (see `qontract_api.keycloak_iat.resolve_initial_access_token`, shared with `managed-sso-client`): IT's rotation format `{"current_iat": {"id": ..., "token": ...}, "previous_iat": ...}` (only `current_iat.token`, a JWT, is used; `previous_iat` is not yet consumed), or a plain secret with the token as the value of `keycloak_secrets[].secret.field`. This secret commonly lives in a **different Vault instance** than everything else.
 - SSO client secrets storage path (`vault_target`, **KV v1 only**): stores `client_id`, `client_name`, `client_secret`, `redirect_uris`, `registration_access_token`, `registration_client_uri`, `issuer`, `attributes`
 
 **External APIs:**

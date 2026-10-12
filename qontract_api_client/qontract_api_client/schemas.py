@@ -8,6 +8,12 @@ import pydantic
 from clientele.schemas import ListResponse  # noqa
 
 
+class AccessType(str, enum.Enum):
+    CONFIDENTIAL = "confidential"
+    PUBLIC = "public"
+    BEARER_ONLY = "bearer-only"
+
+
 class ChatRequest(pydantic.BaseModel):
     channel: str | None = None
     icon_emoji: str | None = None
@@ -137,6 +143,10 @@ class GithubOrgDesiredState(pydantic.BaseModel):
     token: Secret
 
 
+class GithubOrgMembersResponse(pydantic.BaseModel):
+    members: list[str]
+
+
 class GithubOwnerActionAddOwner(pydantic.BaseModel):
     action_type: typing.Literal["add_owner"] = "add_owner"
     org_name: str
@@ -167,6 +177,45 @@ class GithubOwnersTaskResult(pydantic.BaseModel):
             pydantic.Field(discriminator="action_type"),
         ]
     ] = []
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
+
+
+class GitlabGroupConfig(pydantic.BaseModel):
+    group: str
+    projects: list[str] | None = None
+
+
+class GitlabInstanceConfig(pydantic.BaseModel):
+    groups: list[GitlabGroupConfig] | None = None
+    name: str
+    ssl_verify: bool = True
+    token: Secret
+    url: str
+
+
+class GitlabProjectActionCreate(pydantic.BaseModel):
+    action_type: typing.Literal["create"] = "create"
+    group: str
+    instance: str
+    project_name: str
+
+
+class GitlabProjectsReconcileRequest(pydantic.BaseModel):
+    dry_run: bool = True
+    instances: list[GitlabInstanceConfig]
+
+
+class GitlabProjectsTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class GitlabProjectsTaskResult(pydantic.BaseModel):
+    actions: list[GitlabProjectActionCreate] | None = None
+    applied_actions: list[GitlabProjectActionCreate] | None = None
     applied_count: int = 0
     errors: list[str] = []
     status: TaskStatus
@@ -454,6 +503,11 @@ class HealthStatus(pydantic.BaseModel):
     status: str
 
 
+class KeycloakInstanceRef(pydantic.BaseModel):
+    initial_access_token: Secret
+    url: str
+
+
 class KeycloakInstanceSecret(pydantic.BaseModel):
     secret: Secret
     url: str
@@ -468,6 +522,40 @@ class LdapDirectSecret(pydantic.BaseModel):
     version: int | None = None
 
 
+class LdapGithubUser(pydantic.BaseModel):
+    github_username: str
+    org_username: str
+
+
+class LdapGithubUsernamesRequest(pydantic.BaseModel):
+    logins: list[str]
+    secret: LdapDirectSecret
+
+
+class LdapGithubUsernamesResponse(pydantic.BaseModel):
+    users: list[LdapGithubUser]
+
+
+class LdapGroupMember(pydantic.BaseModel):
+    github_username: str | None = None
+    org_username: str
+
+
+class LdapGroupMembersRequest(pydantic.BaseModel):
+    groups: list[str]
+    include_github_usernames: bool = True
+    secret: LdapDirectSecret
+
+
+class LdapGroupMembersResponse(pydantic.BaseModel):
+    groups: list[LdapGroupResult]
+
+
+class LdapGroupResult(pydantic.BaseModel):
+    group: str
+    members: list[LdapGroupMember] | None = None
+
+
 class LdapUserStatus(pydantic.BaseModel):
     exists: bool
     username: str
@@ -480,6 +568,71 @@ class LdapUsersCheckRequest(pydantic.BaseModel):
 
 class LdapUsersCheckResponse(pydantic.BaseModel):
     users: list[LdapUserStatus]
+
+
+class ManagedSsoClientActionCreate(pydantic.BaseModel):
+    action_type: typing.Literal["create"] = "create"
+    client_id: str
+    tenant_secret_path: str
+
+
+class ManagedSsoClientActionDelete(pydantic.BaseModel):
+    action_type: typing.Literal["delete"] = "delete"
+    client_id: str
+
+
+class ManagedSsoClientActionMoveTenantSecret(pydantic.BaseModel):
+    action_type: typing.Literal["move_tenant_secret"] = "move_tenant_secret"
+    client_id: str
+    tenant_secret_path: str
+
+
+class ManagedSsoClientActionUpdate(pydantic.BaseModel):
+    action_type: typing.Literal["update"] = "update"
+    client_id: str
+
+
+class ManagedSsoClientDesiredState(pydantic.BaseModel):
+    client_id: str
+    enabled: bool = True
+    keycloak_instance: KeycloakInstanceRef
+    oidc: OidcDesiredState | None | None = None
+    output: Secret | None | None = None
+
+
+class ManagedSsoClientReconcileRequest(pydantic.BaseModel):
+    desired_clients: list[ManagedSsoClientDesiredState]
+    dry_run: bool = True
+
+
+class ManagedSsoClientTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class ManagedSsoClientTaskResult(pydantic.BaseModel):
+    actions: list[
+        typing.Annotated[
+            ManagedSsoClientActionCreate
+            | ManagedSsoClientActionUpdate
+            | ManagedSsoClientActionMoveTenantSecret
+            | ManagedSsoClientActionDelete,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_actions: list[
+        typing.Annotated[
+            ManagedSsoClientActionCreate
+            | ManagedSsoClientActionUpdate
+            | ManagedSsoClientActionMoveTenantSecret
+            | ManagedSsoClientActionDelete,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
 
 
 class NotificationAddUser(pydantic.BaseModel):
@@ -638,6 +791,19 @@ class OcmOidcIdpTaskResult(pydantic.BaseModel):
     status: TaskStatus
 
 
+class OidcDesiredState(pydantic.BaseModel):
+    access_type: AccessType | None | None = None
+    consent_required: bool | None = None
+    default_client_scopes: list[str] | None = None
+    direct_access_grants_enabled: bool | None = None
+    full_scope_allowed: bool | None = None
+    optional_client_scopes: list[str] | None = None
+    post_logout_redirect_uris: list[str] | None = None
+    redirect_uris: list[str]
+    service_accounts_enabled: bool | None = None
+    web_origins: list[str] | None = None
+
+
 class OpenShiftNamespacesReconcileRequest(pydantic.BaseModel):
     clusters: list[ClusterNamespaces]
     dry_run: bool = True
@@ -679,6 +845,17 @@ class QuayOrgConfig(pydantic.BaseModel):
     mirror: QuayOrgKey | None | None = None
     org_name: str
     repos: list[QuayRepoConfig] | None = None
+
+
+class QuayOrgDesiredState(pydantic.BaseModel):
+    instance_name: str
+    instance_url: str
+    managed_repos: bool = False
+    managed_robot_accounts: bool = False
+    managed_teams: list[str] | None = None
+    org_name: str
+    robots: list[QuayRobotDesiredState] | None = None
+    token: Secret
 
 
 class QuayOrgKey(pydantic.BaseModel):
@@ -724,6 +901,12 @@ class QuayRepoConfig(pydantic.BaseModel):
     public: bool
 
 
+class QuayRepoPermission(str, enum.Enum):
+    READ = "read"
+    WRITE = "write"
+    ADMIN = "admin"
+
+
 class QuayReposReconcileRequest(pydantic.BaseModel):
     dry_run: bool = True
     orgs: list[QuayOrgConfig]
@@ -757,6 +940,106 @@ class QuayReposTaskResult(pydantic.BaseModel):
     applied_count: int = 0
     errors: list[str] = []
     status: TaskStatus
+
+
+class QuayRobotAccountsReconcileRequest(pydantic.BaseModel):
+    dry_run: bool = True
+    organizations: list[QuayOrgDesiredState]
+
+
+class QuayRobotAccountsTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class QuayRobotAccountsTaskResult(pydantic.BaseModel):
+    actions: list[
+        typing.Annotated[
+            QuayRobotActionCreate
+            | QuayRobotActionDelete
+            | QuayRobotActionAddTeam
+            | QuayRobotActionRemoveTeam
+            | QuayRobotActionSetRepoPermission
+            | QuayRobotActionRemoveRepoPermission,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_actions: list[
+        typing.Annotated[
+            QuayRobotActionCreate
+            | QuayRobotActionDelete
+            | QuayRobotActionAddTeam
+            | QuayRobotActionRemoveTeam
+            | QuayRobotActionSetRepoPermission
+            | QuayRobotActionRemoveRepoPermission,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
+
+
+class QuayRobotActionAddTeam(pydantic.BaseModel):
+    action_type: typing.Literal["add_team"] = "add_team"
+    instance_name: str
+    org_name: str
+    robot_name: str
+    team: str
+
+
+class QuayRobotActionCreate(pydantic.BaseModel):
+    action_type: typing.Literal["create"] = "create"
+    description: str | None = None
+    instance_name: str
+    org_name: str
+    robot_name: str
+
+
+class QuayRobotActionDelete(pydantic.BaseModel):
+    action_type: typing.Literal["delete"] = "delete"
+    instance_name: str
+    org_name: str
+    robot_name: str
+
+
+class QuayRobotActionRemoveRepoPermission(pydantic.BaseModel):
+    action_type: typing.Literal["remove_repo_permission"] = "remove_repo_permission"
+    instance_name: str
+    org_name: str
+    repo: str
+    robot_name: str
+
+
+class QuayRobotActionRemoveTeam(pydantic.BaseModel):
+    action_type: typing.Literal["remove_team"] = "remove_team"
+    instance_name: str
+    org_name: str
+    robot_name: str
+    team: str
+
+
+class QuayRobotActionSetRepoPermission(pydantic.BaseModel):
+    action_type: typing.Literal["set_repo_permission"] = "set_repo_permission"
+    instance_name: str
+    org_name: str
+    permission: str
+    repo: str
+    robot_name: str
+
+
+class QuayRobotDesiredState(pydantic.BaseModel):
+    delete: bool = False
+    description: str | None = None
+    name: str
+    repositories: list[QuayRobotRepository] | None = None
+    teams: list[str] | None = None
+
+
+class QuayRobotRepository(pydantic.BaseModel):
+    name: str
+    permission: QuayRepoPermission
 
 
 class RecipientType(str, enum.Enum):
@@ -890,21 +1173,6 @@ class SsoClientCluster(pydantic.BaseModel):
     name: str
     organization_id: str
     rhidp_enabled: bool
-
-
-class SsoClientCreateManualRequest(pydantic.BaseModel):
-    client_name: str
-    group_filter_regex: str | None = None
-    keycloak_instance: KeycloakInstanceSecret
-    redirect_uris: list[str]
-
-
-class SsoClientCreateManualResult(pydantic.BaseModel):
-    actions: list[str] = []
-    applied_count: int = 0
-    errors: list[str] = []
-    status: TaskStatus
-    vault_secret_path: str | None = None
 
 
 class SsoClientReconcileRequest(pydantic.BaseModel):

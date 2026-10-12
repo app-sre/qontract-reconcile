@@ -71,7 +71,11 @@ def existing_repo_output(tf_variables: TerraformRepoVariablesV1) -> OutputFile:
                 project_path="tf",
                 delete=False,
                 aws_creds=VaultSecret(
-                    path=AUTOMATION_TOKEN_PATH, version=1, field="all", format=None
+                    path=AUTOMATION_TOKEN_PATH,
+                    version=1,
+                    field="all",
+                    format=None,
+                    url=None,
                 ),
                 bucket=STATE_BUCKET,
                 region=STATE_REGION,
@@ -113,7 +117,11 @@ def new_repo_output() -> OutputFile:
                 project_path="tf",
                 delete=False,
                 aws_creds=VaultSecret(
-                    path=AUTOMATION_TOKEN_PATH, version=1, field="all", format=None
+                    path=AUTOMATION_TOKEN_PATH,
+                    version=1,
+                    field="all",
+                    format=None,
+                    url=None,
                 ),
                 bucket=None,
                 region=None,
@@ -128,17 +136,27 @@ def new_repo_output() -> OutputFile:
 
 @pytest.fixture()
 def automation_token() -> VaultSecret:
-    return VaultSecret(path=AUTOMATION_TOKEN_PATH, version=1, field="all", format=None)
+    return VaultSecret(
+        path=AUTOMATION_TOKEN_PATH, version=1, field="all", format=None, url=None
+    )
 
 
 @pytest.fixture()
 def tf_variables() -> TerraformRepoVariablesV1:
     return TerraformRepoVariablesV1(
         inputs=VaultSecret(
-            path="terraform-repo/inputs/abc", field="all", version=2, format=None
+            path="terraform-repo/inputs/abc",
+            field="all",
+            version=2,
+            format=None,
+            url=None,
         ),
         outputs=VaultSecret(
-            path="terraform-repo/outputs/abc", field="all", version=2, format=None
+            path="terraform-repo/outputs/abc",
+            field="all",
+            version=2,
+            format=None,
+            url=None,
         ),
     )
 
@@ -358,6 +376,7 @@ def test_get_repo_state(
                         "field": "all",
                         "version": 1,
                         "format": None,
+                        "url": None,
                     },
                     "terraformState": {
                         "provider": "s3",

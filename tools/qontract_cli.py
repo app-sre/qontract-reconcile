@@ -20,7 +20,6 @@ from pathlib import Path
 from statistics import median
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import urlparse
 
 import boto3
 import click
@@ -144,10 +143,6 @@ from reconcile.utils.gitlab_api import (
 )
 from reconcile.utils.glitchtip.client import GlitchtipClient
 from reconcile.utils.gql import GqlApiSingleton
-from reconcile.utils.keycloak import (
-    KeycloakAPI,
-    SSOClient,
-)
 from reconcile.utils.mr.labels import (
     AVS,
     HOLD,
@@ -158,6 +153,10 @@ from reconcile.utils.mr.labels import (
 from reconcile.utils.oc import (
     OC_Map,
     OCLogMsg,
+    find_active_list_token_dict,
+)
+from reconcile.utils.oc_connection_parameters import (
+    resolve_automation_token,
 )
 from reconcile.utils.oc_map import (
     init_oc_map_from_clusters,
@@ -1432,10 +1431,18 @@ def bot_login(ctx: click.Context, cluster_name: str, cluster_admin: bool) -> Non
 
     cluster = clusters[0]
     server = cluster["serverUrl"]
-    automation_token_name = (
-        "clusterAdminAutomationToken" if cluster_admin else "automationToken"
-    )
-    token = secret_reader.read(cluster[automation_token_name])
+    if cluster_admin:
+        token_secret = find_active_list_token_dict(
+            cluster.get("clusterAdminAutomationTokens")
+        ) or cluster.get("clusterAdminAutomationToken")
+    else:
+        token_secret = find_active_list_token_dict(
+            cluster.get("automationTokens")
+        ) or cluster.get("automationToken")
+    if token_secret is None:
+        print(f"{cluster_name} has no automation token set.")
+        sys.exit(1)
+    token = secret_reader.read(token_secret)
     print(f"oc login --server {server} --token {token}")
 
 
@@ -2338,13 +2345,14 @@ def sre_checkpoints(ctx: click.Context) -> None:
 @get.command()
 @click.pass_context
 def app_interface_merge_queue(ctx: click.Context) -> None:
-    import reconcile.gitlab_housekeeping as glhk
+    from reconcile.gitlab_housekeeping.integration import QONTRACT_INTEGRATION
+    from reconcile.gitlab_housekeeping.queue import get_merge_requests
 
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
-    state = init_state(integration=glhk.QONTRACT_INTEGRATION)
-    merge_requests = glhk.get_merge_requests(True, gl, state=state)
+    state = init_state(integration=QONTRACT_INTEGRATION)
+    merge_requests = get_merge_requests(True, gl, state=state)
 
     columns = [
         "id",
@@ -2382,7 +2390,11 @@ def app_interface_merge_queue(ctx: click.Context) -> None:
 @get.command()
 @click.pass_context
 def app_interface_review_queue(ctx: click.Context) -> None:
-    import reconcile.gitlab_housekeeping as glhk
+    from reconcile.gitlab_housekeeping.labels import (
+        ERROR_LABELS,
+        HOLD_LABELS,
+        is_good_to_merge,
+    )
 
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
@@ -2420,8 +2432,8 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 continue
 
             labels = mr.attributes.get("labels") or []
-            good_to_merge = glhk.is_good_to_merge(labels)
-            has_error_label = any(l in glhk.ERROR_LABELS for l in labels)
+            good_to_merge = is_good_to_merge(labels)
+            has_error_label = any(l in ERROR_LABELS for l in labels)
             if good_to_merge and not has_error_label:
                 continue
             if "stale" in labels:
@@ -2465,7 +2477,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 continue
 
             is_last_action_by_app_sre = gl.is_last_action_by_team(
-                mr, app_sre_team_members, glhk.HOLD_LABELS
+                mr, app_sre_team_members, HOLD_LABELS
             )
 
             if is_last_action_by_app_sre and not (good_to_merge and has_error_label):
@@ -2499,8 +2511,16 @@ def app_interface_review_queue(ctx: click.Context) -> None:
     ctx.obj["options"]["sort"] = False  # do not sort
     text = print_output(ctx.obj["options"], queue_data, columns)
     if text:
-        slack = slackapi_from_queries("app-interface-review-queue")
-        slack.chat_post_message("```\n" + text + "\n```")
+        # Slack notification is best effort; the queue output remains authoritative.
+        try:
+            slack = slackapi_from_queries(
+                "app-interface-review-queue", init_usergroups=False
+            )
+            slack.chat_post_message("```\n" + text + "\n```")
+        except Exception as error:
+            logging.warning(
+                "Unable to send app-interface review queue to Slack: %s", error
+            )
 
 
 @get.command()
@@ -3166,10 +3186,13 @@ def logs(ctx: click.Context, integration_name: str, environment_name: str) -> No
         return
     namespace = namespaces[0]
     cluster = namespaces[0].cluster
-    if not cluster.automation_token:
+    automation_token = resolve_automation_token(
+        cluster.automation_tokens, cluster.automation_token
+    )
+    if not automation_token:
         print("cluster automation token not found")
         return
-    token = secret_reader.read_secret(cluster.automation_token)
+    token = secret_reader.read_secret(automation_token)
 
     command = f"oc --server {cluster.server_url} --token {token} --namespace {namespace.name} logs -c int -l app=qontract-reconcile-{integration.name}"
     print(command)
@@ -4296,155 +4319,6 @@ def test_change_type(
 
     # tester.test_change_type(change_type_name, datafile_path)
     tester.test_change_type_in_context(change_type_name, role_name, app_interface_path)
-
-
-@root.group()
-@click.pass_context
-def sso_client(ctx: click.Context) -> None:
-    """SSO client commands"""
-
-
-# Red Hat SSO (Keycloak) realms usable with `sso-client create`. The Initial
-# Access Token for each lives in vault.corp.redhat.com - qontract-api already
-# holds AppRole credentials for it and reads it server-side, so the CLI never
-# needs direct vault.corp access. Keep in sync with the `--keycloak-instances`
-# extraArgs in data/integrations/qontract-reconcile-rhidp-sso-client.yml.
-RHIDP_KEYCLOAK_INSTANCES = {
-    "prod": {
-        "url": "https://auth.redhat.com/auth/realms/EmployeeIDP",
-        "secret_manager_url": "https://vault.corp.redhat.com:8200",
-        "path": "apps/sso-iat/share-with/app/ai-app-sre/iat",
-    },
-    "stage": {
-        "url": "https://auth.stage.redhat.com/auth/realms/EmployeeIDP",
-        "secret_manager_url": "https://vault.corp.redhat.com:8200",
-        "path": "apps/sso-iat/share-with/app/ai-app-sre/iat-stage",
-    },
-}
-
-
-@sso_client.command()
-@click.option(
-    "--client-name",
-    help="The name of the SSO client",
-    required=True,
-    prompt=True,
-)
-@click.option(
-    "--environment",
-    type=click.Choice(sorted(RHIDP_KEYCLOAK_INSTANCES)),
-    default="prod",
-    show_default=True,
-    help="Red Hat SSO (Keycloak) environment to register the client with",
-)
-@click.option(
-    "--redirect-uri",
-    help="Specify an allowed redirect URL. Can be specified multiple times",
-    multiple=True,
-    required=True,
-    prompt=True,
-)
-@click.option(
-    "--group-filter-regex",
-    help="Optional group filter regex for the SSO client",
-    default=None,
-)
-@click.option(
-    "--timeout",
-    help="Seconds to wait for qontract-api to finish creating the client",
-    default=60,
-    show_default=True,
-)
-@click.pass_context
-def create(
-    ctx: click.Context,
-    client_name: str,
-    environment: str,
-    redirect_uri: tuple[str],
-    group_filter_regex: str | None,
-    timeout: int,
-) -> None:
-    """Create a new SSO client via qontract-api.
-
-    qontract-api registers the client with Keycloak and stores its secret in
-    Vault server-side - unlike the old flow, there is nothing left to save
-    manually.
-    """
-    api_config = config.get_config().get("qontract-api", {})
-    server = api_config.get("server")
-    token = api_config.get("token")
-    if not server or not token:
-        click.secho(
-            "Missing [qontract-api] server/token in the --config TOML.",
-            fg="red",
-        )
-        sys.exit(1)
-
-    keycloak_instance = RHIDP_KEYCLOAK_INSTANCES[environment]
-    with requests.Session() as session:
-        session.auth = BearerTokenAuth(token)
-
-        create_response = session.post(
-            f"{server}/api/v1/integrations/sso-client/manual",
-            json={
-                "client_name": client_name,
-                "redirect_uris": list(redirect_uri),
-                "group_filter_regex": group_filter_regex,
-                "keycloak_instance": {
-                    "url": keycloak_instance["url"],
-                    "secret": {
-                        "secret_manager_url": keycloak_instance["secret_manager_url"],
-                        "path": keycloak_instance["path"],
-                    },
-                },
-            },
-            timeout=30,
-        )
-        create_response.raise_for_status()
-        status_path = urlparse(create_response.json()["status_url"]).path
-
-        result_response = session.get(
-            f"{server}{status_path}",
-            params={"timeout": timeout},
-            timeout=timeout + 10,
-        )
-    result_response.raise_for_status()
-    result = result_response.json()
-
-    if result["status"] != "success":
-        click.secho(
-            f"Failed to create SSO client: {'; '.join(result.get('errors', []))}",
-            fg="red",
-        )
-        sys.exit(1)
-
-    click.secho(
-        f"SSO client created successfully. Secret stored in Vault at: {result['vault_secret_path']}",
-        fg="green",
-    )
-
-
-@sso_client.command()
-@click.argument("sso-client-vault-secret-path", required=True)
-@click.pass_context
-def remove(ctx: click.Context, sso_client_vault_secret_path: str) -> None:
-    """Remove an existing SSO client"""
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-
-    sso_client = SSOClient(
-        **secret_reader.read_all({"path": sso_client_vault_secret_path})
-    )
-    keycloak_api = KeycloakAPI()
-    keycloak_api.delete_client(
-        registration_client_uri=sso_client.registration_client_uri,
-        registration_access_token=sso_client.registration_access_token,
-    )
-    click.secho(
-        "SSO client removed successfully. Please remove the secret from Vault!",
-        bg="red",
-        fg="white",
-    )
 
 
 @root.group()

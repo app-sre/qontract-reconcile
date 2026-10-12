@@ -22,6 +22,7 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 DEFINITION = """
 fragment VaultSecret on VaultSecret_v1 {
+  url
   path
   field
   version

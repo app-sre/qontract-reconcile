@@ -31,6 +31,18 @@ query DatabaseAccessManager {
         version
         format
       }
+      automationTokens {
+        name
+        namespace
+        active
+        delete
+        secret {
+          path
+          field
+          version
+          format
+        }
+      }
       internal
     }
     externalResources {
@@ -80,10 +92,26 @@ class VaultSecretV1(ConfiguredBaseModel):
     q_format: Optional[str] = Field(..., alias="format")
 
 
+class AutomationTokenEntryV1_VaultSecretV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
+    field: str = Field(..., alias="field")
+    version: Optional[int] = Field(..., alias="version")
+    q_format: Optional[str] = Field(..., alias="format")
+
+
+class AutomationTokenEntryV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    namespace: str = Field(..., alias="namespace")
+    active: Optional[bool] = Field(..., alias="active")
+    delete: Optional[bool] = Field(..., alias="delete")
+    secret: Optional[AutomationTokenEntryV1_VaultSecretV1] = Field(..., alias="secret")
+
+
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     server_url: str = Field(..., alias="serverUrl")
     automation_token: Optional[VaultSecretV1] = Field(..., alias="automationToken")
+    automation_tokens: Optional[list[AutomationTokenEntryV1]] = Field(..., alias="automationTokens")
     internal: Optional[bool] = Field(..., alias="internal")
 
 

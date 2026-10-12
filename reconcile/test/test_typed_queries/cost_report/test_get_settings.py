@@ -50,6 +50,7 @@ def test_get_cost_report_settings(
             field="all",
             version=None,
             format=None,
+            url=None,
         )
     )
 

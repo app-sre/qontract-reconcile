@@ -187,7 +187,7 @@ class QuayReposIntegration(QontractReconcileApiIntegration[QuayReposIntegrationP
         desired_orgs = self.compile_desired_state(orgs=orgs, apps=apps)
 
         if not desired_orgs:
-            logging.warning("No desired state found, nothing to reconcile")
+            logging.debug("No desired state found, nothing to reconcile")
             return
 
         task = await self.reconcile(orgs=desired_orgs, dry_run=dry_run)

@@ -7,6 +7,15 @@ query AwsExporterCluster {
     automationToken {
       ...VaultSecret
     }
+    automationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        ...VaultSecret
+      }
+    }
     disable {
       integrations
     }

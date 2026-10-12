@@ -23,9 +23,23 @@ query SlackUsergroupApiPermission {
         scheduleID
         escalationPolicyID
       }
+      github {
+        name
+        token {
+          ...VaultSecret
+        }
+      }
       roles {
+        name
         users {
           ...User
+        }
+        bots {
+          name
+          org_username
+        }
+        memberSources {
+          ...RoleMembershipSource
         }
       }
       schedule {

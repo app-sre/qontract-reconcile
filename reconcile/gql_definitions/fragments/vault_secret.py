@@ -25,6 +25,7 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class VaultSecret(ConfiguredBaseModel):
+    url: Optional[str] = Field(..., alias="url")
     path: str = Field(..., alias="path")
     field: str = Field(..., alias="field")
     version: Optional[int] = Field(..., alias="version")

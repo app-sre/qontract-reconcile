@@ -4,6 +4,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -42,6 +43,19 @@ class HasSecret(Protocol):
     field: str
     version: int | None
     q_format: str | None
+
+
+@dataclass
+class VaultSecretRef:
+    """Concrete HasSecret implementation for call sites that build a secret
+    reference from raw data (dicts, env vars, ...) rather than a generated
+    GraphQL model. reconcile/utils must not depend on reconcile.gql_definitions.
+    """
+
+    path: str
+    field: str
+    version: int | None = None
+    q_format: str | None = None
 
 
 class SecretReaderBase(ABC):

@@ -26,7 +26,7 @@ def ocm_env() -> OCMEnvironment:
         accessTokenUrl="https://sso/token",
         accessTokenClientId="client-id",
         accessTokenClientSecret=VaultSecret(
-            field="client-secret", path="path", format=None, version=None
+            field="client-secret", path="path", format=None, version=None, url=None
         ),
     )
 

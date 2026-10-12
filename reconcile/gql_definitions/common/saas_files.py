@@ -80,6 +80,15 @@ fragment SLODocument on SLODocument_v1 {
         automationToken {
           ...VaultSecret
         }
+        automationTokens {
+          name
+          namespace
+          active
+          delete
+          secret {
+            ...VaultSecret
+          }
+        }
         prometheusUrl
         spec {
           private
@@ -143,11 +152,30 @@ fragment SaasTargetNamespace on Namespace_v1 {
     internal
     insecureSkipTLSVerify
     labels
+    # SaaS deployments pass this cluster to OC_Map through SaasHerder.
     automationToken {
       ...VaultSecret
     }
+    automationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        ...VaultSecret
+      }
+    }
     clusterAdminAutomationToken {
       ...VaultSecret
+    }
+    clusterAdminAutomationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        ...VaultSecret
+      }
     }
     disable {
       integrations
@@ -165,6 +193,7 @@ fragment SaasTargetNamespace on Namespace_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
+  url
   path
   field
   version

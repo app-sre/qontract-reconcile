@@ -9,6 +9,7 @@ from reconcile.change_owners.approver import (
 )
 from reconcile.change_owners.self_service_roles import (
     CHANGE_OWNERS_LABELS_LABEL,
+    ApproverUser,
     DatafileIncompatibleWithChangeTypeError,
     NoApproversInSelfServiceRoleError,
     approver_reachability_from_role,
@@ -28,11 +29,6 @@ from reconcile.test.change_owners.fixtures import (
     build_change_type,
     build_role,
     build_test_datafile,
-)
-from reconcile.utils.membershipsources.models import (
-    RoleBot,
-    RoleMember,
-    RoleUser,
 )
 
 #
@@ -252,22 +248,22 @@ def test_self_service_role_empty_change_owner_labels() -> None:
     "member,approver",
     [
         (
-            RoleUser(name="user", org_username="user", tag_on_merge_requests=True),
+            ApproverUser(org_username="user", tag_on_merge_requests=True),
             Approver("user", True),
         ),
         (
-            RoleUser(name="user", org_username="user", tag_on_merge_requests=False),
+            ApproverUser(org_username="user", tag_on_merge_requests=False),
             Approver("user", False),
         ),
         (
-            RoleBot(name="bot", org_username="bot"),
+            ApproverUser(org_username="bot"),
             Approver("bot", False),
         ),
         (
-            RoleBot(name="bot", org_username=None),
+            ApproverUser(org_username=""),
             None,
         ),
     ],
 )
-def test_build_approver(member: RoleMember, approver: Approver | None) -> None:
+def test_build_approver(member: ApproverUser, approver: Approver | None) -> None:
     assert build_approver(member) == approver

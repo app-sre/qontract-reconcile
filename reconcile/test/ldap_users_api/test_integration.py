@@ -147,7 +147,7 @@ def _make_vcs(name: str, url: str) -> Vcs:
         name=name,
         url=url,
         token=VaultSecret(
-            path="secret/vcs/token", field="token", version=1, format=None
+            path="secret/vcs/token", field="token", version=1, format=None, url=None
         ),
         provider=Provider.GITLAB,
     )
@@ -210,7 +210,7 @@ def _ldap_settings() -> MagicMock:
     settings.server_url = "ldap://freeipa.example.com"
     settings.base_dn = "dc=example,dc=com"
     settings.credentials = VaultSecret(
-        path="secret/ldap", field="all", version=1, format=None
+        path="secret/ldap", field="all", version=1, format=None, url=None
     )
     return settings
 

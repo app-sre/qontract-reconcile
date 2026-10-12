@@ -14,6 +14,7 @@ from reconcile.utils.oc_connection_parameters import (
     OCConnectionError,
     OCConnectionParameters,
     get_oc_connection_parameters_from_namespaces,
+    resolve_automation_token,
 )
 from reconcile.utils.secret_reader import (
     SecretNotFoundError,
@@ -167,6 +168,70 @@ def test_from_cluster_admin_prefers_list_token() -> None:
 
     assert params.cluster_admin_automation_token == "tok"
     secret_reader.read_all_secret.assert_called_once_with(_ACTIVE_SECRET)
+
+
+def test_resolve_automation_token_prefers_active_list_entry() -> None:
+    assert (
+        resolve_automation_token(
+            [_FakeTokenEntry(active=True, secret=_ACTIVE_SECRET)],
+            _FALLBACK_SECRET,
+        )
+        == _ACTIVE_SECRET
+    )
+
+
+def test_resolve_automation_token_falls_back_when_list_is_none() -> None:
+    assert resolve_automation_token(None, _FALLBACK_SECRET) == _FALLBACK_SECRET
+
+
+def test_resolve_automation_token_falls_back_when_no_active_entry() -> None:
+    assert (
+        resolve_automation_token(
+            [_FakeTokenEntry(active=False, secret=_ACTIVE_SECRET)],
+            _FALLBACK_SECRET,
+        )
+        == _FALLBACK_SECRET
+    )
+
+
+def test_resolve_automation_token_returns_none_when_nothing_available() -> None:
+    assert resolve_automation_token(None, None) is None
+
+
+def test_from_cluster_with_null_list_field_uses_singular() -> None:
+    """Clusters whose query includes automationTokens, but whose GraphQL
+    response has it set to null (no rotation configured for this cluster),
+    must still resolve to the legacy singular automationToken.
+    """
+    cluster = _FakeCluster(
+        automation_tokens=None,
+        automation_token=_FALLBACK_SECRET,
+    )
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_all_secret.return_value = _VAULT_RESPONSE
+
+    params = OCConnectionParameters.from_cluster(
+        cluster=cluster, secret_reader=secret_reader, cluster_admin=False
+    )
+
+    assert params.automation_token == "tok"
+    secret_reader.read_all_secret.assert_called_once_with(_FALLBACK_SECRET)
+
+
+def test_from_cluster_admin_with_null_list_field_uses_singular() -> None:
+    cluster = _FakeCluster(
+        cluster_admin_automation_tokens=None,
+        cluster_admin_automation_token=_FALLBACK_SECRET,
+    )
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_all_secret.return_value = _VAULT_RESPONSE
+
+    params = OCConnectionParameters.from_cluster(
+        cluster=cluster, secret_reader=secret_reader, cluster_admin=True
+    )
+
+    assert params.cluster_admin_automation_token == "tok"
+    secret_reader.read_all_secret.assert_called_once_with(_FALLBACK_SECRET)
 
 
 def test_from_cluster_without_list_attr_uses_singular() -> None:

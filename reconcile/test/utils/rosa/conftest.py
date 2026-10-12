@@ -52,6 +52,7 @@ def ocm_api_configuration(
             path="some_path",
             format=None,
             version=None,
+            url=None,
         ),
         access_token_url=access_token_url,
     )

@@ -51,6 +51,7 @@ def jenkins_config_query_data() -> JenkinsConfigsQueryData:
                         field="secret_field",
                         version=None,
                         format=None,
+                        url=None,
                     ),
                     deleteMethod=None,
                 ),
@@ -144,12 +145,14 @@ def vault_instance_data() -> (
             field="role_id",
             version=None,
             format=None,
+            url=None,
         ),
         secretID=VaultSecret(
             path="secret/path/secret_id",
             field="secret_id",
             version=None,
             format=None,
+            url=None,
         ),
     )
 

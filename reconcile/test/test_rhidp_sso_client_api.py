@@ -63,7 +63,11 @@ def make_ocm_environment(name: str = "prod") -> OCMEnvironment:
         accessTokenClientId="client-id",
         accessTokenUrl="https://sso.redhat.com/token",
         accessTokenClientSecret=VaultSecret(
-            path="app-sre/creds/ocm", field="client_secret", version=None, format=None
+            path="app-sre/creds/ocm",
+            field="client_secret",
+            version=None,
+            format=None,
+            url=None,
         ),
     )
 

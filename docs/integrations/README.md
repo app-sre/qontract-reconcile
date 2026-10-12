@@ -14,12 +14,15 @@ qontract-api integrations follow a split architecture:
 Available integrations:
 
 - [GitHub Owners](github-owners.md) - Manage GitHub organization admin (owner) membership based on App-Interface roles with add-only safety semantics
+- [GitLab Projects](gitlab-projects.md) - Create GitLab projects declared in App-Interface, cross-validated against codeComponents
 - [Glitchtip](glitchtip.md) - Manage Glitchtip organizations, teams, projects, and users across instances with LDAP group enrichment
 - [Glitchtip Project Alerts](glitchtip-project-alerts.md) - Manage Glitchtip project alert configurations across instances with email/webhook recipients and Jira integration
 - [LDAP Users](ldap-users.md) - Remove orphaned users from app-interface and infra repos when no longer in LDAP (client-orchestrated pattern)
+- [Managed SSO Client](managed-sso-client.md) - Let tenants declaratively request OIDC clients on Keycloak, reconciled via live create/update/delete against the client-registration API
 - [OCM Groups](ocm-groups.md) - Reconcile OCM cluster group memberships (dedicated-admins, cluster-admins) by diffing App-Interface roles against live OCM state
 - [OCM OIDC Identity Provider](ocm-oidc-idp.md) - Reconcile OCM OIDC identity providers for RHIDP-enabled clusters against the SSO client secrets sso-client-api writes to Vault
 - [OpenShift Namespaces](openshift-namespaces.md) - Reconcile Kubernetes/OpenShift namespaces across clusters with cached existence checks and idempotent create/delete
+- [Quay Robot Accounts](quay-robot-accounts.md) - Manage Quay organization robot accounts, team membership, and repository permissions
 - [RHIDP SSO Client](rhidp-sso-client.md) - Manage Keycloak SSO clients for RHIDP-enabled OCM clusters, discovered via OCM labels and qontract-api's external OCM endpoint
 - [Slack Usergroups](slack-usergroups.md) - Manage Slack usergroups across workspaces with automatic membership from roles, schedules, git ownership, and PagerDuty
 

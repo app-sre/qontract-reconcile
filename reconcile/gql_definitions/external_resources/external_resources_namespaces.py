@@ -17,31 +17,11 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.aws_vpc import AWSVPC
 from reconcile.gql_definitions.external_resources.fragments.external_resources_module_overrides import ExternalResourcesModuleOverrides
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
-fragment AWSVPC on AWSVPC_v1 {
-  name
-  description
-  account {
-    name
-    uid
-    terraformUsername
-    automationToken {
-      ...VaultSecret
-    }
-  }
-  region
-  vpc_id
-  cidr_block
-  subnets {
-    id
-  }
-}
-
 fragment DeployResourcesFields on DeployResources_v1 {
   requests {
     cpu
@@ -67,6 +47,7 @@ fragment ExternalResourcesModuleOverrides on ExternalResourcesModuleOverrides_v1
 }
 
 fragment VaultSecret on VaultSecret_v1 {
+  url
   path
   field
   version
@@ -293,16 +274,6 @@ query ExternalResourcesNamespaces {
             annotations
             tags
           }
-          ... on NamespaceTerraformResourceS3SQS_v1 {
-            region
-            identifier
-            defaults
-            kms_encryption
-            output_resource_name
-            storage_class
-            annotations
-            tags
-          }
           ... on NamespaceTerraformResourceCloudWatch_v1 {
             region
             identifier
@@ -370,65 +341,6 @@ query ExternalResourcesNamespaces {
             identifier
             secret {
               ...VaultSecret
-            }
-            output_resource_name
-            annotations
-            tags
-          }
-          ... on NamespaceTerraformResourceALB_v1 {
-            region
-            identifier
-            vpc {
-              ...AWSVPC
-            }
-            certificate_arn
-            ingress_cidr_blocks
-            idle_timeout
-            enable_http2
-            ip_address_type
-            access_logs
-            targets {
-              name
-              default
-              ips
-              openshift_service
-              protocol
-              protocol_version
-            }
-            rules {
-              condition {
-                type
-                ... on NamespaceTerraformResourceALBConditionHostHeader_v1 {
-                  host_header
-                }
-                ... on NamespaceTerraformResourceALBConditionHTTPRequestMethod_v1 {
-                  http_request_method
-                }
-                ... on NamespaceTerraformResourceALBConditionPathPattern_v1 {
-                  path_pattern
-                }
-                ... on NamespaceTerraformResourceALBConditionSourceIP_v1 {
-                  source_ip
-                }
-              }
-              action {
-                type
-                ... on NamespaceTerraformResourceALBActionForward_v1 {
-                  forward {
-                    target_group {
-                      target
-                      weight
-                    }
-                  }
-                }
-                ... on NamespaceTerraformResourceALBActionFixedResponse_v1 {
-                  fixed_response {
-                    content_type
-                    message_body
-                    status_code
-                  }
-                }
-              }
             }
             output_resource_name
             annotations
@@ -574,6 +486,7 @@ query ExternalResourcesNamespaces {
           ... on NamespaceTerraformResourceVpcEndpoint_v1 {
             identifier
             endpoint_service_name
+            private_dns_enabled
             vpc {
               vpc_id
               region
@@ -595,6 +508,7 @@ query ExternalResourcesNamespaces {
             region
             identifier
             openshift_service_name
+            private_dns_name
             allowed_consumer_clusters {
               name
               spec {
@@ -665,6 +579,11 @@ query ExternalResourcesNamespaces {
       name
       serverUrl
       insecureSkipTLSVerify
+      # APPSRE-13941: automationTokens/clusterAdminAutomationTokens (lists)
+      # intentionally omitted here. Audited 2026-10-01: external_resources
+      # only reads account.automation_token (AWS creds) for Terraform; it
+      # never builds an OC/K8s connection from this cluster's token. If
+      # that changes, add the lists here too.
       automationToken {
         ...VaultSecret
       }
@@ -942,17 +861,6 @@ class NamespaceTerraformResourceS3CloudFrontV1(NamespaceTerraformResourceAWSV1):
     tags: Optional[str] = Field(..., alias="tags")
 
 
-class NamespaceTerraformResourceS3SQSV1(NamespaceTerraformResourceAWSV1):
-    region: Optional[str] = Field(..., alias="region")
-    identifier: str = Field(..., alias="identifier")
-    defaults: str = Field(..., alias="defaults")
-    kms_encryption: Optional[bool] = Field(..., alias="kms_encryption")
-    output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    storage_class: Optional[str] = Field(..., alias="storage_class")
-    annotations: Optional[str] = Field(..., alias="annotations")
-    tags: Optional[str] = Field(..., alias="tags")
-
-
 class NamespaceTerraformResourceCloudWatchV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
@@ -1020,84 +928,6 @@ class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(NamespaceTerraformResour
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
     secret: Optional[VaultSecret] = Field(..., alias="secret")
-    output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[str] = Field(..., alias="annotations")
-    tags: Optional[str] = Field(..., alias="tags")
-
-
-class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    default: bool = Field(..., alias="default")
-    ips: Optional[list[str]] = Field(..., alias="ips")
-    openshift_service: Optional[str] = Field(..., alias="openshift_service")
-    protocol: Optional[str] = Field(..., alias="protocol")
-    protocol_version: Optional[str] = Field(..., alias="protocol_version")
-
-
-class NamespaceTerraformResourceALBConditionV1(ConfiguredBaseModel):
-    q_type: str = Field(..., alias="type")
-
-
-class NamespaceTerraformResourceALBConditionHostHeaderV1(NamespaceTerraformResourceALBConditionV1):
-    host_header: list[str] = Field(..., alias="host_header")
-
-
-class NamespaceTerraformResourceALBConditionHTTPRequestMethodV1(NamespaceTerraformResourceALBConditionV1):
-    http_request_method: list[str] = Field(..., alias="http_request_method")
-
-
-class NamespaceTerraformResourceALBConditionPathPatternV1(NamespaceTerraformResourceALBConditionV1):
-    path_pattern: list[str] = Field(..., alias="path_pattern")
-
-
-class NamespaceTerraformResourceALBConditionSourceIPV1(NamespaceTerraformResourceALBConditionV1):
-    source_ip: list[str] = Field(..., alias="source_ip")
-
-
-class NamespaceTerraformResourceALBActionV1(ConfiguredBaseModel):
-    q_type: str = Field(..., alias="type")
-
-
-class NamespaceTerraformResourceALBTargetGroupV1(ConfiguredBaseModel):
-    target: str = Field(..., alias="target")
-    weight: int = Field(..., alias="weight")
-
-
-class NamespaceTerraformResourceALBActionForwardSettingsV1(ConfiguredBaseModel):
-    target_group: list[NamespaceTerraformResourceALBTargetGroupV1] = Field(..., alias="target_group")
-
-
-class NamespaceTerraformResourceALBActionForwardV1(NamespaceTerraformResourceALBActionV1):
-    forward: NamespaceTerraformResourceALBActionForwardSettingsV1 = Field(..., alias="forward")
-
-
-class NamespaceTerraformResourceALBActionFixedResponseSettingsV1(ConfiguredBaseModel):
-    content_type: str = Field(..., alias="content_type")
-    message_body: str = Field(..., alias="message_body")
-    status_code: str = Field(..., alias="status_code")
-
-
-class NamespaceTerraformResourceALBActionFixedResponseV1(NamespaceTerraformResourceALBActionV1):
-    fixed_response: NamespaceTerraformResourceALBActionFixedResponseSettingsV1 = Field(..., alias="fixed_response")
-
-
-class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
-    condition: list[Union[NamespaceTerraformResourceALBConditionHostHeaderV1, NamespaceTerraformResourceALBConditionHTTPRequestMethodV1, NamespaceTerraformResourceALBConditionPathPatternV1, NamespaceTerraformResourceALBConditionSourceIPV1, NamespaceTerraformResourceALBConditionV1]] = Field(..., alias="condition")
-    action: Union[NamespaceTerraformResourceALBActionForwardV1, NamespaceTerraformResourceALBActionFixedResponseV1, NamespaceTerraformResourceALBActionV1] = Field(..., alias="action")
-
-
-class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):
-    region: Optional[str] = Field(..., alias="region")
-    identifier: str = Field(..., alias="identifier")
-    vpc: AWSVPC = Field(..., alias="vpc")
-    certificate_arn: str = Field(..., alias="certificate_arn")
-    ingress_cidr_blocks: list[str] = Field(..., alias="ingress_cidr_blocks")
-    idle_timeout: Optional[int] = Field(..., alias="idle_timeout")
-    enable_http2: Optional[bool] = Field(..., alias="enable_http2")
-    ip_address_type: Optional[str] = Field(..., alias="ip_address_type")
-    access_logs: Optional[bool] = Field(..., alias="access_logs")
-    targets: list[NamespaceTerraformResourceALBTargetsV1] = Field(..., alias="targets")
-    rules: list[NamespaceTerraformResourceALBRulesV1] = Field(..., alias="rules")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
     tags: Optional[str] = Field(..., alias="tags")
@@ -1262,7 +1092,7 @@ class AWSSubnetV1(ConfiguredBaseModel):
     privacy: Optional[str] = Field(..., alias="privacy")
 
 
-class NamespaceTerraformResourceVpcEndpointV1_AWSVPCV1(ConfiguredBaseModel):
+class AWSVPCV1(ConfiguredBaseModel):
     vpc_id: str = Field(..., alias="vpc_id")
     region: str = Field(..., alias="region")
     subnets: Optional[list[AWSSubnetV1]] = Field(..., alias="subnets")
@@ -1271,7 +1101,8 @@ class NamespaceTerraformResourceVpcEndpointV1_AWSVPCV1(ConfiguredBaseModel):
 class NamespaceTerraformResourceVpcEndpointV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     endpoint_service_name: str = Field(..., alias="endpoint_service_name")
-    vpc: NamespaceTerraformResourceVpcEndpointV1_AWSVPCV1 = Field(..., alias="vpc")
+    private_dns_enabled: Optional[bool] = Field(..., alias="private_dns_enabled")
+    vpc: AWSVPCV1 = Field(..., alias="vpc")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
     tags: Optional[str] = Field(..., alias="tags")
@@ -1302,6 +1133,7 @@ class NamespaceTerraformResourceVpcEndpointServiceV1(NamespaceTerraformResourceA
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
     openshift_service_name: str = Field(..., alias="openshift_service_name")
+    private_dns_name: Optional[str] = Field(..., alias="private_dns_name")
     allowed_consumer_clusters: Optional[list[NamespaceTerraformResourceVpcEndpointServiceV1_ClusterV1]] = Field(..., alias="allowed_consumer_clusters")
     allowed_principal_arns: Optional[list[str]] = Field(..., alias="allowed_principal_arns")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
@@ -1314,7 +1146,7 @@ class NamespaceTerraformResourceVpcEndpointServiceV1(NamespaceTerraformResourceA
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
     provisioner: AWSAccountV1 = Field(..., alias="provisioner")
-    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceMskConnectV1, NamespaceTerraformResourceVpcEndpointServiceV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceVpcEndpointV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceVpcEndpointServiceV1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceMskConnectV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceVpcEndpointV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class CloudflareAccountV1(ConfiguredBaseModel):

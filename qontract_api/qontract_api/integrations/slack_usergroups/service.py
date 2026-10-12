@@ -154,6 +154,24 @@ class SlackUsergroupsService:
             )
             for add in diffs.add.values()
         ]
+        # A usergroup can stay in `managed_usergroups` (e.g. its handle is kept
+        # around deliberately, see ADR on abandoned handles) while no permission
+        # references it anymore, so it never appears in the desired state. Per
+        # SlackWorkspace.managed_usergroups' contract, anything managed must still
+        # be actively reconciled, so empty its membership instead of leaving it
+        # stale forever.
+        for handle, orphaned in diffs.delete.items():
+            if not orphaned.config.users:
+                continue
+            actions.append(
+                SlackUsergroupActionUpdateUsers(
+                    workspace=workspace,
+                    usergroup=handle,
+                    users=[],
+                    users_to_add=[],
+                    users_to_remove=list(orphaned.config.users),
+                )
+            )
         for handle, change in diffs.change.items():
             if change.current.config.users != change.desired.config.users:
                 logger.debug(

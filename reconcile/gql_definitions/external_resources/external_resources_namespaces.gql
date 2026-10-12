@@ -223,16 +223,6 @@ query ExternalResourcesNamespaces {
             annotations
             tags
           }
-          ... on NamespaceTerraformResourceS3SQS_v1 {
-            region
-            identifier
-            defaults
-            kms_encryption
-            output_resource_name
-            storage_class
-            annotations
-            tags
-          }
           ... on NamespaceTerraformResourceCloudWatch_v1 {
             region
             identifier
@@ -300,65 +290,6 @@ query ExternalResourcesNamespaces {
             identifier
             secret {
               ...VaultSecret
-            }
-            output_resource_name
-            annotations
-            tags
-          }
-          ... on NamespaceTerraformResourceALB_v1 {
-            region
-            identifier
-            vpc {
-              ...AWSVPC
-            }
-            certificate_arn
-            ingress_cidr_blocks
-            idle_timeout
-            enable_http2
-            ip_address_type
-            access_logs
-            targets {
-              name
-              default
-              ips
-              openshift_service
-              protocol
-              protocol_version
-            }
-            rules {
-              condition {
-                type
-                ... on NamespaceTerraformResourceALBConditionHostHeader_v1 {
-                  host_header
-                }
-                ... on NamespaceTerraformResourceALBConditionHTTPRequestMethod_v1 {
-                  http_request_method
-                }
-                ... on NamespaceTerraformResourceALBConditionPathPattern_v1 {
-                  path_pattern
-                }
-                ... on NamespaceTerraformResourceALBConditionSourceIP_v1 {
-                  source_ip
-                }
-              }
-              action {
-                type
-                ... on NamespaceTerraformResourceALBActionForward_v1 {
-                  forward {
-                    target_group {
-                      target
-                      weight
-                    }
-                  }
-                }
-                ... on NamespaceTerraformResourceALBActionFixedResponse_v1 {
-                  fixed_response {
-                    content_type
-                    message_body
-                    status_code
-                  }
-                }
-              }
             }
             output_resource_name
             annotations
@@ -504,6 +435,7 @@ query ExternalResourcesNamespaces {
           ... on NamespaceTerraformResourceVpcEndpoint_v1 {
             identifier
             endpoint_service_name
+            private_dns_enabled
             vpc {
               vpc_id
               region
@@ -525,6 +457,7 @@ query ExternalResourcesNamespaces {
             region
             identifier
             openshift_service_name
+            private_dns_name
             allowed_consumer_clusters {
               name
               spec {
@@ -595,6 +528,11 @@ query ExternalResourcesNamespaces {
       name
       serverUrl
       insecureSkipTLSVerify
+      # APPSRE-13941: automationTokens/clusterAdminAutomationTokens (lists)
+      # intentionally omitted here. Audited 2026-10-01: external_resources
+      # only reads account.automation_token (AWS creds) for Terraform; it
+      # never builds an OC/K8s connection from this cluster's token. If
+      # that changes, add the lists here too.
       automationToken {
         ...VaultSecret
       }

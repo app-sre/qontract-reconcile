@@ -320,6 +320,7 @@ def test_acquire_state_settings_ai_settings(mocker: MockerFixture) -> None:
             field="all",
             format=None,
             version=None,
+            url=None,
         ),
     )
 

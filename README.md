@@ -123,6 +123,8 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   jira-permissions-validator      Validate permissions in Jira.
   ldap-groups                     Manages LDAP groups based on App-Interface
                                   roles.
+  managed-sso-client              Manages tenant-declared SSO clients in
+                                  Keycloak via qontract-api.
   ocm-additional-routers          Manage additional routers in OCM.
   ocm-addons                      Manages cluster Addons in OCM.
   ocm-addons-upgrade-scheduler-org
@@ -159,6 +161,9 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   clusters.
   openshift-groups                Manages OpenShift Groups.
   openshift-limitranges           Manages OpenShift LimitRange objects.
+  openshift-managed-sso-client-secrets
+                                  Manages OpenShift Secrets for managed SSO
+                                  client credentials.
   openshift-namespace-labels      Manages labels on OpenShift namespaces.
   openshift-namespaces            Manages OpenShift Namespaces.
   openshift-network-policies      Manages OpenShift NetworkPolicies.
@@ -197,7 +202,7 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   quay-mirror                     Mirrors external images into Quay.
   quay-mirror-org                 Mirrors entire Quay orgs.
   quay-permissions                Manage permissions for Quay Repositories.
-  quay-repos                      Creates and Manages Quay Repos.
+  quay-repos-api                  Creates and Manages Quay Repos.
   quay-robot-accounts             Manages robot accounts in Quay organizations.
   query-validator                 Validate queries to maintain consumer schema
                                   compatibility.

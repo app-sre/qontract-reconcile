@@ -40,6 +40,7 @@ fragment MinimalOCMOrganization on OpenShiftClusterManager_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
+  url
   path
   field
   version
@@ -65,6 +66,15 @@ query Integrations {
           insecureSkipTLSVerify
           automationToken {
             ...VaultSecret
+          }
+          automationTokens {
+            name
+            namespace
+            active
+            delete
+            secret {
+              ...VaultSecret
+            }
           }
         }
       }
@@ -179,12 +189,21 @@ class EnvironmentV1(ConfiguredBaseModel):
     parameters: Optional[Json] = Field(..., alias="parameters")
 
 
+class AutomationTokenEntryV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    namespace: str = Field(..., alias="namespace")
+    active: Optional[bool] = Field(..., alias="active")
+    delete: Optional[bool] = Field(..., alias="delete")
+    secret: Optional[VaultSecret] = Field(..., alias="secret")
+
+
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     labels: Optional[Json] = Field(..., alias="labels")
     server_url: str = Field(..., alias="serverUrl")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
+    automation_tokens: Optional[list[AutomationTokenEntryV1]] = Field(..., alias="automationTokens")
 
 
 class NamespaceV1(ConfiguredBaseModel):

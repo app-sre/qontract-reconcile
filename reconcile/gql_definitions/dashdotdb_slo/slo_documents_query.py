@@ -43,6 +43,15 @@ fragment SLODocument on SLODocument_v1 {
         automationToken {
           ...VaultSecret
         }
+        automationTokens {
+          name
+          namespace
+          active
+          delete
+          secret {
+            ...VaultSecret
+          }
+        }
         prometheusUrl
         spec {
           private
@@ -66,6 +75,7 @@ fragment SLODocument on SLODocument_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
+  url
   path
   field
   version

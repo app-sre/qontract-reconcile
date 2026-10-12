@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any
 from sretoolbox.utils import retry
 
 import reconcile.utils.aws_helper as awsh
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils.ocm.clusters import get_node_pools
 from reconcile.utils.ocm.products import (
     OCMProduct,
@@ -18,7 +17,7 @@ from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
     init_ocm_base_client,
 )
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader, VaultSecretRef
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, MutableMapping
@@ -873,7 +872,12 @@ class OCMMap:
                 url=url,
                 access_token_url=access_token_url,
                 access_token_client_id=access_token_client_id,
-                access_token_client_secret=VaultSecret(**access_token_client_secret),
+                access_token_client_secret=VaultSecretRef(
+                    path=access_token_client_secret["path"],
+                    field=access_token_client_secret["field"],
+                    version=access_token_client_secret.get("version"),
+                    q_format=access_token_client_secret.get("format"),
+                ),
             ),
             secret_reader=SecretReader(settings=self.settings),
         )

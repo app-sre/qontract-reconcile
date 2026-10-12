@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import click
 import sentry_sdk
+from qontract_utils.managed_sso_client import DEFAULT_OUTPUT_VAULT_PATH_PREFIX
 from sentry_sdk.integrations.logging import LoggingIntegration
 
 from reconcile.status import (
@@ -54,10 +55,10 @@ if TYPE_CHECKING:
 TERRAFORM_VERSION = ["1.6.6"]
 TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
 
-OC_VERSIONS = ["4.19.0", "4.16.2"]
+OC_VERSIONS = ["4.19.0", "4.18.0"]
 OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)"
 
-HELM_VERSIONS = ["3.19.2"]
+HELM_VERSIONS = ["3.19.4"]
 HELM_VERSION_REGEX = r"^version.BuildInfo{Version:\"v([\d]+\.[\d]+\.[\d]+)\".*$"
 
 
@@ -1218,9 +1219,9 @@ def slack_usergroups_api(
 )
 @click.pass_context
 def gitlab_housekeeping(ctx: click.Context, wait_for_pipeline: bool) -> None:
-    import reconcile.gitlab_housekeeping
+    import reconcile.gitlab_housekeeping.integration
 
-    run_integration(reconcile.gitlab_housekeeping, ctx, wait_for_pipeline)
+    run_integration(reconcile.gitlab_housekeeping.integration, ctx, wait_for_pipeline)
 
 
 @integration.command(short_help="Listen to SQS and creates MRs out of the messages.")
@@ -1755,6 +1756,55 @@ def openshift_rhcs_certs(
     )
 
 
+@integration.command(
+    short_help="Manages OpenShift Secrets for managed SSO client credentials."
+)
+@threaded()
+@binary(["oc"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@internal()
+@cluster_name
+@namespace_name
+@click.option(
+    "--vault-path-prefix",
+    help=(
+        "Vault path prefix used to resolve a managed-sso-client's tenant-facing "
+        "credential secret when its `output` field is unset. Shares its default "
+        "with qontract-api's ManagedSsoClientSettings.default_output_vault_path_prefix "
+        "via qontract_utils.managed_sso_client.DEFAULT_OUTPUT_VAULT_PATH_PREFIX, but "
+        "if that qontract-api setting is overridden at runtime this flag must be "
+        "passed explicitly to match."
+    ),
+    default=DEFAULT_OUTPUT_VAULT_PATH_PREFIX,
+)
+@click.pass_context
+def openshift_managed_sso_client_secrets(
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    cluster_name: Iterable[str] | None,
+    namespace_name: str | None,
+    vault_path_prefix: str,
+) -> None:
+    from reconcile.openshift_managed_sso_client_secrets import (
+        OpenshiftManagedSsoClientSecretsIntegration,
+        OpenshiftManagedSsoClientSecretsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=OpenshiftManagedSsoClientSecretsIntegration(
+            OpenshiftManagedSsoClientSecretsIntegrationParams(
+                thread_pool_size=thread_pool_size,
+                internal=internal,
+                cluster_name=list(cluster_name) if cluster_name else None,
+                namespace_name=namespace_name,
+                vault_path_prefix=vault_path_prefix,
+            )
+        ),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Manages OpenShift Routes.")
 @threaded()
 @binary(["oc"])
@@ -1872,6 +1922,29 @@ def quay_robot_accounts(ctx: click.Context) -> None:
     import reconcile.quay_robot_accounts
 
     run_integration(reconcile.quay_robot_accounts, ctx)
+
+
+@integration.command(
+    short_help="Manages robot accounts in Quay organizations via qontract-api."
+)
+@click.option(
+    "--org",
+    help="Reconcile just this Quay org (`instance/name`, or a unique org name).",
+    default=None,
+)
+@click.pass_context
+def quay_robot_accounts_api(ctx: click.Context, org: str | None) -> None:
+    from reconcile.quay_robot_accounts_api import (
+        QuayRobotAccountsIntegration,
+        QuayRobotAccountsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=QuayRobotAccountsIntegration(
+            QuayRobotAccountsIntegrationParams(org_name=org)
+        ),
+        ctx=ctx,
+    )
 
 
 @integration.command(short_help="Mirrors external images into GCP Artifact Registry.")
@@ -1999,14 +2072,6 @@ def quay_mirror_org(
     )
 
 
-@integration.command(short_help="Creates and Manages Quay Repos.")
-@click.pass_context
-def quay_repos(ctx: click.Context) -> None:
-    import reconcile.quay_repos
-
-    run_integration(reconcile.quay_repos, ctx)
-
-
 @integration.command(short_help="Creates and Manages Quay Repos (via qontract-api).")
 @click.pass_context
 def quay_repos_api(
@@ -2029,6 +2094,22 @@ def quay_permissions(ctx: click.Context) -> None:
     import reconcile.quay_permissions
 
     run_integration(reconcile.quay_permissions, ctx)
+
+
+@integration.command(
+    short_help="Manages tenant-declared SSO clients in Keycloak via qontract-api."
+)
+@click.pass_context
+def managed_sso_client(ctx: click.Context) -> None:
+    from reconcile.managed_sso_client.integration import (
+        ManagedSsoClientIntegration,
+        ManagedSsoClientIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=ManagedSsoClientIntegration(ManagedSsoClientIntegrationParams()),
+        ctx=ctx,
+    )
 
 
 @integration.command(
@@ -2531,6 +2612,38 @@ def gitlab_projects(ctx: click.Context) -> None:
     import reconcile.gitlab_projects
 
     run_integration(reconcile.gitlab_projects, ctx)
+
+
+@integration.command(short_help="Create GitLab projects via qontract-api.")
+@click.option(
+    "--instance-name", help="Reconcile just this GitLab instance.", default=None
+)
+@click.option(
+    "--project-name",
+    default=None,
+    multiple=True,
+    help="Reconcile just this project i.e.: --project-name foo --project-name bar",
+)
+@click.pass_context
+def gitlab_projects_api(
+    ctx: click.Context,
+    instance_name: str | None,
+    project_name: Iterable[str] | None,
+) -> None:
+    from reconcile.gitlab_projects_api import (
+        GitLabProjectsIntegration,
+        GitlabProjectsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=GitLabProjectsIntegration(
+            GitlabProjectsIntegrationParams(
+                instance_name=instance_name,
+                project_names=frozenset(project_name) if project_name else None,
+            )
+        ),
+        ctx=ctx,
+    )
 
 
 @integration.command(short_help="Manage membership in OpenShift groups via OCM.")

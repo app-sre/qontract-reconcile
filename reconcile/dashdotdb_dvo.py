@@ -17,6 +17,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
+from reconcile.utils.oc_connection_parameters import resolve_automation_token
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
@@ -207,7 +208,11 @@ class DashdotdbDVO(DashdotdbBase):
         )
 
     def _get_prometheus_info(self, cluster: ClusterV1) -> PrometheusInfo | None:
-        if not cluster.automation_token:
+        if not (
+            token_secret := resolve_automation_token(
+                cluster.automation_tokens, cluster.automation_token
+            )
+        ):
             LOG.error(
                 "%s cluster %s does not have an automation token",
                 self.logmarker,
@@ -217,7 +222,7 @@ class DashdotdbDVO(DashdotdbBase):
         return PrometheusInfo(
             url=cluster.prometheus_url,
             ssl_verify=True,
-            token=self._get_automation_token(cluster.automation_token),
+            token=self._get_automation_token(token_secret),
         )
 
     @staticmethod

@@ -21,7 +21,10 @@ skupper_networks:
             field: token
             version: null
             format: null
+            url: null
+          automationTokens: null
           clusterAdminAutomationToken: null
+          clusterAdminAutomationTokens: null
           internal: false
           disable: null
           peering:

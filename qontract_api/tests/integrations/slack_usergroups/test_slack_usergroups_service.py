@@ -387,6 +387,117 @@ def test_reconcile_update_metadata_dry_run(
     assert result.errors == []
 
 
+# Orphaned usergroup (managed, but no longer desired)
+
+
+def test_reconcile_orphaned_usergroup_dry_run(
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
+) -> None:
+    """Test reconcile empties a managed usergroup that dropped out of desired state.
+
+    A usergroup can remain in `managed_usergroups` (e.g. its handle is kept around
+    intentionally) while no permission references it anymore, so it never appears in
+    the desired usergroups list. It must not be silently left with stale membership.
+    """
+    workspace = SlackWorkspace(
+        name="test-workspace",
+        managed_usergroups=["rosa-ci-team"],
+        usergroups=[],  # no permission maps to this handle anymore
+        token=test_token,
+    )
+
+    # Mock: current state = usergroup still has members in Slack
+    current_usergroup = SlackUsergroup(
+        handle="rosa-ci-team",
+        config=SlackUsergroupConfig(
+            users=["alice", "bob"],
+            channels=["general"],
+            description="Old team",
+        ),
+    )
+    mock_slack_client.get_slack_usergroups.return_value = [current_usergroup]
+    mock_slack_client.clean_slack_usergroups.return_value = []
+
+    result = service.reconcile(workspaces=[workspace], dry_run=True)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert len(result.actions) == 1
+    action = result.actions[0]
+    assert isinstance(action, SlackUsergroupActionUpdateUsers)
+    assert action.workspace == "test-workspace"
+    assert action.usergroup == "rosa-ci-team"
+    assert action.users == []
+    assert action.users_to_add == []
+    assert sorted(action.users_to_remove) == ["alice", "bob"]
+    assert result.applied_count == 0  # dry-run
+    assert result.errors == []
+
+
+def test_reconcile_orphaned_usergroup_apply(
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
+) -> None:
+    """Test reconcile actually empties an orphaned usergroup's membership (apply mode)."""
+    workspace = SlackWorkspace(
+        name="test-workspace",
+        managed_usergroups=["rosa-ci-team"],
+        usergroups=[],
+        token=test_token,
+    )
+
+    current_usergroup = SlackUsergroup(
+        handle="rosa-ci-team",
+        config=SlackUsergroupConfig(
+            users=["alice"], channels=[], description="Old team"
+        ),
+    )
+    mock_slack_client.get_slack_usergroups.return_value = [current_usergroup]
+    mock_slack_client.clean_slack_usergroups.return_value = []
+
+    result = service.reconcile(workspaces=[workspace], dry_run=False)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert len(result.actions) == 1
+    assert result.applied_count == 1
+    mock_slack_client.update_usergroup_users.assert_called_once_with(
+        handle="rosa-ci-team", users=[]
+    )
+    assert result.errors == []
+
+
+def test_reconcile_orphaned_usergroup_already_empty_dry_run(
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
+) -> None:
+    """Test reconcile does not re-emit an action for an already-empty orphaned usergroup."""
+    workspace = SlackWorkspace(
+        name="test-workspace",
+        managed_usergroups=["rosa-ci-team"],
+        usergroups=[],
+        token=test_token,
+    )
+
+    current_usergroup = SlackUsergroup(
+        handle="rosa-ci-team",
+        config=SlackUsergroupConfig(users=[], channels=[], description="Old team"),
+    )
+    mock_slack_client.get_slack_usergroups.return_value = [current_usergroup]
+    mock_slack_client.clean_slack_usergroups.return_value = []
+
+    result = service.reconcile(workspaces=[workspace], dry_run=True)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.actions == []
+    assert result.errors == []
+
+
 # Multiple actions
 
 
@@ -606,6 +717,47 @@ def test_calculate_update_actions_update_users() -> None:
     assert isinstance(actions[0], SlackUsergroupActionUpdateUsers)
     assert actions[0].users == ["alice", "bob"]
     assert "bob" in actions[0].users_to_add
+
+
+def test_calculate_update_actions_delete_orphaned_usergroup() -> None:
+    """Test _calculate_update_actions empties a usergroup missing from desired state."""
+    current = [
+        SlackUsergroup(
+            handle="rosa-ci-team",
+            config=SlackUsergroupConfig(
+                users=["alice", "bob"], channels=[], description="Old team"
+            ),
+        )
+    ]
+    desired: list[SlackUsergroup] = []
+
+    actions = SlackUsergroupsService._calculate_update_actions(
+        workspace="test", current_state=current, desired_state=desired
+    )
+
+    assert len(actions) == 1
+    assert isinstance(actions[0], SlackUsergroupActionUpdateUsers)
+    assert actions[0].usergroup == "rosa-ci-team"
+    assert actions[0].users == []
+    assert sorted(actions[0].users_to_remove) == ["alice", "bob"]
+    assert actions[0].users_to_add == []
+
+
+def test_calculate_update_actions_delete_orphaned_usergroup_already_empty() -> None:
+    """Test _calculate_update_actions is a no-op for an already-empty orphaned usergroup."""
+    current = [
+        SlackUsergroup(
+            handle="rosa-ci-team",
+            config=SlackUsergroupConfig(users=[], channels=[], description=""),
+        )
+    ]
+    desired: list[SlackUsergroup] = []
+
+    actions = SlackUsergroupsService._calculate_update_actions(
+        workspace="test", current_state=current, desired_state=desired
+    )
+
+    assert actions == []
 
 
 def test_calculate_update_actions_update_metadata() -> None:

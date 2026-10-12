@@ -7,6 +7,82 @@ from . import config, schemas
 client = clientele_api.APIClient(config=config.Config())
 
 
+@client.get("/api/v1/external/github-org/members")
+async def github_org_members(
+    result: schemas.GithubOrgMembersResponse,
+    secret_manager_url: str,
+    path: str,
+    org_name: str,
+    field: str | None = None,
+    version: int | None = None,
+) -> schemas.GithubOrgMembersResponse:
+    """Get Org Members
+
+        Get all members of a GitHub organization.
+
+    Lists every member of the organization (any role) using the GitHub API
+    token resolved from Vault. Results are cached for performance (TTL
+    configured in settings).
+    """
+    return result
+
+
+@client.post("/api/v1/external/ldap/github-usernames")
+async def ldap_github_usernames(
+    result: schemas.LdapGithubUsernamesResponse,
+    data: schemas.LdapGithubUsernamesRequest,
+) -> schemas.LdapGithubUsernamesResponse:
+    """Resolve Github Usernames
+
+        Resolve GitHub usernames to LDAP uids via the rhatSocialURL attribute.
+
+    Maps each requested GitHub username to the app-interface org_username (LDAP
+    uid) of the user whose rhatSocialURL points at that GitHub account. The
+    full map is cached for performance; unresolved logins are omitted from the
+    response.
+
+    Args:
+        request: GitHub usernames to resolve and the Vault secret reference
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapGithubUsernamesResponse with resolved username -> org_username pairs
+    """
+    return result
+
+
+@client.post("/api/v1/external/ldap/groups/members")
+async def ldap_group_members(
+    result: schemas.LdapGroupMembersResponse, data: schemas.LdapGroupMembersRequest
+) -> schemas.LdapGroupMembersResponse:
+    """Group Members
+
+        Resolve members of one or more LDAP groups (cached, FreeIPA-authenticated).
+
+    Groups are referenced by short CN (e.g. "my-ldap-group"); the full DN is
+    constructed server-side from the configured base DN. Only groups confirmed
+    to exist in LDAP are present in the response - a requested group that does
+    not exist is omitted, distinct from a confirmed-empty group (present with
+    an empty member list). Callers must treat a missing group as unresolved,
+    not as empty, and must not delete existing members based on it.
+
+    Args:
+        request: Group CNs to resolve, the Vault secret reference, and
+            whether to enrich members with their GitHub username
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapGroupMembersResponse with resolved membership per existing group
+
+    Raises:
+        ValidationError (422): If any resolved group exceeds the configured
+            max_group_size
+    """
+    return result
+
+
 @client.post("/api/v1/external/ldap/users/check")
 async def ldap_users_check(
     result: schemas.LdapUsersCheckResponse, data: schemas.LdapUsersCheckRequest
@@ -265,6 +341,46 @@ async def github_owners_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/gitlab-projects/reconcile")
+async def gitlab_projects(
+    result: schemas.GitlabProjectsTaskResponse,
+    data: schemas.GitlabProjectsReconcileRequest,
+) -> schemas.GitlabProjectsTaskResponse:
+    """Gitlab Projects
+
+        Queue GitLab projects reconciliation task.
+
+    Always queues a background task and returns immediately with a task_id.
+    Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/gitlab-projects/reconcile/{task_id}")
+async def gitlab_projects_task_status(
+    result: schemas.GitlabProjectsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.GitlabProjectsTaskResult:
+    """Gitlab Projects Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        timeout: Maximum seconds to wait (default: non-blocking)
+
+    Returns:
+        GitlabProjectsTaskResult with lists of calculated and applied actions.
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Task ID not found
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
 @client.post("/api/v1/integrations/glitchtip-project-alerts/reconcile")
 async def glitchtip_project_alerts(
     result: schemas.GlitchtipProjectAlertsTaskResponse,
@@ -359,6 +475,31 @@ async def glitchtip_task_status(
 
     Returns:
         GlitchtipTaskResult with status, actions, applied_count, and errors
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/managed-sso-client/reconcile")
+async def managed_sso_client(
+    result: schemas.ManagedSsoClientTaskResponse,
+    data: schemas.ManagedSsoClientReconcileRequest,
+) -> schemas.ManagedSsoClientTaskResponse:
+    """Managed Sso Client
+
+    Queue a managed-sso-client reconciliation task.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/managed-sso-client/reconcile/{task_id}")
+async def managed_sso_client_task_status(
+    result: schemas.ManagedSsoClientTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.ManagedSsoClientTaskResult:
+    """Managed Sso Client Task Status
+
+    Retrieve the reconciliation result (blocking or non-blocking).
     """
     return result
 
@@ -473,6 +614,31 @@ async def quay_repos_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/quay-robot-accounts/reconcile")
+async def quay_robot_accounts(
+    result: schemas.QuayRobotAccountsTaskResponse,
+    data: schemas.QuayRobotAccountsReconcileRequest,
+) -> schemas.QuayRobotAccountsTaskResponse:
+    """Quay Robot Accounts
+
+    Queue a quay-robot-accounts reconciliation task.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/quay-robot-accounts/reconcile/{task_id}")
+async def quay_robot_accounts_task_status(
+    result: schemas.QuayRobotAccountsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.QuayRobotAccountsTaskResult:
+    """Quay Robot Accounts Task Status
+
+    Retrieve the reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
 @client.post("/api/v1/integrations/slack-usergroups/reconcile")
 async def slack_usergroups(
     result: schemas.SlackUsergroupsTaskResponse,
@@ -521,34 +687,6 @@ async def slack_usergroups_task_status(
         HTTPException:
             - 404 Not Found: Task ID not found
             - 408 Request Timeout: Task still pending after timeout (blocking mode only)
-    """
-    return result
-
-
-@client.post("/api/v1/integrations/sso-client/manual")
-async def sso_client_create_manual(
-    result: schemas.SsoClientTaskResponse, data: schemas.SsoClientCreateManualRequest
-) -> schemas.SsoClientTaskResponse:
-    """Sso Client Create Manual
-
-        Queue ad-hoc SSO client creation (not tied to an OCM cluster).
-
-    Used by qontract-cli for one-off client creation. Always queues a
-    background task and returns immediately with a task_id. Use
-    GET /manual/{task_id} to retrieve the result.
-    """
-    return result
-
-
-@client.get("/api/v1/integrations/sso-client/manual/{task_id}")
-async def sso_client_create_manual_task_status(
-    result: schemas.SsoClientCreateManualResult,
-    task_id: str,
-    timeout: int | None = None,
-) -> schemas.SsoClientCreateManualResult:
-    """Sso Client Create Manual Task Status
-
-    Retrieve ad-hoc SSO client creation result (blocking or non-blocking).
     """
     return result
 

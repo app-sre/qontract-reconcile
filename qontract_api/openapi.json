@@ -1,6 +1,16 @@
 {
   "components": {
     "schemas": {
+      "AccessType": {
+        "description": "Keycloak client type.",
+        "enum": [
+          "confidential",
+          "public",
+          "bearer-only"
+        ],
+        "title": "AccessType",
+        "type": "string"
+      },
       "ChatRequest": {
         "description": "Request model for posting a Slack message or DM.\n\nExactly one of `channel` or `user` must be set:\n- `channel`: post to a Slack channel by name\n- `user`: send a DM to a user by org_username",
         "properties": {
@@ -662,6 +672,24 @@
         "title": "GithubOrgDesiredState",
         "type": "object"
       },
+      "GithubOrgMembersResponse": {
+        "description": "Response with all members of a GitHub organization.",
+        "properties": {
+          "members": {
+            "description": "GitHub usernames (original case) of all organization members",
+            "items": {
+              "type": "string"
+            },
+            "title": "Members",
+            "type": "array"
+          }
+        },
+        "required": [
+          "members"
+        ],
+        "title": "GithubOrgMembersResponse",
+        "type": "object"
+      },
       "GithubOwnerActionAddOwner": {
         "description": "Action: Add a user as an org admin (owner).\n\nNote: Owner removal is intentionally NOT supported. The integration only\nadds owners and never removes them, preserving the behavior of the original\ngithub-owners reconcile integration. This is a deliberate safety decision \u2014\nremoving org admins is a high-impact operation that requires explicit manual\nreview rather than automated removal.",
         "properties": {
@@ -804,6 +832,193 @@
           "status"
         ],
         "title": "GithubOwnersTaskResult",
+        "type": "object"
+      },
+      "GitlabGroupConfig": {
+        "description": "Configuration for a single GitLab group and its desired projects.",
+        "properties": {
+          "group": {
+            "description": "GitLab group full path",
+            "title": "Group",
+            "type": "string"
+          },
+          "projects": {
+            "description": "Desired project names under this group",
+            "items": {
+              "type": "string"
+            },
+            "title": "Projects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "group"
+        ],
+        "title": "GitlabGroupConfig",
+        "type": "object"
+      },
+      "GitlabInstanceConfig": {
+        "description": "Configuration for a single GitLab instance to reconcile.",
+        "properties": {
+          "groups": {
+            "description": "Desired group/project state",
+            "items": {
+              "$ref": "#/components/schemas/GitlabGroupConfig"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "name": {
+            "description": "GitLab instance name",
+            "title": "Name",
+            "type": "string"
+          },
+          "ssl_verify": {
+            "default": true,
+            "description": "Whether to verify SSL certificates",
+            "title": "Ssl Verify",
+            "type": "boolean"
+          },
+          "token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Secret reference for the instance token"
+          },
+          "url": {
+            "description": "GitLab instance URL",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "token"
+        ],
+        "title": "GitlabInstanceConfig",
+        "type": "object"
+      },
+      "GitlabProjectActionCreate": {
+        "description": "Action: Create a new, empty project.",
+        "properties": {
+          "action_type": {
+            "const": "create",
+            "default": "create",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "project_name": {
+            "title": "Project Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "group",
+          "project_name"
+        ],
+        "title": "GitlabProjectActionCreate",
+        "type": "object"
+      },
+      "GitlabProjectsReconcileRequest": {
+        "description": "Request model for GitLab projects reconciliation.",
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "instances": {
+            "description": "List of GitLab instances to reconcile",
+            "items": {
+              "$ref": "#/components/schemas/GitlabInstanceConfig"
+            },
+            "title": "Instances",
+            "type": "array"
+          }
+        },
+        "required": [
+          "instances"
+        ],
+        "title": "GitlabProjectsReconcileRequest",
+        "type": "object"
+      },
+      "GitlabProjectsTaskResponse": {
+        "description": "Immediate response returned when the reconciliation task is queued.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending"
+          },
+          "status_url": {
+            "description": "URL to poll for task result",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "GitlabProjectsTaskResponse",
+        "type": "object"
+      },
+      "GitlabProjectsTaskResult": {
+        "description": "Result of a completed reconciliation task.",
+        "properties": {
+          "actions": {
+            "description": "All actions calculated (desired - current).",
+            "items": {
+              "$ref": "#/components/schemas/GitlabProjectActionCreate"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "description": "Actions successfully applied (non-dry-run only).",
+            "items": {
+              "$ref": "#/components/schemas/GitlabProjectActionCreate"
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "GitlabProjectsTaskResult",
         "type": "object"
       },
       "GlitchtipActionAddProjectToTeam": {
@@ -2120,8 +2335,28 @@
         "title": "HealthStatus",
         "type": "object"
       },
+      "KeycloakInstanceRef": {
+        "description": "A Keycloak realm a managed SSO client registers against.",
+        "properties": {
+          "initial_access_token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Vault reference to this realm's initial access token (IAT)"
+          },
+          "url": {
+            "description": "Full realm base URL, e.g. https://host/auth/realms/name",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "initial_access_token"
+        ],
+        "title": "KeycloakInstanceRef",
+        "type": "object"
+      },
       "KeycloakInstanceSecret": {
-        "description": "A Keycloak instance's issuer URL + the Vault location of its IAT secret.\n\nThe Vault secret itself does not carry the issuer URL (see KeycloakInstanceIat),\nso the client must supply it explicitly alongside the secret reference.",
+        "description": "A Keycloak instance's issuer URL + the Vault location of its IAT secret.\n\nThe Vault secret itself does not carry the issuer URL (see\nqontract_api.keycloak_iat), so the client must supply it explicitly\nalongside the secret reference.",
         "properties": {
           "secret": {
             "$ref": "#/components/schemas/Secret",
@@ -2197,6 +2432,162 @@
         "title": "LdapDirectSecret",
         "type": "object"
       },
+      "LdapGithubUser": {
+        "description": "Resolved mapping of a single GitHub username to an LDAP uid.",
+        "properties": {
+          "github_username": {
+            "description": "GitHub username (as requested)",
+            "title": "Github Username",
+            "type": "string"
+          },
+          "org_username": {
+            "description": "LDAP uid (app-interface org_username)",
+            "title": "Org Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "github_username",
+          "org_username"
+        ],
+        "title": "LdapGithubUser",
+        "type": "object"
+      },
+      "LdapGithubUsernamesRequest": {
+        "description": "Request to resolve GitHub usernames to LDAP uids via rhatSocialURL.",
+        "properties": {
+          "logins": {
+            "description": "GitHub usernames to resolve to LDAP uids",
+            "items": {
+              "type": "string"
+            },
+            "title": "Logins",
+            "type": "array"
+          },
+          "secret": {
+            "$ref": "#/components/schemas/LdapDirectSecret",
+            "description": "Vault secret reference for LDAP credentials"
+          }
+        },
+        "required": [
+          "logins",
+          "secret"
+        ],
+        "title": "LdapGithubUsernamesRequest",
+        "type": "object"
+      },
+      "LdapGithubUsernamesResponse": {
+        "description": "Response with resolved GitHub-username -> uid mappings.\n\nOnly contains entries for requested logins that were found in LDAP;\nunresolved logins are omitted.",
+        "properties": {
+          "users": {
+            "description": "Resolved GitHub username to org_username mappings",
+            "items": {
+              "$ref": "#/components/schemas/LdapGithubUser"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "users"
+        ],
+        "title": "LdapGithubUsernamesResponse",
+        "type": "object"
+      },
+      "LdapGroupMember": {
+        "description": "A single resolved LDAP group member.",
+        "properties": {
+          "github_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "GitHub username resolved via rhatSocialURL, if requested and found",
+            "title": "Github Username"
+          },
+          "org_username": {
+            "description": "LDAP uid (app-interface org_username)",
+            "title": "Org Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_username"
+        ],
+        "title": "LdapGroupMember",
+        "type": "object"
+      },
+      "LdapGroupMembersRequest": {
+        "description": "Request to resolve members of one or more LDAP groups.",
+        "properties": {
+          "groups": {
+            "description": "Short group CNs to resolve (e.g. 'my-ldap-group')",
+            "items": {
+              "type": "string"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "include_github_usernames": {
+            "default": true,
+            "description": "Whether to enrich each member with its GitHub username",
+            "title": "Include Github Usernames",
+            "type": "boolean"
+          },
+          "secret": {
+            "$ref": "#/components/schemas/LdapDirectSecret",
+            "description": "Vault secret reference for LDAP credentials"
+          }
+        },
+        "required": [
+          "groups",
+          "secret"
+        ],
+        "title": "LdapGroupMembersRequest",
+        "type": "object"
+      },
+      "LdapGroupMembersResponse": {
+        "description": "Response with resolved membership for each requested group.\n\nOnly contains entries for groups that exist in LDAP - a group CN that\ndoes not resolve to an entry is omitted (distinct from a confirmed-empty\ngroup, which is present with an empty `members` list). Callers must\ntreat a missing group as unresolved, not as empty.",
+        "properties": {
+          "groups": {
+            "description": "Resolved membership per existing requested group",
+            "items": {
+              "$ref": "#/components/schemas/LdapGroupResult"
+            },
+            "title": "Groups",
+            "type": "array"
+          }
+        },
+        "title": "LdapGroupMembersResponse",
+        "type": "object"
+      },
+      "LdapGroupResult": {
+        "description": "Resolved membership of a single LDAP group.",
+        "properties": {
+          "group": {
+            "description": "Short group CN, as requested",
+            "title": "Group",
+            "type": "string"
+          },
+          "members": {
+            "description": "Members of the group; empty for a confirmed-empty group",
+            "items": {
+              "$ref": "#/components/schemas/LdapGroupMember"
+            },
+            "title": "Members",
+            "type": "array"
+          }
+        },
+        "required": [
+          "group"
+        ],
+        "title": "LdapGroupResult",
+        "type": "object"
+      },
       "LdapUserStatus": {
         "description": "Existence status of a single LDAP user.",
         "properties": {
@@ -2254,6 +2645,291 @@
           }
         },
         "title": "LdapUsersCheckResponse",
+        "type": "object"
+      },
+      "ManagedSsoClientActionCreate": {
+        "description": "Action: register a new managed SSO client with Keycloak.",
+        "properties": {
+          "action_type": {
+            "const": "create",
+            "default": "create",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "client_id": {
+            "description": "Exact Keycloak clientId of the client being created.",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "tenant_secret_path": {
+            "description": "Vault path of the tenant-facing credential secret.",
+            "title": "Tenant Secret Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id",
+          "tenant_secret_path"
+        ],
+        "title": "ManagedSsoClientActionCreate",
+        "type": "object"
+      },
+      "ManagedSsoClientActionDelete": {
+        "description": "Action: delete a managed SSO client no longer present in desired state.",
+        "properties": {
+          "action_type": {
+            "const": "delete",
+            "default": "delete",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "client_id": {
+            "description": "Exact Keycloak clientId of the client being deleted.",
+            "title": "Client Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id"
+        ],
+        "title": "ManagedSsoClientActionDelete",
+        "type": "object"
+      },
+      "ManagedSsoClientActionMoveTenantSecret": {
+        "description": "Action: migrate the tenant secret to a newly-resolved output path.\n\nPure Vault bookkeeping - reuses the client_secret Keycloak already\nissued, no Keycloak call involved. Independent of, and may co-occur\nwith, ManagedSsoClientActionUpdate.",
+        "properties": {
+          "action_type": {
+            "const": "move_tenant_secret",
+            "default": "move_tenant_secret",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "client_id": {
+            "description": "Exact Keycloak clientId of the client whose tenant secret is moving.",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "tenant_secret_path": {
+            "description": "New Vault path of the tenant-facing credential secret.",
+            "title": "Tenant Secret Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id",
+          "tenant_secret_path"
+        ],
+        "title": "ManagedSsoClientActionMoveTenantSecret",
+        "type": "object"
+      },
+      "ManagedSsoClientActionUpdate": {
+        "description": "Action: update an existing managed SSO client's OIDC configuration on Keycloak.\n\nKeycloak-only - a change to the tenant secret's output path is an\nindependent concern, represented by its own ManagedSsoClientActionMoveTenantSecret.",
+        "properties": {
+          "action_type": {
+            "const": "update",
+            "default": "update",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "client_id": {
+            "description": "Exact Keycloak clientId of the client being updated.",
+            "title": "Client Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id"
+        ],
+        "title": "ManagedSsoClientActionUpdate",
+        "type": "object"
+      },
+      "ManagedSsoClientDesiredState": {
+        "description": "Desired state for a single managed SSO client.",
+        "properties": {
+          "client_id": {
+            "description": "Exact Keycloak clientId, taken as-is",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "description": "Whether this client is active on Keycloak. Set to False to deactivate it in place (Keycloak rejects logins/tokens for a disabled client) without deleting this object, which would delete the Keycloak registration and its secret entirely.",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "keycloak_instance": {
+            "$ref": "#/components/schemas/KeycloakInstanceRef",
+            "description": "The Keycloak realm to register/manage this client against."
+          },
+          "oidc": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OidcDesiredState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "OIDC-specific configuration. Required for a working client in this milestone - SAML is not yet supported."
+          },
+          "output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vault path for the tenant-facing credential secret. If None, the reconciler writes to an integration-managed default path."
+          }
+        },
+        "required": [
+          "client_id",
+          "keycloak_instance"
+        ],
+        "title": "ManagedSsoClientDesiredState",
+        "type": "object"
+      },
+      "ManagedSsoClientReconcileRequest": {
+        "description": "Request model for managed-sso-client reconciliation.\n\nPOST requests always queue a background task (async execution).",
+        "properties": {
+          "desired_clients": {
+            "description": "All tenant-declared managed SSO clients across app-interface",
+            "items": {
+              "$ref": "#/components/schemas/ManagedSsoClientDesiredState"
+            },
+            "title": "Desired Clients",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "desired_clients"
+        ],
+        "title": "ManagedSsoClientReconcileRequest",
+        "type": "object"
+      },
+      "ManagedSsoClientTaskResponse": {
+        "description": "Response model for POST /reconcile.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "ManagedSsoClientTaskResponse",
+        "type": "object"
+      },
+      "ManagedSsoClientTaskResult": {
+        "description": "Result model for a completed managed-sso-client reconciliation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "All actions calculated (desired vs. current), including any that failed to apply.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create": "#/components/schemas/ManagedSsoClientActionCreate",
+                  "delete": "#/components/schemas/ManagedSsoClientActionDelete",
+                  "move_tenant_secret": "#/components/schemas/ManagedSsoClientActionMoveTenantSecret",
+                  "update": "#/components/schemas/ManagedSsoClientActionUpdate"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionUpdate"
+                },
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionMoveTenantSecret"
+                },
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionDelete"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (non-dry-run only).",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create": "#/components/schemas/ManagedSsoClientActionCreate",
+                  "delete": "#/components/schemas/ManagedSsoClientActionDelete",
+                  "move_tenant_secret": "#/components/schemas/ManagedSsoClientActionMoveTenantSecret",
+                  "update": "#/components/schemas/ManagedSsoClientActionUpdate"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionUpdate"
+                },
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionMoveTenantSecret"
+                },
+                {
+                  "$ref": "#/components/schemas/ManagedSsoClientActionDelete"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ManagedSsoClientTaskResult",
         "type": "object"
       },
       "NotificationAddUser": {
@@ -3002,6 +3678,143 @@
         "title": "OcmOidcIdpTaskResult",
         "type": "object"
       },
+      "OidcDesiredState": {
+        "description": "Desired OIDC configuration for a single managed SSO client.\n\nEvery optional field here is \"unmanaged\" when None, not \"empty\"/\"false\" -\nKeycloak's client-registration PUT merges by field, so an unmanaged field\nis never sent and never diffed for drift - Keycloak's own default applies\non create, and an existing client's value is left untouched on update.\nOnly an explicitly-set value (including an explicit empty list) is\napplied and compared. `access_type` and `direct_access_grants_enabled`\nare the documented exceptions: both always resolve to a concrete value\n(see their validators below), since Keycloak's own create-time defaults\nfor these two - public access type, and enabled direct access grants -\nare insecure (verified against a live instance).\n\nCaution for every other optional field: setting a value and later\nremoving it from the desired state does NOT revert it - it only stops\nmanaging it, freezing Keycloak at whatever was last pushed. To actually\nundo a change, push back the field's previous explicit value (or its\nKeycloak default) rather than deleting the key.",
+        "properties": {
+          "access_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccessType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Keycloak client type/authentication requirement (confidential/public/bearer-only). Defaults to confidential when unset - Keycloak's own create-time default for an omitted access type is public, not confidential."
+          },
+          "consent_required": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "If true, Keycloak shows a consent screen the first time a user authorizes this client, listing requested scopes.",
+            "title": "Consent Required"
+          },
+          "default_client_scopes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Client scopes automatically included in every token issued to this client. Unmanaged if unset (see class docstring).",
+            "title": "Default Client Scopes"
+          },
+          "direct_access_grants_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enables the OAuth2 Resource Owner Password Credentials grant (client collects username/password itself, no browser redirect). Only appropriate for a trusted first-party client such as an internal CLI - never a browser-based or third-party client. Defaults to False when unset - Keycloak's own create-time default for an omitted value is True.",
+            "title": "Direct Access Grants Enabled"
+          },
+          "full_scope_allowed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether this client is automatically granted every realm/client role, instead of only default_client_scopes/optional_client_scopes.",
+            "title": "Full Scope Allowed"
+          },
+          "optional_client_scopes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Client scopes this client may request via the scope parameter but that aren't included by default. Unmanaged if unset (see class docstring).",
+            "title": "Optional Client Scopes"
+          },
+          "post_logout_redirect_uris": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Allowed URIs Keycloak may redirect back to after an RP-initiated logout. Unmanaged if unset (see class docstring).",
+            "title": "Post Logout Redirect Uris"
+          },
+          "redirect_uris": {
+            "description": "Allowed redirect URIs for the standard login flow. Required by Keycloak - a client without at least one cannot log in.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Redirect Uris",
+            "type": "array"
+          },
+          "service_accounts_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enables the OAuth2 Client Credentials grant (the client authenticates as itself for machine-to-machine calls, no end user involved). Requires access_type=confidential.",
+            "title": "Service Accounts Enabled"
+          },
+          "web_origins": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Allowed CORS origins for browser JavaScript calling Keycloak's endpoints directly from this client. Unmanaged if unset (see class docstring).",
+            "title": "Web Origins"
+          }
+        },
+        "required": [
+          "redirect_uris"
+        ],
+        "title": "OidcDesiredState",
+        "type": "object"
+      },
       "OpenShiftNamespacesReconcileRequest": {
         "description": "Request to reconcile namespaces across clusters.",
         "properties": {
@@ -3199,6 +4012,66 @@
         "title": "QuayOrgConfig",
         "type": "object"
       },
+      "QuayOrgDesiredState": {
+        "description": "Desired robot-account state for a single Quay organization.",
+        "properties": {
+          "instance_name": {
+            "description": "Quay instance name",
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "instance_url": {
+            "description": "Quay instance URL or hostname",
+            "title": "Instance Url",
+            "type": "string"
+          },
+          "managed_repos": {
+            "default": false,
+            "description": "Whether repository permissions may be reconciled",
+            "title": "Managed Repos",
+            "type": "boolean"
+          },
+          "managed_robot_accounts": {
+            "default": false,
+            "description": "Opt-in flag required to manage robot accounts in this org",
+            "title": "Managed Robot Accounts",
+            "type": "boolean"
+          },
+          "managed_teams": {
+            "description": "Teams this integration is allowed to manage",
+            "items": {
+              "type": "string"
+            },
+            "title": "Managed Teams",
+            "type": "array"
+          },
+          "org_name": {
+            "description": "Quay organization name",
+            "title": "Org Name",
+            "type": "string"
+          },
+          "robots": {
+            "description": "Desired robot accounts for this organization",
+            "items": {
+              "$ref": "#/components/schemas/QuayRobotDesiredState"
+            },
+            "title": "Robots",
+            "type": "array"
+          },
+          "token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Vault secret reference for the org automation token"
+          }
+        },
+        "required": [
+          "instance_name",
+          "instance_url",
+          "org_name",
+          "token"
+        ],
+        "title": "QuayOrgDesiredState",
+        "type": "object"
+      },
       "QuayOrgKey": {
         "description": "Identifies a Quay organization uniquely across instances.",
         "properties": {
@@ -3387,6 +4260,16 @@
         "title": "QuayRepoConfig",
         "type": "object"
       },
+      "QuayRepoPermission": {
+        "description": "Allowed Quay repository roles for a robot account.",
+        "enum": [
+          "read",
+          "write",
+          "admin"
+        ],
+        "title": "QuayRepoPermission",
+        "type": "string"
+      },
       "QuayReposReconcileRequest": {
         "description": "Request model for Quay repos reconciliation.",
         "properties": {
@@ -3505,6 +4388,448 @@
           "status"
         ],
         "title": "QuayReposTaskResult",
+        "type": "object"
+      },
+      "QuayRobotAccountsReconcileRequest": {
+        "description": "Request model for quay-robot-accounts reconciliation.",
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "organizations": {
+            "description": "Quay organizations with desired robot-account state",
+            "items": {
+              "$ref": "#/components/schemas/QuayOrgDesiredState"
+            },
+            "title": "Organizations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "organizations"
+        ],
+        "title": "QuayRobotAccountsReconcileRequest",
+        "type": "object"
+      },
+      "QuayRobotAccountsTaskResponse": {
+        "description": "Response model for POST /reconcile.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "QuayRobotAccountsTaskResponse",
+        "type": "object"
+      },
+      "QuayRobotAccountsTaskResult": {
+        "description": "Result model for a completed quay-robot-accounts reconciliation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "All actions calculated (desired - current), including any that failed to apply.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_team": "#/components/schemas/QuayRobotActionAddTeam",
+                  "create": "#/components/schemas/QuayRobotActionCreate",
+                  "delete": "#/components/schemas/QuayRobotActionDelete",
+                  "remove_repo_permission": "#/components/schemas/QuayRobotActionRemoveRepoPermission",
+                  "remove_team": "#/components/schemas/QuayRobotActionRemoveTeam",
+                  "set_repo_permission": "#/components/schemas/QuayRobotActionSetRepoPermission"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionDelete"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionAddTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionRemoveTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionSetRepoPermission"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionRemoveRepoPermission"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (non-dry-run only).",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_team": "#/components/schemas/QuayRobotActionAddTeam",
+                  "create": "#/components/schemas/QuayRobotActionCreate",
+                  "delete": "#/components/schemas/QuayRobotActionDelete",
+                  "remove_repo_permission": "#/components/schemas/QuayRobotActionRemoveRepoPermission",
+                  "remove_team": "#/components/schemas/QuayRobotActionRemoveTeam",
+                  "set_repo_permission": "#/components/schemas/QuayRobotActionSetRepoPermission"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionDelete"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionAddTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionRemoveTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionSetRepoPermission"
+                },
+                {
+                  "$ref": "#/components/schemas/QuayRobotActionRemoveRepoPermission"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "QuayRobotAccountsTaskResult",
+        "type": "object"
+      },
+      "QuayRobotActionAddTeam": {
+        "description": "Action: Add a robot to a team.",
+        "properties": {
+          "action_type": {
+            "const": "add_team",
+            "default": "add_team",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "instance_name": {
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "robot_name": {
+            "title": "Robot Name",
+            "type": "string"
+          },
+          "team": {
+            "title": "Team",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_name",
+          "org_name",
+          "robot_name",
+          "team"
+        ],
+        "title": "QuayRobotActionAddTeam",
+        "type": "object"
+      },
+      "QuayRobotActionCreate": {
+        "description": "Action: Create a robot account.",
+        "properties": {
+          "action_type": {
+            "const": "create",
+            "default": "create",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "instance_name": {
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "robot_name": {
+            "title": "Robot Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_name",
+          "org_name",
+          "robot_name"
+        ],
+        "title": "QuayRobotActionCreate",
+        "type": "object"
+      },
+      "QuayRobotActionDelete": {
+        "description": "Action: Delete a robot account (only when delete: true).",
+        "properties": {
+          "action_type": {
+            "const": "delete",
+            "default": "delete",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "instance_name": {
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "robot_name": {
+            "title": "Robot Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_name",
+          "org_name",
+          "robot_name"
+        ],
+        "title": "QuayRobotActionDelete",
+        "type": "object"
+      },
+      "QuayRobotActionRemoveRepoPermission": {
+        "description": "Action: Remove a robot's repository permission.",
+        "properties": {
+          "action_type": {
+            "const": "remove_repo_permission",
+            "default": "remove_repo_permission",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "instance_name": {
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          },
+          "robot_name": {
+            "title": "Robot Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_name",
+          "org_name",
+          "robot_name",
+          "repo"
+        ],
+        "title": "QuayRobotActionRemoveRepoPermission",
+        "type": "object"
+      },
+      "QuayRobotActionRemoveTeam": {
+        "description": "Action: Remove a robot from a team.",
+        "properties": {
+          "action_type": {
+            "const": "remove_team",
+            "default": "remove_team",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "instance_name": {
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "robot_name": {
+            "title": "Robot Name",
+            "type": "string"
+          },
+          "team": {
+            "title": "Team",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_name",
+          "org_name",
+          "robot_name",
+          "team"
+        ],
+        "title": "QuayRobotActionRemoveTeam",
+        "type": "object"
+      },
+      "QuayRobotActionSetRepoPermission": {
+        "description": "Action: Set or update a robot's repository permission.",
+        "properties": {
+          "action_type": {
+            "const": "set_repo_permission",
+            "default": "set_repo_permission",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "instance_name": {
+            "title": "Instance Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "permission": {
+            "title": "Permission",
+            "type": "string"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          },
+          "robot_name": {
+            "title": "Robot Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_name",
+          "org_name",
+          "robot_name",
+          "repo",
+          "permission"
+        ],
+        "title": "QuayRobotActionSetRepoPermission",
+        "type": "object"
+      },
+      "QuayRobotDesiredState": {
+        "description": "Desired state for a single Quay robot account.",
+        "properties": {
+          "delete": {
+            "default": false,
+            "description": "If True, delete the robot when it exists in Quay",
+            "title": "Delete",
+            "type": "boolean"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Robot description",
+            "title": "Description"
+          },
+          "name": {
+            "description": "Robot short name (without org+ prefix)",
+            "title": "Name",
+            "type": "string"
+          },
+          "repositories": {
+            "description": "Desired repository permissions for this robot",
+            "items": {
+              "$ref": "#/components/schemas/QuayRobotRepository"
+            },
+            "title": "Repositories",
+            "type": "array"
+          },
+          "teams": {
+            "description": "Teams the robot should belong to (managedTeams only)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Teams",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "QuayRobotDesiredState",
+        "type": "object"
+      },
+      "QuayRobotRepository": {
+        "description": "Desired permission for a robot on a single repository.",
+        "properties": {
+          "name": {
+            "description": "Repository name",
+            "title": "Name",
+            "type": "string"
+          },
+          "permission": {
+            "$ref": "#/components/schemas/QuayRepoPermission",
+            "description": "Repository role: read, write, or admin"
+          }
+        },
+        "required": [
+          "name",
+          "permission"
+        ],
+        "title": "QuayRobotRepository",
         "type": "object"
       },
       "RecipientType": {
@@ -4126,97 +5451,6 @@
         "title": "SsoClientCluster",
         "type": "object"
       },
-      "SsoClientCreateManualRequest": {
-        "description": "Request model for ad-hoc SSO client creation (not tied to an OCM cluster).\n\nUsed by qontract-cli to create one-off SSO clients without needing direct\naccess to vault.corp.redhat.com - qontract-api already holds AppRole\ncredentials for it and reads the IAT server-side via keycloak_instance.secret.",
-        "properties": {
-          "client_name": {
-            "description": "Keycloak client id / Vault secret name",
-            "title": "Client Name",
-            "type": "string"
-          },
-          "group_filter_regex": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional group filter regex for the SSO client",
-            "title": "Group Filter Regex"
-          },
-          "keycloak_instance": {
-            "$ref": "#/components/schemas/KeycloakInstanceSecret",
-            "description": "Keycloak issuer URL + Vault reference to its IAT secret"
-          },
-          "redirect_uris": {
-            "description": "Allowed redirect URIs",
-            "items": {
-              "type": "string"
-            },
-            "title": "Redirect Uris",
-            "type": "array"
-          }
-        },
-        "required": [
-          "client_name",
-          "redirect_uris",
-          "keycloak_instance"
-        ],
-        "title": "SsoClientCreateManualRequest",
-        "type": "object"
-      },
-      "SsoClientCreateManualResult": {
-        "description": "Result model for a completed ad-hoc SSO client creation task.",
-        "properties": {
-          "actions": {
-            "default": [],
-            "description": "Always empty - ad-hoc creation is a single action, not a diff. Present only so this result satisfies the shared task-polling Protocol (qontract_api.tasks._utils.TaskResult).",
-            "items": {
-              "type": "string"
-            },
-            "title": "Actions",
-            "type": "array"
-          },
-          "applied_count": {
-            "default": 0,
-            "description": "Number of actions actually applied (0 if dry_run=True)",
-            "title": "Applied Count",
-            "type": "integer"
-          },
-          "errors": {
-            "default": [],
-            "description": "List of errors encountered during reconciliation",
-            "items": {
-              "type": "string"
-            },
-            "title": "Errors",
-            "type": "array"
-          },
-          "status": {
-            "$ref": "#/components/schemas/TaskStatus",
-            "description": "Task execution status (pending/success/failed/skipped)"
-          },
-          "vault_secret_path": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Vault path where the created client secret was stored (set on success only)",
-            "title": "Vault Secret Path"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "title": "SsoClientCreateManualResult",
-        "type": "object"
-      },
       "SsoClientReconcileRequest": {
         "description": "Request model for RHIDP SSO client reconciliation.\n\nPOST requests always queue a background task (async execution).",
         "properties": {
@@ -4438,6 +5672,178 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/external/github-org/members": {
+      "get": {
+        "description": "Get all members of a GitHub organization.\n\nLists every member of the organization (any role) using the GitHub API\ntoken resolved from Vault. Results are cached for performance (TTL\nconfigured in settings).",
+        "operationId": "github-org-members",
+        "parameters": [
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "GitHub organization name",
+            "in": "query",
+            "name": "org_name",
+            "required": true,
+            "schema": {
+              "description": "GitHub organization name",
+              "title": "Org Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubOrgMembersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Org Members",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/ldap/github-usernames": {
+      "post": {
+        "description": "Resolve GitHub usernames to LDAP uids via the rhatSocialURL attribute.\n\nMaps each requested GitHub username to the app-interface org_username (LDAP\nuid) of the user whose rhatSocialURL points at that GitHub account. The\nfull map is cached for performance; unresolved logins are omitted from the\nresponse.\n\nArgs:\n    request: GitHub usernames to resolve and the Vault secret reference\n    cache: Cache dependency\n    secret_manager: Secret manager dependency\n\nReturns:\n    LdapGithubUsernamesResponse with resolved username -> org_username pairs",
+        "operationId": "ldap-github-usernames",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LdapGithubUsernamesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LdapGithubUsernamesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve Github Usernames",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/ldap/groups/members": {
+      "post": {
+        "description": "Resolve members of one or more LDAP groups (cached, FreeIPA-authenticated).\n\nGroups are referenced by short CN (e.g. \"my-ldap-group\"); the full DN is\nconstructed server-side from the configured base DN. Only groups confirmed\nto exist in LDAP are present in the response - a requested group that does\nnot exist is omitted, distinct from a confirmed-empty group (present with\nan empty member list). Callers must treat a missing group as unresolved,\nnot as empty, and must not delete existing members based on it.\n\nArgs:\n    request: Group CNs to resolve, the Vault secret reference, and\n        whether to enrich members with their GitHub username\n    cache: Cache dependency\n    secret_manager: Secret manager dependency\n\nReturns:\n    LdapGroupMembersResponse with resolved membership per existing group\n\nRaises:\n    ValidationError (422): If any resolved group exceeds the configured\n        max_group_size",
+        "operationId": "ldap-group-members",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LdapGroupMembersRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LdapGroupMembersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Group Members",
+        "tags": [
+          "external"
+        ]
+      }
+    },
     "/api/v1/external/ldap/users/check": {
       "post": {
         "description": "Check which usernames exist in LDAP (cached, FreeIPA-authenticated).\n\nQueries LDAP directly using FreeIPA service account credentials\nresolved from Vault. Results are cached for performance.\n\nArgs:\n    request: Request with usernames to check and Vault secret reference\n    cache: Cache dependency\n    secret_manager: Secret manager dependency\n\nReturns:\n    LdapUsersCheckResponse with existence status per username",
@@ -5232,6 +6638,101 @@
         ]
       }
     },
+    "/api/v1/integrations/gitlab-projects/reconcile": {
+      "post": {
+        "description": "Queue GitLab projects reconciliation task.\n\nAlways queues a background task and returns immediately with a task_id.\nUse GET /reconcile/{task_id} to retrieve the result.",
+        "operationId": "gitlab-projects",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitlabProjectsReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabProjectsTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Gitlab Projects",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/gitlab-projects/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation result (blocking or non-blocking).\n\nArgs:\n    task_id: Task ID from POST /reconcile response\n    timeout: Maximum seconds to wait (default: non-blocking)\n\nReturns:\n    GitlabProjectsTaskResult with lists of calculated and applied actions.\n\nRaises:\n    HTTPException:\n        - 404 Not Found: Task ID not found\n        - 408 Request Timeout: Task still pending after timeout (blocking mode only)",
+        "operationId": "gitlab-projects-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabProjectsTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Gitlab Projects Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
     "/api/v1/integrations/glitchtip-project-alerts/reconcile": {
       "post": {
         "description": "Queue Glitchtip project alerts reconciliation task.\n\nThis endpoint always queues a background task and returns immediately\nwith a task_id. Use GET /reconcile/{task_id} to retrieve the result.\n\nArgs:\n    reconcile_request: Reconciliation request with desired state\n    current_user: Authenticated user (from JWT token)\n    request: FastAPI Request object (used to generate status_url)\n\nReturns:\n    GlitchtipProjectAlertsTaskResponse with task_id and status_url",
@@ -5417,6 +6918,101 @@
           }
         ],
         "summary": "Glitchtip Reconcile Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/managed-sso-client/reconcile": {
+      "post": {
+        "description": "Queue a managed-sso-client reconciliation task.",
+        "operationId": "managed-sso-client",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagedSsoClientReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedSsoClientTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Managed Sso Client",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/managed-sso-client/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve the reconciliation result (blocking or non-blocking).",
+        "operationId": "managed-sso-client-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedSsoClientTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Managed Sso Client Task Status",
         "tags": [
           "integrations"
         ]
@@ -5802,6 +7398,101 @@
         ]
       }
     },
+    "/api/v1/integrations/quay-robot-accounts/reconcile": {
+      "post": {
+        "description": "Queue a quay-robot-accounts reconciliation task.",
+        "operationId": "quay-robot-accounts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuayRobotAccountsReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuayRobotAccountsTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Quay Robot Accounts",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/quay-robot-accounts/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve the reconciliation result (blocking or non-blocking).",
+        "operationId": "quay-robot-accounts-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuayRobotAccountsTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Quay Robot Accounts Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
     "/api/v1/integrations/slack-usergroups/reconcile": {
       "post": {
         "description": "Queue Slack usergroups reconciliation task.\n\nThis endpoint always queues a background task and returns immediately\nwith a task_id. Use GET /reconcile/{task_id} to retrieve the result.\n\nArgs:\n    reconcile_request: Reconciliation request with desired state\n    current_user: Authenticated user (from JWT token)\n    request: FastAPI Request object (used to generate status_url)\n\nReturns:\n    SlackUsergroupsTaskResponse with task_id and status_url",
@@ -5892,101 +7583,6 @@
           }
         ],
         "summary": "Slack Usergroups Task Status",
-        "tags": [
-          "integrations"
-        ]
-      }
-    },
-    "/api/v1/integrations/sso-client/manual": {
-      "post": {
-        "description": "Queue ad-hoc SSO client creation (not tied to an OCM cluster).\n\nUsed by qontract-cli for one-off client creation. Always queues a\nbackground task and returns immediately with a task_id. Use\nGET /manual/{task_id} to retrieve the result.",
-        "operationId": "sso-client-create-manual",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SsoClientCreateManualRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SsoClientTaskResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Sso Client Create Manual",
-        "tags": [
-          "integrations"
-        ]
-      }
-    },
-    "/api/v1/integrations/sso-client/manual/{task_id}": {
-      "get": {
-        "description": "Retrieve ad-hoc SSO client creation result (blocking or non-blocking).",
-        "operationId": "sso-client-create-manual-task-status",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "task_id",
-            "required": true,
-            "schema": {
-              "title": "Task Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
-            "in": "query",
-            "name": "timeout",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maximum": 300,
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
-              "title": "Timeout"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SsoClientCreateManualResult"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Sso Client Create Manual Task Status",
         "tags": [
           "integrations"
         ]

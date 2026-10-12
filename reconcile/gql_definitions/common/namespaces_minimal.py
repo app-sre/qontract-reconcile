@@ -22,6 +22,7 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 DEFINITION = """
 fragment VaultSecret on VaultSecret_v1 {
+  url
   path
   field
   version
@@ -42,8 +43,26 @@ query NamespacesMinimal {
       automationToken {
         ...VaultSecret
       }
+      automationTokens {
+        name
+        namespace
+        active
+        delete
+        secret {
+          ...VaultSecret
+        }
+      }
       clusterAdminAutomationToken {
         ...VaultSecret
+      }
+      clusterAdminAutomationTokens {
+        name
+        namespace
+        active
+        delete
+        secret {
+          ...VaultSecret
+        }
       }
       internal
       disable {
@@ -61,6 +80,22 @@ class ConfiguredBaseModel(BaseModel):
     )
 
 
+class AutomationTokenEntryV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    namespace: str = Field(..., alias="namespace")
+    active: Optional[bool] = Field(..., alias="active")
+    delete: Optional[bool] = Field(..., alias="delete")
+    secret: Optional[VaultSecret] = Field(..., alias="secret")
+
+
+class ClusterV1_AutomationTokenEntryV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    namespace: str = Field(..., alias="namespace")
+    active: Optional[bool] = Field(..., alias="active")
+    delete: Optional[bool] = Field(..., alias="delete")
+    secret: Optional[VaultSecret] = Field(..., alias="secret")
+
+
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
 
@@ -70,7 +105,9 @@ class ClusterV1(ConfiguredBaseModel):
     server_url: str = Field(..., alias="serverUrl")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
+    automation_tokens: Optional[list[AutomationTokenEntryV1]] = Field(..., alias="automationTokens")
     cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
+    cluster_admin_automation_tokens: Optional[list[ClusterV1_AutomationTokenEntryV1]] = Field(..., alias="clusterAdminAutomationTokens")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 

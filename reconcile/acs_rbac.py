@@ -166,10 +166,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsIntegrationParams]):
             for role in user.roles or []:
                 for permission in role.oidc_permissions or []:
                     if isinstance(permission, OidcPermissionAcsV1):
-                        if (
-                            permission.instance is None
-                            or permission.instance.name != instance_name
-                        ):
+                        if permission.instance.name != instance_name:
                             continue
                         permission_usernames[
                             Permission(**permission.model_dump(by_alias=True))

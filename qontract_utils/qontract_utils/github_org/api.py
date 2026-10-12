@@ -318,6 +318,28 @@ class GithubOrgApi:
 
     @invoke_with_hooks(
         lambda self, org_name: GithubOrgApiCallContext(  # ruff: ignore[unused-lambda-argument]
+            method="org.get_members", verb="GET", org=org_name
+        )
+    )
+    def get_members(self, org_name: str) -> list[str]:
+        """Fetch all members of a GitHub organization (any role).
+
+        Unlike `get_admin_members`, this returns every organization member
+        regardless of role and preserves the login casing exactly as GitHub
+        reports it - callers that need case-insensitive comparison must
+        lowercase on their side.
+
+        Args:
+            org_name: GitHub organization name
+
+        Returns:
+            Sorted list of GitHub usernames (original case) of all org members
+        """
+        org = self._gh.get_organization(org_name)
+        return sorted(m.login for m in org.get_members())
+
+    @invoke_with_hooks(
+        lambda self, org_name: GithubOrgApiCallContext(  # ruff: ignore[unused-lambda-argument]
             method="org.get_pending_invitations", verb="GET", org=org_name
         )
     )

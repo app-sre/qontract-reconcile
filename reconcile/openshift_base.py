@@ -1179,11 +1179,13 @@ def _validate_resources_used_exist(
     kind: str,
     name: str,
     used_kind: str,
+    namespace_exists_cache: dict[tuple[str, str], bool],
 ) -> None:
     used_resources = oc.get_resources_used_in_pod_spec(
         spec, used_kind, include_optional=False
     )
     for used_name, used_keys in used_resources.items():
+        err_base = f"[{cluster}/{namespace}] [{kind}/{name}] {used_kind} {used_name}"
         # perhaps used resource is deployed together with the using resource?
         desired_resource = ri.get_desired(cluster, namespace, used_kind, used_name)
         # if not, perhaps it's a secret that will be created from a Service's
@@ -1221,10 +1223,22 @@ def _validate_resources_used_exist(
             resource = desired_resource.body
         else:
             # no. perhaps used resource exists in the namespace?
+            if namespace != "cluster":
+                namespace_key = (cluster, namespace)
+                if (
+                    namespace_exists := namespace_exists_cache.get(namespace_key)
+                ) is None:
+                    namespace_exists = oc.project_exists(namespace)
+                    namespace_exists_cache[namespace_key] = namespace_exists
+                if not namespace_exists:
+                    logging.warning(
+                        f"{err_base} namespace does not exist; "
+                        "skipping planned resource validation"
+                    )
+                    continue
             resource = oc.get(
                 namespace, used_kind, name=used_name, allow_not_found=True
             )
-        err_base = f"[{cluster}/{namespace}] [{kind}/{name}] {used_kind} {used_name}"
         if not resource:
             # no. where is used resource hiding? we can't find it anywhere
             logging.error(f"{err_base} does not exist")
@@ -1243,6 +1257,7 @@ def _validate_resources_used_exist(
 
 
 def validate_planned_data(ri: ResourceInventory, oc_map: ClusterMap) -> None:
+    namespace_exists_cache: dict[tuple[str, str], bool] = {}
     for cluster, namespace, kind, data in ri:
         oc = oc_map.get_cluster(cluster)
 
@@ -1250,10 +1265,26 @@ def validate_planned_data(ri: ResourceInventory, oc_map: ClusterMap) -> None:
             if kind in {"Deployment", "DeploymentConfig"}:
                 spec = d_item.body["spec"]["template"]["spec"]
                 _validate_resources_used_exist(
-                    ri, oc, spec, cluster, namespace, kind, name, "Secret"
+                    ri,
+                    oc,
+                    spec,
+                    cluster,
+                    namespace,
+                    kind,
+                    name,
+                    "Secret",
+                    namespace_exists_cache,
                 )
                 _validate_resources_used_exist(
-                    ri, oc, spec, cluster, namespace, kind, name, "ConfigMap"
+                    ri,
+                    oc,
+                    spec,
+                    cluster,
+                    namespace,
+                    kind,
+                    name,
+                    "ConfigMap",
+                    namespace_exists_cache,
                 )
 
 

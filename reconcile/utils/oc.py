@@ -57,7 +57,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.unleash import get_feature_toggle_state
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Mapping
+    from collections.abc import Callable, Iterable, Mapping, Sequence
 
     from reconcile.utils.oc_connection_parameters import OCConnectionParameters
 
@@ -1543,6 +1543,20 @@ class OC:
         )
 
 
+def find_active_list_token_dict(
+    entries: Sequence[Mapping[str, Any]] | None,
+) -> Mapping[str, Any] | None:
+    """Dict-based equivalent of oc_connection_parameters.find_active_list_token,
+    for the raw GQL-result dicts (DEPRECATED!) OC_Map operates on.
+    """
+    if not entries:
+        return None
+    for entry in entries:
+        if entry.get("active") and not entry.get("delete") and entry.get("secret"):
+            return entry["secret"]
+    return None
+
+
 class OC_Map:  # ruff: ignore[invalid-class-name]
     """
     DEPRECATED! Use reconcile.utils.oc_map.OCMap instead.
@@ -1643,10 +1657,14 @@ class OC_Map:  # ruff: ignore[invalid-class-name]
                 return
 
         if privileged:
-            automation_token = cluster_info.get("clusterAdminAutomationToken")
+            automation_token = find_active_list_token_dict(
+                cluster_info.get("clusterAdminAutomationTokens")
+            ) or cluster_info.get("clusterAdminAutomationToken")
             token_name = "admin automation token"
         else:
-            automation_token = cluster_info.get("automationToken")
+            automation_token = find_active_list_token_dict(
+                cluster_info.get("automationTokens")
+            ) or cluster_info.get("automationToken")
             token_name = "automation token"
 
         if automation_token is None:

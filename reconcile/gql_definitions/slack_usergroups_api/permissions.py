@@ -17,11 +17,32 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
 from reconcile.gql_definitions.fragments.user import User
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
+fragment RoleMembershipSource on RoleMembershipSource_V1 {
+  group
+  provider {
+    name
+    hasAuditTrail
+    source {
+      provider
+      ... on AppInterfaceMembershipProviderSource_V1 {
+        url
+        username {
+          ...VaultSecret
+        }
+        password {
+          ...VaultSecret
+        }
+      }
+    }
+  }
+}
+
 fragment User on User_v1 {
   name
   org_username
@@ -32,6 +53,7 @@ fragment User on User_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
+  url
   path
   field
   version
@@ -61,9 +83,23 @@ query SlackUsergroupApiPermission {
         scheduleID
         escalationPolicyID
       }
+      github {
+        name
+        token {
+          ...VaultSecret
+        }
+      }
       roles {
+        name
         users {
           ...User
+        }
+        bots {
+          name
+          org_username
+        }
+        memberSources {
+          ...RoleMembershipSource
         }
       }
       schedule {
@@ -119,8 +155,21 @@ class PagerDutyTargetV1(ConfiguredBaseModel):
     escalation_policy_id: Optional[str] = Field(..., alias="escalationPolicyID")
 
 
+class GithubOrgV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    token: VaultSecret = Field(..., alias="token")
+
+
+class BotV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    org_username: Optional[str] = Field(..., alias="org_username")
+
+
 class RoleV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
     users: list[User] = Field(..., alias="users")
+    bots: list[BotV1] = Field(..., alias="bots")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
 
 
 class ScheduleEntryV1(ConfiguredBaseModel):
@@ -154,6 +203,7 @@ class PermissionSlackUsergroupV1(PermissionV1):
     owners_from_repos: Optional[list[str]] = Field(..., alias="ownersFromRepos")
     skip: Optional[bool] = Field(..., alias="skip")
     pagerduty: Optional[list[PagerDutyTargetV1]] = Field(..., alias="pagerduty")
+    github: Optional[GithubOrgV1] = Field(..., alias="github")
     roles: Optional[list[RoleV1]] = Field(..., alias="roles")
     schedule: Optional[ScheduleV1] = Field(..., alias="schedule")
     workspace: SlackWorkspaceV1 = Field(..., alias="workspace")

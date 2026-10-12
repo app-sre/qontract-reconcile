@@ -185,6 +185,10 @@ INTEGRATIONS_QUERY = """
           name
           serverUrl
           insecureSkipTLSVerify
+          # APPSRE-13941: automationTokens (list) intentionally omitted here.
+          # get_integrations() has no callers as of 2026-10-01, so this
+          # automationToken is unused dead data. If a caller appears and
+          # builds an OC connection from it, add automationTokens too.
           automationToken {
             path
             field
@@ -992,17 +996,45 @@ CLUSTERS_QUERY = """
         value
       }
     }
+    # APPSRE-13941: tools/qontract_cli.py's bot-login command builds an oc
+    # login command from this query, so the rotation-aware lists are needed
+    # here (unlike the reconcile/-only callers of get_clusters(), which only
+    # build an OCMMap or read unrelated metadata).
     automationToken {
       path
       field
       version
       format
     }
+    automationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        path
+        field
+        version
+        format
+      }
+    }
     clusterAdminAutomationToken {
       path
       field
       version
       format
+    }
+    clusterAdminAutomationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        path
+        field
+        version
+        format
+      }
     }
     clusterAdmin
     internal
@@ -1040,11 +1072,26 @@ CLUSTERS_MINIMAL_QUERY = """
     spec {
         private
     }
+    # APPSRE-13941: tools/qontract_cli.py's root-owner command feeds this
+    # query straight into OC_Map, which builds an OC/K8s client from it, so
+    # the rotation-aware list is needed here too.
     automationToken {
       path
       field
       version
       format
+    }
+    automationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        path
+        field
+        version
+        format
+      }
     }
     internal
     disable {
@@ -1570,11 +1617,35 @@ NAMESPACES_QUERY = """
         version
         format
       }
+      automationTokens {
+        name
+        namespace
+        active
+        delete
+        secret {
+          path
+          field
+          version
+          format
+        }
+      }
       clusterAdminAutomationToken {
         path
         field
         version
         format
+      }
+      clusterAdminAutomationTokens {
+        name
+        namespace
+        active
+        delete
+        secret {
+          path
+          field
+          version
+          format
+        }
       }
       internal
       disable {
@@ -1642,6 +1713,10 @@ NAMESPACES_MINIMAL_QUERY = """
       name
       serverUrl
       insecureSkipTLSVerify
+      # APPSRE-13941: automationTokens (list) intentionally omitted here.
+      # get_namespaces(minimal=True) has zero callers as of 2026-10-01 -
+      # this whole query is dead code. If a caller appears and builds an
+      # OC connection from it, add automationTokens too.
       automationToken {
         path
         field
@@ -2252,6 +2327,18 @@ PIPELINES_PROVIDERS_QUERY = """
             version
             format
           }
+          automationTokens {
+            name
+            namespace
+            active
+            delete
+            secret {
+              path
+              field
+              version
+              format
+            }
+          }
           internal
           disable {
             integrations
@@ -2676,6 +2763,18 @@ GABI_INSTANCES_QUERY = """
             version
             format
           }
+          automationTokens {
+            name
+            namespace
+            active
+            delete
+            secret {
+              path
+              field
+              version
+              format
+            }
+          }
           internal
           disable {
             integrations
@@ -2728,6 +2827,17 @@ CLOSED_BOX_MONITORING_PROBES_QUERY = """
                     field
                     version
                   }
+                  automationTokens {
+                    name
+                    namespace
+                    active
+                    delete
+                    secret {
+                      path
+                      field
+                      version
+                    }
+                  }
                   internal
                 }
               }
@@ -2747,6 +2857,17 @@ CLOSED_BOX_MONITORING_PROBES_QUERY = """
                     path
                     field
                     version
+                  }
+                  automationTokens {
+                    name
+                    namespace
+                    active
+                    delete
+                    secret {
+                      path
+                      field
+                      version
+                    }
                   }
                   internal
                 }

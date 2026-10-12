@@ -93,6 +93,7 @@ def vault_secret() -> VaultSecret:
         field="key",
         format=None,
         version=None,
+        url=None,
     )
 
 

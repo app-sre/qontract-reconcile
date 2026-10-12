@@ -27,6 +27,7 @@ fragment RoleMembershipSource on RoleMembershipSource_V1 {
     name
     hasAuditTrail
     source {
+      provider
       ... on AppInterfaceMembershipProviderSource_V1 {
         url
         username {
@@ -41,6 +42,7 @@ fragment RoleMembershipSource on RoleMembershipSource_V1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
+  url
   path
   field
   version

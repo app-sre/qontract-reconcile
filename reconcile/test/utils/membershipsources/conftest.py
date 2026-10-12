@@ -9,17 +9,20 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 @pytest.fixture
 def app_interface_membership_provider() -> AppInterfaceMembershipProviderSourceV1:
     return AppInterfaceMembershipProviderSourceV1(
+        provider="app-interface",
         url="url",
         username=VaultSecret(
             path="path",
             field="username",
             format="format",
             version=1,
+            url=None,
         ),
         password=VaultSecret(
             path="path",
             field="password",
             format="format",
             version=1,
+            url=None,
         ),
     )
