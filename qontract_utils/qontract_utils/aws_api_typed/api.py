@@ -135,7 +135,12 @@ class AWSApi:
     Feel free to implement missing methods and AWS servcies as needed.
     """
 
-    def __init__(self, aws_credentials: AWSCredentials) -> None:
+    def __init__(
+        self, aws_credentials: AWSCredentials, *, config: Config | None = None
+    ) -> None:
+        self._client_config = (
+            DEFAULT_CONFIG.merge(config) if config is not None else DEFAULT_CONFIG
+        )
         self.session = aws_credentials.build_session()
         self._session_clients: list[BaseClient] = []
 
@@ -154,63 +159,63 @@ class AWSApi:
     @cached_property
     def account(self) -> AWSApiAccount:
         """Return an AWS Account Api client."""
-        client = self.session.client("account", config=DEFAULT_CONFIG)
+        client = self.session.client("account", config=self._client_config)
         self._session_clients.append(client)
         return AWSApiAccount(client)
 
     @cached_property
     def cloudformation(self) -> AWSApiCloudFormation:
         """Return an AWS CloudFormation Api client."""
-        client = self.session.client("cloudformation", config=DEFAULT_CONFIG)
+        client = self.session.client("cloudformation", config=self._client_config)
         self._session_clients.append(client)
         return AWSApiCloudFormation(client)
 
     @cached_property
     def dynamodb(self) -> AWSApiDynamoDB:
         """Return an AWS DynamoDB Api client."""
-        client = self.session.client("dynamodb", config=DEFAULT_CONFIG)
+        client = self.session.client("dynamodb", config=self._client_config)
         self._session_clients.append(client)
         return AWSApiDynamoDB(client)
 
     @cached_property
     def iam(self) -> AWSApiIam:
         """Return an AWS IAM Api client."""
-        client = self.session.client("iam", config=DEFAULT_CONFIG)
+        client = self.session.client("iam", config=self._client_config)
         self._session_clients.append(client)
         return AWSApiIam(client)
 
     @cached_property
     def logs(self) -> AWSApiLogs:
         """Return an AWS Logs Api client."""
-        client = self.session.client("logs", config=DEFAULT_CONFIG)
+        client = self.session.client("logs", config=self._client_config)
         self._session_clients.append(client)
         return AWSApiLogs(client)
 
     @cached_property
     def organizations(self) -> AWSApiOrganizations:
         """Return an AWS Organizations Api client."""
-        client = self.session.client("organizations", config=DEFAULT_CONFIG)
+        client = self.session.client("organizations", config=self._client_config)
         self._session_clients.append(client)
         return AWSApiOrganizations(client)
 
     @cached_property
     def s3(self) -> AWSApiS3:
         """Return an AWS S3 Api client."""
-        client = self.session.client("s3", config=DEFAULT_CONFIG)
+        client = self.session.client("s3", config=self._client_config)
         self._session_clients.append(client)
         return AWSApiS3(client)
 
     @cached_property
     def service_quotas(self) -> AWSApiServiceQuotas:
         """Return an AWS Service Quotas Api client."""
-        client = self.session.client("service-quotas", config=DEFAULT_CONFIG)
+        client = self.session.client("service-quotas", config=self._client_config)
         self._session_clients.append(client)
         return AWSApiServiceQuotas(client)
 
     @cached_property
     def sts(self) -> AWSApiSts:
         """Return an AWS STS Api client."""
-        client = self.session.client("sts", config=DEFAULT_CONFIG)
+        client = self.session.client("sts", config=self._client_config)
         self._session_clients.append(client)
         return AWSApiSts(client)
 
@@ -219,12 +224,12 @@ class AWSApi:
         """Return an AWS Marketplace Api client for agreement and discovery."""
         agreement_client = self.session.client(
             "marketplace-agreement",
-            config=DEFAULT_CONFIG,
+            config=self._client_config,
             region_name="us-east-1",
         )
         discovery_client = self.session.client(
             "marketplace-discovery",
-            config=DEFAULT_CONFIG,
+            config=self._client_config,
             region_name="us-east-1",
         )
         self._session_clients.append(agreement_client)
@@ -234,7 +239,7 @@ class AWSApi:
     @cached_property
     def support(self) -> AWSApiSupport:
         """Return an AWS Support Api client."""
-        client = self.session.client("support", config=DEFAULT_CONFIG)
+        client = self.session.client("support", config=self._client_config)
         self._session_clients.append(client)
         return AWSApiSupport(client)
 
@@ -247,7 +252,8 @@ class AWSApi:
                 secret_access_key=credentials.secret_access_key,
                 session_token=credentials.session_token,
                 region=self.session.region_name,
-            )
+            ),
+            config=self._client_config,
         )
 
     def temporary_session(self, duration_seconds: int = 900) -> AWSApi:
@@ -266,5 +272,6 @@ class AWSApi:
                 secret_access_key=tmp_creds.secret_access_key,
                 session_token=tmp_creds.session_token,
                 region=self.session.region_name,
-            )
+            ),
+            config=self._client_config,
         )

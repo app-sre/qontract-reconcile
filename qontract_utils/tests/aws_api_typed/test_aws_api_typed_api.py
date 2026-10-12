@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import pytest
 from boto3 import Session
+from botocore.config import Config
 from pytest_mock import MockerFixture
 from qontract_utils.aws_api_typed.account import AWSApiAccount
 from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
@@ -23,6 +26,23 @@ def aws_api() -> AWSApi:
             region="region",
         )
     )
+
+
+@pytest.mark.parametrize("use_fips", [True, False])
+def test_aws_api_typed_api_preserves_client_config(
+    mocker: MockerFixture, *, use_fips: bool
+) -> None:
+    """Caller endpoint settings retain standard retries and client cleanup."""
+    credentials = mocker.Mock(spec=AWSStaticCredentials)
+    session = credentials.build_session.return_value
+    client = session.client.return_value
+    with AWSApi(credentials, config=Config(use_fips_endpoint=use_fips)) as api:
+        assert api.iam.client is client
+        config = session.client.call_args.kwargs["config"]
+        assert config.use_fips_endpoint is use_fips
+        assert config.retries["mode"] == "standard"
+        assert config.retries["total_max_attempts"] == 10
+    session.client.return_value.close.assert_called_once()
 
 
 def test_aws_api_typed_api_init(aws_api: AWSApi) -> None:

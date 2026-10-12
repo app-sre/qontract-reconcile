@@ -14,6 +14,7 @@ from qontract_api_client.schemas import (
     LdapGroupResult,
     TaskStatus,
 )
+from qontract_utils.aws_api_typed.iam import AWSUser
 
 from reconcile import openshift_users, sendgrid_teammates
 from reconcile.automated_actions.config.integration import (
@@ -49,6 +50,7 @@ from reconcile.gql_definitions.ocm_aws_infrastructure_access.clusters import (
     ClusterV1 as InfrastructureCluster,
 )
 from reconcile.gql_definitions.sendgrid_teammates.roles import RoleV1 as SendgridRole
+from reconcile.ocm_aws_infrastructure_access import MissingIamUsersError
 from reconcile.openshift_bindings.openshift_clusterrolebindings import (
     OpenShiftClusterRoleBindingsIntegration,
     OpenShiftClusterRoleBindingsIntegrationParams,
@@ -58,13 +60,30 @@ from reconcile.openshift_bindings.openshift_rolebindings import (
     OpenShiftRoleBindingsIntegrationParams,
 )
 from reconcile.test.utils.membershipsources.fixtures import build_ldap_membership_source
-from reconcile.utils.aws_iam_identity import MissingIamUsersError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterable
     from unittest.mock import AsyncMock
 
     from pytest_mock import MockerFixture
+
+
+@pytest.fixture(autouse=True)
+def mock_infrastructure_credentials(mocker: MockerFixture) -> None:
+    reader = mocker.patch(
+        "reconcile.ocm_aws_infrastructure_access.SecretReader"
+    ).return_value
+    reader.read_all_secret.return_value = {
+        "aws_access_key_id": "test-access",
+        "aws_secret_access_key": "test-secret",
+    }
+
+
+def _iam_users(usernames: Iterable[str]) -> list[AWSUser]:
+    return [
+        AWSUser(UserName=name, UserId=f"id-{name}", Arn=f"arn/{name}", Path="/")
+        for name in usernames
+    ]
 
 
 @pytest.fixture
@@ -551,7 +570,9 @@ def test_infrastructure_access_resolves_ldap_members(
         return_value={},
     )
     aws = mocker.patch("reconcile.ocm_aws_infrastructure_access.AWSApi", create=True)
-    aws.return_value.__enter__.return_value._get_account_users.return_value = ["alice"]
+    aws.return_value.__enter__.return_value.iam.list_users.return_value = _iam_users([
+        "alice"
+    ])
     desired = infrastructure.fetch_desired_state(fetch_infrastructure_clusters(cluster))
     assert [
         (grant.cluster, grant.user_arn, grant.access_level) for grant in desired
@@ -788,8 +809,8 @@ def test_remaining_consumer_membership_modes(
                     return_value={},
                 )
                 aws = mocker.patch("reconcile.ocm_aws_infrastructure_access.AWSApi")
-                aws.return_value.__enter__.return_value._get_account_users.return_value = list(
-                    member_mode.expected
+                aws.return_value.__enter__.return_value.iam.list_users.return_value = (
+                    _iam_users(member_mode.expected)
                 )
                 return {
                     grant.user_arn.rsplit("/", 1)[1]
@@ -904,7 +925,7 @@ def test_missing_iam_user_cannot_revoke_infrastructure_grants(
     aws = mocker.patch(
         "reconcile.ocm_aws_infrastructure_access.AWSApi"
     ).return_value.__enter__.return_value
-    aws._get_account_users.return_value = []
+    aws.iam.list_users.return_value = []
     current = mocker.patch(
         "reconcile.ocm_aws_infrastructure_access.fetch_current_state"
     )
@@ -1165,7 +1186,9 @@ def test_infrastructure_clusters_resolve_members_at_fetch_boundary(
     mocker.patch.object(module.queries, "get_app_interface_settings", return_value={})
     mocker.patch.object(
         module, "AWSApi"
-    ).return_value.__enter__.return_value._get_account_users.return_value = ["alice"]
+    ).return_value.__enter__.return_value.iam.list_users.return_value = _iam_users([
+        "alice"
+    ])
     assert [grant.user_arn for grant in module.fetch_desired_state(fetched)] == [
         "arn:aws:iam::123:user/alice"
     ]

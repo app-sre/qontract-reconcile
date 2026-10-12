@@ -219,6 +219,8 @@ The prerequisite read requires IAM `ListUsers` access. Missing principals abort
 before grant removals; membership resolution does not provision users,
 PGP keys, or credential delivery. Keep explicit identity/provisioning data for
 `terraform-users`, and do not treat this check as authorization to remove it.
+The consumer uses the typed `qontract_utils.aws_api_typed` IAM inventory and
+account automation credentials, preserving GovCloud FIPS endpoint settings.
 `aws-iam-password-reset` retains its existing behavior; its membership and
 GraphQL migrations are out of scope for this rollout.
 

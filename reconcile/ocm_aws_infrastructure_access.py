@@ -5,7 +5,9 @@ import sys
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
+from botocore.config import Config
 from pydantic import BaseModel
+from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 from qontract_utils.differ import diff_iterables
 
 from reconcile import queries
@@ -19,8 +21,6 @@ from reconcile.gql_definitions.ocm_aws_infrastructure_access.clusters import (
 from reconcile.status import ExitCodes
 from reconcile.typed_queries.terraform_namespaces import get_namespaces
 from reconcile.utils import gql
-from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.aws_iam_identity import require_iam_users
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
@@ -35,14 +35,39 @@ from reconcile.utils.ocm import (
     STATUS_FAILED,
     OCMMap,
 )
+from reconcile.utils.secret_reader import SecretReader
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from qontract_utils.aws_api_typed.iam import AWSApiIam
 
     from reconcile.gql_definitions.fragments.aws_account_common import AWSAccountCommon
 
 QONTRACT_INTEGRATION = "ocm-aws-infrastructure-access"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
+
+
+class MissingIamUsersError(ValueError):
+    """Infrastructure grants require IAM users that already exist in the account."""
+
+
+class AwsAutomationCredentials(BaseModel, frozen=True):
+    """Typed contents of an AWS account's automation token."""
+
+    aws_access_key_id: str
+    aws_secret_access_key: str
+
+
+def _require_iam_users(
+    iam: AWSApiIam, *, account_name: str, usernames: Iterable[str]
+) -> None:
+    """Fail before mutations when a requested IAM identity is missing."""
+    if requested := set(usernames):
+        if missing := requested - {user.user_name for user in iam.list_users()}:
+            raise MissingIamUsersError(
+                f"IAM users are not provisioned in {account_name}: {sorted(missing)}. Retain explicit identity/provisioning requirements before enabling LDAP-only membership."
+            )
 
 
 class InfrastructureGrant(BaseModel, frozen=True):
@@ -144,17 +169,23 @@ def fetch_desired_state(clusters: Iterable[ClusterV1]) -> list[InfrastructureGra
                 desired_state.append(item)
 
     if required_accounts:
-        with AWSApi(
-            1,
-            [
-                account.model_dump(by_alias=True)
-                for account in required_accounts.values()
-            ],
-            settings=queries.get_app_interface_settings(),
-        ) as aws_api:
-            for account_name, usernames in required_users.items():
-                require_iam_users(
-                    aws_api, account_name=account_name, usernames=usernames
+        secret_reader = SecretReader(settings=queries.get_app_interface_settings())
+        for account_name, account in required_accounts.items():
+            credentials = AwsAutomationCredentials.model_validate(
+                secret_reader.read_all_secret(account.automation_token)
+            )
+            with AWSApi(
+                AWSStaticCredentials(
+                    access_key_id=credentials.aws_access_key_id,
+                    secret_access_key=credentials.aws_secret_access_key,
+                    region=account.resources_default_region,
+                ),
+                config=Config(use_fips_endpoint=account.partition == "aws-us-gov"),
+            ) as aws_api:
+                _require_iam_users(
+                    aws_api.iam,
+                    account_name=account_name,
+                    usernames=required_users[account_name],
                 )
 
     # get desired state defined in external resources
