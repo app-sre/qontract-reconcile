@@ -85,7 +85,7 @@ def get_usernames_from_users(
         name
         for user in users or []
         for user_key in user_keys or []
-        if (name := getattr(user, user_key, None))
+        if (name := ob.get_user_identity(user, user_key))
     }
 
 

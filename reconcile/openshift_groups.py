@@ -169,18 +169,8 @@ def fetch_desired_state(
             )
             for user in r.users:
                 usernames: set[str] = set()
-                username: str | None
                 for user_key in user_keys:
-                    match user_key:
-                        case "org_username":
-                            username = user.org_username
-                        case "github_username":
-                            username = user.github_username
-                        case _:
-                            raise ValueError(
-                                f"Unsupported OpenShift user key: {user_key}"
-                            )
-                    if username:
+                    if username := ob.get_user_identity(user, user_key):
                         usernames.add(username)
                 desired_state.extend(
                     {"cluster": a.cluster.name, "group": a.group, "user": name}

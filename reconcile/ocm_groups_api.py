@@ -126,16 +126,8 @@ async def _fetch_desired_state(cluster_names: list[str]) -> list[OcmGroupUser]:
             )
             for user in resolved_role.users:
                 usernames: set[str] = set()
-                username: str | None
                 for user_key in user_keys:
-                    match user_key:
-                        case "org_username":
-                            username = user.org_username
-                        case "github_username":
-                            username = user.github_username
-                        case _:
-                            raise ValueError(f"Unsupported OCM user key: {user_key}")
-                    if username:
+                    if username := ob.get_user_identity(user, user_key):
                         usernames.add(username)
                 desired_state.extend(
                     OcmGroupUser(cluster=a.cluster.name, group=a.group, user=name)

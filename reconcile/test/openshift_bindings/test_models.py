@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 from reconcile.gql_definitions.common.app_interface_clusterrole import (
     AccessV1 as ClusterAccessV1,
 )
@@ -28,6 +30,7 @@ from reconcile.gql_definitions.common.app_interface_roles import (
     UserV1,
 )
 from reconcile.openshift_bindings.models import (
+    BindingUser,
     ClusterRoleBindingRole,
     ClusterRoleBindingSpec,
     RoleBindingRole,
@@ -39,6 +42,20 @@ from reconcile.openshift_bindings.utils import is_valid_namespace
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
+
+def test_binding_identity_lookup_rejects_unknown_keys() -> None:
+    with pytest.raises(ValueError, match="Unsupported OpenShift user key"):
+        get_usernames_from_users(
+            [BindingUser(org_username="alice")], user_keys=["future_username"]
+        )
+
+
+def test_generated_binding_identity_lookup_rejects_unknown_keys(
+    test_user: UserV1,
+) -> None:
+    with pytest.raises(ValueError, match="Unsupported OpenShift user key: invalid_key"):
+        get_usernames_from_users([test_user], user_keys=["invalid_key"])
 
 
 class TestIsValidNamespace:
@@ -173,11 +190,6 @@ class TestGetUsernamesFromUsers:
     def test_get_usernames_from_users_none_keys(self, test_user: UserV1) -> None:
         """None user_keys returns empty set."""
         usernames = get_usernames_from_users([test_user], user_keys=None)
-        assert usernames == set()
-
-    def test_get_usernames_from_users_invalid_key(self, test_user: UserV1) -> None:
-        """Invalid key is skipped."""
-        usernames = get_usernames_from_users([test_user], user_keys=["invalid_key"])
         assert usernames == set()
 
     def test_get_usernames_from_users_cluster_users(
