@@ -33,6 +33,8 @@ from reconcile.gitlab_housekeeping.labels import (
     is_eligible_for_optimistic_merge,
 )
 from reconcile.gitlab_housekeeping.omm import (
+    _bot_head_awaiting_pipeline,
+    _without_skip_ci_bot_pipelines,
     apply_omm_group_lead,
     apply_omm_pending,
     clear_omm_group,
@@ -272,7 +274,8 @@ def merge_merge_requests(
         if rebase and not is_rebased(mr, gl):
             continue
 
-        if mr.iid in pipeline_cache:
+        cached = mr.iid in pipeline_cache
+        if cached:
             pipelines = pipeline_cache[mr.iid]
             latest = next(
                 (p for p in pipelines if p.status != PipelineStatus.SKIPPED),
@@ -281,23 +284,66 @@ def merge_merge_requests(
             if latest is not None and latest.status == PipelineStatus.SUCCESS:
                 # cached success can be stale; a newer pipeline may have failed
                 pipelines = gl.get_merge_request_pipelines(mr)
+                cached = False
         else:
             pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
             continue
 
-        if pipeline_timeout is not None:
-            timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
-            if timed_out_pipelines:
-                clean_pipelines(
-                    dry_run=dry_run,
-                    gl=gl,
-                    fork_project_id=mr.source_project_id,
-                    pipelines=timed_out_pipelines,
-                )
+        def _usable_pipelines(
+            raw: list[ProjectMergeRequestPipeline],
+            current_mr: ProjectMergeRequest,
+        ) -> list[ProjectMergeRequestPipeline]:
+            if pipeline_timeout is not None:
+                timed_out_pipelines = get_timed_out_pipelines(raw, pipeline_timeout)
+                if timed_out_pipelines:
+                    clean_pipelines(
+                        dry_run=dry_run,
+                        gl=gl,
+                        fork_project_id=current_mr.source_project_id,
+                        pipelines=timed_out_pipelines,
+                    )
+            kept = [p for p in raw if p.status != PipelineStatus.SKIPPED]
+            # Same skip-ci drop as OMM. After a group expires, a failed
+            # pipeline on a skip-ci SHA must not block older success.
+            return _without_skip_ci_bot_pipelines(gl, current_mr, kept)
 
-        pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
+        pipelines = _usable_pipelines(pipelines, mr)
         if not pipelines:
+            continue
+        # Cached skip-ci failure is not refetched above. Filtering it can
+        # leave an older SUCCESS; refetch so a newer real failure is seen.
+        if cached and pipelines[0].status == PipelineStatus.SUCCESS:
+            pipelines = gl.get_merge_request_pipelines(mr)
+            if not pipelines:
+                continue
+            pipelines = _usable_pipelines(pipelines, mr)
+            if not pipelines:
+                continue
+
+        # List SHA is from before healthcheck. A bot rebase that lands
+        # after that list still looks rebased (old head vs target). Wait
+        # and merge must use the live head. Same fetch as admission.
+        try:
+            fresh = gl.get_merge_request(mr.iid, include_rebase_in_progress=True)
+        except gitlab.exceptions.GitlabError as e:
+            logging.warning([
+                "skip merge",
+                "mr-unavailable",
+                gl.project.name,
+                mr.iid,
+                str(e),
+            ])
+            continue
+        if getattr(fresh, "rebase_in_progress", None) is True:
+            logging.info([
+                "skip merge",
+                "rebase-in-progress",
+                gl.project.name,
+                mr.iid,
+            ])
+            continue
+        if rebase and not is_rebased(fresh, gl):
             continue
 
         if wait_for_pipeline:
@@ -316,6 +362,18 @@ def merge_merge_requests(
         if last_pipeline_result != PipelineStatus.SUCCESS:
             continue
 
+        # Merge-only: RUNNING may join or hit wait_for_pipeline above.
+        # Do not merge leftover SUCCESS if this SHA is not green.
+        if _bot_head_awaiting_pipeline(gl, fresh, pipelines, require_success=True):
+            logging.info([
+                "skip merge",
+                "bot-head-awaiting-pipeline",
+                gl.project.name,
+                mr.iid,
+                getattr(fresh, "sha", None),
+            ])
+            continue
+
         logging.info(["merge", gl.project.name, mr.iid])
         if merges >= merge_limit:
             continue
@@ -323,7 +381,7 @@ def merge_merge_requests(
         if not dry_run:
             try:
                 squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
-                mr.merge(squash=squash)
+                mr.merge(squash=squash, sha=fresh.sha)
                 labels = mr.labels
                 merged_merge_requests.labels(
                     project_id=mr.target_project_id,
@@ -336,6 +394,15 @@ def merge_merge_requests(
                     project_id=mr.target_project_id, priority=merge_request["priority"]
                 ).observe(calculate_time_since_approval(merge_request["approved_at"]))
             except gitlab.exceptions.GitlabMRClosedError as e:
+                # sha= is compare-and-swap. HEAD moved → 409. Next loop.
+                if e.response_code == 409:
+                    logging.info([
+                        "skip merge",
+                        "sha-mismatch",
+                        gl.project.name,
+                        mr.iid,
+                    ])
+                    continue
                 logging.error(f"unable to merge {mr.iid}: {e}")
                 gl.add_label_to_merge_request(mr, MERGE_ERROR)
                 continue

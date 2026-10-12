@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
+from operator import itemgetter
 from typing import TYPE_CHECKING, Any, cast
 
 import gitlab
@@ -186,6 +187,328 @@ def clear_omm_group(
                 gl.remove_label(mr, OMM_PENDING)
 
 
+def _bot_commit_emails(gl: GitLabApi) -> set[str]:
+    """Emails the rebase API writes as committer. Empty strings never match."""
+    emails: set[str] = set()
+    user = getattr(gl, "user", None)
+    if user is None:
+        return emails
+    for raw in (
+        getattr(user, "commit_email", None),
+        getattr(user, "email", None),
+    ):
+        if isinstance(raw, str) and raw.strip():
+            emails.add(raw.strip().lower())
+    return emails
+
+
+def _event_label_name(event: Any) -> str | None:
+    label = getattr(event, "label", None)
+    if isinstance(label, dict):
+        name = label.get("name")
+    else:
+        name = getattr(label, "name", None)
+    if isinstance(name, str) and name:
+        return name
+    return None
+
+
+def _omm_pending_on_intervals(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+) -> list[tuple[datetime, datetime | None]] | None:
+    """Stretches when omm-pending was on. None if the events cannot be read.
+
+    An open interval (end is None) means the label is still on.
+    """
+    try:
+        events = gl.get_merge_request_label_events(mr)
+    except gitlab.exceptions.GitlabError as e:
+        logging.warning([
+            "omm-group",
+            "skip-ci-label-events-unavailable",
+            gl.project.name,
+            mr.iid,
+            str(e),
+        ])
+        return None
+    if not isinstance(events, list):
+        return None
+
+    stamped: list[tuple[datetime, str]] = []
+    for event in events:
+        if _event_label_name(event) != OMM_PENDING:
+            continue
+        action = getattr(event, "action", None)
+        created_at = getattr(event, "created_at", None)
+        if action not in {"add", "remove"} or not isinstance(created_at, str):
+            logging.warning([
+                "omm-group",
+                "skip-ci-label-events-unparsed",
+                gl.project.name,
+                mr.iid,
+            ])
+            return None
+        try:
+            stamped.append((from_utc_iso_format(created_at), action))
+        except TypeError, ValueError:
+            logging.warning([
+                "omm-group",
+                "skip-ci-label-events-unparsed",
+                gl.project.name,
+                mr.iid,
+            ])
+            return None
+    stamped.sort(key=itemgetter(0))
+
+    intervals: list[tuple[datetime, datetime | None]] = []
+    open_start: datetime | None = None
+    for when, action in stamped:
+        if action == "add":
+            if open_start is None:
+                open_start = when
+        elif open_start is not None:
+            intervals.append((open_start, when))
+            open_start = None
+    if open_start is not None:
+        intervals.append((open_start, None))
+    return intervals
+
+
+def _committed_during_label(
+    committed_at: datetime,
+    intervals: list[tuple[datetime, datetime | None]],
+) -> bool:
+    for start, end in intervals:
+        if committed_at < start:
+            continue
+        if end is None:
+            return True
+        # Git commit times are whole seconds; label events keep fractions.
+        # A post-remove rebase at 00:10:00.900 is stored as 00:10:00.000.
+        # Floor the remove so that second is not treated as still in-window.
+        if committed_at < end.replace(microsecond=0):
+            return True
+    return False
+
+
+def _sha_commit(
+    gl: GitLabApi,
+    project_id: int | str,
+    sha: str,
+    cache: dict[tuple[int | str, str], tuple[str, datetime] | None],
+) -> tuple[str, datetime] | None:
+    """(committer_email, committed_at) for sha, or None if it cannot be read."""
+    key = (project_id, sha)
+    if key in cache:
+        return cache[key]
+    try:
+        commit = gl.get_commit(project_id, sha)
+        email = getattr(commit, "committer_email", None)
+        committed_at = getattr(commit, "committed_date", None)
+        if not isinstance(email, str) or not email.strip():
+            cache[key] = None
+            return None
+        if not isinstance(committed_at, str):
+            cache[key] = None
+            return None
+        parsed = (email.strip().lower(), from_utc_iso_format(committed_at))
+    except (gitlab.exceptions.GitlabError, TypeError, ValueError) as e:
+        logging.warning([
+            "omm-group",
+            "skip-ci-commit-unavailable",
+            project_id,
+            sha,
+            str(e),
+        ])
+        cache[key] = None
+        return None
+    cache[key] = parsed
+    return parsed
+
+
+def _without_skip_ci_bot_pipelines(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+    pipelines: list[Any],
+) -> list[Any]:
+    """Drop pipelines on bot commits written while omm-pending was on.
+
+    Lookup failure keeps the pipelines. Committer alone is not a drop.
+    """
+    intervals = _omm_pending_on_intervals(gl, mr)
+    if not intervals:
+        return pipelines
+    emails = _bot_commit_emails(gl)
+    if not emails:
+        return pipelines
+
+    cache: dict[tuple[int | str, str], tuple[str, datetime] | None] = {}
+    kept: list[Any] = []
+    dropped: list[str] = []
+    for pipeline in pipelines:
+        project_id = getattr(pipeline, "project_id", None)
+        sha = getattr(pipeline, "sha", None)
+        if project_id is None or not isinstance(sha, str):
+            kept.append(pipeline)
+            continue
+        commit = _sha_commit(gl, project_id, sha, cache)
+        if commit is None:
+            kept.append(pipeline)
+            continue
+        email, committed_at = commit
+        if email in emails and _committed_during_label(committed_at, intervals):
+            dropped.append(sha)
+            continue
+        kept.append(pipeline)
+    if dropped:
+        logging.info([
+            "omm-group",
+            "skip-ci-bot-pipeline-ignored",
+            gl.project.name,
+            mr.iid,
+            sorted(set(dropped)),
+        ])
+    return kept
+
+
+def _status_requires_wait(status: Any, *, require_success: bool) -> bool:
+    """True when this pipeline status must not proceed on leftover SUCCESS."""
+    if status == PipelineStatus.SUCCESS:
+        return False
+    if status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
+        return require_success
+    return True
+
+
+def _usable_sha_status(pipelines: list[Any], sha: str) -> Any:
+    return next(
+        (
+            getattr(p, "status", None)
+            for p in pipelines
+            if getattr(p, "sha", None) == sha
+            and getattr(p, "status", None) != PipelineStatus.SKIPPED
+            and getattr(p, "source", None) != "push"
+        ),
+        None,
+    )
+
+
+def _prior_revision_requires_wait(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+    pipelines: list[Any],
+    *,
+    require_success: bool,
+) -> bool:
+    """Skip-ci tip: judge the newest remaining revision, not leftover SUCCESS.
+
+    Formation rebases the admitted SHA to a skip-ci commit. The skip-ci row is
+    dropped, so pipelines[0] can be an older SHA's SUCCESS while the pre-rebase
+    CI is still running or has failed. Use commit time, not created_at.
+    Git commit times are whole seconds. Different SHAs in that second are not
+    ordered, so wait unless every one of them is SUCCESS. The same SHA twice
+    is not a tie. Unreadable remaining commits wait: that is not proof the
+    prior SHA is green.
+    """
+    cache: dict[tuple[int | str, str], tuple[str, datetime] | None] = {}
+    best_at: datetime | None = None
+    best_shas: set[str] = set()
+    for pipeline in pipelines:
+        sha = getattr(pipeline, "sha", None)
+        if not isinstance(sha, str):
+            continue
+        if getattr(pipeline, "status", None) == PipelineStatus.SKIPPED:
+            continue
+        if getattr(pipeline, "source", None) == "push":
+            continue
+        project_id = getattr(pipeline, "project_id", None)
+        if project_id is None:
+            project_id = getattr(mr, "source_project_id", None)
+        if project_id is None:
+            return True
+        commit = _sha_commit(gl, project_id, sha, cache)
+        if commit is None:
+            return True
+        _email, committed_at = commit
+        if best_at is None or committed_at > best_at:
+            best_at = committed_at
+            best_shas = {sha}
+        elif committed_at == best_at:
+            best_shas.add(sha)
+    if not best_shas:
+        return True
+    if len(best_shas) == 1:
+        return _status_requires_wait(
+            _usable_sha_status(pipelines, next(iter(best_shas))),
+            require_success=require_success,
+        )
+    return any(
+        _usable_sha_status(pipelines, sha) != PipelineStatus.SUCCESS
+        for sha in best_shas
+    )
+
+
+def _bot_head_awaiting_pipeline(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+    pipelines: list[Any],
+    *,
+    require_success: bool = False,
+) -> bool:
+    """True when the live head must not proceed on an older SUCCESS.
+
+    SKIPPED rows and source=push shells do not count. Those are placeholders,
+    not Jenkins. Caller should pass the usable list (placeholders and in-window
+    skip-ci bot pipelines already dropped).
+
+    Decision uses this SHA's newest usable row, not pipelines[0] across SHAs.
+    SUCCESS: proceed. FAILED or CANCELED: do not. RUNNING or PENDING: proceed
+    for admission (join and wait); block when require_success=True (merge).
+    No usable row: wait, unless the head is an in-window skip-ci bot commit.
+    A non-bot tip with no CI waits too. An older SUCCESS must not merge it.
+
+    An in-window skip-ci head still waits when the newest remaining revision
+    (by commit time) is not SUCCESS. Different SHAs that share that second wait
+    unless every one of them is SUCCESS. Leftover SUCCESS on an older SHA must
+    not authorize merge while the pre-rebase CI is running or failed.
+
+    If the tip has no usable pipeline and the commit cannot be classified,
+    wait. Lookup failure is not proof it is safe to join on older SUCCESS.
+    """
+    sha = getattr(mr, "sha", None)
+    if not isinstance(sha, str):
+        return True
+    head_status = _usable_sha_status(pipelines, sha)
+    if head_status is not None:
+        return _status_requires_wait(head_status, require_success=require_success)
+    emails = _bot_commit_emails(gl)
+    if not emails:
+        logging.warning([
+            "omm-group",
+            "skip-ci-bot-email-unavailable",
+            gl.project.name,
+            mr.iid,
+        ])
+        return True
+    project_id = getattr(mr, "source_project_id", None)
+    if project_id is None:
+        return True
+    commit = _sha_commit(gl, project_id, sha, {})
+    if commit is None:
+        return True
+    email, committed_at = commit
+    # Only an in-window skip-ci bot commit may fall through to older CI.
+    if email not in emails:
+        return True
+    intervals = _omm_pending_on_intervals(gl, mr)
+    if not (intervals and _committed_during_label(committed_at, intervals)):
+        return True
+    return _prior_revision_requires_wait(
+        gl, mr, pipelines, require_success=require_success
+    )
+
+
 def form_omm_group(
     gl: GitLabApi,
     merge_requests: list[dict[str, Any]],
@@ -213,14 +536,47 @@ def form_omm_group(
         if has_overlapping_labels(mr_labels, group_labels):
             continue
         pipelines = gl.get_merge_request_pipelines(mr)
-        pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
-        if not pipelines:
+        visible = [
+            p
+            for p in pipelines
+            if not (p.status == PipelineStatus.SKIPPED or p.source == "push")
+        ]
+        visible = _without_skip_ci_bot_pipelines(gl, mr, visible)
+        if not visible:
             continue
-        if pipelines[0].status not in {
+        if visible[0].status not in {
             PipelineStatus.RUNNING,
             PipelineStatus.PENDING,
             PipelineStatus.SUCCESS,
         }:
+            continue
+        try:
+            fresh = gl.get_merge_request(mr.iid, include_rebase_in_progress=True)
+        except gitlab.exceptions.GitlabError as e:
+            logging.warning([
+                "omm-group",
+                "skip-admission-mr-unavailable",
+                gl.project.name,
+                mr.iid,
+                str(e),
+            ])
+            continue
+        if getattr(fresh, "rebase_in_progress", None) is True:
+            logging.info([
+                "omm-group",
+                "skip-admission-rebase-in-progress",
+                gl.project.name,
+                mr.iid,
+            ])
+            continue
+        if _bot_head_awaiting_pipeline(gl, fresh, visible):
+            logging.info([
+                "omm-group",
+                "skip-admission-bot-head-awaiting-pipeline",
+                gl.project.name,
+                mr.iid,
+                fresh.sha,
+            ])
             continue
         candidates.append(mr)
         group_labels.update(mr_labels)
@@ -405,11 +761,13 @@ def _process_omm_member(
     # Filter pipelines that carry no CI signal:
     # - SKIPPED: placeholder from skip_ci rebase
     # - PUSH: empty 0-job shells from skip_ci rebase (real CI is source=external)
+    # - bot commits written while omm-pending was on: post-19.2 skip-ci Jenkins
     pipelines = [
         p
         for p in pipelines
         if not (p.status == PipelineStatus.SKIPPED or p.source == "push")
     ]
+    pipelines = _without_skip_ci_bot_pipelines(gl, mr, pipelines)
 
     fresh_mr = gl.get_merge_request(mr.iid)
     try:
@@ -483,6 +841,18 @@ def _process_omm_member(
             "rebased" if mr_is_rebased else "not-rebased",
         ])
         return _MemberResult(active=mr_is_rebased)
+
+    # Same tip check as serial merge. In-window skip-ci may still merge on
+    # older SUCCESS. A failed or untested post-label bot head must not.
+    if _bot_head_awaiting_pipeline(gl, fresh_mr, pipelines, require_success=True):
+        logging.info([
+            "omm-group",
+            "bot-head-awaiting-pipeline",
+            gl.project.name,
+            mr.iid,
+            getattr(fresh_mr, "sha", None),
+        ])
+        return _MemberResult(active=True)
 
     # --- SUCCESS: the only path that differs on rebased state ---
     if mr_is_rebased:
