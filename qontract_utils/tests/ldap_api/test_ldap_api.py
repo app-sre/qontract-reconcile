@@ -419,6 +419,33 @@ def test_ldap_api_call_context_immutable() -> None:
 # --- get_group_members ---
 
 
+@pytest.mark.parametrize("duplicate_name", ["ALICE EXAMPLE", " Alice Example "])
+def test_get_group_members_deduplicates_uid_and_retains_first_name(
+    duplicate_name: str, mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Repeated LDAP records do not inflate group size when CN differs."""
+    group_dns = [
+        "cn=team-a,cn=groups,cn=accounts,dc=example,dc=com",
+        "cn=team-b,cn=groups,cn=accounts,dc=example,dc=com",
+    ]
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {"attributes": {"uid": ["alice"], "cn": [name], "memberOf": group_dns}}
+            for name in ("Alice Example", duplicate_name)
+        ],
+        None,
+    )
+    with ldap_api:
+        groups = ldap_api.get_group_members(group_dns)
+    assert {group.dn for group in groups} == set(group_dns)
+    for group in groups:
+        assert [(member.username, member.name) for member in group.members] == [
+            ("alice", "Alice Example")
+        ]
+
+
 def test_get_group_members_preserves_person_name(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:
