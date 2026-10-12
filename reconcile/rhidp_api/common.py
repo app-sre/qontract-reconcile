@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 
 # Generates label keys for rhidp, compliant with the naming schema defined in
-# https://service.pages.redhat.com/dev-guidelines/docs/sre-capabilities/framework/ocm-labels/
+# https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/platform-users/platform-services/sre-capabilities/ocm-labels.md
 RHIDP_NAMESPACE_LABEL_KEY = sre_capability_label_key("rhidp")
 STATUS_LABEL_KEY = sre_capability_label_key("rhidp", "status")
 ISSUER_LABEL_KEY = sre_capability_label_key("rhidp", "issuer")
