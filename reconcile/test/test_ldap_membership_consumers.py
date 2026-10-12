@@ -137,7 +137,10 @@ def test_acs_rbac_includes_ldap_only_role(
         "reconcile.acs_rbac.acs_rbac_query",
         return_value=AcsRbacQueryData(acs_rbacs=[role]),
     )
-    desired = acs_rbac.AcsRbacIntegration().get_desired_state(mocker.Mock(), "acs")
+    integration = acs_rbac.AcsRbacIntegration()
+    desired = integration.get_desired_state(
+        integration.get_roles(mocker.Mock(), instance_names={"acs"}), "acs"
+    )
     assert [assignment.value for assignment in desired[0].assignments] == ["alice"]
 
 
@@ -505,8 +508,9 @@ def test_membership_modes(
                 "reconcile.acs_rbac.acs_rbac_query",
                 return_value=AcsRbacQueryData(acs_rbacs=[role]),
             )
-            acs_desired = acs_rbac.AcsRbacIntegration().get_desired_state(
-                mocker.Mock(), "acs"
+            integration = acs_rbac.AcsRbacIntegration()
+            acs_desired = integration.get_desired_state(
+                integration.get_roles(mocker.Mock(), instance_names={"acs"}), "acs"
             )
             assert (
                 tuple(assignment.value for assignment in acs_desired[0].assignments)
@@ -913,7 +917,13 @@ def test_acs_explicit_empty_roles_preserve_previous_desired_state(
         "reconcile.acs_rbac.acs_rbac_query",
         return_value=AcsRbacQueryData(acs_rbacs=[role]),
     )
-    assert acs_rbac.AcsRbacIntegration().get_desired_state(mocker.Mock(), "acs") == []
+    integration = acs_rbac.AcsRbacIntegration()
+    assert (
+        integration.get_desired_state(
+            integration.get_roles(mocker.Mock(), instance_names={"acs"}), "acs"
+        )
+        == []
+    )
 
 
 def test_missing_github_username_is_skipped_silently(

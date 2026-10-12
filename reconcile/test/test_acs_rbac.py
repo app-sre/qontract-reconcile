@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
+from unittest.mock import Mock, PropertyMock
 
 import pytest
 
@@ -22,10 +22,13 @@ from reconcile.gql_definitions.acs.acs_rbac import (
     RoleV1,
     UserV1,
 )
+from reconcile.test.utils.membershipsources.fixtures import build_ldap_membership_source
 from reconcile.utils.acs import rbac
 from reconcile.utils.acs.rbac import AccessScopeNamespace
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from pytest_mock import MockerFixture
 
 AUTH_PROVIDER_ID = "6a41743c-792b-11ee-b962-0242ac120002"
@@ -322,6 +325,125 @@ def api_response_permission_sets() -> list[rbac.PermissionSet]:
     ]
 
 
+@pytest.mark.parametrize("dry_run", [True, False])
+@pytest.mark.parametrize("ordering", [("valid", "invalid"), ("invalid", "valid")])
+def test_run_validates_all_memberships_before_creating_clients(
+    dry_run: bool,
+    ordering: tuple[str, str],
+    mocker: MockerFixture,
+    api_response_access_scopes: list[rbac.AccessScope],
+    api_response_permission_sets: list[rbac.PermissionSet],
+) -> None:
+    instances = []
+    roles = []
+    for name in ordering:
+        instance = Mock()
+        instance.name = name
+        instance.url = f"https://{name}.example.com"
+        instance.auth_provider.q_id = AUTH_PROVIDER_ID
+        instances.append(instance)
+        roles.append(
+            RoleV1(
+                name=f"role-{name}",
+                users=[UserV1(org_username="alice")],
+                memberSources=[build_ldap_membership_source("ldap", "missing")]
+                if name == "invalid"
+                else None,
+                oidc_permissions=[
+                    OidcPermissionAcsV1(
+                        name=f"permission-{name}",
+                        description="Admin access",
+                        service="acs",
+                        instance=AcsInstanceV1(name=name),
+                        permission_set="admin",
+                        clusters=[],
+                        namespaces=[],
+                    )
+                ],
+            )
+        )
+    gqlapi = mocker.patch("reconcile.acs_rbac.gql.get_api").return_value
+    mocker.patch(
+        "reconcile.acs_rbac.acs_rbac_query",
+        return_value=AcsRbacQueryData(acs_rbacs=roles),
+    )
+
+    def resolve_members(
+        supplied: Sequence[RoleV1], *, user_cls: type[UserV1], query_func: Callable
+    ) -> list[RoleV1]:
+        assert user_cls is UserV1
+        assert query_func is gqlapi.query
+        if any(role.member_sources for role in supplied):
+            raise RuntimeError("LDAP source group could not be resolved")
+        return list(supplied)
+
+    mocker.patch("reconcile.acs_rbac.resolve_role_members", side_effect=resolve_members)
+    api = mocker.patch("reconcile.acs_rbac.AcsRbacApi")
+    api.get_acs_instances.return_value = instances
+    client = api.return_value.__enter__.return_value
+    client.get_rbac_resources.return_value = rbac.RbacResources(
+        roles=[],
+        groups=[],
+        access_scopes=api_response_access_scopes,
+        permission_sets=api_response_permission_sets,
+    )
+    mocker.patch.object(AcsRbacIntegration, "get_current_state", return_value=[])
+    mocker.patch.object(
+        AcsRbacIntegration,
+        "secret_reader",
+        new_callable=PropertyMock,
+        return_value=Mock(),
+    )
+    with pytest.raises(
+        (RuntimeError, ExceptionGroup),
+        match="could not be resolved|ACS RBAC reconciliation",
+    ):
+        AcsRbacIntegration().run(dry_run=dry_run)
+    api.assert_not_called()
+    client.create_role.assert_not_called()
+    client.create_group_batch.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "ordering", [("broken", "app-sre-acs"), ("app-sre-acs", "broken")]
+)
+def test_run_preserves_isolation_for_instance_api_errors(
+    ordering: tuple[str, str],
+    mocker: MockerFixture,
+    query_data_desired_state: AcsRbacQueryData,
+) -> None:
+    instances = []
+    for name in ordering:
+        instance = Mock()
+        instance.name = name
+        instance.url = f"https://{name}.example.com"
+        instances.append(instance)
+    mocker.patch("reconcile.acs_rbac.gql.get_api")
+    query = mocker.patch(
+        "reconcile.acs_rbac.acs_rbac_query", return_value=query_data_desired_state
+    )
+    api = mocker.patch("reconcile.acs_rbac.AcsRbacApi")
+    api.get_acs_instances.return_value = instances
+    api.return_value.__enter__.return_value.get_rbac_resources.side_effect = [
+        RuntimeError("ACS API failed") if name == "broken" else Mock()
+        for name in ordering
+    ]
+    mocker.patch.object(AcsRbacIntegration, "get_current_state", return_value=[])
+    mocker.patch.object(
+        AcsRbacIntegration,
+        "secret_reader",
+        new_callable=PropertyMock,
+        return_value=Mock(),
+    )
+    reconcile = mocker.patch.object(AcsRbacIntegration, "reconcile")
+    with pytest.raises(ExceptionGroup, match="ACS RBAC reconciliation errors") as error:
+        AcsRbacIntegration().run(dry_run=False)
+    assert str(error.value.exceptions[0]) == "ACS API failed"
+    query.assert_called_once()
+    reconcile.assert_called_once()
+    assert reconcile.call_args.kwargs["dry_run"] is False
+
+
 def test_access_scope_strips_cluster_id_from_namespaces() -> None:
     # ACS API started returning a 'clusterId' field in namespace items; it must
     # be stripped so the desired-vs-current comparison stays idempotent.
@@ -356,7 +478,10 @@ def test_get_desired_state(
     query_func.return_value = query_data_desired_state
 
     integration = AcsRbacIntegration()
-    result = integration.get_desired_state(query_func, "app-sre-acs")
+    result = integration.get_desired_state(
+        integration.get_roles(query_func, instance_names={"app-sre-acs"}),
+        "app-sre-acs",
+    )
 
     assert result == modeled_acs_roles
 
@@ -862,6 +987,9 @@ def test_get_desired_state_filters_by_instance(
     query_func.return_value = query_data_desired_state
 
     integration = AcsRbacIntegration()
-    result = integration.get_desired_state(query_func, "other-instance")
+    result = integration.get_desired_state(
+        integration.get_roles(query_func, instance_names={"other-instance"}),
+        "other-instance",
+    )
 
     assert result == []
