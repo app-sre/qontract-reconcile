@@ -54,14 +54,14 @@ def build_glitchtip_access_report_users(
         for role in team.roles
     ]
     resolved_roles = resolve_role_members(roles, user_cls=UserV1, query_func=query_func)
-    roles_by_name = {role.name: role for role in resolved_roles}
+    resolved_iter = iter(resolved_roles)
 
     users: dict[str, GlitchtipAccessReportUser] = {}
     for project in glitchtip_projects:
         org = Organization(name=project.organization.name)
         for team in project.teams:
-            for role in team.roles:
-                resolved_role = roles_by_name[role.name]
+            for _role in team.roles:
+                resolved_role = next(resolved_iter)
                 for user in resolved_role.users:
                     report_user = users.setdefault(
                         user.org_username,
