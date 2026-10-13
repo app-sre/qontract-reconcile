@@ -50,6 +50,9 @@ fragment VaultSecret on VaultSecret_v1 {
 }
 
 query QontractCliRoles {
+  users: users_v1 {
+    org_username
+  }
   roles: roles_v1 {
     name
     path
@@ -114,6 +117,10 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class UserV1(ConfiguredBaseModel):
+    org_username: str = Field(..., alias="org_username")
+
+
+class RoleV1_UserV1(ConfiguredBaseModel):
     org_username: str = Field(..., alias="org_username")
 
 
@@ -184,7 +191,7 @@ class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     path: str = Field(..., alias="path")
     member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
-    users: list[UserV1] = Field(..., alias="users")
+    users: list[RoleV1_UserV1] = Field(..., alias="users")
     permissions: Optional[list[Union[PermissionGithubOrgTeamV1, PermissionQuayOrgTeamV1, PermissionV1]]] = Field(..., alias="permissions")
     access: Optional[list[AccessV1]] = Field(..., alias="access")
     aws_groups: Optional[list[AWSGroupV1]] = Field(..., alias="aws_groups")
@@ -192,6 +199,7 @@ class RoleV1(ConfiguredBaseModel):
 
 
 class QontractCliRolesQueryData(ConfiguredBaseModel):
+    users: Optional[list[UserV1]] = Field(..., alias="users")
     roles: Optional[list[RoleV1]] = Field(..., alias="roles")
 
 

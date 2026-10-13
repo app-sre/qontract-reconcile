@@ -1,6 +1,9 @@
 # qenerate: plugin=pydantic_v2
 
 query QontractCliRoles {
+  users: users_v1 {
+    org_username
+  }
   roles: roles_v1 {
     name
     path
