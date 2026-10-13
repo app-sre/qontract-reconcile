@@ -17,30 +17,63 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
+
 
 DEFINITION = """
+fragment RoleMembershipSource on RoleMembershipSource_V1 {
+  group
+  provider {
+    name
+    hasAuditTrail
+    source {
+      provider
+      ... on AppInterfaceMembershipProviderSource_V1 {
+        url
+        username {
+          ...VaultSecret
+        }
+        password {
+          ...VaultSecret
+        }
+      }
+    }
+  }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+  url
+  path
+  field
+  version
+  format
+}
+
 query AcsRbac {
-  acs_rbacs: users_v1 {
-    org_username
-    roles {
+  acs_rbacs: roles_v1 {
+    name
+    users {
+      org_username
+    }
+    memberSources {
+      ...RoleMembershipSource
+    }
+    oidc_permissions {
       name
-      oidc_permissions {
-        name
-        description
-        service
-        ... on OidcPermissionAcs_v1 {
-          instance {
+      description
+      service
+      ... on OidcPermissionAcs_v1 {
+        instance {
+          name
+        }
+        permission_set
+        clusters {
+          name
+        }
+        namespaces {
+          name
+          cluster {
             name
-          }
-          permission_set
-          clusters {
-            name
-          }
-          namespaces {
-            name
-            cluster {
-              name
-            }
           }
         }
       }
@@ -54,6 +87,10 @@ class ConfiguredBaseModel(BaseModel):
     model_config = ConfigDict(
         extra='forbid'
     )
+
+
+class UserV1(ConfiguredBaseModel):
+    org_username: str = Field(..., alias="org_username")
 
 
 class OidcPermissionV1(ConfiguredBaseModel):
@@ -88,16 +125,13 @@ class OidcPermissionAcsV1(OidcPermissionV1):
 
 class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    users: list[UserV1] = Field(..., alias="users")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
     oidc_permissions: Optional[list[Union[OidcPermissionAcsV1, OidcPermissionV1]]] = Field(..., alias="oidc_permissions")
 
 
-class UserV1(ConfiguredBaseModel):
-    org_username: str = Field(..., alias="org_username")
-    roles: Optional[list[RoleV1]] = Field(..., alias="roles")
-
-
 class AcsRbacQueryData(ConfiguredBaseModel):
-    acs_rbacs: Optional[list[UserV1]] = Field(..., alias="acs_rbacs")
+    acs_rbacs: Optional[list[RoleV1]] = Field(..., alias="acs_rbacs")
 
 
 def query(query_func: Callable, **kwargs: Any) -> AcsRbacQueryData:

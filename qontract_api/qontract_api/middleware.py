@@ -154,13 +154,23 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         return response
 
 
+_HEALTH_CHECK_PATHS = frozenset({"/health/live", "/health/ready"})
+
+
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Log all requests with timing information and structured fields."""
 
     async def dispatch(  # ruff: ignore[no-self-use] - Required instance method for Starlette middleware
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        """Process request and log details."""
+        """Process request and log details.
+
+        Health check probes are polled every few seconds, so they are logged
+        at DEBUG instead of INFO to avoid drowning out real request logs
+        while still preserving context, status, and timing for debugging.
+        """
+        log = logger.debug if request.url.path in _HEALTH_CHECK_PATHS else logger.info
+
         start_time = time.time()
 
         context_vars = {
@@ -190,7 +200,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         with structlog.contextvars.bound_contextvars(**context_vars):
             # Log request with structured fields
-            logger.info(
+            log(
                 f"Start {request.method} {request.url.path}",
                 http_method=request.method,
                 http_path=str(request.url.path),
@@ -203,7 +213,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             duration = time.time() - start_time
 
             # Log request with structured fields
-            logger.info(
+            log(
                 f"Done {request.method} {request.url.path}",
                 http_method=request.method,
                 http_path=str(request.url.path),

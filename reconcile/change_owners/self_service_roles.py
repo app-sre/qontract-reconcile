@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel
-
 from reconcile.change_owners.approver import (
     Approver,
     ApproverReachability,
@@ -19,9 +17,11 @@ from reconcile.change_owners.change_types import (
 )
 from reconcile.gql_definitions.change_owners.queries import self_service_roles
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
+    BotV1,
     PermissionGitlabGroupMembershipV1,
     PermissionSlackUsergroupV1,
     RoleV1,
+    UserV1,
 )
 from reconcile.utils import expiration, gql
 from reconcile.utils.membershipsources.resolver import resolve_role_members
@@ -45,9 +45,32 @@ class DatafileIncompatibleWithChangeTypeError(Exception):
     """
 
 
-def fetch_self_service_roles(gql_api: gql.GqlApi) -> list[RoleV1]:
+def fetch_self_service_roles(
+    gql_api: gql.GqlApi, *, name: str | None = None
+) -> list[RoleV1]:
+    """Fetch valid self-service roles with resolved comparison-bundle memberships."""
+    return resolve_role_members(
+        _query_self_service_roles(gql_api, name=name),
+        user_cls=UserV1,
+        query_func=gql_api.query,
+    )
+
+
+def validate_self_service_roles(gql_api: gql.GqlApi) -> None:
+    """Validate current-bundle configuration without resolving authorization users."""
+    _query_self_service_roles(gql_api)
+
+
+def _query_self_service_roles(
+    gql_api: gql.GqlApi, *, name: str | None = None
+) -> list[RoleV1]:
     roles: list[RoleV1] = []
-    for r in expiration.filter(self_service_roles.query(gql_api.query).roles or []):
+    for r in expiration.filter(
+        self_service_roles.query(
+            query_func=gql_api.query, variables={"name": name}
+        ).roles
+        or []
+    ):
         if not r.self_service:
             continue
         validate_self_service_role(r)
@@ -137,11 +160,6 @@ def change_type_contexts_for_self_service_roles(
                         ss.change_type.context_schema, ss.change_type.name
                     ].append(r)
 
-    # resolve approvers for self-service roles, either directly or via member sources
-    resolved_approvers = resolve_role_members(
-        [r for r in roles if r.self_service], user_cls=ApproverUser
-    )
-
     # match every BundleChange with every relevant ChangeTypeV1
     change_type_contexts: list[tuple[BundleFileChange, ChangeTypeContext]] = []
     for bc in bundle_changes:
@@ -188,11 +206,7 @@ def change_type_contexts_for_self_service_roles(
                             change_type_processor=ctp,
                             context=f"RoleV1 - {role.name}",
                             origin=ownership.change_type.name,
-                            approvers=[
-                                approver
-                                for rm in resolved_approvers.get(role.name, [])
-                                if (approver := build_approver(rm)) is not None
-                            ],
+                            approvers=build_role_approvers(role),
                             approver_reachability=approver_reachability_from_role(role),
                             change_owner_labels=change_type_labels_from_role(role),
                             context_file=ownership.context_file_ref,
@@ -203,26 +217,27 @@ def change_type_contexts_for_self_service_roles(
     return change_type_contexts
 
 
-class ApproverUser(BaseModel, extra="ignore"):
-    """Role member shape needed to build a change-owners Approver.
+def build_role_approvers(role: RoleV1) -> list[Approver]:
+    """Build approvers from resolved users and unchanged app-interface bots."""
+    members: list[UserV1 | BotV1] = [*role.users, *(role.bots or [])]
+    return [
+        approver
+        for member in members
+        if (approver := build_approver(member)) is not None
+    ]
 
-    Deliberately minimal: memberSources-resolved members (e.g. from LDAP)
-    only ever populate org_username, so every other field must be optional.
-    """
 
-    org_username: str
-    tag_on_merge_requests: bool | None = False
-
-
-def build_approver(role_member: ApproverUser) -> Approver | None:
+def build_approver(role_member: UserV1 | BotV1) -> Approver | None:
     """
     Builds an approver from a role member. Can return None if the passed
     approver is not considered valid within this context, e.g. not having
     an org username.
     """
-    if not role_member.org_username:
-        return None
-    return Approver(role_member.org_username, role_member.tag_on_merge_requests)
+    if username := role_member.org_username:
+        if isinstance(role_member, UserV1):
+            return Approver(username, role_member.tag_on_merge_requests)
+        return Approver(username)
+    return None
 
 
 def change_type_labels_from_role(role: RoleV1) -> set[str]:

@@ -97,6 +97,7 @@ def actions() -> list[AutomatedActionV1]:
                             users=[UserV1(org_username="user1")],
                             bots=[BotV1(org_username="bot1")],
                             expirationDate=None,
+                            memberSources=None,
                         )
                     ],
                 )
@@ -113,6 +114,7 @@ def actions() -> list[AutomatedActionV1]:
                             users=[UserV1(org_username="user1")],
                             bots=[],
                             expirationDate=None,
+                            memberSources=None,
                         )
                     ],
                 )
@@ -134,6 +136,7 @@ def actions() -> list[AutomatedActionV1]:
                             users=[UserV1(org_username="user1")],
                             bots=[],
                             expirationDate=None,
+                            memberSources=None,
                         )
                     ],
                 )
@@ -151,6 +154,7 @@ def actions() -> list[AutomatedActionV1]:
                             users=[UserV1(org_username="user1")],
                             bots=[],
                             expirationDate=None,
+                            memberSources=None,
                         )
                     ],
                 )
@@ -168,6 +172,7 @@ def actions() -> list[AutomatedActionV1]:
                             users=[UserV1(org_username="user1")],
                             bots=[],
                             expirationDate=None,
+                            memberSources=None,
                         )
                     ],
                 )

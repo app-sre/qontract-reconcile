@@ -101,11 +101,9 @@ async def resolve_app_interface_membership_source_async(
 
 
 def build_member_list(role: RoleV1) -> list[ProviderMember]:
-    """Return the role's users/bots as-is; they already satisfy ProviderMember.
+    """Return users only; bots are native app-interface role configuration.
 
     The resolver framework converts each one to the caller-supplied user_cls -
     this function must not narrow their attributes to any particular shape.
     """
-    members: list[ProviderMember] = list(role.users or [])
-    members.extend(b for b in role.bots or [] if b.org_username)
-    return members
+    return list(role.users or [])

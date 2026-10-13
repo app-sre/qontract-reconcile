@@ -64,10 +64,11 @@ def make_role(
 ) -> RoleV1:
     return RoleV1(
         name=name,
-        users=[UserV1(github_username=u) for u in (users or [])],
+        users=[UserV1(org_username=u, github_username=u) for u in (users or [])],
         bots=[BotV1(github_username=b) for b in (bots or [])],
         permissions=permissions,
         expirationDate=expiration_date,
+        memberSources=None,
     )
 
 
@@ -291,38 +292,29 @@ class TestCompileDesiredState:
 # ---------------------------------------------------------------------------
 
 
-class TestGetRoles:
-    def test_expired_roles_are_filtered(self) -> None:
-        mock_query = MagicMock(
-            return_value={
-                "roles": [
-                    {
-                        "name": "active",
-                        "users": [],
-                        "bots": [],
-                        "permissions": [],
-                        "expirationDate": None,
-                    },
-                    {
-                        "name": "expired",
-                        "users": [],
-                        "bots": [],
-                        "permissions": [],
-                        "expirationDate": "2020-01-01",
-                    },
-                ]
-            }
+@pytest.mark.asyncio
+async def test_get_roles_filters_expired_roles() -> None:
+    active = make_role(permissions=[make_github_org_team_permission("my-org")])
+    expired = active.model_copy()
+    expired.name = "expired"
+    expired.expiration_date = "2020-01-01"
+    mock_query = MagicMock(
+        return_value={
+            "roles": [role.model_dump(by_alias=True) for role in [active, expired]]
+        }
+    )
+    result = await GithubOwnersIntegration.get_roles(query_func=mock_query)
+    assert [role.name for role in result] == [active.name]
+
+
+@pytest.mark.asyncio
+async def test_get_roles_returns_empty_list() -> None:
+    assert (
+        await GithubOwnersIntegration.get_roles(
+            query_func=MagicMock(return_value={"roles": []})
         )
-
-        result = GithubOwnersIntegration.get_roles(mock_query)
-
-        assert len(result) == 1
-        assert result[0].name == "active"
-
-    def test_empty_roles_returns_empty_list(self) -> None:
-        mock_query = MagicMock(return_value={"roles": []})
-        result = GithubOwnersIntegration.get_roles(mock_query)
-        assert result == []
+        == []
+    )
 
 
 class TestGetGithubOrgs:

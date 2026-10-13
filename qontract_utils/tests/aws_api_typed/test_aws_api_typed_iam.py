@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -6,7 +8,7 @@ import pytest
 from mypy_boto3_iam import IAMClient
 from mypy_boto3_iam.type_defs import ListAccountAliasesResponseTypeDef
 from pytest_mock import MockerFixture
-from qontract_utils.aws_api_typed.iam import AWSApiIam
+from qontract_utils.aws_api_typed.iam import AWSApiIam, AWSUser
 from qontract_utils.hooks import Hooks
 
 if TYPE_CHECKING:
@@ -21,6 +23,31 @@ def iam_client(mocker: MockerFixture) -> IAMClient:
 @pytest.fixture
 def aws_api_iam(iam_client: IAMClient) -> AWSApiIam:
     return AWSApiIam(client=iam_client)
+
+
+def test_aws_api_typed_iam_list_users_paginates(
+    aws_api_iam: AWSApiIam, iam_client: MagicMock
+) -> None:
+    """Return typed users from every IAM inventory page."""
+    users = [
+        AWSUser(UserName=name, UserId=f"id-{name}", Arn=f"arn/{name}", Path="/")
+        for name in ("alice", "bob")
+    ]
+    paginator = iam_client.get_paginator.return_value
+    paginator.paginate.return_value = [
+        {"Users": [user.model_dump(by_alias=True)]} for user in users
+    ]
+    assert aws_api_iam.list_users() == users
+    iam_client.get_paginator.assert_called_once_with("list_users")
+    paginator.paginate.assert_called_once_with()
+
+
+def test_aws_api_typed_iam_list_users_empty(
+    aws_api_iam: AWSApiIam, iam_client: MagicMock
+) -> None:
+    """A confirmed-empty IAM inventory returns an empty list."""
+    iam_client.get_paginator.return_value.paginate.return_value = [{"Users": []}]
+    assert aws_api_iam.list_users() == []
 
 
 def test_aws_api_typed_iam_create_access_key(

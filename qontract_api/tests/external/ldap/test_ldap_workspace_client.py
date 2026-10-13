@@ -337,6 +337,41 @@ def test_resolve_github_usernames_no_log_for_non_requested_ambiguous(
 # --- get_group_members ---
 
 
+def test_get_group_members_preserves_person_name(
+    workspace_client: LdapWorkspaceClient, mock_api: MagicMock
+) -> None:
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.check_groups_exist.return_value = {"team"}
+    mock_api.get_group_members.return_value = [
+        LdapGroup(
+            cn="team",
+            dn="cn=team,cn=groups,cn=accounts,dc=example,dc=com",
+            members=frozenset({LdapUser(username="alice", name="Alice Example")}),
+        )
+    ]
+    result = workspace_client.get_group_members(
+        ["team"], include_github_usernames=False
+    )
+    assert result[0].members[0].name == "Alice Example"
+
+
+def test_get_group_members_rejects_missing_person_name(
+    workspace_client: LdapWorkspaceClient, mock_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    mock_api.__enter__ = MagicMock(return_value=mock_api)
+    mock_api.__exit__ = MagicMock(return_value=False)
+    mock_api.check_groups_exist.return_value = {"team"}
+    mock_api.get_group_members.return_value = [
+        LdapGroup(
+            cn="team", dn="cn=team,...", members=frozenset({LdapUser(username="alice")})
+        )
+    ]
+    with pytest.raises(ValidationError, match="alice.*has no name"):
+        workspace_client.get_group_members(["team"], include_github_usernames=False)
+    mock_cache.set_obj.assert_not_called()
+
+
 def test_get_group_members_resolves_existing_group(
     workspace_client: LdapWorkspaceClient,
     mock_api: MagicMock,
@@ -349,7 +384,10 @@ def test_get_group_members_resolves_existing_group(
         LdapGroup(
             cn="team-a",
             dn="cn=team-a,cn=groups,cn=accounts,dc=example,dc=com",
-            members=frozenset({LdapUser(username="alice"), LdapUser(username="bob")}),
+            members=frozenset({
+                LdapUser(name="alice", username="alice"),
+                LdapUser(name="bob", username="bob"),
+            }),
         )
     ]
     mock_api.get_github_usernames.return_value = {}
@@ -360,8 +398,8 @@ def test_get_group_members_resolves_existing_group(
         LdapGroupResult(
             group="team-a",
             members=[
-                LdapGroupMember(org_username="alice"),
-                LdapGroupMember(org_username="bob"),
+                LdapGroupMember(name="alice", org_username="alice"),
+                LdapGroupMember(name="bob", org_username="bob"),
             ],
         )
     ]
@@ -416,7 +454,7 @@ def test_get_group_members_enriches_with_github_username(
         LdapGroup(
             cn="team-a",
             dn="cn=team-a,...",
-            members=frozenset({LdapUser(username="alice")}),
+            members=frozenset({LdapUser(name="alice", username="alice")}),
         )
     ]
     mock_api.get_github_usernames.return_value = {"alicegh": ["alice"]}
@@ -426,7 +464,11 @@ def test_get_group_members_enriches_with_github_username(
     assert result == [
         LdapGroupResult(
             group="team-a",
-            members=[LdapGroupMember(org_username="alice", github_username="alicegh")],
+            members=[
+                LdapGroupMember(
+                    name="alice", org_username="alice", github_username="alicegh"
+                )
+            ],
         )
     ]
 
@@ -443,7 +485,7 @@ def test_get_group_members_skips_github_enrichment_when_disabled(
         LdapGroup(
             cn="team-a",
             dn="cn=team-a,...",
-            members=frozenset({LdapUser(username="alice")}),
+            members=frozenset({LdapUser(name="alice", username="alice")}),
         )
     ]
 
@@ -452,7 +494,10 @@ def test_get_group_members_skips_github_enrichment_when_disabled(
     )
 
     assert result == [
-        LdapGroupResult(group="team-a", members=[LdapGroupMember(org_username="alice")])
+        LdapGroupResult(
+            group="team-a",
+            members=[LdapGroupMember(name="alice", org_username="alice")],
+        )
     ]
     mock_api.get_github_usernames.assert_not_called()
 
@@ -469,7 +514,7 @@ def test_get_group_members_skips_and_logs_ambiguous_github_username(
         LdapGroup(
             cn="team-a",
             dn="cn=team-a,...",
-            members=frozenset({LdapUser(username="alice")}),
+            members=frozenset({LdapUser(name="alice", username="alice")}),
         )
     ]
     # alice's rhatSocialURL ambiguously resolves to two different github logins
@@ -484,7 +529,10 @@ def test_get_group_members_skips_and_logs_ambiguous_github_username(
         result = workspace_client.get_group_members(["team-a"])
 
     assert result == [
-        LdapGroupResult(group="team-a", members=[LdapGroupMember(org_username="alice")])
+        LdapGroupResult(
+            group="team-a",
+            members=[LdapGroupMember(name="alice", org_username="alice")],
+        )
     ]
     mock_logger.warning.assert_called_once()
     _, kwargs = mock_logger.warning.call_args
@@ -505,7 +553,10 @@ def test_get_group_members_skips_shared_github_login(
         LdapGroup(
             cn="team-a",
             dn="cn=team-a,cn=groups,cn=accounts,dc=example,dc=com",
-            members=frozenset({LdapUser(username="alice"), LdapUser(username="bob")}),
+            members=frozenset({
+                LdapUser(name="alice", username="alice"),
+                LdapUser(name="bob", username="bob"),
+            }),
         )
     ]
     mapping = {"shared-gh": ["alice", "bob"]}
@@ -523,10 +574,11 @@ def test_get_group_members_skips_shared_github_login(
             group="team-a",
             members=[
                 LdapGroupMember(
+                    name="alice",
                     org_username="alice",
                     github_username="alice-gh" if include_unique_login else None,
                 ),
-                LdapGroupMember(org_username="bob"),
+                LdapGroupMember(name="bob", org_username="bob"),
             ],
         )
     ]
@@ -551,7 +603,10 @@ def test_get_group_members_fail_closed_on_oversized_group(
         LdapGroup(
             cn="big-team",
             dn="cn=big-team,...",
-            members=frozenset({LdapUser(username="alice"), LdapUser(username="bob")}),
+            members=frozenset({
+                LdapUser(name="alice", username="alice"),
+                LdapUser(name="bob", username="bob"),
+            }),
         )
     ]
     mock_api.get_github_usernames.return_value = {}

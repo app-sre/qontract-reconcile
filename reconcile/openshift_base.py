@@ -1557,6 +1557,27 @@ def aggregate_shared_resources_typed(
                 namespace.openshift_resources = shared_type_resources_items
 
 
+class OpenShiftUserIdentity(Protocol):
+    """Identity fields supported by current OpenShift authentication methods."""
+
+    @property
+    def org_username(self) -> str: ...
+
+    @property
+    def github_username(self) -> str | None: ...
+
+
+def get_user_identity(user: OpenShiftUserIdentity, user_key: str) -> str | None:
+    """Return a supported identity, failing closed for unimplemented user keys."""
+    match user_key:
+        case "org_username":
+            return user.org_username
+        case "github_username":
+            return user.github_username
+        case _:
+            raise ValueError(f"Unsupported OpenShift user key: {user_key}")
+
+
 def determine_user_keys_for_access(
     cluster_name: str,
     auth_list: Sequence[dict[str, str] | HasService],

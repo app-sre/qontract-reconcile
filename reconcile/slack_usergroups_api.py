@@ -18,9 +18,9 @@ import logging
 import sys
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from qontract_api_client.client import (
     github_org_members,
     ldap_github_usernames,
@@ -51,9 +51,13 @@ from qontract_api_client.schemas import (
 from qontract_api_client.schemas import SlackWorkspace as SlackWorkspaceRequest
 from qontract_utils.vcs import VCSProviderRegistry, get_default_registry
 
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
 from reconcile.gql_definitions.slack_usergroups_api.clusters import ClusterV1
 from reconcile.gql_definitions.slack_usergroups_api.clusters import (
     query as clusters_query,
+)
+from reconcile.gql_definitions.slack_usergroups_api.permissions import (
+    BotV1 as PermissionBotV1,
 )
 from reconcile.gql_definitions.slack_usergroups_api.permissions import (
     GithubOrgV1,
@@ -61,10 +65,15 @@ from reconcile.gql_definitions.slack_usergroups_api.permissions import (
     PermissionSlackUsergroupV1,
     RoleV1,
     ScheduleV1,
+    SlackUsergroupNotificationV1,
+    SlackWorkspaceV1,
     VaultSecret,
 )
 from reconcile.gql_definitions.slack_usergroups_api.permissions import (
     query as permissions_query,
+)
+from reconcile.gql_definitions.slack_usergroups_api.roles import (
+    AccessV1,
 )
 from reconcile.gql_definitions.slack_usergroups_api.roles import (
     RoleV1 as ClusterAccessRole,
@@ -87,7 +96,14 @@ from reconcile.utils.runtime.integration import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Coroutine, Iterable, Mapping
+    from collections.abc import (
+        Callable,
+        Collection,
+        Coroutine,
+        Iterable,
+        Mapping,
+        Sequence,
+    )
 
     from reconcile.gql_definitions.common.ldap_settings import LdapSettingsV1
 
@@ -96,29 +112,64 @@ INTEGRATION_VERSION = "0.1.0"
 DATE_FORMAT = "%Y-%m-%d %H:%M"
 
 
-class _UserWithSlackIdentity(Protocol):
-    org_username: str
-    gov_slack_email_local_part: str | None
-
-
-def slack_identity(user: _UserWithSlackIdentity) -> str:
-    """Return the Slack identity for an app-interface user.
-
-    Prefer gov_slack_email_local_part when set (gov Slack email local-part), otherwise
-    fall back to org_username (commercial Slack / LDAP).
-    """
-    return user.gov_slack_email_local_part or user.org_username
-
-
-class SlackRoleUser(BaseModel, extra="ignore"):
-    """Role member shape needed to compute a Slack identity.
-
-    Deliberately minimal: memberSources-resolved members (e.g. from LDAP)
-    only ever populate org_username, so every other field must be optional.
-    """
+class SlackRoleUser(BaseModel, extra="ignore", frozen=True):
+    """Canonical role-member identity with optional cluster-tagging metadata."""
 
     org_username: str
-    gov_slack_email_local_part: str | None = None
+    tag_on_cluster_updates: bool | None = None
+
+
+class SlackMembershipRole(BaseModel, frozen=True):
+    """Slack role with integration-owned membership identities."""
+
+    name: str
+    users: list[SlackRoleUser]
+    bots: list[PermissionBotV1]
+    member_sources: list[RoleMembershipSource] | None = Field(
+        None, alias="memberSources"
+    )
+
+
+class SlackClusterRole(BaseModel, frozen=True):
+    """Cluster access metadata with Slack identities from any membership source."""
+
+    name: str
+    users: list[SlackRoleUser]
+    access: list[AccessV1] | None = None
+    expiration_date: str | None = Field(None, alias="expirationDate")
+    tag_on_cluster_updates: bool | None = None
+    member_sources: list[RoleMembershipSource] | None = Field(
+        None, alias="memberSources"
+    )
+
+
+class SlackUsergroupPermission(BaseModel, frozen=True):
+    """Slack permission configuration containing resolved integration-owned roles."""
+
+    service: str
+    channels: list[str]
+    description: str
+    handle: str
+    notifications: list[SlackUsergroupNotificationV1] | None
+    owners_from_repos: list[str] | None
+    skip: bool | None
+    pagerduty: list[PagerDutyTargetV1] | None
+    github: GithubOrgV1 | None
+    roles: list[SlackMembershipRole] | None
+    schedule: ScheduleV1 | None
+    workspace: SlackWorkspaceV1
+
+
+def _cluster_name_for_access(access: AccessV1) -> str | None:
+    if (
+        access.namespace
+        and access.namespace.managed_roles
+        and not access.namespace.delete
+    ):
+        return access.namespace.cluster.name
+    if access.cluster and access.group:
+        return access.cluster.name
+    return None
 
 
 class SlackWorkspace(BaseModel, arbitrary_types_allowed=True):
@@ -181,23 +232,70 @@ class SlackUsergroupsIntegration(
     def name(self) -> str:
         return QONTRACT_INTEGRATION
 
-    @staticmethod
-    def get_permissions(query_func: Any) -> list[PermissionSlackUsergroupV1]:
-        """Query permissions from App-Interface.
+    async def get_permissions(
+        self, query_func: Callable, *, ldap_settings: LdapSettingsV1 | None = None
+    ) -> list[SlackUsergroupPermission]:
+        """Fetch selected Slack permissions with resolved role memberships.
 
         Args:
             query_func: GraphQL query function
 
         Returns:
-            List of Slack usergroup permissions
+            List of Slack usergroup permissions with integration-owned roles
         """
         result = permissions_query(query_func=query_func)
         if not result.permissions:
             return []
 
-        # Filter for PermissionSlackUsergroupV1 to make mypy happy
+        permissions = [
+            permission
+            for permission in result.permissions
+            if isinstance(permission, PermissionSlackUsergroupV1)
+            and not permission.skip
+            and permission.workspace.managed_usergroups
+            and (
+                not self.params.workspace_name
+                or permission.workspace.name == self.params.workspace_name
+            )
+            and (
+                not self.params.usergroup_name
+                or permission.handle == self.params.usergroup_name
+            )
+        ]
+        for permission in permissions:
+            if permission.handle not in permission.workspace.managed_usergroups:
+                raise KeyError(
+                    f"[{permission.workspace.name}] usergroup '{permission.handle}' not in 'managedUsergroups' of the Slack workspace '{permission.workspace.path}'"
+                )
+        resolved_roles = await resolve_role_members(
+            [role for permission in permissions for role in permission.roles or []],
+            user_cls=SlackRoleUser,
+            role_cls=SlackMembershipRole,
+            query_func=query_func,
+            ldap_settings=ldap_settings,
+            secret_manager_url=self.secret_manager_url
+            if ldap_settings is not None
+            else None,
+        )
+        roles_by_name = {role.name: role for role in resolved_roles}
         return [
-            p for p in result.permissions if isinstance(p, PermissionSlackUsergroupV1)
+            SlackUsergroupPermission(
+                service=permission.service,
+                channels=permission.channels,
+                description=permission.description,
+                handle=permission.handle,
+                notifications=permission.notifications,
+                owners_from_repos=permission.owners_from_repos,
+                skip=permission.skip,
+                pagerduty=permission.pagerduty,
+                github=permission.github,
+                roles=[roles_by_name[role.name] for role in permission.roles]
+                if permission.roles is not None
+                else None,
+                schedule=permission.schedule,
+                workspace=permission.workspace,
+            )
+            for permission in permissions
         ]
 
     @staticmethod
@@ -215,11 +313,38 @@ class SlackUsergroupsIntegration(
             and integration_is_enabled("slack-usergroups", cluster)
         ]
 
-    @staticmethod
-    def get_roles(query_func: Callable) -> list[ClusterAccessRole]:
-        """Return all roles from app-interface."""
-        roles = roles_query(query_func=query_func).roles
-        return expiration.filter(roles)
+    async def get_roles(
+        self,
+        query_func: Callable,
+        *,
+        cluster_names: Collection[str] | None = None,
+        ldap_settings: LdapSettingsV1 | None = None,
+    ) -> list[SlackClusterRole]:
+        """Fetch relevant cluster roles with resolved Slack identities."""
+        roles = [
+            role
+            for role in expiration.filter(roles_query(query_func=query_func).roles)
+            if any(
+                (name := _cluster_name_for_access(access))
+                and (cluster_names is None or name in cluster_names)
+                and (
+                    not self.params.usergroup_name
+                    or self.compute_cluster_user_group(name)
+                    == self.params.usergroup_name
+                )
+                for access in role.access or []
+            )
+        ]
+        return await resolve_role_members(
+            roles,
+            user_cls=SlackRoleUser,
+            role_cls=SlackClusterRole,
+            query_func=query_func,
+            ldap_settings=ldap_settings,
+            secret_manager_url=self.secret_manager_url
+            if ldap_settings is not None
+            else None,
+        )
 
     @staticmethod
     def compile_users_from_schedule(
@@ -244,48 +369,32 @@ class SlackUsergroupsIntegration(
             start = ensure_utc(datetime.strptime(entry.start, DATE_FORMAT))  # ruff: ignore[call-datetime-strptime-without-zone]
             end = ensure_utc(datetime.strptime(entry.end, DATE_FORMAT))  # ruff: ignore[call-datetime-strptime-without-zone]
             if start <= now <= end:
-                all_usernames.extend(slack_identity(u) for u in entry.users)
+                all_usernames.extend(user.org_username for user in entry.users)
         return all_usernames
 
-    async def compile_users_from_roles(
-        self,
-        roles: list[RoleV1] | None,
-        ldap_settings: LdapSettingsV1,
-        *,
-        app_interface_users: Iterable[UserV1],
+    @staticmethod
+    def compile_users_from_roles(
+        roles: Sequence[RoleV1 | SlackMembershipRole] | None,
     ) -> list[str]:
-        """Extract Slack identities from roles - explicit users + memberSources.
+        """Extract canonical usernames from already-resolved roles and native bots.
 
         Args:
-            roles: List of role objects with users and/or memberSources
-            ldap_settings: App-interface LDAP settings, used to resolve
-                LDAP-sourced memberSources (if any)
-            app_interface_users: Local users whose Gov Slack overrides take
-                precedence, even without explicit membership in the role
+            roles: List of role objects with resolved user memberships
 
         Returns:
-            List of Slack identities from every source, deduplicated by
-            org_username (see membershipsources.async_resolver.resolve_role_members)
+            List of canonical org usernames from every source
         """
         if not roles:
             return []
 
-        members_by_role = await resolve_role_members(
-            roles,
-            user_cls=SlackRoleUser,
-            ldap_settings=ldap_settings,
-            secret_manager_url=self.secret_manager_url,
+        identities = [user.org_username for role in roles for user in role.users]
+        identities.extend(
+            bot.org_username
+            for role in roles
+            for bot in role.bots or []
+            if bot.org_username
         )
-        gov_slack_by_org_username = {
-            user.org_username: user.gov_slack_email_local_part
-            for user in app_interface_users
-            if user.gov_slack_email_local_part
-        }
-        return [
-            gov_slack_by_org_username.get(member.org_username) or slack_identity(member)
-            for members in members_by_role.values()
-            for member in members
-        ]
+        return list(dict.fromkeys(identities))
 
     async def fetch_owners(
         self,
@@ -322,7 +431,7 @@ class SlackUsergroupsIntegration(
             if org_username and org_username in users_map:
                 user = users_map[org_username]
                 if user.tag_on_merge_requests is not False:
-                    result.append(slack_identity(user))
+                    result.append(user.org_username)
         return result
 
     async def compile_users_from_git_owners(
@@ -464,7 +573,7 @@ class SlackUsergroupsIntegration(
         app_interface_users: list[UserV1],
         ldap_settings: LdapSettingsV1,
     ) -> list[str]:
-        """Extract Slack identities from a GitHub organization's membership.
+        """Extract canonical org usernames from a GitHub organization's membership.
 
         Members are mapped to app-interface users via their github_username
         first, then via the LDAP rhatSocialURL attribute for the remainder.
@@ -476,7 +585,7 @@ class SlackUsergroupsIntegration(
             ldap_settings: App-interface LDAP settings for the fallback lookup
 
         Returns:
-            List of Slack identities for the resolvable org members
+            List of canonical usernames for the resolvable org members
         """
         if not github_org:
             return []
@@ -492,7 +601,6 @@ class SlackUsergroupsIntegration(
         if not (members := response.members):
             return []
 
-        users_map = {user.org_username: user for user in app_interface_users}
         # Compare case-insensitively: GitHub logins keep their original casing
         # in both app-interface and the org membership listing.
         gh_to_org_username = {
@@ -514,19 +622,13 @@ class SlackUsergroupsIntegration(
             await self._resolve_github_logins_via_ldap(unresolved, ldap_settings)
         )
 
-        slack_identities: set[str] = set()
+        org_usernames: set[str] = set()
         unmapped: list[str] = []
         for login in members:
             if not (org_username := resolved.get(login)):
                 unmapped.append(login)
                 continue
-            # Honor an app-interface user's Slack identity override
-            # (gov_slack_email_local_part); otherwise the org_username - the
-            # LDAP-resolved uid - is itself the Slack identity.
-            if user := users_map.get(org_username):
-                slack_identities.add(slack_identity(user))
-            else:
-                slack_identities.add(org_username)
+            org_usernames.add(org_username)
 
         if unmapped:
             # One aggregated warning per org keeps the #reconcile channel quiet
@@ -543,11 +645,11 @@ class SlackUsergroupsIntegration(
                 "page (https://rover.redhat.com) so it can be resolved via LDAP."
             )
 
-        return sorted(slack_identities)
+        return sorted(org_usernames)
 
     async def _process_permission(
         self,
-        permission: PermissionSlackUsergroupV1,
+        permission: SlackUsergroupPermission,
         app_interface_users: list[UserV1],
         vcs_instances: Iterable[Vcs],
         ldap_settings: LdapSettingsV1,
@@ -577,13 +679,7 @@ class SlackUsergroupsIntegration(
             )
 
         # Add users from the permission roles (explicit users + memberSources)
-        users = set(
-            await self.compile_users_from_roles(
-                permission.roles,
-                ldap_settings,
-                app_interface_users=app_interface_users,
-            )
-        )
+        users = set(self.compile_users_from_roles(permission.roles))
         # Add users from the permission schedule (time-based on-call rotations)
         users.update(self.compile_users_from_schedule(permission.schedule))
         # Add users from git repo owners file
@@ -633,7 +729,7 @@ class SlackUsergroupsIntegration(
 
     async def compile_desired_state_from_permissions(
         self,
-        permissions: list[PermissionSlackUsergroupV1],
+        permissions: Sequence[SlackUsergroupPermission],
         app_interface_users: list[UserV1],
         vcs_instances: Iterable[Vcs],
         ldap_settings: LdapSettingsV1,
@@ -704,12 +800,18 @@ class SlackUsergroupsIntegration(
 
     @staticmethod
     def include_user_to_cluster_usergroup(
-        user: ClusterAccessUser, role: ClusterAccessRole
+        user: SlackRoleUser | ClusterAccessUser,
+        role: SlackClusterRole | ClusterAccessRole,
+        *,
+        user_tag_override: bool | None = None,
     ) -> bool:
         """Check the user should be notified (tag_on_cluster_updates)."""
         if user.tag_on_cluster_updates is not None:
             # if tag_on_cluster_updates is defined
             return user.tag_on_cluster_updates
+
+        if user_tag_override is not None:
+            return user_tag_override
 
         return role.tag_on_cluster_updates is not False
 
@@ -717,30 +819,24 @@ class SlackUsergroupsIntegration(
         self,
         workspaces: list[SlackWorkspace],
         clusters: Iterable[ClusterV1],
-        roles: Iterable[ClusterAccessRole],
+        roles: Iterable[SlackClusterRole | ClusterAccessRole],
         desired_workspace_name: str | None = None,
         desired_usergroup_name: str | None = None,
+        *,
+        app_interface_users: Iterable[UserV1] = (),
     ) -> list[SlackWorkspace]:
         """Compile the desired slack-usergroups for all clusters."""
         cluster_users: dict[str, set[str]] = {}
+        cluster_tag_by_org_username = {
+            user.org_username: user.tag_on_cluster_updates
+            for user in app_interface_users
+            if user.tag_on_cluster_updates is not None
+        }
 
         # Collect users per cluster from cluster access
         for role in roles:
             for access in role.access or []:
-                if (
-                    access.namespace
-                    and bool(access.namespace.managed_roles)
-                    and not bool(access.namespace.delete)
-                ):
-                    # namespace reference
-                    cluster_name = access.namespace.cluster.name
-
-                elif access.cluster and access.group:
-                    # cluster access either via group or cluster role
-                    cluster_name = access.cluster.name
-
-                else:
-                    # not a cluster/namespace access
+                if not (cluster_name := _cluster_name_for_access(access)):
                     continue
 
                 if (
@@ -751,9 +847,15 @@ class SlackUsergroupsIntegration(
                     continue
 
                 cluster_users.setdefault(cluster_name, set()).update([
-                    slack_identity(user)
+                    user.org_username
                     for user in role.users
-                    if self.include_user_to_cluster_usergroup(user, role)
+                    if self.include_user_to_cluster_usergroup(
+                        user,
+                        role,
+                        user_tag_override=cluster_tag_by_org_username.get(
+                            user.org_username
+                        ),
+                    )
                 ])
 
         # Create usergroups for each cluster based on collected users
@@ -792,21 +894,42 @@ class SlackUsergroupsIntegration(
         self,
         workspaces: list[SlackWorkspace],
         dry_run: bool = True,
+        *,
+        app_interface_users: Iterable[UserV1],
     ) -> SlackUsergroupsTaskResponse:
         """Call qontract-api to reconcile Slack usergroups.
 
         Args:
             workspaces: List of Slack workspaces with usergroups
             dry_run: If True, only calculate actions without executing
+            app_interface_users: Users providing Gov Slack identity overrides
 
         Returns:
             Response from qontract-api
         """
+        slack_username_by_org = {
+            user.org_username: user.gov_slack_email_local_part or user.org_username
+            for user in app_interface_users
+        }
         request_data = SlackUsergroupsReconcileRequest(
             workspaces=[
                 SlackWorkspaceRequest(
                     name=workspace.name,
-                    usergroups=workspace.usergroups,
+                    usergroups=[
+                        SlackUsergroup(
+                            handle=usergroup.handle,
+                            config=SlackUsergroupConfig(
+                                channels=usergroup.config.channels,
+                                description=usergroup.config.description,
+                                notifications=usergroup.config.notifications,
+                                users=sorted({
+                                    slack_username_by_org.get(username, username)
+                                    for username in usergroup.config.users
+                                }),
+                            ),
+                        )
+                        for usergroup in workspace.usergroups
+                    ],
                     managed_usergroups=workspace.managed_usergroups,
                     token=Secret(
                         secret_manager_url=self.secret_manager_url,
@@ -829,12 +952,18 @@ class SlackUsergroupsIntegration(
         """Run the integration"""
         # TODO async gql client?
         gqlapi = gql.get_api()
-        permissions = self.get_permissions(query_func=gqlapi.query)
         users = self.get_users(query_func=gqlapi.query)
         clusters = self.get_clusters(query_func=gqlapi.query)
-        roles = self.get_roles(query_func=gqlapi.query)
         vcs_instances = get_vcs_instances(query_func=gqlapi.query)
         ldap_settings = get_ldap_settings(query_func=gqlapi.query)
+        permissions, roles = await asyncio.gather(
+            self.get_permissions(query_func=gqlapi.query, ldap_settings=ldap_settings),
+            self.get_roles(
+                query_func=gqlapi.query,
+                cluster_names={cluster.name for cluster in clusters},
+                ldap_settings=ldap_settings,
+            ),
+        )
 
         workspaces = await self.compile_desired_state_from_permissions(
             permissions=permissions,
@@ -850,13 +979,16 @@ class SlackUsergroupsIntegration(
             roles=roles,
             desired_workspace_name=self.params.workspace_name,
             desired_usergroup_name=self.params.usergroup_name,
+            app_interface_users=users,
         )
 
         if not workspaces:
             logging.debug("No desired state found, nothing to reconcile")
             return
 
-        task = await self.reconcile(workspaces=workspaces, dry_run=dry_run)
+        task = await self.reconcile(
+            workspaces=workspaces, dry_run=dry_run, app_interface_users=users
+        )
 
         if not dry_run:
             # In non-dry-run, we expect the task to complete asynchronously in the background
