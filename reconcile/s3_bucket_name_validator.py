@@ -20,15 +20,30 @@ QONTRACT_INTEGRATION = "s3-bucket-name-validator"
 def validate_no_duplicate_bucket_names(
     query_data: S3BucketNameValidatorQueryData,
 ) -> bool:
-    """Validate that no S3 bucket identifier is used by more than one AWS account.
+    """Validate that each S3 bucket identifier maps to exactly one bucket.
 
-    Two namespaces in the *same* account declaring the same identifier is a
-    supported pattern: the external resource spec inventory is keyed on
-    (provision_provider, provisioner_name, identifier, provider), so the specs
-    collapse to a single terraform resource and both namespaces receive its
-    output secret.
+    The identifier is used verbatim as the S3 bucket name, so every declaration
+    of it must resolve to the same terraform resource. The external resource
+    spec inventory is keyed on (provision_provider, provisioner_name,
+    identifier, provider), so for a fixed identifier two declarations collapse
+    into one resource only when both the account and the resource provider
+    match. Anything else produces two resources competing for one bucket name:
+
+    - Different accounts: both try to create the bucket, and whichever applies
+      second fails with a 409 BucketAlreadyExists, blocking the shard.
+    - Same account, different provider (s3 vs s3-cloudfront): both emit
+      aws_s3_bucket under the same terraform address, and terrascript stores
+      resources in a dict keyed on that address, so the second declaration
+      silently overwrites the first's entire configuration.
+
+    Two namespaces sharing an identifier under the same account *and* provider
+    is a supported pattern: the specs collapse to a single terraform resource
+    and both namespaces receive its output secret.
     """
-    usages: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+    # identifier -> (account, provider) -> namespaces declaring it
+    usages: dict[str, dict[tuple[str, str], list[str]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
 
     for namespace in query_data.namespaces or []:
         if namespace.delete or not namespace.managed_external_resources:
@@ -45,21 +60,25 @@ def validate_no_duplicate_bucket_names(
                     NamespaceTerraformResourceS3V1
                     | NamespaceTerraformResourceS3CloudFrontV1,
                 ):
-                    usages[resource.identifier][account].append(namespace.name)
+                    usages[resource.identifier][account, resource.provider].append(
+                        namespace.name
+                    )
 
     valid = True
-    for identifier, accounts in sorted(usages.items()):
-        if len(accounts) > 1:
+    for identifier, specs in sorted(usages.items()):
+        if len(specs) > 1:
             valid = False
             locations = sorted(
-                f"{account}/{namespace_name}"
-                for account, namespace_names in accounts.items()
+                f"{account}/{provider}/{namespace_name}"
+                for (account, provider), namespace_names in specs.items()
                 for namespace_name in namespace_names
             )
             logging.error(
-                f"S3 bucket identifier [{identifier}] is used by "
-                f"{len(accounts)} AWS accounts: {locations}. S3 bucket names are "
-                "globally unique, so only one account may use this identifier."
+                f"S3 bucket identifier [{identifier}] is declared by "
+                f"{len(specs)} distinct external resources: {locations}. The "
+                "identifier is used verbatim as the globally unique S3 bucket "
+                "name, so it may be declared by only one account and resource "
+                "provider."
             )
 
     return valid

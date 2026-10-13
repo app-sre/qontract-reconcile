@@ -65,13 +65,14 @@ def test_duplicate_across_accounts_is_invalid() -> None:
     assert validate_no_duplicate_bucket_names(query_data) is False
 
 
-def test_duplicate_within_same_account_is_valid() -> None:
+def test_duplicate_within_same_account_and_provider_is_valid() -> None:
     """Supported shared-bucket pattern.
 
     The spec inventory is keyed on (provision_provider, provisioner_name,
-    identifier, provider), so same-account duplicates collapse to one terraform
-    resource and both namespaces receive its output secret. Several of these
-    exist in the bundle today (e.g. telemeter-prod-01-default-tenant).
+    identifier, provider), so duplicates matching on both account and provider
+    collapse to one terraform resource and both namespaces receive its output
+    secret. Eight of these exist in the bundle today, all under the s3 provider
+    (e.g. telemeter-prod-01-default-tenant).
     """
     query_data = S3BucketNameValidatorQueryData(
         namespaces=[
@@ -80,6 +81,37 @@ def test_duplicate_within_same_account_is_valid() -> None:
         ]
     )
     assert validate_no_duplicate_bucket_names(query_data) is True
+
+
+def test_duplicate_within_same_account_across_providers_is_invalid() -> None:
+    """s3 and s3-cloudfront are separate spec keys, so they do not collapse.
+
+    Both emit aws_s3_bucket under the same terraform address, and terrascript
+    keys its resource dict on that address, so the second declaration silently
+    overwrites the first's configuration rather than failing.
+    """
+    query_data = S3BucketNameValidatorQueryData(
+        namespaces=[
+            build_namespace("ns-a", "acct", s3_identifiers=["shared-bucket"]),
+            build_namespace("ns-b", "acct", cloudfront_identifiers=["shared-bucket"]),
+        ]
+    )
+    assert validate_no_duplicate_bucket_names(query_data) is False
+
+
+def test_duplicate_across_providers_in_one_namespace_is_invalid() -> None:
+    """The same namespace declaring both providers collides just as badly."""
+    query_data = S3BucketNameValidatorQueryData(
+        namespaces=[
+            build_namespace(
+                "ns",
+                "acct",
+                s3_identifiers=["shared-bucket"],
+                cloudfront_identifiers=["shared-bucket"],
+            ),
+        ]
+    )
+    assert validate_no_duplicate_bucket_names(query_data) is False
 
 
 def test_duplicate_across_s3_and_cloudfront_is_invalid() -> None:
@@ -170,5 +202,5 @@ def test_error_names_identifier_and_both_locations(
     )
     assert validate_no_duplicate_bucket_names(query_data) is False
     assert "shared-bucket" in caplog.text
-    assert "acct-stage/ns-stage" in caplog.text
-    assert "acct-prod/ns-prod" in caplog.text
+    assert "acct-stage/s3/ns-stage" in caplog.text
+    assert "acct-prod/s3/ns-prod" in caplog.text
