@@ -1433,10 +1433,33 @@ def test_qontract_cli_roles_user_not_found(
     )
     mocker.patch(
         "tools.qontract_cli.qontract_cli_roles_query",
-        return_value=mocker.Mock(roles=[role]),
+        return_value=mocker.Mock(
+            roles=[role], users=[mocker.Mock(org_username="someone-else")]
+        ),
     )
 
     runner = CliRunner()
     result = runner.invoke(qontract_cli.get, ["roles", "nobody"], obj={})
     assert result.exit_code == 0, result.output
     assert "User not found" in result.output
+
+
+def test_qontract_cli_roles_existing_user_without_roles(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    """An existing app-interface user with zero roles is not "not found"."""
+    role = gql_class_factory(
+        QontractCliRole, {"name": "role", "path": "/role", "users": []}
+    )
+    mocker.patch(
+        "tools.qontract_cli.qontract_cli_roles_query",
+        return_value=mocker.Mock(
+            roles=[role], users=[mocker.Mock(org_username="charlie")]
+        ),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(qontract_cli.get, ["-o", "json", "roles", "charlie"], obj={})
+    assert result.exit_code == 0, result.output
+    assert "User not found" not in result.output
+    assert json.loads(result.output) == []

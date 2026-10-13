@@ -97,9 +97,11 @@ from reconcile.gql_definitions.qontract_cli.roles import (
     PermissionQuayOrgTeamV1 as QontractCliPermissionQuayOrgTeam,
 )
 from reconcile.gql_definitions.qontract_cli.roles import (
+    RoleV1_UserV1 as QontractCliRoleUser,
+)
+from reconcile.gql_definitions.qontract_cli.roles import (
     SaasFileV2 as QontractCliSaasFile,
 )
-from reconcile.gql_definitions.qontract_cli.roles import UserV1 as QontractCliRoleUser
 from reconcile.gql_definitions.qontract_cli.roles import (
     query as qontract_cli_roles_query,
 )
@@ -2040,9 +2042,9 @@ def repos(ctx: click.Context) -> None:
 @click.pass_context
 def roles(ctx: click.Context, org_username: str) -> None:
     query_func = gql.get_api().query
-    all_roles = qontract_cli_roles_query(query_func=query_func).roles or []
+    query_data = qontract_cli_roles_query(query_func=query_func)
     resolved_roles = resolve_role_members(
-        all_roles, user_cls=QontractCliRoleUser, query_func=query_func
+        query_data.roles or [], user_cls=QontractCliRoleUser, query_func=query_func
     )
     user_roles = [
         role
@@ -2051,8 +2053,12 @@ def roles(ctx: click.Context, org_username: str) -> None:
     ]
 
     if not user_roles:
-        print("User not found")
-        return
+        user_exists = any(
+            user.org_username == org_username for user in query_data.users or []
+        )
+        if not user_exists:
+            print("User not found")
+            return
 
     # type, name, resource, [ref]
     roles: dict[tuple[str, str, str], set[str]] = defaultdict(set)
