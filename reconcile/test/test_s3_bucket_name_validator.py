@@ -4,8 +4,6 @@ from reconcile.gql_definitions.s3_bucket_name_validator.s3_bucket_name_validator
     ExternalResourcesProvisionerV1,
     NamespaceTerraformProviderResourceAWSV1,
     NamespaceTerraformResourceAWSV1,
-    NamespaceTerraformResourceS3CloudFrontV1,
-    NamespaceTerraformResourceS3V1,
     NamespaceV1,
     S3BucketNameValidatorQueryData,
 )
@@ -21,13 +19,11 @@ def build_namespace(
     managed_external_resources: bool = True,
 ) -> NamespaceV1:
     resources: list[NamespaceTerraformResourceAWSV1] = [
-        NamespaceTerraformResourceS3V1(provider="s3", identifier=identifier)
+        NamespaceTerraformResourceAWSV1(provider="s3", identifier=identifier)
         for identifier in s3_identifiers or []
     ]
     resources += [
-        NamespaceTerraformResourceS3CloudFrontV1(
-            provider="s3-cloudfront", identifier=identifier
-        )
+        NamespaceTerraformResourceAWSV1(provider="s3-cloudfront", identifier=identifier)
         for identifier in cloudfront_identifiers or []
     ]
     return NamespaceV1(
@@ -171,8 +167,12 @@ def test_non_bucket_resources_are_ignored() -> None:
                         provider="aws",
                         provisioner=ExternalResourcesProvisionerV1(name="acct"),
                         resources=[
-                            NamespaceTerraformResourceAWSV1(provider="rds"),
-                            NamespaceTerraformResourceAWSV1(provider="rds"),
+                            NamespaceTerraformResourceAWSV1(
+                                provider="rds", identifier="shared-name"
+                            ),
+                            NamespaceTerraformResourceAWSV1(
+                                provider="elasticache", identifier="shared-name"
+                            ),
                         ],
                     )
                 ],

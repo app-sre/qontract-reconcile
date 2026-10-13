@@ -13,12 +13,7 @@ query S3BucketNameValidator {
       ... on NamespaceTerraformProviderResourceAWS_v1 {
         resources {
           provider
-          ... on NamespaceTerraformResourceS3_v1 {
-            identifier
-          }
-          ... on NamespaceTerraformResourceS3CloudFront_v1 {
-            identifier
-          }
+          identifier
         }
       }
     }

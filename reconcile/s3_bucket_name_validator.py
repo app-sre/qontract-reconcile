@@ -7,14 +7,16 @@ from reconcile.gql_definitions.s3_bucket_name_validator import (
 )
 from reconcile.gql_definitions.s3_bucket_name_validator.s3_bucket_name_validator import (
     NamespaceTerraformProviderResourceAWSV1,
-    NamespaceTerraformResourceS3CloudFrontV1,
-    NamespaceTerraformResourceS3V1,
     S3BucketNameValidatorQueryData,
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 
 QONTRACT_INTEGRATION = "s3-bucket-name-validator"
+
+# Resource providers whose identifier becomes an S3 bucket name. Both route to
+# _populate_tf_resource_s3_bucket() in the terrascript client.
+S3_BUCKET_PROVIDERS = frozenset({"s3", "s3-cloudfront"})
 
 
 def validate_no_duplicate_bucket_names(
@@ -55,11 +57,7 @@ def validate_no_duplicate_bucket_names(
                 continue
             account = external_resource.provisioner.name
             for resource in external_resource.resources:
-                if isinstance(
-                    resource,
-                    NamespaceTerraformResourceS3V1
-                    | NamespaceTerraformResourceS3CloudFrontV1,
-                ):
+                if resource.provider in S3_BUCKET_PROVIDERS:
                     usages[resource.identifier][account, resource.provider].append(
                         namespace.name
                     )

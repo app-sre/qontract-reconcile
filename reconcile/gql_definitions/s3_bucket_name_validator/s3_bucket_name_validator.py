@@ -32,12 +32,7 @@ query S3BucketNameValidator {
       ... on NamespaceTerraformProviderResourceAWS_v1 {
         resources {
           provider
-          ... on NamespaceTerraformResourceS3_v1 {
-            identifier
-          }
-          ... on NamespaceTerraformResourceS3CloudFront_v1 {
-            identifier
-          }
+          identifier
         }
       }
     }
@@ -63,18 +58,11 @@ class NamespaceExternalResourceV1(ConfiguredBaseModel):
 
 class NamespaceTerraformResourceAWSV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
-
-
-class NamespaceTerraformResourceS3V1(NamespaceTerraformResourceAWSV1):
-    identifier: str = Field(..., alias="identifier")
-
-
-class NamespaceTerraformResourceS3CloudFrontV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
-    resources: list[Union[NamespaceTerraformResourceS3V1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+    resources: list[NamespaceTerraformResourceAWSV1] = Field(..., alias="resources")
 
 
 class NamespaceV1(ConfiguredBaseModel):
