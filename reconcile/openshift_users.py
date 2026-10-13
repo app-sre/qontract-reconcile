@@ -23,7 +23,11 @@ from reconcile.gql_definitions.common.clusters_minimal import (
     ClusterAuthRHIDPV1,
     ClusterV1,
 )
-from reconcile.openshift_bindings.models import RoleBindingSpec
+from reconcile.openshift_bindings.models import (
+    BindingUser,
+    RoleBindingRole,
+    RoleBindingSpec,
+)
 from reconcile.typed_queries.app_interface_roles import get_app_interface_roles
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -32,6 +36,9 @@ from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils import expiration
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
+from reconcile.utils.membershipsources.resolver import (
+    resolve_role_members,
+)
 from reconcile.utils.oc_map import (
     OCLogMsg,
     OCMap,
@@ -109,14 +116,18 @@ def fetch_rolebindings_desired_state(
 ) -> list[dict[str, str]]:
     if allowed_clusters is not None and not allowed_clusters:
         return []
-    roles: list[RoleV1] = expiration.filter(get_app_interface_roles())
+    resolved_roles = resolve_role_members(
+        filter_roles(expiration.filter(get_app_interface_roles()), allowed_clusters),
+        user_cls=BindingUser,
+        role_cls=RoleBindingRole,
+    )
 
     users_desired_state: list[dict[str, str]] = [
         user
-        for role in roles
-        for rolebinding in filter_rolebindings(
-            RoleBindingSpec.create_rb_specs_from_role(role, enforced_user_keys),
-            allowed_clusters,
+        for role in resolved_roles
+        for rolebinding in RoleBindingSpec.create_rb_specs_from_role(
+            role,
+            enforced_user_keys,
         )
         for user in get_users_from_rolebinding_desired_state(rolebinding)
     ]
@@ -132,16 +143,22 @@ def get_users_from_rolebinding_desired_state(
     ]
 
 
-def filter_rolebindings(
-    rolebindings: list[RoleBindingSpec], allowed_clusters: set[str] | None = None
-) -> list[RoleBindingSpec]:
-    if allowed_clusters is not None:
-        return [
-            rolebinding
-            for rolebinding in rolebindings
-            if rolebinding.cluster.name in allowed_clusters
-        ]
-    return rolebindings
+def filter_roles(
+    roles: Iterable[RoleV1], allowed_clusters: set[str] | None = None
+) -> list[RoleV1]:
+    """Scope role access before membership resolution without changing inputs."""
+    filtered_roles: list[RoleV1] = []
+    for role in roles:
+        if accesses := [
+            access
+            for access in role.access or []
+            if allowed_clusters is None
+            or (access.namespace and access.namespace.cluster.name in allowed_clusters)
+        ]:
+            scoped_role = role.model_copy()
+            scoped_role.access = accesses
+            filtered_roles.append(scoped_role)
+    return filtered_roles
 
 
 def fetch_desired_state(

@@ -21,17 +21,19 @@ from reconcile.gitlab_members import (
 )
 from reconcile.gql_definitions.fragments.user import User
 from reconcile.gql_definitions.gitlab_members.gitlab_instances import GitlabInstanceV1
+from reconcile.gql_definitions.gitlab_members.permissions import (
+    PermissionGitlabGroupMembershipV1,
+)
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_mock import MockerFixture
 
     from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-    from reconcile.gql_definitions.gitlab_members.permissions import (
-        PermissionGitlabGroupMembershipV1,
-    )
 
 
 @pytest.fixture()
@@ -199,6 +201,87 @@ def test_gitlab_members_reconcile_gitlab_members(
     )
     gl_mock.change_access.assert_called_once_with(all_users[2], 50)
     gl_mock.remove_group_member.assert_called_once_with(group, all_users[3].id)
+
+
+@pytest.mark.parametrize("reverse_permissions", [False, True])
+def test_build_desired_state_combines_role_bot_and_pagerduty_members(
+    gql_class_factory: Callable,
+    mocker: MockerFixture,
+    permissions: list[PermissionGitlabGroupMembershipV1],
+    reverse_permissions: bool,
+) -> None:
+    selected = [
+        gql_class_factory(
+            PermissionGitlabGroupMembershipV1,
+            {
+                "name": "developers",
+                "group": "team",
+                "access": "developer",
+                "roles": [
+                    {
+                        "name": "developers",
+                        "users": [
+                            {"org_username": "shared"},
+                            {"org_username": "local"},
+                        ],
+                        "bots": [{"org_username": "bot"}, {"org_username": None}],
+                    }
+                ],
+            },
+        ),
+        gql_class_factory(
+            PermissionGitlabGroupMembershipV1,
+            {
+                "name": "maintainers",
+                "group": "team",
+                "access": "maintainer",
+                "roles": [
+                    {
+                        "name": "maintainers",
+                        "users": [{"org_username": "maintainer"}],
+                        "bots": [],
+                    }
+                ],
+            },
+        ),
+        gql_class_factory(
+            PermissionGitlabGroupMembershipV1,
+            {
+                "name": "unrelated",
+                "group": "other",
+                "access": "owner",
+                "roles": [
+                    {
+                        "name": "unrelated",
+                        "users": [{"org_username": "ignored"}],
+                        "bots": [],
+                    }
+                ],
+            },
+        ),
+    ]
+    assert permissions[0].pagerduty
+    for permission in selected:
+        permission.pagerduty = permissions[0].pagerduty
+    pagerduty = mocker.patch.object(
+        gitlab_members,
+        "get_usernames_from_pagerduty",
+        return_value=["shared", "oncall"],
+    )
+    result = gitlab_members.build_desired_state_spec(
+        group_name="team",
+        permissions=list(reversed(selected)) if reverse_permissions else selected,
+        pagerduty_map=mocker.Mock(),
+        all_users=[],
+    )
+    assert {name: member.access_level for name, member in result.members.items()} == {
+        "shared": 40,
+        "local": 30,
+        "bot": 30,
+        "maintainer": 40,
+        "oncall": 40,
+    }
+    assert pagerduty.call_count == 2
 
 
 def test_add_or_update_user_add() -> None:

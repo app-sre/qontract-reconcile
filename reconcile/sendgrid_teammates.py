@@ -8,11 +8,25 @@ import sendgrid
 from sretoolbox.utils import retry
 
 from reconcile import queries
+from reconcile.gql_definitions.sendgrid_teammates.accounts import (
+    query as accounts_query,
+)
+from reconcile.gql_definitions.sendgrid_teammates.roles import (
+    RoleV1,
+    UserV1,
+)
+from reconcile.gql_definitions.sendgrid_teammates.roles import (
+    query as roles_query,
+)
 from reconcile.status import ExitCodes
+from reconcile.utils import gql
+from reconcile.utils.membershipsources.resolver import (
+    resolve_role_members,
+)
 from reconcile.utils.secret_reader import SecretReader
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Callable, Iterable
 
 LOG = logging.getLogger(__name__)
 QONTRACT_INTEGRATION = "sendgrid_teammates"
@@ -35,18 +49,31 @@ class Teammate:
         return bool(self.pending_token)
 
 
+def get_roles(query_func: Callable) -> list[RoleV1]:
+    """Fetch SendGrid roles with their effective user memberships."""
+    return resolve_role_members(
+        [
+            role
+            for role in roles_query(query_func=query_func).roles or []
+            if role.sendgrid_accounts
+        ],
+        user_cls=UserV1,
+        query_func=query_func,
+    )
+
+
 def fetch_desired_state(
-    users: Iterable[Mapping[str, Any]],
+    roles: Iterable[RoleV1],
 ) -> dict[str, list[Teammate]]:
     desired_state: dict[str, list[Teammate]] = {}
-    for user in users:
-        roles = user.get("roles") or []
-        for role in roles:
-            sendgrid_accounts = role.get("sendgrid_accounts") or []
-            for sg_account in sendgrid_accounts:
-                desired_state.setdefault(sg_account["name"], [])
-                t = Teammate(f"{user['org_username']}@redhat.com")
-                desired_state[sg_account["name"]].append(t)
+    for role in roles:
+        for sg_account in role.sendgrid_accounts or []:
+            members = desired_state.setdefault(sg_account.name, [])
+            for user in role.users:
+                if (username := user.org_username) and not any(
+                    member.email == f"{username}@redhat.com" for member in members
+                ):
+                    members.append(Teammate(f"{username}@redhat.com"))
 
     return desired_state
 
@@ -164,16 +191,17 @@ def run(dry_run: bool) -> None:
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
 
-    users = queries.get_roles(aws=False, saas_files=False, sendgrid=True)
-    desired_state_all = fetch_desired_state(users)
+    gqlapi = gql.get_api()
+    roles = get_roles(query_func=gqlapi.query)
+    desired_state_all = fetch_desired_state(roles)
 
-    sendgrid_accounts = queries.get_sendgrid_accounts()
+    sendgrid_accounts = accounts_query(gqlapi.query).accounts or []
     for sg_account in sendgrid_accounts:
-        token = secret_reader.read(sg_account["token"])
+        token = secret_reader.read_secret(sg_account.token)
         sg_client = sendgrid.SendGridAPIClient(api_key=token).client
 
         current_state = fetch_current_state(sg_client)
-        desired_state = desired_state_all.get(sg_account["name"], [])
+        desired_state = desired_state_all.get(sg_account.name, [])
 
         error = act(dry_run, sg_client, desired_state, current_state)
         if error:

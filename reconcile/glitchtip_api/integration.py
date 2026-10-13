@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import sys
 from collections import defaultdict
@@ -30,11 +29,13 @@ from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     GlitchtipProjectV1_GlitchtipOrganizationV1,
     GlitchtipTeamV1,
     RoleV1,
+    UserV1,
 )
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     query as glitchtip_project_query,
 )
 from reconcile.utils import gql
+from reconcile.utils.membershipsources.async_resolver import resolve_role_members
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -85,8 +86,48 @@ class GlitchtipApiIntegration(
     def name(self) -> str:
         return QONTRACT_INTEGRATION
 
-    def get_glitchtip_projects(self, query_func: Callable) -> list[GlitchtipProjectV1]:
-        return glitchtip_project_query(query_func=query_func).glitchtip_projects or []
+    async def get_glitchtip_projects(
+        self, query_func: Callable, *, instance_names: set[str] | None = None
+    ) -> list[GlitchtipProjectV1]:
+        """Fetch selected projects and resolve their role users in one batch."""
+        projects = (
+            glitchtip_project_query(query_func=query_func).glitchtip_projects or []
+        )
+        if instance_names is not None:
+            projects = [
+                project
+                for project in projects
+                if project.organization.instance.name in instance_names
+            ]
+        roles = [
+            role
+            for project in projects
+            for team in project.teams
+            for role in team.roles
+        ]
+        resolved_roles = await resolve_role_members(
+            roles, user_cls=UserV1, query_func=query_func
+        )
+        roles_by_name = {role.name: role for role in resolved_roles}
+        return [
+            GlitchtipProjectV1(
+                name=project.name,
+                platform=project.platform,
+                projectId=project.project_id,
+                eventThrottleRate=project.event_throttle_rate,
+                teams=[
+                    GlitchtipTeamV1(
+                        name=team.name,
+                        roles=[roles_by_name[role.name] for role in team.roles],
+                    )
+                    for team in project.teams
+                ],
+                organization=project.organization,
+                namespaces=project.namespaces,
+                app=project.app,
+            )
+            for project in projects
+        ]
 
     @staticmethod
     def _build_team_users(
@@ -101,11 +142,15 @@ class GlitchtipApiIntegration(
             role_str = _get_user_role(organization, role)
             for user in role.users:
                 email = f"{user.org_username}@{mail_domain}"
-                users_by_email[email] = GlitchtipUser(email=email, role=role_str)
+                if existing := users_by_email.get(email):
+                    effective_role = _highest_role(existing.role, role_str)
+                else:
+                    effective_role = role_str
+                users_by_email[email] = GlitchtipUser(email=email, role=effective_role)
 
         return users_by_email
 
-    async def _build_desired_state(
+    def _build_desired_state(
         self,
         glitchtip_projects: list[GlitchtipProjectV1],
         mail_domain: str,
@@ -113,7 +158,6 @@ class GlitchtipApiIntegration(
         org_teams: dict[str, dict[str, GlitchtipTeam]] = defaultdict(dict)
         org_projects: dict[str, list[GIProject]] = defaultdict(list)
         org_users: dict[str, dict[str, GlitchtipUser]] = defaultdict(dict)
-
         for proj in glitchtip_projects:
             org_name = proj.organization.name
             project_team_slugs: list[str] = []
@@ -181,25 +225,27 @@ class GlitchtipApiIntegration(
         glitchtip_instances = glitchtip_instance_query(
             query_func=gqlapi.query
         ).instances
-        glitchtip_projects = self.get_glitchtip_projects(query_func=gqlapi.query)
-
-        projects_by_instance: dict[str, list[GlitchtipProjectV1]] = defaultdict(list)
-        for proj in glitchtip_projects:
-            projects_by_instance[proj.organization.instance.name].append(proj)
-
         filtered_instances = [
             inst
             for inst in glitchtip_instances
             if not self.params.instance or inst.name == self.params.instance
         ]
 
-        all_organizations = await asyncio.gather(*[
+        selected_names = {instance.name for instance in filtered_instances}
+        selected_projects = await self.get_glitchtip_projects(
+            query_func=gqlapi.query, instance_names=selected_names
+        )
+        projects_by_instance: dict[str, list[GlitchtipProjectV1]] = defaultdict(list)
+        for project in selected_projects:
+            projects_by_instance[project.organization.instance.name].append(project)
+
+        all_organizations = [
             self._build_desired_state(
                 glitchtip_projects=projects_by_instance[inst.name],
                 mail_domain=inst.mail_domain or "redhat.com",
             )
             for inst in filtered_instances
-        ])
+        ]
 
         instances: list[GIInstance] = [
             GIInstance(

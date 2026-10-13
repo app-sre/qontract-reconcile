@@ -2509,6 +2509,11 @@
             "description": "GitHub username resolved via rhatSocialURL, if requested and found",
             "title": "Github Username"
           },
+          "name": {
+            "description": "Person's name from the LDAP cn attribute",
+            "title": "Name",
+            "type": "string"
+          },
           "org_username": {
             "description": "LDAP uid (app-interface org_username)",
             "title": "Org Username",
@@ -2516,7 +2521,8 @@
           }
         },
         "required": [
-          "org_username"
+          "org_username",
+          "name"
         ],
         "title": "LdapGroupMember",
         "type": "object"

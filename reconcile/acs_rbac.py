@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from itertools import starmap
 from typing import (
     TYPE_CHECKING,
     Self,
@@ -14,7 +13,7 @@ from qontract_utils.differ import (
     diff_iterables,
 )
 
-from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1
+from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1, UserV1
 from reconcile.gql_definitions.acs.acs_rbac import query as acs_rbac_query
 from reconcile.utils import gql
 from reconcile.utils.acs.rbac import (
@@ -23,6 +22,7 @@ from reconcile.utils.acs.rbac import (
     Group,
     RbacResources,
 )
+from reconcile.utils.membershipsources.resolver import resolve_role_members
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -30,7 +30,9 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.semver_helper import make_semver
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Collection, Iterable
+
+    from reconcile.gql_definitions.acs.acs_rbac import RoleV1
 
 
 class AcsIntegrationParams(PydanticRunParams):
@@ -146,32 +148,44 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsIntegrationParams]):
     def name(self) -> str:
         return self.qontract_integration.replace("_", "-")
 
-    def get_desired_state(
-        self, query_func: Callable, instance_name: str
-    ) -> list[AcsRole]:
-        """
-        Get desired ACS roles and associated users from App Interface
-
-        :param query_func: function which queries GQL server
-        :param instance_name: name of the ACS instance to filter permissions for
-        :return: list of AcsRole derived from oidc-permission-1 definitions
-        """
-
+    def get_roles(
+        self, query_func: Callable, *, instance_names: Collection[str]
+    ) -> list[RoleV1]:
+        """Resolve memberships for every selected ACS instance before reconciliation."""
         query_results = acs_rbac_query(query_func=query_func).acs_rbacs
         if query_results is None:
             return []
+        roles = [
+            role
+            for role in query_results
+            if (role.users or role.member_sources)
+            and any(
+                isinstance(permission, OidcPermissionAcsV1)
+                and permission.instance.name in instance_names
+                for permission in role.oidc_permissions or []
+            )
+        ]
+        return resolve_role_members(roles, user_cls=UserV1, query_func=query_func)
 
+    def get_desired_state(
+        self, roles: Iterable[RoleV1], instance_name: str
+    ) -> list[AcsRole]:
+        """Compile instance permissions from already-resolved role memberships."""
         permission_usernames: dict[Permission, list[str]] = defaultdict(list)
-        for user in query_results:
-            for role in user.roles or []:
-                for permission in role.oidc_permissions or []:
-                    if isinstance(permission, OidcPermissionAcsV1):
-                        if permission.instance.name != instance_name:
-                            continue
-                        permission_usernames[
-                            Permission(**permission.model_dump(by_alias=True))
-                        ].append(user.org_username)
-        return list(starmap(AcsRole.build, permission_usernames.items()))
+        for role in roles:
+            usernames = [user.org_username for user in role.users]
+            for permission in role.oidc_permissions or []:
+                if (
+                    isinstance(permission, OidcPermissionAcsV1)
+                    and permission.instance.name == instance_name
+                ):
+                    permission_usernames[
+                        Permission(**permission.model_dump(by_alias=True))
+                    ].extend(usernames)
+        return [
+            AcsRole.build(permission, list(dict.fromkeys(usernames)))
+            for permission, usernames in permission_usernames.items()
+        ]
 
     def get_current_state(
         self, auth_provider_id: str, rbac_api_resources: RbacResources
@@ -596,11 +610,18 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsIntegrationParams]):
         instances = AcsRbacApi.get_acs_instances(
             gqlapi.query, name=self.params.instance
         )
-
+        if not instances:
+            return
+        try:
+            roles = self.get_roles(
+                gqlapi.query, instance_names={instance.name for instance in instances}
+            )
+        except Exception as exc:
+            raise ExceptionGroup("ACS RBAC reconciliation errors", [exc]) from exc
         errors: list[Exception] = []
         for instance in instances:
             try:
-                desired = self.get_desired_state(gqlapi.query, instance.name)
+                desired = self.get_desired_state(roles, instance.name)
                 with AcsRbacApi(
                     url=instance.url,
                     token=self.secret_reader.read_secret(instance.credentials),

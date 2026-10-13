@@ -35,6 +35,15 @@ class AWSApiIam:
     def __init__(self, client: IAMClient, hooks: Hooks | None = None) -> None:  # ruff: ignore[unused-method-argument]
         self.client = client
 
+    @invoke_with_hooks(lambda: AWSApiCallContext(method="list_users", service="iam"))
+    def list_users(self) -> list[AWSUser]:
+        """Return typed IAM users from every inventory page."""
+        return [
+            AWSUser(**user)
+            for page in self.client.get_paginator("list_users").paginate()
+            for user in page["Users"]
+        ]
+
     @invoke_with_hooks(
         lambda: AWSApiCallContext(method="create_access_key", service="iam")
     )

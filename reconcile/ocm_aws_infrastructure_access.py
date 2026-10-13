@@ -2,15 +2,31 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
+from pydantic import BaseModel
+from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
+from qontract_utils.differ import diff_iterables
+
 from reconcile import queries
+from reconcile.gql_definitions.ocm_aws_infrastructure_access.clusters import (
+    ClusterV1,
+    UserV1,
+)
+from reconcile.gql_definitions.ocm_aws_infrastructure_access.clusters import (
+    query as clusters_query,
+)
 from reconcile.status import ExitCodes
 from reconcile.typed_queries.terraform_namespaces import get_namespaces
+from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
+)
+from reconcile.utils.membershipsources.resolver import (
+    resolve_role_members,
 )
 from reconcile.utils.ocm import (
     OCM_PRODUCT_OSD,
@@ -18,36 +34,82 @@ from reconcile.utils.ocm import (
     STATUS_FAILED,
     OCMMap,
 )
+from reconcile.utils.secret_reader import SecretReader
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Iterable
+
+    from qontract_utils.aws_api_typed.iam import AWSApiIam
+
+    from reconcile.gql_definitions.fragments.aws_account_common import AWSAccountCommon
 
 QONTRACT_INTEGRATION = "ocm-aws-infrastructure-access"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
+class MissingIamUsersError(ValueError):
+    """Infrastructure grants require IAM users that already exist in the account."""
+
+
+class AwsAutomationCredentials(BaseModel, frozen=True):
+    """Typed contents of an AWS account's automation token."""
+
+    aws_access_key_id: str
+    aws_secret_access_key: str
+
+
+def _require_iam_users(
+    iam: AWSApiIam, *, account_name: str, usernames: Iterable[str]
+) -> None:
+    """Fail before mutations when a requested IAM identity is missing."""
+    if requested := set(usernames):
+        if missing := requested - {user.user_name for user in iam.list_users()}:
+            raise MissingIamUsersError(
+                f"IAM users are not provisioned in {account_name}: {sorted(missing)}. Retain explicit identity/provisioning requirements before enabling LDAP-only membership."
+            )
+
+
+class InfrastructureGrant(BaseModel, frozen=True):
+    """Desired or current IAM infrastructure-access grant."""
+
+    cluster: str
+    user_arn: str
+    access_level: str
+
+    @property
+    def key(self) -> tuple[str, str, str]:
+        """Identity used for comparing grants without changing access levels."""
+        return self.cluster, self.user_arn, self.access_level
+
+
 def fetch_current_state(
-    clusters: Iterable[Mapping[str, Any]],
-) -> tuple[OCMMap, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    clusters: Iterable[ClusterV1],
+) -> tuple[
+    OCMMap,
+    list[InfrastructureGrant],
+    list[InfrastructureGrant],
+    list[InfrastructureGrant],
+]:
+    clusters = list(clusters)
     current_state = []
     current_failed = []
     current_deleting = []
     settings = queries.get_app_interface_settings()
 
     ocm_map = OCMMap(
-        clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
+        clusters=[cluster.model_dump(by_alias=True) for cluster in clusters],
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
     )
 
     for cluster_info in clusters:
-        cluster = cluster_info["name"]
+        cluster = cluster_info.name
         ocm = ocm_map.get(cluster)
         role_grants = ocm.get_aws_infrastructure_access_role_grants(cluster)
         for user_arn, access_level, state, _ in role_grants:
-            item = {
-                "cluster": cluster,
-                "user_arn": user_arn,
-                "access_level": access_level,
-            }
+            item = InfrastructureGrant(
+                cluster=cluster, user_arn=user_arn, access_level=access_level
+            )
             if state == STATUS_FAILED:
                 current_failed.append(item)
             elif state == STATUS_DELETING:
@@ -58,47 +120,71 @@ def fetch_current_state(
     return ocm_map, current_state, current_failed, current_deleting
 
 
-def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    desired_state = []
+def fetch_desired_state(clusters: Iterable[ClusterV1]) -> list[InfrastructureGrant]:
+    desired_state: list[InfrastructureGrant] = []
+    clusters = list(clusters)
+    required_accounts: dict[str, AWSAccountCommon] = {}
+    required_users: dict[str, set[str]] = defaultdict(set)
 
     for cluster_info in clusters:
-        cluster = cluster_info["name"]
-        aws_infra_access_items = cluster_info.get("awsInfrastructureAccess") or []
+        cluster = cluster_info.name
+        aws_infra_access_items = cluster_info.aws_infrastructure_access or []
         for aws_infra_access in aws_infra_access_items:
-            aws_group = aws_infra_access["awsGroup"]
-            access_level = aws_infra_access["accessLevel"]
-            aws_account = aws_group["account"]
-            aws_account_uid = aws_account["uid"]
-            users = [
-                user["org_username"]
-                for role in aws_group["roles"]
-                for user in role["users"]
-            ]
-
-            for user in users:
-                item = {
-                    "cluster": cluster,
-                    "user_arn": f"arn:aws:iam::{aws_account_uid}:user/{user}",
-                    "access_level": access_level,
+            aws_group = aws_infra_access.aws_group
+            access_level = aws_infra_access.access_level
+            aws_account = aws_group.account
+            aws_account_uid = aws_account.uid
+            for role in aws_group.roles or []:
+                usernames = {
+                    member.aws_username or member.org_username for member in role.users
                 }
-                desired_state.append(item)
+                if role.member_sources and usernames:
+                    required_accounts[aws_account.name] = aws_account
+                    required_users[aws_account.name].update(usernames)
+                desired_state.extend(
+                    InfrastructureGrant(
+                        cluster=cluster,
+                        user_arn=f"arn:aws:iam::{aws_account_uid}:user/{username}",
+                        access_level=access_level,
+                    )
+                    for username in usernames
+                )
 
         aws_infra_management_items = (
-            cluster_info.get("awsInfrastructureManagementAccounts") or []
+            cluster_info.aws_infrastructure_management_accounts or []
         )
         for aws_infra_management in aws_infra_management_items:
-            aws_account = aws_infra_management["account"]
-            access_level = aws_infra_management["accessLevel"]
-            aws_account_uid = aws_account["uid"]
+            management_account = aws_infra_management.account
+            access_level = aws_infra_management.access_level
+            aws_account_uid = management_account.uid
             # add terraform user account
-            tf_user = aws_account.get("terraformUsername")
+            tf_user = management_account.terraform_username
             if tf_user:
-                item = {
-                    "cluster": cluster,
-                    "user_arn": f"arn:aws:iam::{aws_account_uid}:user/{tf_user}",
-                    "access_level": access_level,
-                }
+                item = InfrastructureGrant(
+                    cluster=cluster,
+                    user_arn=f"arn:aws:iam::{aws_account_uid}:user/{tf_user}",
+                    access_level=access_level,
+                )
                 desired_state.append(item)
+
+    if required_accounts:
+        secret_reader = SecretReader(settings=queries.get_app_interface_settings())
+        for account_name, account in required_accounts.items():
+            credentials = AwsAutomationCredentials.model_validate(
+                secret_reader.read_all_secret(account.automation_token)
+            )
+            with AWSApi(
+                AWSStaticCredentials(
+                    access_key_id=credentials.aws_access_key_id,
+                    secret_access_key=credentials.aws_secret_access_key,
+                    region=account.resources_default_region,
+                ),
+            ) as aws_api:
+                _require_iam_users(
+                    aws_api.iam,
+                    account_name=account_name,
+                    usernames=required_users[account_name],
+                )
 
     # get desired state defined in external resources
     # section for aws-iam-service-account resources
@@ -124,11 +210,11 @@ def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> list[dict[str,
             )
             cluster = aws_infrastructure_access["cluster"]["name"]
             access_level = aws_infrastructure_access["access_level"]
-            item = {
-                "cluster": cluster,
-                "user_arn": f"arn:aws:iam::{aws_account_uid}:user/{spec.identifier}",
-                "access_level": access_level,
-            }
+            item = InfrastructureGrant(
+                cluster=cluster,
+                user_arn=f"arn:aws:iam::{aws_account_uid}:user/{spec.identifier}",
+                access_level=access_level,
+            )
             desired_state.append(item)
 
     return desired_state
@@ -137,17 +223,18 @@ def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> list[dict[str,
 def act(
     dry_run: bool,
     ocm_map: OCMMap,
-    current_state: list[dict[str, Any]],
-    current_failed: Iterable[dict[str, Any]],
-    desired_state: Iterable[dict[str, Any]],
-    current_deleting: list[dict[str, Any]],
+    current_state: list[InfrastructureGrant],
+    current_failed: Iterable[InfrastructureGrant],
+    desired_state: Iterable[InfrastructureGrant],
+    current_deleting: list[InfrastructureGrant],
 ) -> None:
-    to_delete = [c for c in current_state if c not in desired_state]
-    to_delete += current_failed
+    desired_state = list(desired_state)
+    diff = diff_iterables(current_state, desired_state, key=lambda grant: grant.key)
+    to_delete = [*diff.delete.values(), *current_failed]
     for item in to_delete:
-        cluster = item["cluster"]
-        user_arn = item["user_arn"]
-        access_level = item["access_level"]
+        cluster = item.cluster
+        user_arn = item.user_arn
+        access_level = item.access_level
         logging.info([
             "del_user_from_aws_infrastructure_access_role_grants",
             cluster,
@@ -159,11 +246,13 @@ def act(
             ocm.del_user_from_aws_infrastructure_access_role_grants(
                 cluster, user_arn, access_level
             )
-    to_add = [d for d in desired_state if d not in current_state + current_deleting]
+    to_add = diff_iterables(
+        [*current_state, *current_deleting], desired_state, key=lambda grant: grant.key
+    ).add.values()
     for item in to_add:
-        cluster = item["cluster"]
-        user_arn = item["user_arn"]
-        access_level = item["access_level"]
+        cluster = item.cluster
+        user_arn = item.user_arn
+        access_level = item.access_level
         logging.info([
             "add_user_to_aws_infrastructure_access_role_grants",
             cluster,
@@ -177,19 +266,40 @@ def act(
             )
 
 
-def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
+def _cluster_is_compatible(cluster: ClusterV1) -> bool:
     return (
-        cluster.get("ocm") is not None
-        and cluster["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
+        cluster.ocm is not None
+        and cluster.spec is not None
+        and cluster.spec.product in SUPPORTED_OCM_PRODUCTS
     )
 
 
-def get_clusters() -> list[dict[str, Any]]:
-    return [
-        c
-        for c in queries.get_clusters(aws_infrastructure_access=True)
+def get_clusters() -> list[ClusterV1]:
+    """Fetch compatible clusters with resolved infrastructure-access roles."""
+    query_func = gql.get_api().query
+    clusters = [
+        c.model_copy(deep=True)
+        for c in clusters_query(query_func=query_func).clusters or []
         if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
     ]
+    resolved_roles = resolve_role_members(
+        [
+            role
+            for cluster in clusters
+            for access in cluster.aws_infrastructure_access or []
+            for role in access.aws_group.roles or []
+        ],
+        user_cls=UserV1,
+        query_func=query_func,
+    )
+    roles_by_name = {role.name: role for role in resolved_roles}
+    for cluster in clusters:
+        for access in cluster.aws_infrastructure_access or []:
+            if access.aws_group.roles is not None:
+                access.aws_group.roles = [
+                    roles_by_name[role.name] for role in access.aws_group.roles
+                ]
+    return clusters
 
 
 def run(dry_run: bool) -> None:
@@ -200,14 +310,18 @@ def run(dry_run: bool) -> None:
         )
         sys.exit(ExitCodes.SUCCESS)
 
+    desired_state = fetch_desired_state(clusters)
     ocm_map, current_state, current_failed, current_deleting = fetch_current_state(
         clusters
     )
-    desired_state = fetch_desired_state(clusters)
     act(
         dry_run, ocm_map, current_state, current_failed, desired_state, current_deleting
     )
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    return {"state": fetch_desired_state(clusters=get_clusters())}
+    return {
+        "state": [
+            grant.model_dump() for grant in fetch_desired_state(clusters=get_clusters())
+        ]
+    }

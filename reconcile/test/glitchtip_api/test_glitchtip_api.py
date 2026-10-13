@@ -1,6 +1,8 @@
 """Unit tests for the GlitchtipApiIntegration helper methods."""
 
-import asyncio
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 from qontract_api_client.schemas import GIOrganization, GlitchtipUser
@@ -22,9 +24,13 @@ from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     GlitchtipProjectV1_GlitchtipOrganizationV1,
     GlitchtipRoleV1,
     GlitchtipTeamV1,
+    ProjectsQueryData,
     RoleV1,
     UserV1,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -34,6 +40,13 @@ MAIL_DOMAIN = "example.com"
 
 ORG_NAME = "my-org"
 INSTANCE_NAME = "glitchtip-dev"
+
+
+def test_api_and_dsn_reuse_project_query_models() -> None:
+    from reconcile.glitchtip_api import integration as api
+    from reconcile.glitchtip_project_dsn import integration as dsn
+
+    assert api.GlitchtipProjectV1 is dsn.GlitchtipProjectV1
 
 
 def make_integration() -> GlitchtipApiIntegration:
@@ -58,6 +71,8 @@ def make_role(
 ) -> RoleV1:
     """Build a RoleV1 with a single GlitchtipRoleV1 entry and the specified users."""
     return RoleV1(
+        name=f"{org_name}-{role_str}-{'-'.join(usernames)}",
+        memberSources=None,
         glitchtip_roles=[
             GlitchtipRoleV1(
                 organization=GlitchtipOrganizationV1(name=org_name),
@@ -130,6 +145,8 @@ def test_get_user_role_no_glitchtip_roles() -> None:
     org = make_organization(ORG_NAME)
     role = RoleV1(
         glitchtip_roles=None,
+        name="test-role",
+        memberSources=None,
         users=[UserV1(name="charlie", org_username="charlie")],
     )
 
@@ -142,6 +159,8 @@ def test_get_user_role_first_matching_org_wins() -> None:
     """When multiple glitchtip_roles exist, the first matching org is returned."""
     org = make_organization(ORG_NAME)
     role = RoleV1(
+        name="test-role",
+        memberSources=None,
         glitchtip_roles=[
             GlitchtipRoleV1(
                 organization=GlitchtipOrganizationV1(name="other-org"),
@@ -229,12 +248,10 @@ def _run_build_desired_state(
     integration: GlitchtipApiIntegration,
     glitchtip_projects: list[GlitchtipProjectV1],
 ) -> list[GIOrganization]:
-    """Helper to synchronously run the async _build_desired_state method."""
-    return asyncio.run(
-        integration._build_desired_state(
-            glitchtip_projects=glitchtip_projects,
-            mail_domain=MAIL_DOMAIN,
-        )
+    """Build desired state from projects with already-resolved roles."""
+    return integration._build_desired_state(
+        glitchtip_projects=glitchtip_projects,
+        mail_domain=MAIL_DOMAIN,
     )
 
 
@@ -266,6 +283,83 @@ def make_gql_project(
             ),
         ),
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("projects", [None, []])
+async def test_get_glitchtip_projects_handles_empty_query(
+    projects: list[GlitchtipProjectV1] | None, mocker: MockerFixture
+) -> None:
+    query_func = mocker.Mock(
+        return_value=ProjectsQueryData(glitchtip_projects=projects).model_dump(
+            by_alias=True
+        )
+    )
+    assert await make_integration().get_glitchtip_projects(query_func=query_func) == []
+
+
+@pytest.mark.asyncio
+async def test_get_glitchtip_projects_batches_roles_across_projects(
+    mocker: MockerFixture,
+) -> None:
+    projects = [
+        make_gql_project(
+            project_name=f"project-{username}",
+            org_name=ORG_NAME,
+            teams=[
+                make_team(
+                    name=f"team-{username}",
+                    roles=[
+                        make_role(
+                            org_name=ORG_NAME, role_str="admin", usernames=[username]
+                        )
+                    ],
+                )
+            ],
+        )
+        for username in ["alice", "bob"]
+    ]
+    query_func = mocker.Mock(
+        return_value=ProjectsQueryData(glitchtip_projects=projects).model_dump(
+            by_alias=True
+        )
+    )
+    from reconcile.glitchtip_api import integration as module
+
+    resolver = mocker.spy(module, "resolve_role_members")
+    resolved_projects = await make_integration().get_glitchtip_projects(
+        query_func=query_func
+    )
+    resolver.assert_awaited_once_with(
+        [project.teams[0].roles[0] for project in projects],
+        user_cls=UserV1,
+        query_func=query_func,
+    )
+    assert resolved_projects == projects
+    assert all(
+        resolved is not original
+        for resolved, original in zip(resolved_projects, projects, strict=True)
+    )
+
+
+def test_build_desired_state_does_not_resolve_memberships(
+    mocker: MockerFixture,
+) -> None:
+    resolver = mocker.patch(
+        "reconcile.glitchtip_api.integration.resolve_role_members",
+        new_callable=mocker.AsyncMock,
+        side_effect=AssertionError(
+            "Memberships must be resolved before state construction"
+        ),
+    )
+    project = make_gql_project(
+        "project",
+        ORG_NAME,
+        [make_team("team", [make_role(ORG_NAME, "admin", ["alice"])])],
+    )
+    orgs = _run_build_desired_state(make_integration(), [project])
+    assert orgs[0].users == [GlitchtipUser(email=f"alice@{MAIL_DOMAIN}", role="admin")]
+    resolver.assert_not_called()
 
 
 def test_build_desired_state_basic() -> None:

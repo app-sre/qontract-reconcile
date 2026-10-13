@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from reconcile.gql_definitions.fragments.membership_source import (
     MembershipProviderSourceV1,
@@ -23,6 +23,22 @@ class MockRole(BaseModel):
     users: list[MockUser]
     bots: list[MockBot]
     member_sources: list[RoleMembershipSource] | None = None
+
+
+class MockGithubUser(BaseModel, frozen=True):
+    org_username: str
+    github_username: str | None = None
+
+
+class CustomRole[U: BaseModel](BaseModel, frozen=True):
+    """Test-owned role for exercising custom membership identity models."""
+
+    name: str
+    users: list[U]
+    bots: list[MockBot] = Field(default_factory=list)
+    member_sources: list[RoleMembershipSource] | None = Field(
+        None, alias="memberSources"
+    )
 
 
 def build_role(

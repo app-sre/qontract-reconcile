@@ -40,9 +40,14 @@ from reconcile.gql_definitions.common.github_orgs import query as github_orgs_qu
 from reconcile.gql_definitions.github_owners_api.roles import (
     PermissionGithubOrgTeamV1,
     RoleV1,
+    UserV1,
 )
 from reconcile.gql_definitions.github_owners_api.roles import query as roles_query
 from reconcile.utils import expiration, gql
+from reconcile.utils.membershipsources.async_resolver import resolve_role_members
+from reconcile.utils.membershipsources.resolver import (
+    has_github_username,
+)
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -50,6 +55,8 @@ from reconcile.utils.runtime.integration import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from reconcile.gql_definitions.github_owners_api.roles import BotV1
 
 QONTRACT_INTEGRATION = "github-owners-api"
 
@@ -80,10 +87,26 @@ class GithubOwnersIntegration(
         return QONTRACT_INTEGRATION
 
     @staticmethod
-    def get_roles(query_func: Callable) -> list[RoleV1]:
-        """Return all roles from app-interface, filtered for expiration."""
+    async def get_roles(
+        query_func: Callable, *, org_name: str | None = None
+    ) -> list[RoleV1]:
+        """Fetch active owner roles with resolved GitHub identities."""
         result = roles_query(query_func=query_func)
-        return expiration.filter(result.roles or [])
+        roles = [
+            role
+            for role in expiration.filter(result.roles or [])
+            if any(
+                isinstance(permission, PermissionGithubOrgTeamV1)
+                and (not org_name or permission.org == org_name)
+                for permission in role.permissions or []
+            )
+        ]
+        return await resolve_role_members(
+            roles,
+            user_cls=UserV1,
+            query_func=query_func,
+            member_filter=has_github_username,
+        )
 
     @staticmethod
     def get_github_orgs(query_func: Callable) -> dict[str, GithubOrgV1]:
@@ -125,12 +148,10 @@ class GithubOwnersIntegration(
                 if org_name_filter and org != org_name_filter:
                     continue
 
-                for user in role.users:
-                    if user.github_username:
-                        owners_by_org[org].add(user.github_username.lower())
-                for bot in role.bots:
-                    if bot.github_username:
-                        owners_by_org[org].add(bot.github_username.lower())
+                members: list[UserV1 | BotV1] = [*role.users, *(role.bots or [])]
+                for member in members:
+                    if username := member.github_username:
+                        owners_by_org[org].add(username.lower())
 
         # Build desired state list, joining with org token configs
         desired: list[GithubOrgDesiredState] = []
@@ -177,9 +198,10 @@ class GithubOwnersIntegration(
     async def async_run(self, dry_run: bool) -> None:
         """Run the integration."""
         gqlapi = gql.get_api()
-        roles = self.get_roles(query_func=gqlapi.query)
+        roles = await self.get_roles(
+            query_func=gqlapi.query, org_name=self.params.org_name
+        )
         github_orgs = self.get_github_orgs(query_func=gqlapi.query)
-
         organizations = self.compile_desired_state(
             roles,
             github_orgs,

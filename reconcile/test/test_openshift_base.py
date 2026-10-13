@@ -32,6 +32,39 @@ TEST_INT = "test_openshift_resources"
 TEST_INT_VER = make_semver(1, 9, 2)
 
 
+@pytest.mark.parametrize(
+    ("user_key", "github_username", "expected"),
+    [
+        ("org_username", "alice-gh", "alice"),
+        ("github_username", "alice-gh", "alice-gh"),
+        ("github_username", None, None),
+    ],
+)
+def test_shared_user_identity_lookup(
+    user_key: str, github_username: str | None, expected: str | None
+) -> None:
+    from reconcile.openshift_bindings.models import BindingUser
+
+    assert (
+        sut.get_user_identity(
+            BindingUser(org_username="alice", github_username=github_username), user_key
+        )
+        == expected
+    )
+
+
+def test_shared_user_identity_lookup_rejects_unknown_keys() -> None:
+    from reconcile.openshift_bindings.models import BindingUser
+
+    with pytest.raises(ValueError, match="Unsupported OpenShift user key"):
+        sut.get_user_identity(BindingUser(org_username="alice"), "future_username")
+
+
+def test_authentication_lookup_rejects_new_auth_methods() -> None:
+    with pytest.raises(NotImplementedError, match="auth service not implemented"):
+        sut.determine_user_keys_for_access("cluster", [{"service": "future-auth"}])
+
+
 def build_resource(kind: str, api_version: str, name: str) -> dict[str, Any]:
     return {
         "kind": kind,

@@ -14,6 +14,11 @@ from unittest.mock import MagicMock, create_autospec
 
 import pytest
 from pydantic import BaseModel, ValidationError
+from qontract_api_client.schemas import (
+    LdapGroupMember,
+    LdapGroupMembersResponse,
+    LdapGroupResult,
+)
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils.gql import GqlApi
@@ -21,10 +26,55 @@ from reconcile.utils.models import data_default_none
 from reconcile.utils.state import State
 
 if TYPE_CHECKING:
+    from unittest.mock import AsyncMock
+
     from pytest_httpserver import HTTPServer
     from pytest_mock import MockerFixture
 
     from reconcile.test.fixtures import Fixtures
+
+
+@pytest.fixture
+def ldap_endpoint(mocker: MockerFixture) -> AsyncMock:
+    """Mock membership resolution and its integration-boundary dependencies."""
+    mocker.patch("reconcile.utils.gql.get_api")
+    settings = mocker.Mock()
+    settings.credentials.path = "ldap/creds"
+    settings.credentials.field = "password"
+    settings.credentials.version = None
+    settings.server_url = "ldaps://ldap.example.com"
+    settings.base_dn = "dc=example,dc=com"
+    mocker.patch(
+        "reconcile.utils.membershipsources.async_resolver.get_ldap_settings",
+        return_value=settings,
+    )
+    mocker.patch(
+        "reconcile.utils.membershipsources.async_resolver.get_config",
+        return_value={"vault": {"server": "https://vault.example.com"}},
+    )
+    mocker.patch("reconcile.utils.membershipsources.resolver.setup_qontract_api_client")
+    mocker.patch(
+        "reconcile.utils.membershipsources.resolver.qontract_api_client.aclose",
+        new_callable=mocker.AsyncMock,
+    )
+    return mocker.patch(
+        "reconcile.utils.membershipsources.ldap_resolver.ldap_group_members",
+        new_callable=mocker.AsyncMock,
+        return_value=LdapGroupMembersResponse(
+            groups=[
+                LdapGroupResult(
+                    group="source-team",
+                    members=[
+                        LdapGroupMember(
+                            name="Alice Example",
+                            org_username="alice",
+                            github_username="AliceGH",
+                        )
+                    ],
+                )
+            ]
+        ),
+    )
 
 
 @pytest.fixture

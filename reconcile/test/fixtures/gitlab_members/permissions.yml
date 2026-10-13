@@ -15,7 +15,9 @@ permissions:
         scheduleID: YXZ1234
         escalationPolicyID: null
     roles:
-      - users: []
+      - name: ic
+        memberSources: null
+        users: []
         bots:
           - org_username: devtools-bot
   - name: member
@@ -23,16 +25,24 @@ permissions:
     access: owner
     pagerduty: null
     roles:
-      - users: []
+      - name: ic
+        memberSources: null
+        users: []
         bots:
           - org_username: devtools-bot
-      - users: []
+      - name: empty
+        memberSources: null
+        users: []
         bots: []
-      - users:
+      - name: team1
+        memberSources: null
+        users:
           - org_username: user1
           - org_username: user2
         bots: []
-      - users:
+      - name: team2
+        memberSources: null
+        users:
           - org_username: user3
           - org_username: user4
         bots:

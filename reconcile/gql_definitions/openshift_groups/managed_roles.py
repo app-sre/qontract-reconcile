@@ -17,10 +17,31 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
 from reconcile.gql_definitions.fragments.user import User
 
 
 DEFINITION = """
+fragment RoleMembershipSource on RoleMembershipSource_V1 {
+  group
+  provider {
+    name
+    hasAuditTrail
+    source {
+      provider
+      ... on AppInterfaceMembershipProviderSource_V1 {
+        url
+        username {
+          ...VaultSecret
+        }
+        password {
+          ...VaultSecret
+        }
+      }
+    }
+  }
+}
+
 fragment User on User_v1 {
   name
   org_username
@@ -30,11 +51,22 @@ fragment User on User_v1 {
   gov_slack_email_local_part
 }
 
+fragment VaultSecret on VaultSecret_v1 {
+  url
+  path
+  field
+  version
+  format
+}
+
 query OpenshiftGroupsManagedRoles {
   roles: roles_v1 {
     name
     users {
       ...User
+    }
+    memberSources {
+      ...RoleMembershipSource
     }
     expirationDate
     access {
@@ -74,6 +106,7 @@ class AccessV1(ConfiguredBaseModel):
 class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     users: list[User] = Field(..., alias="users")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
     expiration_date: Optional[str] = Field(..., alias="expirationDate")
     access: Optional[list[AccessV1]] = Field(..., alias="access")
 

@@ -211,6 +211,7 @@ def test_role(
         bots=[test_bot],
         access=[test_access_with_role],
         expirationDate=None,
+        memberSources=None,
     )
 
 
@@ -227,6 +228,7 @@ def test_cluster_role(
         bots=[test_cluster_bot],
         access=[test_cluster_access],
         expirationDate=None,
+        memberSources=None,
     )
 
 

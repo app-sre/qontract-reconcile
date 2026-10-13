@@ -17,16 +17,50 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
+
 
 DEFINITION = """
+fragment RoleMembershipSource on RoleMembershipSource_V1 {
+  group
+  provider {
+    name
+    hasAuditTrail
+    source {
+      provider
+      ... on AppInterfaceMembershipProviderSource_V1 {
+        url
+        username {
+          ...VaultSecret
+        }
+        password {
+          ...VaultSecret
+        }
+      }
+    }
+  }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+  url
+  path
+  field
+  version
+  format
+}
+
 query GithubOwnersApiRoles {
   roles: roles_v1 {
     name
     users {
+      org_username
       github_username
     }
     bots {
       github_username
+    }
+    memberSources {
+      ...RoleMembershipSource
     }
     permissions {
       ... on PermissionGithubOrgTeam_v1 {
@@ -48,6 +82,7 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class UserV1(ConfiguredBaseModel):
+    org_username: str = Field(..., alias="org_username")
     github_username: str = Field(..., alias="github_username")
 
 
@@ -69,6 +104,7 @@ class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     users: list[UserV1] = Field(..., alias="users")
     bots: list[BotV1] = Field(..., alias="bots")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
     permissions: Optional[list[Union[PermissionGithubOrgTeamV1, PermissionV1]]] = Field(..., alias="permissions")
     expiration_date: Optional[str] = Field(..., alias="expirationDate")
 
