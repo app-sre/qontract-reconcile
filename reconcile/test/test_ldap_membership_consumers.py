@@ -1149,6 +1149,55 @@ def test_glitchtip_access_reporter_hybrid_role_dedupes(
     assert next(u for u in users if u.username == "alice").name == "Alice"
 
 
+def test_glitchtip_access_reporter_distinguishes_duplicate_role_names(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    """Two different roles sharing a `name` must keep their own resolved members.
+
+    Role identity in app-interface is the path, not the name; a reporter that
+    keys resolved roles by name alone would misattribute members whenever two
+    distinct roles share a name.
+    """
+    ldap_endpoint.return_value = LdapGroupMembersResponse(
+        groups=[
+            LdapGroupResult(
+                group="team-a",
+                members=[
+                    LdapGroupMember(
+                        name="Alice Example",
+                        org_username="alice",
+                        github_username="AliceGH",
+                    )
+                ],
+            ),
+            LdapGroupResult(
+                group="team-b",
+                members=[
+                    LdapGroupMember(
+                        name="Bob Example", org_username="bob", github_username="BobGH"
+                    )
+                ],
+            ),
+        ]
+    )
+    role_a = gql_class_factory(GlitchtipRole, {"name": "role", "users": []})
+    role_a.member_sources = [build_ldap_membership_source(name="ldap", group="team-a")]
+    role_b = gql_class_factory(GlitchtipRole, {"name": "role", "users": []})
+    role_b.member_sources = [build_ldap_membership_source(name="ldap", group="team-b")]
+
+    project_a = _glitchtip_project(gql_class_factory, "org-a", [role_a])
+    project_b = _glitchtip_project(gql_class_factory, "org-b", [role_b])
+
+    users = glitchtip_access_reporter.build_glitchtip_access_report_users(
+        [project_a, project_b], query_func=mocker.Mock()
+    )
+
+    alice = next(u for u in users if u.username == "alice")
+    bob = next(u for u in users if u.username == "bob")
+    assert [org.name for org in alice.organizations] == ["org-a"]
+    assert [org.name for org in bob.organizations] == ["org-b"]
+
+
 def _tekton_role(
     gql_class_factory: Callable, cluster_role: str, cluster: str, namespace: str
 ) -> TektonRevalidationRole:
