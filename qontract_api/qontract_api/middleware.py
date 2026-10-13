@@ -154,13 +154,25 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         return response
 
 
+_UNLOGGED_PATHS = frozenset({"/health/live", "/health/ready"})
+
+
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Log all requests with timing information and structured fields."""
 
     async def dispatch(  # ruff: ignore[no-self-use] - Required instance method for Starlette middleware
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        """Process request and log details."""
+        """Process request and log details.
+
+        Health check probes are polled every few seconds and carry no useful
+        information, so they are excluded here rather than just lowered to
+        debug - they would otherwise drown out real request logs even at
+        debug level.
+        """
+        if request.url.path in _UNLOGGED_PATHS:
+            return await call_next(request)
+
         start_time = time.time()
 
         context_vars = {
