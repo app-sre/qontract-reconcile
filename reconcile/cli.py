@@ -2541,6 +2541,19 @@ def vpc_peerings_validator(ctx: click.Context) -> None:
     )
 
 
+@integration.command(
+    short_help="Validates that S3 bucket identifiers are globally unique."
+)
+@click.pass_context
+def s3_bucket_name_validator(ctx: click.Context) -> None:
+    import reconcile.s3_bucket_name_validator
+
+    run_integration(
+        reconcile.s3_bucket_name_validator,
+        ctx,
+    )
+
+
 @integration.command(short_help="Manages Transit Gateway attachments.")
 @print_to_file
 @threaded()
