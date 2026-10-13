@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
+from click.testing import CliRunner
 from pydantic import BaseModel
 from qontract_api_client.schemas import (
     GithubOwnersTaskResponse,
@@ -17,6 +19,7 @@ from qontract_api_client.schemas import (
 
 from reconcile import (
     acs_rbac,
+    email_sender,
     github_org,
     gitlab_members,
     ocm_groups,
@@ -33,16 +36,28 @@ from reconcile.github_owners_api import (
 )
 from reconcile.gql_definitions.acs.acs_rbac import AcsRbacQueryData
 from reconcile.gql_definitions.acs.acs_rbac import RoleV1 as AcsRole
+from reconcile.gql_definitions.app_sre_tekton_access_revalidation.roles import (
+    RoleV1 as TektonRevalidationRole,
+)
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     DatafileObjectV1,
 )
 from reconcile.gql_definitions.common.github_orgs import GithubOrgV1
+from reconcile.gql_definitions.email_sender.emails import AppInterfaceEmailAudienceV1
+from reconcile.gql_definitions.email_sender.emails import RoleV1 as EmailRole
 from reconcile.gql_definitions.github_owners_api.roles import RoleV1 as GithubOwnersRole
 from reconcile.gql_definitions.gitlab_members.permissions import (
     PermissionGitlabGroupMembershipV1,
 )
 from reconcile.gql_definitions.gitlab_members.permissions import (
     RoleV1 as GitlabRole,
+)
+from reconcile.gql_definitions.glitchtip.glitchtip_project import (
+    GlitchtipProjectV1,
+    GlitchtipTeamV1,
+)
+from reconcile.gql_definitions.glitchtip.glitchtip_project import (
+    RoleV1 as GlitchtipRole,
 )
 from reconcile.gql_definitions.ocm_groups_api.roles import (
     OcmGroupsApiRolesQueryData,
@@ -56,12 +71,18 @@ from reconcile.gql_definitions.openshift_groups.managed_roles import (
 from reconcile.gql_definitions.openshift_groups.managed_roles import (
     RoleV1 as OpenshiftRole,
 )
+from reconcile.gql_definitions.qontract_cli.roles import RoleV1 as QontractCliRole
 from reconcile.test.change_owners.fixtures import build_change_type, build_test_datafile
 from reconcile.test.change_owners.fixtures import build_role as build_self_service_role
 from reconcile.test.utils.membershipsources.fixtures import MockGithubUser as GithubUser
 from reconcile.test.utils.membershipsources.fixtures import build_ldap_membership_source
 from reconcile.utils.aggregated_list import AggregatedList
 from reconcile.utils.runtime.desired_state_diff import build_desired_state_diff
+from tools import (
+    app_sre_tekton_access_reporter,
+    glitchtip_access_reporter,
+    qontract_cli,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -1011,3 +1032,362 @@ def test_gitlab_resolution_failure_cannot_remove_members(
     with pytest.raises(RuntimeError, match="could not be resolved"):
         gitlab_members.run(dry_run=dry_run)
     reconcile.assert_not_called()
+
+
+def _email_audience(
+    gql_class_factory: Callable, roles: list[EmailRole]
+) -> AppInterfaceEmailAudienceV1:
+    audience = gql_class_factory(AppInterfaceEmailAudienceV1, {})
+    audience.roles = roles
+    return audience
+
+
+def test_email_sender_collect_to_resolves_ldap_only_role(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    role = gql_class_factory(EmailRole, {"name": "role", "users": []})
+    role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="source-team")
+    ]
+    to = _email_audience(gql_class_factory, [role])
+    assert email_sender.collect_to(to, all_services=[], query_func=mocker.Mock()) == {
+        "alice"
+    }
+
+
+def test_email_sender_collect_to_resolves_hybrid_role(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    ldap_endpoint.return_value = LdapGroupMembersResponse(
+        groups=[
+            LdapGroupResult(
+                group="source-team",
+                members=[
+                    LdapGroupMember(
+                        name="Alice Example",
+                        org_username="alice",
+                        github_username="AliceGH",
+                    ),
+                    LdapGroupMember(
+                        name="Bob Example", org_username="bob", github_username="BobGH"
+                    ),
+                ],
+            )
+        ]
+    )
+    role = gql_class_factory(
+        EmailRole, {"name": "role", "users": [{"org_username": "alice"}]}
+    )
+    role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="source-team")
+    ]
+    to = _email_audience(gql_class_factory, [role])
+    assert email_sender.collect_to(to, all_services=[], query_func=mocker.Mock()) == {
+        "alice",
+        "bob",
+    }
+
+
+def test_email_sender_collect_to_resolution_failure_aborts(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    ldap_endpoint.return_value = LdapGroupMembersResponse(groups=[])
+    role = gql_class_factory(EmailRole, {"name": "role", "users": []})
+    role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="source-team")
+    ]
+    to = _email_audience(gql_class_factory, [role])
+    with pytest.raises(RuntimeError, match="could not be resolved"):
+        email_sender.collect_to(to, all_services=[], query_func=mocker.Mock())
+
+
+def _glitchtip_project(
+    gql_class_factory: Callable, org_name: str, roles: list[GlitchtipRole]
+) -> GlitchtipProjectV1:
+    team = gql_class_factory(GlitchtipTeamV1, {"name": "team", "roles": []})
+    team.roles = roles
+    project = gql_class_factory(
+        GlitchtipProjectV1,
+        {"teams": [], "organization": {"name": org_name}},
+    )
+    project.teams = [team]
+    return project
+
+
+def test_glitchtip_access_reporter_includes_ldap_only_member(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    role = gql_class_factory(GlitchtipRole, {"name": "role", "users": []})
+    role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="source-team")
+    ]
+    project = _glitchtip_project(gql_class_factory, "org1", [role])
+    users = glitchtip_access_reporter.build_glitchtip_access_report_users(
+        [project], query_func=mocker.Mock()
+    )
+    assert len(users) == 1
+    assert users[0].username == "alice"
+    assert users[0].name == "Alice Example"
+    assert [org.name for org in users[0].organizations] == ["org1"]
+
+
+def test_glitchtip_access_reporter_hybrid_role_dedupes(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    role = gql_class_factory(
+        GlitchtipRole,
+        {"name": "role", "users": [{"name": "Alice", "org_username": "alice"}]},
+    )
+    role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="source-team")
+    ]
+    project = _glitchtip_project(gql_class_factory, "org1", [role])
+    users = glitchtip_access_reporter.build_glitchtip_access_report_users(
+        [project], query_func=mocker.Mock()
+    )
+    assert {u.username for u in users} == {"alice"}
+    assert next(u for u in users if u.username == "alice").name == "Alice"
+
+
+def _tekton_role(
+    gql_class_factory: Callable, cluster_role: str, cluster: str, namespace: str
+) -> TektonRevalidationRole:
+    return gql_class_factory(
+        TektonRevalidationRole,
+        {
+            "name": "role",
+            "path": "/role",
+            "users": [],
+            "access": [
+                {
+                    "clusterRole": cluster_role,
+                    "namespace": {
+                        "name": namespace,
+                        "path": f"/{namespace}",
+                        "cluster": {"name": cluster},
+                    },
+                }
+            ],
+        },
+    )
+
+
+def test_tekton_access_reporter_includes_ldap_only_user(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    role = _tekton_role(gql_class_factory, "view", "cluster", "ns")
+    role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="source-team")
+    ]
+    users = app_sre_tekton_access_reporter.build_tekton_access_report_users(
+        [role],
+        pp_namespaces_apps={("cluster", "ns"): "my-app"},
+        query_func=mocker.Mock(),
+    )
+    assert len(users) == 1
+    model = users[0].generate_model()
+    assert model.org_username == "alice"
+    assert model.name == "Alice Example"
+    assert model.apps == {"my-app"}
+
+
+def test_tekton_access_reporter_excludes_non_qualifying_cluster_role(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    role = _tekton_role(gql_class_factory, "edit", "cluster", "ns")
+    role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="source-team")
+    ]
+    users = app_sre_tekton_access_reporter.build_tekton_access_report_users(
+        [role],
+        pp_namespaces_apps={("cluster", "ns"): "my-app"},
+        query_func=mocker.Mock(),
+    )
+    assert users == []
+
+
+def test_tekton_access_reporter_hybrid_role_dedupes(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    ldap_endpoint.return_value = LdapGroupMembersResponse(
+        groups=[
+            LdapGroupResult(
+                group="source-team",
+                members=[
+                    LdapGroupMember(
+                        name="Alice Example",
+                        org_username="alice",
+                        github_username="AliceGH",
+                    ),
+                    LdapGroupMember(
+                        name="Bob Example", org_username="bob", github_username="BobGH"
+                    ),
+                ],
+            )
+        ]
+    )
+    role = gql_class_factory(
+        TektonRevalidationRole,
+        {
+            "name": "role",
+            "path": "/role",
+            "users": [{"name": "Alice", "org_username": "alice", "path": "/alice"}],
+            "access": [
+                {
+                    "clusterRole": "tekton-trigger-access",
+                    "namespace": {
+                        "name": "ns",
+                        "path": "/ns",
+                        "cluster": {"name": "cluster"},
+                    },
+                }
+            ],
+        },
+    )
+    role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="source-team")
+    ]
+    users = app_sre_tekton_access_reporter.build_tekton_access_report_users(
+        [role],
+        pp_namespaces_apps={("cluster", "ns"): "my-app"},
+        query_func=mocker.Mock(),
+    )
+    assert {u.generate_model().org_username for u in users} == {"alice", "bob"}
+    alice = next(u for u in users if u.generate_model().org_username == "alice")
+    assert alice.generate_model().name == "Alice"
+
+
+def test_qontract_cli_tekton_roles_and_users_includes_ldap_only_user(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    role = gql_class_factory(
+        TektonRevalidationRole,
+        {
+            "name": "role",
+            "path": "/role",
+            "users": [],
+            "access": [
+                {
+                    "clusterRole": "view",
+                    "namespace": {
+                        "name": "ns",
+                        "path": "/ns",
+                        "cluster": {"name": "cluster"},
+                    },
+                }
+            ],
+        },
+    )
+    role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="source-team")
+    ]
+
+    provider = mocker.Mock()
+    provider.namespace.path = "/ns"
+    provider.namespace.cluster.name = "cluster"
+    provider.namespace.name = "ns"
+    provider.namespace.app.name = "app-name"
+
+    mocker.patch(
+        "tools.qontract_cli.get_tekton_pipeline_providers", return_value=[provider]
+    )
+    mocker.patch(
+        "tools.qontract_cli.app_sre_tekton_access_revalidation_roles_query",
+        return_value=mocker.Mock(roles=[role]),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get, ["-o", "json", "tekton-roles-and-users", "app-name"], obj={}
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == [
+        {"namespace_path": "/ns", "role_path": "/role", "users": ["alice"]}
+    ]
+
+
+def test_qontract_cli_roles_includes_ldap_only_member(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    role = gql_class_factory(
+        QontractCliRole,
+        {
+            "name": "role",
+            "path": "/role",
+            "users": [],
+            "permissions": [
+                {
+                    "name": "github-perm",
+                    "path": "/github-perm",
+                    "service": "github-org-team",
+                    "org": "my-org",
+                    "team": "my-team",
+                },
+                {
+                    "name": "quay-perm",
+                    "path": "/quay-perm",
+                    "service": "quay-membership",
+                    "quayOrg": {"name": "quay-org", "instance": {"name": "quay"}},
+                    "team": "quay-team",
+                },
+            ],
+            "access": [
+                {
+                    "cluster": {"name": "cluster1"},
+                    "clusterRole": "admin",
+                    "namespace": None,
+                    "role": None,
+                },
+                {
+                    "cluster": None,
+                    "clusterRole": None,
+                    "namespace": {"name": "ns1"},
+                    "role": "edit",
+                },
+            ],
+            "aws_groups": [
+                {"path": "/aws1", "account": {"name": "acc1"}, "policies": ["policy1"]}
+            ],
+            "self_service": [{"datafiles": [{"name": "saas1"}]}],
+        },
+    )
+    role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="source-team")
+    ]
+    mocker.patch(
+        "tools.qontract_cli.qontract_cli_roles_query",
+        return_value=mocker.Mock(roles=[role]),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(qontract_cli.get, ["-o", "json", "roles", "alice"], obj={})
+    assert result.exit_code == 0, result.output
+    rows = {
+        (row["type"], row["name"], row["resource"], row["ref"])
+        for row in json.loads(result.output)
+    }
+    assert rows == {
+        ("permission", "github-perm", "github/my-org/my-team", "/role"),
+        ("permission", "quay-perm", "quay/quay-team", "/role"),
+        ("aws", "policy1", "acc1", "/aws1"),
+        ("cluster", "admin", "cluster1", "/role"),
+        ("namespace", "edit", "ns1", "/role"),
+        ("saas_file", "owner", "saas1", "/role"),
+    }
+
+
+def test_qontract_cli_roles_user_not_found(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    role = gql_class_factory(
+        QontractCliRole, {"name": "role", "path": "/role", "users": []}
+    )
+    mocker.patch(
+        "tools.qontract_cli.qontract_cli_roles_query",
+        return_value=mocker.Mock(roles=[role]),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(qontract_cli.get, ["roles", "nobody"], obj={})
+    assert result.exit_code == 0, result.output
+    assert "User not found" in result.output

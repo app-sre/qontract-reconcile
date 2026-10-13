@@ -90,6 +90,19 @@ from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     query as glitchtip_project_query,
 )
 from reconcile.gql_definitions.integrations import integrations as integrations_gql
+from reconcile.gql_definitions.qontract_cli.roles import (
+    PermissionGithubOrgTeamV1 as QontractCliPermissionGithubOrgTeam,
+)
+from reconcile.gql_definitions.qontract_cli.roles import (
+    PermissionQuayOrgTeamV1 as QontractCliPermissionQuayOrgTeam,
+)
+from reconcile.gql_definitions.qontract_cli.roles import (
+    SaasFileV2 as QontractCliSaasFile,
+)
+from reconcile.gql_definitions.qontract_cli.roles import UserV1 as QontractCliRoleUser
+from reconcile.gql_definitions.qontract_cli.roles import (
+    query as qontract_cli_roles_query,
+)
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.status_board import StatusBoardExporterIntegration
@@ -142,6 +155,7 @@ from reconcile.utils.gitlab_api import (
 )
 from reconcile.utils.glitchtip.client import GlitchtipClient
 from reconcile.utils.gql import GqlApiSingleton
+from reconcile.utils.membershipsources.resolver import resolve_role_members
 from reconcile.utils.mr.labels import (
     AVS,
     HOLD,
@@ -175,6 +189,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+from tools.app_sre_tekton_access_reporter import TektonRole, TektonUser
 from tools.cli_commands.cost_report.aws import AwsCostReportCommand
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
 from tools.cli_commands.cost_report.openshift_cost_optimization import (
@@ -2015,52 +2030,51 @@ def repos(ctx: click.Context) -> None:
 @click.argument("org_username")
 @click.pass_context
 def roles(ctx: click.Context, org_username: str) -> None:
-    users = queries.get_roles()
-    users = [u for u in users if u["org_username"] == org_username]
+    query_func = gql.get_api().query
+    all_roles = qontract_cli_roles_query(query_func=query_func).roles or []
+    resolved_roles = resolve_role_members(
+        all_roles, user_cls=QontractCliRoleUser, query_func=query_func
+    )
+    user_roles = [
+        role
+        for role in resolved_roles
+        if any(user.org_username == org_username for user in role.users)
+    ]
 
-    if len(users) == 0:
+    if not user_roles:
         print("User not found")
         return
-
-    user = users[0]
 
     # type, name, resource, [ref]
     roles: dict[tuple[str, str, str], set[str]] = defaultdict(set)
 
-    for role in user["roles"]:
-        role_name = role["path"]
+    for role in user_roles:
+        role_name = role.path
 
-        for p in role.get("permissions") or []:
-            r_name = p["service"]
+        for p in role.permissions or []:
+            r_name = p.service
 
-            if "org" in p or "team" in p:
-                r_name = r_name.split("-")[0]
+            if isinstance(p, QontractCliPermissionGithubOrgTeam):
+                r_name = f"{r_name.split('-')[0]}/{p.org}/{p.team}"
+            elif isinstance(p, QontractCliPermissionQuayOrgTeam):
+                r_name = f"{r_name.split('-')[0]}/{p.team}"
 
-            if "org" in p:
-                r_name += "/" + p["org"]
+            roles["permission", p.name, r_name].add(role_name)
 
-            if "team" in p:
-                r_name += "/" + p["team"]
+        for aws in role.aws_groups or []:
+            for policy in aws.policies or []:
+                roles["aws", policy, aws.account.name].add(aws.path)
 
-            roles["permission", p["name"], r_name].add(role_name)
+        for a in role.access or []:
+            if a.cluster:
+                roles["cluster", a.cluster_role or "", a.cluster.name].add(role_name)
+            elif a.namespace:
+                roles["namespace", a.role or "", a.namespace.name].add(role_name)
 
-        for aws in role.get("aws_groups") or []:
-            for policy in aws["policies"]:
-                roles["aws", policy, aws["account"]["name"]].add(aws["path"])
-
-        for a in role.get("access") or []:
-            if a["cluster"]:
-                cluster_name = a["cluster"]["name"]
-                roles["cluster", a["clusterRole"], cluster_name].add(role_name)
-            elif a["namespace"]:
-                ns_name = a["namespace"]["name"]
-                roles["namespace", a["role"], ns_name].add(role_name)
-
-        for s in role.get("self_service") or []:
-            for d in s.get("datafiles") or []:
-                name = d.get("name")
-                if name:
-                    roles["saas_file", "owner", name].add(role_name)
+        for s in role.self_service or []:
+            for d in s.datafiles or []:
+                if isinstance(d, QontractCliSaasFile):
+                    roles["saas_file", "owner", d.name].add(role_name)
 
     columns = ["type", "name", "resource", "ref"]
     rows = [
@@ -4597,15 +4611,17 @@ def tekton_roles_and_users(ctx: click.Context, app_name: str) -> None:
         if p.namespace.app.name == app_name
     }
 
+    query_func = gql.get_api().query
     roles = (
-        app_sre_tekton_access_revalidation_roles_query(
-            query_func=gql.get_api().query
-        ).roles
+        app_sre_tekton_access_revalidation_roles_query(query_func=query_func).roles
         or []
+    )
+    resolved_roles = resolve_role_members(
+        roles, user_cls=TektonUser, query_func=query_func, role_cls=TektonRole
     )
     columns = ["namespace_path", "role_path", "users"]
     results = []
-    for r in roles:
+    for r in resolved_roles:
         if r.access is None:
             continue
 
@@ -4621,7 +4637,8 @@ def tekton_roles_and_users(ctx: click.Context, app_name: str) -> None:
                     if ctx.obj["options"]["output"] == "table":
                         users = ", ".join([u.org_username for u in r.users])
                     else:
-                        users = [u.path for u in r.users]
+                        # LDAP-only identities have no app-interface user-file path.
+                        users = [u.path or u.org_username for u in r.users]
 
                     results.append({
                         "namespace_path": a.namespace.path,

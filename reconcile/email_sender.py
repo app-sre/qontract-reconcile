@@ -11,11 +11,13 @@ from reconcile.gql_definitions.email_sender.emails import (
     AppInterfaceEmailV1,
 )
 from reconcile.gql_definitions.email_sender.emails import query as emails_query
+from reconcile.gql_definitions.fragments.email_user import EmailUser
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
+from reconcile.utils.membershipsources.resolver import resolve_role_members
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
@@ -35,12 +37,14 @@ QONTRACT_INTEGRATION = "email-sender"
 def collect_to(
     to: AppInterfaceEmailAudienceV1,
     all_services: list[EmailServiceOwners],
+    query_func: Callable,
 ) -> set[str]:
     """Collect audience to send email to from to object
 
     Arguments:
         to -- AppInterfaceEmailAudience_v1 object
         all_services -- List of all app-interface apps/services with owners
+        query_func -- GQL query function, used to resolve LDAP-backed role members
 
     Raises:
         AttributeError: Unknown alias
@@ -73,8 +77,11 @@ def collect_to(
             account_owner.email for account_owner in account.account_owners or []
         )
 
-    for role in to.roles or []:
-        audience.update(user.org_username for user in role.users or [])
+    resolved_roles = resolve_role_members(
+        to.roles or [], user_cls=EmailUser, query_func=query_func
+    )
+    for role in resolved_roles:
+        audience.update(user.org_username for user in role.users)
 
     # SmtpClient supports sending to org_username and email addresses
     audience.update(user.org_username for user in to.users or [])
@@ -123,6 +130,8 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
         logging.info(["send_email", email.name, email.subject])
 
         if not dry_run:
-            names = collect_to(email.q_to, all_services=all_services)
+            names = collect_to(
+                email.q_to, all_services=all_services, query_func=gql_api.query
+            )
             smtp_client.send_mail(names, email.subject, email.body)
             state.add(email.name)

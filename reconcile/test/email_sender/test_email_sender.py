@@ -11,6 +11,8 @@ from reconcile.gql_definitions.fragments.email_service import (
 )
 
 if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+
     from reconcile.gql_definitions.email_sender.emails import AppInterfaceEmailV1
 
 ALL_APPS = [
@@ -31,8 +33,11 @@ ALL_APPS = [
 
 def test_email_sender_collect_to_all_service_owners_email(
     all_service_owners_email: AppInterfaceEmailV1,
+    mocker: MockerFixture,
 ) -> None:
-    assert collect_to(all_service_owners_email.q_to, all_services=ALL_APPS) == {
+    assert collect_to(
+        all_service_owners_email.q_to, all_services=ALL_APPS, query_func=mocker.Mock()
+    ) == {
         "account1-email1",
         "account1-email2",
         "account2-email1",
@@ -51,15 +56,21 @@ def test_email_sender_collect_to_all_service_owners_email(
 
 def test_email_sender_collect_to_all_users_email(
     all_users_email: AppInterfaceEmailV1,
+    mocker: MockerFixture,
 ) -> None:
     with pytest.raises(AttributeError):
-        collect_to(all_users_email.q_to, all_services=ALL_APPS)
+        collect_to(
+            all_users_email.q_to, all_services=ALL_APPS, query_func=mocker.Mock()
+        )
 
 
 def test_email_sender_collect_to_no_aliases_email(
     no_aliases_email: AppInterfaceEmailV1,
+    mocker: MockerFixture,
 ) -> None:
-    assert collect_to(no_aliases_email.q_to, all_services=ALL_APPS) == {
+    assert collect_to(
+        no_aliases_email.q_to, all_services=ALL_APPS, query_func=mocker.Mock()
+    ) == {
         "account1-email1",
         "account1-email2",
         "account2-email1",
@@ -77,13 +88,17 @@ def test_email_sender_collect_to_no_aliases_email(
 
 def test_email_sender_collect_to_namespaces_email(
     namespaces_email: AppInterfaceEmailV1,
+    mocker: MockerFixture,
 ) -> None:
     with pytest.raises(NotImplementedError):
-        collect_to(namespaces_email.q_to, all_services=ALL_APPS)
+        collect_to(
+            namespaces_email.q_to, all_services=ALL_APPS, query_func=mocker.Mock()
+        )
 
 
 def test_email_sender_collect_to_clusters_email(
     clusters_email: AppInterfaceEmailV1,
+    mocker: MockerFixture,
 ) -> None:
     with pytest.raises(NotImplementedError):
-        collect_to(clusters_email.q_to, all_services=ALL_APPS)
+        collect_to(clusters_email.q_to, all_services=ALL_APPS, query_func=mocker.Mock())
