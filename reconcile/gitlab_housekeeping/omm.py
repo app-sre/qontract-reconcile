@@ -280,7 +280,10 @@ def _committed_during_label(
     intervals: list[tuple[datetime, datetime | None]],
 ) -> bool:
     for start, end in intervals:
-        if committed_at < start:
+        # Git commit times are whole seconds; label events keep fractions.
+        # A formation rebase at 00:00:00.900 is stored as 00:00:00.000.
+        # Floor the add so that second is treated as in-window.
+        if committed_at < start.replace(microsecond=0):
             continue
         if end is None:
             return True

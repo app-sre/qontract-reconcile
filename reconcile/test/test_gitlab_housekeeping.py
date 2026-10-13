@@ -4417,6 +4417,7 @@ def test_omm_expansion_ejects_pending_mr_with_overlapping_labels(
 _BOT_EMAIL = "bot@example.com"
 _HUMAN_EMAIL = "person@example.com"
 _LABEL_ON = "2026-01-01T00:00:00+00:00"
+_LABEL_ON_FRACTIONAL = "2026-01-01T00:00:00.344000+00:00"
 _LABEL_OFF = "2026-01-01T00:10:00+00:00"
 _BEFORE_LABEL = "2025-12-31T23:00:00+00:00"
 _DURING_LABEL = "2026-01-01T00:05:00+00:00"
@@ -4902,6 +4903,34 @@ def test_omm_skip_ci_pipeline_created_after_label_removed_still_dropped(
     mr.merge.assert_called_once()
 
 
+def test_omm_member_skip_ci_same_second_as_fractional_label_add_merges(
+    mocker: MockerFixture,
+) -> None:
+    """Incident 2026-10-12: label add at X.344, skip-ci rebase stored at X.000.
+
+    pipelines[0] is RUNNING on the skip-ci head. Flooring the add drops that
+    pipeline so the member merges on the older SUCCESS instead of waiting.
+    """
+    merges, mr, gl = _run_pending_member(
+        mocker,
+        [
+            _pipeline(PipelineStatus.RUNNING, "skip-ci-head"),
+            _pipeline(PipelineStatus.SUCCESS, "older-revision"),
+        ],
+        {
+            "skip-ci-head": _commit(_BOT_EMAIL, _LABEL_ON),
+            "older-revision": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        [_label_event("add", _LABEL_ON_FRACTIONAL)],
+        sha="skip-ci-head",
+    )
+
+    assert merges == 1
+    mr.merge.assert_called_once()
+    gl.remove_label.assert_not_called()
+    gl.get_commit.assert_any_call(99, "skip-ci-head")
+
+
 def test_committed_during_label_ignores_fractional_remove_second() -> None:
     """Git stores 00:10:00.900 as 00:10:00. That must not fall inside a
     remove at 00:10:00.500, or a post-label bot failure is dropped."""
@@ -4911,6 +4940,17 @@ def test_committed_during_label_ignores_fractional_remove_second() -> None:
     assert not _committed_during_label(commit, [(start, end)])
     still_inside = datetime(2026, 1, 1, 0, 9, 59, tzinfo=UTC)
     assert _committed_during_label(still_inside, [(start, end)])
+
+
+def test_committed_during_label_ignores_fractional_add_second() -> None:
+    """Git stores 00:00:00.900 as 00:00:00. That must fall inside an add at
+    00:00:00.500, or the formation skip-ci pipeline is kept and OMM waits."""
+    start = datetime(2026, 1, 1, 0, 0, 0, 500000, tzinfo=UTC)
+    end = datetime(2026, 1, 1, 0, 10, 0, tzinfo=UTC)
+    commit = datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)
+    assert _committed_during_label(commit, [(start, end)])
+    still_outside = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)
+    assert not _committed_during_label(still_outside, [(start, end)])
 
 
 def test_omm_label_event_failure_does_not_drop_running_pipeline(
@@ -5203,6 +5243,36 @@ def test_form_omm_group_admits_on_older_success_when_skip_ci_failed() -> None:
             _label_event("add", _LABEL_ON),
             _label_event("remove", _LABEL_OFF),
         ],
+    )
+
+    candidates = form_omm_group(mocked_gl, [_make_merge_item(mr)], set())
+
+    assert candidates == [mr]
+
+
+def test_form_omm_group_admits_skip_ci_same_second_as_fractional_label_add() -> None:
+    """Running skip-ci head at X.000 plus older SUCCESS admits when the
+    label was added at X.344. Without the floor, formation waits."""
+    mr = _make_merge_mr(
+        11, ["approved", "tenant-bar"], sha="skip-ci-head", source_project_id=99
+    )
+    fresh = Mock()
+    fresh.rebase_in_progress = False
+    fresh.sha = "skip-ci-head"
+    fresh.source_project_id = 99
+    mocked_gl = _form_gl()
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        _pipeline(PipelineStatus.RUNNING, "skip-ci-head"),
+        _pipeline(PipelineStatus.SUCCESS, "older-revision"),
+    ]
+    mocked_gl.get_merge_request.return_value = fresh
+    _arm_skip_ci_lookups(
+        mocked_gl,
+        {
+            "skip-ci-head": _commit(_BOT_EMAIL, _LABEL_ON),
+            "older-revision": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        [_label_event("add", _LABEL_ON_FRACTIONAL)],
     )
 
     candidates = form_omm_group(mocked_gl, [_make_merge_item(mr)], set())
