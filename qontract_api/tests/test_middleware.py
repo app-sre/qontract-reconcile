@@ -4,6 +4,7 @@ import gzip
 import json
 import zlib
 from http import HTTPStatus
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,6 +15,33 @@ from qontract_api.auth import create_access_token
 from qontract_api.constants import REQUEST_ID_HEADER
 from qontract_api.middleware import _decompress_gzip_bounded, _read_compressed_body
 from qontract_api.models import TokenData
+
+
+@pytest.mark.parametrize("health_path", ["/health/live", "/health/ready"])
+def test_health_check_requests_are_not_logged(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, health_path: str
+) -> None:
+    """Test that health probe requests skip RequestLoggingMiddleware's info logs."""
+    mock_info = MagicMock()
+    monkeypatch.setattr(middleware_module.logger, "info", mock_info)
+
+    response = client.get(health_path)
+
+    assert response.status_code == HTTPStatus.OK
+    mock_info.assert_not_called()
+
+
+def test_non_health_requests_are_still_logged(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that non-health requests still get Start/Done info logs."""
+    mock_info = MagicMock()
+    monkeypatch.setattr(middleware_module.logger, "info", mock_info)
+
+    response = client.get("/", follow_redirects=False)
+
+    assert response.status_code == HTTPStatus.TEMPORARY_REDIRECT
+    assert mock_info.call_count == 2
 
 
 def test_request_id_middleware(client: TestClient) -> None:
