@@ -154,7 +154,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         return response
 
 
-_UNLOGGED_PATHS = frozenset({"/health/live", "/health/ready"})
+_HEALTH_CHECK_PATHS = frozenset({"/health/live", "/health/ready"})
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -165,13 +165,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         """Process request and log details.
 
-        Health check probes are polled every few seconds and carry no useful
-        information, so they are excluded here rather than just lowered to
-        debug - they would otherwise drown out real request logs even at
-        debug level.
+        Health check probes are polled every few seconds, so they are logged
+        at DEBUG instead of INFO to avoid drowning out real request logs
+        while still preserving context, status, and timing for debugging.
         """
-        if request.url.path in _UNLOGGED_PATHS:
-            return await call_next(request)
+        log = logger.debug if request.url.path in _HEALTH_CHECK_PATHS else logger.info
 
         start_time = time.time()
 
@@ -202,7 +200,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         with structlog.contextvars.bound_contextvars(**context_vars):
             # Log request with structured fields
-            logger.info(
+            log(
                 f"Start {request.method} {request.url.path}",
                 http_method=request.method,
                 http_path=str(request.url.path),
@@ -215,7 +213,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             duration = time.time() - start_time
 
             # Log request with structured fields
-            logger.info(
+            log(
                 f"Done {request.method} {request.url.path}",
                 http_method=request.method,
                 http_path=str(request.url.path),

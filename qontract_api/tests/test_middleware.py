@@ -18,16 +18,19 @@ from qontract_api.models import TokenData
 
 
 @pytest.mark.parametrize("health_path", ["/health/live", "/health/ready"])
-def test_health_check_requests_are_not_logged(
+def test_health_check_requests_are_logged_at_debug(
     client: TestClient, monkeypatch: pytest.MonkeyPatch, health_path: str
 ) -> None:
-    """Test that health probe requests skip RequestLoggingMiddleware's info logs."""
+    """Test that health probe requests log Start/Done at DEBUG, not INFO."""
     mock_info = MagicMock()
+    mock_debug = MagicMock()
     monkeypatch.setattr(middleware_module.logger, "info", mock_info)
+    monkeypatch.setattr(middleware_module.logger, "debug", mock_debug)
 
     response = client.get(health_path)
 
     assert response.status_code == HTTPStatus.OK
+    assert mock_debug.call_count == 2
     mock_info.assert_not_called()
 
 
