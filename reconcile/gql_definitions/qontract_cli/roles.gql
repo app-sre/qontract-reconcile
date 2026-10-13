@@ -1,0 +1,57 @@
+# qenerate: plugin=pydantic_v2
+
+query QontractCliRoles {
+  roles: roles_v1 {
+    name
+    path
+    memberSources {
+      ...RoleMembershipSource
+    }
+    users {
+      org_username
+    }
+    permissions {
+      name
+      path
+      service
+      ... on PermissionGithubOrgTeam_v1 {
+        org
+        team
+      }
+      ... on PermissionQuayOrgTeam_v1 {
+        quayOrg {
+          name
+          instance {
+            name
+            url
+          }
+        }
+        team
+      }
+    }
+    access {
+      cluster {
+        name
+      }
+      clusterRole
+      namespace {
+        name
+      }
+      role
+    }
+    aws_groups {
+      path
+      account {
+        name
+      }
+      policies
+    }
+    self_service {
+      datafiles {
+        ... on SaasFile_v2 {
+          name
+        }
+      }
+    }
+  }
+}

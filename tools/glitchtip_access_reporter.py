@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 
@@ -11,19 +12,25 @@ from reconcile.cli import (
     log_level,
 )
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
+    GlitchtipProjectV1,
     RoleV1,
+    UserV1,
 )
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     query as glitchtip_project_query,
 )
 from reconcile.utils import gql
 from reconcile.utils.glitchtip.models import Organization
+from reconcile.utils.membershipsources.resolver import resolve_role_members
 from reconcile.utils.mr.glitchtip_access_reporter import (
     GlitchtipAccessReportOrg,
     GlitchtipAccessReportUser,
     UpdateGlitchtipAccessReport,
 )
 from reconcile.utils.runtime.environment import init_env
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 DEFAULT_MEMBER_ROLE = "member"
 
@@ -33,6 +40,45 @@ def get_user_role(organization: Organization, roles: RoleV1) -> str:
         if role.organization.name == organization.name:
             return role.role
     return DEFAULT_MEMBER_ROLE
+
+
+def build_glitchtip_access_report_users(
+    glitchtip_projects: list[GlitchtipProjectV1],
+    query_func: Callable,
+) -> list[GlitchtipAccessReportUser]:
+    """Resolve role membership once, then build the per-user access report."""
+    roles = [
+        role
+        for project in glitchtip_projects
+        for team in project.teams
+        for role in team.roles
+    ]
+    resolved_roles = resolve_role_members(roles, user_cls=UserV1, query_func=query_func)
+    roles_by_name = {role.name: role for role in resolved_roles}
+
+    users: dict[str, GlitchtipAccessReportUser] = {}
+    for project in glitchtip_projects:
+        org = Organization(name=project.organization.name)
+        for team in project.teams:
+            for role in team.roles:
+                resolved_role = roles_by_name[role.name]
+                for user in resolved_role.users:
+                    report_user = users.setdefault(
+                        user.org_username,
+                        GlitchtipAccessReportUser(
+                            name=user.name, username=user.org_username, organizations=[]
+                        ),
+                    )
+                    if org.name not in [
+                        org_.name for org_ in report_user.organizations
+                    ]:
+                        report_user.organizations.append(
+                            GlitchtipAccessReportOrg(
+                                name=org.name,
+                                access_level=get_user_role(org, resolved_role),
+                            )
+                        )
+    return list(users.values())
 
 
 @click.command()
@@ -60,34 +106,14 @@ def main(
 
     init_env(log_level=log_level, config_file=configfile)
 
+    query_func = gql.get_api().query
     glitchtip_projects = (
-        glitchtip_project_query(query_func=gql.get_api().query).glitchtip_projects or []
+        glitchtip_project_query(query_func=query_func).glitchtip_projects or []
     )
-
-    users: dict[str, GlitchtipAccessReportUser] = {}
-    for project in glitchtip_projects:
-        org = Organization(name=project.organization.name)
-        for team in project.teams:
-            for role in team.roles:
-                for user in role.users:
-                    report_user = users.setdefault(
-                        user.org_username,
-                        GlitchtipAccessReportUser(
-                            name=user.name, username=user.org_username, organizations=[]
-                        ),
-                    )
-                    if org.name not in [
-                        org_.name for org_ in report_user.organizations
-                    ]:
-                        report_user.organizations.append(
-                            GlitchtipAccessReportOrg(
-                                name=org.name,
-                                access_level=get_user_role(org, role),
-                            )
-                        )
+    users = build_glitchtip_access_report_users(glitchtip_projects, query_func)
 
     mr = UpdateGlitchtipAccessReport(
-        users=list(users.values()),
+        users=users,
         workbook_path=Path(glitchtip_access_revalidation_workbook_path),
         dry_run=dry_run,
     )

@@ -210,13 +210,26 @@ names are translated once while constructing the client-side qontract-api POST
 request, using the complete app-interface user list; unknown identities retain
 their canonical username. This includes PagerDuty-derived users. Internal desired
 state remains canonical and is not mutated during request construction.
-Reporters, CLI consumers, and `vault-manager` remain separate workstreams.
+`vault-manager` remains a separate workstream.
 OCM group reconciliation uses `ocm-groups-api`; the retired `ocm-groups`
 integration is not part of this rollout or its manual test matrix.
 `change_owners` accepts providers with `hasAuditTrail: false`; its role authorization
 still comes from the comparison bundle. `github-owners-api` remains add-only. Consumers needing
 `quay_username`, `public_gpg_key`, or `pagerduty_username` cannot use LDAP-only
 members; those attributes are outside the LDAP provider's scope.
+
+`email-sender`, `app-sre-tekton-access-reporter`, `glitchtip-access-reporter`, and
+the `qontract-cli get roles` / `qontract-cli get tekton-roles-and-users` commands
+also resolve role membership sources. Reverse-reference consumers (walking from a
+user to its roles, e.g. the original `app-sre-tekton-access-reporter` query and the
+legacy `qontract-cli get roles` dict-based query) cannot see memberSources-only
+members, because `memberSources` does not populate the `user.roles` reverse
+relationship; both were migrated to query `roles_v1` directly instead. LDAP-only
+identities lack an app-interface user-file `path`; consumers needing a `path` for
+display define a dedicated `user_cls`/`role_cls` pair with it as optional (see
+`tools/app_sre_tekton_access_reporter.py`'s `TektonUser`/`TektonRole`), following the
+same pattern as `GroupUser`/`GroupRole` in `openshift_groups.py`. `vault-manager`
+remains a separate workstream.
 
 Changes to legacy `ldap-groups` are excluded from this rollout while its
 qontract-api migration is handled separately:
@@ -240,6 +253,39 @@ account automation credentials. The shared AWS client selects GovCloud FIPS
 endpoints centrally; integrations do not repeat the partition/FIPS policy.
 `aws-iam-password-reset` retains its existing behavior; its membership and
 GraphQL migrations are out of scope for this rollout.
+
+### Remote app-interface provider: no source chaining
+
+`reconcile/utils/membershipsources/app_interface_resolver.py` resolves the
+`app-interface` provider by querying a remote app-interface instance's
+`roles_v1` for explicit `users`/`bots` only
+(`reconcile/gql_definitions/membershipsources/roles.gql` does not select
+`memberSources`). If a role on the remote instance is itself migrated to
+`memberSources` (e.g. backed by LDAP on that remote instance), its members are
+not resolved recursively — only explicit remote-role users/bots are returned.
+Recursive cross-instance resolution is out of scope: it would require the
+remote instance's own LDAP/provider credentials, and cycle detection across
+arbitrary remote GraphQL endpoints. This must be caught by app-interface
+schema/review before a remote-sourced role is migrated to `memberSources` on
+the remote side; qontract-reconcile has no way to detect the omission from the
+query response alone.
+
+### Custom GraphQL queries and templates (template-renderer)
+
+The `template-renderer` integration lets app-interface data define its own
+ad-hoc GraphQL query and Jinja2 template pair
+(`reconcile/gql_definitions/templating/template_collection.gql`'s
+`variables.dynamic[].query` and `templates[].template`). These are executed
+verbatim against the live schema (`reconcile/templating/renderer.py`'s
+`unpack_dynamic_variables`) with no typed model and no membership resolution.
+A custom query selecting `role.users` only sees explicit members; LDAP/source
+members are invisible unless the query author also selects and merges
+`memberSources` themselves, which nothing in `template-renderer` does
+automatically. Before removing explicit members from a role, check whether any
+`template_collection_v1` instance in app-interface has a custom query/template
+referencing that role's `users` — this lives in app-interface YAML data, not
+in this repository, so it requires a one-off audit against the live app-interface
+API rather than a code change here.
 
 ### Rollout Prerequisites
 
