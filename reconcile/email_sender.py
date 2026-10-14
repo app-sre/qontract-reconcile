@@ -129,9 +129,9 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
     for email in emails_to_send:
         logging.info(["send_email", email.name, email.subject])
 
+        names = collect_to(
+            email.q_to, all_services=all_services, query_func=gql_api.query
+        )
         if not dry_run:
-            names = collect_to(
-                email.q_to, all_services=all_services, query_func=gql_api.query
-            )
             smtp_client.send_mail(names, email.subject, email.body)
             state.add(email.name)
