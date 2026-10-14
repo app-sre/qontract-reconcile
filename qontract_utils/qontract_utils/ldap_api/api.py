@@ -381,6 +381,9 @@ class LdapApi:
                 server=self._connection.server.host,
             )
             self._disconnect()
+            # ldap3 suppresses failed IPs independently of ServerPool.active;
+            # hooks, not that cache, own whether another socket attempt is due.
+            self._connection.server.reset_availability()
             raise
 
     def _connect(self) -> None:
