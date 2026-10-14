@@ -88,7 +88,7 @@ Content-Type: application/json
   "secret": {
     "secret_manager_url": "https://vault.example.com",
     "path": "secret/data/path/to/ldap-credentials",
-    "server_url": "ldap://freeipa.example.com",
+    "server_urls": ["ldap://freeipa.example.com", "ldap://replica.example.com"],
     "base_dn": "dc=example,dc=com"
   }
 }
@@ -202,7 +202,7 @@ The integration scans infra YAML files for user lists with known name fields (`n
 **Cache Backend:**
 
 - Redis/Valkey connection required (for LDAP user check caching)
-- Cache key prefix: SHA256 hash of `server_url:base_dn`
+- Cache key prefix: SHA256 hash of the JSON-encoded sorted `server_urls` and `base_dn`
 - TTL: 300 seconds (configurable via `QAPI_LDAP__USERS_CACHE_TTL`)
 
 **Feature Toggles:**
@@ -217,7 +217,9 @@ LDAP settings in `app-interface-settings-1.yml`:
 
 ```yaml
 ldap:
-  serverUrl: "ldap://freeipa.example.com"
+  serverUrls:
+    - "ldap://freeipa.example.com"
+    - "ldap://replica.example.com"
   baseDn: "dc=example,dc=com"
   credentials:
     path: "secret/data/path/to/ldap-credentials"

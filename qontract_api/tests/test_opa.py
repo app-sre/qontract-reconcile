@@ -38,8 +38,8 @@ from qontract_api.opa import OPAClient, flatten_params
         ),
         pytest.param(
             {"usernames": ["alice", "bob"], "key": "val"},
-            {"key": "val"},
-            id="list-skipped",
+            {"usernames": ["alice", "bob"], "key": "val"},
+            id="list-retained",
         ),
         pytest.param(
             {"version": 42, "enabled": True},
@@ -55,14 +55,15 @@ from qontract_api.opa import OPAClient, flatten_params
                     "path": "app-sre/creds/ldap",
                     "field": None,
                     "version": None,
-                    "server_url": "ldap://freeipa.example.com",
+                    "server_urls": ["ldap://freeipa.example.com"],
                     "base_dn": "dc=example,dc=com",
                 },
             },
             {
+                "usernames": ["alice", "bob"],
                 "secret.secret_manager_url": "https://vault.example.com",
                 "secret.path": "app-sre/creds/ldap",
-                "secret.server_url": "ldap://freeipa.example.com",
+                "secret.server_urls": ["ldap://freeipa.example.com"],
                 "secret.base_dn": "dc=example,dc=com",
             },
             id="realistic-ldap-body",
@@ -91,8 +92,18 @@ from qontract_api.opa import OPAClient, flatten_params
         ),
     ],
 )
-def test_flatten_params(data: dict[str, Any], expected: dict[str, str]) -> None:
+def test_flatten_params(
+    data: dict[str, Any], expected: dict[str, str | list[str]]
+) -> None:
     assert flatten_params(data) == expected
+
+
+def test_flatten_ldap_replica_urls() -> None:
+    """Every replica must remain available for OPA allowlist checks."""
+    urls = ["ldap://freeipa.example.com", "ldap://evil.example.com"]
+    assert flatten_params({"secret": {"server_urls": urls}}) == {
+        "secret.server_urls": urls
+    }
 
 
 # ── OPAClient URL construction ──────────────────────────────────

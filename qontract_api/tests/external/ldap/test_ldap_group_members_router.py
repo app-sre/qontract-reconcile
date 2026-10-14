@@ -48,7 +48,7 @@ LDAP_SECRET = LdapDirectSecret(
     secret_manager_url="https://vault.example.com",
     path="secret/ldap/freeipa",
     field="bind_password",
-    server_url="ldap://freeipa.example.com",
+    server_urls=["ldap://freeipa.example.com", "ldap://replica.example.com"],
     base_dn="dc=example,dc=com",
 )
 
@@ -170,7 +170,10 @@ def test_group_members_passes_secret(
 
     mock_factory.assert_called_once()
     call_kwargs = mock_factory.call_args.kwargs
-    assert call_kwargs["secret"].server_url == "ldap://freeipa.example.com"
+    assert call_kwargs["secret"].server_urls == [
+        "ldap://freeipa.example.com",
+        "ldap://replica.example.com",
+    ]
     assert call_kwargs["secret"].base_dn == "dc=example,dc=com"
 
 

@@ -48,7 +48,7 @@ async def _authorize(request: Request, user: User) -> None:
     if opa_client.should_skip(request.url.path):
         return
 
-    params: dict[str, str] = {}
+    params: dict[str, str | list[str]] = {}
     params.update({k: str(v) for k, v in request.path_params.items()})
     params.update({k: str(v) for k, v in request.query_params.items()})
 

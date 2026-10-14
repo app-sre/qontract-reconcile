@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from typing import TYPE_CHECKING
 
 from qontract_utils.ldap_api import LdapApi
@@ -28,7 +29,7 @@ def create_ldap_workspace_client(
     Creates Layer 1 LdapApi, wraps with Layer 2 caching.
 
     Args:
-        secret: LdapDirectSecret with server_url, base_dn, and Vault reference
+        secret: LdapDirectSecret with server_urls, base_dn, and Vault reference
         cache: Cache backend for distributed cache
         secret_manager: Secret backend for retrieving LDAP credentials
         settings: Application settings
@@ -41,7 +42,7 @@ def create_ldap_workspace_client(
     bind_password = credentials["bind_password"]
 
     api = LdapApi(
-        server_url=secret.server_url,
+        server_urls=secret.server_urls,
         base_dn=secret.base_dn,
         bind_dn=bind_dn,
         bind_password=bind_password,
@@ -49,7 +50,7 @@ def create_ldap_workspace_client(
     )
 
     prefix = hashlib.sha256(
-        f"{secret.server_url}:{secret.base_dn}".encode()
+        json.dumps((sorted(secret.server_urls), secret.base_dn)).encode()
     ).hexdigest()
 
     return LdapWorkspaceClient(
