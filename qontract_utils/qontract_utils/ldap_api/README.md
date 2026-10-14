@@ -88,6 +88,14 @@ connection, TLS, and bind lazily. Eligible failures disconnect and propagate to
 the hook retry loop; the next attempt reopens against the next replica. A
 successful connection is reused within the context manager.
 
+ldap3 also caches failed IP addresses independently of `ServerPool.active`.
+Without resetting that state, a later visit to a failed replica can skip socket
+creation entirely and raise `invalid server address`, even if the replica has
+recovered. After an eligible failure, reset only the failed server's address
+availability with `Server.reset_availability()` before propagating to the hook
+retry loop. Preserve the pool cursor and DNS cache; do not add TCP prechecks or
+another retry loop.
+
 `_LDAP_FAILOVER_ERRORS` explicitly includes communication errors, STARTTLS and
 certificate errors, bind/authentication failures, and LDAP busy/unavailable
 results. Invalid configuration and queries still fail directly. Shared
@@ -122,6 +130,12 @@ Tests must cover TCP, TLS, and bind failures followed by a healthy replica;
 bounded failure when every replica fails; single-replica behavior; and a failure
 after the first page that restarts the lookup without partial results. Preserve
 existing unresolved-group and confirmed-empty-group semantics.
+
+Connection-establishment regression tests must exercise the real `Server`,
+`ServerPool`, `Connection`, and `SyncStrategy.open` paths, mocking DNS/socket I/O
+and LDAP responses instead. Mocking `open` itself can verify pool wiring but
+cannot detect ldap3's address-availability cache behavior. Cover recovery both
+with a singleton pool and after a round-robin pool wraps around.
 
 ## API authorization and cache identity
 

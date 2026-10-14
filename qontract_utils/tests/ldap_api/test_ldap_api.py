@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import socket
+
 # ruff: file-ignore[unused-function-argument]
 from collections.abc import Generator
 from unittest.mock import MagicMock, call, patch
@@ -75,6 +77,67 @@ def ldap_api_anonymous(mock_ldap3: MagicMock) -> LdapApi:
 
 
 # --- Constructor ---
+
+
+@pytest.mark.parametrize("replica_count", [1, 2])
+@pytest.mark.usefixtures("enable_retry")
+def test_retry_reopens_real_candidate_addresses_after_pool_wrap(
+    mocker: MockerFixture, replica_count: int
+) -> None:
+    """Socket failures must not suppress later hook retries of the same address."""
+    tcp_socket = mocker.Mock(spec=socket.socket)
+    tcp_socket.family = socket.AF_INET
+    tcp_socket.connect.side_effect = [
+        *[ConnectionRefusedError("connection refused") for _ in range(replica_count)],
+        None,
+    ]
+    mocker.patch(
+        "ldap3.core.server.socket.getaddrinfo",
+        return_value=[
+            (
+                socket.AF_INET,
+                socket.SOCK_STREAM,
+                socket.IPPROTO_TCP,
+                "",
+                ("192.0.2.10", 389),
+            )
+        ],
+    )
+    mocker.patch("ldap3.strategy.base.socket.socket", return_value=tcp_socket)
+    mocker.patch("ldap3.core.pooling.randint", return_value=replica_count - 1)
+
+    def start_tls(connection: Connection) -> None:
+        connection.tls_started = True
+
+    def bind(connection: Connection) -> None:
+        connection.bound = True
+
+    mocker.patch(
+        "ldap3.core.connection.Connection.start_tls",
+        autospec=True,
+        side_effect=start_tls,
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.bind", autospec=True, side_effect=bind
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.search",
+        return_value=(
+            True,
+            {"result": 0},
+            [{"attributes": {"uid": ["alice"]}}],
+            None,
+        ),
+    )
+    api = LdapApi(
+        server_urls=[
+            f"ldap://replica-{index}.example.com" for index in range(replica_count)
+        ],
+        base_dn="dc=example,dc=com",
+    )
+    with api:
+        assert api.get_users(["alice"]) == [LdapUser(username="alice")]
+    assert tcp_socket.connect.call_count == replica_count + 1
 
 
 @pytest.fixture
