@@ -43,7 +43,10 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     DatafileObjectV1,
 )
 from reconcile.gql_definitions.common.github_orgs import GithubOrgV1
-from reconcile.gql_definitions.email_sender.emails import AppInterfaceEmailAudienceV1
+from reconcile.gql_definitions.email_sender.emails import (
+    AppInterfaceEmailAudienceV1,
+    AppInterfaceEmailV1,
+)
 from reconcile.gql_definitions.email_sender.emails import RoleV1 as EmailRole
 from reconcile.gql_definitions.github_owners_api.roles import RoleV1 as GithubOwnersRole
 from reconcile.gql_definitions.gitlab_members.permissions import (
@@ -86,7 +89,7 @@ from tools import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from unittest.mock import AsyncMock
+    from unittest.mock import AsyncMock, Mock
 
     from pytest_mock import MockerFixture
 
@@ -1099,6 +1102,63 @@ def test_email_sender_collect_to_resolution_failure_aborts(
     to = _email_audience(gql_class_factory, [role])
     with pytest.raises(RuntimeError, match="could not be resolved"):
         email_sender.collect_to(to, all_services=[], query_func=mocker.Mock())
+
+
+def _mock_email_sender_run_dependencies(mocker: MockerFixture) -> Mock:
+    """Mock every email-sender run() dependency except get_emails/collect_to.
+
+    Returns the mocked state object so callers can assert on state.add().
+    """
+    mocker.patch("reconcile.email_sender.apps_query", return_value=mocker.Mock(apps=[]))
+    mocker.patch("reconcile.email_sender.get_app_interface_vault_settings")
+    mocker.patch("reconcile.email_sender.create_secret_reader")
+    state = mocker.Mock()
+    state.exists.return_value = False
+    mocker.patch("reconcile.email_sender.init_state", return_value=state)
+    mocker.patch("reconcile.email_sender.typed_queries")
+    mocker.patch("reconcile.email_sender.get_smtp_server_connection")
+    mocker.patch("reconcile.email_sender.SmtpClient")
+    return state
+
+
+def _email_with_ldap_role(
+    gql_class_factory: Callable, group: str
+) -> AppInterfaceEmailV1:
+    role = gql_class_factory(EmailRole, {"name": "role", "users": []})
+    role.member_sources = [build_ldap_membership_source(name="ldap", group=group)]
+    email = gql_class_factory(
+        AppInterfaceEmailV1, {"name": "e1", "subject": "s", "body": "b"}
+    )
+    email.q_to = _email_audience(gql_class_factory, [role])
+    return email
+
+
+def test_email_sender_run_dry_run_fails_on_unresolved_ldap_group(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    """A broken LDAP group must fail dry-run, not just apply."""
+    ldap_endpoint.return_value = LdapGroupMembersResponse(groups=[])
+    email = _email_with_ldap_role(gql_class_factory, "source-team")
+    mocker.patch("reconcile.email_sender.get_emails", return_value=[email])
+    state = _mock_email_sender_run_dependencies(mocker)
+
+    with pytest.raises(RuntimeError, match="could not be resolved"):
+        email_sender.run(dry_run=True)
+
+    state.add.assert_not_called()
+
+
+def test_email_sender_run_dry_run_resolves_valid_ldap_group_without_sending(
+    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
+) -> None:
+    """A valid LDAP group resolves during dry-run, but no email is sent/state updated."""
+    email = _email_with_ldap_role(gql_class_factory, "source-team")
+    mocker.patch("reconcile.email_sender.get_emails", return_value=[email])
+    state = _mock_email_sender_run_dependencies(mocker)
+
+    email_sender.run(dry_run=True)
+
+    state.add.assert_not_called()
 
 
 def _glitchtip_project(
