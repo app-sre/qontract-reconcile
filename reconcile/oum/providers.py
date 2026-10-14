@@ -68,7 +68,7 @@ def init_ldap_group_member_provider(group_base_dn: str) -> LdapGroupMemberProvid
         bind_password = ldap_credentials["bind_password"]
     return LdapGroupMemberProvider(
         LdapApi(
-            server_url=settings.server_url,
+            server_urls=settings.server_urls,
             base_dn=settings.base_dn,
             bind_dn=bind_dn,
             bind_password=bind_password,

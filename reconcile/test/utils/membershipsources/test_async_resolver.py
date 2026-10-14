@@ -42,7 +42,7 @@ class Member(BaseModel, extra="ignore"):
 
 def _ldap_settings() -> LdapSettingsV1:
     return LdapSettingsV1(
-        serverUrl="ldap://freeipa.example.com",
+        serverUrls=["ldap://freeipa.example.com"],
         baseDn="dc=example,dc=com",
         credentials=VaultSecret(
             path="secret/ldap/bind",

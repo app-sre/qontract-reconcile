@@ -1,20 +1,29 @@
 """LDAP API client with hook system for metrics, logging, and latency tracking."""
 
+from __future__ import annotations
+
 import contextvars
 import re
 import string
 import time
 import types
 from collections import defaultdict
-from collections.abc import Collection, Iterable
-from dataclasses import dataclass
+from collections.abc import Collection, Generator, Iterable
+from contextlib import contextmanager, suppress
+from dataclasses import dataclass, replace
 from typing import Self
 from urllib.parse import urlparse
 
 import structlog
-from ldap3 import NONE, SAFE_SYNC, Connection, Server
+from ldap3 import NONE, ROUND_ROBIN, SAFE_SYNC, Connection, Server, ServerPool
 from ldap3.core.exceptions import (
+    LDAPAuthMethodNotSupportedResult,
+    LDAPBindError,
+    LDAPBusyResult,
+    LDAPCertificateError,
     LDAPCommunicationError,
+    LDAPInappropriateAuthenticationResult,
+    LDAPInvalidCredentialsResult,
     LDAPMaximumRetriesError,
     LDAPResponseTimeoutError,
     LDAPSessionTerminatedByServerError,
@@ -22,6 +31,8 @@ from ldap3.core.exceptions import (
     LDAPSocketOpenError,
     LDAPSocketReceiveError,
     LDAPSocketSendError,
+    LDAPStartTLSError,
+    LDAPUnavailableResult,
 )
 from ldap3.utils.conv import escape_filter_chars
 from ldap3.utils.dn import parse_dn
@@ -97,9 +108,8 @@ def _request_log_hook(context: LdapApiCallContext) -> None:
     logger.debug("LDAP request", method=context.method)
 
 
-# Retry only on transient LDAP errors (network/connection issues).
-# Logical errors (noSuchObject, invalidCredentials, etc.) are NOT retried.
-_LDAP_TRANSIENT_ERRORS = (
+# Replica failures include TLS/bind failures; query/configuration errors are fatal.
+_LDAP_FAILOVER_ERRORS = (
     LDAPCommunicationError,
     LDAPSocketOpenError,
     LDAPSocketReceiveError,
@@ -108,10 +118,18 @@ _LDAP_TRANSIENT_ERRORS = (
     LDAPSessionTerminatedByServerError,
     LDAPResponseTimeoutError,
     LDAPMaximumRetriesError,
+    LDAPStartTLSError,
+    LDAPCertificateError,
+    LDAPBindError,
+    LDAPInvalidCredentialsResult,
+    LDAPInappropriateAuthenticationResult,
+    LDAPAuthMethodNotSupportedResult,
+    LDAPBusyResult,
+    LDAPUnavailableResult,
 )
 
 _LDAP_RETRY_CONFIG = RetryConfig(
-    on=_LDAP_TRANSIENT_ERRORS,
+    on=_LDAP_FAILOVER_ERRORS,
     attempts=3,
     timeout=5.0,
     wait_initial=0.5,
@@ -271,12 +289,12 @@ class LdapApi:
     rather than returning partial lookup results.
 
     Args:
-        server_url: LDAP server URL (e.g., "ldap://ldap.example.com")
+        server_urls: Non-empty list of LDAP replica URLs
         base_dn: Base DN for searches (e.g., "dc=example,dc=com")
         bind_dn: Service account DN for authenticated bind (None for anonymous)
         bind_password: Service account password (None for anonymous)
         start_tls: Enable STARTTLS before binding
-        timeout: Connection timeout in seconds
+        timeout: Per-connection and receive timeout in seconds
         hooks: Optional custom hooks merged with built-in hooks (ADR-006)
     """
 
@@ -285,7 +303,7 @@ class LdapApi:
 
     def __init__(
         self,
-        server_url: str,
+        server_urls: Collection[str],
         base_dn: str,
         bind_dn: str | None = None,
         bind_password: str | None = None,
@@ -294,21 +312,45 @@ class LdapApi:
         timeout: int = _DEFAULT_TIMEOUT,
         hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
     ) -> None:
+        if not server_urls or any(not url.strip() for url in server_urls):
+            raise ValueError("LDAP server_urls must contain at least one non-empty URL")
+        if timeout <= 0:
+            raise ValueError("LDAP timeout must be positive")
         self.base_dn = base_dn
         self._start_tls = start_tls
+        self._connected = False
         self._connection = Connection(
-            server=Server(server_url, get_info=NONE),
+            server=ServerPool(
+                servers=[
+                    Server(url, get_info=NONE, connect_timeout=timeout)
+                    for url in server_urls
+                ],
+                pool_strategy=ROUND_ROBIN,
+                active=False,
+                exhaust=False,
+            ),
             user=bind_dn,
             password=bind_password,
             client_strategy=SAFE_SYNC,
             receive_timeout=timeout,
             raise_exceptions=True,
         )
+        attempts = max(_LDAP_RETRY_CONFIG.attempts, len(server_urls))
+        self._hooks = Hooks(
+            pre_hooks=self._hooks.pre_hooks,
+            post_hooks=self._hooks.post_hooks,
+            error_hooks=self._hooks.error_hooks,
+            retry_hooks=self._hooks.retry_hooks,
+            retry_config=self._hooks.retry_config
+            or replace(
+                _LDAP_RETRY_CONFIG,
+                attempts=attempts,
+                timeout=attempts * (4 * timeout + _LDAP_RETRY_CONFIG.wait_max),
+            ),
+        )
 
     def __enter__(self) -> Self:
-        if self._start_tls:
-            self._connection.start_tls()
-        self._connection.bind()
+        """Own cleanup; connect lazily inside the hook-controlled lookup."""
         return self
 
     def __exit__(
@@ -317,7 +359,42 @@ class LdapApi:
         exc_val: BaseException | None,
         exc_tb: types.TracebackType | None,
     ) -> None:
-        self._connection.unbind()
+        self._disconnect()
+
+    def _disconnect(self) -> None:
+        self._connected = False
+        with suppress(LDAPCommunicationError):
+            self._connection.unbind()
+        if socket := self._connection.socket:
+            with suppress(OSError):
+                socket.close()
+            self._connection.socket = None
+
+    @contextmanager
+    def _connection_attempt(self) -> Generator[None]:
+        try:
+            self._connect()
+            yield
+        except _LDAP_FAILOVER_ERRORS:
+            logger.warning(
+                "LDAP replica lookup failed",
+                server=self._connection.server.host,
+            )
+            self._disconnect()
+            raise
+
+    def _connect(self) -> None:
+        if self._connected:
+            return
+        self._connection.open()
+        if self._start_tls and not self._connection.server.ssl:
+            self._connection.start_tls()
+            if not self._connection.tls_started:
+                raise LDAPStartTLSError("LDAP STARTTLS did not establish TLS")
+        self._connection.bind()
+        if not self._connection.bound:
+            raise LDAPBindError("LDAP bind did not authenticate the connection")
+        self._connected = True
 
     @staticmethod
     def _check_ldap_response(status: dict) -> None:
@@ -337,32 +414,29 @@ class LdapApi:
         per-response size limit (389 DS defaults to ~2000 entries). Aggregates
         the entries from every page.
         """
-        entries: list[dict] = []
-        cookie: bytes | None = None
-        while True:
-            _, status, page, _ = self._connection.search(
-                search_base,
-                search_filter,
-                attributes=attributes,
-                paged_size=_LDAP_PAGE_SIZE,
-                paged_cookie=cookie,
-            )
-            self._check_ldap_response(status)
-            entries.extend(page)
-            cookie = (
-                status.get("controls", {})
-                .get(_PAGED_RESULTS_CONTROL, {})
-                .get("value", {})
-                .get("cookie")
-            )
-            if not cookie:
-                break
+        with self._connection_attempt():
+            entries: list[dict] = []
+            cookie: bytes | None = None
+            while True:
+                _, status, page, _ = self._connection.search(
+                    search_base,
+                    search_filter,
+                    attributes=attributes,
+                    paged_size=_LDAP_PAGE_SIZE,
+                    paged_cookie=cookie,
+                )
+                self._check_ldap_response(status)
+                entries.extend(page)
+                cookie = (
+                    status.get("controls", {})
+                    .get(_PAGED_RESULTS_CONTROL, {})
+                    .get("value", {})
+                    .get("cookie")
+                )
+                if not cookie:
+                    break
         return entries
 
-    @invoke_with_hooks(
-        lambda: LdapApiCallContext(method="get_users"),
-        retry_config=_LDAP_RETRY_CONFIG,
-    )
     def get_users(self, usernames: Iterable[str]) -> list[LdapUser]:
         """Check which usernames exist in LDAP.
 
@@ -382,6 +456,10 @@ class LdapApi:
         Raises:
             LdapApiError: If the LDAP search fails
         """
+        return self._get_users(tuple(usernames))
+
+    @invoke_with_hooks(lambda: LdapApiCallContext(method="get_users"))
+    def _get_users(self, usernames: Collection[str]) -> list[LdapUser]:
         if not usernames:
             return []
         user_filter = "".join(f"(uid={escape_filter_chars(u)})" for u in usernames)
@@ -395,7 +473,6 @@ class LdapApi:
 
     @invoke_with_hooks(
         lambda: LdapApiCallContext(method="get_group_members"),
-        retry_config=_LDAP_RETRY_CONFIG,
     )
     def get_group_members(self, groups_dns: Collection[str]) -> list[LdapGroup]:
         """Get members of the specified LDAP groups.
@@ -454,7 +531,6 @@ class LdapApi:
 
     @invoke_with_hooks(
         lambda: LdapApiCallContext(method="check_groups_exist"),
-        retry_config=_LDAP_RETRY_CONFIG,
     )
     def check_groups_exist(self, group_cns: Collection[str]) -> set[str]:
         """Return the subset of the given group CNs that exist in LDAP.
@@ -489,7 +565,6 @@ class LdapApi:
 
     @invoke_with_hooks(
         lambda: LdapApiCallContext(method="get_github_usernames"),
-        retry_config=_LDAP_RETRY_CONFIG,
     )
     def get_github_usernames(self) -> dict[str, list[str]]:
         """Build a GitHub-login -> LDAP uid(s) map from `rhatSocialURL`.

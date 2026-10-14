@@ -169,7 +169,7 @@ class LdapUsersApiIntegration(
                         path=ldap_settings.credentials.path,
                         field=ldap_settings.credentials.field,
                         version=ldap_settings.credentials.version,
-                        server_url=ldap_settings.server_url,
+                        server_urls=ldap_settings.server_urls,
                         base_dn=ldap_settings.base_dn,
                     ),
                 ),

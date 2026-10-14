@@ -32,7 +32,7 @@ fragment VaultSecret on VaultSecret_v1 {
 query LdapSettings {
   settings: app_interface_settings_v1 {
     ldap {
-      serverUrl
+      serverUrls
       baseDn
       credentials {
         ...VaultSecret
@@ -50,7 +50,7 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class LdapSettingsV1(ConfiguredBaseModel):
-    server_url: str = Field(..., alias="serverUrl")
+    server_urls: list[str] = Field(..., alias="serverUrls")
     base_dn: str = Field(..., alias="baseDn")
     credentials: Optional[VaultSecret] = Field(..., alias="credentials")
 

@@ -518,7 +518,7 @@ class LdapDirectSecret(pydantic.BaseModel):
     field: str | None = None
     path: str
     secret_manager_url: str
-    server_url: str
+    server_urls: list[str]
     version: int | None = None
 
 
