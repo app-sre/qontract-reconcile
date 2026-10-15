@@ -523,16 +523,17 @@ class LdapApi:
         guessing which replica is right.
         """
         primary_hash = self._result_set_hash(primary_entries)
-        primary_host = self._connection.server.host
+        primary_host = self._connection.server.host.rstrip(".").lower()
         confirmations_needed = self._quorum_count - 1
-        confirmed = 0
+        confirmed_hosts = {primary_host}
 
         for _ in range(len(self._server_urls)):
             self._disconnect()
             try:
                 with self._connection_attempt():
-                    verify_host = self._connection.server.host
-                    if verify_host == primary_host:
+                    if (
+                        verify_host := self._connection.server.host.rstrip(".").lower()
+                    ) in confirmed_hosts:
                         continue
                     verify_entries = self._run_paged_search(
                         self._connection, search_base, search_filter, attributes
@@ -553,12 +554,12 @@ class LdapApi:
                     "query - replicas may be out of sync (missing/extra entries "
                     "or stale attribute values)"
                 )
-            confirmed += 1
-            if confirmed >= confirmations_needed:
+            confirmed_hosts.add(verify_host)
+            if len(confirmed_hosts) >= self._quorum_count:
                 return
 
         raise LdapQuorumError(
-            f"Cannot achieve quorum for {method_name}: only {confirmed} of "
+            f"Cannot achieve quorum for {method_name}: only {len(confirmed_hosts) - 1} of "
             f"{confirmations_needed} required replica confirmation(s) succeeded"
         )
 

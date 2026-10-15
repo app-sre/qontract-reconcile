@@ -1921,6 +1921,99 @@ def test_quorum_match_returns_primary_results(
     assert search.call_count == 2
 
 
+@pytest.mark.parametrize(
+    ("server_urls", "quorum_count", "confirmations"),
+    [
+        pytest.param(
+            [
+                "ldap://replica-a.example.com",
+                "ldap://replica-b.example.com",
+                "ldap://replica-b.example.com:389",
+            ],
+            3,
+            1,
+            id="duplicate-verifier-default-port",
+        ),
+        pytest.param(
+            [
+                "ldap://replica-a.example.com",
+                "ldap://replica-b.example.com",
+                "ldaps://replica-b.example.com",
+            ],
+            3,
+            1,
+            id="duplicate-verifier-different-transport",
+        ),
+        pytest.param(
+            ["ldap://replica-a.example.com", "ldap://REPLICA-A.EXAMPLE.COM"],
+            2,
+            0,
+            id="primary-host-case",
+        ),
+        pytest.param(
+            ["ldap://replica-a.example.com", "ldap://replica-a.example.com."],
+            2,
+            0,
+            id="primary-host-trailing-dot",
+        ),
+    ],
+)
+@pytest.mark.usefixtures("replica_api")
+def test_quorum_counts_each_replica_host_once(
+    mocker: MockerFixture,
+    server_urls: list[str],
+    quorum_count: int,
+    confirmations: int,
+) -> None:
+    """Equivalent URLs must not supply multiple votes or disable verification."""
+    mocker.patch("ldap3.core.pooling.randint", return_value=len(server_urls) - 1)
+    mocker.patch(
+        "ldap3.core.connection.Connection.search",
+        return_value=(True, {"result": 0}, [_ALICE_ENTRY], None),
+    )
+    api = LdapApi(
+        server_urls=server_urls,
+        base_dn="dc=example,dc=com",
+        quorum_count=quorum_count,
+    )
+
+    with (
+        api,
+        pytest.raises(
+            LdapQuorumError,
+            match=f"only {confirmations} of {quorum_count - 1} required",
+        ),
+    ):
+        api.get_users(["alice"])
+
+
+@pytest.mark.usefixtures("replica_api")
+def test_quorum_skips_duplicate_verifier_and_uses_next_distinct_replica(
+    mocker: MockerFixture,
+) -> None:
+    """A repeated verifier must not prevent a later distinct replica confirming."""
+    mocker.patch("ldap3.core.pooling.randint", return_value=3)
+    search = mocker.patch(
+        "ldap3.core.connection.Connection.search",
+        return_value=(True, {"result": 0}, [_ALICE_ENTRY], None),
+    )
+    api = LdapApi(
+        server_urls=[
+            "ldap://replica-a.example.com",
+            "ldap://replica-b.example.com",
+            "ldap://replica-b.example.com:389",
+            "ldap://replica-c.example.com",
+        ],
+        base_dn="dc=example,dc=com",
+        quorum_count=3,
+    )
+
+    with api:
+        assert api.get_users(["alice"]) == [LdapUser(username="alice")]
+        assert api._connection.server.host == "replica-c.example.com"
+    assert search.call_count == 3
+
+
 def test_quorum_mismatch_missing_entries_raises(
     mocker: MockerFixture, quorum_api: LdapApi
 ) -> None:
