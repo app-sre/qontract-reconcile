@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import contextvars
 import hashlib
-import json
 import re
 import string
 import time
@@ -42,6 +41,7 @@ from ldap3.utils.dn import parse_dn
 from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, RetryConfig, invoke_with_hooks, with_hooks
+from qontract_utils.json_utils import json_dumps
 from qontract_utils.ldap_api.models import LdapGroup, LdapUser
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 
@@ -500,9 +500,7 @@ class LdapApi:
             }
             for entry in sorted(entries, key=itemgetter("dn"))
         ]
-        return hashlib.sha256(
-            json.dumps(normalized, sort_keys=True).encode()
-        ).hexdigest()
+        return hashlib.sha256(json_dumps(normalized, compact=True).encode()).hexdigest()
 
     def _verify_quorum(
         self,

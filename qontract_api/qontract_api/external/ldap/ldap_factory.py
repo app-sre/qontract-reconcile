@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from typing import TYPE_CHECKING
 
+from qontract_utils.json_utils import json_dumps
 from qontract_utils.ldap_api import LdapApi
 
 from qontract_api.external.ldap.ldap_workspace_client import LdapWorkspaceClient
@@ -51,7 +51,7 @@ def create_ldap_workspace_client(
     )
 
     prefix = hashlib.sha256(
-        json.dumps((sorted(secret.server_urls), secret.base_dn)).encode()
+        json_dumps((sorted(secret.server_urls), secret.base_dn), compact=True).encode()
     ).hexdigest()
 
     return LdapWorkspaceClient(
