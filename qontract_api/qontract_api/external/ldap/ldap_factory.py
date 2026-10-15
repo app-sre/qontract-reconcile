@@ -47,6 +47,7 @@ def create_ldap_workspace_client(
         bind_dn=bind_dn,
         bind_password=bind_password,
         start_tls=True,
+        quorum_count=settings.ldap.quorum_count,
     )
 
     prefix = hashlib.sha256(
