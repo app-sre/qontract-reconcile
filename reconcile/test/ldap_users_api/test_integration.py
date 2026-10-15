@@ -241,7 +241,6 @@ def integration() -> Generator[LdapUsersApiIntegration]:
             infra_repo_url=_INFRA_REPO,
             infra_paths=["ansible/hosts/group_vars/all"],
             labels=["ldap-users"],
-            min_existing_users=0,
         )
     )
     with patch.object(
