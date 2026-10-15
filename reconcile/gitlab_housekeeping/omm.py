@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from operator import itemgetter
@@ -332,8 +333,10 @@ def _sha_commit(
 
 # Remembered dropped-sha sets for the skip-ci log dedup in
 # _without_skip_ci_bot_pipelines. Integrations are single-threaded, so a
-# plain dict is safe; a process restart re-logs once per MR, which is fine.
-_LAST_DROPPED_LOG: dict[tuple[int | str, int], frozenset[str]] = {}
+# plain OrderedDict is safe. Capped at _LAST_DROPPED_LOG_MAX; evicting a
+# still-live MR re-logs once, same as a process restart.
+_LAST_DROPPED_LOG_MAX = 256
+_LAST_DROPPED_LOG: OrderedDict[tuple[int | str, int], frozenset[str]] = OrderedDict()
 
 
 def _without_skip_ci_bot_pipelines(
@@ -402,6 +405,9 @@ def _without_skip_ci_bot_pipelines(
             sorted(dropped_set),
         ])
     _LAST_DROPPED_LOG[key] = dropped_set
+    _LAST_DROPPED_LOG.move_to_end(key)
+    if len(_LAST_DROPPED_LOG) > _LAST_DROPPED_LOG_MAX:
+        _LAST_DROPPED_LOG.popitem(last=False)
     return kept
 
 
