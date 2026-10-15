@@ -43,7 +43,27 @@ def test_creates_ldap_api_with_credentials(mock_ldap_api: MagicMock) -> None:
         bind_dn="uid=svc,dc=example,dc=com",
         bind_password="secret123",
         start_tls=True,
+        quorum_count=2,
     )
+
+
+@patch("qontract_api.external.ldap.ldap_factory.LdapApi")
+def test_passes_configured_quorum_count(mock_ldap_api: MagicMock) -> None:
+    """The settings.ldap.quorum_count value flows through to LdapApi."""
+    secret_manager = MagicMock()
+    secret_manager.read_all.return_value = {
+        "bind_dn": "uid=svc,dc=example,dc=com",
+        "bind_password": "secret123",
+    }
+
+    create_ldap_workspace_client(
+        secret=_build_secret(),
+        cache=MagicMock(),
+        secret_manager=secret_manager,
+        settings=Settings(ldap=LdapSettings(quorum_count=3)),
+    )
+
+    assert mock_ldap_api.call_args.kwargs["quorum_count"] == 3
 
 
 @patch("qontract_api.external.ldap.ldap_factory.LdapApi")

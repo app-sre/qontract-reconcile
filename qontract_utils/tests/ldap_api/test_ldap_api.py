@@ -28,6 +28,7 @@ from qontract_utils.ldap_api.api import (
     LdapApi,
     LdapApiCallContext,
     LdapApiError,
+    LdapQuorumError,
     _parse_github_login,
 )
 from qontract_utils.ldap_api.models import LdapGroup, LdapUser
@@ -1841,3 +1842,280 @@ def test_get_github_usernames_calls_hooks(
     context = pre_hook.call_args[0][0]
     assert isinstance(context, LdapApiCallContext)
     assert context.method == "get_github_usernames"
+
+
+# --- Quorum verification (APPSRE-15561) ---
+
+_ALICE_ENTRY = {
+    "dn": "uid=alice,cn=users,cn=accounts,dc=example,dc=com",
+    "attributes": {"uid": ["alice"], "cn": ["Alice"], "memberOf": []},
+}
+_BOB_ENTRY = {
+    "dn": "uid=bob,cn=users,cn=accounts,dc=example,dc=com",
+    "attributes": {"uid": ["bob"], "cn": ["Bob"], "memberOf": []},
+}
+
+
+@pytest.fixture
+def quorum_api(mocker: MockerFixture) -> LdapApi:
+    """Same real-pool/mocked-network setup as replica_api, with quorum_count=2."""
+
+    def open_connection(strategy: BaseStrategy) -> None:
+        connection = strategy.connection
+        connection.server = connection.server_pool.get_server(connection)
+
+    def start_tls(connection: Connection) -> None:
+        connection.tls_started = True
+
+    def bind(connection: Connection) -> None:
+        connection.bound = True
+
+    def unbind(connection: Connection) -> None:
+        connection.bound = False
+        connection.tls_started = False
+
+    mocker.patch(
+        "ldap3.strategy.sync.SyncStrategy.open",
+        autospec=True,
+        side_effect=open_connection,
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.start_tls",
+        autospec=True,
+        side_effect=start_tls,
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.bind", autospec=True, side_effect=bind
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.unbind", autospec=True, side_effect=unbind
+    )
+    mocker.patch("ldap3.core.pooling.randint", return_value=1)
+    mocker.patch(
+        "ldap3.core.server.Server.check_availability",
+        side_effect=AssertionError("TCP prechecks must be disabled"),
+    )
+    return LdapApi(
+        server_urls=["ldap://replica-a.example.com", "ldap://replica-b.example.com"],
+        base_dn="dc=example,dc=com",
+        bind_dn="uid=svc,dc=example,dc=com",
+        bind_password="secret",
+        quorum_count=2,
+    )
+
+
+def test_quorum_match_returns_primary_results(
+    mocker: MockerFixture, quorum_api: LdapApi
+) -> None:
+    """Identical results from both replicas pass verification."""
+    search = mocker.patch.object(
+        quorum_api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+        ],
+    )
+    with quorum_api:
+        assert quorum_api.get_users(["alice"]) == [LdapUser(username="alice")]
+    assert search.call_count == 2
+
+
+def test_quorum_mismatch_missing_entries_raises(
+    mocker: MockerFixture, quorum_api: LdapApi
+) -> None:
+    """A replica missing entries the primary found fails closed."""
+    mocker.patch.object(
+        quorum_api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY, _BOB_ENTRY], None),
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+        ],
+    )
+    with quorum_api, pytest.raises(LdapQuorumError, match="quorum mismatch"):
+        quorum_api.get_users(["alice", "bob"])
+
+
+def test_quorum_mismatch_stale_attribute_raises(
+    mocker: MockerFixture, quorum_api: LdapApi
+) -> None:
+    """Same entries on both replicas but differing attribute values fail closed."""
+    stale_alice = {
+        "dn": _ALICE_ENTRY["dn"],
+        "attributes": {
+            "uid": ["alice"],
+            "cn": ["Alice"],
+            "memberOf": ["cn=old-group,..."],
+        },
+    }
+    mocker.patch.object(
+        quorum_api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+            (True, {"result": 0}, [stale_alice], None),
+        ],
+    )
+    with quorum_api, pytest.raises(LdapQuorumError, match="quorum mismatch"):
+        quorum_api.get_users(["alice"])
+
+
+def test_quorum_mismatch_not_retried(
+    mocker: MockerFixture, quorum_api: LdapApi
+) -> None:
+    """LdapQuorumError propagates without triggering the outer failover retry."""
+    search = mocker.patch.object(
+        quorum_api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY, _BOB_ENTRY], None),
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+        ],
+    )
+    with quorum_api, pytest.raises(LdapQuorumError):
+        quorum_api.get_users(["alice", "bob"])
+    assert search.call_count == 2
+
+
+def test_quorum_verification_server_unreachable_tries_next(
+    mocker: MockerFixture,
+) -> None:
+    """A dead verification replica is skipped in favor of the next one."""
+
+    def open_connection(strategy: BaseStrategy) -> None:
+        connection = strategy.connection
+        connection.server = connection.server_pool.get_server(connection)
+
+    def start_tls(connection: Connection) -> None:
+        connection.tls_started = True
+
+    def bind(connection: Connection) -> None:
+        connection.bound = True
+
+    def unbind(connection: Connection) -> None:
+        connection.bound = False
+        connection.tls_started = False
+
+    mocker.patch(
+        "ldap3.strategy.sync.SyncStrategy.open",
+        autospec=True,
+        side_effect=open_connection,
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.start_tls",
+        autospec=True,
+        side_effect=start_tls,
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.bind", autospec=True, side_effect=bind
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.unbind", autospec=True, side_effect=unbind
+    )
+    mocker.patch("ldap3.core.pooling.randint", return_value=1)
+    mocker.patch(
+        "ldap3.core.server.Server.check_availability",
+        side_effect=AssertionError("TCP prechecks must be disabled"),
+    )
+    api = LdapApi(
+        server_urls=[
+            "ldap://replica-a.example.com",
+            "ldap://replica-b.example.com",
+            "ldap://replica-c.example.com",
+        ],
+        base_dn="dc=example,dc=com",
+        bind_dn="uid=svc,dc=example,dc=com",
+        bind_password="secret",
+        quorum_count=2,
+    )
+    search = mocker.patch.object(
+        api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+            LDAPSocketReceiveError("connection reset"),
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+        ],
+    )
+    with api:
+        assert api.get_users(["alice"]) == [LdapUser(username="alice")]
+    assert search.call_count == 3
+
+
+def test_quorum_all_verification_servers_unreachable_raises(
+    mocker: MockerFixture, quorum_api: LdapApi
+) -> None:
+    """If no replica can confirm the primary result, fail closed."""
+    mocker.patch.object(
+        quorum_api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+            LDAPSocketReceiveError("connection reset"),
+        ],
+    )
+    with quorum_api, pytest.raises(LdapQuorumError, match="Cannot achieve quorum"):
+        quorum_api.get_users(["alice"])
+
+
+def test_quorum_disabled_by_default_single_query(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Default quorum_count=1 performs no verification query."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0},
+        [_ALICE_ENTRY],
+        None,
+    )
+    with ldap_api:
+        assert ldap_api.get_users(["alice"]) == [LdapUser(username="alice")]
+    assert mock_ldap3.connection.search.call_count == 1
+
+
+def test_quorum_degrades_with_too_few_servers(
+    mocker: MockerFixture, mock_ldap3: MagicMock
+) -> None:
+    """quorum_count > number of configured servers disables quorum with a warning."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0},
+        [_ALICE_ENTRY],
+        None,
+    )
+    warning = mocker.patch("qontract_utils.ldap_api.api.logger.warning")
+    api = LdapApi(
+        server_urls=["ldap://ldap.example.com"],
+        base_dn="dc=example,dc=com",
+        quorum_count=2,
+    )
+    with api:
+        assert api.get_users(["alice"]) == [LdapUser(username="alice")]
+    assert mock_ldap3.connection.search.call_count == 1
+    warning.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda api: api.get_users(["alice"]),
+        lambda api: api.get_group_members(["cn=group1,dc=example,dc=com"]),
+        lambda api: api.check_groups_exist(["group1"]),
+        lambda api: api.get_github_usernames(),
+    ],
+)
+def test_quorum_applies_to_all_search_methods(
+    mocker: MockerFixture, quorum_api: LdapApi, call: object
+) -> None:
+    """Every public search method is verified against a second replica."""
+    mocker.patch.object(
+        quorum_api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY, _BOB_ENTRY], None),
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+        ],
+    )
+    with quorum_api, pytest.raises(LdapQuorumError):
+        call(quorum_api)  # type: ignore[operator]

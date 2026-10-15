@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import contextvars
+import hashlib
+import json
 import re
 import string
 import time
@@ -11,6 +13,7 @@ from collections import defaultdict
 from collections.abc import Collection, Generator, Iterable
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, replace
+from operator import itemgetter
 from typing import Self
 from urllib.parse import urlparse
 
@@ -61,6 +64,12 @@ ldap_request_duration = Histogram(
     buckets=DEFAULT_BUCKETS_EXTERNAL_API,
 )
 
+ldap_quorum_mismatch = Counter(
+    "qontract_reconcile_external_api_ldap_quorum_mismatch_total",
+    "LDAP quorum mismatches detected between replicas",
+    ["method"],
+)
+
 # Local storage for latency tracking (tuple stack to support nested calls)
 _latency_tracker: contextvars.ContextVar[tuple[float, ...]] = contextvars.ContextVar(
     f"{__name__}.latency_tracker", default=()
@@ -69,6 +78,15 @@ _latency_tracker: contextvars.ContextVar[tuple[float, ...]] = contextvars.Contex
 
 class LdapApiError(Exception):
     """Raised when an LDAP operation fails."""
+
+
+class LdapQuorumError(LdapApiError):
+    """Raised when replicas disagree on a query result, or quorum cannot be reached.
+
+    Not a transient/retryable failure (not in `_LDAP_FAILOVER_ERRORS`): replica
+    disagreement is a data integrity problem to surface, not a connection
+    issue to retry past.
+    """
 
 
 @dataclass(frozen=True)
@@ -295,6 +313,13 @@ class LdapApi:
         bind_password: Service account password (None for anonymous)
         start_tls: Enable STARTTLS before binding
         timeout: Per-connection and receive timeout in seconds
+        quorum_count: Number of replicas that must agree on a search result
+            before it is trusted (see "Quorum verification" in README.md).
+            A reachable-but-under-replicated replica can return a "successful"
+            response that is silently incomplete or stale; comparing results
+            across replicas catches that. 1 disables verification. Falls back
+            to 1 (with a warning) if fewer server_urls are configured than
+            requested.
         hooks: Optional custom hooks merged with built-in hooks (ADR-006)
     """
 
@@ -310,15 +335,28 @@ class LdapApi:
         *,
         start_tls: bool = True,
         timeout: int = _DEFAULT_TIMEOUT,
+        quorum_count: int = 1,
         hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
     ) -> None:
         if not server_urls or any(not url.strip() for url in server_urls):
             raise ValueError("LDAP server_urls must contain at least one non-empty URL")
         if timeout <= 0:
             raise ValueError("LDAP timeout must be positive")
+        if quorum_count < 1:
+            raise ValueError("LDAP quorum_count must be at least 1")
         self.base_dn = base_dn
         self._start_tls = start_tls
         self._connected = False
+        self._server_urls = list(server_urls)
+        if quorum_count > 1 and len(self._server_urls) < quorum_count:
+            logger.warning(
+                "LDAP quorum_count exceeds configured replicas - disabling quorum verification",
+                quorum_count=quorum_count,
+                server_count=len(self._server_urls),
+            )
+            self._quorum_count = 1
+        else:
+            self._quorum_count = quorum_count
         self._connection = Connection(
             server=ServerPool(
                 servers=[
@@ -408,36 +446,139 @@ class LdapApi:
                 f"LDAP operation failed (error {error_code}: {error_desc})"
             )
 
-    def _paged_search(
-        self, search_base: str, search_filter: str, attributes: list[str]
+    @staticmethod
+    def _run_paged_search(
+        connection: Connection,
+        search_base: str,
+        search_filter: str,
+        attributes: list[str],
     ) -> list[dict]:
         """Run an LDAP search across all pages, following the paged cookie.
 
         Uses RFC 2696 paged results so broad searches survive the server's
         per-response size limit (389 DS defaults to ~2000 entries). Aggregates
-        the entries from every page.
+        the entries from every page. Takes an explicit connection so the same
+        logic serves both the primary query and quorum verification queries.
         """
+        entries: list[dict] = []
+        cookie: bytes | None = None
+        while True:
+            _, status, page, _ = connection.search(
+                search_base,
+                search_filter,
+                attributes=attributes,
+                paged_size=_LDAP_PAGE_SIZE,
+                paged_cookie=cookie,
+            )
+            LdapApi._check_ldap_response(status)
+            entries.extend(page)
+            cookie = (
+                status.get("controls", {})
+                .get(_PAGED_RESULTS_CONTROL, {})
+                .get("value", {})
+                .get("cookie")
+            )
+            if not cookie:
+                break
+        return entries
+
+    @staticmethod
+    def _result_set_hash(entries: list[dict]) -> str:
+        """Hash a complete LDAP result set for quorum comparison.
+
+        Sorts entries by DN and multi-valued attribute values within each
+        entry, since LDAP guarantees neither entry order nor the order of
+        values within a multi-valued attribute - two replicas holding
+        identical data could otherwise hash differently.
+        """
+        normalized = [
+            {
+                "dn": entry["dn"],
+                "attributes": {
+                    name: sorted(values) for name, values in entry["attributes"].items()
+                },
+            }
+            for entry in sorted(entries, key=itemgetter("dn"))
+        ]
+        return hashlib.sha256(
+            json.dumps(normalized, sort_keys=True).encode()
+        ).hexdigest()
+
+    def _verify_quorum(
+        self,
+        primary_entries: list[dict],
+        search_base: str,
+        search_filter: str,
+        attributes: list[str],
+        *,
+        method_name: str,
+    ) -> None:
+        """Re-run a search on other replicas and require them to agree.
+
+        Catches a replica that is reachable and returns a "successful"
+        response that is nevertheless silently incomplete or stale (e.g. due
+        to a broken replication agreement) - a failure mode `ServerPool`
+        failover cannot detect, since no exception is raised. A single
+        disagreeing replica fails the whole lookup closed rather than
+        guessing which replica is right.
+        """
+        primary_hash = self._result_set_hash(primary_entries)
+        primary_host = self._connection.server.host
+        confirmations_needed = self._quorum_count - 1
+        confirmed = 0
+
+        for _ in range(len(self._server_urls)):
+            self._disconnect()
+            try:
+                with self._connection_attempt():
+                    verify_host = self._connection.server.host
+                    if verify_host == primary_host:
+                        continue
+                    verify_entries = self._run_paged_search(
+                        self._connection, search_base, search_filter, attributes
+                    )
+            except (*_LDAP_FAILOVER_ERRORS, LdapApiError):
+                logger.warning(
+                    "LDAP quorum: verification replica unreachable",
+                    method=method_name,
+                    server=self._connection.server.host,
+                )
+                continue
+
+            if primary_hash != self._result_set_hash(verify_entries):
+                ldap_quorum_mismatch.labels(method=method_name).inc()
+                raise LdapQuorumError(
+                    f"LDAP quorum mismatch on {method_name}: {primary_host} and "
+                    f"{verify_host} returned different results for the same "
+                    "query - replicas may be out of sync (missing/extra entries "
+                    "or stale attribute values)"
+                )
+            confirmed += 1
+            if confirmed >= confirmations_needed:
+                return
+
+        raise LdapQuorumError(
+            f"Cannot achieve quorum for {method_name}: only {confirmed} of "
+            f"{confirmations_needed} required replica confirmation(s) succeeded"
+        )
+
+    def _paged_search(
+        self,
+        search_base: str,
+        search_filter: str,
+        attributes: list[str],
+        *,
+        method_name: str = "",
+    ) -> list[dict]:
+        """Run the primary paged search, then verify it against quorum if configured."""
         with self._connection_attempt():
-            entries: list[dict] = []
-            cookie: bytes | None = None
-            while True:
-                _, status, page, _ = self._connection.search(
-                    search_base,
-                    search_filter,
-                    attributes=attributes,
-                    paged_size=_LDAP_PAGE_SIZE,
-                    paged_cookie=cookie,
-                )
-                self._check_ldap_response(status)
-                entries.extend(page)
-                cookie = (
-                    status.get("controls", {})
-                    .get(_PAGED_RESULTS_CONTROL, {})
-                    .get("value", {})
-                    .get("cookie")
-                )
-                if not cookie:
-                    break
+            entries = self._run_paged_search(
+                self._connection, search_base, search_filter, attributes
+            )
+        if self._quorum_count > 1:
+            self._verify_quorum(
+                entries, search_base, search_filter, attributes, method_name=method_name
+            )
         return entries
 
     def get_users(self, usernames: Iterable[str]) -> list[LdapUser]:
@@ -470,6 +611,7 @@ class LdapApi:
             f"cn=users,cn=accounts,{self.base_dn}",
             f"(&(objectclass=person)(|{user_filter}))",
             attributes=["uid"],
+            method_name="get_users",
         )
 
         return [LdapUser(username=r["attributes"]["uid"][0]) for r in results]
@@ -497,6 +639,7 @@ class LdapApi:
             self.base_dn,
             search_filter,
             attributes=["uid", "cn", "memberOf"],
+            method_name="get_group_members",
         )
 
         # Map each requested DN's canonical form back to the exact string the
@@ -562,6 +705,7 @@ class LdapApi:
             f"cn=groups,cn=accounts,{self.base_dn}",
             f"(|{cn_filter})",
             attributes=["cn"],
+            method_name="check_groups_exist",
         )
 
         return {r["attributes"]["cn"][0] for r in results}
@@ -599,6 +743,7 @@ class LdapApi:
             f"cn=users,cn=accounts,{self.base_dn}",
             "(&(objectclass=person)(rhatSocialURL=Github->*github.com/*))",
             attributes=["uid", "rhatSocialURL"],
+            method_name="get_github_usernames",
         )
 
         by_login: dict[str, set[str]] = defaultdict(set[str])

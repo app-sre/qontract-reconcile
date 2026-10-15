@@ -150,6 +150,72 @@ Reordering the same replicas preserves the cache namespace; changing the replica
 set or base DN creates a new namespace. Existing TTL and fail-closed behavior
 are unchanged.
 
+## Quorum verification
+
+**Status: implemented.**
+
+Tracking: https://redhat.atlassian.net/browse/APPSRE-15561
+
+### Problem
+
+Replica failover (above) only reacts to exceptions - a replica that is
+reachable, binds successfully, and returns result code 0 looks healthy to
+`ServerPool` even if its replication agreement from the real primary is broken
+or lagging and its local database only holds a stale/partial copy of the
+directory. This was observed live: a query expected to return ~2300 users
+returned ~50, with no error raised anywhere in the stack. The one-off
+mitigation (a hardcoded minimum-result-count guard in a single integration)
+only protected that integration and had to be manually maintained as headcount
+changed.
+
+### Decision
+
+- Add a `quorum_count` constructor parameter to `LdapApi` (default 1, i.e.
+  disabled). When `quorum_count > 1`, every paginated search re-runs on
+  `quorum_count - 1` additional replicas after the primary query succeeds, and
+  all results must match exactly. A single disagreement fails the whole lookup
+  closed (`LdapQuorumError`) rather than guessing which replica is right.
+- Reuse the existing `ServerPool` round-robin instead of opening separate
+  connections for verification: disconnecting and reconnecting through the
+  same `_connection_attempt()` mechanism that powers failover naturally
+  advances the pool to a different replica. No new connection machinery.
+- Compare complete results, not just which entries are present. A replica can
+  hold a stale attribute (e.g. an outdated `memberOf`) on an entry that exists
+  on both replicas - DN-only comparison would miss that. Each result set is
+  normalized (entries sorted by DN, multi-valued attributes sorted within each
+  entry - LDAP guarantees neither order) and hashed with SHA-256 for
+  comparison.
+- `LdapQuorumError` is a replica-disagreement/cannot-achieve-quorum error, not
+  a transient one: it is deliberately absent from `_LDAP_FAILOVER_ERRORS`, so
+  it propagates immediately without retry.
+- If a verification replica is unreachable, skip it and try the next one
+  (bounded by the configured replica count) - an unreachable *verifier* is not
+  itself evidence of a mismatch. Only run out of replicas, or an actual
+  mismatch, raises.
+- If fewer `server_urls` are configured than the requested `quorum_count`,
+  disable quorum entirely (fall back to `quorum_count=1`) with a warning log,
+  rather than silently verifying against a smaller quorum than configured.
+  This keeps local/dev setups with one server working unchanged.
+- This replaces the one-off hardcoded safety net in `ldap-users-api`
+  (`reconcile/ldap_users_api/integration.py`): the check was specific to that
+  integration and needed manual upkeep as headcount changed, while quorum
+  verification lives in the shared client and protects every consumer
+  (`get_users`, `get_group_members`, `check_groups_exist`,
+  `get_github_usernames`) uniformly.
+
+### Cost
+
+Quorum verification runs on every call to `LdapApi`, but Layer 2
+(`LdapWorkspaceClient`) caches results for hours (see `LdapSettings` TTLs), so
+the extra query against the shared client only happens on a cache miss, not on
+every integration run.
+
+### Metric
+
+`qontract_reconcile_external_api_ldap_quorum_mismatch_total{method}` counts
+confirmed mismatches, to surface replica health issues to SRE independent of
+any single integration's fail-closed abort.
+
 ## References
 
 - https://ldap3.readthedocs.io/en/latest/server.html#server-pool
