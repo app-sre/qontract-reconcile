@@ -175,6 +175,10 @@ changed.
   `quorum_count - 1` additional replicas after the primary query succeeds, and
   all results must match exactly. A single disagreement fails the whole lookup
   closed (`LdapQuorumError`) rather than guessing which replica is right.
+- Count each hostname only once, ignoring case and a trailing DNS dot. Different
+  URL spellings, ports, or transports on the same host cannot add votes. If those
+  repeated hosts leave too few distinct replicas, fail closed rather than disable
+  verification or lower the required count.
 - Reuse the existing `ServerPool` round-robin instead of opening separate
   connections for verification: disconnecting and reconnecting through the
   same `_connection_attempt()` mechanism that powers failover naturally
