@@ -978,20 +978,25 @@ def test_gitlab_permissions_resolve_members_at_fetch_boundary(
     resolver.assert_not_called()
 
 
-def test_self_service_roles_resolve_members_at_fetch_boundary(
+def test_self_service_roles_fetch_boundary_ignores_ldap(
     ldap_endpoint: AsyncMock, mocker: MockerFixture
 ) -> None:
+    """change-owners resolves users once, at fetch time, from explicit
+    app-interface data only - a role's LDAP memberSources entry must never
+    be resolved. See https://redhat.atlassian.net/browse/APPSRE-15570."""
     from reconcile.change_owners import self_service_roles
     from reconcile.test.change_owners.fixtures import build_role
 
-    role = build_role(name="role", change_type_name="change", datafiles=[], users=[])
+    role = build_role(
+        name="role", change_type_name="change", datafiles=[], users=["bob"]
+    )
     role.member_sources = [
         build_ldap_membership_source(name="ldap", group="source-team")
     ]
     query_func = mocker.Mock(return_value={"roles": [role.model_dump(by_alias=True)]})
     fetched = self_service_roles.fetch_self_service_roles(mocker.Mock(query=query_func))
-    assert [user.org_username for user in fetched[0].users] == ["alice"]
-    assert role.users == []
+    assert [user.org_username for user in fetched[0].users] == ["bob"]
+    ldap_endpoint.assert_not_awaited()
     resolver = mocker.patch.object(
         self_service_roles,
         "resolve_role_members",
@@ -1010,7 +1015,9 @@ def test_current_bundle_role_validation_does_not_resolve_memberships(
     from reconcile.change_owners import self_service_roles
     from reconcile.test.change_owners.fixtures import build_role
 
-    role = build_role(name="role", change_type_name="change", datafiles=[], users=[])
+    role = build_role(
+        name="role", change_type_name="change", datafiles=[], users=["bob"]
+    )
     role.member_sources = [
         build_ldap_membership_source(name="ldap", group="source-team")
     ]

@@ -73,6 +73,13 @@ def _query_self_service_roles(
     ):
         if not r.self_service:
             continue
+        # change-owners must never depend on live LDAP state for merge
+        # approval - a role whose LDAP memberSources group is missing or
+        # deleted would otherwise abort self-service resolution fleet-wide.
+        # See https://redhat.atlassian.net/browse/APPSRE-15570
+        r.member_sources = [
+            ms for ms in r.member_sources or [] if ms.provider.source.provider != "ldap"
+        ]
         validate_self_service_role(r)
         roles.append(r)
     return roles
