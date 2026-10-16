@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import (
     UTC,
     datetime,
@@ -17,6 +18,7 @@ import pytest
 from gitlab import Gitlab
 from gitlab.const import PipelineStatus
 from gitlab.exceptions import (
+    GitlabError,
     GitlabGetError,
     GitlabMRClosedError,
     GitlabMRRebaseError,
@@ -53,8 +55,10 @@ from reconcile.gitlab_housekeeping.labels import (
     is_good_to_merge,
 )
 from reconcile.gitlab_housekeeping.omm import (
+    _LAST_DROPPED_LOG,
     _committed_during_label,
     _MemberResult,
+    _without_skip_ci_bot_pipelines,
     apply_omm_pending,
     form_omm_group,
     process_omm_group,
@@ -75,6 +79,8 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from pytest_mock import MockerFixture
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -5704,3 +5710,139 @@ def test_serial_merge_refetches_cache_when_skip_ci_filter_exposes_success(
 
     mocked_gl.get_merge_request_pipelines.assert_called_once()
     mr.merge.assert_not_called()
+
+
+# --- Skip-ci log gating: dropped-set dedup ---
+
+
+@pytest.fixture
+def _clean_dropped_log() -> Iterator[None]:
+    _LAST_DROPPED_LOG.clear()
+    yield
+    _LAST_DROPPED_LOG.clear()
+
+
+def _skip_ci_logged_shas(caplog: pytest.LogCaptureFixture) -> list[list[str]]:
+    return [
+        list(record.msg[-1])
+        for record in caplog.records
+        if isinstance(record.msg, list) and "skip-ci-bot-pipeline-ignored" in record.msg
+    ]
+
+
+def _armed_skip_ci() -> tuple[Mock, Mock]:
+    gl = _make_omm_gl()
+    mr = _make_merge_mr(11, ["approved", "tenant-bar"])
+    _arm_skip_ci_lookups(
+        gl,
+        {
+            "bot-head": _commit(_BOT_EMAIL, _DURING_LABEL),
+            "bot-head-2": _commit(_BOT_EMAIL, _DURING_LABEL),
+            "bot-stale": _commit(_BOT_EMAIL, _DURING_LABEL),
+            "human-new": _commit(_HUMAN_EMAIL, _DURING_LABEL),
+            "human-old": _commit(_HUMAN_EMAIL, _BEFORE_LABEL),
+        },
+        _one_group_events(),
+    )
+    return gl, mr
+
+
+def test_skip_ci_log_dedups_a_stable_dropped_set(
+    _clean_dropped_log: None,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Same dropped set logs once. A bot row behind a kept head still counts."""
+    caplog.set_level(logging.INFO)
+    gl, mr = _armed_skip_ci()
+    pipelines = [
+        _pipeline("success", "human-new"),
+        _pipeline("success", "bot-stale"),
+        _pipeline("success", "human-old"),
+    ]
+
+    kept = _without_skip_ci_bot_pipelines(gl, mr, pipelines)
+    assert [p.sha for p in kept] == ["human-new", "human-old"]
+    assert _skip_ci_logged_shas(caplog) == [["bot-stale"]]
+
+    caplog.clear()
+    kept = _without_skip_ci_bot_pipelines(gl, mr, pipelines)
+    assert [p.sha for p in kept] == ["human-new", "human-old"]
+    assert _skip_ci_logged_shas(caplog) == []
+
+
+def test_skip_ci_log_refires_when_dropped_set_changes(
+    _clean_dropped_log: None,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO)
+    gl, mr = _armed_skip_ci()
+    _without_skip_ci_bot_pipelines(
+        gl, mr, [_pipeline("success", "bot-head"), _pipeline("success", "human-old")]
+    )
+    caplog.clear()
+    _without_skip_ci_bot_pipelines(
+        gl,
+        mr,
+        [
+            _pipeline("success", "bot-head-2"),
+            _pipeline("success", "bot-head"),
+            _pipeline("success", "human-old"),
+        ],
+    )
+    assert _skip_ci_logged_shas(caplog) == [["bot-head", "bot-head-2"]]
+
+
+def test_skip_ci_log_forgets_when_nothing_is_dropped(
+    _clean_dropped_log: None,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """No matching row, and an empty label-event list, both forget the key."""
+    caplog.set_level(logging.INFO)
+    gl, mr = _armed_skip_ci()
+    key = (gl.project.id, mr.iid)
+    drop = [_pipeline("success", "bot-head"), _pipeline("success", "human-old")]
+
+    _without_skip_ci_bot_pipelines(gl, mr, drop)
+    assert key in _LAST_DROPPED_LOG
+
+    kept = _without_skip_ci_bot_pipelines(gl, mr, [_pipeline("success", "human-old")])
+    assert [p.sha for p in kept] == ["human-old"]
+    assert key not in _LAST_DROPPED_LOG
+
+    caplog.clear()
+    _without_skip_ci_bot_pipelines(gl, mr, drop)
+    assert _skip_ci_logged_shas(caplog) == [["bot-head"]]
+
+    gl.get_merge_request_label_events.return_value = []
+    kept = _without_skip_ci_bot_pipelines(gl, mr, drop)
+    assert [p.sha for p in kept] == ["bot-head", "human-old"]
+    assert key not in _LAST_DROPPED_LOG
+
+    gl.get_merge_request_label_events.return_value = _one_group_events()
+    caplog.clear()
+    _without_skip_ci_bot_pipelines(gl, mr, drop)
+    assert _skip_ci_logged_shas(caplog) == [["bot-head"]]
+
+
+def test_skip_ci_log_keeps_key_when_label_events_unreadable(
+    _clean_dropped_log: None,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO)
+    gl, mr = _armed_skip_ci()
+    key = (gl.project.id, mr.iid)
+    pipelines = [_pipeline("success", "bot-head"), _pipeline("success", "human-old")]
+
+    _without_skip_ci_bot_pipelines(gl, mr, pipelines)
+    gl.get_merge_request_label_events.side_effect = GitlabError("boom")
+    caplog.clear()
+    kept = _without_skip_ci_bot_pipelines(gl, mr, pipelines)
+    assert [p.sha for p in kept] == ["bot-head", "human-old"]
+    assert key in _LAST_DROPPED_LOG
+    assert _skip_ci_logged_shas(caplog) == []
+
+    gl.get_merge_request_label_events.side_effect = None
+    caplog.clear()
+    kept = _without_skip_ci_bot_pipelines(gl, mr, pipelines)
+    assert [p.sha for p in kept] == ["human-old"]
+    assert _skip_ci_logged_shas(caplog) == []

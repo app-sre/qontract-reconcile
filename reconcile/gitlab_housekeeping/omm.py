@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from operator import itemgetter
@@ -330,6 +331,14 @@ def _sha_commit(
     return parsed
 
 
+# Remembered dropped-sha sets for the skip-ci log dedup in
+# _without_skip_ci_bot_pipelines. Integrations are single-threaded, so a
+# plain OrderedDict is safe. Capped at _LAST_DROPPED_LOG_MAX; evicting a
+# still-live MR re-logs once, same as a process restart.
+_LAST_DROPPED_LOG_MAX = 256
+_LAST_DROPPED_LOG: OrderedDict[tuple[int | str, int], frozenset[str]] = OrderedDict()
+
+
 def _without_skip_ci_bot_pipelines(
     gl: GitLabApi,
     mr: ProjectMergeRequest,
@@ -338,12 +347,31 @@ def _without_skip_ci_bot_pipelines(
     """Drop pipelines on bot commits written while omm-pending was on.
 
     Lookup failure keeps the pipelines. Committer alone is not a drop.
+
+    The skip-ci log line fires when the set of dropped SHAs differs from
+    the last set logged for this MR, so a stable set of stale bot
+    pipelines is logged once instead of on every reconcile loop. The
+    gate does not consider where the dropped rows sat: callers decide on
+    more than the head of the returned list (any RUNNING row, the live
+    head SHA), so a drop behind a kept row can still change a decision.
+
+    When nothing is dropped the remembered set is forgotten, so a later
+    drop of the same SHAs logs again. Unreadable label events (None)
+    keep the remembered set, so a transient lookup failure does not
+    re-log the same set on the next loop.
     """
     intervals = _omm_pending_on_intervals(gl, mr)
+    if intervals is None:
+        return pipelines
+    key = (gl.project.id, mr.iid)
     if not intervals:
+        # Label never on: no drop is possible, forget any remembered set.
+        _LAST_DROPPED_LOG.pop(key, None)
         return pipelines
     emails = _bot_commit_emails(gl)
     if not emails:
+        # Bot emails unknown: no drop is possible, forget any remembered set.
+        _LAST_DROPPED_LOG.pop(key, None)
         return pipelines
 
     cache: dict[tuple[int | str, str], tuple[str, datetime] | None] = {}
@@ -364,14 +392,22 @@ def _without_skip_ci_bot_pipelines(
             dropped.append(sha)
             continue
         kept.append(pipeline)
-    if dropped:
+    if not dropped:
+        _LAST_DROPPED_LOG.pop(key, None)
+        return kept
+    dropped_set = frozenset(dropped)
+    if _LAST_DROPPED_LOG.get(key) != dropped_set:
         logging.info([
             "omm-group",
             "skip-ci-bot-pipeline-ignored",
             gl.project.name,
             mr.iid,
-            sorted(set(dropped)),
+            sorted(dropped_set),
         ])
+    _LAST_DROPPED_LOG[key] = dropped_set
+    _LAST_DROPPED_LOG.move_to_end(key)
+    if len(_LAST_DROPPED_LOG) > _LAST_DROPPED_LOG_MAX:
+        _LAST_DROPPED_LOG.popitem(last=False)
     return kept
 
 
