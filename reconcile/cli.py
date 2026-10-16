@@ -2202,6 +2202,30 @@ def ldap_groups(ctx: click.Context, aws_sso_namespace: str) -> None:
     )
 
 
+@integration.command(
+    short_help="Manage LDAP groups via Internal Groups API (via qontract-api)."
+)
+@click.option(
+    "--aws-sso-namespace",
+    help="Namespace used to store AWS SSO groups.",
+    required=True,
+    default="it-cloud-aws",
+)
+@click.pass_context
+def ldap_groups_api(ctx: click.Context, aws_sso_namespace: str) -> None:
+    from reconcile.ldap_groups_api import (
+        LdapGroupsApiIntegration,
+        LdapGroupsApiIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=LdapGroupsApiIntegration(
+            LdapGroupsApiIntegrationParams(aws_sso_namespace=aws_sso_namespace)
+        ),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Sync AWS asset version numbers to App-Interface")
 @click.option(
     "--aws-resource-exporter-clusters",

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from pydantic import BaseModel
 
+from reconcile.ldap_groups_api.models import ldap_groups_aws_integration_enabled
 from reconcile.utils.disabled_integrations import (
     HasDisableIntegrations,
     disabled_integrations,
@@ -85,3 +86,21 @@ def test_utils_disabled_integrations_integration_is_enabled(
     )
     assert not integration_is_enabled("int1", None)
     assert integration_is_enabled("int2", None)
+
+
+@pytest.mark.parametrize(
+    "integrations, expected",
+    [
+        (["ldap-groups"], False),
+        (["ldap-groups-api"], False),
+        (["ldap-groups", "ldap-groups-api"], False),
+        (["aws-saml-roles"], True),
+        ([], True),
+    ],
+)
+def test_ldap_groups_aws_integration_enabled(
+    integrations: list[str],
+    expected: bool,
+) -> None:
+    disable_obj = {"disable": {"integrations": integrations}}
+    assert ldap_groups_aws_integration_enabled(disable_obj) is expected

@@ -9,6 +9,11 @@ query LdapGroupsRolesQuery {
       membersAreOwners
     }
     users {
+      name
+      org_username
+    }
+    bots {
+      name
       org_username
     }
     memberSources {
