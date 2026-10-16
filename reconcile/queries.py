@@ -307,6 +307,7 @@ JENKINS_INSTANCES_QUERY = """
       labelString
       numExecutors
       idleMinutes
+      initOnlineTimeoutSec
       minSpareSize
       maxTotalUses
       noDelayProvision
