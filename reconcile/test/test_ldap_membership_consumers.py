@@ -222,19 +222,19 @@ def test_github_org_resolves_source_members(
     assert len(state) == 2
 
 
-def test_change_owners_accepts_unaudited_ldap_source(
+def test_change_owners_ignores_ldap_member_source(
     ldap_endpoint: AsyncMock, mocker: MockerFixture
 ) -> None:
+    """change-owners must not resolve LDAP memberSources for approvers -
+    see https://redhat.atlassian.net/browse/APPSRE-15570."""
     role = build_self_service_role(
         name="role",
         change_type_name="change",
         datafiles=[DatafileObjectV1(datafileSchema="schema-1.yml", path="file.yml")],
-        users=[],
+        users=["bob"],
     )
     role.member_sources = [
-        build_ldap_membership_source(
-            name="ldap", group="source-team", has_audit_trail=False
-        )
+        build_ldap_membership_source(name="ldap", group="source-team")
     ]
     change_type = build_change_type(
         name="change", change_selectors=["allowed"], context_schema="schema-1.yml"
@@ -253,8 +253,8 @@ def test_change_owners_accepts_unaudited_ldap_source(
         [change],
     )
     assert len(contexts) == 1
-    assert contexts[0][1].approvers == [Approver("alice", None)]
-    ldap_endpoint.assert_awaited_once()
+    assert contexts[0][1].approvers == [Approver("bob", False)]
+    ldap_endpoint.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -869,14 +869,16 @@ def test_cluster_source_members_are_reconciled(
         } == {("add_user_to_group", "alice"), ("del_user_from_group", "existing")}
 
 
-def test_change_owners_uses_comparison_bundle_for_resolution(
+def test_change_owners_uses_comparison_bundle_without_ldap_resolution(
     ldap_endpoint: AsyncMock, mocker: MockerFixture
 ) -> None:
+    """Roles are still fetched from the comparison bundle, but a role's LDAP
+    memberSources entry must never trigger an LDAP lookup from change-owners -
+    see https://redhat.atlassian.net/browse/APPSRE-15570."""
     from reconcile.change_owners.change_owners import cover_changes
-    from reconcile.utils.membershipsources import async_resolver as role_members
 
     role = build_self_service_role(
-        name="role", change_type_name="change", datafiles=[], users=[]
+        name="role", change_type_name="change", datafiles=[], users=["bob"]
     )
     role.member_sources = [
         build_ldap_membership_source(name="ldap", group="source-team")
@@ -886,10 +888,9 @@ def test_change_owners_uses_comparison_bundle_for_resolution(
     mocker.patch(
         "reconcile.change_owners.change_owners.cover_changes_with_implicit_ownership"
     )
-    lookup = mocker.spy(role_members, "get_ldap_settings")
     cover_changes([], [], comparison_api)
-    lookup.assert_called_once_with(query_func=comparison_api.query)
-    ldap_endpoint.assert_awaited_once()
+    comparison_api.query.assert_called_once()
+    ldap_endpoint.assert_not_awaited()
 
 
 def test_acs_explicit_empty_roles_preserve_previous_desired_state(
