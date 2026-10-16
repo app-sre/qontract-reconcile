@@ -57,6 +57,7 @@ class JenkinsWorkerFleet(BaseModel):
     label_string: str = Field(..., alias="labelString")
     num_executors: int = Field(2, alias="numExecutors")
     idle_minutes: int = Field(30, alias="idleMinutes")
+    init_online_timeout_sec: int = Field(180, alias="initOnlineTimeoutSec")
     min_spare_size: int = Field(0, alias="minSpareSize")
     max_total_uses: int = Field(-1, alias="maxTotalUses")
     no_delay_provision: bool = Field(False, alias="noDelayProvision")

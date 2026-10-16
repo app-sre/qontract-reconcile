@@ -160,6 +160,27 @@ gql_response:
           - provider: asg
             identifier: test-add-sshConnector-prefixStartSlaveCmd
             defaults: "/terraform/resources/asg-1.yml"
+    - account: app-sre
+      identifier: test-update-initOnlineTimeoutSec
+      sshConnector:
+        credentialsId: jenkins
+      fsRoot: "/var/lib/jenkins"
+      labelString: rhel7
+      numExecutors: 3
+      initOnlineTimeoutSec: 600
+      namespace:
+        name: app-sre
+        managedExternalResources: true
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+            resourcesDefaultRegion: us-east-1
+          resources:
+          - provider: aws-iam-service-account
+          - provider: asg
+            identifier: test-update-initOnlineTimeoutSec
+            defaults: "/terraform/resources/asg-1.yml"
 
   - name: ci-ext
     workerFleets:
