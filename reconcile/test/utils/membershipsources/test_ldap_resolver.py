@@ -24,7 +24,7 @@ _MOD = "reconcile.utils.membershipsources.ldap_resolver"
 
 def _ldap_settings(*, with_credentials: bool = True) -> LdapSettingsV1:
     return LdapSettingsV1(
-        serverUrl="ldap://freeipa.example.com",
+        serverUrls=["ldap://freeipa.example.com", "ldap://replica.example.com"],
         baseDn="dc=example,dc=com",
         credentials=VaultSecret(
             path="secret/ldap/bind",
@@ -92,7 +92,10 @@ async def test_resolve_calls_endpoint_and_maps_result() -> None:
     mock_client.assert_called_once()
     request = mock_client.call_args[0][0]
     assert request.groups == ["team-a"]
-    assert request.secret.server_url == "ldap://freeipa.example.com"
+    assert request.secret.server_urls == [
+        "ldap://freeipa.example.com",
+        "ldap://replica.example.com",
+    ]
     assert request.secret.base_dn == "dc=example,dc=com"
     assert request.secret.secret_manager_url == "https://vault.example.com"
 

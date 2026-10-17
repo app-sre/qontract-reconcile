@@ -8,14 +8,14 @@
 # ===============================================
 #
 # Without OPA, a compromised JWT can call e.g. POST /external/ldap/users/check
-# with an attacker-controlled server_url and an arbitrary Vault path.
+# with attacker-controlled server_urls and an arbitrary Vault path.
 # qontract-api resolves the Vault secret and sends the credential to the
 # attacker's LDAP server -> credential exfiltration via SSRF.
 #
 # With OPA, the "ldap-role" below restricts:
-#   - secret.server_url MUST match ^ldaps?://freeipa\.example\.com$
+#   - every secret.server_urls entry MUST match ^ldaps?://freeipa\.example\.com$
 #   - secret.path MUST match ^app-sre/creds/ldap
-# An attacker providing server_url: "ldap://evil.com" or
+# An attacker providing server_urls: ["ldap://evil.com"] or
 # path: "other-team/creds/aws" gets HTTP 403.
 #
 # Similarly, "vcs-role" restricts repo_url to known Git hosts,
@@ -62,7 +62,7 @@ roles:
   ldap-role:
     - obj: ldap-users-check
       params:
-        secret.server_url: "^ldaps?://freeipa\\.example\\.com$"
+        secret.server_urls: "^ldaps?://freeipa\\.example\\.com$"
         secret.path: "^app-sre/creds/ldap(/.*)?$"
         secret.secret_manager_url: "^https://vault\\.example\\.com$"
 

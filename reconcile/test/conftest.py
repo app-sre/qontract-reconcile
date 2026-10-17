@@ -42,7 +42,7 @@ def ldap_endpoint(mocker: MockerFixture) -> AsyncMock:
     settings.credentials.path = "ldap/creds"
     settings.credentials.field = "password"
     settings.credentials.version = None
-    settings.server_url = "ldaps://ldap.example.com"
+    settings.server_urls = ["ldaps://ldap.example.com"]
     settings.base_dn = "dc=example,dc=com"
     mocker.patch(
         "reconcile.utils.membershipsources.async_resolver.get_ldap_settings",

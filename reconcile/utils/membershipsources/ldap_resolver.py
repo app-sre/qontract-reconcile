@@ -28,7 +28,7 @@ class LdapSettings(Protocol):
     """
 
     @property
-    def server_url(self) -> str: ...
+    def server_urls(self) -> list[str]: ...
 
     @property
     def base_dn(self) -> str: ...
@@ -87,7 +87,7 @@ def create_ldap_membership_resolver(
                     path=ldap_settings.credentials.path,
                     field=ldap_settings.credentials.field,
                     version=ldap_settings.credentials.version,
-                    server_url=ldap_settings.server_url,
+                    server_urls=ldap_settings.server_urls,
                     base_dn=ldap_settings.base_dn,
                 ),
             )

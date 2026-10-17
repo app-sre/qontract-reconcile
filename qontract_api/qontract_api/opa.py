@@ -25,21 +25,23 @@ opa_decisions_total = Counter(
 )
 
 
-def flatten_params(data: dict[str, Any], *, prefix: str = "") -> dict[str, str]:
+def flatten_params(
+    data: dict[str, Any], *, prefix: str = ""
+) -> dict[str, str | list[str]]:
     """Flatten nested dict to dot-notation for OPA parameter matching.
 
     Converts nested structures like {"secret": {"path": "x"}} to
     {"secret.path": "x"} so OPA's valid_params regex matching works
     uniformly across query params and POST body fields.
     """
-    result: dict[str, str] = {}
+    result: dict[str, str | list[str]] = {}
     for key, value in data.items():
         full_key = f"{prefix}{key}" if not prefix else f"{prefix}.{key}"
         match value:
             case dict():
                 result.update(flatten_params(value, prefix=full_key))
             case list():
-                pass
+                result[full_key] = [str(item) for item in value]
             case None:
                 pass
             case _:
@@ -77,7 +79,7 @@ class OPAClient:
         *,
         username: str,
         obj: str,
-        params: dict[str, str],
+        params: dict[str, str | list[str]],
         request_id: str = "",
     ) -> None:
         """Query OPA and raise HTTP 403 on denial or error (fail-closed)."""

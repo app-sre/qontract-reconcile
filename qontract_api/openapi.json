@@ -2376,7 +2376,7 @@
         "type": "object"
       },
       "LdapDirectSecret": {
-        "description": "VaultSecret reference for FreeIPA direct LDAP access.\n\nThe referenced Vault path must contain bind_dn and bind_password fields.\nNo plain credentials are transmitted via API -- only Vault path references.\n\nAttributes:\n    server_url: LDAP server URL (e.g., \"ldap://freeipa.example.com\")\n    base_dn: Base DN for LDAP searches (e.g., \"dc=example,dc=com\")\n    (inherited) secret_manager_url, path, field, version: Vault secret ref",
+        "description": "VaultSecret reference for FreeIPA direct LDAP access.\n\nThe referenced Vault path must contain bind_dn and bind_password fields.\nNo plain credentials are transmitted via API -- only Vault path references.\n\nAttributes:\n    server_urls: LDAP replica URLs, sharing the bind credentials and base DN\n    base_dn: Base DN for LDAP searches (e.g., \"dc=example,dc=com\")\n    (inherited) secret_manager_url, path, field, version: Vault secret ref",
         "properties": {
           "base_dn": {
             "description": "Base DN for LDAP searches",
@@ -2405,10 +2405,15 @@
             "title": "Secret Manager Url",
             "type": "string"
           },
-          "server_url": {
-            "description": "LDAP server URL",
-            "title": "Server Url",
-            "type": "string"
+          "server_urls": {
+            "description": "LDAP replica URLs",
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Server Urls",
+            "type": "array"
           },
           "version": {
             "anyOf": [
@@ -2426,7 +2431,7 @@
         "required": [
           "secret_manager_url",
           "path",
-          "server_url",
+          "server_urls",
           "base_dn"
         ],
         "title": "LdapDirectSecret",
