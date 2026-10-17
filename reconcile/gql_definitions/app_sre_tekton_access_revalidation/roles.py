@@ -17,18 +17,57 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
+
 
 DEFINITION = """
+fragment RoleMembershipSource on RoleMembershipSource_V1 {
+  group
+  provider {
+    name
+    hasAuditTrail
+    source {
+      provider
+      ... on AppInterfaceMembershipProviderSource_V1 {
+        url
+        username {
+          ...VaultSecret
+        }
+        password {
+          ...VaultSecret
+        }
+      }
+    }
+  }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+  url
+  path
+  field
+  version
+  format
+}
+
 query AppSRETektonAccessRevalidationRoles {
   roles: roles_v1 {
+    name
     path
+    memberSources {
+      ...RoleMembershipSource
+    }
     access {
       clusterRole
       namespace {
+        name
         path
+        cluster {
+          name
+        }
       }
     }
     users {
+      name
       org_username
       path
     }
@@ -43,8 +82,14 @@ class ConfiguredBaseModel(BaseModel):
     )
 
 
+class ClusterV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class NamespaceV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
     path: str = Field(..., alias="path")
+    cluster: ClusterV1 = Field(..., alias="cluster")
 
 
 class AccessV1(ConfiguredBaseModel):
@@ -53,12 +98,15 @@ class AccessV1(ConfiguredBaseModel):
 
 
 class UserV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
     org_username: str = Field(..., alias="org_username")
     path: str = Field(..., alias="path")
 
 
 class RoleV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
     path: str = Field(..., alias="path")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
     access: Optional[list[AccessV1]] = Field(..., alias="access")
     users: list[UserV1] = Field(..., alias="users")
 

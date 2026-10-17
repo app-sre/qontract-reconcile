@@ -21,6 +21,10 @@ query Emails {
         }
       }
       roles {
+        name
+        memberSources {
+          ...RoleMembershipSource
+        }
         users {
           ...EmailUser
         }

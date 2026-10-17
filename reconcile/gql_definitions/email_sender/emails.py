@@ -19,6 +19,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 from reconcile.gql_definitions.fragments.email_service import EmailServiceOwners
 from reconcile.gql_definitions.fragments.email_user import EmailUser
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
 
 
 DEFINITION = """
@@ -30,6 +31,34 @@ fragment EmailServiceOwners on App_v1 {
 
 fragment EmailUser on User_v1 {
   org_username
+}
+
+fragment RoleMembershipSource on RoleMembershipSource_V1 {
+  group
+  provider {
+    name
+    hasAuditTrail
+    source {
+      provider
+      ... on AppInterfaceMembershipProviderSource_V1 {
+        url
+        username {
+          ...VaultSecret
+        }
+        password {
+          ...VaultSecret
+        }
+      }
+    }
+  }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+  url
+  path
+  field
+  version
+  format
 }
 
 query Emails {
@@ -53,6 +82,10 @@ query Emails {
         }
       }
       roles {
+        name
+        memberSources {
+          ...RoleMembershipSource
+        }
         users {
           ...EmailUser
         }
@@ -90,6 +123,8 @@ class AWSAccountV1(ConfiguredBaseModel):
 
 
 class RoleV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
     users: list[EmailUser] = Field(..., alias="users")
 
 
