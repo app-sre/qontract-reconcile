@@ -108,16 +108,22 @@ _YAML_MODIFIERS: dict[PathType, Callable[[str, str], str]] = {
 # --- Async file operations builders ---
 
 
-async def build_app_interface_file_operations(
+async def build_batched_app_interface_file_operations(
     *,
-    user: UserPaths,
+    users: Iterable[UserPaths],
     vcs_get_file: Callable[..., Awaitable[str | None]],
     commit_message: str,
 ) -> list[FileSyncFileOp]:
-    """Build file operations for deleting a user from app-interface.
+    """Build file operations for deleting multiple users from app-interface.
+
+    Modifications to a path shared by several users are coalesced into a single
+    FileSyncUpdate (applying each user's removal to the same base content) instead
+    of one FileSyncUpdate per user per path. The VCS layer applies updates as
+    sequential fetch-then-overwrite commits, so multiple independent updates to
+    the same path would otherwise silently lose all but the last one's changes.
 
     Args:
-        user: User paths to process
+        users: Users to process
         vcs_get_file: Async function to read file content (path kwarg)
         commit_message: Commit message for all operations
 
@@ -129,20 +135,30 @@ async def build_app_interface_file_operations(
             path=path_spec.path,
             commit_message=commit_message,
         )
+        for user in users
         for path_spec in user.delete_file_paths
     ]
 
-    for path_spec in user.modify_file_paths:
-        if (raw_yaml := await vcs_get_file(path=path_spec.path)) is None:
+    usernames_by_path: dict[str, list[str]] = {}
+    path_types: dict[str, PathType] = {}
+    for user in users:
+        for path_spec in user.modify_file_paths:
+            usernames_by_path.setdefault(path_spec.path, []).append(user.username)
+            path_types[path_spec.path] = path_spec.type
+
+    for path, usernames in usernames_by_path.items():
+        if (raw_yaml := await vcs_get_file(path=path)) is None:
             continue
 
-        modifier = _YAML_MODIFIERS[path_spec.type]
-        modified_yaml = modifier(raw_yaml, user.username)
+        modifier = _YAML_MODIFIERS[path_types[path]]
+        modified_yaml = raw_yaml
+        for username in usernames:
+            modified_yaml = modifier(modified_yaml, username)
 
         if modified_yaml != raw_yaml:
             operations.append(
                 FileSyncUpdate(
-                    path=path_spec.path,
+                    path=path,
                     content=modified_yaml,
                     commit_message=commit_message,
                 )

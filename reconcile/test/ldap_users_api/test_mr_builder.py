@@ -7,7 +7,7 @@ from qontract_api_client.schemas import FileSyncDelete, FileSyncUpdate
 
 from reconcile.ldap_users_api.models import PathSpec, PathType, UserPaths
 from reconcile.ldap_users_api.mr_builder import (
-    build_app_interface_file_operations,
+    build_batched_app_interface_file_operations,
     build_infra_file_operations,
 )
 
@@ -64,8 +64,8 @@ async def test_build_delete_only_operations() -> None:
     )
     vcs_get_file = AsyncMock()
 
-    ops = await build_app_interface_file_operations(
-        user=user,
+    ops = await build_batched_app_interface_file_operations(
+        users=[user],
         vcs_get_file=vcs_get_file,
         commit_message="Remove user alice",
     )
@@ -91,8 +91,8 @@ async def test_build_gabi_modification() -> None:
     )
     vcs_get_file = AsyncMock(return_value=GABI_FILE)
 
-    ops = await build_app_interface_file_operations(
-        user=user,
+    ops = await build_batched_app_interface_file_operations(
+        users=[user],
         vcs_get_file=vcs_get_file,
         commit_message="Remove user alice",
     )
@@ -119,8 +119,8 @@ async def test_build_mixed_operations() -> None:
     )
     vcs_get_file = AsyncMock(return_value=GABI_FILE)
 
-    ops = await build_app_interface_file_operations(
-        user=user,
+    ops = await build_batched_app_interface_file_operations(
+        users=[user],
         vcs_get_file=vcs_get_file,
         commit_message="Remove user alice",
     )
@@ -153,8 +153,8 @@ async def test_build_aws_accounts_modification() -> None:
     )
     vcs_get_file = AsyncMock(return_value=AWS_ACCOUNTS_FILE)
 
-    ops = await build_app_interface_file_operations(
-        user=user,
+    ops = await build_batched_app_interface_file_operations(
+        users=[user],
         vcs_get_file=vcs_get_file,
         commit_message="Remove user alice",
     )
@@ -179,8 +179,8 @@ async def test_build_schedule_modification() -> None:
     )
     vcs_get_file = AsyncMock(return_value=SCHEDULE_FILE)
 
-    ops = await build_app_interface_file_operations(
-        user=user,
+    ops = await build_batched_app_interface_file_operations(
+        users=[user],
         vcs_get_file=vcs_get_file,
         commit_message="Remove user alice",
     )
@@ -206,8 +206,8 @@ async def test_build_no_changes() -> None:
     )
     vcs_get_file = AsyncMock(return_value=GABI_FILE)
 
-    ops = await build_app_interface_file_operations(
-        user=user,
+    ops = await build_batched_app_interface_file_operations(
+        users=[user],
         vcs_get_file=vcs_get_file,
         commit_message="Remove user nonexistent",
     )
@@ -215,6 +215,144 @@ async def test_build_no_changes() -> None:
     # No changes, so no operations
     assert len(ops) == 0
     vcs_get_file.assert_called_once_with(path="data/services/gabi/users.yml")
+
+
+# --- build_batched_app_interface_file_operations ---
+
+
+@pytest.mark.asyncio
+async def test_build_batched_empty_users() -> None:
+    """Test building batched operations with no users returns no operations."""
+    vcs_get_file = AsyncMock()
+
+    ops = await build_batched_app_interface_file_operations(
+        users=[],
+        vcs_get_file=vcs_get_file,
+        commit_message="Remove offboarded users",
+    )
+
+    assert ops == []
+    vcs_get_file.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_build_batched_disjoint_users() -> None:
+    """Test batching users with no overlapping paths produces all delete+update ops."""
+    alice = UserPaths(
+        username="alice",
+        paths=[
+            PathSpec(type=PathType.USER, path="/access/users/alice.yml"),
+            PathSpec(type=PathType.GABI, path="/services/gabi/alice-only.yml"),
+        ],
+    )
+    bob = UserPaths(
+        username="bob",
+        paths=[
+            PathSpec(type=PathType.USER, path="/access/users/bob.yml"),
+        ],
+    )
+
+    async def mock_get_file(*, path: str) -> str | None:  # ruff: ignore[unused-async]
+        if path == "data/services/gabi/alice-only.yml":
+            return GABI_FILE
+        return None
+
+    ops = await build_batched_app_interface_file_operations(
+        users=[alice, bob],
+        vcs_get_file=mock_get_file,
+        commit_message="Remove offboarded users",
+    )
+
+    delete_ops = [op for op in ops if isinstance(op, FileSyncDelete)]
+    modify_ops = [op for op in ops if isinstance(op, FileSyncUpdate)]
+
+    assert {op.path for op in delete_ops} == {
+        "data/access/users/alice.yml",
+        "data/access/users/bob.yml",
+    }
+    assert len(modify_ops) == 1
+    assert modify_ops[0].path == "data/services/gabi/alice-only.yml"
+    assert "/access/users/alice.yml" not in modify_ops[0].content
+    assert "/access/users/bob.yml" in modify_ops[0].content
+
+
+@pytest.mark.asyncio
+async def test_build_batched_shared_gabi_file_merges_both_removals() -> None:
+    """Test that two users sharing the same GABI file both get removed in one update.
+
+    This guards against the VCS same-path last-write-wins behavior: if each
+    user's modification were built independently and both emitted as separate
+    FileSyncUpdate ops for the same path, only the last one would survive.
+    """
+    alice = UserPaths(
+        username="alice",
+        paths=[PathSpec(type=PathType.GABI, path="/services/gabi/shared.yml")],
+    )
+    bob = UserPaths(
+        username="bob",
+        paths=[PathSpec(type=PathType.GABI, path="/services/gabi/shared.yml")],
+    )
+    vcs_get_file = AsyncMock(return_value=GABI_FILE)
+
+    ops = await build_batched_app_interface_file_operations(
+        users=[alice, bob],
+        vcs_get_file=vcs_get_file,
+        commit_message="Remove offboarded users",
+    )
+
+    assert len(ops) == 1
+    op = ops[0]
+    assert isinstance(op, FileSyncUpdate)
+    assert op.path == "data/services/gabi/shared.yml"
+    assert "/access/users/alice.yml" not in op.content
+    assert "/access/users/bob.yml" not in op.content
+    # File is only fetched once per shared path, not once per user
+    vcs_get_file.assert_called_once_with(path="data/services/gabi/shared.yml")
+
+
+@pytest.mark.asyncio
+async def test_build_batched_shared_schedule_file_merges_both_removals() -> None:
+    """Test that two users sharing the same schedule file both get removed."""
+    alice = UserPaths(
+        username="alice",
+        paths=[PathSpec(type=PathType.SCHEDULE, path="/services/schedule.yml")],
+    )
+    bob = UserPaths(
+        username="bob",
+        paths=[PathSpec(type=PathType.SCHEDULE, path="/services/schedule.yml")],
+    )
+    vcs_get_file = AsyncMock(return_value=SCHEDULE_FILE)
+
+    ops = await build_batched_app_interface_file_operations(
+        users=[alice, bob],
+        vcs_get_file=vcs_get_file,
+        commit_message="Remove offboarded users",
+    )
+
+    assert len(ops) == 1
+    op = ops[0]
+    assert isinstance(op, FileSyncUpdate)
+    assert "/access/users/alice.yml" not in op.content
+    assert "/access/users/bob.yml" not in op.content
+    assert "/access/users/charlie.yml" in op.content
+
+
+@pytest.mark.asyncio
+async def test_build_batched_no_changes_when_file_missing() -> None:
+    """Test that a missing file (404) produces no operation for that path."""
+    user = UserPaths(
+        username="alice",
+        paths=[PathSpec(type=PathType.GABI, path="/services/gabi/missing.yml")],
+    )
+    vcs_get_file = AsyncMock(return_value=None)
+
+    ops = await build_batched_app_interface_file_operations(
+        users=[user],
+        vcs_get_file=vcs_get_file,
+        commit_message="Remove offboarded users",
+    )
+
+    assert ops == []
 
 
 INFRA_ADMINS = """---

@@ -2150,6 +2150,15 @@ def managed_sso_client(ctx: click.Context) -> None:
     default=["ldap-users"],
     help="Labels to apply to created MRs (repeatable).",
 )
+@click.option(
+    "--auto-merge-threshold",
+    type=int,
+    default=10,
+    help=(
+        "If the number of users to delete in a run exceeds this threshold, "
+        "auto-merge is suppressed on the resulting MR(s), requiring manual review."
+    ),
+)
 @click.pass_context
 def ldap_users_api(
     ctx: click.Context,
@@ -2159,6 +2168,7 @@ def ldap_users_api(
     infra_target_branch: str,
     infra_path: tuple[str, ...],
     label: tuple[str, ...],
+    auto_merge_threshold: int,
 ) -> None:
     from reconcile.ldap_users_api.integration import (
         LdapUsersApiIntegration,
@@ -2174,6 +2184,7 @@ def ldap_users_api(
                 infra_target_branch=infra_target_branch,
                 infra_paths=list(infra_path),
                 labels=list(label),
+                auto_merge_threshold=auto_merge_threshold,
             )
         ),
         ctx=ctx,
