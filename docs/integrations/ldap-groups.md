@@ -1,6 +1,6 @@
 # LDAP Groups Integration
 
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-19
 
 ## Description
 
@@ -15,6 +15,15 @@ Manages Internal Groups (LDAP/Rover) group membership and metadata from App-Inte
 - Loads `managed_groups` from S3 state
 - POSTs desired state + managed names to qontract-api
 - Persists `updated_managed_groups` from the task result to S3 on non-dry-run runs, including when the task reports errors (partial apply), then fails the integration so operators are alerted
+- On bookmark persist, writes `state/ldap-groups-api/managed_groups` and mirrors `state/ldap-groups/managed_groups` for legacy rollback
+- Persists `pending_task` (`id`, `status_url`) before polling; the next run recovers that task before submitting again
+
+### Rollback to legacy `ldap-groups`
+
+1. Stop `ldap-groups-api`.
+2. Wait for in-flight tasks (or let the next API run recover `pending_task`).
+3. Enable `ldap-groups` (reads `state/ldap-groups/managed_groups`, kept in sync by the API client).
+4. Do not run both jobs long term.
 
 **Server (`qontract_api/integrations/ldap_groups/`):**
 

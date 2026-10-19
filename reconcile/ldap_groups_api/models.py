@@ -72,11 +72,7 @@ def validate_no_circular_memberships(
 
 
 class LdapGroupMember(BaseModel, extra="ignore"):
-    """Minimal member shape for resolve_role_members output.
-
-    memberSources-resolved members only populate org_username, so every
-    other field must be optional.
-    """
+    """resolve_role_members output; memberSource entries may only set org_username."""
 
     org_username: str
 
@@ -156,10 +152,19 @@ def get_desired_groups_for_aws_roles(
     default_owners: Iterable[Entity],
     contact_list: str,
     aws_sso_namespace: str,
+    resolved_members: Mapping[str, list[LdapGroupMember]] | None = None,
 ) -> list[Group]:
     groups: list[Group] = []
     for role in roles:
-        if not role.users or (not role.aws_groups and not role.user_policies):
+        if not role.aws_groups and not role.user_policies:
+            continue
+        if resolved_members is not None:
+            role_members = resolved_members.get(role.name, [])
+        else:
+            role_members = [
+                LdapGroupMember(org_username=u.org_username) for u in (role.users or [])
+            ]
+        if not role_members:
             continue
         user_policies = role.user_policies or []
         aws_groups = role.aws_groups or []
@@ -176,8 +181,8 @@ def get_desired_groups_for_aws_roles(
                     ),
                     display_name=group_name,
                     members=[
-                        Entity(type=EntityType.USER, id=user.org_username)
-                        for user in role.users
+                        Entity(type=EntityType.USER, id=member.org_username)
+                        for member in role_members
                     ],
                     owners=list(default_owners),
                     contact_list=contact_list,

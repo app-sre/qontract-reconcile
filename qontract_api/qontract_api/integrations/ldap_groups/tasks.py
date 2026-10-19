@@ -48,6 +48,7 @@ def reconcile_ldap_groups_task(
     dry_run: bool = True,
 ) -> LdapGroupsTaskResult:
     request_id = self.request.id
+    event_manager = None
     try:
         event_manager = get_event_manager()
         cache = get_cache()
@@ -65,12 +66,26 @@ def reconcile_ldap_groups_task(
         )
     except Exception as err:
         logger.exception(f"Task {request_id} failed with error")
-        # Echo the input bookmark so the client does not treat a crash as empty state.
+        error_message = f"Unexpected {err=}"
+        if not dry_run and event_manager:
+            try:
+                event_manager.publish_event(
+                    Event(
+                        source=__name__,
+                        type="qontract-api.ldap-groups.error",
+                        data=LdapGroupsErrorEvent(error=error_message).model_dump(
+                            mode="json"
+                        ),
+                        datacontenttype="application/json",
+                    )
+                )
+            except Exception:
+                logger.exception(f"Task {request_id} failed to publish error event")
         return LdapGroupsTaskResult(
             status=TaskStatus.FAILED,
             actions=[],
             applied_count=0,
-            errors=[f"Unexpected {err=}"],
+            errors=[error_message],
             updated_managed_groups=sorted(managed_group_names),
         )
 
