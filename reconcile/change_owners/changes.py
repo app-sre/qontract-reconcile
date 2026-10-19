@@ -22,7 +22,6 @@ from reconcile.change_owners.bundle import (
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     ChangeTypePriority,
-    ChangeTypeProcessor,
     DiffCoverage,
 )
 from reconcile.change_owners.diff import (
@@ -210,15 +209,19 @@ class BundleFileChange:
             labels.update(dc.change_owner_labels)
         return labels
 
-    def involved_change_types(self) -> list[ChangeTypeProcessor]:
+    def diff_priorities(self) -> list[ChangeTypePriority]:
         """
-        returns all the change-types that are involved in the coverage
-        of all changes
+        Return the highest covering priority for each distinct part of a diff.
+
+        Walk the full split tree so empty-object fragments omitted by
+        `diff_coverage` still inherit their ancestors' priorities. A parent's
+        priority only contributes separately when some of its content is not
+        represented by its splits.
         """
         return [
-            ctx.change_type_processor
-            for dc in self.diff_coverage
-            for ctx in dc.coverage
+            priority
+            for dc in self._diff_coverage.values()
+            for priority in _get_diff_priorities(dc)
         ]
 
 
@@ -306,15 +309,72 @@ def _create_bundle_file_change(
     return None
 
 
+# ChangeTypePriority members are declared in decreasing priority order, so
+# index() doubles as an urgency rank (lower index == more urgent).
+_CHANGE_TYPE_PRIORITY_ORDER = list(ChangeTypePriority)
+
+
+def _get_diff_priorities(
+    dc: DiffCoverage, inherited_priority: ChangeTypePriority | None = None
+) -> list[ChangeTypePriority]:
+    covering_priorities = [
+        ctx.change_type_processor.priority for ctx in dc.coverage if not ctx.disabled
+    ]
+    if inherited_priority is not None:
+        covering_priorities.append(inherited_priority)
+    priority = min(
+        covering_priorities, key=_CHANGE_TYPE_PRIORITY_ORDER.index, default=None
+    )
+
+    # Pass ancestor coverage explicitly: cover_changes() can append it after
+    # splits have been created, without updating those splits' coverage lists.
+    priorities = [
+        child_priority
+        for fragment in dc.diff_fragments
+        for child_priority in _get_diff_priorities(fragment, priority)
+    ]
+    if priority is not None and _has_unsplit_content(dc):
+        priorities.append(priority)
+    return priorities
+
+
+def _has_unsplit_content(dc: DiffCoverage) -> bool:
+    """Check whether any content needs the parent's own priority."""
+    if not dc.diff_fragments:
+        return True
+
+    content = dc.diff.get_context_data_copy()
+    represented_by_split = object()
+    for fragment in dc.diff_fragments:
+        # Mark instead of deleting so list indices remain stable. Every split
+        # contributes its own priorities, including inherited coverage.
+        fragment.relative_path().update(content, represented_by_split)
+
+    def has_content(value: Any) -> bool:
+        if value is represented_by_split:
+            return False
+        if isinstance(value, dict):
+            return not value or any(has_content(item) for item in value.values())
+        if isinstance(value, list):
+            return not value or any(has_content(item) for item in value)
+        # Scalars and empty containers are real changes until explicitly marked.
+        return True
+
+    return has_content(content)
+
+
 def get_priority_for_changes(
     bundle_file_changes: list[BundleFileChange],
 ) -> ChangeTypePriority | None:
     """
-    Finds the lowest priority of all change types involved in the provided bundle file changes.
+    Finds the lowest priority across all diffs in the provided bundle file
+    changes, where a diff covered by multiple change-types first resolves to
+    the highest of those priorities (see `BundleFileChange.diff_priorities`).
+    The conservative, lowest-wins rule still applies across distinct diffs:
+    an MR that also touches content only covered by a lower-priority
+    change-type keeps that lower priority overall.
     """
-    priorities = {
-        ct.priority for bfc in bundle_file_changes for ct in bfc.involved_change_types()
-    }
+    priorities = {p for bfc in bundle_file_changes for p in bfc.diff_priorities()}
     # get the lowest priority
     for p in reversed(ChangeTypePriority):
         if p in priorities:
