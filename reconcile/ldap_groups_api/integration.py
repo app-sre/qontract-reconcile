@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from botocore.exceptions import ClientError
 from qontract_api_client.client import ldap_groups as reconcile_ldap_groups
@@ -30,8 +31,11 @@ from reconcile.ldap_groups_api.models import (
     get_roles,
     validate_no_circular_memberships,
 )
+from reconcile.typed_queries.ldap_settings import get_ldap_settings
 from reconcile.utils import gql
+from reconcile.utils.json import json_dumps
 from reconcile.utils.membershipsources.async_resolver import resolve_role_members
+from reconcile.utils.membershipsources.models import has_ldap_sources
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -46,6 +50,12 @@ if TYPE_CHECKING:
     from reconcile.utils.state import State
 
 LEGACY_INTEGRATION = "ldap-groups"
+PENDING_TASK_STATE_KEY = "pending_task"
+
+
+class PendingTaskRef(TypedDict):
+    id: str
+    status_url: str
 
 
 class LdapGroupsApiIntegrationParams(PydanticRunParams):
@@ -84,9 +94,30 @@ class LdapGroupsApiIntegration(
                 roles=roles,
                 settings=settings,
                 secret=secret,
+                query_func=gql_api.query,
             )
         finally:
             state_obj.cleanup()
+
+    @staticmethod
+    def _should_persist_bookmark(task_result: LdapGroupsTaskResult) -> bool:
+        """True if the task returned a bookmark (not a synthetic empty list)."""
+        if task_result.updated_managed_groups:
+            return True
+        if task_result.status not in {TaskStatus.SUCCESS, TaskStatus.FAILED}:
+            return False
+        return bool(task_result.actions or task_result.applied_count)
+
+    @staticmethod
+    def _persist_managed_groups(state_obj: State, groups: list[str]) -> None:
+        """Persist to ldap-groups-api state and the legacy ldap-groups S3 key."""
+        state_obj["managed_groups"] = groups
+        legacy_key = f"state/{LEGACY_INTEGRATION}/managed_groups"
+        state_obj.client.put_object(
+            Bucket=state_obj.bucket,
+            Key=legacy_key,
+            Body=json_dumps(groups),
+        )
 
     @staticmethod
     def _load_managed_groups(state_obj: State) -> list[str]:
@@ -105,8 +136,53 @@ class LdapGroupsApiIntegration(
                 LEGACY_INTEGRATION,
             )
             return sorted(groups)
-        except ClientError, json.JSONDecodeError:
-            return []
+        except ClientError as err:
+            code = err.response.get("Error", {}).get("Code")
+            if code in {"NoSuchKey", "404"}:
+                return []
+            raise
+        except json.JSONDecodeError:
+            raise
+
+    @staticmethod
+    def _clear_pending_task(state_obj: State) -> None:
+        if state_obj.exists(PENDING_TASK_STATE_KEY):
+            state_obj.rm(PENDING_TASK_STATE_KEY)
+
+    @staticmethod
+    def _persist_pending_task(
+        state_obj: State, response: LdapGroupsTaskResponse
+    ) -> None:
+        state_obj[PENDING_TASK_STATE_KEY] = PendingTaskRef(
+            id=response.id,
+            status_url=response.status_url,
+        )
+
+    async def _recover_pending_task(self, state_obj: State, dry_run: bool) -> None:
+        try:
+            pending: PendingTaskRef = state_obj[PENDING_TASK_STATE_KEY]
+        except KeyError:
+            return
+
+        logging.info(
+            "Recovering pending ldap-groups-api task %s from prior run",
+            pending["id"],
+        )
+        task_result = await self.poll_task_status(
+            status_url=pending["status_url"],
+            result_type=LdapGroupsTaskResult,
+        )
+        if task_result.status == TaskStatus.PENDING:
+            raise IntegrationError(
+                "ldap-groups-api: previous reconciliation task "
+                f"{pending['id']} is still pending"
+            )
+
+        if not dry_run and self._should_persist_bookmark(task_result):
+            self._persist_managed_groups(
+                state_obj, list(task_result.updated_managed_groups or [])
+            )
+        self._clear_pending_task(state_obj)
 
     async def _run_reconcile(
         self,
@@ -115,13 +191,36 @@ class LdapGroupsApiIntegration(
         roles: list[RoleV1],
         settings: LdapGroupsSettingsV1,
         secret: dict[str, str],
+        query_func: Callable,
     ) -> None:
+        await self._recover_pending_task(state_obj, dry_run)
+
         owner = Entity(
             type=EntityType.SERVICE_ACCOUNT,
             id=f"service-account-{secret['client_id']}",
         )
 
-        resolved_members = await resolve_role_members(roles, user_cls=LdapGroupMember)
+        ldap_settings = None
+        if has_ldap_sources(roles):
+            ldap_settings = await asyncio.to_thread(
+                get_ldap_settings, query_func=query_func
+            )
+
+        resolved_roles = await resolve_role_members(
+            roles,
+            user_cls=LdapGroupMember,
+            query_func=query_func,
+            ldap_settings=ldap_settings,
+            secret_manager_url=self.secret_manager_url
+            if ldap_settings is not None
+            else None,
+        )
+        resolved_members = {
+            role.name: [
+                LdapGroupMember(org_username=m.org_username) for m in (role.users or [])
+            ]
+            for role in resolved_roles
+        }
 
         desired_groups = get_desired_groups_for_roles(
             roles,
@@ -133,6 +232,7 @@ class LdapGroupsApiIntegration(
             contact_list=settings.contact_list,
             default_owners=[owner],
             aws_sso_namespace=self.params.aws_sso_namespace,
+            resolved_members=resolved_members,
         )
         validate_no_circular_memberships(roles, desired_groups)
 
@@ -164,18 +264,23 @@ class LdapGroupsApiIntegration(
             response: LdapGroupsTaskResponse = await reconcile_ldap_groups(request)
         logging.info(f"request_id: {response.id}")
 
+        if not dry_run:
+            self._persist_pending_task(state_obj, response)
+
         try:
             task_result = await self.poll_task_status(
                 status_url=response.status_url, result_type=LdapGroupsTaskResult
             )
         except Exception:
             logging.exception(
-                "Polling failed for task %s at %s. "
-                "Preserving existing managed-groups bookmark.",
+                "Polling failed for task %s at %s; pending_task retained",
                 response.id,
                 response.status_url,
             )
             raise
+
+        if not dry_run:
+            self._clear_pending_task(state_obj)
 
         if task_result.status == TaskStatus.PENDING:
             raise IntegrationError(
@@ -185,14 +290,10 @@ class LdapGroupsApiIntegration(
         for action in task_result.actions or []:
             logging.info(f"{action.action_type=} {action.name=}")
 
-        # Persist on FAILED as well as SUCCESS when the server returns partial state.
-        # Do not persist on PENDING (poll timeout) or other non-terminal statuses.
-        if (
-            not dry_run
-            and task_result.status in {TaskStatus.SUCCESS, TaskStatus.FAILED}
-            and task_result.updated_managed_groups is not None
-        ):
-            state_obj["managed_groups"] = task_result.updated_managed_groups
+        if not dry_run and self._should_persist_bookmark(task_result):
+            self._persist_managed_groups(
+                state_obj, list(task_result.updated_managed_groups or [])
+            )
 
         if errors_summary := "; ".join(task_result.errors or []):
             raise IntegrationError(

@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+from qontract_utils.events import Event
 from qontract_utils.internal_groups_api.models import Entity, EntityType, Group
 
 from qontract_api.integrations.ldap_groups.schemas import LdapGroupsTaskResult
@@ -95,3 +96,96 @@ def test_reconcile_task_unexpected_error_returns_failed(
     assert result.status == TaskStatus.FAILED
     assert result.errors == ["Unexpected err=RuntimeError('boom')"]
     assert result.updated_managed_groups == ["a-group", "z-group"]
+
+
+def _mock_cache_backend() -> MagicMock:
+    cache = MagicMock()
+    cache.lock.return_value.__enter__ = MagicMock(return_value=None)
+    cache.lock.return_value.__exit__ = MagicMock(return_value=None)
+    return cache
+
+
+@patch("qontract_api.integrations.ldap_groups.tasks.get_event_manager")
+@patch("qontract_api.integrations.ldap_groups.tasks.LdapGroupsService")
+@patch("qontract_api.integrations.ldap_groups.tasks.get_secret_manager")
+@patch("qontract_api.integrations.ldap_groups.tasks.get_cache")
+@patch("qontract_api.tasks._deduplication.get_cache")
+def test_task_exception_publishes_error_event(
+    mock_dedup_cache: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_get_secret_manager: MagicMock,
+    mock_service_cls: MagicMock,
+    mock_get_event_manager: MagicMock,
+) -> None:
+    mock_dedup_cache.return_value = _mock_cache_backend()
+    mock_get_cache.return_value = _mock_cache_backend()
+    event_manager = MagicMock()
+    mock_get_event_manager.return_value = event_manager
+    mock_service_cls.return_value.reconcile.side_effect = RuntimeError("boom")
+
+    result = reconcile_ldap_groups_task.run(
+        CONNECTION,
+        [],
+        ["managed"],
+        dry_run=False,
+    )
+
+    assert result.status == TaskStatus.FAILED
+    event_manager.publish_event.assert_called_once()
+    event = event_manager.publish_event.call_args[0][0]
+    assert isinstance(event, Event)
+    assert event.type == "qontract-api.ldap-groups.error"
+
+
+@patch("qontract_api.integrations.ldap_groups.tasks.get_event_manager")
+@patch("qontract_api.integrations.ldap_groups.tasks.LdapGroupsService")
+@patch("qontract_api.integrations.ldap_groups.tasks.get_secret_manager")
+@patch("qontract_api.integrations.ldap_groups.tasks.get_cache")
+@patch("qontract_api.tasks._deduplication.get_cache")
+def test_task_exception_event_failure_doesnt_mask(
+    mock_dedup_cache: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_get_secret_manager: MagicMock,
+    mock_service_cls: MagicMock,
+    mock_get_event_manager: MagicMock,
+) -> None:
+    mock_dedup_cache.return_value = _mock_cache_backend()
+    mock_get_cache.return_value = _mock_cache_backend()
+    event_manager = MagicMock()
+    event_manager.publish_event.side_effect = RuntimeError("event bus down")
+    mock_get_event_manager.return_value = event_manager
+    mock_service_cls.return_value.reconcile.side_effect = RuntimeError("boom")
+
+    result = reconcile_ldap_groups_task.run(
+        CONNECTION,
+        [],
+        ["managed"],
+        dry_run=False,
+    )
+
+    assert result.status == TaskStatus.FAILED
+    assert "RuntimeError('boom')" in result.errors[0]
+
+
+@patch("qontract_api.integrations.ldap_groups.tasks.get_event_manager")
+@patch("qontract_api.tasks._deduplication.get_cache")
+def test_task_exception_before_event_manager_skips_publish(
+    mock_dedup_cache: MagicMock,
+    mock_get_event_manager: MagicMock,
+) -> None:
+    mock_dedup_cache.return_value = _mock_cache_backend()
+    mock_get_event_manager.side_effect = RuntimeError("no events")
+
+    with (
+        patch("qontract_api.integrations.ldap_groups.tasks.get_cache"),
+        patch("qontract_api.integrations.ldap_groups.tasks.get_secret_manager"),
+        patch("qontract_api.integrations.ldap_groups.tasks.LdapGroupsService"),
+    ):
+        result = reconcile_ldap_groups_task.run(
+            CONNECTION,
+            [],
+            ["managed"],
+            dry_run=False,
+        )
+
+    assert result.status == TaskStatus.FAILED

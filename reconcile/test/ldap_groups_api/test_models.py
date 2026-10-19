@@ -11,6 +11,7 @@ from qontract_utils.internal_groups_api.models import Entity, EntityType, Group
 
 from reconcile.gql_definitions.ldap_groups.roles import RoleV1
 from reconcile.ldap_groups_api.models import (
+    LdapGroupMember,
     get_desired_groups_for_aws_roles,
     get_desired_groups_for_roles,
     get_integration_settings,
@@ -185,3 +186,53 @@ def test_validate_no_circular_memberships_raises(
         pytest.raises(CircularMembershipError),
     ):
         validate_no_circular_memberships([role], [group])
+
+
+def test_aws_groups_source_only_members(
+    fx: Fixtures,
+    gql_class_factory: Callable[[type[RoleV1], Mapping[str, Any]], RoleV1],
+) -> None:
+    raw = fx.get_anymarkup("roles.yml")
+    role = gql_class_factory(
+        RoleV1,
+        next(item for item in raw["roles"] if item["name"] == "aws-role-aws-groups"),
+    )
+    role.users = []
+    owner = Entity(type=EntityType.SERVICE_ACCOUNT, id="sa-1")
+    resolved = {"aws-role-aws-groups": [LdapGroupMember(org_username="ldap-user")]}
+    groups = get_desired_groups_for_aws_roles(
+        [role],
+        default_owners=[owner],
+        contact_list="a@b.com",
+        aws_sso_namespace="rover-prefix",
+        resolved_members=resolved,
+    )
+    assert len(groups) == 1
+    assert groups[0].members[0].id == "ldap-user"
+
+
+def test_aws_groups_mixed_members(
+    fx: Fixtures,
+    gql_class_factory: Callable[[type[RoleV1], Mapping[str, Any]], RoleV1],
+) -> None:
+    raw = fx.get_anymarkup("roles.yml")
+    role = gql_class_factory(
+        RoleV1,
+        next(item for item in raw["roles"] if item["name"] == "aws-role-aws-groups"),
+    )
+    owner = Entity(type=EntityType.SERVICE_ACCOUNT, id="sa-1")
+    resolved = {
+        "aws-role-aws-groups": [
+            LdapGroupMember(org_username="pike"),
+            LdapGroupMember(org_username="source-user"),
+        ]
+    }
+    groups = get_desired_groups_for_aws_roles(
+        [role],
+        default_owners=[owner],
+        contact_list="a@b.com",
+        aws_sso_namespace="rover-prefix",
+        resolved_members=resolved,
+    )
+    member_ids = {m.id for m in groups[0].members}
+    assert member_ids == {"pike", "source-user"}
