@@ -15,7 +15,7 @@ from qontract_utils.ruamel import create_ruamel_instance, dump_yaml
 from reconcile.ldap_users_api.models import PathType, UserPaths
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Iterable
+    from collections.abc import Awaitable, Callable, Iterable, Sequence
 
 # Union type matching FileSyncRequest.file_operations
 FileSyncFileOp = FileSyncCreate | FileSyncDelete | FileSyncUpdate
@@ -110,7 +110,7 @@ _YAML_MODIFIERS: dict[PathType, Callable[[str, str], str]] = {
 
 async def build_batched_app_interface_file_operations(
     *,
-    users: Iterable[UserPaths],
+    users: Sequence[UserPaths],
     vcs_get_file: Callable[..., Awaitable[str | None]],
     commit_message: str,
 ) -> list[FileSyncFileOp]:
