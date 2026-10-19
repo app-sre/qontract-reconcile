@@ -43,6 +43,20 @@ valid_params(expected, provided) if {
 	# For non-null values, ensure they match using regex
 	non_null_keys := {k | expected[k] != null}
 	every k in non_null_keys {
-		regex.match(sprintf("(?i)%s", [expected[k]]), provided[k])
+		parameter_matches(expected[k], provided[k])
+	}
+}
+
+parameter_matches(pattern, value) if {
+	is_string(value)
+	regex.match(sprintf("(?i)%s", [pattern]), value)
+}
+
+parameter_matches(pattern, values) if {
+	is_array(values)
+	count(values) > 0
+	every value in values {
+		is_string(value)
+		regex.match(sprintf("(?i)%s", [pattern]), value)
 	}
 }

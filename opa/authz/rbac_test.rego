@@ -42,6 +42,27 @@ mock_data := {
 
 # ── Basic authorization ──────────────────────────────────────────
 
+test_replica_urls_all_match if {
+	authz.valid_params(
+		{"secret.server_urls": "^ldaps?://freeipa\\.example\\.com$"},
+		{"secret.server_urls": ["ldap://freeipa.example.com", "ldaps://freeipa.example.com"]},
+	)
+}
+
+test_replica_urls_reject_attacker if {
+	not authz.valid_params(
+		{"secret.server_urls": "^ldaps?://freeipa\\.example\\.com$"},
+		{"secret.server_urls": ["ldap://freeipa.example.com", "ldap://evil.example.com"]},
+	)
+}
+
+test_replica_urls_reject_empty_list if {
+	not authz.valid_params(
+		{"secret.server_urls": "^ldaps?://freeipa\\.example\\.com$"},
+		{"secret.server_urls": []},
+	)
+}
+
 test_admin_wildcard_authorized if {
 	authz.authorized with input as {
 		"username": "admin",

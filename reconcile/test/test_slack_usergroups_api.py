@@ -196,7 +196,7 @@ def _github_org() -> GithubOrgV1:
 
 def _ldap_settings(*, with_credentials: bool = True) -> LdapSettingsV1:
     return LdapSettingsV1(
-        serverUrl="ldap://freeipa.example.com",
+        serverUrls=["ldap://freeipa.example.com", "ldap://replica.example.com"],
         baseDn="dc=example,dc=com",
         credentials=LdapVaultSecret(
             path="secret/ldap/bind",
@@ -910,7 +910,10 @@ async def test_github_org_falls_back_to_ldap(
     mock_ldap.assert_called_once()
     request = mock_ldap.call_args.args[0]
     assert request.logins == ["carol-gh"]
-    assert request.secret.server_url == "ldap://freeipa.example.com"
+    assert request.secret.server_urls == [
+        "ldap://freeipa.example.com",
+        "ldap://replica.example.com",
+    ]
     assert request.secret.base_dn == "dc=example,dc=com"
 
 

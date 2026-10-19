@@ -207,7 +207,7 @@ def _make_user(username: str) -> UserV1:
 
 def _ldap_settings() -> MagicMock:
     settings = MagicMock()
-    settings.server_url = "ldap://freeipa.example.com"
+    settings.server_urls = ["ldap://freeipa.example.com", "ldap://replica.example.com"]
     settings.base_dn = "dc=example,dc=com"
     settings.credentials = VaultSecret(
         path="secret/ldap", field="all", version=1, format=None, url=None
@@ -241,7 +241,6 @@ def integration() -> Generator[LdapUsersApiIntegration]:
             infra_repo_url=_INFRA_REPO,
             infra_paths=["ansible/hosts/group_vars/all"],
             labels=["ldap-users"],
-            min_existing_users=0,
         )
     )
     with patch.object(

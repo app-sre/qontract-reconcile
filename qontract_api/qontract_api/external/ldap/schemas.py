@@ -1,6 +1,8 @@
 """API schemas for LDAP external integration."""
 
-from pydantic import BaseModel, Field
+from typing import Annotated
+
+from pydantic import BaseModel, Field, StringConstraints
 
 from qontract_api.models import Secret
 
@@ -12,12 +14,14 @@ class LdapDirectSecret(Secret, frozen=True):
     No plain credentials are transmitted via API -- only Vault path references.
 
     Attributes:
-        server_url: LDAP server URL (e.g., "ldap://freeipa.example.com")
+        server_urls: LDAP replica URLs, sharing the bind credentials and base DN
         base_dn: Base DN for LDAP searches (e.g., "dc=example,dc=com")
         (inherited) secret_manager_url, path, field, version: Vault secret ref
     """
 
-    server_url: str = Field(..., description="LDAP server URL")
+    server_urls: list[
+        Annotated[str, StringConstraints(min_length=1, strip_whitespace=True)]
+    ] = Field(..., min_length=1, description="LDAP replica URLs")
     base_dn: str = Field(..., description="Base DN for LDAP searches")
 
 

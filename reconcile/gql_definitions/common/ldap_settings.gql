@@ -3,7 +3,7 @@
 query LdapSettings {
   settings: app_interface_settings_v1 {
     ldap {
-      serverUrl
+      serverUrls
       baseDn
       credentials {
         ...VaultSecret

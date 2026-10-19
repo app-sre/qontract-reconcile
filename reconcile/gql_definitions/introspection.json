@@ -1701,16 +1701,24 @@
                     "description": null,
                     "fields": [
                         {
-                            "name": "serverUrl",
+                            "name": "serverUrls",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "name": "String",
-                                    "kind": "SCALAR",
-                                    "ofType": null
+                                    "name": null,
+                                    "kind": "LIST",
+                                    "ofType": {
+                                        "name": null,
+                                        "kind": "NON_NULL",
+                                        "ofType": {
+                                            "name": "String",
+                                            "kind": "SCALAR",
+                                            "ofType": null
+                                        }
+                                    }
                                 }
                             },
                             "isDeprecated": false,
@@ -54931,8 +54939,5 @@
                 }
             ]
         }
-    },
-    "extensions": {
-        "schemas": []
     }
 }

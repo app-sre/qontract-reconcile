@@ -1,20 +1,31 @@
 """LDAP API client with hook system for metrics, logging, and latency tracking."""
 
+from __future__ import annotations
+
 import contextvars
+import hashlib
 import re
 import string
 import time
 import types
 from collections import defaultdict
-from collections.abc import Collection, Iterable
-from dataclasses import dataclass
+from collections.abc import Collection, Generator, Iterable
+from contextlib import contextmanager, suppress
+from dataclasses import dataclass, replace
+from operator import itemgetter
 from typing import Self
 from urllib.parse import urlparse
 
 import structlog
-from ldap3 import NONE, SAFE_SYNC, Connection, Server
+from ldap3 import NONE, ROUND_ROBIN, SAFE_SYNC, Connection, Server, ServerPool
 from ldap3.core.exceptions import (
+    LDAPAuthMethodNotSupportedResult,
+    LDAPBindError,
+    LDAPBusyResult,
+    LDAPCertificateError,
     LDAPCommunicationError,
+    LDAPInappropriateAuthenticationResult,
+    LDAPInvalidCredentialsResult,
     LDAPMaximumRetriesError,
     LDAPResponseTimeoutError,
     LDAPSessionTerminatedByServerError,
@@ -22,12 +33,15 @@ from ldap3.core.exceptions import (
     LDAPSocketOpenError,
     LDAPSocketReceiveError,
     LDAPSocketSendError,
+    LDAPStartTLSError,
+    LDAPUnavailableResult,
 )
 from ldap3.utils.conv import escape_filter_chars
 from ldap3.utils.dn import parse_dn
 from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, RetryConfig, invoke_with_hooks, with_hooks
+from qontract_utils.json_utils import json_dumps
 from qontract_utils.ldap_api.models import LdapGroup, LdapUser
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 
@@ -50,6 +64,12 @@ ldap_request_duration = Histogram(
     buckets=DEFAULT_BUCKETS_EXTERNAL_API,
 )
 
+ldap_quorum_mismatch = Counter(
+    "qontract_reconcile_external_api_ldap_quorum_mismatch_total",
+    "LDAP quorum mismatches detected between replicas",
+    ["method"],
+)
+
 # Local storage for latency tracking (tuple stack to support nested calls)
 _latency_tracker: contextvars.ContextVar[tuple[float, ...]] = contextvars.ContextVar(
     f"{__name__}.latency_tracker", default=()
@@ -58,6 +78,15 @@ _latency_tracker: contextvars.ContextVar[tuple[float, ...]] = contextvars.Contex
 
 class LdapApiError(Exception):
     """Raised when an LDAP operation fails."""
+
+
+class LdapQuorumError(LdapApiError):
+    """Raised when replicas disagree on a query result, or quorum cannot be reached.
+
+    Not a transient/retryable failure (not in `_LDAP_FAILOVER_ERRORS`): replica
+    disagreement is a data integrity problem to surface, not a connection
+    issue to retry past.
+    """
 
 
 @dataclass(frozen=True)
@@ -97,9 +126,8 @@ def _request_log_hook(context: LdapApiCallContext) -> None:
     logger.debug("LDAP request", method=context.method)
 
 
-# Retry only on transient LDAP errors (network/connection issues).
-# Logical errors (noSuchObject, invalidCredentials, etc.) are NOT retried.
-_LDAP_TRANSIENT_ERRORS = (
+# Replica failures include TLS/bind failures; query/configuration errors are fatal.
+_LDAP_FAILOVER_ERRORS = (
     LDAPCommunicationError,
     LDAPSocketOpenError,
     LDAPSocketReceiveError,
@@ -108,10 +136,18 @@ _LDAP_TRANSIENT_ERRORS = (
     LDAPSessionTerminatedByServerError,
     LDAPResponseTimeoutError,
     LDAPMaximumRetriesError,
+    LDAPStartTLSError,
+    LDAPCertificateError,
+    LDAPBindError,
+    LDAPInvalidCredentialsResult,
+    LDAPInappropriateAuthenticationResult,
+    LDAPAuthMethodNotSupportedResult,
+    LDAPBusyResult,
+    LDAPUnavailableResult,
 )
 
 _LDAP_RETRY_CONFIG = RetryConfig(
-    on=_LDAP_TRANSIENT_ERRORS,
+    on=_LDAP_FAILOVER_ERRORS,
     attempts=3,
     timeout=5.0,
     wait_initial=0.5,
@@ -271,12 +307,19 @@ class LdapApi:
     rather than returning partial lookup results.
 
     Args:
-        server_url: LDAP server URL (e.g., "ldap://ldap.example.com")
+        server_urls: Non-empty list of LDAP replica URLs
         base_dn: Base DN for searches (e.g., "dc=example,dc=com")
         bind_dn: Service account DN for authenticated bind (None for anonymous)
         bind_password: Service account password (None for anonymous)
         start_tls: Enable STARTTLS before binding
-        timeout: Connection timeout in seconds
+        timeout: Per-connection and receive timeout in seconds
+        quorum_count: Number of replicas that must agree on a search result
+            before it is trusted (see "Quorum verification" in README.md).
+            A reachable-but-under-replicated replica can return a "successful"
+            response that is silently incomplete or stale; comparing results
+            across replicas catches that. 1 disables verification. Falls back
+            to 1 (with a warning) if fewer server_urls are configured than
+            requested.
         hooks: Optional custom hooks merged with built-in hooks (ADR-006)
     """
 
@@ -285,30 +328,67 @@ class LdapApi:
 
     def __init__(
         self,
-        server_url: str,
+        server_urls: Collection[str],
         base_dn: str,
         bind_dn: str | None = None,
         bind_password: str | None = None,
         *,
         start_tls: bool = True,
         timeout: int = _DEFAULT_TIMEOUT,
+        quorum_count: int = 1,
         hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - Handled by @with_hooks decorator
     ) -> None:
+        if not server_urls or any(not url.strip() for url in server_urls):
+            raise ValueError("LDAP server_urls must contain at least one non-empty URL")
+        if timeout <= 0:
+            raise ValueError("LDAP timeout must be positive")
+        if quorum_count < 1:
+            raise ValueError("LDAP quorum_count must be at least 1")
         self.base_dn = base_dn
         self._start_tls = start_tls
+        self._connected = False
+        self._server_urls = list(server_urls)
+        if quorum_count > 1 and len(self._server_urls) < quorum_count:
+            logger.warning(
+                "LDAP quorum_count exceeds configured replicas - disabling quorum verification",
+                quorum_count=quorum_count,
+                server_count=len(self._server_urls),
+            )
+            self._quorum_count = 1
+        else:
+            self._quorum_count = quorum_count
         self._connection = Connection(
-            server=Server(server_url, get_info=NONE),
+            server=ServerPool(
+                servers=[
+                    Server(url, get_info=NONE, connect_timeout=timeout)
+                    for url in server_urls
+                ],
+                pool_strategy=ROUND_ROBIN,
+                active=False,
+                exhaust=False,
+            ),
             user=bind_dn,
             password=bind_password,
             client_strategy=SAFE_SYNC,
             receive_timeout=timeout,
             raise_exceptions=True,
         )
+        attempts = max(_LDAP_RETRY_CONFIG.attempts, len(server_urls))
+        self._hooks = Hooks(
+            pre_hooks=self._hooks.pre_hooks,
+            post_hooks=self._hooks.post_hooks,
+            error_hooks=self._hooks.error_hooks,
+            retry_hooks=self._hooks.retry_hooks,
+            retry_config=self._hooks.retry_config
+            or replace(
+                _LDAP_RETRY_CONFIG,
+                attempts=attempts,
+                timeout=attempts * (4 * timeout + _LDAP_RETRY_CONFIG.wait_max),
+            ),
+        )
 
     def __enter__(self) -> Self:
-        if self._start_tls:
-            self._connection.start_tls()
-        self._connection.bind()
+        """Own cleanup; connect lazily inside the hook-controlled lookup."""
         return self
 
     def __exit__(
@@ -317,7 +397,45 @@ class LdapApi:
         exc_val: BaseException | None,
         exc_tb: types.TracebackType | None,
     ) -> None:
-        self._connection.unbind()
+        self._disconnect()
+
+    def _disconnect(self) -> None:
+        self._connected = False
+        with suppress(LDAPCommunicationError):
+            self._connection.unbind()
+        if socket := self._connection.socket:
+            with suppress(OSError):
+                socket.close()
+            self._connection.socket = None
+
+    @contextmanager
+    def _connection_attempt(self) -> Generator[None]:
+        try:
+            self._connect()
+            yield
+        except _LDAP_FAILOVER_ERRORS:
+            logger.warning(
+                "LDAP replica lookup failed",
+                server=self._connection.server.host,
+            )
+            self._disconnect()
+            # ldap3 suppresses failed IPs independently of ServerPool.active;
+            # hooks, not that cache, own whether another socket attempt is due.
+            self._connection.server.reset_availability()
+            raise
+
+    def _connect(self) -> None:
+        if self._connected:
+            return
+        self._connection.open()
+        if self._start_tls and not self._connection.server.ssl:
+            self._connection.start_tls()
+            if not self._connection.tls_started:
+                raise LDAPStartTLSError("LDAP STARTTLS did not establish TLS")
+        self._connection.bind()
+        if not self._connection.bound:
+            raise LDAPBindError("LDAP bind did not authenticate the connection")
+        self._connected = True
 
     @staticmethod
     def _check_ldap_response(status: dict) -> None:
@@ -328,26 +446,31 @@ class LdapApi:
                 f"LDAP operation failed (error {error_code}: {error_desc})"
             )
 
-    def _paged_search(
-        self, search_base: str, search_filter: str, attributes: list[str]
+    @staticmethod
+    def _run_paged_search(
+        connection: Connection,
+        search_base: str,
+        search_filter: str,
+        attributes: list[str],
     ) -> list[dict]:
         """Run an LDAP search across all pages, following the paged cookie.
 
         Uses RFC 2696 paged results so broad searches survive the server's
         per-response size limit (389 DS defaults to ~2000 entries). Aggregates
-        the entries from every page.
+        the entries from every page. Takes an explicit connection so the same
+        logic serves both the primary query and quorum verification queries.
         """
         entries: list[dict] = []
         cookie: bytes | None = None
         while True:
-            _, status, page, _ = self._connection.search(
+            _, status, page, _ = connection.search(
                 search_base,
                 search_filter,
                 attributes=attributes,
                 paged_size=_LDAP_PAGE_SIZE,
                 paged_cookie=cookie,
             )
-            self._check_ldap_response(status)
+            LdapApi._check_ldap_response(status)
             entries.extend(page)
             cookie = (
                 status.get("controls", {})
@@ -359,10 +482,104 @@ class LdapApi:
                 break
         return entries
 
-    @invoke_with_hooks(
-        lambda: LdapApiCallContext(method="get_users"),
-        retry_config=_LDAP_RETRY_CONFIG,
-    )
+    @staticmethod
+    def _result_set_hash(entries: list[dict]) -> str:
+        """Hash a complete LDAP result set for quorum comparison.
+
+        Sorts entries by DN and multi-valued attribute values within each
+        entry, since LDAP guarantees neither entry order nor the order of
+        values within a multi-valued attribute - two replicas holding
+        identical data could otherwise hash differently.
+        """
+        normalized = [
+            {
+                "dn": entry["dn"],
+                "attributes": {
+                    name: sorted(values) for name, values in entry["attributes"].items()
+                },
+            }
+            for entry in sorted(entries, key=itemgetter("dn"))
+        ]
+        return hashlib.sha256(json_dumps(normalized, compact=True).encode()).hexdigest()
+
+    def _verify_quorum(
+        self,
+        primary_entries: list[dict],
+        search_base: str,
+        search_filter: str,
+        attributes: list[str],
+        *,
+        method_name: str,
+    ) -> None:
+        """Re-run a search on other replicas and require them to agree.
+
+        Catches a replica that is reachable and returns a "successful"
+        response that is nevertheless silently incomplete or stale (e.g. due
+        to a broken replication agreement) - a failure mode `ServerPool`
+        failover cannot detect, since no exception is raised. A single
+        disagreeing replica fails the whole lookup closed rather than
+        guessing which replica is right.
+        """
+        primary_hash = self._result_set_hash(primary_entries)
+        primary_host = self._connection.server.host.rstrip(".").lower()
+        confirmations_needed = self._quorum_count - 1
+        confirmed_hosts = {primary_host}
+
+        for _ in range(len(self._server_urls)):
+            self._disconnect()
+            try:
+                with self._connection_attempt():
+                    if (
+                        verify_host := self._connection.server.host.rstrip(".").lower()
+                    ) in confirmed_hosts:
+                        continue
+                    verify_entries = self._run_paged_search(
+                        self._connection, search_base, search_filter, attributes
+                    )
+            except (*_LDAP_FAILOVER_ERRORS, LdapApiError):
+                logger.warning(
+                    "LDAP quorum: verification replica unreachable",
+                    method=method_name,
+                    server=self._connection.server.host,
+                )
+                continue
+
+            if primary_hash != self._result_set_hash(verify_entries):
+                ldap_quorum_mismatch.labels(method=method_name).inc()
+                raise LdapQuorumError(
+                    f"LDAP quorum mismatch on {method_name}: {primary_host} and "
+                    f"{verify_host} returned different results for the same "
+                    "query - replicas may be out of sync (missing/extra entries "
+                    "or stale attribute values)"
+                )
+            confirmed_hosts.add(verify_host)
+            if len(confirmed_hosts) >= self._quorum_count:
+                return
+
+        raise LdapQuorumError(
+            f"Cannot achieve quorum for {method_name}: only {len(confirmed_hosts) - 1} of "
+            f"{confirmations_needed} required replica confirmation(s) succeeded"
+        )
+
+    def _paged_search(
+        self,
+        search_base: str,
+        search_filter: str,
+        attributes: list[str],
+        *,
+        method_name: str = "",
+    ) -> list[dict]:
+        """Run the primary paged search, then verify it against quorum if configured."""
+        with self._connection_attempt():
+            entries = self._run_paged_search(
+                self._connection, search_base, search_filter, attributes
+            )
+        if self._quorum_count > 1:
+            self._verify_quorum(
+                entries, search_base, search_filter, attributes, method_name=method_name
+            )
+        return entries
+
     def get_users(self, usernames: Iterable[str]) -> list[LdapUser]:
         """Check which usernames exist in LDAP.
 
@@ -382,6 +599,10 @@ class LdapApi:
         Raises:
             LdapApiError: If the LDAP search fails
         """
+        return self._get_users(tuple(usernames))
+
+    @invoke_with_hooks(lambda: LdapApiCallContext(method="get_users"))
+    def _get_users(self, usernames: Collection[str]) -> list[LdapUser]:
         if not usernames:
             return []
         user_filter = "".join(f"(uid={escape_filter_chars(u)})" for u in usernames)
@@ -389,13 +610,13 @@ class LdapApi:
             f"cn=users,cn=accounts,{self.base_dn}",
             f"(&(objectclass=person)(|{user_filter}))",
             attributes=["uid"],
+            method_name="get_users",
         )
 
         return [LdapUser(username=r["attributes"]["uid"][0]) for r in results]
 
     @invoke_with_hooks(
         lambda: LdapApiCallContext(method="get_group_members"),
-        retry_config=_LDAP_RETRY_CONFIG,
     )
     def get_group_members(self, groups_dns: Collection[str]) -> list[LdapGroup]:
         """Get members of the specified LDAP groups.
@@ -417,6 +638,7 @@ class LdapApi:
             self.base_dn,
             search_filter,
             attributes=["uid", "cn", "memberOf"],
+            method_name="get_group_members",
         )
 
         # Map each requested DN's canonical form back to the exact string the
@@ -454,7 +676,6 @@ class LdapApi:
 
     @invoke_with_hooks(
         lambda: LdapApiCallContext(method="check_groups_exist"),
-        retry_config=_LDAP_RETRY_CONFIG,
     )
     def check_groups_exist(self, group_cns: Collection[str]) -> set[str]:
         """Return the subset of the given group CNs that exist in LDAP.
@@ -483,13 +704,13 @@ class LdapApi:
             f"cn=groups,cn=accounts,{self.base_dn}",
             f"(|{cn_filter})",
             attributes=["cn"],
+            method_name="check_groups_exist",
         )
 
         return {r["attributes"]["cn"][0] for r in results}
 
     @invoke_with_hooks(
         lambda: LdapApiCallContext(method="get_github_usernames"),
-        retry_config=_LDAP_RETRY_CONFIG,
     )
     def get_github_usernames(self) -> dict[str, list[str]]:
         """Build a GitHub-login -> LDAP uid(s) map from `rhatSocialURL`.
@@ -521,6 +742,7 @@ class LdapApi:
             f"cn=users,cn=accounts,{self.base_dn}",
             "(&(objectclass=person)(rhatSocialURL=Github->*github.com/*))",
             attributes=["uid", "rhatSocialURL"],
+            method_name="get_github_usernames",
         )
 
         by_login: dict[str, set[str]] = defaultdict(set[str])

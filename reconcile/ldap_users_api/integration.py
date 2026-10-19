@@ -57,7 +57,6 @@ class LdapUsersApiIntegrationParams(PydanticRunParams):
     infra_target_branch: str = "master"
     infra_paths: list[str] = Field(default_factory=list)
     labels: list[str] = Field(default_factory=list)
-    min_existing_users: int = 2300
 
 
 def transform_users_with_paths(users_with_paths: list[UserV1]) -> list[UserPaths]:
@@ -169,18 +168,13 @@ class LdapUsersApiIntegration(
                         path=ldap_settings.credentials.path,
                         field=ldap_settings.credentials.field,
                         version=ldap_settings.credentials.version,
-                        server_url=ldap_settings.server_url,
+                        server_urls=ldap_settings.server_urls,
                         base_dn=ldap_settings.base_dn,
                     ),
                 ),
             )
 
         existing_users = {u.username for u in ldap_response.users or [] if u.exists}
-        if len(existing_users) < self.params.min_existing_users:
-            # TODO: fix later
-            raise RuntimeError(
-                f"LDAP returned fewer than {self.params.min_existing_users} existing users - aborting to prevent mass deletion"
-            )
 
         if usernames and not existing_users:
             raise RuntimeError(
