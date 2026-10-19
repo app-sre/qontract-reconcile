@@ -350,12 +350,25 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     )
 
 
+def _active_coverage(
+    coverage: Iterable[ChangeTypeContext],
+) -> list[ChangeTypeContext]:
+    """
+    Non-disabled contexts covering a diff. _apply_decision_to_diff() ignores
+    the approvers of a disabled change-type when applying decisions, so a
+    diff covered only by disabled contexts can never be approved - it must
+    not count as "covered" for this check either, the same way
+    DiffCoverage.is_directly_covered() treats it.
+    """
+    return [ctx for ctx in coverage if not ctx.disabled]
+
+
 def _is_app_sre_only_coverage(
     coverage: Iterable[ChangeTypeContext], app_sre_usernames: AbstractSet[str]
 ) -> bool:
     """
-    True if every change-type context covering a diff only has AppSRE
-    members as approvers, i.e. no tenant could ever satisfy it.
+    True if every active change-type context covering a diff only has
+    AppSRE members as approvers, i.e. no tenant could ever satisfy it.
     """
     coverage = list(coverage)
     return bool(coverage) and all(
@@ -371,22 +384,26 @@ def is_self_service_portion_approved(
 ) -> bool:
     """
     Checks whether every self-serviceable (covered) part of the MR has been
-    approved and is not held. Two kinds of changes are ignored here:
-    * changes with no coverage at all (i.e. not self-serviceable) — their
-      approval is AppSRE's call, via the NOT_SELF_SERVICEABLE/review-queue
-      path, not this one.
+    approved and is not held. Three kinds of changes are ignored here:
+    * changes with no active coverage at all (i.e. not self-serviceable, or
+      covered only by disabled change-types) — their approval is AppSRE's
+      call, via the NOT_SELF_SERVICEABLE/review-queue path, not this one.
     * changes covered only by AppSRE-approved change-types — AppSRE can't
       see the MR in their review queue to approve it until it stops being
       hidden, so requiring their own approval here first would make it
       permanently invisible.
     Vacuously True when there are no covered changes left to approve.
     """
-    covered_decisions = [
-        d
-        for d in change_decisions
-        if d.coverable_by_fragment_decisions
-        or (d.coverage and not _is_app_sre_only_coverage(d.coverage, app_sre_usernames))
-    ]
+    covered_decisions = []
+    for d in change_decisions:
+        if d.coverable_by_fragment_decisions:
+            covered_decisions.append(d)
+            continue
+        active_coverage = _active_coverage(d.coverage)
+        if active_coverage and not _is_app_sre_only_coverage(
+            active_coverage, app_sre_usernames
+        ):
+            covered_decisions.append(d)
     return all(d.is_approved() and not d.is_held() for d in covered_decisions)
 
 

@@ -159,16 +159,19 @@ def test_assert_restrictive_ok_to_test(
 
 
 def _change_decision(
-    mocker: MockerFixture, *, approvers: list[str] | None = None
+    mocker: MockerFixture,
+    *,
+    approvers: list[str] | None = None,
+    disabled: bool = False,
 ) -> ChangeDecision:
     """approvers=None means uncovered; otherwise a single covering context
     with the given approver usernames."""
+    processor = mocker.patch("reconcile.change_owners.change_types.ChangeTypeProcessor")
+    processor.disabled = disabled
     coverage = (
         [
             ChangeTypeContext(
-                change_type_processor=mocker.patch(
-                    "reconcile.change_owners.change_types.ChangeTypeProcessor"
-                ),
+                change_type_processor=processor,
                 context="ctx",
                 origin="",
                 context_file=FileRef(
@@ -238,6 +241,16 @@ def test_self_service_portion_approved_requires_approval_when_tenant_also_approv
     self-serviceable - the tenant can approve it without AppSRE"""
     covered = _change_decision(mocker, approvers=["app-sre-bot", "alice"])
     assert not is_self_service_portion_approved([covered], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_ignores_disabled_only_coverage(
+    mocker: MockerFixture,
+) -> None:
+    """a diff covered only by a disabled change-type can never be
+    approved (_apply_decision_to_diff ignores disabled contexts), so it
+    must not block the review queue on an approval that can't happen"""
+    covered = _change_decision(mocker, approvers=["alice"], disabled=True)
+    assert is_self_service_portion_approved([covered], set())
 
 
 #
