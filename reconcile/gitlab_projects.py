@@ -1,16 +1,43 @@
+"""GitLab projects reconciliation via qontract-api.
+
+Desired state is fetched and validated client-side via GraphQL (ADR-002).
+Business logic runs server-side; secrets are passed as references, not values.
+"""
+
 from __future__ import annotations
 
 import logging
-import sys
 from typing import TYPE_CHECKING, Any
 
-from reconcile import queries
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
+from qontract_api_client.client import gitlab_projects as gitlab_projects_reconcile
+from qontract_api_client.schemas import (
+    GitlabGroupConfig,
+    GitlabInstanceConfig,
+    GitlabProjectsReconcileRequest,
+    GitlabProjectsTaskResponse,
+    GitlabProjectsTaskResult,
+    Secret,
+    TaskStatus,
 )
-from reconcile.utils.defer import defer
-from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.secret_reader import create_secret_reader
+from qontract_utils.exceptions import IntegrationError
+
+from reconcile.gql_definitions.gitlab_projects.app_code_components import (
+    AppCodeComponentsV1,
+)
+from reconcile.gql_definitions.gitlab_projects.app_code_components import (
+    query as code_components_query,
+)
+from reconcile.gql_definitions.gitlab_projects.gitlab_instances import (
+    GitlabInstanceV1,
+)
+from reconcile.gql_definitions.gitlab_projects.gitlab_instances import (
+    query as instances_query,
+)
+from reconcile.utils import gql
+from reconcile.utils.runtime.integration import (
+    PydanticRunParams,
+    QontractReconcileApiIntegration,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -18,46 +45,197 @@ if TYPE_CHECKING:
 QONTRACT_INTEGRATION = "gitlab-projects"
 
 
-@defer
-def run(dry_run: bool, defer: Callable | None = None) -> None:
-    instance = queries.get_gitlab_instance()
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    code_components = queries.get_code_components()
-    app_int_repos = [c["url"] for c in code_components]
-    saas_bundle_repos = [c["url"] for c in code_components if c["resource"] == "bundle"]
-    gl = GitLabApi(instance, secret_reader=secret_reader)
-    if defer:
-        defer(gl.cleanup)
+class GitlabProjectsIntegrationParams(PydanticRunParams):
+    """Parameters for gitlab-projects integration."""
 
-    project_requests = instance["projectRequests"] or []
-    error = False
-    for pr in project_requests:
-        group = pr["group"]
-        group_id, existing_projects = gl.get_group_id_and_projects(group)
-        requested_projects = pr["projects"]
-        projects_to_create = [
-            p for p in requested_projects if p not in existing_projects
+    instance_name: str | None = None
+    project_names: frozenset[str] | None = None
+
+
+class GitLabProjectsIntegration(
+    QontractReconcileApiIntegration[GitlabProjectsIntegrationParams]
+):
+    """Create GitLab projects via qontract-api.
+
+    This integration:
+    1. Queries App-Interface for GitLab instances and their requested projects/groups
+    2. Queries App-Interface for app codeComponents, to validate each requested project
+    3. Filters out projects with no matching codeComponent, failing the run if any are found
+    4. Sends the complete desired state to qontract-api for reconciliation
+    """
+
+    @property
+    def name(self) -> str:
+        return QONTRACT_INTEGRATION
+
+    @staticmethod
+    def get_gitlab_instances(
+        query_func: Callable[..., dict[Any, Any]],
+    ) -> list[GitlabInstanceV1]:
+        data = instances_query(query_func=query_func)
+        if not data.instances:
+            raise IntegrationError("no GitLab instances found")
+        return data.instances
+
+    @staticmethod
+    def get_code_components(
+        query_func: Callable[..., dict[Any, Any]],
+    ) -> list[AppCodeComponentsV1]:
+        data = code_components_query(query_func=query_func)
+        return [
+            code_component
+            for app in data.apps or []
+            for code_component in app.code_components or []
         ]
-        for p in projects_to_create:
-            project_url = gl.get_project_url(group, p)
-            if project_url not in app_int_repos:
-                logging.error(f"{project_url} missing from all codeComponents")
-                error = True
+
+    @staticmethod
+    def filter_requested_projects(
+        gl_instances: list[GitlabInstanceV1],
+        allowed_instance_name: str | None,
+        allowed_project_names: frozenset[str] | None,
+    ) -> list[GitlabInstanceV1]:
+        """Return instances/projects narrowed to the given filters, for targeted debug runs."""
+        instances = [
+            instance
+            for instance in gl_instances
+            if not allowed_instance_name or instance.name == allowed_instance_name
+        ]
+        if not allowed_project_names:
+            return instances
+
+        filtered_instances = []
+        for instance in instances:
+            project_requests = [
+                project_request.model_copy(
+                    update={
+                        "projects": [
+                            p
+                            for p in project_request.projects
+                            if p in allowed_project_names
+                        ]
+                    }
+                )
+                for project_request in instance.project_requests or []
+            ]
+            filtered_instances.append(
+                instance.model_copy(
+                    update={
+                        "project_requests": [
+                            pr for pr in project_requests if pr.projects
+                        ]
+                    }
+                )
+            )
+        return filtered_instances
+
+    def compile_desired_state(
+        self,
+        gl_instances: list[GitlabInstanceV1],
+        code_components: list[AppCodeComponentsV1],
+    ) -> list[GitlabInstanceConfig]:
+        """Filter each requested project to those declared via an app-interface
+        codeComponent.
+
+        Raises:
+            IntegrationError: If any requested project has no matching
+                codeComponent.
+        """
+        declared_urls = {c.url for c in code_components}
+
+        instances: list[GitlabInstanceConfig] = []
+        missing_urls: list[str] = []
+        for instance in gl_instances:
+            group_requests: list[GitlabGroupConfig] = []
+            for project_request in instance.project_requests or []:
+                valid_projects: list[str] = []
+                for project_name in project_request.projects:
+                    project_url = f"{instance.url.rstrip('/')}/{project_request.group}/{project_name}"
+                    if project_url not in declared_urls:
+                        logging.error(f"{project_url} missing from all codeComponents")
+                        missing_urls.append(project_url)
+                        continue
+                    valid_projects.append(project_name)
+                if valid_projects:
+                    group_requests.append(
+                        GitlabGroupConfig(
+                            group=project_request.group, projects=valid_projects
+                        )
+                    )
+            if not group_requests:
                 continue
-            logging.info(["create_project", group, p])
-            if not dry_run:
-                gl.create_project(group_id, p)
-            if project_url in saas_bundle_repos:
-                logging.info(["initiate_saas_bundle_repo", group, p])
-                if not dry_run:
-                    gl.initiate_saas_bundle_repo(project_url)
+            instances.append(
+                GitlabInstanceConfig(
+                    name=instance.name,
+                    url=instance.url,
+                    ssl_verify=(
+                        instance.ssl_verify if instance.ssl_verify is not None else True
+                    ),
+                    token=Secret(
+                        secret_manager_url=instance.token.url
+                        or self.secret_manager_url,
+                        path=instance.token.path,
+                        field=instance.token.field,
+                        version=instance.token.version,
+                    ),
+                    groups=group_requests,
+                )
+            )
 
-    sys.exit(error)
+        if missing_urls:
+            raise IntegrationError(
+                f"{QONTRACT_INTEGRATION}: {len(missing_urls)} project(s) missing "
+                f"from codeComponents: {', '.join(sorted(missing_urls))}"
+            )
 
+        return instances
 
-def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    instance = queries.get_gitlab_instance()
-    return {
-        "instance": instance,
-    }
+    async def reconcile(
+        self,
+        instances: list[GitlabInstanceConfig],
+        dry_run: bool,
+    ) -> GitlabProjectsTaskResponse:
+        """Send desired state to qontract-api."""
+        request = GitlabProjectsReconcileRequest(instances=instances, dry_run=dry_run)
+        with self.log_api_exceptions():
+            response = await gitlab_projects_reconcile(request)
+        logging.info(f"request_id: {response.id}")
+        return response
+
+    async def async_run(self, dry_run: bool) -> None:
+        """Run the integration."""
+        gqlapi: gql.GqlApi = gql.get_api()
+        gl_instances = self.get_gitlab_instances(query_func=gqlapi.query)
+        gl_instances = self.filter_requested_projects(
+            gl_instances, self.params.instance_name, self.params.project_names
+        )
+        code_components = self.get_code_components(query_func=gqlapi.query)
+        desired_state = self.compile_desired_state(gl_instances, code_components)
+
+        if not desired_state:
+            logging.warning("No desired state found, nothing to reconcile")
+            return
+
+        task = await self.reconcile(instances=desired_state, dry_run=dry_run)
+
+        if not dry_run:
+            return
+
+        task_result = await self.poll_task_status(
+            status_url=task.status_url,
+            result_type=GitlabProjectsTaskResult,
+        )
+        if task_result.status == TaskStatus.PENDING:
+            raise IntegrationError(
+                f"{QONTRACT_INTEGRATION}: task did not complete within the timeout period"
+            )
+
+        for action in task_result.actions or []:
+            logging.info(
+                f"{action.action_type=} {action.instance=} {action.group=} {action.project_name=}"
+            )
+
+        if task_result.errors:
+            errors_summary = "; ".join(task_result.errors)
+            raise IntegrationError(
+                f"{QONTRACT_INTEGRATION}: {len(task_result.errors)} error(s): {errors_summary}"
+            )
