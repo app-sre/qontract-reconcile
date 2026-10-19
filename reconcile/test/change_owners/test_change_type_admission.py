@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-import jsonpath_ng
 import pytest
 
 from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.bundle import BundleFileType, FileRef
 from reconcile.change_owners.change_owners import (
-    build_change_summary,
     build_status_message,
     is_change_admitted,
     is_self_service_portion_approved,
@@ -18,7 +16,6 @@ from reconcile.change_owners.change_types import (
     DiffCoverage,
 )
 from reconcile.change_owners.decision import ChangeDecision, DecisionCommand
-from reconcile.change_owners.diff import Diff, DiffType
 from reconcile.test.change_owners.fixtures import (
     change_type_to_processor,
 )
@@ -303,38 +300,3 @@ def test_status_message_appsre_review_required() -> None:
         supported_commands=[],
     )
     assert "AppSRE Review Required" in message
-
-
-#
-# change summary tests
-#
-
-
-def _decision_for_file(path: str, diff_type: DiffType) -> ChangeDecision:
-    return ChangeDecision(
-        file=FileRef(file_type=BundleFileType.DATAFILE, path=path, schema=None),
-        diff=Diff(path=jsonpath_ng.Root(), diff_type=diff_type, old=None, new=None),
-        coverage=[],
-    )
-
-
-def test_change_summary_no_changes() -> None:
-    assert build_change_summary([]) == "No changes detected."
-
-
-def test_change_summary_single_change() -> None:
-    summary = build_change_summary([
-        _decision_for_file("/a.yml", DiffType.ADDED),
-    ])
-    assert summary == "* `/a.yml`: 1 addition"
-
-
-def test_change_summary_groups_by_file_and_counts_types() -> None:
-    summary = build_change_summary([
-        _decision_for_file("/a.yml", DiffType.ADDED),
-        _decision_for_file("/a.yml", DiffType.CHANGED),
-        _decision_for_file("/b.yml", DiffType.REMOVED),
-        _decision_for_file("/b.yml", DiffType.REMOVED),
-    ])
-    assert "* `/a.yml`: 1 addition, 1 change" in summary
-    assert "* `/b.yml`: 2 removals" in summary

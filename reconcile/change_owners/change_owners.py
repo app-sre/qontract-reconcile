@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import sys
 import traceback
-from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from reconcile import queries
@@ -30,7 +29,6 @@ from reconcile.change_owners.decision import (
     apply_decisions_to_changes,
     get_approver_decisions_from_mr_comments,
 )
-from reconcile.change_owners.diff import DiffType
 from reconcile.change_owners.implicit_ownership import (
     cover_changes_with_implicit_ownership,
 )
@@ -213,36 +211,6 @@ def _format_change_responsible(cr: ChangeResponsibles) -> str:
     return f"<details><summary>{cr.context}</summary>{usernames_text}</details>"
 
 
-_DIFF_TYPE_NOUNS = {
-    DiffType.ADDED: "addition",
-    DiffType.REMOVED: "removal",
-    DiffType.CHANGED: "change",
-}
-
-
-def build_change_summary(change_decisions: Iterable[ChangeDecision]) -> str:
-    """
-    Build a short, plain-language summary of what the MR changes: how many
-    additions/changes/removals it makes, grouped by file. This is a simple
-    factual count, not a description of the actual content changed.
-    """
-    counts: dict[str, dict[DiffType, int]] = defaultdict(lambda: defaultdict(int))
-    for d in change_decisions:
-        counts[d.file.path][d.diff.diff_type] += 1
-
-    if not counts:
-        return "No changes detected."
-
-    lines = []
-    for path, diff_counts in counts.items():
-        parts = [
-            f"{n} {_DIFF_TYPE_NOUNS[diff_type]}{'s' if n != 1 else ''}"
-            for diff_type, n in diff_counts.items()
-        ]
-        lines.append(f"* `{path}`: {', '.join(parts)}")
-    return "\n".join(lines)
-
-
 def write_coverage_report_to_mr(
     self_serviceable: bool,
     self_service_portion_approved: bool,
@@ -308,17 +276,12 @@ def write_coverage_report_to_mr(
         supported_commands=supported_commands,
     )
 
-    change_summary = build_change_summary(change_decisions)
-
     # Create the full comment
     full_comment = f"""{change_coverage_report_header}
 
 {status_message}
 
-## 📝 What Changed
-{change_summary}
-
-## 📋 Approval Status
+## 📋 Change Summary
 {coverage_report}"""
 
     gl.add_comment_to_merge_request(merge_request, full_comment)
