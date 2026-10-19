@@ -46,6 +46,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import (
     HOLD,
     NOT_SELF_SERVICEABLE,
+    PENDING_SELF_SERVICE_APPROVAL,
     RESTRICTED,
     SELF_SERVICEABLE,
     change_owner_label,
@@ -56,6 +57,8 @@ from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from gitlab.v4.objects import ProjectMergeRequest
 
 QONTRACT_INTEGRATION = "change-owners"
@@ -333,6 +336,22 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     )
 
 
+def is_self_service_portion_approved(
+    change_decisions: Iterable[ChangeDecision],
+) -> bool:
+    """
+    Checks whether every self-serviceable (covered) part of the MR has been
+    approved and is not held. Changes with no coverage at all (i.e. not
+    self-serviceable) are ignored here — their approval is AppSRE's call, via
+    the NOT_SELF_SERVICEABLE/review-queue path, not this one. Vacuously True
+    when there are no covered changes to approve.
+    """
+    covered_decisions = [
+        d for d in change_decisions if d.coverage or d.coverable_by_fragment_decisions
+    ]
+    return all(d.is_approved() and not d.is_held() for d in covered_decisions)
+
+
 def is_coverage_admitted(
     coverage: ChangeTypeContext, mr_author: str, ok_to_test_approvers: set[str]
 ) -> bool:
@@ -512,6 +531,10 @@ def run(
                 NOT_SELF_SERVICEABLE: not self_serviceable,
                 HOLD: hold,
                 RESTRICTED: not change_admitted,
+                PENDING_SELF_SERVICE_APPROVAL: (
+                    not self_serviceable
+                    and not is_self_service_portion_approved(change_decisions)
+                ),
             }
 
             # priority labels

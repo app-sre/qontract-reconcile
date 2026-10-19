@@ -29,6 +29,11 @@ def change_owner_label(label: str) -> str:
 SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE = change_owner_label(
     "show-self-serviceable-in-review-queue"
 )
+# Applied to a not-self-serviceable MR whose self-serviceable changes have not
+# all been approved yet. Keeps it out of the AppSRE review queue until the
+# tenant's own approvals land, so AppSRE only sees MRs that are actually ready
+# for their review.
+PENDING_SELF_SERVICE_APPROVAL = change_owner_label("pending-self-service-approval")
 # Optimistic Multi-Merge group labels — must be pre-created in the GitLab
 # project with appropriate color/description before enabling the feature.
 OMM_PENDING = "omm-pending"

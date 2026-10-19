@@ -6,11 +6,15 @@ import pytest
 
 from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.bundle import BundleFileType, FileRef
-from reconcile.change_owners.change_owners import is_change_admitted
+from reconcile.change_owners.change_owners import (
+    is_change_admitted,
+    is_self_service_portion_approved,
+)
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     DiffCoverage,
 )
+from reconcile.change_owners.decision import ChangeDecision, DecisionCommand
 from reconcile.test.change_owners.fixtures import (
     change_type_to_processor,
 )
@@ -146,3 +150,54 @@ def test_assert_restrictive_ok_to_test(
     assert (
         is_change_admitted(restrictive_change, "baz", ok_to_test_approver) == expected
     )
+
+
+#
+# self-service portion approval tests
+#
+
+
+def _change_decision(mocker: MockerFixture, *, covered: bool) -> ChangeDecision:
+    return ChangeDecision(
+        file=mocker.patch("reconcile.change_owners.bundle.FileRef"),
+        diff=mocker.patch("reconcile.change_owners.diff.Diff"),
+        coverage=[
+            mocker.patch("reconcile.change_owners.change_types.ChangeTypeContext")
+        ]
+        if covered
+        else [],
+    )
+
+
+def test_self_service_portion_approved_no_covered_changes(
+    mocker: MockerFixture,
+) -> None:
+    """an MR with only non-self-serviceable changes is vacuously approved here"""
+    uncovered = _change_decision(mocker, covered=False)
+    assert is_self_service_portion_approved([uncovered])
+
+
+def test_self_service_portion_approved_ignores_uncovered_changes(
+    mocker: MockerFixture,
+) -> None:
+    """the non-self-serviceable part of the MR must not block this check"""
+    covered = _change_decision(mocker, covered=True)
+    covered.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    uncovered = _change_decision(mocker, covered=False)
+    assert is_self_service_portion_approved([covered, uncovered])
+
+
+def test_self_service_portion_approved_false_when_covered_not_approved(
+    mocker: MockerFixture,
+) -> None:
+    covered = _change_decision(mocker, covered=True)
+    assert not is_self_service_portion_approved([covered])
+
+
+def test_self_service_portion_approved_false_when_covered_held(
+    mocker: MockerFixture,
+) -> None:
+    covered = _change_decision(mocker, covered=True)
+    covered.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    covered.apply_context_decision("ctx", DecisionCommand.HOLD)
+    assert not is_self_service_portion_approved([covered])
