@@ -11,13 +11,18 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from reconcile.ocm.types import OCMSpec
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler-org-updater"
 
@@ -26,7 +31,7 @@ def render_policy(
     template: Mapping[str, Any],
     cluster_spec: OCMSpec,
     labels: Mapping[str, str],
-    settings: Mapping[str, Any] | None = None,
+    secret_reader: SecretReaderBase,
 ) -> dict[str, Any]:
     body = template["path"]["content"]
     type = template.get("type") or "jinja2"
@@ -35,13 +40,14 @@ def render_policy(
     vars["cluster"] = cluster_spec
     vars["labels"] = labels
     rendered = process_jinja2_template(
-        body, vars, extra_curly=extra_curly, settings=settings
+        body, vars, extra_curly=extra_curly, secret_reader=secret_reader
     )
     return yaml.safe_load(rendered)
 
 
 def run(dry_run: bool, gitlab_project_id: str | None) -> None:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     ocms = queries.get_openshift_cluster_managers()
     for ocm_info in ocms:
         updates = []
@@ -54,7 +60,7 @@ def run(dry_run: bool, gitlab_project_id: str | None) -> None:
         ocm_map = OCMMap(
             ocms=[ocm_info],
             integration=QONTRACT_INTEGRATION,
-            settings=settings,
+            secret_reader=secret_reader,
             init_version_gates=True,
         )
         ocm_name = ocm_info["name"]
@@ -86,7 +92,10 @@ def run(dry_run: bool, gitlab_project_id: str | None) -> None:
                         if not policy:
                             template = default["upgradePolicyTemplate"]
                             policy = render_policy(
-                                template, ocm_cluster_spec, ocm_cluster_labels, settings
+                                template,
+                                ocm_cluster_spec,
+                                ocm_cluster_labels,
+                                secret_reader,
                             )
                         item = {
                             "action": "add",

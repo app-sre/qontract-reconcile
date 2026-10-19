@@ -152,15 +152,17 @@ def mock_gql(mocker: MockerFixture) -> MagicMock:
 
 
 @pytest.fixture()
-def mock_queries(mocker: MockerFixture) -> MagicMock:
-    mock = mocker.patch("reconcile.container_registry_mirror.gcp.queries")
+def mock_vault_settings(mocker: MockerFixture) -> MagicMock:
+    mock = mocker.patch(
+        "reconcile.container_registry_mirror.gcp.get_app_interface_vault_settings"
+    )
     return mock
 
 
 @pytest.fixture()
 def mock_secret_reader(mocker: MockerFixture) -> MagicMock:
     mock = mocker.patch(
-        "reconcile.container_registry_mirror.gcp.SecretReader",
+        "reconcile.container_registry_mirror.gcp.create_secret_reader",
         autospec=True,
     )
     instance = mock.return_value
@@ -186,7 +188,7 @@ def mock_gcp_projects(mocker: MockerFixture) -> MagicMock:
 @pytest.fixture()
 def gcp_mirror(
     mock_gql: MagicMock,
-    mock_queries: MagicMock,
+    mock_vault_settings: MagicMock,
     mock_secret_reader: MagicMock,
     mock_gcp_projects: MagicMock,
 ) -> GcpMirror:
@@ -393,7 +395,7 @@ class TestGetPushCredsWithoutGcr:
     def test_no_gcr_creds(
         self,
         mock_gql: MagicMock,
-        mock_queries: MagicMock,
+        mock_vault_settings: MagicMock,
         mock_secret_reader: MagicMock,
         mock_gcp_projects: MagicMock,
     ) -> None:

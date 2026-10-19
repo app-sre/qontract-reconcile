@@ -16,7 +16,7 @@ from typing import (
 from pydantic import BaseModel, Field
 from sretoolbox.container.image import Image
 
-from reconcile import openshift_base, queries
+from reconcile import openshift_base
 from reconcile import openshift_resources_base as orb
 from reconcile.gql_definitions.terraform_resources.database_access_manager import (
     DatabaseAccessV1,
@@ -25,6 +25,7 @@ from reconcile.gql_definitions.terraform_resources.database_access_manager impor
     NamespaceV1,
     query,
 )
+from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.utils import gql
 from reconcile.utils.oc import (
     OC_Map,
@@ -49,6 +50,11 @@ from reconcile.utils.vault import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from reconcile.gql_definitions.common.app_interface_settings import (
+        SqlQuerySettingsV1,
+    )
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "database-access-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -419,7 +425,7 @@ def _populate_resources(
     pull_secret: dict[Any, Any],
     admin_secret_name: str,
     resource_prefix: str,
-    settings: dict[Any, Any],
+    secret_reader: SecretReaderBase,
     user_connection: DatabaseConnectionParameters,
     admin_connection: DatabaseConnectionParameters,
     current_db_access: DatabaseAccessV1 | None = None,
@@ -460,7 +466,7 @@ def _populate_resources(
         type=pull_secret["type"],
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
-        settings=settings,
+        secret_reader=secret_reader,
     )
 
     job_resource = get_job_spec(
@@ -591,7 +597,8 @@ def _process_db_access(
     namespace: NamespaceV1,
     admin_secret_name: str,
     engine: str,
-    settings: dict[Any, Any],
+    secret_reader: SecretReaderBase,
+    sql_query_settings: SqlQuerySettingsV1 | None,
     vault_output_path: str,
     vault_client: VaultClient,
 ) -> None:
@@ -616,7 +623,7 @@ def _process_db_access(
     with OC_Map(
         clusters=[namespace.cluster.model_dump(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
     ) as oc_map:
         oc = oc_map.get_cluster(cluster_name, False)
 
@@ -628,12 +635,11 @@ def _process_db_access(
             user_secret_name=resource_prefix,
         )
 
-        sql_query_settings = settings.get("sqlQuery")
         if not sql_query_settings:
             raise KeyError("sqlQuery settings are required")
 
         job_image = (
-            sql_query_settings.get("jobImage")
+            sql_query_settings.job_image
             or "quay.io/redhat-services-prod/app-sre-tenant/container-images-master/debug-container-master:latest"
         )
 
@@ -641,10 +647,10 @@ def _process_db_access(
             db_access,
             engine,
             job_image,
-            sql_query_settings["pullSecret"],
+            sql_query_settings.pull_secret.model_dump(by_alias=True),
             admin_secret_name,
             resource_prefix,
-            settings,
+            secret_reader,
             connections["user"],
             connections["admin"],
             current_db_access=current_db_access,
@@ -714,7 +720,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
         return QONTRACT_INTEGRATION
 
     def run(self, dry_run: bool) -> None:
-        settings = queries.get_app_interface_settings()
+        settings = get_app_interface_settings()
         vault_client = VaultClient.get_instance()
 
         state = init_state(
@@ -752,7 +758,8 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                                 namespace,
                                 admin_secret_name,
                                 get_db_engine(resource),
-                                settings,
+                                self.secret_reader,
+                                settings.sql_query,
                                 self.params.vault_output_path,
                                 vault_client,
                             )

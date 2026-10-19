@@ -10,11 +10,13 @@ from typing import Any, Self
 from pydantic import BaseModel, Field, SerializeAsAny, model_validator
 from qontract_utils.differ import diff_mappings
 
-from reconcile import queries
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
     ClusterSpecAutoScaleV1,
     ClusterV1,
+)
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -24,6 +26,7 @@ from reconcile.utils.ocm import (
     OCM,
     OCMMap,
 )
+from reconcile.utils.secret_reader import create_secret_reader
 
 QONTRACT_INTEGRATION = "ocm-machine-pools"
 
@@ -535,14 +538,15 @@ def run(dry_run: bool) -> None:
         logging.debug("No machinePools definitions found in app-interface")
         return
 
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     cluster_like_objects = [
         cluster.model_dump(by_alias=True) for cluster in filtered_clusters
     ]
     ocm_map = OCMMap(
         clusters=cluster_like_objects,
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
     )
 
     current_state = fetch_current_state(ocm_map, filtered_clusters)

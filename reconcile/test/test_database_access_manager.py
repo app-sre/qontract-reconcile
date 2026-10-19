@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections import defaultdict
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -20,6 +20,10 @@ from reconcile.database_access_manager import (
     _process_db_access,
     get_job_spec,
 )
+from reconcile.gql_definitions.common.app_interface_settings import (
+    NamespaceOpenshiftResourceVaultSecretV1,
+    SqlQuerySettingsV1,
+)
 from reconcile.gql_definitions.terraform_resources.database_access_manager import (
     DatabaseAccessAccessGranteeV1,
     DatabaseAccessAccessV1,
@@ -31,7 +35,6 @@ from reconcile.utils.openshift_resource import OpenshiftResource
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from unittest.mock import MagicMock
 
     from pytest_mock import MockerFixture
 
@@ -369,7 +372,7 @@ def test_populate_resources(
         },
         admin_secret_name="db-secret",
         resource_prefix="dbam-foo",
-        settings={"foo": "bar"},
+        secret_reader=mocker.MagicMock(),
         user_connection=db_connection_parameter,
         admin_connection=db_admin_connection_parameter,
     )
@@ -477,13 +480,17 @@ def dbam_process_mocks(
 
 
 @pytest.fixture
-def ai_settings() -> dict[str, Any]:
-    d: dict[str, Any] = defaultdict(str)
-    d["sqlQuery"] = {
-        "jobImage": "quay.io/job/image",
-        "pullSecret": {"foo": "bar"},
-    }
-    return d
+def sql_query_settings() -> SqlQuerySettingsV1:
+    return SqlQuerySettingsV1(
+        jobImage="quay.io/job/image",
+        pullSecret=NamespaceOpenshiftResourceVaultSecretV1(
+            path="/foo/bar",
+            version=1,
+            labels=None,
+            annotations=None,
+            type="a",
+        ),
+    )
 
 
 def test__process_db_access_job_pass(
@@ -492,7 +499,7 @@ def test__process_db_access_job_pass(
     dbam_state: MagicMock,
     dbam_process_mocks: OpenshiftResource,
     mocker: MockerFixture,
-    ai_settings: dict[str, Any],
+    sql_query_settings: SqlQuerySettingsV1,
     vault_mock: MagicMock,
 ) -> None:
     dbam_state.exists.return_value = False
@@ -516,7 +523,8 @@ def test__process_db_access_job_pass(
         namespace=db_access_namespace,
         admin_secret_name="db-secret",
         engine="postgres",
-        settings=ai_settings,
+        secret_reader=mocker.MagicMock(),
+        sql_query_settings=sql_query_settings,
         vault_output_path="foo",
         vault_client=vault_mock,
     )
@@ -553,7 +561,7 @@ def test__process_db_access_job_error(
     db_access_namespace: NamespaceV1,
     dbam_process_mocks: OpenshiftResource,
     mocker: MockerFixture,
-    ai_settings: dict[str, Any],
+    sql_query_settings: SqlQuerySettingsV1,
     vault_mock: MagicMock,
 ) -> None:
     dbam_state.exists.return_value = False
@@ -572,7 +580,8 @@ def test__process_db_access_job_error(
             namespace=db_access_namespace,
             admin_secret_name="db-secret",
             engine="postgres",
-            settings=ai_settings,
+            secret_reader=mocker.MagicMock(),
+            sql_query_settings=sql_query_settings,
             vault_output_path="foo",
             vault_client=vault_mock,
         )
@@ -584,7 +593,7 @@ def test__process_db_access_state_diff(
     db_access_namespace: NamespaceV1,
     dbam_process_mocks: OpenshiftResource,
     mocker: MockerFixture,
-    ai_settings: dict[str, Any],
+    sql_query_settings: SqlQuerySettingsV1,
     vault_mock: MagicMock,
 ) -> None:
     dba_current = db_access.model_dump(by_alias=True)
@@ -607,7 +616,8 @@ def test__process_db_access_state_diff(
         namespace=db_access_namespace,
         admin_secret_name="db-secret",
         engine="postgres",
-        settings=ai_settings,
+        secret_reader=mocker.MagicMock(),
+        sql_query_settings=sql_query_settings,
         vault_output_path="foo",
         vault_client=vault_mock,
     )
@@ -630,7 +640,7 @@ def test__process_db_access_value_error_database(
     dbam_state: MagicMock,
     db_access_namespace: NamespaceV1,
     dbam_process_mocks: OpenshiftResource,
-    ai_settings: dict[str, Any],
+    sql_query_settings: SqlQuerySettingsV1,
     field: str,
     vault_mock: MagicMock,
 ) -> None:
@@ -647,7 +657,8 @@ def test__process_db_access_value_error_database(
             namespace=db_access_namespace,
             admin_secret_name="db-secret",
             engine="postgres",
-            settings=ai_settings,
+            secret_reader=MagicMock(),
+            sql_query_settings=sql_query_settings,
             vault_output_path="foo",
             vault_client=vault_mock,
         )
@@ -670,7 +681,8 @@ def test__process_db_access_state_exists_matched(
         namespace=db_access_namespace,
         admin_secret_name="db-secret",
         engine="postgres",
-        settings=defaultdict(str),
+        secret_reader=MagicMock(),
+        sql_query_settings=None,
         vault_output_path="foo",
         vault_client=vault_mock,
     )

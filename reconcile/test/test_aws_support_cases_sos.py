@@ -42,10 +42,7 @@ def test_run_scopes_get_users_keys_to_accounts_with_candidate_keys(
         "reconcile.aws_support_cases_sos.queries.get_aws_accounts",
         return_value=[account],
     )
-    mocker.patch(
-        "reconcile.aws_support_cases_sos.queries.get_app_interface_settings",
-        return_value={},
-    )
+    mocker.patch("reconcile.aws_support_cases_sos.get_app_interface_vault_settings")
     mocker.patch("reconcile.aws_support_cases_sos.act")
 
     fake_case = {
@@ -83,10 +80,7 @@ def test_run_skips_get_users_keys_when_no_candidate_keys(
         "reconcile.aws_support_cases_sos.queries.get_aws_accounts",
         return_value=[account],
     )
-    mocker.patch(
-        "reconcile.aws_support_cases_sos.queries.get_app_interface_settings",
-        return_value={},
-    )
+    mocker.patch("reconcile.aws_support_cases_sos.get_app_interface_vault_settings")
     mocker.patch("reconcile.aws_support_cases_sos.act")
 
     mock_aws = mocker.MagicMock()

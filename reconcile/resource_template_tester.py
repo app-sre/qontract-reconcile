@@ -6,8 +6,8 @@ import yaml
 
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
-from reconcile import queries
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.utils import gql
 from reconcile.utils.semver_helper import make_semver
 
@@ -33,7 +33,7 @@ def load_resource(path: str) -> dict:
 def run(dry_run: bool) -> None:
     gqlapi = gql.get_api()
     template_tests = gqlapi.query(TEMPLATE_TESTS_QUERY)["tests"]
-    settings = queries.get_app_interface_settings()
+    settings = get_app_interface_settings().model_dump(by_alias=True)
     error = False
     for tt in template_tests:
         found = False

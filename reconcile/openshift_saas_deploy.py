@@ -253,10 +253,9 @@ def run(
 
     jenkins_map = jenkins_base.get_jenkins_map()
     saasherder_settings = get_saasherder_settings()
-    settings = queries.get_app_interface_settings()
     try:
         instance = queries.get_gitlab_instance()
-        gl = GitLabApi(instance, settings=settings)
+        gl = GitLabApi(instance, secret_reader=secret_reader)
     except Exception:
         # allow execution without access to gitlab
         # as long as there are no access attempts.

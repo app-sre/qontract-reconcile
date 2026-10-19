@@ -219,6 +219,9 @@ def test_dry_run(
         "reconcile.gitlab_housekeeping.integration.GitLabApi", autospec=True
     ).return_value.__enter__.return_value
     mocker.patch("reconcile.gitlab_housekeeping.integration.init_state", autospec=True)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.integration.get_app_interface_vault_settings"
+    )
 
     gl_h.run(True, False)
 

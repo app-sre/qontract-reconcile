@@ -17,6 +17,7 @@ from sretoolbox.utils import (
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.aws_iam_keys import run as disable_keys
+from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -162,7 +163,7 @@ def fetch_current_state(
 def init_working_dirs(
     accounts: list[dict[str, Any]],
     thread_pool_size: int,
-    settings: Mapping[str, Any] | None = None,
+    secret_reader: SecretReaderBase | None = None,
     default_tags: Mapping[str, str] | None = None,
 ) -> tuple[Terrascript, dict[str, str]]:
     ts = Terrascript(
@@ -170,7 +171,7 @@ def init_working_dirs(
         QONTRACT_TF_PREFIX,
         thread_pool_size,
         accounts,
-        settings=settings,
+        secret_reader=secret_reader,
         default_tags=default_tags,
     )
     working_dirs = ts.dump()
@@ -247,7 +248,7 @@ def setup(
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
-    settings = queries.get_app_interface_settings() or {}
+    settings = get_app_interface_settings()
     try:
         default_tags = get_settings().default_tags
     except ValueError:
@@ -255,12 +256,15 @@ def setup(
         default_tags = None
     # initialize terrascript (scripting engine to generate terraform manifests)
     ts, working_dirs = init_working_dirs(
-        accounts, thread_pool_size, settings=settings, default_tags=default_tags
+        accounts,
+        thread_pool_size,
+        secret_reader=secret_reader,
+        default_tags=default_tags,
     )
 
     # initialize terraform client
     # it is used to plan and apply according to the output of terrascript
-    aws_api = AWSApi(1, accounts, settings=settings)
+    aws_api = AWSApi(1, accounts, secret_reader=secret_reader)
     tf = Terraform(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
@@ -273,13 +277,18 @@ def setup(
     clusters = [c for c in queries.get_clusters() if c.get("ocm") is not None]
     if clusters:
         ocm_map = OCMMap(
-            clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
+            clusters=clusters,
+            integration=QONTRACT_INTEGRATION,
+            secret_reader=secret_reader,
         )
     else:
         ocm_map = None
     tf_namespaces_dicts = [ns.model_dump(by_alias=True) for ns in tf_namespaces]
 
-    provider_exclusions = settings.get("terraformResourcesProviderExclusions") or []
+    provider_exclusions = [
+        pe.model_dump(by_alias=True)
+        for pe in (settings.terraform_resources_provider_exclusions or [])
+    ]
     ts.init_populate_specs(
         tf_namespaces_dicts,
         account_names,

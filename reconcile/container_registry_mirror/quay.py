@@ -12,10 +12,13 @@ from reconcile.container_registry_mirror import register
 from reconcile.container_registry_mirror.deep_sync_timer import DeepSyncTimer
 from reconcile.container_registry_mirror.engine import MirrorEngine
 from reconcile.container_registry_mirror.mirror_spec import MirrorSpec
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import gql
 from reconcile.utils.instrumented_wrappers import InstrumentedImage
 from reconcile.utils.instrumented_wrappers import InstrumentedSkopeo as Skopeo
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -64,8 +67,8 @@ class QuayMirror:
         exclude_repository_urls: Iterable[str] | None = None,
     ) -> None:
         self.gqlapi = gql.get_api()
-        settings = queries.get_app_interface_settings()
-        self.secret_reader = SecretReader(settings=settings)
+        vault_settings = get_app_interface_vault_settings()
+        self.secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         self.repository_urls = repository_urls
         self.exclude_repository_urls = exclude_repository_urls
         # Credentials are fetched eagerly so that misconfiguration

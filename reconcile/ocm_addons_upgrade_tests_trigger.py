@@ -21,7 +21,6 @@ QONTRACT_INTEGRATION = "ocm-addons-upgrade-tests-trigger"
 
 @defer
 def run(dry_run: bool, defer: Callable | None = None) -> None:
-    settings = queries.get_app_interface_settings()
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     state = init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader)
@@ -37,7 +36,7 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
         ocm_map = OCMMap(
             ocms=[ocm_info],
             integration=QONTRACT_INTEGRATION,
-            settings=settings,
+            secret_reader=secret_reader,
             init_addons=True,
         )
 

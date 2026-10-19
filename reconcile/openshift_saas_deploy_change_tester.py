@@ -14,12 +14,16 @@ from reconcile.gql_definitions.common.saas_files import (
     SaasResourceTemplateTargetUpstreamV1,
 )
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.typed_queries.saas_files import (
     SaasFile,
     SaasFileList,
 )
 from reconcile.utils import gql
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 
 if TYPE_CHECKING:
@@ -77,8 +81,11 @@ def osd_run_wrapper(
 
 def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
-    return GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    return GitLabApi(
+        instance, project_id=gitlab_project_id, secret_reader=secret_reader
+    )
 
 
 def collect_state(saas_files: list[SaasFile]) -> list[State]:

@@ -7,9 +7,12 @@ from typing import Any, cast
 from pydantic import BaseModel, Field
 
 from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.external_resources import get_external_resource_specs
 from reconcile.utils.jenkins_api import JenkinsApi
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
 QONTRACT_INTEGRATION = "jenkins-worker-fleets"
@@ -185,8 +188,8 @@ def act(
 
 def run(dry_run: bool) -> None:
     jenkins_instances = queries.get_jenkins_instances(worker_fleets=True)
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
     # initiating terrascript with an empty list of accounts,
     # as we are not really initiating terraform configuration
@@ -196,7 +199,7 @@ def run(dry_run: bool) -> None:
         "",
         1,
         accounts=[],
-        settings=settings,
+        secret_reader=secret_reader,
         prefetch_resources_by_schemas=["/aws/asg-defaults-1.yml"],
         default_tags=None,
     )

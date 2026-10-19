@@ -95,6 +95,7 @@ from reconcile.slack_base import slackapi_from_queries
 from reconcile.status_board import StatusBoardExporterIntegration
 from reconcile.typed_queries.alerting_services_settings import get_alerting_services
 from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
+from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -105,6 +106,7 @@ from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.external_resources import get_settings as get_er_settings
 from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.typed_queries.slo_documents import get_slo_documents
+from reconcile.typed_queries.smtp import settings as get_smtp_settings
 from reconcile.typed_queries.status_board import get_status_board
 from reconcile.typed_queries.tekton_pipeline_providers import (
     get_tekton_pipeline_providers,
@@ -278,7 +280,7 @@ def describe(ctx: click.Context, output: str) -> None:
 @get.command()
 @click.pass_context
 def settings(ctx: click.Context) -> None:
-    settings = queries.get_app_interface_settings()
+    settings = get_app_interface_settings().model_dump(by_alias=True)
     columns = ["vault", "kubeBinary", "mergeRequestGateway"]
     print_output(ctx.obj["options"], [settings], columns)
 
@@ -321,13 +323,14 @@ def clusters(ctx: click.Context, name: str) -> None:
 @click.argument("name", default="")
 @click.pass_context
 def cluster_upgrades(ctx: click.Context, name: str) -> None:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
     clusters = queries.get_clusters()
 
     clusters_ocm = [c for c in clusters if c.get("ocm") is not None and c.get("auth")]
 
-    ocm_map = OCMMap(clusters=clusters_ocm, settings=settings)
+    ocm_map = OCMMap(clusters=clusters_ocm, secret_reader=secret_reader)
 
     clusters_data = []
     for c in clusters:
@@ -832,7 +835,8 @@ def upgrade_cluster_addon(
 ) -> None:
     import reconcile.aus.ocm_addons_upgrade_scheduler_org as oauso
 
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     ocms = queries.get_openshift_cluster_managers()
     ocms = [o for o in ocms if o["name"] == ocm_org]
     if not ocms:
@@ -854,7 +858,7 @@ def upgrade_cluster_addon(
     ocm_map = OCMMap(
         clusters=upgrade_policy_clusters,
         integration=oauso.QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
         init_version_gates=True,
         init_addons=True,
     )
@@ -909,7 +913,8 @@ def has_cluster_account_access(cluster: dict[str, Any]) -> bool:
 @click.argument("name", default="")
 @click.pass_context
 def clusters_network(ctx: click.Context, name: str) -> None:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = [
         c
         for c in queries.get_clusters()
@@ -928,7 +933,7 @@ def clusters_network(ctx: click.Context, name: str) -> None:
         "availability_zone_ids",
         "egress_ips",
     ]
-    ocm_map = OCMMap(clusters=clusters, settings=settings)
+    ocm_map = OCMMap(clusters=clusters, secret_reader=secret_reader)
 
     for cluster in clusters:
         cluster_name = cluster["name"]
@@ -963,7 +968,7 @@ def clusters_network(ctx: click.Context, name: str) -> None:
                 "resourcesDefaultRegion"
             ]
             cluster["aws_account_id"] = get_account_uid_from_arn(account["assume_role"])
-        with AWSApi(1, [account], settings=settings) as aws_api:
+        with AWSApi(1, [account], secret_reader=secret_reader) as aws_api:
             vpc_id, _, subnets_id_az, _ = aws_api.get_cluster_vpc_details(
                 account, subnets=True
             )
@@ -1170,11 +1175,12 @@ def cidr_blocks(
 
 
 def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get("ocm") is not None]
     accounts = {a["uid"]: a["name"] for a in queries.get_aws_accounts()}
-    ocm_map = OCMMap(clusters=clusters, settings=settings)
+    ocm_map = OCMMap(clusters=clusters, secret_reader=secret_reader)
 
     results = []
     for cluster in clusters:
@@ -1228,9 +1234,10 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx: click.Context) -> None:
 @get.command()
 @click.pass_context
 def clusters_aws_account_ids(ctx: click.Context) -> None:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = [c for c in queries.get_clusters() if c.get("ocm") is not None]
-    ocm_map = OCMMap(clusters=clusters, settings=settings)
+    ocm_map = OCMMap(clusters=clusters, secret_reader=secret_reader)
 
     results = []
     for cluster in clusters:
@@ -1323,8 +1330,8 @@ def aws_route53_zones(ctx: click.Context) -> None:
 @click.option("--cluster-admin/--no-cluster-admin", default=False)
 @click.pass_context
 def bot_login(ctx: click.Context, cluster_name: str, cluster_admin: bool) -> None:
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c["name"] == cluster_name]
     if len(clusters) == 0:
@@ -1354,8 +1361,8 @@ def bot_login(ctx: click.Context, cluster_name: str, cluster_admin: bool) -> Non
 @click.argument("org_name")
 @click.pass_context
 def ocm_login(ctx: click.Context, org_name: str) -> None:
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     ocms = [
         o for o in queries.get_openshift_cluster_managers() if o["name"] == org_name
     ]
@@ -1381,8 +1388,8 @@ def ocm_login(ctx: click.Context, org_name: str) -> None:
 @click.argument("account_name")
 @click.pass_context
 def aws_creds(ctx: click.Context, account_name: str) -> None:
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     accounts = queries.get_aws_accounts(name=account_name)
     if not accounts:
         print(f"{account_name} not found.")
@@ -1431,8 +1438,8 @@ def copy_tfstate(
     region: str | None,
     force: bool,
 ) -> None:
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     accounts = queries.get_aws_accounts(uid=account_uid, terraform_state=True)
     if not accounts:
         print(f"{account_uid} not found in App-Interface.")
@@ -1459,7 +1466,7 @@ def copy_tfstate(
     dest_key = f"{dest_folder[0]['key']}/{dest_filename}-tf-repo.tfstate"
     dest_bucket = account["terraformState"]["bucket"]
 
-    with AWSApi(1, accounts, settings, secret_reader) as aws:
+    with AWSApi(1, accounts, secret_reader=secret_reader) as aws:
         session = aws.get_session(account["name"])
         s3_client = aws.get_session_client(session, "s3", region)
         copy_source = cast(
@@ -1526,7 +1533,8 @@ def rosa_create_cluster_command(ctx: click.Context, cluster_name: str) -> None:
         print("must be a rosa cluster.")
         sys.exit(1)
 
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     account = cluster.spec.account
     if not account:
         print("account not found.")
@@ -1536,7 +1544,7 @@ def rosa_create_cluster_command(ctx: click.Context, cluster_name: str) -> None:
         billing_account = account.billing_account.uid
     else:
         with AWSApi(
-            1, [account.model_dump(by_alias=True)], settings=settings
+            1, [account.model_dump(by_alias=True)], secret_reader=secret_reader
         ) as aws_api:
             billing_account = aws_api.get_organization_billing_account(account.name)
 
@@ -1868,7 +1876,8 @@ def rds_recommendations(ctx: click.Context) -> None:
     ignored_statuses = ("resolved",)
     ignored_severities = ("informational",)
 
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
     # Only check AWS accounts for which we have RDS resources defined
     targetted_accounts = []
@@ -1911,7 +1920,7 @@ def rds_recommendations(ctx: click.Context) -> None:
         assert account_name is not None  # make mypy happy
         account_deployment_regions = account.get("supportedDeploymentRegions")
         for region in account_deployment_regions or []:
-            with AWSApi(1, [account], settings=settings) as aws:
+            with AWSApi(1, [account], secret_reader=secret_reader) as aws:
                 try:
                     data = aws.describe_rds_recommendations(account_name, region)
                     db_recommendations = data.get("DBRecommendations", [])
@@ -2167,13 +2176,14 @@ You can view the source of this Markdown to extract the JSON data.
 def root_owner(
     ctx: click.Context, cluster: str, namespace: str, kind: str, name: str
 ) -> None:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = [c for c in queries.get_clusters(minimal=True) if c["name"] == cluster]
     oc_map = OC_Map(
         clusters=clusters,
         integration="qontract-cli",
         thread_pool_size=1,
-        settings=settings,
+        secret_reader=secret_reader,
         init_api_resources=True,
     )
     oc = oc_map.get(cluster)
@@ -2250,9 +2260,12 @@ def app_interface_merge_queue(ctx: click.Context) -> None:
     from reconcile.gitlab_housekeeping.integration import QONTRACT_INTEGRATION
     from reconcile.gitlab_housekeeping.queue import get_merge_requests
 
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     instance = queries.get_gitlab_instance()
-    gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
+    gl = GitLabApi(
+        instance, project_url=get_app_interface_repo_url(), secret_reader=secret_reader
+    )
     state = init_state(integration=QONTRACT_INTEGRATION)
     merge_requests = get_merge_requests(True, gl, state=state)
 
@@ -2298,9 +2311,9 @@ def app_interface_review_queue(ctx: click.Context) -> None:
         is_good_to_merge,
     )
 
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
     instance = queries.get_gitlab_instance()
-    secret_reader = SecretReader(settings=settings)
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     jjb: JJB = init_jjb(secret_reader)
     columns = [
         "id",
@@ -2313,7 +2326,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
     ]
 
     def get_mrs(repo: str, url: str) -> list[dict[str, str]]:
-        gl = GitLabApi(instance, project_url=url, settings=settings)
+        gl = GitLabApi(instance, project_url=url, secret_reader=secret_reader)
         merge_requests = gl.get_merge_requests(state=MRState.OPENED)
         try:
             job = jjb.get_job_by_repo_url(url, job_type="gl-pr-check")
@@ -2428,9 +2441,12 @@ def app_interface_review_queue(ctx: click.Context) -> None:
 @get.command()
 @click.pass_context
 def app_interface_open_selfserviceable_mr_queue(ctx: click.Context) -> None:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     instance = queries.get_gitlab_instance()
-    gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
+    gl = GitLabApi(
+        instance, project_url=get_app_interface_repo_url(), secret_reader=secret_reader
+    )
     merge_requests = gl.get_merge_requests(state=MRState.OPENED)
 
     columns = [
@@ -2516,9 +2532,12 @@ def change_types(ctx: click.Context) -> None:
 @get.command()
 @click.pass_context
 def app_interface_merge_history(ctx: click.Context) -> None:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     instance = queries.get_gitlab_instance()
-    gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
+    gl = GitLabApi(
+        instance, project_url=get_app_interface_repo_url(), secret_reader=secret_reader
+    )
     merge_requests = gl.project.mergerequests.list(
         state=MRState.MERGED,
         per_page=100,
@@ -3273,13 +3292,12 @@ def slack_usergroup(
     Use an org_username as the username.
     To empty a slack usergroup, pass '' (empty string) as the username.
     """
-    settings = queries.get_app_interface_settings()
     slack = slackapi_from_queries("qontract-cli")
     ugid = slack.get_usergroup_id(usergroup)
     if not ugid:
         raise click.ClickException(f"Usergroup {usergroup} not found.")
     if username:
-        mail_address = settings["smtp"]["mailAddress"]
+        mail_address = get_smtp_settings().mail_address
         users = [slack.get_user_id_by_name(username, mail_address)]
     else:
         users = [slack.get_random_deleted_user()]
@@ -3646,7 +3664,7 @@ def template(
         sys.exit(1)
 
     namespace_info = namespaces_info[0]
-    settings = queries.get_app_interface_settings()
+    settings = get_app_interface_settings().model_dump(by_alias=True)
     settings["vault"] = secret_reader == "vault"
 
     if path and path.startswith("resources"):
@@ -3816,7 +3834,7 @@ def alert_to_receiver(
         print(f"Unknown cluster {cluster}")
         sys.exit(1)
 
-    settings = queries.get_app_interface_settings()
+    settings = get_app_interface_settings().model_dump(by_alias=True)
     if secret_reader == "config":
         settings["vault"] = False
     else:
@@ -4033,8 +4051,8 @@ def promquery(cluster: str, query: str) -> None:
     """Run a PromQL query"""
     config_data = config.get_config()
     prom_auth = {"path": config_data["promql-auth"]["secret_path"], "field": "token"}
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     prom_user, prom_pass = secret_reader.read(prom_auth).split(":")
 
     url = f"https://prometheus.{cluster}.devshift.net/api/v1/query"
@@ -4644,12 +4662,12 @@ def log_group_usage(ctx: click.Context, aws_account: str) -> None:
         sys.exit(1)
     account = accounts[0]
 
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     columns = ["log_group", "stored_bytes", "retention_days"]
     results: list[dict[str, str | int]] = []
 
-    with AWSApi(1, [account], settings, secret_reader) as aws:
+    with AWSApi(1, [account], secret_reader=secret_reader) as aws:
         session = aws.get_session(account["name"])
         cloudwatch_client = aws.get_session_client(session, "logs")
         paginator = cloudwatch_client.get_paginator("describe_log_groups")

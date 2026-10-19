@@ -18,9 +18,7 @@ from reconcile import (
 )
 from reconcile import openshift_resources_base as orb
 from reconcile.status import ExitCodes
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
-)
+from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.utils.defer import defer
 from reconcile.utils.external_resources import get_external_resource_specs
 from reconcile.utils.oc import (
@@ -733,7 +731,7 @@ def _delete_query_resources(
     query: dict[str, Any],
     dry_run: bool,
     enable_deletion: bool,
-    settings: dict[str, Any],
+    secret_reader: SecretReaderBase,
     state: State,
     ri: ResourceInventory,
 ) -> None:
@@ -743,7 +741,7 @@ def _delete_query_resources(
     with OC_Map(
         namespaces=[query["namespace"]],
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
     ) as oc_map:
         openshift_resources = _get_openshift_resources_by_label(
             oc_map=oc_map,
@@ -773,7 +771,6 @@ def _process_existing_query(
     query: dict[str, Any],
     dry_run: bool,
     enable_deletion: bool,
-    settings: dict[str, Any],
     state: State,
     job_image: str,
     pull_secret: dict[str, Any],
@@ -794,7 +791,7 @@ def _process_existing_query(
                 query,
                 dry_run,
                 enable_deletion,
-                settings,
+                secret_reader,
                 state,
                 ri,
             )
@@ -809,7 +806,6 @@ def _process_existing_query(
 def _process_new_query(
     query: dict[str, Any],
     dry_run: bool,
-    settings: dict[str, Any],
     state: State,
     job_image: str,
     pull_secret: dict[str, Any],
@@ -829,7 +825,7 @@ def _process_new_query(
     with OC_Map(
         namespaces=[query["namespace"]],
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
     ) as oc_map:
         openshift_apply(
             dry_run=dry_run,
@@ -848,10 +844,9 @@ def run(
     enable_deletion: bool = False,
     defer: Callable | None = None,
 ) -> None:
-    settings = queries.get_app_interface_settings()
+    settings = get_app_interface_settings()
     state = init_state(integration=QONTRACT_INTEGRATION)
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    secret_reader = create_secret_reader(use_vault=settings.vault)
     if defer:
         defer(state.cleanup)
     smtp_settings = typed_queries.smtp.settings()
@@ -865,11 +860,11 @@ def run(
     )
     job_image = "quay.io/redhat-services-prod/app-sre-tenant/container-images-master/debug-container-master:latest"
 
-    sql_query_settings = settings.get("sqlQuery")
+    sql_query_settings = settings.sql_query
     pull_secret: dict[str, Any] = {}
     if sql_query_settings:
-        job_image = sql_query_settings.get("jobImage") or job_image
-        pull_secret = sql_query_settings["pullSecret"]
+        job_image = sql_query_settings.job_image or job_image
+        pull_secret = sql_query_settings.pull_secret.model_dump(by_alias=True)
 
     queries_list = collect_queries(secret_reader=secret_reader, smtp_client=smtp_client)
     query_states = {s.lstrip("/") for s in state.ls()}
@@ -880,7 +875,6 @@ def run(
                 query,
                 dry_run,
                 enable_deletion,
-                settings,
                 state,
                 job_image,
                 pull_secret,
@@ -891,7 +885,6 @@ def run(
             _process_new_query(
                 query,
                 dry_run,
-                settings,
                 state,
                 job_image,
                 pull_secret,

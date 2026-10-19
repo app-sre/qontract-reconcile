@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING, Any
 from sretoolbox.utils import threaded
 
 from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.datetime_util import from_utc_iso_format
 from reconcile.utils.defer import defer
@@ -15,11 +18,14 @@ from reconcile.utils.gitlab_api import (
 )
 from reconcile.utils.mr.labels import APPROVED
 from reconcile.utils.repo_owners import RepoOwners
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
     from gitlab.v4.objects import ProjectMergeRequest
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "gitlab-owners"
 
@@ -352,10 +358,12 @@ def act(
     repo: Mapping,
     dry_run: bool,
     instance: Mapping,
-    settings: Mapping,
+    secret_reader: SecretReaderBase,
     defer: Callable | None = None,
 ) -> None:
-    gitlab_cli = GitLabApi(instance, project_url=repo["url"], settings=settings)
+    gitlab_cli = GitLabApi(
+        instance, project_url=repo["url"], secret_reader=secret_reader
+    )
     if defer:
         defer(gitlab_cli.cleanup)
     project_owners = RepoOwners(
@@ -436,7 +444,8 @@ def act(
 
 def run(dry_run: bool, thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE) -> None:
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     repos = queries.get_repos_gitlab_owner(server=instance["url"])
     threaded.run(
         act,
@@ -444,5 +453,5 @@ def run(dry_run: bool, thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE) -> None
         thread_pool_size,
         dry_run=dry_run,
         instance=instance,
-        settings=settings,
+        secret_reader=secret_reader,
     )
