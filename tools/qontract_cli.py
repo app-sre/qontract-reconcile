@@ -164,6 +164,7 @@ from reconcile.utils.mr.labels import (
     AVS,
     HOLD,
     PENDING_SELF_SERVICE_APPROVAL,
+    RESTRICTED,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
     SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
@@ -2379,6 +2380,8 @@ def app_interface_review_queue(ctx: click.Context) -> None:
             if HOLD in labels:
                 continue
             if PENDING_SELF_SERVICE_APPROVAL in labels and not has_error_label:
+                continue
+            if RESTRICTED in labels and not has_error_label:
                 continue
             if (
                 SELF_SERVICEABLE in labels
