@@ -264,15 +264,19 @@ def test_self_service_portion_approved_ignores_disabled_only_coverage(
 
 
 def _fragment_parent(
-    mocker: MockerFixture, fragments: list[ChangeDecision]
+    mocker: MockerFixture,
+    fragments: list[ChangeDecision],
+    *,
+    approvers: list[str] | None = None,
 ) -> ChangeDecision:
-    parent = ChangeDecision(
-        file=mocker.patch("reconcile.change_owners.bundle.FileRef"),
-        diff=mocker.patch("reconcile.change_owners.diff.Diff"),
-        coverage=[],
-        coverable_by_fragment_decisions=True,
-        fragment_decisions=fragments,
-    )
+    """approvers=None means the parent has no direct coverage of its own
+    (the common case); otherwise it also carries a direct, tenant-approvable
+    context alongside the fragments (see _cover_changes_for_diffs() in
+    changes.py, which can append a new covering context to an
+    already-split diff without propagating it into existing fragments)."""
+    parent = _change_decision(mocker, approvers=approvers)
+    parent.coverable_by_fragment_decisions = True
+    parent.fragment_decisions = fragments
     return parent
 
 
@@ -299,6 +303,33 @@ def test_self_service_portion_approved_requires_approval_for_tenant_fragment(
     unapproved_tenant_fragment = _change_decision(mocker, approvers=["bob"])
     parent = _fragment_parent(mocker, [approved_fragment, unapproved_tenant_fragment])
     assert not is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_honors_parent_hold_alongside_fragments(
+    mocker: MockerFixture,
+) -> None:
+    """a direct, tenant-approvable context added to the parent after the
+    split carries a hold that's invisible to any individual fragment's own
+    is_held() - it must still block, even though every fragment itself is
+    fully approved"""
+    approved_fragment = _change_decision(mocker, approvers=["alice"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    parent = _fragment_parent(mocker, [approved_fragment], approvers=["carol"])
+    parent.apply_context_decision("ctx", DecisionCommand.HOLD)
+    assert not is_self_service_portion_approved([parent], set())
+
+
+def test_self_service_portion_approved_ignores_app_sre_only_parent_hold(
+    mocker: MockerFixture,
+) -> None:
+    """a hold on the parent's own direct coverage is only exempt from
+    blocking when that coverage is itself AppSRE-only - same exemption as
+    everywhere else, applied to the parent instead of a fragment"""
+    approved_fragment = _change_decision(mocker, approvers=["alice"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    parent = _fragment_parent(mocker, [approved_fragment], approvers=["app-sre-bot"])
+    parent.apply_context_decision("ctx", DecisionCommand.HOLD)
+    assert is_self_service_portion_approved([parent], {"app-sre-bot"})
 
 
 #

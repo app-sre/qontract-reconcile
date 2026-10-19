@@ -394,9 +394,21 @@ def _is_self_service_satisfied(
     way independently, rather than relying on the parent's own
     is_approved() - which requires *every* fragment approved, including
     any AppSRE-only ones that can't be approved until AppSRE can see the
-    MR in the first place.
+    MR in the first place. The parent can also carry its own direct,
+    tenant-approvable coverage added after the split (see
+    _cover_changes_for_diffs() in changes.py, which doesn't propagate a
+    newly covering context into existing fragments) - a hold from that
+    coverage is only visible on the parent's own is_held(), never on any
+    individual fragment's, so it must be checked here too.
     """
     if d.coverable_by_fragment_decisions:
+        active_coverage = _active_coverage(d.coverage)
+        if (
+            active_coverage
+            and not _is_unblockable_by_tenant(active_coverage, app_sre_usernames)
+            and d.is_held()
+        ):
+            return False
         return all(
             _is_self_service_satisfied(fragment, app_sre_usernames)
             for fragment in d.fragment_decisions
