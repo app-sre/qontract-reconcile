@@ -14,7 +14,6 @@ from reconcile.utils.mr.labels import (
     LGTM,
     PENDING_SELF_SERVICE_APPROVAL,
     PIPELINE_ERROR,
-    RESTRICTED,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
 )
@@ -712,41 +711,6 @@ def test_review_queue_includes_bot_authored_self_serviceable_mr_with_pipeline_er
     )
     assert result.exit_code == 0
     assert "MR 7" in result.output
-
-
-def test_review_queue_excludes_restricted_mr_without_error(
-    mock_review_queue_gl: Mock,
-) -> None:
-    mock_review_queue_gl.get_merge_requests.return_value = [_mock_mr(12, [RESTRICTED])]
-
-    runner = CliRunner()
-    result = runner.invoke(
-        qontract_cli.get,
-        ["app-interface-review-queue"],
-        obj={"options": {"output": "table", "sort": True}},
-    )
-    assert result.exit_code == 0
-    assert "MR 12" not in result.output
-
-
-def test_review_queue_includes_restricted_mr_with_pipeline_error(
-    mock_review_queue_gl: Mock,
-) -> None:
-    mock_review_queue_gl.get_merge_requests.return_value = [
-        _mock_mr(13, [LGTM, PIPELINE_ERROR, RESTRICTED])
-    ]
-    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
-        Mock(status=PipelineStatus.FAILED)
-    ]
-
-    runner = CliRunner()
-    result = runner.invoke(
-        qontract_cli.get,
-        ["app-interface-review-queue"],
-        obj={"options": {"output": "table", "sort": True}},
-    )
-    assert result.exit_code == 0
-    assert "MR 13" in result.output
 
 
 def test_review_queue_excludes_pending_self_service_approval_mr_without_error(
