@@ -75,7 +75,7 @@ APP_INTERFACE_SETTINGS_QUERY = """
       }
     }
     ldap {
-      serverUrl
+      serverUrls
       baseDn
     }
     dependencies {
