@@ -14,6 +14,7 @@ from reconcile.utils.membershipsources.ldap_resolver import (
     create_ldap_membership_resolver,
 )
 from reconcile.utils.membershipsources.models import (
+    MembershipSourceProvider,
     has_ldap_sources,
     resolve_role,
 )
@@ -62,6 +63,7 @@ async def resolve_role_members[R: RoleMembershipFields, U: BaseModel](
     member_filter: Callable[[ProviderMember], bool] | None = None,
     query_func: Callable | None = None,
     role_cls: None = None,
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> list[R]: ...
 
 
@@ -79,6 +81,7 @@ async def resolve_role_members[
     member_filter: Callable[[ProviderMember], bool] | None = None,
     query_func: Callable | None = None,
     role_cls: type[T],
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> list[T]: ...
 
 
@@ -96,6 +99,7 @@ async def resolve_role_members[
     member_filter: Callable[[ProviderMember], bool] | None = None,
     query_func: Callable | None = None,
     role_cls: type[T] | None,
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> list[R | T]: ...
 
 
@@ -112,6 +116,7 @@ async def resolve_role_members[
     member_filter: Callable[[ProviderMember], bool] | None = None,
     query_func: Callable | None = None,
     role_cls: type[T] | None = None,
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> list[R] | list[T] | list[R | T]:
     """Async counterpart of resolver.resolve_role_members.
 
@@ -127,11 +132,16 @@ async def resolve_role_members[
     Client lifecycle belongs to the existing async integration runner; the sync
     entry point closes clients before its event loop exits.
 
+    exclude_providers skips memberSources entries for the given provider(s)
+    entirely, the same as the sync resolver - see resolver.resolve_role_members.
+
     Raises:
         ValueError: If injected LDAP settings lack a secret manager URL or a
             role references an unsupported provider.
     """
-    if ldap_settings is None and has_ldap_sources(roles):
+    if ldap_settings is None and has_ldap_sources(
+        roles, exclude_providers=exclude_providers
+    ):
         ldap_settings = await asyncio.to_thread(
             get_ldap_settings, query_func=query_func
         )
@@ -151,7 +161,7 @@ async def resolve_role_members[
         )
 
     resolved_groups: dict[ProviderGroup, list[ProviderMember]] = {}
-    if jobs := resolver.build_resolver_jobs(roles):
+    if jobs := resolver.build_resolver_jobs(roles, exclude_providers=exclude_providers):
         job_results = await asyncio.gather(*[
             _resolve_job(job, resolvers) for job in jobs
         ])
@@ -164,6 +174,7 @@ async def resolve_role_members[
             resolved_groups,
             member_filter=member_filter,
             role_cls=role_cls,
+            exclude_providers=exclude_providers,
         )
         for role in roles
     ]

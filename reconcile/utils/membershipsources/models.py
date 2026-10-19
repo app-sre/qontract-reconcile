@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Coroutine, Mapping, Sequence
+from enum import StrEnum
 from typing import (
     Any,
     Protocol,
@@ -15,6 +16,20 @@ from pydantic import (
     BaseModel,
     ValidationError,
 )
+
+
+class MembershipSourceProvider(StrEnum):
+    """Known discriminator values for `MembershipProviderSource.provider`.
+
+    Resolver dispatch (`get_resolver_for_provider_source`, `_resolve_job`) still
+    keys on the raw discriminator string, so a future provider needs no change
+    here. This enum exists so callers that need to exclude a specific provider
+    from resolution (e.g. `resolve_role_members(..., exclude_providers=...)`)
+    use a typed value instead of a bare string literal.
+    """
+
+    APP_INTERFACE = "app-interface"
+    LDAP = "ldap"
 
 
 class MembershipProviderSource(Protocol):
@@ -48,6 +63,10 @@ class MembershipSourceEntry(Protocol):
 
     @property
     def provider(self) -> MembershipProvider: ...
+
+    def model_dump(
+        self, *, by_alias: bool = False, round_trip: bool = False
+    ) -> Any: ...
 
 
 class User(Protocol):
@@ -94,10 +113,20 @@ class GithubIdentity(Protocol):
     def github_username(self) -> str | None: ...
 
 
-def has_ldap_sources(roles: Sequence[RoleMembershipFields]) -> bool:
-    """Whether the selected roles need LDAP connectivity."""
+def has_ldap_sources(
+    roles: Sequence[RoleMembershipFields],
+    *,
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
+) -> bool:
+    """Whether the selected roles need LDAP connectivity.
+
+    Always False when LDAP is excluded from resolution: no LDAP settings or
+    connection are needed if LDAP sources are never going to be resolved.
+    """
+    if MembershipSourceProvider.LDAP in exclude_providers:
+        return False
     return any(
-        source.provider.source.provider == "ldap"
+        source.provider.source.provider == MembershipSourceProvider.LDAP
         for role in roles
         for source in role.member_sources or []
     )
@@ -142,6 +171,7 @@ def resolve_role[R: RoleMembershipFields, U: BaseModel](
     *,
     member_filter: Callable[[ProviderMember], bool] | None = None,
     role_cls: None = None,
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> R: ...
 
 
@@ -153,6 +183,7 @@ def resolve_role[R: RoleMembershipFields, U: BaseModel, T: RoleMembershipFields]
     *,
     member_filter: Callable[[ProviderMember], bool] | None = None,
     role_cls: type[T],
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> T: ...
 
 
@@ -164,6 +195,7 @@ def resolve_role[R: RoleMembershipFields, U: BaseModel, T: RoleMembershipFields]
     *,
     member_filter: Callable[[ProviderMember], bool] | None = None,
     role_cls: type[T] | None,
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> R | T: ...
 
 
@@ -174,6 +206,7 @@ def resolve_role[R: RoleMembershipFields, U: BaseModel, T: RoleMembershipFields]
     *,
     member_filter: Callable[[ProviderMember], bool] | None = None,
     role_cls: type[T] | None = None,
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> R | T:
     """Return the original or supplied role type with users resolved, leaving bots unchanged.
 
@@ -187,6 +220,12 @@ def resolve_role[R: RoleMembershipFields, U: BaseModel, T: RoleMembershipFields]
 
     An optional member_filter excludes ineligible identities before conversion,
     such as members without GitHub accounts for GitHub-only consumers.
+
+    exclude_providers skips memberSources entries for the given provider(s)
+    entirely - they are neither resolved into users nor looked up in
+    resolved_groups, and are dropped from the returned role's member_sources.
+    The input role object is never mutated; its own member_sources is
+    untouched regardless of exclude_providers.
     """
     seen: set[str] = set()
     users: list[U] = []
@@ -219,7 +258,12 @@ def resolve_role[R: RoleMembershipFields, U: BaseModel, T: RoleMembershipFields]
 
     for user in role.users or []:
         add(user)
-    for member_source in role.member_sources or []:
+    included_sources = [
+        member_source
+        for member_source in role.member_sources or []
+        if member_source.provider.source.provider not in exclude_providers
+    ]
+    for member_source in included_sources:
         key = (member_source.provider.name, member_source.group)
         if key not in resolved_groups:
             raise ValueError(f"Membership source group could not be resolved: {key}")
@@ -228,6 +272,11 @@ def resolve_role[R: RoleMembershipFields, U: BaseModel, T: RoleMembershipFields]
 
     data = role.model_dump(by_alias=True, round_trip=True)
     data["users"] = [user.model_dump(by_alias=True, round_trip=True) for user in users]
+    if exclude_providers:
+        data["memberSources"] = [
+            member_source.model_dump(by_alias=True, round_trip=True)
+            for member_source in included_sources
+        ]
     return (
         role_cls.model_validate(data)
         if role_cls is not None

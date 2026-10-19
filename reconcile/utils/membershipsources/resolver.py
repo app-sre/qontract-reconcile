@@ -18,6 +18,7 @@ from reconcile.utils.membershipsources.models import (
     GithubIdentity,
     MembershipProvider,
     MembershipProviderSource,
+    MembershipSourceProvider,
     ProviderMember,
     ProviderResolver,
     RoleMembershipFields,
@@ -50,13 +51,21 @@ class GroupResolverJob:
 
 def build_resolver_jobs(
     roles: Sequence[RoleMembershipFields],
+    *,
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> list[GroupResolverJob]:
     """
     Bundles groups to be resolve by provider so that they can be resolved
-    in batches.
+    in batches. memberSources entries for an excluded provider are never
+    batched, so that provider is never queried.
     """
     groups = group_by(
-        (ms for r in roles for ms in r.member_sources or []),
+        (
+            ms
+            for r in roles
+            for ms in r.member_sources or []
+            if ms.provider.source.provider not in exclude_providers
+        ),
         key=lambda ms: ms.provider.name,
     )
     return [
@@ -115,6 +124,7 @@ def resolve_role_members[R: RoleMembershipFields, U: BaseModel](
     member_filter: Callable[[ProviderMember], bool] | None = None,
     query_func: Callable | None = None,
     role_cls: None = None,
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> list[R]: ...
 
 
@@ -133,6 +143,7 @@ def resolve_role_members[
     member_filter: Callable[[ProviderMember], bool] | None = None,
     query_func: Callable | None = None,
     role_cls: type[T],
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> list[T]: ...
 
 
@@ -151,6 +162,7 @@ def resolve_role_members[
     member_filter: Callable[[ProviderMember], bool] | None = None,
     query_func: Callable | None = None,
     role_cls: type[T] | None,
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> list[R | T]: ...
 
 
@@ -168,6 +180,7 @@ def resolve_role_members[
     member_filter: Callable[[ProviderMember], bool] | None = None,
     query_func: Callable | None = None,
     role_cls: type[T] | None = None,
+    exclude_providers: frozenset[MembershipSourceProvider] = frozenset(),
 ) -> list[R] | list[T] | list[R | T]:
     """
     Resolves members of roles, combining local members and the ones from
@@ -182,6 +195,12 @@ def resolve_role_members[
     URL. LDAP jobs share one event loop, and HTTP clients are closed before it
     exits. Explicit/app-interface-only roles need no LDAP or API configuration.
 
+    exclude_providers skips memberSources entries for the given provider(s)
+    entirely: they are never queried, never resolved into users, and dropped
+    from the member_sources of the returned roles. Input role objects are
+    never mutated. When every LDAP source is excluded, no LDAP settings or
+    connection are set up at all.
+
     Raises:
         ValueError: If injected LDAP settings lack a secret manager URL or a
             role references an unsupported provider.
@@ -191,7 +210,7 @@ def resolve_role_members[
             "secret_manager_url is required when ldap_settings is provided"
         )
 
-    if has_ldap_sources(roles):
+    if has_ldap_sources(roles, exclude_providers=exclude_providers):
         if ldap_settings is None:
             setup_qontract_api_client()
 
@@ -205,6 +224,7 @@ def resolve_role_members[
                     member_filter=member_filter,
                     query_func=query_func,
                     role_cls=role_cls,
+                    exclude_providers=exclude_providers,
                 )
             finally:
                 await qontract_api_client.aclose()
@@ -215,7 +235,7 @@ def resolve_role_members[
         "app-interface": resolve_app_interface_membership_source
     }
 
-    resolver_jobs = build_resolver_jobs(roles)
+    resolver_jobs = build_resolver_jobs(roles, exclude_providers=exclude_providers)
     processed_jobs: Iterable[dict[ProviderGroup, list[ProviderMember]]] = threaded.run(
         func=resolve_groups,
         iterable=resolver_jobs,
@@ -228,7 +248,12 @@ def resolve_role_members[
 
     return [
         resolve_role(
-            r, user_cls, resolved_groups, member_filter=member_filter, role_cls=role_cls
+            r,
+            user_cls,
+            resolved_groups,
+            member_filter=member_filter,
+            role_cls=role_cls,
+            exclude_providers=exclude_providers,
         )
         for r in roles
     ]

@@ -134,6 +134,22 @@ Forward the supplied `query_func` to the resolver. For `change_owners`, authoriz
 must use the comparison bundle; current-bundle configuration validation must not
 resolve authorization users.
 
+`resolve_role_members`/`resolve_role` accept an optional `exclude_providers:
+frozenset[MembershipSourceProvider]` (a typed enum, not a bare string) to exclude
+specific providers from resolution entirely: excluded memberSources are never
+queried or resolved into users, and are dropped from the returned role's
+`member_sources` - but the input role object is never mutated, and other
+providers on the same role still resolve normally. `change_owners` passes
+`exclude_providers={MembershipSourceProvider.LDAP}` when fetching self-service
+roles for comparison-bundle authorization, since change-owners must never depend
+on live LDAP state for merge approval - a role whose LDAP memberSources group is
+missing or deleted must not abort self-service resolution fleet-wide
+(https://redhat.atlassian.net/browse/APPSRE-15570). A self-service role left with
+no approvers once its LDAP sources are excluded is invalid, same as one with no
+approvers at all. This exclusion only applies to `fetch_self_service_roles`
+(comparison-bundle authorization); current-bundle validation is unaffected and
+still accepts an LDAP-only role as configured.
+
 Pass GQL roles directly: resolvers accept the structural `RoleMembershipFields`
 Protocol and return a list of roles, not a membership dictionary. By default each
 result has the original GQL role type, with resolved users and unchanged metadata.
