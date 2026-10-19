@@ -234,6 +234,16 @@ def test_self_service_portion_approved_ignores_app_sre_only_coverage(
     assert is_self_service_portion_approved([covered], {"app-sre-bot"})
 
 
+def test_self_service_portion_approved_ignores_coverage_with_no_approvers(
+    mocker: MockerFixture,
+) -> None:
+    """a context with zero approvers (e.g. every role member lacked an
+    org_username) can never be approved by anyone, including AppSRE - it
+    must not block the review queue forever either"""
+    covered = _change_decision(mocker, approvers=[])
+    assert is_self_service_portion_approved([covered], set())
+
+
 def test_self_service_portion_approved_requires_approval_when_tenant_also_approver(
     mocker: MockerFixture,
 ) -> None:

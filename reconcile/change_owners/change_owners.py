@@ -363,17 +363,20 @@ def _active_coverage(
     return [ctx for ctx in coverage if not ctx.disabled]
 
 
-def _is_app_sre_only_coverage(
+def _is_unblockable_by_tenant(
     coverage: Iterable[ChangeTypeContext], app_sre_usernames: AbstractSet[str]
 ) -> bool:
     """
-    True if every active change-type context covering a diff only has
-    AppSRE members as approvers, i.e. no tenant could ever satisfy it.
+    True if every active change-type context covering a diff can never be
+    satisfied by a tenant: either every approver is an AppSRE member, or
+    the context has no approvers at all (e.g. a role whose only members
+    lack an org_username - build_role_approvers() drops those silently,
+    even though role validation only requires the role to have *some*
+    users/bots/memberSources, not that any survive approver-building).
     """
     coverage = list(coverage)
     return bool(coverage) and all(
-        ctx.approvers
-        and all(a.org_username in app_sre_usernames for a in ctx.approvers)
+        all(a.org_username in app_sre_usernames for a in ctx.approvers)
         for ctx in coverage
     )
 
@@ -384,8 +387,8 @@ def _is_self_service_satisfied(
     """
     True if this decision doesn't need (further) self-service approval:
     either it isn't blocking in the first place (no active coverage, or
-    covered only by AppSRE-only/disabled change-types), or it's already
-    approved and not held.
+    covered only by change-types no tenant could ever satisfy), or it's
+    already approved and not held.
 
     For a diff split into fragments, each fragment is evaluated the same
     way independently, rather than relying on the parent's own
@@ -399,7 +402,7 @@ def _is_self_service_satisfied(
             for fragment in d.fragment_decisions
         )
     active_coverage = _active_coverage(d.coverage)
-    if not active_coverage or _is_app_sre_only_coverage(
+    if not active_coverage or _is_unblockable_by_tenant(
         active_coverage, app_sre_usernames
     ):
         return True
@@ -642,13 +645,22 @@ def run(
                 gl.set_labels_on_merge_request(merge_request, labels)
             else:
                 # if MR management is disabled, we need to make sure these
-                # bot-managed labels are not left stale, because other
+                # bot-managed labels are not left stale on the real MR when
+                # their condition is no longer true, because other
                 # integrations react to them, e.g. gitlab-housekeeping
                 # rejects direct lgtm labels on self-serviceable MRs, and
-                # the review queue skips MRs with PENDING_SELF_SERVICE_APPROVAL
-                if SELF_SERVICEABLE in labels:
+                # the review queue skips MRs with PENDING_SELF_SERVICE_APPROVAL.
+                # Check the condition directly against the MR's actual
+                # current labels, not the locally computed `labels` set -
+                # that set already reflects the desired (post-removal)
+                # state, so checking it here would miss exactly the
+                # transition (condition just turned false) this is meant
+                # to clean up.
+                if not self_serviceable and SELF_SERVICEABLE in merge_request.labels:
                     gl.remove_label(merge_request, SELF_SERVICEABLE)
-                if PENDING_SELF_SERVICE_APPROVAL not in labels:
+                if (
+                    self_serviceable or self_service_portion_approved
+                ) and PENDING_SELF_SERVICE_APPROVAL in merge_request.labels:
                     gl.remove_label(merge_request, PENDING_SELF_SERVICE_APPROVAL)
 
             if not change_admitted:
