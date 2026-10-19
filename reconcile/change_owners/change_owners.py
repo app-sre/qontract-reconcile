@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import sys
 import traceback
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from reconcile import queries
@@ -29,6 +30,7 @@ from reconcile.change_owners.decision import (
     apply_decisions_to_changes,
     get_approver_decisions_from_mr_comments,
 )
+from reconcile.change_owners.diff import DiffType
 from reconcile.change_owners.implicit_ownership import (
     cover_changes_with_implicit_ownership,
 )
@@ -58,6 +60,7 @@ from reconcile.utils.semver_helper import make_semver
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from collections.abc import Set as AbstractSet
 
     from gitlab.v4.objects import ProjectMergeRequest
 
@@ -130,6 +133,7 @@ def manage_conditional_label(
 
 def build_status_message(
     self_serviceable: bool,
+    self_service_portion_approved: bool,
     authoritative: bool,
     change_admitted: bool,
     approver_reachability: set[str],
@@ -158,6 +162,16 @@ Your changes need `/ok-to-test` approval from a listed approver before review ca
     if self_serviceable:
         return f"""## ✅ Ready for Review
 Get `/lgtm` approval from the listed approvers below.
+
+{code_warning}{approver_section}
+
+{commands_text}"""
+
+    if not self_service_portion_approved:
+        return f"""## 📝 Self-Service Approval Needed First
+This MR also touches changes that AppSRE will need to review, but AppSRE won't see it in their review queue until the self-serviceable changes below are approved first.
+
+Get `/lgtm` approval from the listed approvers below for the self-serviceable changes.
 
 {code_warning}{approver_section}
 
@@ -199,8 +213,39 @@ def _format_change_responsible(cr: ChangeResponsibles) -> str:
     return f"<details><summary>{cr.context}</summary>{usernames_text}</details>"
 
 
+_DIFF_TYPE_NOUNS = {
+    DiffType.ADDED: "addition",
+    DiffType.REMOVED: "removal",
+    DiffType.CHANGED: "change",
+}
+
+
+def build_change_summary(change_decisions: Iterable[ChangeDecision]) -> str:
+    """
+    Build a short, plain-language summary of what the MR changes: how many
+    additions/changes/removals it makes, grouped by file. This is a simple
+    factual count, not a description of the actual content changed.
+    """
+    counts: dict[str, dict[DiffType, int]] = defaultdict(lambda: defaultdict(int))
+    for d in change_decisions:
+        counts[d.file.path][d.diff.diff_type] += 1
+
+    if not counts:
+        return "No changes detected."
+
+    lines = []
+    for path, diff_counts in counts.items():
+        parts = [
+            f"{n} {_DIFF_TYPE_NOUNS[diff_type]}{'s' if n != 1 else ''}"
+            for diff_type, n in diff_counts.items()
+        ]
+        lines.append(f"* `{path}`: {', '.join(parts)}")
+    return "\n".join(lines)
+
+
 def write_coverage_report_to_mr(
     self_serviceable: bool,
+    self_service_portion_approved: bool,
     change_decisions: list[ChangeDecision],
     change_admitted: bool,
     authoritative: bool,
@@ -256,18 +301,24 @@ def write_coverage_report_to_mr(
     supported_commands = [d.value for d in DecisionCommand]
     status_message = build_status_message(
         self_serviceable=self_serviceable,
+        self_service_portion_approved=self_service_portion_approved,
         authoritative=authoritative,
         change_admitted=change_admitted,
         approver_reachability=approver_reachability,
         supported_commands=supported_commands,
     )
 
+    change_summary = build_change_summary(change_decisions)
+
     # Create the full comment
     full_comment = f"""{change_coverage_report_header}
 
 {status_message}
 
-## 📋 Change Summary
+## 📝 What Changed
+{change_summary}
+
+## 📋 Approval Status
 {coverage_report}"""
 
     gl.add_comment_to_merge_request(merge_request, full_comment)
@@ -336,18 +387,42 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     )
 
 
+def _is_app_sre_only_coverage(
+    coverage: Iterable[ChangeTypeContext], app_sre_usernames: AbstractSet[str]
+) -> bool:
+    """
+    True if every change-type context covering a diff only has AppSRE
+    members as approvers, i.e. no tenant could ever satisfy it.
+    """
+    coverage = list(coverage)
+    return bool(coverage) and all(
+        ctx.approvers
+        and all(a.org_username in app_sre_usernames for a in ctx.approvers)
+        for ctx in coverage
+    )
+
+
 def is_self_service_portion_approved(
     change_decisions: Iterable[ChangeDecision],
+    app_sre_usernames: AbstractSet[str],
 ) -> bool:
     """
     Checks whether every self-serviceable (covered) part of the MR has been
-    approved and is not held. Changes with no coverage at all (i.e. not
-    self-serviceable) are ignored here — their approval is AppSRE's call, via
-    the NOT_SELF_SERVICEABLE/review-queue path, not this one. Vacuously True
-    when there are no covered changes to approve.
+    approved and is not held. Two kinds of changes are ignored here:
+    * changes with no coverage at all (i.e. not self-serviceable) — their
+      approval is AppSRE's call, via the NOT_SELF_SERVICEABLE/review-queue
+      path, not this one.
+    * changes covered only by AppSRE-approved change-types — AppSRE can't
+      see the MR in their review queue to approve it until it stops being
+      hidden, so requiring their own approval here first would make it
+      permanently invisible.
+    Vacuously True when there are no covered changes left to approve.
     """
     covered_decisions = [
-        d for d in change_decisions if d.coverage or d.coverable_by_fragment_decisions
+        d
+        for d in change_decisions
+        if d.coverable_by_fragment_decisions
+        or (d.coverage and not _is_app_sre_only_coverage(d.coverage, app_sre_usernames))
     ]
     return all(d.is_approved() and not d.is_held() for d in covered_decisions)
 
@@ -471,6 +546,7 @@ def run(
 
         with init_gitlab(gitlab_project_id) as gl:
             merge_request = gl.get_merge_request(gitlab_merge_request_id)
+            app_sre_usernames = {u.username for u in gl.get_app_sre_group_users()}
 
             comments = gl.get_merge_request_comments(merge_request)
             ok_to_test_approvers = {
@@ -504,6 +580,9 @@ def run(
             approved = all(
                 d.is_approved() and not d.is_held() for d in change_decisions
             )
+            self_service_portion_approved = is_self_service_portion_approved(
+                change_decisions, app_sre_usernames
+            )
 
             #
             #   R E P O R T I N G
@@ -512,6 +591,7 @@ def run(
             if mr_management_enabled:
                 write_coverage_report_to_mr(
                     self_serviceable,
+                    self_service_portion_approved,
                     change_decisions,
                     change_admitted,
                     change_type_processing_mode
@@ -532,8 +612,7 @@ def run(
                 HOLD: hold,
                 RESTRICTED: not change_admitted,
                 PENDING_SELF_SERVICE_APPROVAL: (
-                    not self_serviceable
-                    and not is_self_service_portion_approved(change_decisions)
+                    not self_serviceable and not self_service_portion_approved
                 ),
             }
 
