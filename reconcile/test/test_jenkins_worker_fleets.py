@@ -52,6 +52,7 @@ def test_jenkins_worker_fleets(
         "['update_jenkins_worker_fleet', 'ci-int', 'test-remove-sshConnector-attrs']",
         "['update_jenkins_worker_fleet', 'ci-int', 'test-add-sshConnector-JVMOpts']",
         "['update_jenkins_worker_fleet', 'ci-int', 'test-add-sshConnector-prefixStartSlaveCmd']",
+        "['update_jenkins_worker_fleet', 'ci-int', 'test-update-initOnlineTimeoutSec']",
     ])
 
 
