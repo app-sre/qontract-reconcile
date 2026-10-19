@@ -253,6 +253,44 @@ def test_self_service_portion_approved_ignores_disabled_only_coverage(
     assert is_self_service_portion_approved([covered], set())
 
 
+def _fragment_parent(
+    mocker: MockerFixture, fragments: list[ChangeDecision]
+) -> ChangeDecision:
+    parent = ChangeDecision(
+        file=mocker.patch("reconcile.change_owners.bundle.FileRef"),
+        diff=mocker.patch("reconcile.change_owners.diff.Diff"),
+        coverage=[],
+        coverable_by_fragment_decisions=True,
+        fragment_decisions=fragments,
+    )
+    return parent
+
+
+def test_self_service_portion_approved_ignores_app_sre_only_fragment(
+    mocker: MockerFixture,
+) -> None:
+    """a fragment-split diff where one fragment is only AppSRE-approvable
+    must not keep the whole parent pending on an approval AppSRE can't
+    give until the MR is visible to them"""
+    approved_fragment = _change_decision(mocker, approvers=["alice"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    app_sre_only_fragment = _change_decision(mocker, approvers=["app-sre-bot"])
+    parent = _fragment_parent(mocker, [approved_fragment, app_sre_only_fragment])
+    assert is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_requires_approval_for_tenant_fragment(
+    mocker: MockerFixture,
+) -> None:
+    """an unapproved, genuinely tenant-approvable fragment still blocks,
+    regardless of any other AppSRE-only fragment alongside it"""
+    approved_fragment = _change_decision(mocker, approvers=["alice"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    unapproved_tenant_fragment = _change_decision(mocker, approvers=["bob"])
+    parent = _fragment_parent(mocker, [approved_fragment, unapproved_tenant_fragment])
+    assert not is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
 #
 # status message tests
 #

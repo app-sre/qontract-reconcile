@@ -378,33 +378,50 @@ def _is_app_sre_only_coverage(
     )
 
 
+def _is_self_service_satisfied(
+    d: ChangeDecision, app_sre_usernames: AbstractSet[str]
+) -> bool:
+    """
+    True if this decision doesn't need (further) self-service approval:
+    either it isn't blocking in the first place (no active coverage, or
+    covered only by AppSRE-only/disabled change-types), or it's already
+    approved and not held.
+
+    For a diff split into fragments, each fragment is evaluated the same
+    way independently, rather than relying on the parent's own
+    is_approved() - which requires *every* fragment approved, including
+    any AppSRE-only ones that can't be approved until AppSRE can see the
+    MR in the first place.
+    """
+    if d.coverable_by_fragment_decisions:
+        return all(
+            _is_self_service_satisfied(fragment, app_sre_usernames)
+            for fragment in d.fragment_decisions
+        )
+    active_coverage = _active_coverage(d.coverage)
+    if not active_coverage or _is_app_sre_only_coverage(
+        active_coverage, app_sre_usernames
+    ):
+        return True
+    return d.is_approved() and not d.is_held()
+
+
 def is_self_service_portion_approved(
     change_decisions: Iterable[ChangeDecision],
     app_sre_usernames: AbstractSet[str],
 ) -> bool:
     """
     Checks whether every self-serviceable (covered) part of the MR has been
-    approved and is not held. Three kinds of changes are ignored here:
-    * changes with no active coverage at all (i.e. not self-serviceable, or
-      covered only by disabled change-types) — their approval is AppSRE's
-      call, via the NOT_SELF_SERVICEABLE/review-queue path, not this one.
-    * changes covered only by AppSRE-approved change-types — AppSRE can't
-      see the MR in their review queue to approve it until it stops being
-      hidden, so requiring their own approval here first would make it
-      permanently invisible.
-    Vacuously True when there are no covered changes left to approve.
+    approved and is not held. Changes that aren't blocking in the first
+    place are ignored — see _is_self_service_satisfied() for the full list
+    of cases (no coverage, AppSRE-only coverage, disabled coverage, and the
+    same recursively for fragment-split diffs). Their approval, if any, is
+    AppSRE's call via the NOT_SELF_SERVICEABLE/review-queue path, not this
+    one. Vacuously True when there's nothing left to approve.
     """
-    covered_decisions = []
-    for d in change_decisions:
-        if d.coverable_by_fragment_decisions:
-            covered_decisions.append(d)
-            continue
-        active_coverage = _active_coverage(d.coverage)
-        if active_coverage and not _is_app_sre_only_coverage(
-            active_coverage, app_sre_usernames
-        ):
-            covered_decisions.append(d)
-    return all(d.is_approved() and not d.is_held() for d in covered_decisions)
+    return all(
+        _is_self_service_satisfied(d, app_sre_usernames) for d in change_decisions
+    )
 
 
 def is_coverage_admitted(
