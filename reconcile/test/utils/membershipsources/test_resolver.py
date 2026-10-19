@@ -18,6 +18,7 @@ from reconcile.test.utils.membershipsources.fixtures import (
     build_role,
 )
 from reconcile.utils.membershipsources import async_resolver, resolver
+from reconcile.utils.membershipsources.models import MembershipSourceProvider
 from reconcile.utils.membershipsources.resolver import (
     GroupResolverJob,
     build_resolver_jobs,
@@ -287,3 +288,56 @@ def test_build_resolver_jobs_ignores_roles_without_member_sources() -> None:
 
     assert {u.org_username for u in members_by_role[0].users} == {"local-user"}
     assert build_resolver_jobs(roles) == []
+
+
+def test_resolve_role_members_exclude_providers_skips_ldap_entirely() -> None:
+    """exclude_providers must need no LDAP settings/connection at all - not
+    just skip querying an already-configured LDAP resolver. See
+    https://redhat.atlassian.net/browse/APPSRE-15570."""
+    ldap_source = build_ldap_membership_source(name="ldap", group="source-team")
+    roles = [
+        build_role(name="role1", users=["local-user"], member_sources=[ldap_source])
+    ]
+
+    members_by_role = resolver.resolve_role_members(
+        roles,
+        user_cls=Member,
+        role_cls=CustomRole[Member],
+        exclude_providers=frozenset({MembershipSourceProvider.LDAP}),
+    )
+
+    assert {u.org_username for u in members_by_role[0].users} == {"local-user"}
+    assert members_by_role[0].member_sources == []
+    # the input role itself is never mutated
+    assert roles[0].member_sources == [ldap_source]
+
+
+def test_resolve_role_members_exclude_providers_only_drops_excluded_source(
+    app_interface_membership_provider: AppInterfaceMembershipProviderSourceV1,
+    mocker: MockerFixture,
+) -> None:
+    """A non-excluded provider's memberSources are still resolved normally
+    alongside an excluded one."""
+    a_i_resolver_mock = mocker.patch.object(
+        resolver, "resolve_app_interface_membership_source"
+    )
+    a_i_resolver_mock.return_value = {
+        ("provider-a", "group1"): [Member(org_username="a-i-user")]
+    }
+    app_interface_source = build_app_interface_membership_source(
+        name="provider-a", group="group1", source=app_interface_membership_provider
+    )
+    ldap_source = build_ldap_membership_source(name="ldap", group="source-team")
+    roles = [
+        build_role(name="role1", member_sources=[app_interface_source, ldap_source]),
+    ]
+
+    members_by_role = resolver.resolve_role_members(
+        roles,
+        user_cls=Member,
+        role_cls=CustomRole[Member],
+        exclude_providers=frozenset({MembershipSourceProvider.LDAP}),
+    )
+
+    assert {u.org_username for u in members_by_role[0].users} == {"a-i-user"}
+    assert members_by_role[0].member_sources == [app_interface_source]

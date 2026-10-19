@@ -1012,12 +1012,14 @@ def test_self_service_roles_fetch_boundary_ignores_ldap(
 def test_current_bundle_role_validation_does_not_resolve_memberships(
     ldap_endpoint: AsyncMock, mocker: MockerFixture
 ) -> None:
+    """An LDAP-only role (no explicit users/bots) must still pass current-bundle
+    validation - current-bundle validation checks structural configuration, not
+    resolved authorization, so it must not be affected by the comparison-bundle
+    LDAP exclusion. See https://redhat.atlassian.net/browse/APPSRE-15570."""
     from reconcile.change_owners import self_service_roles
     from reconcile.test.change_owners.fixtures import build_role
 
-    role = build_role(
-        name="role", change_type_name="change", datafiles=[], users=["bob"]
-    )
+    role = build_role(name="role", change_type_name="change", datafiles=[], users=[])
     role.member_sources = [
         build_ldap_membership_source(name="ldap", group="source-team")
     ]

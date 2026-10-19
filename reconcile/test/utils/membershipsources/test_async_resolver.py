@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from threading import get_ident
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -263,6 +263,11 @@ async def test_resolve_role_members_unregistered_provider_raises() -> None:
     class FakeMemberSource:
         group = "group1"
         provider = FakeProvider()
+
+        def model_dump(
+            self, *, by_alias: bool = False, round_trip: bool = False
+        ) -> Any:
+            return {}
 
     class FakeRole(BaseModel, arbitrary_types_allowed=True):
         name: str = "role1"
