@@ -303,8 +303,6 @@ def setup_mocks(
 
     mocked_logging = mocker.patch("reconcile.terraform_resources.logging")
 
-    mocker.patch("reconcile.terraform_resources.get_app_interface_vault_settings")
-
     mocker.patch(
         "reconcile.terraform_resources.create_secret_reader",
         return_value=secret_reader,

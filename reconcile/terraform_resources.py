@@ -18,9 +18,6 @@ import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.aws_iam_keys import run as disable_keys
 from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
-)
 from reconcile.typed_queries.external_resources import get_settings
 from reconcile.typed_queries.terraform_namespaces import get_namespaces
 from reconcile.utils import gql
@@ -245,10 +242,9 @@ def setup(
     print_to_file: str | None,
     thread_pool_size: int,
 ) -> tuple[Terraform, TerrascriptClient, SecretReaderBase]:
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-
     settings = get_app_interface_settings()
+    secret_reader = create_secret_reader(use_vault=settings.vault)
+
     try:
         default_tags = get_settings().default_tags
     except ValueError:
