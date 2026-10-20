@@ -381,30 +381,33 @@ def _direct_coverage_satisfied(
     d: ChangeDecision, app_sre_usernames: AbstractSet[str]
 ) -> bool | None:
     """
-    Resolves a decision's own direct (non-fragment) tenant-approvable
-    coverage, mirroring ChangeDecision.is_approved()'s own rule (any
-    explicit approval, or all auto-approved) and is_held()'s rule (any
-    hold blocks) - but scoped to just the contexts a tenant could actually
-    satisfy, plus the author's own hold, which always blocks regardless of
-    coverage.
+    Resolves a decision's own direct (non-fragment) coverage, mirroring
+    ChangeDecision.is_approved()'s own rule (any explicit approval, or all
+    auto-approved) and is_held()'s rule (any hold blocks) across every
+    active direct context - tenant and AppSRE alike. An AppSRE context's
+    own explicit approval resolves mixed coverage exactly like a tenant's
+    would, so symmetrically its own hold blocks it too; the author's own
+    hold ("mr-author") always blocks regardless of coverage.
 
-    Returns None if there's no tenant-approvable direct coverage at all
-    (no coverage, covered only by change-types no tenant could ever
-    satisfy, or disabled) - the caller decides what "no opinion" means for
-    its own branch.
+    Returns None - fully exempt, no opinion either way - only when there's
+    no tenant-approvable direct coverage at all: no coverage, every active
+    context is AppSRE-only, or the only coverage is disabled. That's the
+    one case nothing here could ever be resolved by anyone but AppSRE, so
+    there's nothing for this check to gate on.
     """
+    if d.hold.get("mr-author", False):
+        return False
+    active_coverage = _active_coverage(d.coverage)
     tenant_coverage = [
         ctx
-        for ctx in _active_coverage(d.coverage)
+        for ctx in active_coverage
         if not _is_unblockable_by_tenant_context(ctx, app_sre_usernames)
     ]
-    if d.hold.get("mr-author", False) or any(
-        d.hold.get(ctx.context, False) for ctx in tenant_coverage
-    ):
-        return False
     if not tenant_coverage:
         return None
-    contexts = {ctx.context for ctx in tenant_coverage}
+    if any(d.hold.get(ctx.context, False) for ctx in active_coverage):
+        return False
+    contexts = {ctx.context for ctx in active_coverage}
     return any(d.approve.get(c, False) for c in contexts) or all(
         d.context_auto_approval.get(c, False) for c in contexts
     )

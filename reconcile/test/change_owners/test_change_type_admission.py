@@ -346,13 +346,16 @@ def test_self_service_portion_approved_ignores_app_sre_only_parent_hold(
     assert is_self_service_portion_approved([parent], {"app-sre-bot"})
 
 
-def test_self_service_portion_approved_ignores_app_sre_only_hold_in_mixed_parent_coverage(
+def test_self_service_portion_approved_blocks_on_appsre_hold_in_mixed_parent_coverage(
     mocker: MockerFixture,
 ) -> None:
     """a parent with two separate direct contexts - one tenant-approvable
-    (itself approved), one AppSRE-only (held) - must not block on the
-    AppSRE context's own hold, which is AppSRE's business to clear, not
-    the tenant's"""
+    (itself approved), one AppSRE-only (held) - must still block: once
+    there's any tenant-approvable coverage, holds are evaluated across
+    every active context symmetrically with approvals (an AppSRE
+    approval on its own context resolves mixed coverage exactly like a
+    tenant's would, so an AppSRE hold on its own context blocks it too).
+    Full exemption only applies when every active context is AppSRE-only."""
     tenant_ctx = _context(mocker, name="tenant-ctx", approvers=["alice"])
     appsre_ctx = _context(mocker, name="appsre-ctx", approvers=["app-sre-bot"])
     parent = _decision_with_coverage(mocker, [tenant_ctx, appsre_ctx])
@@ -362,7 +365,36 @@ def test_self_service_portion_approved_ignores_app_sre_only_hold_in_mixed_parent
     approved_fragment = _change_decision(mocker, approvers=["bob"])
     approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
     parent.fragment_decisions = [approved_fragment]
+    assert not is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_appsre_approval_resolves_mixed_fragment_parent(
+    mocker: MockerFixture,
+) -> None:
+    """an AppSRE context's own explicit approval resolves mixed direct
+    coverage the same way a tenant's would - the tenant context here is
+    left unapproved"""
+    tenant_ctx = _context(mocker, name="tenant-ctx", approvers=["alice"])
+    appsre_ctx = _context(mocker, name="appsre-ctx", approvers=["app-sre-bot"])
+    parent = _decision_with_coverage(mocker, [tenant_ctx, appsre_ctx])
+    parent.apply_context_decision("appsre-ctx", DecisionCommand.APPROVED)
+    parent.coverable_by_fragment_decisions = True
+    approved_fragment = _change_decision(mocker, approvers=["bob"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    parent.fragment_decisions = [approved_fragment]
     assert is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_appsre_approval_resolves_mixed_coverage_without_fragments(
+    mocker: MockerFixture,
+) -> None:
+    """same as above, but for an ordinary (non-fragment) decision with
+    mixed direct coverage"""
+    tenant_ctx = _context(mocker, name="tenant-ctx", approvers=["alice"])
+    appsre_ctx = _context(mocker, name="appsre-ctx", approvers=["app-sre-bot"])
+    d = _decision_with_coverage(mocker, [tenant_ctx, appsre_ctx])
+    d.apply_context_decision("appsre-ctx", DecisionCommand.APPROVED)
+    assert is_self_service_portion_approved([d], {"app-sre-bot"})
 
 
 def test_self_service_portion_approved_requires_parent_direct_tenant_approval(
