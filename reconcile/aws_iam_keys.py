@@ -6,14 +6,20 @@ import sys
 from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.state import State, init_state
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping
+
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "aws-iam-keys"
 
@@ -51,7 +57,7 @@ def update_state(state: State, keys_to_update: dict[str, list[str]]) -> None:
 def init_tf_working_dirs(
     accounts: Iterable[dict[str, Any]],
     thread_pool_size: int,
-    settings: Mapping[str, Any],
+    secret_reader: SecretReaderBase,
 ) -> dict[str, str]:
     # Avoid circular import
     import reconcile.terraform_resources  # ruff: ignore[import-outside-top-level]
@@ -68,7 +74,7 @@ def init_tf_working_dirs(
         reconcile.terraform_resources.QONTRACT_TF_PREFIX,
         thread_pool_size,
         accounts,
-        settings=settings,
+        secret_reader=secret_reader,
         default_tags=None,
     )
     return ts.dump()
@@ -96,7 +102,8 @@ def run(
         # may be the calling entity, and has more to do
         return
 
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     state = init_state(integration=QONTRACT_INTEGRATION)
     if defer:
         defer(state.cleanup)
@@ -107,11 +114,11 @@ def run(
         # may be the calling entity, and has more to do
         return
 
-    working_dirs = init_tf_working_dirs(accounts, thread_pool_size, settings)
+    working_dirs = init_tf_working_dirs(accounts, thread_pool_size, secret_reader)
     if defer:
         defer(lambda: cleanup(working_dirs))
 
-    with AWSApi(thread_pool_size, accounts, settings=settings) as aws:
+    with AWSApi(thread_pool_size, accounts, secret_reader=secret_reader) as aws:
         error, service_account_recycle_complete = aws.delete_keys(
             dry_run, keys_to_delete, working_dirs, disable_service_account_keys
         )

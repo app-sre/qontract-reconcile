@@ -62,14 +62,10 @@ def test_infrastructure_prerequisite_uses_typed_iam_client(
     cluster.aws_infrastructure_access[0].aws_group.roles[0].member_sources = [
         build_ldap_membership_source("ldap", "team")
     ]
-    mocker.patch.object(
-        infrastructure.queries, "get_app_interface_settings", return_value={}
-    )
+    mocker.patch.object(infrastructure, "get_app_interface_vault_settings")
     mocker.patch.object(infrastructure.queries, "get_aws_accounts", return_value=[])
     mocker.patch.object(infrastructure, "get_namespaces", return_value=[])
-    reader = mocker.patch.object(
-        infrastructure, "SecretReader", create=True
-    ).return_value
+    reader = mocker.patch.object(infrastructure, "create_secret_reader").return_value
     reader.read_all_secret.return_value = {
         "aws_access_key_id": "test-access",
         "aws_secret_access_key": "test-secret",

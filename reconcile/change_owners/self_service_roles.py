@@ -24,6 +24,7 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     UserV1,
 )
 from reconcile.utils import expiration, gql
+from reconcile.utils.membershipsources.models import MembershipSourceProvider
 from reconcile.utils.membershipsources.resolver import resolve_role_members
 
 if TYPE_CHECKING:
@@ -48,12 +49,24 @@ class DatafileIncompatibleWithChangeTypeError(Exception):
 def fetch_self_service_roles(
     gql_api: gql.GqlApi, *, name: str | None = None
 ) -> list[RoleV1]:
-    """Fetch valid self-service roles with resolved comparison-bundle memberships."""
-    return resolve_role_members(
+    """Fetch valid self-service roles with resolved comparison-bundle memberships.
+
+    LDAP memberSources are excluded from resolution - change-owners must never
+    depend on live LDAP state for merge approval, since a role whose LDAP
+    memberSources group is missing or deleted would otherwise abort self-service
+    resolution fleet-wide. See https://redhat.atlassian.net/browse/APPSRE-15570.
+    A role left with no approvers once LDAP sources are excluded is invalid,
+    same as one with no approvers at all.
+    """
+    roles = resolve_role_members(
         _query_self_service_roles(gql_api, name=name),
         user_cls=UserV1,
         query_func=gql_api.query,
+        exclude_providers=frozenset({MembershipSourceProvider.LDAP}),
     )
+    for role in roles:
+        validate_self_service_role(role)
+    return roles
 
 
 def validate_self_service_roles(gql_api: gql.GqlApi) -> None:

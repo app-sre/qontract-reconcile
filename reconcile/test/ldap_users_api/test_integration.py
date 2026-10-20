@@ -36,6 +36,7 @@ from reconcile.ldap_users_api.integration import (
 )
 from reconcile.ldap_users_api.models import PathType
 from reconcile.typed_queries.vcs import Vcs
+from reconcile.utils.mr.labels import SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE
 
 
 def test_transform_users_with_paths() -> None:
@@ -207,7 +208,7 @@ def _make_user(username: str) -> UserV1:
 
 def _ldap_settings() -> MagicMock:
     settings = MagicMock()
-    settings.server_url = "ldap://freeipa.example.com"
+    settings.server_urls = ["ldap://freeipa.example.com", "ldap://replica.example.com"]
     settings.base_dn = "dc=example,dc=com"
     settings.credentials = VaultSecret(
         path="secret/ldap", field="all", version=1, format=None, url=None
@@ -232,23 +233,33 @@ def _vcs_instances() -> list[Vcs]:
     ]
 
 
-@pytest.fixture
-def integration() -> Generator[LdapUsersApiIntegration]:
-    """Create integration instance with mocked base class properties."""
-    inst = LdapUsersApiIntegration(
+@pytest.fixture(autouse=True)
+def _patch_secret_manager_url() -> Generator[None]:
+    """Patch the secret_manager_url property for all integration instances."""
+    with patch.object(
+        LdapUsersApiIntegration,
+        "secret_manager_url",
+        new_callable=lambda: property(lambda self: "https://vault.example.com"),
+    ):
+        yield
+
+
+def _make_integration(auto_merge_threshold: int = 10) -> LdapUsersApiIntegration:
+    return LdapUsersApiIntegration(
         LdapUsersApiIntegrationParams(
             app_interface_repo_url=_APP_REPO,
             infra_repo_url=_INFRA_REPO,
             infra_paths=["ansible/hosts/group_vars/all"],
             labels=["ldap-users"],
+            auto_merge_threshold=auto_merge_threshold,
         )
     )
-    with patch.object(
-        type(inst),
-        "secret_manager_url",
-        new_callable=lambda: property(lambda self: "https://vault.example.com"),
-    ):
-        yield inst
+
+
+@pytest.fixture
+def integration() -> LdapUsersApiIntegration:
+    """Create integration instance with the default auto-merge threshold."""
+    return _make_integration()
 
 
 @pytest.mark.asyncio
@@ -305,7 +316,7 @@ async def test_async_run_no_users_to_delete(
 @pytest.mark.asyncio
 @patch(f"{_MOD}.vcs_file_sync", new_callable=AsyncMock)
 @patch(f"{_MOD}.build_infra_file_operations", new_callable=AsyncMock)
-@patch(f"{_MOD}.build_app_interface_file_operations", new_callable=AsyncMock)
+@patch(f"{_MOD}.build_batched_app_interface_file_operations", new_callable=AsyncMock)
 @patch(f"{_MOD}.get_feature_toggle_state", return_value=False)
 @patch(f"{_MOD}.get_vcs_instances")
 @patch(f"{_MOD}.get_ldap_settings")
@@ -342,7 +353,7 @@ async def test_async_run_dry_run_does_not_call_file_sync(
 @pytest.mark.asyncio
 @patch(f"{_MOD}.vcs_file_sync", new_callable=AsyncMock)
 @patch(f"{_MOD}.build_infra_file_operations", new_callable=AsyncMock)
-@patch(f"{_MOD}.build_app_interface_file_operations", new_callable=AsyncMock)
+@patch(f"{_MOD}.build_batched_app_interface_file_operations", new_callable=AsyncMock)
 @patch(f"{_MOD}.get_feature_toggle_state", return_value=False)
 @patch(f"{_MOD}.get_vcs_instances")
 @patch(f"{_MOD}.get_ldap_settings")
@@ -380,8 +391,178 @@ async def test_async_run_calls_file_sync_for_deleted_user(
     mock_file_sync.assert_called_once()
     call_request = mock_file_sync.call_args.args[0]
     assert call_request.repo_url == _APP_REPO
-    assert call_request.title == "[create_delete_user_mr] delete user alice"
+    assert call_request.title == "[create_delete_user_mr] delete user(s)"
     assert len(call_request.file_operations) == 1
+
+
+@pytest.mark.asyncio
+@patch(f"{_MOD}.vcs_file_sync", new_callable=AsyncMock)
+@patch(f"{_MOD}.build_infra_file_operations", new_callable=AsyncMock)
+@patch(f"{_MOD}.build_batched_app_interface_file_operations", new_callable=AsyncMock)
+@patch(f"{_MOD}.get_feature_toggle_state", return_value=False)
+@patch(f"{_MOD}.get_vcs_instances")
+@patch(f"{_MOD}.get_ldap_settings")
+@patch(f"{_MOD}.get_users_with_paths")
+@patch(f"{_MOD}.gql")
+@patch(f"{_MOD}.check_ldap_users", new_callable=AsyncMock)
+async def test_async_run_batches_multiple_users_into_single_mr(
+    mock_ldap: AsyncMock,
+    mock_gql: MagicMock,
+    mock_users: MagicMock,
+    mock_settings: MagicMock,
+    mock_vcs: MagicMock,
+    mock_toggle: MagicMock,
+    mock_build_app: AsyncMock,
+    mock_build_infra: AsyncMock,
+    mock_file_sync: AsyncMock,
+    integration: LdapUsersApiIntegration,
+) -> None:
+    """Multiple deleted users produce a single batched app-interface MR, not one per user."""
+    mock_users.return_value = [
+        _make_user("alice"),
+        _make_user("bob"),
+        _make_user("carol"),
+        _make_user("dave"),
+    ]
+    mock_settings.return_value = _ldap_settings()
+    mock_vcs.return_value = _vcs_instances()
+    mock_ldap.return_value = _ldap_response({
+        "alice": False,
+        "bob": False,
+        "carol": False,
+        "dave": True,
+    })
+    mock_build_app.return_value = [
+        FileSyncDelete(path="data/access/users/alice.yml", commit_message="del"),
+        FileSyncDelete(path="data/access/users/bob.yml", commit_message="del"),
+        FileSyncDelete(path="data/access/users/carol.yml", commit_message="del"),
+    ]
+    mock_build_infra.return_value = []
+    mock_file_sync.return_value = FileSyncResponse(
+        status=FileSyncStatus.MR_CREATED,
+        mr_url="https://gitlab.example.com/mr/1",
+    )
+
+    await integration.async_run(dry_run=False)
+
+    mock_file_sync.assert_called_once()
+    call_request = mock_file_sync.call_args.args[0]
+    assert len(call_request.file_operations) == 3
+    assert "alice" in call_request.description
+    assert "bob" in call_request.description
+    assert "carol" in call_request.description
+    assert "dave" not in call_request.description
+
+    build_app_call = mock_build_app.call_args
+    assert {u.username for u in build_app_call.kwargs["users"]} == {
+        "alice",
+        "bob",
+        "carol",
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("auto_merge_threshold", [1, 10])
+@patch(f"{_MOD}.vcs_file_sync", new_callable=AsyncMock)
+@patch(f"{_MOD}.build_infra_file_operations", new_callable=AsyncMock)
+@patch(f"{_MOD}.build_batched_app_interface_file_operations", new_callable=AsyncMock)
+@patch(f"{_MOD}.get_feature_toggle_state", return_value=True)
+@patch(f"{_MOD}.get_vcs_instances")
+@patch(f"{_MOD}.get_ldap_settings")
+@patch(f"{_MOD}.get_users_with_paths")
+@patch(f"{_MOD}.gql")
+@patch(f"{_MOD}.check_ldap_users", new_callable=AsyncMock)
+async def test_async_run_auto_merge_enabled_below_threshold(
+    mock_ldap: AsyncMock,
+    mock_gql: MagicMock,
+    mock_users: MagicMock,
+    mock_settings: MagicMock,
+    mock_vcs: MagicMock,
+    mock_toggle: MagicMock,
+    mock_build_app: AsyncMock,
+    mock_build_infra: AsyncMock,
+    mock_file_sync: AsyncMock,
+    auto_merge_threshold: int,
+) -> None:
+    """At or below the threshold, auto-merge follows the Unleash toggle and labels are unchanged."""
+    integration = _make_integration(auto_merge_threshold=auto_merge_threshold)
+    mock_users.return_value = [_make_user("alice"), _make_user("existing")]
+    mock_settings.return_value = _ldap_settings()
+    mock_vcs.return_value = _vcs_instances()
+    mock_ldap.return_value = _ldap_response({"alice": False, "existing": True})
+    mock_build_app.return_value = [
+        FileSyncDelete(path="data/access/users/alice.yml", commit_message="del"),
+    ]
+    mock_build_infra.return_value = []
+    mock_file_sync.return_value = FileSyncResponse(
+        status=FileSyncStatus.MR_CREATED,
+        mr_url="https://gitlab.example.com/mr/1",
+    )
+
+    await integration.async_run(dry_run=False)
+
+    call_request = mock_file_sync.call_args.args[0]
+    assert call_request.auto_merge is True
+    assert call_request.labels == ["ldap-users"]
+    assert SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE not in call_request.labels
+
+
+@pytest.mark.asyncio
+@patch(f"{_MOD}.vcs_file_sync", new_callable=AsyncMock)
+@patch(f"{_MOD}.build_infra_file_operations", new_callable=AsyncMock)
+@patch(f"{_MOD}.build_batched_app_interface_file_operations", new_callable=AsyncMock)
+@patch(f"{_MOD}.get_feature_toggle_state", return_value=True)
+@patch(f"{_MOD}.get_vcs_instances")
+@patch(f"{_MOD}.get_ldap_settings")
+@patch(f"{_MOD}.get_users_with_paths")
+@patch(f"{_MOD}.gql")
+@patch(f"{_MOD}.check_ldap_users", new_callable=AsyncMock)
+async def test_async_run_auto_merge_suppressed_above_threshold(
+    mock_ldap: AsyncMock,
+    mock_gql: MagicMock,
+    mock_users: MagicMock,
+    mock_settings: MagicMock,
+    mock_vcs: MagicMock,
+    mock_toggle: MagicMock,
+    mock_build_app: AsyncMock,
+    mock_build_infra: AsyncMock,
+    mock_file_sync: AsyncMock,
+) -> None:
+    """Above the threshold, auto-merge is suppressed and the review-queue label is
+    added to both the app-interface and infra MRs, even with the Unleash toggle on.
+    """
+    integration = _make_integration(auto_merge_threshold=1)
+    mock_users.return_value = [
+        _make_user("alice"),
+        _make_user("bob"),
+        _make_user("existing"),
+    ]
+    mock_settings.return_value = _ldap_settings()
+    mock_vcs.return_value = _vcs_instances()
+    mock_ldap.return_value = _ldap_response({
+        "alice": False,
+        "bob": False,
+        "existing": True,
+    })
+    mock_build_app.return_value = [
+        FileSyncDelete(path="data/access/users/alice.yml", commit_message="del"),
+        FileSyncDelete(path="data/access/users/bob.yml", commit_message="del"),
+    ]
+    mock_build_infra.return_value = [
+        FileSyncDelete(path="ansible/hosts/group_vars/all", commit_message="del"),
+    ]
+    mock_file_sync.return_value = FileSyncResponse(
+        status=FileSyncStatus.MR_CREATED,
+        mr_url="https://gitlab.example.com/mr/1",
+    )
+
+    await integration.async_run(dry_run=False)
+
+    assert mock_file_sync.call_count == 2
+    for call in mock_file_sync.call_args_list:
+        request = call.args[0]
+        assert request.auto_merge is False
+        assert SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE in request.labels
 
 
 @pytest.mark.asyncio

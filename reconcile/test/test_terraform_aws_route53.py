@@ -27,6 +27,7 @@ def test_empty_run(
     mocked_queries = mocker.patch("reconcile.terraform_aws_route53.queries")
     mocked_queries.get_dns_zones.return_value = []
     mocked_queries.get_aws_accounts.return_value = aws_accounts
+    mocker.patch("reconcile.terraform_aws_route53.get_app_interface_vault_settings")
 
     integ.run(False)
 

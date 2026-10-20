@@ -1701,17 +1701,37 @@
                     "description": null,
                     "fields": [
                         {
-                            "name": "serverUrl",
+                            "name": "serverUrls",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "name": "String",
-                                    "kind": "SCALAR",
-                                    "ofType": null
+                                    "name": null,
+                                    "kind": "LIST",
+                                    "ofType": {
+                                        "name": null,
+                                        "kind": "NON_NULL",
+                                        "ofType": {
+                                            "name": "String",
+                                            "kind": "SCALAR",
+                                            "ofType": null
+                                        }
+                                    }
                                 }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "serverUrl",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -6395,6 +6415,18 @@
                         },
                         {
                             "name": "idleMinutes",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Int",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "initOnlineTimeoutSec",
                             "description": null,
                             "args": [],
                             "type": {

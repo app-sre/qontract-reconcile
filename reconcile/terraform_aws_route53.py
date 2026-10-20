@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils import dnsutils
 from reconcile.utils.aws_api import AWSApi
@@ -15,6 +18,7 @@ from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
 )
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
@@ -26,6 +30,8 @@ if TYPE_CHECKING:
         Mapping,
     )
 
+    from reconcile.utils.secret_reader import SecretReaderBase
+
 QONTRACT_INTEGRATION = "terraform_aws_route53"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
@@ -33,7 +39,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 def build_desired_state(
     zones: Iterable[Mapping[str, Any]],
     all_accounts: Iterable[Mapping[str, Any]],
-    settings: Mapping[str, Any],
+    secret_reader: SecretReaderBase,
 ) -> list[dict[str, Any]]:
     """
     Build the desired state from the app-interface resources
@@ -163,7 +169,7 @@ def build_desired_state(
                     tf_zone_spec.resource.get("region")
                     or zone_account["resourcesDefaultRegion"]
                 )
-                with AWSApi(1, [zone_account], settings=settings) as awsapi:
+                with AWSApi(1, [zone_account], secret_reader=secret_reader) as awsapi:
                     tf_zone_ns_records = awsapi.get_route53_zone_ns_records(
                         tf_zone_account_name, tf_zone_name, tf_zone_region
                     )
@@ -216,7 +222,8 @@ def run(
     account_name: str | None = None,
     defer: Callable | None = None,
 ) -> None:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     zones = queries.get_dns_zones(account_name=account_name)
 
     all_accounts = queries.get_aws_accounts(terraform_state=True)
@@ -240,15 +247,15 @@ def run(
         "",
         thread_pool_size,
         participating_accounts,
-        settings=settings,
+        secret_reader=secret_reader,
         default_tags=default_tags,
     )
 
-    desired_state = build_desired_state(zones, all_accounts, settings)
+    desired_state = build_desired_state(zones, all_accounts, secret_reader)
 
     ts.populate_route53(desired_state)
     working_dirs = ts.dump(print_to_file=print_to_file)
-    aws_api = AWSApi(1, participating_accounts, settings=settings)
+    aws_api = AWSApi(1, participating_accounts, secret_reader=secret_reader)
 
     if print_to_file:
         sys.exit(ExitCodes.SUCCESS)

@@ -1,6 +1,6 @@
 # ldap-users-api
 
-**Last Updated:** 2026-04-27
+**Last Updated:** 2026-10-20
 
 ## Description
 
@@ -10,10 +10,12 @@ Removes users from app-interface and infra repositories when they no longer exis
 
 - Check user existence in LDAP via qontract-api external endpoint (cached, FreeIPA-authenticated)
 - Safety check: abort if LDAP returns empty result set (prevents mass deletion)
-- Create per-user MRs in app-interface to delete orphaned user resources
+- Create a single batched MR in app-interface to delete all orphaned user resources from a run
 - Create single MR in infra repo to remove users from bastion and admin lists
 - Server-side MR deduplication by title via VCS file-sync endpoint
-- Auto-merge controlled via Unleash feature toggle
+- Auto-merge controlled via Unleash feature toggle, and additionally suppressed when a run's
+  deletion count exceeds `--auto-merge-threshold` (manual review required via the
+  `change-owner/show-self-serviceable-in-review-queue` label)
 - Configurable MR labels
 
 ## Desired State Details
@@ -88,7 +90,7 @@ Content-Type: application/json
   "secret": {
     "secret_manager_url": "https://vault.example.com",
     "path": "secret/data/path/to/ldap-credentials",
-    "server_url": "ldap://freeipa.example.com",
+    "server_urls": ["ldap://freeipa.example.com", "ldap://replica.example.com"],
     "base_dn": "dc=example,dc=com"
   }
 }
@@ -119,16 +121,23 @@ Content-Type: application/json
 {
   "repo_url": "https://gitlab.example.com/service/app-interface",
   "token": {"secret_manager_url": "...", "path": "...", "field": "..."},
-  "title": "[create_delete_user_mr] delete user alice",
-  "description": "delete user alice",
+  "title": "[create_delete_user_mr] delete user(s)",
+  "description": "delete 2 user(s): alice, bob",
   "file_operations": [
     {"action": "delete", "path": "data/users/alice.yml", "commit_message": "..."},
+    {"action": "delete", "path": "data/users/bob.yml", "commit_message": "..."},
     {"action": "update", "path": "data/gabi/instance.yml", "content": "...", "commit_message": "..."}
   ],
   "labels": ["ldap-users"],
   "auto_merge": false
 }
 ```
+
+All users deleted in a run are batched into a single `vcs_file_sync` request — app-interface
+file deletions and shared GABI/AWS/schedule modifications across users are coalesced into one
+request, using a fixed title. This keeps at most one app-interface deletion MR open at a time:
+while it's open, newly discovered deletions are deferred and picked up by the next MR once the
+current one merges and the title frees up.
 
 **Response:**
 
@@ -173,6 +182,10 @@ The integration scans infra YAML files for user lists with known name fields (`n
 
 - Safety check: if LDAP returns zero existing users while app-interface has users, the integration aborts with `RuntimeError` to prevent mass deletion
 - `auto_merge` defaults to `false` — controlled via Unleash feature toggle `ldap-users-api-allow-auto-merge-mrs`
+- `auto_merge` is additionally forced to `false`, regardless of the Unleash toggle, when the number
+  of users to delete in a run exceeds `--auto-merge-threshold` (default `10`). The
+  `change-owner/show-self-serviceable-in-review-queue` label is added to both the app-interface and
+  infra MRs so they show up in the IC review queue for manual approval
 - MR deduplication: file-sync endpoint checks for existing open MRs by title before creating new ones
 
 **Caching:**
@@ -183,7 +196,7 @@ The integration scans infra YAML files for user lists with known name fields (`n
 
 **Other Constraints:**
 
-- Infra repo creates a single MR for all deleted users (not per-user)
+- Both app-interface and infra repos create a single MR for all deleted users in a run (not per-user)
 - YAML modification uses `ruamel.yaml` to preserve formatting and comments
 - VCS tokens resolved from app-interface VCS instances (not hardcoded)
 
@@ -202,7 +215,7 @@ The integration scans infra YAML files for user lists with known name fields (`n
 **Cache Backend:**
 
 - Redis/Valkey connection required (for LDAP user check caching)
-- Cache key prefix: SHA256 hash of `server_url:base_dn`
+- Cache key prefix: SHA256 hash of the JSON-encoded sorted `server_urls` and `base_dn`
 - TTL: 300 seconds (configurable via `QAPI_LDAP__USERS_CACHE_TTL`)
 
 **Feature Toggles:**
@@ -217,7 +230,9 @@ LDAP settings in `app-interface-settings-1.yml`:
 
 ```yaml
 ldap:
-  serverUrl: "ldap://freeipa.example.com"
+  serverUrls:
+    - "ldap://freeipa.example.com"
+    - "ldap://replica.example.com"
   baseDn: "dc=example,dc=com"
   credentials:
     path: "secret/data/path/to/ldap-credentials"
@@ -238,12 +253,13 @@ ldap:
 
 **Arguments and Options:**
 
-| Option                     | Required | Default                                                                               | Description                           |
-| -------------------------- | -------- | ------------------------------------------------------------------------------------- | ------------------------------------- |
-| `--app-interface-repo-url` | Yes      | —                                                                                     | App-interface GitLab repository URL   |
-| `--infra-repo-url`         | Yes      | —                                                                                     | Infra GitLab repository URL           |
-| `--infra-path`             | No       | `ansible/hosts/host_vars/bastion.ci.int.devshift.net`, `ansible/hosts/group_vars/all` | Infra YAML files to scan (repeatable) |
-| `--label`                  | No       | `ldap-users`                                                                          | Labels to apply to MRs (repeatable)   |
+| Option                     | Required | Default                                                                               | Description                                                                      |
+| -------------------------- | -------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `--app-interface-repo-url` | Yes      | —                                                                                     | App-interface GitLab repository URL                                              |
+| `--infra-repo-url`         | Yes      | —                                                                                     | Infra GitLab repository URL                                                      |
+| `--infra-path`             | No       | `ansible/hosts/host_vars/bastion.ci.int.devshift.net`, `ansible/hosts/group_vars/all` | Infra YAML files to scan (repeatable)                                            |
+| `--label`                  | No       | `ldap-users`                                                                          | Labels to apply to MRs (repeatable)                                              |
+| `--auto-merge-threshold`   | No       | `10`                                                                                  | Suppress auto-merge and add the review-queue label when a run's deletion count exceeds this |
 
 **Example:**
 
@@ -264,7 +280,9 @@ qontract-reconcile ldap-users-api \
 5. Computes diff: users in app-interface but not in LDAP
 6. Safety check: abort if LDAP returns empty
 7. Dry-run: logs planned deletions and exits
-8. Non-dry-run: resolves auto-merge from Unleash toggle, reconciles via VCS file-sync endpoint
+8. Non-dry-run: resolves auto-merge from the Unleash toggle, forces it off (and adds the
+   review-queue label) if the deletion count exceeds `--auto-merge-threshold`, then reconciles
+   via a single batched VCS file-sync request per repo
 
 ## Troubleshooting
 
@@ -276,9 +294,12 @@ qontract-reconcile ldap-users-api \
 
 **Issue: MR already exists**
 
-- **Symptom:** Log message `MR already exists for <username>: <url>`
-- **Cause:** A deletion MR is already open for this user
-- **Solution:** Review and merge/close the existing MR. The integration will skip users with open MRs.
+- **Symptom:** Log message `MR already exists: <url>` (app-interface) or `Infra MR already exists: <url>`
+- **Cause:** A batched deletion MR from a previous run is still open. Since MR deduplication is by
+  fixed title, at most one app-interface deletion MR and one infra deletion MR can be open at a time
+- **Solution:** Review and merge/close the existing MR. Users discovered as deletable while it's open
+  are deferred — they're recomputed on every subsequent run and picked up in a new MR once the
+  current one merges and the title frees up. Nothing is lost, only delayed.
 
 **Issue: File not found (404) during YAML modification**
 

@@ -8,10 +8,14 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.mr import CreateDeleteAwsAccessKey
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping
@@ -81,9 +85,10 @@ def run(
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
 ) -> None:
     accounts = filter_accounts(queries.get_aws_accounts())
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     deleted_keys = get_deleted_keys(accounts)
-    with AWSApi(thread_pool_size, accounts, settings=settings) as aws:
+    with AWSApi(thread_pool_size, accounts, secret_reader=secret_reader) as aws:
         aws_support_cases = aws.get_support_cases()
         keys_to_delete_from_cases = get_keys_to_delete(aws_support_cases)
         # only fetch existing keys for accounts that actually have a candidate

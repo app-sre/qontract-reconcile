@@ -71,7 +71,7 @@ if TYPE_CHECKING:
 @pytest.fixture(autouse=True)
 def mock_infrastructure_credentials(mocker: MockerFixture) -> None:
     reader = mocker.patch(
-        "reconcile.ocm_aws_infrastructure_access.SecretReader"
+        "reconcile.ocm_aws_infrastructure_access.create_secret_reader"
     ).return_value
     reader.read_all_secret.return_value = {
         "aws_access_key_id": "test-access",
@@ -566,8 +566,7 @@ def test_infrastructure_access_resolves_ldap_members(
         return_value=[],
     )
     mocker.patch(
-        "reconcile.ocm_aws_infrastructure_access.queries.get_app_interface_settings",
-        return_value={},
+        "reconcile.ocm_aws_infrastructure_access.get_app_interface_vault_settings",
     )
     aws = mocker.patch("reconcile.ocm_aws_infrastructure_access.AWSApi", create=True)
     aws.return_value.__enter__.return_value.iam.list_users.return_value = _iam_users([
@@ -586,8 +585,7 @@ def test_infrastructure_inventory_accepts_cluster_iterator(
 
     cluster = gql_class_factory(InfrastructureCluster, {"name": "cluster"})
     mocker.patch(
-        "reconcile.ocm_aws_infrastructure_access.queries.get_app_interface_settings",
-        return_value={},
+        "reconcile.ocm_aws_infrastructure_access.get_app_interface_vault_settings",
     )
     ocm = mocker.patch("reconcile.ocm_aws_infrastructure_access.OCMMap").return_value
     ocm.get.return_value.get_aws_infrastructure_access_role_grants.return_value = [
@@ -805,8 +803,7 @@ def test_remaining_consumer_membership_modes(
                     return_value=[],
                 )
                 mocker.patch(
-                    "reconcile.ocm_aws_infrastructure_access.queries.get_app_interface_settings",
-                    return_value={},
+                    "reconcile.ocm_aws_infrastructure_access.get_app_interface_vault_settings",
                 )
                 aws = mocker.patch("reconcile.ocm_aws_infrastructure_access.AWSApi")
                 aws.return_value.__enter__.return_value.iam.list_users.return_value = (
@@ -919,8 +916,7 @@ def test_missing_iam_user_cannot_revoke_infrastructure_grants(
         return_value=fetch_infrastructure_clusters(cluster),
     )
     mocker.patch(
-        "reconcile.ocm_aws_infrastructure_access.queries.get_app_interface_settings",
-        return_value={},
+        "reconcile.ocm_aws_infrastructure_access.get_app_interface_vault_settings",
     )
     aws = mocker.patch(
         "reconcile.ocm_aws_infrastructure_access.AWSApi"
@@ -978,20 +974,25 @@ def test_gitlab_permissions_resolve_members_at_fetch_boundary(
     resolver.assert_not_called()
 
 
-def test_self_service_roles_resolve_members_at_fetch_boundary(
+def test_self_service_roles_fetch_boundary_ignores_ldap(
     ldap_endpoint: AsyncMock, mocker: MockerFixture
 ) -> None:
+    """change-owners resolves users once, at fetch time, from explicit
+    app-interface data only - a role's LDAP memberSources entry must never
+    be resolved. See https://redhat.atlassian.net/browse/APPSRE-15570."""
     from reconcile.change_owners import self_service_roles
     from reconcile.test.change_owners.fixtures import build_role
 
-    role = build_role(name="role", change_type_name="change", datafiles=[], users=[])
+    role = build_role(
+        name="role", change_type_name="change", datafiles=[], users=["bob"]
+    )
     role.member_sources = [
         build_ldap_membership_source(name="ldap", group="source-team")
     ]
     query_func = mocker.Mock(return_value={"roles": [role.model_dump(by_alias=True)]})
     fetched = self_service_roles.fetch_self_service_roles(mocker.Mock(query=query_func))
-    assert [user.org_username for user in fetched[0].users] == ["alice"]
-    assert role.users == []
+    assert [user.org_username for user in fetched[0].users] == ["bob"]
+    ldap_endpoint.assert_not_awaited()
     resolver = mocker.patch.object(
         self_service_roles,
         "resolve_role_members",
@@ -1007,6 +1008,10 @@ def test_self_service_roles_resolve_members_at_fetch_boundary(
 def test_current_bundle_role_validation_does_not_resolve_memberships(
     ldap_endpoint: AsyncMock, mocker: MockerFixture
 ) -> None:
+    """An LDAP-only role (no explicit users/bots) must still pass current-bundle
+    validation - current-bundle validation checks structural configuration, not
+    resolved authorization, so it must not be affected by the comparison-bundle
+    LDAP exclusion. See https://redhat.atlassian.net/browse/APPSRE-15570."""
     from reconcile.change_owners import self_service_roles
     from reconcile.test.change_owners.fixtures import build_role
 
@@ -1183,7 +1188,7 @@ def test_infrastructure_clusters_resolve_members_at_fetch_boundary(
     )
     mocker.patch.object(module, "get_namespaces", return_value=[])
     mocker.patch.object(module.queries, "get_aws_accounts", return_value=[])
-    mocker.patch.object(module.queries, "get_app_interface_settings", return_value={})
+    mocker.patch.object(module, "get_app_interface_vault_settings")
     mocker.patch.object(
         module, "AWSApi"
     ).return_value.__enter__.return_value.iam.list_users.return_value = _iam_users([
@@ -1397,10 +1402,9 @@ def test_unresolved_membership_aborts_before_mutations(
                 return_value=SendgridTeammateRolesQueryData(roles=[role]),
             )
             mocker.patch(
-                "reconcile.sendgrid_teammates.queries.get_app_interface_settings",
-                return_value={},
+                "reconcile.sendgrid_teammates.get_app_interface_vault_settings"
             )
-            mocker.patch("reconcile.sendgrid_teammates.SecretReader")
+            mocker.patch("reconcile.sendgrid_teammates.create_secret_reader")
             apply = mocker.patch("reconcile.sendgrid_teammates.act")
             with pytest.raises(RuntimeError, match="could not be resolved"):
                 sendgrid_teammates.run(dry_run=dry_run)

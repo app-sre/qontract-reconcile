@@ -38,6 +38,9 @@ from reconcile.change_owners.self_service_roles import (
     validate_self_service_roles,
 )
 from reconcile.gql_definitions.change_owners.queries import change_types
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import gql
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import (
@@ -49,6 +52,7 @@ from reconcile.utils.mr.labels import (
     prioritized_approval_label,
 )
 from reconcile.utils.output import format_table
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 
 if TYPE_CHECKING:
@@ -322,8 +326,11 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
 
 def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
-    return GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    return GitLabApi(
+        instance, project_id=gitlab_project_id, secret_reader=secret_reader
+    )
 
 
 def is_coverage_admitted(

@@ -11,6 +11,7 @@ from reconcile.utils.jinja2.utils import Jinja2TemplateError
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Mapping
+    from unittest.mock import MagicMock
 
 
 @pytest.fixture
@@ -76,90 +77,135 @@ def create_template_info(
 
 
 def test_render_policy_basic(
-    cluster_ocm_spec: OCMSpec, labels: Mapping[str, str]
+    cluster_ocm_spec: OCMSpec,
+    labels: Mapping[str, str],
+    secret_reader: MagicMock,
 ) -> None:
     template_info = create_template_info("hello: world")
-    rendered = render_policy(template_info, cluster_ocm_spec, labels, settings={})
+    rendered = render_policy(
+        template_info, cluster_ocm_spec, labels, secret_reader=secret_reader
+    )
     assert rendered == {"hello": "world"}
 
 
 def test_render_policy_cluster_spec(
-    cluster_ocm_spec: OCMSpec, labels: Mapping[str, str]
+    cluster_ocm_spec: OCMSpec,
+    labels: Mapping[str, str],
+    secret_reader: MagicMock,
 ) -> None:
     template_info = create_template_info("hello: {{ cluster.spec.region }}")
-    rendered = render_policy(template_info, cluster_ocm_spec, labels, settings={})
+    rendered = render_policy(
+        template_info, cluster_ocm_spec, labels, secret_reader=secret_reader
+    )
     assert rendered == {"hello": cluster_ocm_spec.spec.region}
 
 
 def test_render_policy_cluster_spec_bad_attribute(
-    cluster_ocm_spec: OCMSpec, labels: Mapping[str, str]
+    cluster_ocm_spec: OCMSpec,
+    labels: Mapping[str, str],
+    secret_reader: MagicMock,
 ) -> None:
     template_info = create_template_info("hello: {{ cluster.unkown_attribute }}")
     with pytest.raises(Jinja2TemplateError):
-        render_policy(template_info, cluster_ocm_spec, labels, settings={})
+        render_policy(
+            template_info, cluster_ocm_spec, labels, secret_reader=secret_reader
+        )
 
 
 def test_render_policy_cluster_labels(
-    cluster_ocm_spec: OCMSpec, labels: Mapping[str, str]
+    cluster_ocm_spec: OCMSpec,
+    labels: Mapping[str, str],
+    secret_reader: MagicMock,
 ) -> None:
     template_info = create_template_info("hello: {{ labels.key1 }}")
-    rendered = render_policy(template_info, cluster_ocm_spec, labels, settings={})
+    rendered = render_policy(
+        template_info, cluster_ocm_spec, labels, secret_reader=secret_reader
+    )
     assert rendered == {"hello": labels["key1"]}
 
     template_info = create_template_info("hello: {{ labels['key1'] }}")
-    rendered = render_policy(template_info, cluster_ocm_spec, labels, settings={})
+    rendered = render_policy(
+        template_info, cluster_ocm_spec, labels, secret_reader=secret_reader
+    )
     assert rendered == {"hello": labels["key1"]}
 
 
 def test_render_policy_cluster_labels_missing(
-    cluster_ocm_spec: OCMSpec, labels: Mapping[str, str]
+    cluster_ocm_spec: OCMSpec,
+    labels: Mapping[str, str],
+    secret_reader: MagicMock,
 ) -> None:
     template_info = create_template_info("hello: {{ labels.unknown_key }}")
     with pytest.raises(Jinja2TemplateError):
-        render_policy(template_info, cluster_ocm_spec, labels, settings={})
+        render_policy(
+            template_info, cluster_ocm_spec, labels, secret_reader=secret_reader
+        )
 
     template_info = create_template_info("hello: {{ labels['unknown_key'] }}")
     with pytest.raises(Jinja2TemplateError):
-        render_policy(template_info, cluster_ocm_spec, labels, settings={})
+        render_policy(
+            template_info, cluster_ocm_spec, labels, secret_reader=secret_reader
+        )
 
 
 def test_render_policy_cluster_labels_default(
-    cluster_ocm_spec: OCMSpec, labels: Mapping[str, str]
+    cluster_ocm_spec: OCMSpec,
+    labels: Mapping[str, str],
+    secret_reader: MagicMock,
 ) -> None:
     template_info = create_template_info(
         "hello: {{ labels.unknown_key | default('OK') }}"
     )
-    rendered = render_policy(template_info, cluster_ocm_spec, labels, settings={})
+    rendered = render_policy(
+        template_info, cluster_ocm_spec, labels, secret_reader=secret_reader
+    )
     assert rendered == {"hello": "OK"}
 
     template_info = create_template_info(
         "hello: {{ labels['unknown_key'] | default('OK') }}"
     )
-    rendered = render_policy(template_info, cluster_ocm_spec, labels, settings={})
+    rendered = render_policy(
+        template_info, cluster_ocm_spec, labels, secret_reader=secret_reader
+    )
     assert rendered == {"hello": "OK"}
 
 
 def test_render_policy_variables(
-    cluster_ocm_spec: OCMSpec, labels: Mapping[str, str], variables: str
+    cluster_ocm_spec: OCMSpec,
+    labels: Mapping[str, str],
+    variables: str,
+    secret_reader: MagicMock,
 ) -> None:
     template_info = create_template_info("hello: {{ var1 }}", variables=variables)
-    rendered = render_policy(template_info, cluster_ocm_spec, labels, settings={})
+    rendered = render_policy(
+        template_info, cluster_ocm_spec, labels, secret_reader=secret_reader
+    )
     assert rendered == {"hello": "value1"}
 
 
 def test_render_policy_variables_missing(
-    cluster_ocm_spec: OCMSpec, labels: Mapping[str, str], variables: str
+    cluster_ocm_spec: OCMSpec,
+    labels: Mapping[str, str],
+    variables: str,
+    secret_reader: MagicMock,
 ) -> None:
     template_info = create_template_info("hello: {{ unkown_var }}", variables=variables)
     with pytest.raises(Jinja2TemplateError):
-        render_policy(template_info, cluster_ocm_spec, labels, settings={})
+        render_policy(
+            template_info, cluster_ocm_spec, labels, secret_reader=secret_reader
+        )
 
 
 def test_render_policy_variables_default(
-    cluster_ocm_spec: OCMSpec, labels: Mapping[str, str], variables: str
+    cluster_ocm_spec: OCMSpec,
+    labels: Mapping[str, str],
+    variables: str,
+    secret_reader: MagicMock,
 ) -> None:
     template_info = create_template_info(
         "hello: {{ unkown_var | default('OK') }}", variables=variables
     )
-    rendered = render_policy(template_info, cluster_ocm_spec, labels, settings={})
+    rendered = render_policy(
+        template_info, cluster_ocm_spec, labels, secret_reader=secret_reader
+    )
     assert rendered == {"hello": "OK"}

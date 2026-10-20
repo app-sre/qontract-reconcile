@@ -1,0 +1,68 @@
+# qenerate: plugin=pydantic_v2
+
+query AppInterfaceSettings {
+  settings: app_interface_settings_v1 {
+    repoUrl
+    vault
+    kubeBinary
+    mergeRequestGateway
+    hashLength
+    smtp {
+      mailAddress
+      timeout
+      credentials {
+        ...VaultSecret
+      }
+    }
+    imap {
+      timeout
+      credentials {
+        ...VaultSecret
+      }
+    }
+    githubRepoInvites {
+      credentials {
+        ...VaultSecret
+      }
+    }
+    ldap {
+      serverUrls
+      baseDn
+    }
+    dependencies {
+      type
+      services {
+        name
+      }
+    }
+    credentials {
+      name
+      secret {
+        ...VaultSecret
+      }
+    }
+    sqlQuery {
+      jobImage
+      pullSecret {
+        path
+        version
+        labels
+        annotations
+        type
+      }
+    }
+    alertingServices
+    endpointMonitoringBlackboxExporterModules
+    jiraWatcher {
+      readTimeout
+      connectTimeout
+    }
+    terraformResourcesProviderExclusions {
+      provider
+      excludeProvisioners {
+        name
+      }
+      excludeAllProvisioners
+    }
+  }
+}

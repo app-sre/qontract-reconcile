@@ -2,12 +2,15 @@ import os
 import sys
 from subprocess import CalledProcessError
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import reconcile.requests_sender as integ
 from reconcile import (
     queries,
     typed_queries,
+)
+from reconcile.gql_definitions.common.app_interface_settings import (
+    AppInterfaceSettingsV1,
 )
 
 
@@ -33,7 +36,7 @@ class TestRunInteg(TestCase):
         )
         self.smtpclient_patcher = patch.object(integ, "SmtpClient", autospec=True)
         self.get_settings_patcher = patch.object(
-            queries, "get_app_interface_settings", autospec=True
+            integ, "get_app_interface_settings", autospec=True
         )
         self.get_smtp_credentials_patcher = patch.object(
             integ, "get_smtp_server_connection", autospec=True
@@ -48,11 +51,6 @@ class TestRunInteg(TestCase):
             queries, "get_credentials_requests", autospec=True
         )
         self.state_patcher = patch.object(integ, "init_state", autospec=True)
-        self.vault_settings_patcher = patch.object(
-            integ,
-            "get_app_interface_vault_settings",
-            autospec=True,
-        )
 
         self.do_exit = self.exit_patcher.start()
         self.get_encrypted_credentials = self.get_encrypted_creds_patcher.start()
@@ -65,17 +63,24 @@ class TestRunInteg(TestCase):
         self.get_credentials_requests.return_value = self.requests
         self.get_encrypted_credentials.return_value = "anencryptedcred"
         self.state = self.state_patcher.start()
-        self.vault_settings_patcher.start()
-        self.settings = {
-            "smtp": {
-                "secret_path": "asecretpath",
-                "server": "aserver",
-                "password": "apassword",
-                "port": 993,
-                "require_tls": True,
-                "username": "asmtpuser",
-            }
-        }
+        self.settings = AppInterfaceSettingsV1(
+            repoUrl="https://repo.example.com",
+            vault=False,
+            kubeBinary="oc",
+            mergeRequestGateway=None,
+            hashLength=7,
+            smtp=None,
+            imap=None,
+            githubRepoInvites=None,
+            ldap=None,
+            dependencies=None,
+            credentials=None,
+            sqlQuery=None,
+            alertingServices=None,
+            endpointMonitoringBlackboxExporterModules=None,
+            jiraWatcher=None,
+            terraformResourcesProviderExclusions=None,
+        )
         self.get_app_interface_settings.return_value = self.settings
         self.get_aws_accounts.return_value = ["anaccount"]
 
@@ -90,7 +95,6 @@ class TestRunInteg(TestCase):
             self.get_credentials_requests_patcher,
             self.get_aws_accounts_patcher,
             self.state_patcher,
-            self.vault_settings_patcher,
         ):
             p.stop()
 
@@ -101,7 +105,7 @@ class TestRunInteg(TestCase):
         # This has succeeded
         self.do_exit.assert_not_called()
         self.get_encrypted_credentials.assert_called_once_with(
-            "credentials_name", self.user, self.settings
+            "credentials_name", self.user, [], ANY
         )
         calls = self.smtpclient.return_value.send_mail.call_args_list
         self.assertEqual(len(calls), 1)

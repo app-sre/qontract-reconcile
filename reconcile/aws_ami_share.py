@@ -5,9 +5,13 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.typed_queries.aws_account_tags import get_aws_account_tags
 from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import (
@@ -87,7 +91,8 @@ def share_ami(
 def run(dry_run: bool) -> None:
     accounts = queries.get_aws_accounts(sharing=True)
     sharing_accounts = filter_accounts(accounts)
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     try:
         default_tags = get_settings().default_tags
     except ValueError:
@@ -97,7 +102,7 @@ def run(dry_run: bool) -> None:
     with AWSApi(
         1,
         sharing_accounts,
-        settings=settings,
+        secret_reader=secret_reader,
     ) as aws_api:
         for src_account in sharing_accounts:
             for share in src_account.get("sharing") or []:

@@ -39,97 +39,6 @@ def get_secret_reader_settings() -> Mapping[str, Any] | None:
     return None
 
 
-APP_INTERFACE_SETTINGS_QUERY = """
-{
-  settings: app_interface_settings_v1 {
-    repoUrl
-    vault
-    kubeBinary
-    mergeRequestGateway
-    hashLength
-    smtp {
-      mailAddress
-      timeout
-      credentials {
-        path
-        field
-        version
-        format
-      }
-    }
-    imap {
-      timeout
-      credentials {
-        path
-        field
-        version
-        format
-      }
-    }
-    githubRepoInvites {
-      credentials {
-        path
-        field
-        version
-        format
-      }
-    }
-    ldap {
-      serverUrl
-      baseDn
-    }
-    dependencies {
-      type
-      services {
-        name
-      }
-    }
-    credentials {
-      name
-      secret {
-        path
-        field
-        version
-        format
-      }
-    }
-    sqlQuery {
-      jobImage
-      pullSecret {
-        path
-        version
-        labels
-        annotations
-        type
-      }
-    }
-    alertingServices
-    endpointMonitoringBlackboxExporterModules
-    jiraWatcher {
-      readTimeout
-      connectTimeout
-    }
-    terraformResourcesProviderExclusions {
-      provider
-      excludeProvisioners {
-        name
-      }
-      excludeAllProvisioners
-    }
-  }
-}
-"""
-
-
-def get_app_interface_settings() -> dict[str, Any]:
-    """Returns App Interface settings"""
-    gqlapi = gql.get_api()
-    data = gqlapi.query(APP_INTERFACE_SETTINGS_QUERY)
-    if not data or not (settings := data.get("settings")):
-        raise ValueError("no App Interface settings found")
-    return settings[0]
-
-
 CREDENTIALS_REQUESTS_QUERY = """
 {
   credentials_requests: credentials_requests_v1 {
@@ -307,6 +216,7 @@ JENKINS_INSTANCES_QUERY = """
       labelString
       numExecutors
       idleMinutes
+      initOnlineTimeoutSec
       minSpareSize
       maxTotalUses
       noDelayProvision

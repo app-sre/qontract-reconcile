@@ -1,11 +1,26 @@
 """Tests for LDAP API client (Layer 1)."""
 
+from __future__ import annotations
+
+import socket
+
 # ruff: file-ignore[unused-function-argument]
 from collections.abc import Generator
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+from ldap3 import ROUND_ROBIN, Connection
+from ldap3.core.exceptions import (
+    LDAPCertificateError,
+    LDAPInvalidCredentialsResult,
+    LDAPInvalidFilterError,
+    LDAPSocketOpenError,
+    LDAPSocketReceiveError,
+    LDAPStartTLSError,
+)
+from ldap3.strategy.base import BaseStrategy
 from pydantic import ValidationError
+from pytest_mock import MockerFixture
 from qontract_utils.hooks import Hooks
 from qontract_utils.ldap_api.api import (
     _LDAP_PAGE_SIZE,
@@ -13,6 +28,7 @@ from qontract_utils.ldap_api.api import (
     LdapApi,
     LdapApiCallContext,
     LdapApiError,
+    LdapQuorumError,
     _parse_github_login,
 )
 from qontract_utils.ldap_api.models import LdapGroup, LdapUser
@@ -23,13 +39,21 @@ def mock_ldap3() -> Generator[MagicMock]:
     """Mock ldap3 module."""
     with (
         patch("qontract_utils.ldap_api.api.Server") as mock_server,
+        patch("qontract_utils.ldap_api.api.ServerPool") as mock_pool,
         patch("qontract_utils.ldap_api.api.Connection") as mock_connection,
     ):
         # Yield a namespace with both mocks
         mock = MagicMock()
         mock.server = mock_server
+        mock.pool = mock_pool
         mock.connection_cls = mock_connection
         mock.connection = mock_connection.return_value
+        mock.connection.server = mock_server.return_value
+        mock.connection.server.ssl = False
+        mock.connection.tls_started = True
+        mock.connection.bound = True
+        mock.connection.socket = None
+        mock.connection.search.return_value = (True, {"result": 0}, [], None)
         yield mock
 
 
@@ -37,7 +61,7 @@ def mock_ldap3() -> Generator[MagicMock]:
 def ldap_api(mock_ldap3: MagicMock) -> LdapApi:
     """Create LdapApi with mocked ldap3."""
     return LdapApi(
-        server_url="ldap://ldap.example.com",
+        server_urls=["ldap://ldap.example.com"],
         base_dn="dc=example,dc=com",
         bind_dn="uid=svc-account,cn=users,dc=example,dc=com",
         bind_password="secret",
@@ -48,12 +72,332 @@ def ldap_api(mock_ldap3: MagicMock) -> LdapApi:
 def ldap_api_anonymous(mock_ldap3: MagicMock) -> LdapApi:
     """Create LdapApi with anonymous bind."""
     return LdapApi(
-        server_url="ldap://ldap.example.com",
+        server_urls=["ldap://ldap.example.com"],
         base_dn="dc=example,dc=com",
     )
 
 
 # --- Constructor ---
+
+
+@pytest.mark.parametrize("replica_count", [1, 2])
+@pytest.mark.usefixtures("enable_retry")
+def test_retry_reopens_real_candidate_addresses_after_pool_wrap(
+    mocker: MockerFixture, replica_count: int
+) -> None:
+    """Socket failures must not suppress later hook retries of the same address."""
+    tcp_socket = mocker.Mock(spec=socket.socket)
+    tcp_socket.family = socket.AF_INET
+    tcp_socket.connect.side_effect = [
+        *[ConnectionRefusedError("connection refused") for _ in range(replica_count)],
+        None,
+    ]
+    mocker.patch(
+        "ldap3.core.server.socket.getaddrinfo",
+        return_value=[
+            (
+                socket.AF_INET,
+                socket.SOCK_STREAM,
+                socket.IPPROTO_TCP,
+                "",
+                ("192.0.2.10", 389),
+            )
+        ],
+    )
+    mocker.patch("ldap3.strategy.base.socket.socket", return_value=tcp_socket)
+    mocker.patch("ldap3.core.pooling.randint", return_value=replica_count - 1)
+
+    def start_tls(connection: Connection) -> None:
+        connection.tls_started = True
+
+    def bind(connection: Connection) -> None:
+        connection.bound = True
+
+    mocker.patch(
+        "ldap3.core.connection.Connection.start_tls",
+        autospec=True,
+        side_effect=start_tls,
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.bind", autospec=True, side_effect=bind
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.search",
+        return_value=(
+            True,
+            {"result": 0},
+            [{"attributes": {"uid": ["alice"]}}],
+            None,
+        ),
+    )
+    api = LdapApi(
+        server_urls=[
+            f"ldap://replica-{index}.example.com" for index in range(replica_count)
+        ],
+        base_dn="dc=example,dc=com",
+    )
+    with api:
+        assert api.get_users(["alice"]) == [LdapUser(username="alice")]
+    assert tcp_socket.connect.call_count == replica_count + 1
+
+
+@pytest.fixture
+def replica_api(mocker: MockerFixture) -> LdapApi:
+    """Use the real pool and connection with all network operations mocked."""
+
+    def open_connection(strategy: BaseStrategy) -> None:
+        connection = strategy.connection
+        connection.server = connection.server_pool.get_server(connection)
+
+    def start_tls(connection: Connection) -> None:
+        connection.tls_started = True
+
+    def bind(connection: Connection) -> None:
+        connection.bound = True
+
+    def unbind(connection: Connection) -> None:
+        connection.bound = False
+        connection.tls_started = False
+
+    mocker.patch(
+        "ldap3.strategy.sync.SyncStrategy.open",
+        autospec=True,
+        side_effect=open_connection,
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.start_tls",
+        autospec=True,
+        side_effect=start_tls,
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.bind", autospec=True, side_effect=bind
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.unbind", autospec=True, side_effect=unbind
+    )
+    mocker.patch("ldap3.core.pooling.randint", return_value=1)
+    mocker.patch(
+        "ldap3.core.server.Server.check_availability",
+        side_effect=AssertionError("TCP prechecks must be disabled"),
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.search",
+        return_value=(True, {"result": 0}, [{"attributes": {"uid": ["alice"]}}], None),
+    )
+    return LdapApi(
+        server_urls=["ldap://replica-a.example.com", "ldap://replica-b.example.com"],
+        base_dn="dc=example,dc=com",
+        bind_dn="uid=svc,dc=example,dc=com",
+        bind_password="secret",
+    )
+
+
+def test_replica_pool_disables_tcp_prechecks(replica_api: LdapApi) -> None:
+    pool = replica_api._connection.server_pool
+    assert pool is not None
+    assert pool.strategy == ROUND_ROBIN
+    assert pool.active is False
+    assert pool.exhaust is False
+    assert [server.host for server in pool] == [
+        "replica-a.example.com",
+        "replica-b.example.com",
+    ]
+    assert all(server.connect_timeout == 30 for server in pool)
+
+
+@pytest.mark.parametrize(
+    ("operation", "error"),
+    [
+        ("open", LDAPSocketOpenError("connection refused")),
+        ("start_tls", LDAPStartTLSError("TLS handshake failed")),
+        ("start_tls", LDAPCertificateError("certificate rejected")),
+        (
+            "bind",
+            LDAPInvalidCredentialsResult(result=49, description="invalidCredentials"),
+        ),
+        ("search", LDAPSocketReceiveError("connection reset")),
+    ],
+)
+@pytest.mark.usefixtures("enable_retry")
+def test_lookup_fails_over_on_replica_failure(
+    mocker: MockerFixture, replica_api: LdapApi, operation: str, error: Exception
+) -> None:
+    connection = replica_api._connection
+    selected_hosts: list[str] = []
+    original = getattr(connection, operation)
+
+    def fail_first_replica(*args: object, **kwargs: object) -> object:
+        if operation == "open":
+            original(*args, **kwargs)
+        selected_hosts.append(connection.server.host)
+        if connection.server.host == "replica-a.example.com":
+            raise error
+        return None if operation == "open" else original(*args, **kwargs)
+
+    mocker.patch.object(connection, operation, side_effect=fail_first_replica)
+    retry_hook = MagicMock()
+    replica_api._hooks.retry_hooks.append(retry_hook)
+    with replica_api:
+        assert replica_api.get_users(["alice"]) == [LdapUser(username="alice")]
+    assert selected_hosts == ["replica-a.example.com", "replica-b.example.com"]
+    assert retry_hook.call_count == 1
+
+
+@pytest.mark.usefixtures("enable_retry")
+def test_all_replicas_down_is_bounded(
+    mocker: MockerFixture, replica_api: LdapApi
+) -> None:
+    failed_bind = mocker.patch.object(
+        replica_api._connection,
+        "bind",
+        side_effect=LDAPInvalidCredentialsResult(
+            result=49, description="invalidCredentials"
+        ),
+    )
+    with (
+        replica_api,
+        pytest.raises(LDAPInvalidCredentialsResult, match="invalidCredentials"),
+    ):
+        replica_api.get_users(["alice"])
+    assert failed_bind.call_count == 3
+
+
+@pytest.mark.usefixtures("enable_retry")
+def test_failover_restarts_pagination(
+    mocker: MockerFixture, replica_api: LdapApi
+) -> None:
+    search = mocker.patch.object(
+        replica_api._connection,
+        "search",
+        side_effect=[
+            (
+                True,
+                {
+                    "result": 0,
+                    "controls": {
+                        _PAGED_RESULTS_CONTROL: {
+                            "value": {"cookie": b"replica-a-cookie"}
+                        }
+                    },
+                },
+                [{"attributes": {"uid": ["partial"]}}],
+                None,
+            ),
+            LDAPSocketReceiveError("connection reset"),
+            (True, {"result": 0}, [{"attributes": {"uid": ["alice"]}}], None),
+        ],
+    )
+    with replica_api:
+        assert replica_api.get_users(["alice", "partial"]) == [
+            LdapUser(username="alice")
+        ]
+    assert [call.kwargs["paged_cookie"] for call in search.call_args_list] == [
+        None,
+        b"replica-a-cookie",
+        None,
+    ]
+    assert replica_api._connection.server.host == "replica-b.example.com"
+
+
+@pytest.mark.usefixtures("enable_retry")
+def test_retry_preserves_generator_usernames(
+    mocker: MockerFixture, replica_api: LdapApi
+) -> None:
+    search = mocker.patch.object(
+        replica_api._connection,
+        "search",
+        side_effect=[
+            LDAPSocketReceiveError("connection reset"),
+            (True, {"result": 0}, [{"attributes": {"uid": ["alice"]}}], None),
+        ],
+    )
+    with replica_api:
+        assert replica_api.get_users(name for name in ["alice"]) == [
+            LdapUser(username="alice")
+        ]
+    assert all("(uid=alice)" in call.args[1] for call in search.call_args_list)
+
+
+@pytest.mark.usefixtures("enable_retry")
+def test_invalid_query_does_not_rotate_replicas(
+    mocker: MockerFixture, replica_api: LdapApi
+) -> None:
+    search = mocker.patch.object(
+        replica_api._connection,
+        "search",
+        side_effect=LDAPInvalidFilterError("invalid filter"),
+    )
+    with replica_api, pytest.raises(LDAPInvalidFilterError, match="invalid filter"):
+        replica_api.get_users(["alice"])
+    assert search.call_count == 1
+    assert replica_api._connection.server.host == "replica-a.example.com"
+
+
+def test_failed_open_closes_partial_socket(
+    mocker: MockerFixture, replica_api: LdapApi
+) -> None:
+    socket = MagicMock()
+    replica_api._connection.socket = socket
+    mocker.patch.object(
+        replica_api._connection,
+        "open",
+        side_effect=LDAPSocketOpenError("connection refused"),
+    )
+    with replica_api, pytest.raises(LDAPSocketOpenError, match="connection refused"):
+        replica_api.get_users(["alice"])
+    socket.close.assert_called_once()
+    assert replica_api._connection.socket is None
+
+
+@pytest.mark.parametrize("server_urls", [[], [""], [" "]])
+def test_rejects_empty_replica_configuration(server_urls: list[str]) -> None:
+    with pytest.raises(ValueError, match="at least one non-empty URL"):
+        LdapApi(server_urls=server_urls, base_dn="dc=example,dc=com")
+
+
+def test_retry_budget_covers_replica_list(replica_api: LdapApi) -> None:
+    api = LdapApi(
+        server_urls=[f"ldap://replica-{index}.example.com" for index in range(5)],
+        base_dn="dc=example,dc=com",
+        timeout=2,
+    )
+    assert api._hooks.retry_config is not None
+    assert api._hooks.retry_config.attempts == 5
+    assert api._hooks.retry_config.timeout == 65
+
+
+def test_ldaps_does_not_issue_start_tls(
+    mocker: MockerFixture, replica_api: LdapApi
+) -> None:
+    api = LdapApi(
+        server_urls=["ldaps://a.example.com", "ldaps://b.example.com"],
+        base_dn="dc=example,dc=com",
+    )
+    start_tls = mocker.patch.object(
+        api._connection,
+        "start_tls",
+        side_effect=AssertionError("LDAPS must not issue STARTTLS"),
+    )
+    with api:
+        assert api.get_users(["alice"]) == [LdapUser(username="alice")]
+    start_tls.assert_not_called()
+
+
+@pytest.mark.usefixtures("enable_retry")
+def test_single_replica_retries_remain_bounded(
+    mocker: MockerFixture, replica_api: LdapApi
+) -> None:
+    mocker.patch("ldap3.core.pooling.randint", return_value=0)
+    api = LdapApi(server_urls=["ldap://only.example.com"], base_dn="dc=example,dc=com")
+    search = mocker.patch.object(
+        api._connection,
+        "search",
+        side_effect=LDAPSocketReceiveError("connection reset"),
+    )
+    with api, pytest.raises(LDAPSocketReceiveError, match="connection reset"):
+        api.get_users(["alice"])
+    assert search.call_count == 3
+    assert api._connection.server.host == "only.example.com"
 
 
 def test_ldap_api_stores_base_dn(ldap_api: LdapApi) -> None:
@@ -65,7 +409,9 @@ def test_ldap_api_creates_server(mock_ldap3: MagicMock, ldap_api: LdapApi) -> No
     """Test constructor creates ldap3 Server."""
     from ldap3 import NONE
 
-    mock_ldap3.server.assert_called_once_with("ldap://ldap.example.com", get_info=NONE)
+    mock_ldap3.server.assert_called_once_with(
+        "ldap://ldap.example.com", get_info=NONE, connect_timeout=30
+    )
 
 
 def test_ldap_api_creates_connection_with_credentials(
@@ -73,7 +419,7 @@ def test_ldap_api_creates_connection_with_credentials(
 ) -> None:
     """Test constructor creates ldap3 Connection with bind credentials."""
     mock_ldap3.connection_cls.assert_called_once_with(
-        server=mock_ldap3.server.return_value,
+        server=mock_ldap3.pool.return_value,
         user="uid=svc-account,cn=users,dc=example,dc=com",
         password="secret",
         client_strategy="SAFE_SYNC",
@@ -87,7 +433,7 @@ def test_ldap_api_creates_connection_anonymous(
 ) -> None:
     """Test constructor creates ldap3 Connection with anonymous bind."""
     mock_ldap3.connection_cls.assert_called_once_with(
-        server=mock_ldap3.server.return_value,
+        server=mock_ldap3.pool.return_value,
         user=None,
         password=None,
         client_strategy="SAFE_SYNC",
@@ -99,11 +445,31 @@ def test_ldap_api_creates_connection_anonymous(
 # --- Context Manager ---
 
 
+@pytest.mark.usefixtures("enable_retry")
+def test_initial_tls_failure_is_retried(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    mock_ldap3.connection.start_tls.side_effect = [
+        LDAPStartTLSError("TLS handshake failed"),
+        (True, None, None, None),
+    ]
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0},
+        [{"attributes": {"uid": ["alice"]}}],
+        None,
+    )
+    with ldap_api:
+        assert ldap_api.get_users(["alice"]) == [LdapUser(username="alice")]
+    assert mock_ldap3.connection.start_tls.call_count == 2
+
+
 def test_ldap_api_context_manager_binds(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:
-    """Test __enter__ calls connection.bind()."""
+    """The first lookup binds within the retry boundary."""
     with ldap_api:
+        ldap_api.get_users(["alice"])
         mock_ldap3.connection.bind.assert_called_once()
 
 
@@ -117,16 +483,16 @@ def test_ldap_api_context_manager_unbinds(
 
 
 def test_ldap_api_context_manager_start_tls(mock_ldap3: MagicMock) -> None:
-    """Test __enter__ calls start_tls() when enabled."""
+    """The first lookup establishes TLS before binding."""
     api = LdapApi(
-        server_url="ldap://ldap.example.com",
+        server_urls=["ldap://ldap.example.com"],
         base_dn="dc=example,dc=com",
         bind_dn="uid=svc,dc=example,dc=com",
         bind_password="secret",
         start_tls=True,
     )
     with api:
-        pass
+        api.get_users(["alice"])
     mock_ldap3.connection.assert_has_calls(
         [call.start_tls(), call.bind()],
         any_order=False,
@@ -136,8 +502,9 @@ def test_ldap_api_context_manager_start_tls(mock_ldap3: MagicMock) -> None:
 def test_ldap_api_context_manager_start_tls_by_default(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:
-    """Test __enter__ calls start_tls() by default."""
+    """Lookups use STARTTLS by default."""
     with ldap_api:
+        ldap_api.get_users(["alice"])
         mock_ldap3.connection.start_tls.assert_called_once()
 
 
@@ -270,7 +637,7 @@ def test_get_users_search_failure_raises_error(
 def test_ldap_api_pre_hooks_includes_builtins(mock_ldap3: MagicMock) -> None:
     """Test that built-in hooks (metrics, logging, latency) are included."""
     api = LdapApi(
-        server_url="ldap://ldap.example.com",
+        server_urls=["ldap://ldap.example.com"],
         base_dn="dc=example,dc=com",
     )
     # Should have metrics, request_log, latency_start
@@ -281,7 +648,7 @@ def test_ldap_api_custom_hooks_merged(mock_ldap3: MagicMock) -> None:
     """Test custom hooks are merged with built-in hooks."""
     custom_hook = MagicMock()
     api = LdapApi(
-        server_url="ldap://ldap.example.com",
+        server_urls=["ldap://ldap.example.com"],
         base_dn="dc=example,dc=com",
         hooks=Hooks(pre_hooks=[custom_hook]),
     )
@@ -1475,3 +1842,373 @@ def test_get_github_usernames_calls_hooks(
     context = pre_hook.call_args[0][0]
     assert isinstance(context, LdapApiCallContext)
     assert context.method == "get_github_usernames"
+
+
+# --- Quorum verification (APPSRE-15561) ---
+
+_ALICE_ENTRY = {
+    "dn": "uid=alice,cn=users,cn=accounts,dc=example,dc=com",
+    "attributes": {"uid": ["alice"], "cn": ["Alice"], "memberOf": []},
+}
+_BOB_ENTRY = {
+    "dn": "uid=bob,cn=users,cn=accounts,dc=example,dc=com",
+    "attributes": {"uid": ["bob"], "cn": ["Bob"], "memberOf": []},
+}
+
+
+@pytest.fixture
+def quorum_api(mocker: MockerFixture) -> LdapApi:
+    """Same real-pool/mocked-network setup as replica_api, with quorum_count=2."""
+
+    def open_connection(strategy: BaseStrategy) -> None:
+        connection = strategy.connection
+        connection.server = connection.server_pool.get_server(connection)
+
+    def start_tls(connection: Connection) -> None:
+        connection.tls_started = True
+
+    def bind(connection: Connection) -> None:
+        connection.bound = True
+
+    def unbind(connection: Connection) -> None:
+        connection.bound = False
+        connection.tls_started = False
+
+    mocker.patch(
+        "ldap3.strategy.sync.SyncStrategy.open",
+        autospec=True,
+        side_effect=open_connection,
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.start_tls",
+        autospec=True,
+        side_effect=start_tls,
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.bind", autospec=True, side_effect=bind
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.unbind", autospec=True, side_effect=unbind
+    )
+    mocker.patch("ldap3.core.pooling.randint", return_value=1)
+    mocker.patch(
+        "ldap3.core.server.Server.check_availability",
+        side_effect=AssertionError("TCP prechecks must be disabled"),
+    )
+    return LdapApi(
+        server_urls=["ldap://replica-a.example.com", "ldap://replica-b.example.com"],
+        base_dn="dc=example,dc=com",
+        bind_dn="uid=svc,dc=example,dc=com",
+        bind_password="secret",
+        quorum_count=2,
+    )
+
+
+def test_quorum_match_returns_primary_results(
+    mocker: MockerFixture, quorum_api: LdapApi
+) -> None:
+    """Identical results from both replicas pass verification."""
+    search = mocker.patch.object(
+        quorum_api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+        ],
+    )
+    with quorum_api:
+        assert quorum_api.get_users(["alice"]) == [LdapUser(username="alice")]
+    assert search.call_count == 2
+
+
+@pytest.mark.parametrize(
+    ("server_urls", "quorum_count", "confirmations"),
+    [
+        pytest.param(
+            [
+                "ldap://replica-a.example.com",
+                "ldap://replica-b.example.com",
+                "ldap://replica-b.example.com:389",
+            ],
+            3,
+            1,
+            id="duplicate-verifier-default-port",
+        ),
+        pytest.param(
+            [
+                "ldap://replica-a.example.com",
+                "ldap://replica-b.example.com",
+                "ldaps://replica-b.example.com",
+            ],
+            3,
+            1,
+            id="duplicate-verifier-different-transport",
+        ),
+        pytest.param(
+            ["ldap://replica-a.example.com", "ldap://REPLICA-A.EXAMPLE.COM"],
+            2,
+            0,
+            id="primary-host-case",
+        ),
+        pytest.param(
+            ["ldap://replica-a.example.com", "ldap://replica-a.example.com."],
+            2,
+            0,
+            id="primary-host-trailing-dot",
+        ),
+    ],
+)
+@pytest.mark.usefixtures("replica_api")
+def test_quorum_counts_each_replica_host_once(
+    mocker: MockerFixture,
+    server_urls: list[str],
+    quorum_count: int,
+    confirmations: int,
+) -> None:
+    """Equivalent URLs must not supply multiple votes or disable verification."""
+    mocker.patch("ldap3.core.pooling.randint", return_value=len(server_urls) - 1)
+    mocker.patch(
+        "ldap3.core.connection.Connection.search",
+        return_value=(True, {"result": 0}, [_ALICE_ENTRY], None),
+    )
+    api = LdapApi(
+        server_urls=server_urls,
+        base_dn="dc=example,dc=com",
+        quorum_count=quorum_count,
+    )
+
+    with (
+        api,
+        pytest.raises(
+            LdapQuorumError,
+            match=f"only {confirmations} of {quorum_count - 1} required",
+        ),
+    ):
+        api.get_users(["alice"])
+
+
+@pytest.mark.usefixtures("replica_api")
+def test_quorum_skips_duplicate_verifier_and_uses_next_distinct_replica(
+    mocker: MockerFixture,
+) -> None:
+    """A repeated verifier must not prevent a later distinct replica confirming."""
+    mocker.patch("ldap3.core.pooling.randint", return_value=3)
+    search = mocker.patch(
+        "ldap3.core.connection.Connection.search",
+        return_value=(True, {"result": 0}, [_ALICE_ENTRY], None),
+    )
+    api = LdapApi(
+        server_urls=[
+            "ldap://replica-a.example.com",
+            "ldap://replica-b.example.com",
+            "ldap://replica-b.example.com:389",
+            "ldap://replica-c.example.com",
+        ],
+        base_dn="dc=example,dc=com",
+        quorum_count=3,
+    )
+
+    with api:
+        assert api.get_users(["alice"]) == [LdapUser(username="alice")]
+        assert api._connection.server.host == "replica-c.example.com"
+    assert search.call_count == 3
+
+
+def test_quorum_mismatch_missing_entries_raises(
+    mocker: MockerFixture, quorum_api: LdapApi
+) -> None:
+    """A replica missing entries the primary found fails closed."""
+    mocker.patch.object(
+        quorum_api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY, _BOB_ENTRY], None),
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+        ],
+    )
+    with quorum_api, pytest.raises(LdapQuorumError, match="quorum mismatch"):
+        quorum_api.get_users(["alice", "bob"])
+
+
+def test_quorum_mismatch_stale_attribute_raises(
+    mocker: MockerFixture, quorum_api: LdapApi
+) -> None:
+    """Same entries on both replicas but differing attribute values fail closed."""
+    stale_alice = {
+        "dn": _ALICE_ENTRY["dn"],
+        "attributes": {
+            "uid": ["alice"],
+            "cn": ["Alice"],
+            "memberOf": ["cn=old-group,..."],
+        },
+    }
+    mocker.patch.object(
+        quorum_api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+            (True, {"result": 0}, [stale_alice], None),
+        ],
+    )
+    with quorum_api, pytest.raises(LdapQuorumError, match="quorum mismatch"):
+        quorum_api.get_users(["alice"])
+
+
+def test_quorum_mismatch_not_retried(
+    mocker: MockerFixture, quorum_api: LdapApi
+) -> None:
+    """LdapQuorumError propagates without triggering the outer failover retry."""
+    search = mocker.patch.object(
+        quorum_api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY, _BOB_ENTRY], None),
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+        ],
+    )
+    with quorum_api, pytest.raises(LdapQuorumError):
+        quorum_api.get_users(["alice", "bob"])
+    assert search.call_count == 2
+
+
+def test_quorum_verification_server_unreachable_tries_next(
+    mocker: MockerFixture,
+) -> None:
+    """A dead verification replica is skipped in favor of the next one."""
+
+    def open_connection(strategy: BaseStrategy) -> None:
+        connection = strategy.connection
+        connection.server = connection.server_pool.get_server(connection)
+
+    def start_tls(connection: Connection) -> None:
+        connection.tls_started = True
+
+    def bind(connection: Connection) -> None:
+        connection.bound = True
+
+    def unbind(connection: Connection) -> None:
+        connection.bound = False
+        connection.tls_started = False
+
+    mocker.patch(
+        "ldap3.strategy.sync.SyncStrategy.open",
+        autospec=True,
+        side_effect=open_connection,
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.start_tls",
+        autospec=True,
+        side_effect=start_tls,
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.bind", autospec=True, side_effect=bind
+    )
+    mocker.patch(
+        "ldap3.core.connection.Connection.unbind", autospec=True, side_effect=unbind
+    )
+    mocker.patch("ldap3.core.pooling.randint", return_value=1)
+    mocker.patch(
+        "ldap3.core.server.Server.check_availability",
+        side_effect=AssertionError("TCP prechecks must be disabled"),
+    )
+    api = LdapApi(
+        server_urls=[
+            "ldap://replica-a.example.com",
+            "ldap://replica-b.example.com",
+            "ldap://replica-c.example.com",
+        ],
+        base_dn="dc=example,dc=com",
+        bind_dn="uid=svc,dc=example,dc=com",
+        bind_password="secret",
+        quorum_count=2,
+    )
+    search = mocker.patch.object(
+        api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+            LDAPSocketReceiveError("connection reset"),
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+        ],
+    )
+    with api:
+        assert api.get_users(["alice"]) == [LdapUser(username="alice")]
+    assert search.call_count == 3
+
+
+def test_quorum_all_verification_servers_unreachable_raises(
+    mocker: MockerFixture, quorum_api: LdapApi
+) -> None:
+    """If no replica can confirm the primary result, fail closed."""
+    mocker.patch.object(
+        quorum_api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+            LDAPSocketReceiveError("connection reset"),
+        ],
+    )
+    with quorum_api, pytest.raises(LdapQuorumError, match="Cannot achieve quorum"):
+        quorum_api.get_users(["alice"])
+
+
+def test_quorum_disabled_by_default_single_query(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Default quorum_count=1 performs no verification query."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0},
+        [_ALICE_ENTRY],
+        None,
+    )
+    with ldap_api:
+        assert ldap_api.get_users(["alice"]) == [LdapUser(username="alice")]
+    assert mock_ldap3.connection.search.call_count == 1
+
+
+def test_quorum_degrades_with_too_few_servers(
+    mocker: MockerFixture, mock_ldap3: MagicMock
+) -> None:
+    """quorum_count > number of configured servers disables quorum with a warning."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0},
+        [_ALICE_ENTRY],
+        None,
+    )
+    warning = mocker.patch("qontract_utils.ldap_api.api.logger.warning")
+    api = LdapApi(
+        server_urls=["ldap://ldap.example.com"],
+        base_dn="dc=example,dc=com",
+        quorum_count=2,
+    )
+    with api:
+        assert api.get_users(["alice"]) == [LdapUser(username="alice")]
+    assert mock_ldap3.connection.search.call_count == 1
+    warning.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda api: api.get_users(["alice"]),
+        lambda api: api.get_group_members(["cn=group1,dc=example,dc=com"]),
+        lambda api: api.check_groups_exist(["group1"]),
+        lambda api: api.get_github_usernames(),
+    ],
+)
+def test_quorum_applies_to_all_search_methods(
+    mocker: MockerFixture, quorum_api: LdapApi, call: object
+) -> None:
+    """Every public search method is verified against a second replica."""
+    mocker.patch.object(
+        quorum_api._connection,
+        "search",
+        side_effect=[
+            (True, {"result": 0}, [_ALICE_ENTRY, _BOB_ENTRY], None),
+            (True, {"result": 0}, [_ALICE_ENTRY], None),
+        ],
+    )
+    with quorum_api, pytest.raises(LdapQuorumError):
+        call(quorum_api)  # type: ignore[operator]

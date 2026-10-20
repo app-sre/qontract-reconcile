@@ -9,7 +9,11 @@ from reconcile.gitlab_housekeeping.labels import (
     HOLD_LABELS,
     MERGE_LABELS_PRIORITY,
 )
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -126,8 +130,11 @@ def guess_labels(
 
 def run(dry_run: bool, gitlab_project_id: str, gitlab_merge_request_id: str) -> None:
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
-    with GitLabApi(instance, project_id=gitlab_project_id, settings=settings) as gl:
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    with GitLabApi(
+        instance, project_id=gitlab_project_id, secret_reader=secret_reader
+    ) as gl:
         project_labels = gl.get_project_labels()
         merge_request = gl.get_merge_request(gitlab_merge_request_id)
         changed_paths = gl.get_merge_request_changed_paths(merge_request)

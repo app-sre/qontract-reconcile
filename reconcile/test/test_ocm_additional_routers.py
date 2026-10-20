@@ -32,7 +32,7 @@ class TestOCMAdditionalRouters(TestCase):
         with self.assertRaises(SystemExit):
             integ.run(False)
 
-    @patch.object(queries, "get_app_interface_settings")
+    @patch.object(integ, "get_app_interface_vault_settings")
     @patch.object(queries, "get_clusters")
     @patch.object(OCMMap, "init_ocm_client_from_cluster")
     @patch.object(OCMMap, "get")
@@ -41,7 +41,7 @@ class TestOCMAdditionalRouters(TestCase):
         get: Mock,
         init_ocm_client_from_cluster: Mock,
         get_clusters: Mock,
-        get_app_interface_settings: Mock,
+        get_app_interface_vault_settings: Mock,
     ) -> None:
         fixture = fxt.get_anymarkup("state.yml")
 
@@ -66,14 +66,14 @@ class TestOCMAdditionalRouters(TestCase):
         self.assertEqual(calls, expected)
 
     # unit test
-    @patch.object(queries, "get_app_interface_settings")
+    @patch.object(integ, "get_app_interface_vault_settings")
     @patch.object(OCMMap, "init_ocm_client_from_cluster")
     @patch.object(OCMMap, "get")
     def test_current_state(
         self,
         get: Mock,
         init_ocm_client_from_cluster: Mock,
-        get_app_interface_settings: Mock,
+        get_app_interface_vault_settings: Mock,
     ) -> None:
         fixture = fxt.get_anymarkup("state.yml")
 

@@ -10,8 +10,12 @@ from typing import Any
 from pydantic import BaseModel
 
 from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "aws-iam-password-reset"
@@ -47,7 +51,8 @@ class AwsAccountWithResets(BaseModel):
 @defer
 def run(dry_run: bool, defer: Callable | None = None) -> None:
     accounts = queries.get_aws_accounts(reset_passwords=True)
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     roles = queries.get_roles(aws=True, saas_files=False)
     state = init_state(integration=QONTRACT_INTEGRATION)
     if defer:
@@ -94,7 +99,9 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
         if not account_to_reset.reset_passwords:
             continue
 
-        with AWSApi(1, [account_to_reset.account], settings=settings) as aws_api:
+        with AWSApi(
+            1, [account_to_reset.account], secret_reader=secret_reader
+        ) as aws_api:
             for r in account_to_reset.reset_passwords:
                 user_name = r.user_name
                 state_key = r.state_key

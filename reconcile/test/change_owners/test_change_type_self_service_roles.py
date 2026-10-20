@@ -1,6 +1,10 @@
+from __future__ import annotations
+
 import json
+from typing import TYPE_CHECKING
 
 import pytest
+from qontract_api_client.schemas import LdapGroupMembersResponse
 
 from reconcile.change_owners.approver import (
     Approver,
@@ -15,6 +19,7 @@ from reconcile.change_owners.self_service_roles import (
     build_approver,
     change_type_labels_from_role,
     cover_changes_with_self_service_roles,
+    fetch_self_service_roles,
     validate_self_service_role,
 )
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
@@ -29,6 +34,12 @@ from reconcile.test.change_owners.fixtures import (
     build_role,
     build_test_datafile,
 )
+from reconcile.test.utils.membershipsources.fixtures import build_ldap_membership_source
+
+if TYPE_CHECKING:
+    from unittest.mock import AsyncMock
+
+    from pytest_mock import MockerFixture
 
 #
 # test self-service role validation
@@ -105,6 +116,60 @@ def test_invalid_self_service_role_no_approvers() -> None:
             users=[],
         )
         validate_self_service_role(role)
+
+
+#
+# test self-service role member-source resolution (LDAP excluded)
+#
+# change-owners must never depend on live LDAP state for merge approval - a
+# role whose LDAP memberSources group is missing/deleted must not abort
+# self-service resolution. See https://redhat.atlassian.net/browse/APPSRE-15570
+#
+
+
+def test_fetch_self_service_roles_ignores_ldap_member_sources(
+    ldap_endpoint: AsyncMock, mocker: MockerFixture
+) -> None:
+    ldap_endpoint.return_value = LdapGroupMembersResponse(groups=[])
+    role = build_role(
+        name="role",
+        change_type_name="change-type-name",
+        datafiles=None,
+        users=["bob"],
+    )
+    role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="deleted-team")
+    ]
+    comparison_query = mocker.Mock(
+        return_value={"roles": [role.model_dump(by_alias=True)]}
+    )
+
+    roles = fetch_self_service_roles(mocker.Mock(query=comparison_query))
+
+    assert [u.org_username for u in roles[0].users] == ["bob"]
+    ldap_endpoint.assert_not_awaited()
+
+
+def test_self_service_role_with_only_ldap_member_source_has_no_approvers(
+    ldap_endpoint: AsyncMock, mocker: MockerFixture
+) -> None:
+    role = build_role(
+        name="role",
+        change_type_name="change-type-name",
+        datafiles=None,
+        users=[],
+    )
+    role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="source-team")
+    ]
+    comparison_query = mocker.Mock(
+        return_value={"roles": [role.model_dump(by_alias=True)]}
+    )
+
+    with pytest.raises(NoApproversInSelfServiceRoleError):
+        fetch_self_service_roles(mocker.Mock(query=comparison_query))
+
+    ldap_endpoint.assert_not_awaited()
 
 
 #

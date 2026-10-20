@@ -7,9 +7,12 @@ from typing import Any, cast
 from pydantic import BaseModel, Field
 
 from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.external_resources import get_external_resource_specs
 from reconcile.utils.jenkins_api import JenkinsApi
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
 QONTRACT_INTEGRATION = "jenkins-worker-fleets"
@@ -57,6 +60,7 @@ class JenkinsWorkerFleet(BaseModel):
     label_string: str = Field(..., alias="labelString")
     num_executors: int = Field(2, alias="numExecutors")
     idle_minutes: int = Field(30, alias="idleMinutes")
+    init_online_timeout_sec: int = Field(180, alias="initOnlineTimeoutSec")
     min_spare_size: int = Field(0, alias="minSpareSize")
     max_total_uses: int = Field(-1, alias="maxTotalUses")
     no_delay_provision: bool = Field(False, alias="noDelayProvision")
@@ -184,8 +188,8 @@ def act(
 
 def run(dry_run: bool) -> None:
     jenkins_instances = queries.get_jenkins_instances(worker_fleets=True)
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
     # initiating terrascript with an empty list of accounts,
     # as we are not really initiating terraform configuration
@@ -195,7 +199,7 @@ def run(dry_run: bool) -> None:
         "",
         1,
         accounts=[],
-        settings=settings,
+        secret_reader=secret_reader,
         prefetch_resources_by_schemas=["/aws/asg-defaults-1.yml"],
         default_tags=None,
     )

@@ -6,12 +6,15 @@ from typing import TYPE_CHECKING
 
 from reconcile import queries
 from reconcile.openshift_base import OCLogMsg
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import (
     config,
     gpg,
 )
 from reconcile.utils.oc import OC_Map
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader, create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -68,14 +71,15 @@ class GPGEncryptCommand:
         if not clusters:
             raise ArgumentError(f"No cluster found with name '{cluster_name}'")
 
-        settings = queries.get_app_interface_settings()
+        vault_settings = get_app_interface_vault_settings()
+        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         data = {}
 
         try:
             oc_map = OC_Map(
                 clusters=clusters,
                 integration="qontract-cli",
-                settings=settings,
+                secret_reader=secret_reader,
                 thread_pool_size=1,
                 init_projects=False,
             )

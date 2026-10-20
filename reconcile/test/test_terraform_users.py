@@ -136,7 +136,10 @@ def test_setup(
     mocker.patch("reconcile.terraform_users.gql").get_api.return_value = mocked_gql_api
     mocked_queries = mocker.patch("reconcile.terraform_users.queries")
     mocked_queries.get_aws_accounts.return_value = [test_aws_account]
-    mocked_queries.get_app_interface_settings.return_value = None
+    mocker.patch("reconcile.terraform_users.get_app_interface_vault_settings")
+    mocked_secret_reader = mocker.patch(
+        "reconcile.terraform_users.create_secret_reader"
+    )
     mocked_ts = mocker.patch("reconcile.terraform_users.Terrascript", autospec=True)
     mocked_aws = mocker.patch("reconcile.terraform_users.AWSApi", autospec=True)
     mocked_get_settings = mocker.patch("reconcile.terraform_users.get_settings")
@@ -155,7 +158,7 @@ def test_setup(
         integ.QONTRACT_TF_PREFIX,
         thread_pool_size,
         [test_aws_account],
-        settings=None,
+        secret_reader=mocked_secret_reader.return_value,
         default_tags=None,
     )
     mocked_ts.return_value.populate_users.assert_called_once_with(
@@ -166,5 +169,5 @@ def test_setup(
     mocked_aws.assert_called_once_with(
         1,
         [test_aws_account],
-        settings=None,
+        secret_reader=mocked_secret_reader.return_value,
     )

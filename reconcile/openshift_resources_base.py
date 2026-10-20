@@ -36,6 +36,7 @@ import reconcile.utils.jinja2.utils as jinja2_utils
 from reconcile import queries
 from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.external_resources.meta import SECRET_UPDATED_AT
+from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.utils import (
     amtool,
     gql,
@@ -822,7 +823,7 @@ def fetch_data(
     overrides: Iterable[str] | None = None,
 ) -> tuple[OC_Map, ResourceInventory]:
     ri = ResourceInventory()
-    settings = queries.get_app_interface_settings()
+    settings = get_app_interface_settings().model_dump(by_alias=True)
     logging.debug(f"Overriding keys {overrides}")
     oc_map = OC_Map(
         namespaces=namespaces,

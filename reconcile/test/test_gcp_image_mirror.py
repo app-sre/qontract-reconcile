@@ -17,8 +17,10 @@ class TestModuleLevelRun:
 
     def test_run_calls_engine_sync(self, mocker: MockerFixture) -> None:
         mocker.patch("reconcile.container_registry_mirror.gcp.gql")
-        mocker.patch("reconcile.container_registry_mirror.gcp.queries")
-        mocker.patch("reconcile.container_registry_mirror.gcp.SecretReader")
+        mocker.patch(
+            "reconcile.container_registry_mirror.gcp.get_app_interface_vault_settings"
+        )
+        mocker.patch("reconcile.container_registry_mirror.gcp.create_secret_reader")
         mocker.patch("reconcile.container_registry_mirror.gcp.gql_gcp_projects")
         mock_engine = mocker.patch(
             "reconcile.container_registry_mirror.gcp.MirrorEngine", autospec=True
@@ -35,8 +37,10 @@ class TestModuleLevelRun:
         self, mocker: MockerFixture
     ) -> None:
         mocker.patch("reconcile.container_registry_mirror.gcp.gql")
-        mocker.patch("reconcile.container_registry_mirror.gcp.queries")
-        mocker.patch("reconcile.container_registry_mirror.gcp.SecretReader")
+        mocker.patch(
+            "reconcile.container_registry_mirror.gcp.get_app_interface_vault_settings"
+        )
+        mocker.patch("reconcile.container_registry_mirror.gcp.create_secret_reader")
         mocker.patch("reconcile.container_registry_mirror.gcp.gql_gcp_projects")
         mock_engine = mocker.patch(
             "reconcile.container_registry_mirror.gcp.MirrorEngine", autospec=True

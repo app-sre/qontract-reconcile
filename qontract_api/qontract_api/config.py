@@ -303,6 +303,18 @@ class LdapSettings(BaseModel):
         ),
     )
 
+    quorum_count: int = Field(
+        default=2,
+        description=(
+            "Number of LDAP replicas that must return identical results before a "
+            "search is trusted. Guards against a replica that is reachable and "
+            "returns a successful response that is nevertheless silently incomplete "
+            "or stale due to a broken replication agreement - replica failover alone "
+            "cannot detect this, since no error is raised. Falls back to 1 "
+            "(quorum disabled) if fewer server URLs are configured than this."
+        ),
+    )
+
 
 class OcmSettings(BaseModel):
     """OCM API and integration configuration."""

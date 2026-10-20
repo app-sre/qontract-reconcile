@@ -25,16 +25,25 @@ class VaultClientTest(vault.VaultClient):
         pass
 
 
+@pytest.fixture
+def vault_environment(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
+    # Restore the original interval after importlib.reload() overwrites it.
+    monkeypatch.setattr(
+        vault, "VAULT_AUTO_REFRESH_INTERVAL", vault.VAULT_AUTO_REFRESH_INTERVAL
+    )
+    return monkeypatch
+
+
 class TestVaultUtils:
     @staticmethod
-    def test_vault_auto_refresh_env() -> None:
-        os.environ["VAULT_AUTO_REFRESH_INTERVAL"] = "1"
+    def test_vault_auto_refresh_env(vault_environment: pytest.MonkeyPatch) -> None:
+        vault_environment.setenv("VAULT_AUTO_REFRESH_INTERVAL", "1")
         importlib.reload(vault)
         assert vault.VAULT_AUTO_REFRESH_INTERVAL == 1
 
     @staticmethod
-    def test_vault_auto_refresh_no_env() -> None:
-        del os.environ["VAULT_AUTO_REFRESH_INTERVAL"]
+    def test_vault_auto_refresh_no_env(vault_environment: pytest.MonkeyPatch) -> None:
+        vault_environment.delenv("VAULT_AUTO_REFRESH_INTERVAL", raising=False)
         assert os.getenv("VAULT_AUTO_REFRESH_INTERVAL") is None
         importlib.reload(vault)
         assert vault.VAULT_AUTO_REFRESH_INTERVAL == 600

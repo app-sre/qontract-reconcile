@@ -320,7 +320,7 @@ def test_sync_integration_resolution_repeated_calls(mocker: MockerFixture) -> No
     settings.credentials.path = "ldap/creds"
     settings.credentials.field = "password"
     settings.credentials.version = None
-    settings.server_url = "ldaps://ldap.example.com"
+    settings.server_urls = ["ldaps://ldap.example.com"]
     settings.base_dn = "dc=example,dc=com"
     mocker.patch(
         "reconcile.utils.membershipsources.async_resolver.get_ldap_settings",
@@ -438,7 +438,7 @@ def test_generated_client_is_closed_before_reusing_a_new_event_loop(
     settings.credentials.path = "ldap/creds"
     settings.credentials.field = "password"
     settings.credentials.version = None
-    settings.server_url = "ldaps://ldap.example.com"
+    settings.server_urls = ["ldaps://ldap.example.com"]
     settings.base_dn = "dc=example,dc=com"
     mocker.patch(
         "reconcile.utils.membershipsources.async_resolver.get_ldap_settings",

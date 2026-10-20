@@ -135,12 +135,15 @@ def setup_mocks(
     current_items: dict[str, list[str]] | None = None,
 ) -> dict:
     mocked_queries = mocker.patch("reconcile.sql_query.queries")
-    mocked_queries.get_app_interface_settings.return_value = {}
     mocked_queries.get_app_interface_sql_queries.return_value = [sql_query]
     mocked_state = create_autospec(State)
     mocked_state.ls.return_value = [f"/{k}" for k in state]
     mocked_state.__getitem__.side_effect = lambda x: state[x]
-    mocker.patch("reconcile.sql_query.get_app_interface_vault_settings")
+    mocked_settings = mocker.patch(
+        "reconcile.sql_query.get_app_interface_settings"
+    ).return_value
+    mocked_settings.vault = False
+    mocked_settings.sql_query = None
     mocked_secret_reader = mocker.patch("reconcile.sql_query.create_secret_reader")
     mocked_secret_reader.return_value.read_all_secret.return_value = (
         smtp_server_connection_info

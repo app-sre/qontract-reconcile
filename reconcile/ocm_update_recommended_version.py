@@ -10,10 +10,14 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.mr.ocm_update_recommended_version import (
     CreateOCMUpdateRecommendedVersion,
 )
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from reconcile.ocm.types import OCMSpec
@@ -107,14 +111,15 @@ def get_updated_recommended_versions(
 
 
 def run(dry_run: bool, gitlab_project_id: int) -> None:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     ocm = queries.get_openshift_cluster_managers()
 
     for ocm_info in ocm:
         ocm_map = OCMMap(
             ocms=[ocm_info],
             integration=QONTRACT_INTEGRATION,
-            settings=settings,
+            secret_reader=secret_reader,
             init_version_gates=True,
         )
 

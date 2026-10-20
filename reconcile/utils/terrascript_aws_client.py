@@ -5598,10 +5598,11 @@ class TerrascriptClient:
         # rosa-authenticator. We need to grab details of said AWS account from
         # app-interface, and feed those details to the AWSApi class.
         thread_pool_size = 1
-        settings = queries.get_app_interface_settings()
         all_aws_accounts = queries.get_aws_accounts()
         target_account_arr = [a for a in all_aws_accounts if a["name"] == account]
-        with AWSApi(thread_pool_size, target_account_arr, settings=settings) as aws_api:
+        with AWSApi(
+            thread_pool_size, target_account_arr, secret_reader=self.secret_reader
+        ) as aws_api:
             session = aws_api.get_session(account)
             s3_client = aws_api.get_session_client(session, "s3")
 

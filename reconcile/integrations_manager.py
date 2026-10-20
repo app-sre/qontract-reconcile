@@ -12,7 +12,6 @@ from github import Github
 from pydantic import BaseModel
 
 import reconcile.openshift_base as ob
-from reconcile import queries
 from reconcile.github_org import (
     GH_BASE_URL,
     get_default_config,
@@ -26,6 +25,7 @@ from reconcile.gql_definitions.integrations.integrations import (
     NamespaceV1,
 )
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.utils import (
     gql,
     helm,
@@ -68,11 +68,11 @@ INTEGRATION_UPSTREAM_REPOS_PARAM = "INTEGRATION_UPSTREAM_REPOS"
 
 def get_image_tag_from_ref(ref: str, upstream: str) -> str:
     upstream = upstream.removeprefix(GITHUB_BASE_URL)
-    settings = queries.get_app_interface_settings()
+    settings = get_app_interface_settings()
     gh_token = get_default_config()["token"]
     github = Github(gh_token, base_url=GH_BASE_URL)
     commit_sha = github.get_repo(upstream).get_commit(sha=ref).sha
-    return commit_sha[: settings["hashLength"]]
+    return commit_sha[: settings.hash_length]
 
 
 def collect_parameters(

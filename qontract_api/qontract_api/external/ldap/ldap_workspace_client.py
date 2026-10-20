@@ -73,7 +73,7 @@ class LdapWorkspaceClient:
             api: Stateless LdapApi client (Layer 1)
             cache: Cache backend with two-tier caching
             settings: Application settings
-            cache_key_prefix: Prefix for cache keys (unique per LDAP server)
+            cache_key_prefix: Prefix for cache keys (unique per replica set and base DN)
         """
         self.api = api
         self.cache = cache

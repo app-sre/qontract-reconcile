@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, MutableMapping
 
     from reconcile.ocm.types import OCMSpec
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 STATUS_READY = "ready"
 STATUS_FAILED = "failed"
@@ -758,6 +759,7 @@ class OCMMap:
         ocms: Iterable[Mapping[str, Any]] | None = None,
         integration: str = "",
         settings: Mapping[str, Any] | None = None,
+        secret_reader: SecretReaderBase | None = None,
         init_provision_shards: bool = False,
         init_addons: bool = False,
         init_version_gates: bool = False,
@@ -768,6 +770,7 @@ class OCMMap:
         self.ocm_map: dict[str, OCM] = {}
         self.calling_integration = integration
         self.settings = settings
+        self.secret_reader = secret_reader or SecretReader(settings=settings)
 
         inputs = [i for i in [clusters, namespaces, ocms] if i]
         if len(inputs) > 1:
@@ -879,7 +882,7 @@ class OCMMap:
                     q_format=access_token_client_secret.get("format"),
                 ),
             ),
-            secret_reader=SecretReader(settings=self.settings),
+            secret_reader=self.secret_reader,
         )
 
         self.ocm_map[ocm_name] = OCM(
