@@ -462,6 +462,7 @@ async def test_async_run_batches_multiple_users_into_single_mr(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("auto_merge_threshold", [1, 10])
 @patch(f"{_MOD}.vcs_file_sync", new_callable=AsyncMock)
 @patch(f"{_MOD}.build_infra_file_operations", new_callable=AsyncMock)
 @patch(f"{_MOD}.build_batched_app_interface_file_operations", new_callable=AsyncMock)
@@ -481,9 +482,10 @@ async def test_async_run_auto_merge_enabled_below_threshold(
     mock_build_app: AsyncMock,
     mock_build_infra: AsyncMock,
     mock_file_sync: AsyncMock,
+    auto_merge_threshold: int,
 ) -> None:
-    """Below the threshold, auto-merge follows the Unleash toggle and labels are unchanged."""
-    integration = _make_integration(auto_merge_threshold=10)
+    """At or below the threshold, auto-merge follows the Unleash toggle and labels are unchanged."""
+    integration = _make_integration(auto_merge_threshold=auto_merge_threshold)
     mock_users.return_value = [_make_user("alice"), _make_user("existing")]
     mock_settings.return_value = _ldap_settings()
     mock_vcs.return_value = _vcs_instances()
