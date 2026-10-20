@@ -313,6 +313,39 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
             self._secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         return self._secret_reader
 
+    def get_early_exit_desired_state(self) -> dict[str, Any] | None:
+        """Return a JSON-serializable App-Interface input snapshot, when supported.
+
+        API integrations still construct their desired state from the client-side
+        bundle.  They can therefore safely opt into the same conservative
+        comparison protocol as classic integrations.
+        """
+        return None
+
+    def get_desired_state_shard_config(self) -> DesiredStateShardConfig | None:
+        """Describe opt-in dry-run sharding for this API integration."""
+        return None
+
+    def supports_sharded_dry_run_mode(self) -> bool:
+        return self.get_desired_state_shard_config() is not None
+
+    def params_have_shard_info(self) -> bool:
+        sharding_config = self.get_desired_state_shard_config()
+        return bool(sharding_config and self.params.get(sharding_config.shard_arg_name))
+
+    def build_integration_instance_for_shard(self, shard: str) -> Self:
+        sharding_config = self.get_desired_state_shard_config()
+        if sharding_config:
+            sharded_params = self.params.copy_and_update({
+                sharding_config.shard_arg_name: [shard]
+                if sharding_config.shard_arg_is_collection
+                else shard
+            })
+            return type(self)(sharded_params)
+        raise NotImplementedError(
+            "The integration does not support run in sharded mode."
+        )
+
     @contextlib.contextmanager
     def log_api_exceptions(self) -> Generator[None]:
         """Log qontract-api client errors with status code and truncated body, then re-raise."""

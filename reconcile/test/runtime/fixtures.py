@@ -3,6 +3,7 @@ from typing import Any
 from reconcile.utils.runtime.integration import (
     DesiredStateShardConfig,
     PydanticRunParams,
+    QontractReconcileApiIntegration,
     QontractReconcileIntegration,
 )
 
@@ -57,4 +58,29 @@ class ShardableTestIntegration(
         )
 
     def run(self, dry_run: bool) -> None:
+        pass
+
+
+class ShardableApiTestIntegrationParams(PydanticRunParams):
+    shard: str | None = None
+
+
+class ShardableApiTestIntegration(
+    QontractReconcileApiIntegration[ShardableApiTestIntegrationParams]
+):
+    @property
+    def name(self) -> str:
+        return "shardable-api-test-integration"
+
+    def get_early_exit_desired_state(self) -> dict[str, Any]:
+        return self.desired_state_data
+
+    def get_desired_state_shard_config(self) -> DesiredStateShardConfig:
+        return DesiredStateShardConfig(
+            shard_arg_name="shard",
+            shard_path_selectors={"shards[*].shard"},
+            sharded_run_review=lambda _: True,
+        )
+
+    async def async_run(self, dry_run: bool) -> None:
         pass

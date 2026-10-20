@@ -70,18 +70,10 @@ class IntegrationRunConfiguration:
     """
 
     def main_bundle_desired_state(self) -> dict[str, Any] | None:
-        if not isinstance(self.integration, QontractReconcileIntegration):
-            raise TypeError(
-                "main_bundle_desired_state is only available for QontractReconcileIntegration"
-            )
         self.switch_to_main_bundle()
         return self.integration.get_early_exit_desired_state()
 
     def comparison_bundle_desired_state(self) -> dict[str, Any] | None:
-        if not isinstance(self.integration, QontractReconcileIntegration):
-            raise TypeError(
-                "comparison_bundle_desired_state is only available for QontractReconcileIntegration"
-            )
         self.switch_to_comparison_bundle()
         data = self.integration.get_early_exit_desired_state()
         self.switch_to_main_bundle()
@@ -144,7 +136,6 @@ def get_desired_state_diff(
         logging.exception("Failed to fetch desired state for current bundle")
         return None
 
-    assert isinstance(run_cfg.integration, QontractReconcileIntegration)
     return build_desired_state_diff(
         run_cfg.integration.get_desired_state_shard_config()
         if run_cfg.check_only_affected_shards
@@ -180,6 +171,31 @@ async def _run_api_integration(
     """
     try:
         await integration.async_run(dry_run)
+    finally:
+        await qontract_api_client.aclose()
+
+
+async def _run_api_integration_shards(
+    integration: QontractReconcileApiIntegration[Any], shards: list[str]
+) -> list[object]:
+    """Dry-run API integration shards in one event loop and close the shared client.
+
+    The generated API client owns a process-global async connection pool.  Running
+    each shard in a separate ``asyncio.run`` would close that pool while another
+    shard is using it, so all API shards deliberately share one event loop.
+    """
+    try:
+        return list(
+            await asyncio.gather(
+                *(
+                    integration.build_integration_instance_for_shard(shard).async_run(
+                        True
+                    )
+                    for shard in shards
+                ),
+                return_exceptions=True,
+            )
+        )
     finally:
         await qontract_api_client.aclose()
 
@@ -223,8 +239,7 @@ def _integration_dry_run[RunParamsTypeVar: RunParams](
     # we can still try to run the integration in sharded mode on the
     # affected shards only
     if (
-        isinstance(integration, QontractReconcileIntegration)
-        and integration.supports_sharded_dry_run_mode()
+        integration.supports_sharded_dry_run_mode()
         and not integration.params_have_shard_info()  # already running in sharded mode?
         and desired_state_diff
         and desired_state_diff.affected_shards
@@ -232,20 +247,22 @@ def _integration_dry_run[RunParamsTypeVar: RunParams](
         affected_shard_list = list(desired_state_diff.affected_shards)
         logging.info(f"run {integration.name} for shards {affected_shard_list}")
 
-        def run_integration_shard(shard: str) -> None:
-            sharded_integration = integration.build_integration_instance_for_shard(
-                shard
-            )
-            # TODO: support async mode for sharded dry-runs
-            sharded_integration.run(True)
+        if isinstance(integration, QontractReconcileIntegration):
 
-        # run all shards
-        results = sretoolbox_threaded.run(
-            run_integration_shard,
-            affected_shard_list,
-            thread_pool_size=min(len(affected_shard_list), 10),
-            return_exceptions=True,
-        )
+            def run_integration_shard(shard: str) -> None:
+                integration.build_integration_instance_for_shard(shard).run(True)
+
+            results = sretoolbox_threaded.run(
+                run_integration_shard,
+                affected_shard_list,
+                thread_pool_size=min(len(affected_shard_list), 10),
+                return_exceptions=True,
+            )
+        else:
+            setup_qontract_api_client()
+            results = asyncio.run(
+                _run_api_integration_shards(integration, affected_shard_list)
+            )
 
         for shard, result in zip(affected_shard_list, results, strict=False):
             if _is_task_result_an_error(result):

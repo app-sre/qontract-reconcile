@@ -8,6 +8,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from reconcile.test.runtime.fixtures import (
+    ShardableApiTestIntegration,
+    ShardableApiTestIntegrationParams,
     ShardableTestIntegration,
     ShardableTestIntegrationParams,
     SimpleTestIntegration,
@@ -335,6 +337,36 @@ def test_run_configuration_dry_run_diff_no_early_exit_sharding(
             "shard": shard
         })
         assert sharded_params in called_sharded_params
+
+
+def test_api_integration_dry_run_shards(
+    mocker: MockerFixture,
+) -> None:
+    """API integrations use one event loop for all affected dry-run shards."""
+    async_run = mocker.patch.object(
+        ShardableApiTestIntegration, "async_run", autospec=True
+    )
+    mocker.patch.object(runner, "setup_qontract_api_client")
+    mocker.patch.object(
+        runner.qontract_api_client, "aclose", new_callable=mocker.AsyncMock
+    )
+    integration = ShardableApiTestIntegration(ShardableApiTestIntegrationParams())
+
+    _integration_dry_run(
+        integration,
+        DesiredStateDiff(
+            current_desired_state={},
+            previous_desired_state={},
+            diff_found=True,
+            affected_shards={"a", "b"},
+        ),
+    )
+
+    assert async_run.call_count == 2
+    assert {call.args[0].params.shard for call in async_run.call_args_list} == {
+        "a",
+        "b",
+    }
 
 
 def test_run_configuration_dry_run_diff_no_early_exit_shard_err(
