@@ -6,7 +6,6 @@ All YAML manipulation logic stays in the client.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from functools import partial
 from typing import TYPE_CHECKING
@@ -28,13 +27,14 @@ from qontract_api_client.schemas import (
 
 from reconcile.ldap_users_api.models import PathSpec, PathType, UserPaths
 from reconcile.ldap_users_api.mr_builder import (
-    build_app_interface_file_operations,
+    build_batched_app_interface_file_operations,
     build_infra_file_operations,
 )
 from reconcile.typed_queries.ldap_settings import get_ldap_settings
 from reconcile.typed_queries.users_with_paths import get_users_with_paths
 from reconcile.typed_queries.vcs import Vcs, get_vcs_instances
 from reconcile.utils import gql
+from reconcile.utils.mr.labels import SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -57,6 +57,7 @@ class LdapUsersApiIntegrationParams(PydanticRunParams):
     infra_target_branch: str = "master"
     infra_paths: list[str] = Field(default_factory=list)
     labels: list[str] = Field(default_factory=list)
+    auto_merge_threshold: int = 10
 
 
 def transform_users_with_paths(users_with_paths: list[UserV1]) -> list[UserPaths]:
@@ -200,18 +201,29 @@ class LdapUsersApiIntegration(
             integration_name=f"{self.name}-allow-auto-merge-mrs",
             default=False,
         )
+        labels = list(self.params.labels)
+        if len(users_to_delete) > self.params.auto_merge_threshold:
+            logger.warning(
+                f"{len(users_to_delete)} users to delete exceeds auto-merge "
+                f"threshold ({self.params.auto_merge_threshold}) - suppressing "
+                "auto-merge, manual review required"
+            )
+            auto_merge = False
+            labels.append(SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE)
 
         await self._delete_users_app_interface(
             users_to_delete,
             vcs_secret=app_interface_vcs_secret,
             dry_run=dry_run,
             auto_merge=auto_merge,
+            labels=labels,
         )
         await self._delete_users_infra(
             [u.username for u in users_to_delete],
             vcs_secret=infra_vcs_secret,
             dry_run=dry_run,
             auto_merge=auto_merge,
+            labels=labels,
         )
 
     async def _delete_users_app_interface(
@@ -221,9 +233,13 @@ class LdapUsersApiIntegration(
         vcs_secret: Secret,
         dry_run: bool,
         auto_merge: bool,
+        labels: list[str],
     ) -> None:
-        """Create one MR per user to delete from app-interface via file-sync."""
+        """Create a single MR to delete all users from app-interface via file-sync."""
         target_branch = self.params.app_interface_target_branch
+        title = "[create_delete_user_mr] delete user(s)"
+        usernames = [user.username for user in users]
+
         get_file = partial(
             self._get_file_content,
             repo_url=self.params.app_interface_repo_url,
@@ -231,54 +247,35 @@ class LdapUsersApiIntegration(
             vcs_secret=vcs_secret,
         )
 
-        sync_calls = []
-        for user in users:
-            title = f"[create_delete_user_mr] delete user {user.username}"
-
-            file_ops = await build_app_interface_file_operations(
-                user=user,
-                vcs_get_file=get_file,
-                commit_message=title,
-            )
-            if not file_ops:
-                continue
-
-            if not dry_run:
-                sync_calls.append(
-                    vcs_file_sync(
-                        FileSyncRequest(
-                            repo_url=self.params.app_interface_repo_url,
-                            token=vcs_secret,
-                            title=title,
-                            description=f"delete user {user.username}",
-                            target_branch=target_branch,
-                            file_operations=file_ops,
-                            labels=self.params.labels,
-                            auto_merge=auto_merge,
-                        ),
-                    )
-                )
-
-        if not sync_calls:
+        file_ops = await build_batched_app_interface_file_operations(
+            users=users,
+            vcs_get_file=get_file,
+            commit_message=title,
+        )
+        if not file_ops:
+            logger.info("No app-interface files to update, skipping MR creation")
             return
 
-        error = False
-        results = await asyncio.gather(*sync_calls, return_exceptions=True)
-        for result in results:
-            if isinstance(result, BaseException):
-                if isinstance(result, Exception):
-                    logger.error(f"Failed file-sync: {result}")
-                    error = True
-                    continue
-                raise result
-            match result.status:
-                case FileSyncStatus.MR_CREATED:
-                    logger.info(f"MR created: {result.mr_url}")
-                case FileSyncStatus.MR_EXISTS:
-                    logger.info(f"MR already exists: {result.mr_url}")
+        if dry_run:
+            return
 
-        if error:
-            raise RuntimeError("One or more file-sync operations failed")
+        response = await vcs_file_sync(
+            FileSyncRequest(
+                repo_url=self.params.app_interface_repo_url,
+                token=vcs_secret,
+                title=title,
+                description=f"delete {len(usernames)} user(s): {', '.join(usernames)}",
+                target_branch=target_branch,
+                file_operations=file_ops,
+                labels=labels,
+                auto_merge=auto_merge,
+            ),
+        )
+        match response.status:
+            case FileSyncStatus.MR_CREATED:
+                logger.info(f"MR created: {response.mr_url}")
+            case FileSyncStatus.MR_EXISTS:
+                logger.info(f"MR already exists: {response.mr_url}")
 
     async def _delete_users_infra(
         self,
@@ -287,6 +284,7 @@ class LdapUsersApiIntegration(
         vcs_secret: Secret,
         dry_run: bool,
         auto_merge: bool,
+        labels: list[str],
     ) -> None:
         """Create single MR to delete all users from infra repo via file-sync."""
         title = "[create_ssh_key_mr] delete user(s)"
@@ -318,7 +316,7 @@ class LdapUsersApiIntegration(
                     description="delete user(s)",
                     target_branch=target_branch,
                     file_operations=file_ops,
-                    labels=self.params.labels,
+                    labels=labels,
                     auto_merge=auto_merge,
                 ),
             )
