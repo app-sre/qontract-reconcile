@@ -5,12 +5,15 @@ Provides cached access to PagerDuty data (schedules, escalation policies).
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import Annotated
 
 from fastapi import APIRouter, Query
+from pagerduty import HttpError
 
 from qontract_api.config import settings
 from qontract_api.dependencies import CacheDep, SecretManagerDep, UserDep
+from qontract_api.exceptions import NotFoundError
 from qontract_api.external.pagerduty.pagerduty_factory import (
     create_pagerduty_workspace_client,
 )
@@ -76,7 +79,25 @@ def get_schedule_users(
         secret_manager=secret_manager,
         settings=settings,
     )
-    users = client.get_schedule_users(schedule_id)
+    try:
+        users = client.get_schedule_users(schedule_id)
+    except HttpError as e:
+        status_code = getattr(e.response, "status_code", None)
+        if status_code == HTTPStatus.NOT_FOUND:
+            logger.warning(
+                "PagerDuty schedule not found",
+                schedule_id=schedule_id,
+                pagerduty_status_code=status_code,
+            )
+            raise NotFoundError(
+                f"PagerDuty schedule {schedule_id!r} was not found"
+            ) from e
+        logger.exception(
+            "PagerDuty schedule lookup failed",
+            schedule_id=schedule_id,
+            pagerduty_status_code=status_code,
+        )
+        raise
 
     logger.info(
         f"Found {len(users)} users in schedule {schedule_id}",
