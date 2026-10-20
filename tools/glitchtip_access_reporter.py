@@ -89,7 +89,7 @@ def build_glitchtip_access_report_users(
 @click.option(
     "--glitchtip-access-revalidation-workbook-path",
     help="path to glitchtip access revalidation workbook markdown file",
-    default="docs/glitchtip/access_revalidation_workbook.md",
+    default="docs/app-sre/platform-services/glitchtip/access_revalidation_workbook.md",
 )
 def main(
     configfile: str,
