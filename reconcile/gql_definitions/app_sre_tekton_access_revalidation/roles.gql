@@ -2,14 +2,23 @@
 
 query AppSRETektonAccessRevalidationRoles {
   roles: roles_v1 {
+    name
     path
+    memberSources {
+      ...RoleMembershipSource
+    }
     access {
       clusterRole
       namespace {
+        name
         path
+        cluster {
+          name
+        }
       }
     }
     users {
+      name
       org_username
       path
     }
