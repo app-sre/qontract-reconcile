@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from reconcile import queries
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -175,7 +174,6 @@ def run(
         slack = slackapi_from_queries(QONTRACT_INTEGRATION)
 
     vault_settings = get_app_interface_vault_settings()
-    settings = queries.get_app_interface_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     state = init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader)
     if defer:
@@ -197,7 +195,7 @@ def run(
     ocm_map = OCMMap(
         clusters=cluster_like_objects,
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
     )
 
     notify_upgrades_start(

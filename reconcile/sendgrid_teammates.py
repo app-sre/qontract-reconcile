@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any
 import sendgrid
 from sretoolbox.utils import retry
 
-from reconcile import queries
 from reconcile.gql_definitions.sendgrid_teammates.accounts import (
     query as accounts_query,
 )
@@ -19,11 +18,14 @@ from reconcile.gql_definitions.sendgrid_teammates.roles import (
     query as roles_query,
 )
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import gql
 from reconcile.utils.membershipsources.resolver import (
     resolve_role_members,
 )
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -188,8 +190,8 @@ def act(
 
 
 def run(dry_run: bool) -> None:
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
     gqlapi = gql.get_api()
     roles = get_roles(query_func=gqlapi.query)

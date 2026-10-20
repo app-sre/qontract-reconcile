@@ -18,6 +18,9 @@ from reconcile.ocm.types import (
     ROSAOcmAwsStsAttrs,
 )
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.jobcontroller.controller import build_job_controller
@@ -33,6 +36,7 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver, parse_semver
 
 if TYPE_CHECKING:
@@ -374,7 +378,8 @@ class OcmClusters(QontractReconcileIntegration[OcmClustersParams]):
         return build_product_portfolio(self.rosa_session_builder())
 
     def run(self, dry_run: bool) -> None:
-        settings = queries.get_app_interface_settings()
+        vault_settings = get_app_interface_vault_settings()
+        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         clusters = queries.get_clusters()
         clusters = [
             c
@@ -389,7 +394,7 @@ class OcmClusters(QontractReconcileIntegration[OcmClustersParams]):
         ocm_map = ocmmod.OCMMap(
             clusters=clusters,
             integration=self.name,
-            settings=settings,
+            secret_reader=secret_reader,
             init_provision_shards=True,
             product_portfolio=product_portfolio,
         )

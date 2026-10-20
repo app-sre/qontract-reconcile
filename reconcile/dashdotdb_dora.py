@@ -213,7 +213,6 @@ class DashdotdbDORA(DashdotdbBase):
         self, dry_run: bool, gitlab_project_id: str, thread_pool_size: int = 5
     ) -> None:
         self.gitlab_project_id = gitlab_project_id
-        self.settings = queries.get_app_interface_settings()
         vault_settings = get_app_interface_vault_settings()
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
@@ -247,7 +246,7 @@ class DashdotdbDORA(DashdotdbBase):
         # init GitLab API
         gl_instance = queries.get_gitlab_instance()
         self.gl = GitLabApi(
-            gl_instance, project_id=self.gitlab_project_id, settings=self.settings
+            gl_instance, project_id=self.gitlab_project_id, secret_reader=secret_reader
         )
         self.gl_app_interface_get_file = functools.cache(self.gl.get_file)
 

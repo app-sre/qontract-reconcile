@@ -507,11 +507,13 @@ def setup_mocks(
     mocked_ocm.get_machine_pools.return_value = machine_pools or []
     mocked_ocm.get_node_pools.return_value = node_pools or []
 
-    mocked_queries = mocker.patch("reconcile.ocm_machine_pools.queries")
+    mocked_vault_settings = mocker.patch(
+        "reconcile.ocm_machine_pools.get_app_interface_vault_settings"
+    )
 
     return {
         "get_clusters": mocked_get_clusters,
-        "queries": mocked_queries,
+        "vault_settings": mocked_vault_settings,
         "OCMMap": mocked_ocm_map,
         "OCM": mocked_ocm,
     }

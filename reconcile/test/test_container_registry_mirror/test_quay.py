@@ -119,9 +119,16 @@ def mock_queries(mocker: MockerFixture) -> MagicMock:
 
 
 @pytest.fixture()
+def mock_vault_settings(mocker: MockerFixture) -> MagicMock:
+    return mocker.patch(
+        "reconcile.container_registry_mirror.quay.get_app_interface_vault_settings"
+    )
+
+
+@pytest.fixture()
 def mock_secret_reader(mocker: MockerFixture) -> MagicMock:
     mock = mocker.patch(
-        "reconcile.container_registry_mirror.quay.SecretReader",
+        "reconcile.container_registry_mirror.quay.create_secret_reader",
         autospec=True,
     )
     # Default: push credentials return user:token, pull credentials
@@ -133,7 +140,10 @@ def mock_secret_reader(mocker: MockerFixture) -> MagicMock:
 
 @pytest.fixture()
 def quay_mirror(
-    mock_gql: MagicMock, mock_queries: MagicMock, mock_secret_reader: MagicMock
+    mock_gql: MagicMock,
+    mock_queries: MagicMock,
+    mock_vault_settings: MagicMock,
+    mock_secret_reader: MagicMock,
 ) -> QuayMirror:
     """Construct a QuayMirror with all external dependencies mocked."""
     mock_gql.get_api.return_value.query.return_value = _quay_orgs_fixture()
@@ -325,6 +335,7 @@ class TestGetPushCredsEdgeCases:
         self,
         mock_gql: MagicMock,
         mock_queries: MagicMock,
+        mock_vault_settings: MagicMock,
         mock_secret_reader: MagicMock,
     ) -> None:
         """Orgs with pushCredentials=None are read-only and should
@@ -346,6 +357,7 @@ class TestGetPushCredsEdgeCases:
         self,
         mock_gql: MagicMock,
         mock_queries: MagicMock,
+        mock_vault_settings: MagicMock,
         mock_secret_reader: MagicMock,
     ) -> None:
         """When the GraphQL query returns None, push_creds should be

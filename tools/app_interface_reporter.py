@@ -26,11 +26,14 @@ from reconcile.cli import (
     threaded,
 )
 from reconcile.jenkins_job_builder import init_jjb
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.datetime_util import ensure_utc, utc_now
 from reconcile.utils.mr import CreateAppInterfaceReporter
 from reconcile.utils.runtime.environment import init_env
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, MutableMapping
@@ -46,8 +49,8 @@ DASHDOTDB_SECRET = os.environ.get(
 
 class Report:
     def __init__(self, app: Mapping, date: datetime) -> None:
-        settings = queries.get_app_interface_settings()
-        self.secret_reader = SecretReader(settings=settings)
+        vault_settings = get_app_interface_vault_settings()
+        self.secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         self.app = app
         # standard date format
         self.date = date.strftime("%Y-%m-%d")
@@ -188,8 +191,8 @@ def get_apps_data(
     month_delta: int = 1,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
 ) -> list[dict]:
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
     apps = queries.get_apps()
     jjb = init_jjb(secret_reader)

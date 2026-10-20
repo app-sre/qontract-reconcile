@@ -5,8 +5,12 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.json import json_dumps
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.vault import VaultClient
 
 if TYPE_CHECKING:
@@ -68,8 +72,11 @@ def write_output_to_vault(
 
 def run(dry_run: bool, vault_output_path: str = "") -> None:
     accounts = [a for a in queries.get_aws_accounts() if a.get("ecrs")]
-    settings = queries.get_app_interface_settings()
-    with AWSApi(1, accounts, settings=settings, init_ecr_auth_tokens=True) as aws:
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    with AWSApi(
+        1, accounts, secret_reader=secret_reader, init_ecr_auth_tokens=True
+    ) as aws:
         auth_tokens = aws.auth_tokens
     for account, data in auth_tokens.items():
         dockercfg_secret_data = construct_dockercfg_secret_data(data)

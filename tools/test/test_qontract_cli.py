@@ -407,19 +407,16 @@ def mock_slackapi_from_queries(mocker: MockerFixture) -> Mock:
 
 @pytest.fixture
 def mock_review_queue_gl(
-    mocker: MockerFixture, mock_slackapi_from_queries: Mock
+    mocker: MockerFixture,
+    mock_slackapi_from_queries: Mock,
+    mock_get_app_interface_vault_settings: Mock,
+    mock_create_secret_reader: Mock,
 ) -> Mock:
-    mocker.patch(
-        "tools.qontract_cli.queries.get_app_interface_settings",
-        autospec=True,
-        return_value={},
-    )
     mocker.patch(
         "tools.qontract_cli.queries.get_gitlab_instance",
         autospec=True,
         return_value={},
     )
-    mocker.patch("tools.qontract_cli.SecretReader", autospec=True)
     mocker.patch("tools.qontract_cli.init_jjb", autospec=True)
 
     mock_gl = mocker.patch("tools.qontract_cli.GitLabApi", autospec=True)

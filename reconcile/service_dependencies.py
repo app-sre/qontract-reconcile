@@ -2,16 +2,19 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from reconcile import queries
 from reconcile.gql_definitions.service_dependencies import service_dependencies
+from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.utils import gql
 from reconcile.utils.vcs import VCS
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable
 
+    from reconcile.gql_definitions.common.app_interface_settings import (
+        AppInterfaceDependencyMappingV1,
+    )
     from reconcile.gql_definitions.service_dependencies.service_dependencies import (
         AppCodeComponentsV1,
         AppV1,
@@ -26,13 +29,19 @@ if TYPE_CHECKING:
 QONTRACT_INTEGRATION = "service-dependencies"
 
 
-def get_dependency_names(dependency_map: Mapping[Any, Any], dep_type: str) -> list[str]:
-    dependency_maps = (dm for dm in dependency_map if dm["type"] == dep_type)
-    return [service["name"] for service in dependency_maps if "name" in service]
+def get_dependency_names(
+    dependency_map: Iterable[AppInterfaceDependencyMappingV1], dep_type: str
+) -> list[str]:
+    # NOTE: pre-existing bug (introduced in #4794) — this iterates the top-level
+    # {type, services} entries directly instead of descending into `.services`,
+    # so it always returns an empty list. Preserved as-is during this typed
+    # migration; tracked separately in https://redhat.atlassian.net/browse/APPSRE-15579
+    dependency_maps = (dm for dm in dependency_map if dm.q_type == dep_type)
+    return [name for dm in dependency_maps if (name := getattr(dm, "name", None))]
 
 
 def get_desired_dependency_names(
-    app: AppV1, dependency_map: Mapping[Any, Any]
+    app: AppV1, dependency_map: Iterable[AppInterfaceDependencyMappingV1]
 ) -> set[str]:
     required_dep_names = set()
 
@@ -93,8 +102,8 @@ def get_desired_dependency_names(
 
 
 def run(dry_run: bool) -> None:
-    settings = queries.get_app_interface_settings()
-    dependency_map = settings.get("dependencies")
+    settings = get_app_interface_settings()
+    dependency_map = settings.dependencies
     if not dependency_map:
         sys.exit()
 

@@ -12,10 +12,14 @@ from reconcile import (
     queries,
 )
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.ocm.base import OCMClusterGroupId
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import (
@@ -55,9 +59,12 @@ def get_cluster_state(
 def fetch_current_state(
     clusters: Iterable[Mapping[str, Any]], thread_pool_size: int
 ) -> tuple[OCMMap, list[dict[str, str]]]:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     ocm_map = OCMMap(
-        clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
+        clusters=clusters,
+        integration=QONTRACT_INTEGRATION,
+        secret_reader=secret_reader,
     )
     groups_list = create_groups_list(clusters)
     results = threaded.run(

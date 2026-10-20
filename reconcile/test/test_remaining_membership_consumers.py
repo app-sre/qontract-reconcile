@@ -71,7 +71,7 @@ if TYPE_CHECKING:
 @pytest.fixture(autouse=True)
 def mock_infrastructure_credentials(mocker: MockerFixture) -> None:
     reader = mocker.patch(
-        "reconcile.ocm_aws_infrastructure_access.SecretReader"
+        "reconcile.ocm_aws_infrastructure_access.create_secret_reader"
     ).return_value
     reader.read_all_secret.return_value = {
         "aws_access_key_id": "test-access",
@@ -566,8 +566,7 @@ def test_infrastructure_access_resolves_ldap_members(
         return_value=[],
     )
     mocker.patch(
-        "reconcile.ocm_aws_infrastructure_access.queries.get_app_interface_settings",
-        return_value={},
+        "reconcile.ocm_aws_infrastructure_access.get_app_interface_vault_settings",
     )
     aws = mocker.patch("reconcile.ocm_aws_infrastructure_access.AWSApi", create=True)
     aws.return_value.__enter__.return_value.iam.list_users.return_value = _iam_users([
@@ -586,8 +585,7 @@ def test_infrastructure_inventory_accepts_cluster_iterator(
 
     cluster = gql_class_factory(InfrastructureCluster, {"name": "cluster"})
     mocker.patch(
-        "reconcile.ocm_aws_infrastructure_access.queries.get_app_interface_settings",
-        return_value={},
+        "reconcile.ocm_aws_infrastructure_access.get_app_interface_vault_settings",
     )
     ocm = mocker.patch("reconcile.ocm_aws_infrastructure_access.OCMMap").return_value
     ocm.get.return_value.get_aws_infrastructure_access_role_grants.return_value = [
@@ -805,8 +803,7 @@ def test_remaining_consumer_membership_modes(
                     return_value=[],
                 )
                 mocker.patch(
-                    "reconcile.ocm_aws_infrastructure_access.queries.get_app_interface_settings",
-                    return_value={},
+                    "reconcile.ocm_aws_infrastructure_access.get_app_interface_vault_settings",
                 )
                 aws = mocker.patch("reconcile.ocm_aws_infrastructure_access.AWSApi")
                 aws.return_value.__enter__.return_value.iam.list_users.return_value = (
@@ -919,8 +916,7 @@ def test_missing_iam_user_cannot_revoke_infrastructure_grants(
         return_value=fetch_infrastructure_clusters(cluster),
     )
     mocker.patch(
-        "reconcile.ocm_aws_infrastructure_access.queries.get_app_interface_settings",
-        return_value={},
+        "reconcile.ocm_aws_infrastructure_access.get_app_interface_vault_settings",
     )
     aws = mocker.patch(
         "reconcile.ocm_aws_infrastructure_access.AWSApi"
@@ -1192,7 +1188,7 @@ def test_infrastructure_clusters_resolve_members_at_fetch_boundary(
     )
     mocker.patch.object(module, "get_namespaces", return_value=[])
     mocker.patch.object(module.queries, "get_aws_accounts", return_value=[])
-    mocker.patch.object(module.queries, "get_app_interface_settings", return_value={})
+    mocker.patch.object(module, "get_app_interface_vault_settings")
     mocker.patch.object(
         module, "AWSApi"
     ).return_value.__enter__.return_value.iam.list_users.return_value = _iam_users([
@@ -1406,10 +1402,9 @@ def test_unresolved_membership_aborts_before_mutations(
                 return_value=SendgridTeammateRolesQueryData(roles=[role]),
             )
             mocker.patch(
-                "reconcile.sendgrid_teammates.queries.get_app_interface_settings",
-                return_value={},
+                "reconcile.sendgrid_teammates.get_app_interface_vault_settings"
             )
-            mocker.patch("reconcile.sendgrid_teammates.SecretReader")
+            mocker.patch("reconcile.sendgrid_teammates.create_secret_reader")
             apply = mocker.patch("reconcile.sendgrid_teammates.act")
             with pytest.raises(RuntimeError, match="could not be resolved"):
                 sendgrid_teammates.run(dry_run=dry_run)

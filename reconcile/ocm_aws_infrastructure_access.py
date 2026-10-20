@@ -18,6 +18,9 @@ from reconcile.gql_definitions.ocm_aws_infrastructure_access.clusters import (
     query as clusters_query,
 )
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.typed_queries.terraform_namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -34,7 +37,7 @@ from reconcile.utils.ocm import (
     STATUS_FAILED,
     OCMMap,
 )
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -94,12 +97,13 @@ def fetch_current_state(
     current_state = []
     current_failed = []
     current_deleting = []
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
     ocm_map = OCMMap(
         clusters=[cluster.model_dump(by_alias=True) for cluster in clusters],
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
     )
 
     for cluster_info in clusters:
@@ -168,7 +172,8 @@ def fetch_desired_state(clusters: Iterable[ClusterV1]) -> list[InfrastructureGra
                 desired_state.append(item)
 
     if required_accounts:
-        secret_reader = SecretReader(settings=queries.get_app_interface_settings())
+        vault_settings = get_app_interface_vault_settings()
+        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         for account_name, account in required_accounts.items():
             credentials = AwsAutomationCredentials.model_validate(
                 secret_reader.read_all_secret(account.automation_token)

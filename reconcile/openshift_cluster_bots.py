@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sretoolbox.utils import retry
 
 import reconcile.gql_definitions.openshift_cluster_bots.clusters as clusters_gql
-from reconcile import mr_client_gateway, queries
+from reconcile import mr_client_gateway
 from reconcile.gql_definitions.openshift_cluster_bots.clusters import (
     AutomationTokenEntryV1,
     ClusterV1_AutomationTokenEntryV1,
@@ -25,6 +25,9 @@ from reconcile.gql_definitions.openshift_cluster_bots.clusters import (
 # fields in the same query. Both are structurally identical so all helpers accept either.
 AnyTokenEntry = AutomationTokenEntryV1 | ClusterV1_AutomationTokenEntryV1
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.json import json_dumps
@@ -35,6 +38,7 @@ from reconcile.utils.openshift_resource import (
     QONTRACT_ANNOTATION_INTEGRATION,
     QONTRACT_ANNOTATION_INTEGRATION_VERSION,
 )
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vault import VaultClient
 
@@ -762,10 +766,11 @@ def filter_clusters(
 
 
 def get_ocm_map(clusters: list[ClusterV1]) -> OCMMap:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters_info = [c.model_dump(by_alias=True) for c in clusters]
     return OCMMap(
-        settings=settings,
+        secret_reader=secret_reader,
         clusters=clusters_info,
         integration=QONTRACT_INTEGRATION,
     )

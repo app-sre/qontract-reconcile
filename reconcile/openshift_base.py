@@ -26,7 +26,9 @@ from sretoolbox.utils import (
     threaded,
 )
 
-from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import metrics
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.oc import (
@@ -53,6 +55,7 @@ from reconcile.utils.openshift_resource import (
     OpenshiftResourceInventoryGauge,
     ResourceInventory,
 )
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
 
 ACTION_APPLIED = "applied"
@@ -375,12 +378,13 @@ def fetch_current_state(
     cluster_scope_resource_validation: bool = False,
 ) -> tuple[ResourceInventory, OC_Map]:
     ri = ResourceInventory()
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     oc_map = OC_Map(
         namespaces=namespaces,
         clusters=clusters,
         integration=integration or "",
-        settings=settings,
+        secret_reader=secret_reader,
         internal=internal,
         thread_pool_size=thread_pool_size,
         init_api_resources=init_api_resources,

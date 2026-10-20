@@ -5,7 +5,10 @@ import sys
 from github import Github
 
 from reconcile import queries
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.utils.secret_reader import create_secret_reader
 
 QONTRACT_INTEGRATION = "github-validator"
 
@@ -13,8 +16,8 @@ QONTRACT_INTEGRATION = "github-validator"
 def run(dry_run: bool) -> None:
     base_url = os.environ.get("GITHUB_API", "https://api.github.com")
     orgs = queries.get_github_orgs()
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     error = False
     for org in orgs:
         org_name = org["name"]

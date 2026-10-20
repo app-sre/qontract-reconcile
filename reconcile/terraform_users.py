@@ -18,6 +18,9 @@ from reconcile import (
 )
 from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.gql_definitions.common.pgp_reencryption_settings import query
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils import (
     expiration,
@@ -27,7 +30,7 @@ from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
@@ -175,8 +178,9 @@ def setup(
     roles = get_tf_roles()
     participating_aws_accounts = _filter_participating_aws_accounts(accounts, roles)
 
-    settings = queries.get_app_interface_settings()
-    aws_api = AWSApi(1, participating_aws_accounts, settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    aws_api = AWSApi(1, participating_aws_accounts, secret_reader=secret_reader)
     try:
         _validate_aws_policies_in_roles(roles, participating_aws_accounts, aws_api)
     except Exception:
@@ -192,7 +196,7 @@ def setup(
         QONTRACT_TF_PREFIX,
         thread_pool_size,
         participating_aws_accounts,
-        settings=settings,
+        secret_reader=secret_reader,
         default_tags=default_tags,
     )
     err = ts.populate_users(

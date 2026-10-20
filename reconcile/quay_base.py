@@ -2,8 +2,11 @@ from collections import UserDict, namedtuple
 from typing import Any, Self, TypedDict
 
 from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.quay_api import QuayApi
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import create_secret_reader
 
 OrgKey = namedtuple("OrgKey", ["instance", "org_name"])
 
@@ -41,8 +44,8 @@ def get_quay_api_store() -> QuayApiStore:
     managed in app-interface.
     """
     quay_orgs = queries.get_quay_orgs()
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     data: dict[OrgKey, OrgInfo] = {}
     for org_data in quay_orgs:
         instance_name = org_data["instance"]["name"]

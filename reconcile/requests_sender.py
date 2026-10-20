@@ -9,15 +9,10 @@ from reconcile import (
     queries,
     typed_queries,
 )
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
-)
+from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.utils.defer import defer
 from reconcile.utils.gpg import gpg_encrypt
-from reconcile.utils.secret_reader import (
-    SecretReader,
-    create_secret_reader,
-)
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
     SmtpClient,
@@ -26,7 +21,12 @@ from reconcile.utils.smtp_client import (
 from reconcile.utils.state import init_state
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Callable, Iterable, Mapping
+
+    from reconcile.gql_definitions.common.app_interface_settings import (
+        CredentialsRequestMapV1,
+    )
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "requests-sender"
 
@@ -51,15 +51,16 @@ Encrypted credentials:
 
 
 def get_encrypted_credentials(
-    credentials_name: str, user: Mapping[str, Any], settings: Mapping[str, Any]
+    credentials_name: str,
+    user: Mapping[str, Any],
+    credentials_map: Iterable[CredentialsRequestMapV1],
+    secret_reader: SecretReaderBase,
 ) -> str | None:
-    credentials_map = settings["credentials"]
-    credentials_map_item = [c for c in credentials_map if c["name"] == credentials_name]
+    credentials_map_item = [c for c in credentials_map if c.name == credentials_name]
     if len(credentials_map_item) != 1:
         return None
-    secret = credentials_map_item[0]["secret"]
-    secret_reader = SecretReader(settings=settings)
-    credentials = secret_reader.read(secret)
+    secret = credentials_map_item[0].secret
+    credentials = secret_reader.read(secret.model_dump(by_alias=True))
     public_gpg_key = user["public_gpg_key"]
     encrypted_credentials = gpg_encrypt(credentials, public_gpg_key)
 
@@ -68,9 +69,8 @@ def get_encrypted_credentials(
 
 @defer
 def run(dry_run: bool, defer: Callable | None = None) -> None:
-    settings = queries.get_app_interface_settings()
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    settings = get_app_interface_settings()
+    secret_reader = create_secret_reader(use_vault=settings.vault)
     smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
         server=get_smtp_server_connection(
@@ -110,7 +110,7 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
             names = [org_username]
             subject = request_name
             encrypted_credentials = get_encrypted_credentials(
-                credentials_name, user, settings
+                credentials_name, user, settings.credentials or [], secret_reader
             )
             if not dry_run:
                 body = MESSAGE_TEMPLATE.format(

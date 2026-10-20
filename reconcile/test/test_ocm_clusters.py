@@ -352,9 +352,8 @@ def rosa_hosted_cp_cluster_fxt() -> dict[str, Any]:
 def queries_mock(
     osd_cluster_fxt: dict[str, Any],
 ) -> Generator[tuple[Mock, Mock]]:
-    with patch.object(queries, "get_app_interface_settings", autospec=True) as s:
+    with patch.object(occ, "get_app_interface_vault_settings", autospec=True) as s:
         with patch.object(queries, "get_clusters", autospec=True) as gc:
-            s.return_value = {}
             gc.return_value = [osd_cluster_fxt]
             yield s, gc
 

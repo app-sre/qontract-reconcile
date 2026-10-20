@@ -10,7 +10,6 @@ from gitlab.v4.objects import (
 from pydantic import BaseModel
 from qontract_utils.differ import diff_mappings
 
-from reconcile import queries
 from reconcile.gql_definitions.common.pagerduty_instances import (
     query as pagerduty_instances_query,
 )
@@ -26,6 +25,9 @@ from reconcile.gql_definitions.gitlab_members.permissions import (
 from reconcile.gql_definitions.gitlab_members.permissions import (
     query as permissions_query,
 )
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import AppInterfaceSettingsError
@@ -36,7 +38,7 @@ from reconcile.utils.pagerduty_api import (
     get_pagerduty_map,
     get_usernames_from_pagerduty,
 )
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection
@@ -196,16 +198,15 @@ def run(
     ).pagerduty_instances
 
     # APIs
-    secret_reader = SecretReader(queries.get_secret_reader_settings())
-    # this will be address later. requires a refactoring of GitLapApi - APPSRE-6611
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     gl = GitLabApi(
         instance={
             "url": instance.url,
-            "token": SecretReader.to_dict(instance.token),
+            "token": SecretReaderBase.to_dict(instance.token),
             "sslVerify": instance.ssl_verify,
         },
-        settings=settings,
+        secret_reader=secret_reader,
     )
     if defer:
         defer(gl.cleanup)

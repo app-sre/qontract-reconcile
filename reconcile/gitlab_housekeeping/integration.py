@@ -49,6 +49,9 @@ from reconcile.gitlab_housekeeping.rebase import (
     get_rebase_strategy,
     rebase_merge_requests,
 )
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.datetime_util import ensure_utc, from_utc_iso_format, utc_now
 from reconcile.utils.gitlab_api import (
     GitLabApi,
@@ -61,6 +64,7 @@ from reconcile.utils.mr.labels import (
     ONBOARDING,
     SELF_SERVICEABLE,
 )
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.state import State, init_state
 
@@ -455,8 +459,9 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
     default_consecutive_failure_limit = 3
     default_enable_closing = False
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
-    with GitLabApi(instance, settings=settings) as gl:
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    with GitLabApi(instance, secret_reader=secret_reader) as gl:
         publish_access_token_expiration_metrics(gl)
     repos = queries.get_repos_gitlab_housekeeping(server=instance["url"])
     repos = [r for r in repos if is_in_shard(r["url"])]
@@ -487,7 +492,9 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                 u["org_username"] for la in labels_allowed for u in la["role"]["users"]
             }
         )
-        with GitLabApi(instance, project_url=project_url, settings=settings) as gl:
+        with GitLabApi(
+            instance, project_url=project_url, secret_reader=secret_reader
+        ) as gl:
             if not app_sre_usernames:
                 app_sre_usernames = get_app_sre_usernames(gl)
             issues = gl.get_issues(state=MRState.OPENED)

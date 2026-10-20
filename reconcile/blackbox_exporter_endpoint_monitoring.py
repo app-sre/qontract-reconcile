@@ -9,6 +9,7 @@ from reconcile.closedbox_endpoint_monitoring_base import (
     parse_prober_url,
     run_for_provider,
 )
+from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.utils.openshift_resource import OpenshiftResource
 from reconcile.utils.semver_helper import make_semver
 
@@ -24,8 +25,8 @@ LOG = logging.getLogger(__name__)
 
 def run(dry_run: bool, thread_pool_size: int, internal: bool) -> None:
     # verify that only allowed blackbox-exporter modules are used
-    settings = queries.get_app_interface_settings()
-    allowed_modules = set(settings["endpointMonitoringBlackboxExporterModules"])
+    settings = get_app_interface_settings()
+    allowed_modules = set(settings.endpoint_monitoring_blackbox_exporter_modules or [])
     verification_errors = False
     if allowed_modules:
         for p in get_blackbox_providers():

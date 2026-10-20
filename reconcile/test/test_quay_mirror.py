@@ -130,7 +130,10 @@ class TestModuleLevelRun:
     def test_run_calls_engine_sync(self, mocker: MockerFixture) -> None:
         mocker.patch("reconcile.container_registry_mirror.quay.gql")
         mocker.patch("reconcile.container_registry_mirror.quay.queries")
-        mocker.patch("reconcile.container_registry_mirror.quay.SecretReader")
+        mocker.patch(
+            "reconcile.container_registry_mirror.quay.get_app_interface_vault_settings"
+        )
+        mocker.patch("reconcile.container_registry_mirror.quay.create_secret_reader")
         mock_engine = mocker.patch(
             "reconcile.container_registry_mirror.quay.MirrorEngine", autospec=True
         )
@@ -154,7 +157,10 @@ class TestModuleLevelRun:
     ) -> None:
         mocker.patch("reconcile.container_registry_mirror.quay.gql")
         mocker.patch("reconcile.container_registry_mirror.quay.queries")
-        mocker.patch("reconcile.container_registry_mirror.quay.SecretReader")
+        mocker.patch(
+            "reconcile.container_registry_mirror.quay.get_app_interface_vault_settings"
+        )
+        mocker.patch("reconcile.container_registry_mirror.quay.create_secret_reader")
         mock_engine = mocker.patch(
             "reconcile.container_registry_mirror.quay.MirrorEngine", autospec=True
         )

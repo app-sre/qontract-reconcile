@@ -161,8 +161,7 @@ def setup(
                     rt.targets.remove(target)
 
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
-    gl = GitLabApi(instance, settings=settings)
+    gl = GitLabApi(instance, secret_reader=secret_reader)
     jenkins_map = jenkins_base.get_jenkins_map()
     tkn_provider_namespaces = [pp.namespace for pp in get_tekton_pipeline_providers()]
 

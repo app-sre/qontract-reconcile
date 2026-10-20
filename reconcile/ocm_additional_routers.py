@@ -7,11 +7,15 @@ from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import (
     OCM_PRODUCT_OSD,
     OCMMap,
 )
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, MutableMapping, Sequence
@@ -24,9 +28,12 @@ SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 def fetch_current_state(
     clusters: Sequence[Mapping[str, Any]],
 ) -> tuple[OCMMap, list[dict[str, Any]]]:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     ocm_map = OCMMap(
-        clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
+        clusters=clusters,
+        integration=QONTRACT_INTEGRATION,
+        secret_reader=secret_reader,
     )
 
     current_state = []

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
     from reconcile.utils.secret_reader import (
         HasSecret,
-        SecretReader,
+        SecretReaderBase,
     )
 
 
@@ -173,7 +173,7 @@ class PagerDutyMap:
 
 
 def get_pagerduty_map(
-    secret_reader: SecretReader,
+    secret_reader: SecretReaderBase,
     pagerduty_instances: Iterable[PagerDutyInstance] | None,
     init_users: bool = True,
     pager_duty_api_class: type[PagerDutyApi] = PagerDutyApi,

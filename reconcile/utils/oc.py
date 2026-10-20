@@ -60,6 +60,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping, Sequence
 
     from reconcile.utils.oc_connection_parameters import OCConnectionParameters
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 urllib3.disable_warnings()
 
@@ -1576,6 +1577,7 @@ class OC_Map:  # ruff: ignore[invalid-class-name]
         namespaces: Iterable[Mapping[str, Any]] | None = None,
         integration: str = "",
         settings: Mapping[str, Any] | None = None,
+        secret_reader: SecretReaderBase | None = None,
         internal: bool | None = None,
         thread_pool_size: int = 1,
         init_projects: bool = False,
@@ -1586,6 +1588,7 @@ class OC_Map:  # ruff: ignore[invalid-class-name]
         self.privileged_oc_map: dict[str, OCClient | OCLogMsg] = {}
         self.calling_integration = integration
         self.settings = settings
+        self.secret_reader = secret_reader or SecretReader(settings=settings)
         self.internal = internal
         self.thread_pool_size = thread_pool_size
         self.init_projects = init_projects
@@ -1687,7 +1690,7 @@ class OC_Map:  # ruff: ignore[invalid-class-name]
         else:
             server_url = cluster_info["serverUrl"]
             insecure_skip_tls_verify = cluster_info.get("insecureSkipTLSVerify")
-            secret_reader = SecretReader(settings=self.settings)
+            secret_reader = self.secret_reader
 
             try:
                 token_secret = secret_reader.read_all(automation_token)

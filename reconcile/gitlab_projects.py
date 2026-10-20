@@ -5,8 +5,12 @@ import sys
 from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -17,11 +21,12 @@ QONTRACT_INTEGRATION = "gitlab-projects"
 @defer
 def run(dry_run: bool, defer: Callable | None = None) -> None:
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     code_components = queries.get_code_components()
     app_int_repos = [c["url"] for c in code_components]
     saas_bundle_repos = [c["url"] for c in code_components if c["resource"] == "bundle"]
-    gl = GitLabApi(instance, settings=settings)
+    gl = GitLabApi(instance, secret_reader=secret_reader)
     if defer:
         defer(gl.cleanup)
 
