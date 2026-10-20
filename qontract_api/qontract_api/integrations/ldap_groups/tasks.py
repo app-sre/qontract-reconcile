@@ -86,7 +86,7 @@ def reconcile_ldap_groups_task(
             actions=[],
             applied_count=0,
             errors=[error_message],
-            updated_managed_groups=sorted(managed_group_names),
+            updated_managed_groups=None,
         )
 
     logger.info(

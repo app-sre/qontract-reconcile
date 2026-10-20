@@ -70,9 +70,12 @@ class LdapGroupsTaskResult(TaskResult, frozen=True):
 
     actions: list[LdapGroupsAction] = Field(default_factory=list)
     applied_actions: list[LdapGroupsAction] = Field(default_factory=list)
-    updated_managed_groups: list[str] = Field(
-        default_factory=list,
-        description="Managed group names after reconciliation (persist to S3 client-side)",
+    updated_managed_groups: list[str] | None = Field(
+        default=None,
+        description=(
+            "Managed group names after reconciliation (persist to S3 client-side). "
+            "Null when the bookmark is unavailable (synthetic Celery/dedup result)."
+        ),
     )
 
 

@@ -14,7 +14,7 @@ Manages Internal Groups (LDAP/Rover) group membership and metadata from App-Inte
 - Builds desired `Group` objects (role LDAP groups and AWS SSO groups)
 - Loads `managed_groups` from S3 state
 - POSTs desired state + managed names to qontract-api
-- Persists `updated_managed_groups` from the task result to S3 on non-dry-run runs, including when the task reports errors (partial apply), then fails the integration so operators are alerted
+- Persists `updated_managed_groups` to S3 when the task result includes a bookmark (`null` means unavailable, e.g. dedup skip or Celery failure without a reconcile result; `[]` is a confirmed empty managed set). Partial applies with a real bookmark still persist before the integration raises on errors
 - On bookmark persist, writes `state/ldap-groups-api/managed_groups` and mirrors `state/ldap-groups/managed_groups` for legacy rollback
 - Persists `pending_task` (`id`, `status_url`) before polling; the next run recovers that task before submitting again
 

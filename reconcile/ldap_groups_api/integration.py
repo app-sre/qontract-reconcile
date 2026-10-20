@@ -100,15 +100,6 @@ class LdapGroupsApiIntegration(
             state_obj.cleanup()
 
     @staticmethod
-    def _should_persist_bookmark(task_result: LdapGroupsTaskResult) -> bool:
-        """True if the task returned a bookmark (not a synthetic empty list)."""
-        if task_result.updated_managed_groups:
-            return True
-        if task_result.status not in {TaskStatus.SUCCESS, TaskStatus.FAILED}:
-            return False
-        return bool(task_result.actions or task_result.applied_count)
-
-    @staticmethod
     def _persist_managed_groups(state_obj: State, groups: list[str]) -> None:
         """Persist to ldap-groups-api state and the legacy ldap-groups S3 key."""
         state_obj["managed_groups"] = groups
@@ -178,9 +169,9 @@ class LdapGroupsApiIntegration(
                 f"{pending['id']} is still pending"
             )
 
-        if not dry_run and self._should_persist_bookmark(task_result):
+        if not dry_run and task_result.updated_managed_groups is not None:
             self._persist_managed_groups(
-                state_obj, list(task_result.updated_managed_groups or [])
+                state_obj, list(task_result.updated_managed_groups)
             )
         self._clear_pending_task(state_obj)
 
@@ -290,9 +281,9 @@ class LdapGroupsApiIntegration(
         for action in task_result.actions or []:
             logging.info(f"{action.action_type=} {action.name=}")
 
-        if not dry_run and self._should_persist_bookmark(task_result):
+        if not dry_run and task_result.updated_managed_groups is not None:
             self._persist_managed_groups(
-                state_obj, list(task_result.updated_managed_groups or [])
+                state_obj, list(task_result.updated_managed_groups)
             )
 
         if errors_summary := "; ".join(task_result.errors or []):
