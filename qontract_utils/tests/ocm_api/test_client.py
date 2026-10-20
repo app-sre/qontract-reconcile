@@ -4,11 +4,12 @@ import json
 from collections.abc import Generator
 from unittest.mock import MagicMock
 
+import httpx2
 import pydantic
 import pytest
 from pytest_httpserver import HTTPServer
 from qontract_utils.hooks import Hooks
-from qontract_utils.ocm_api import OcmApi
+from qontract_utils.ocm_api import OcmApi, OcmUserRoleNotLinkedError
 from qontract_utils.ocm_api.models import (
     OcmIdentityProviderOidc,
     OcmIdentityProviderOidcOpenId,
@@ -427,6 +428,138 @@ def test_delete_identity_provider(httpserver: HTTPServer) -> None:
     delete_requests = [req for req, _ in httpserver.log if req.path == delete_path]
     assert len(delete_requests) == 1
     assert delete_requests[0].method == "DELETE"
+
+
+#
+# identity providers - UserRoleIsNotLinkedToAccount
+#
+
+
+def _user_role_not_linked_json(
+    error_key: str = "UserRoleIsNotLinkedToAccount",
+) -> dict[str, object]:
+    return {
+        "kind": "Error",
+        "id": "400",
+        "href": "/api/clusters_mgmt/v1/errors/400",
+        "code": "CLUSTERS-MGMT-400",
+        "reason": (
+            "sts_user_role is not linked to your account. sts_ocm_role is linked "
+            "to your organization 'org-id' which requires sts_user_role to be "
+            "linked to your Red Hat account 'account-id'."
+        ),
+        "details": [{"Error_Key": error_key}],
+    }
+
+
+def _new_oidc_idp() -> OcmIdentityProviderOidc:
+    return OcmIdentityProviderOidc(
+        name="redhat-sso",
+        open_id=OcmIdentityProviderOidcOpenId(
+            client_id="client-1",
+            client_secret="secret",
+            issuer="https://issuer.example.com",
+        ),
+    )
+
+
+def test_create_identity_provider_raises_user_role_not_linked_error(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    httpserver.expect_request(IDPS_PATH, method="POST").respond_with_json(
+        _user_role_not_linked_json(), status=400
+    )
+
+    with pytest.raises(OcmUserRoleNotLinkedError) as exc_info:
+        api.create_identity_provider("cluster-1", _new_oidc_idp())
+
+    assert exc_info.value.cluster_id == "cluster-1"
+    assert "sts_user_role is not linked" in exc_info.value.reason
+
+
+def test_update_identity_provider_raises_user_role_not_linked_error(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    update_path = f"{IDPS_PATH}/idp-1"
+    httpserver.expect_request(update_path, method="PATCH").respond_with_json(
+        _user_role_not_linked_json(), status=400
+    )
+
+    with pytest.raises(OcmUserRoleNotLinkedError) as exc_info:
+        api.update_identity_provider("cluster-1", "idp-1", _new_oidc_idp())
+
+    assert exc_info.value.cluster_id == "cluster-1"
+
+
+def test_delete_identity_provider_does_not_translate_user_role_error(
+    httpserver: HTTPServer,
+) -> None:
+    """Deleting an IDP never requires a linked STS user role - a 400 here must
+
+    propagate as a plain HTTPStatusError, not be mistaken for the create/update
+    carve-out.
+    """
+    api = _make_ocm_api(httpserver, token="test-token")
+    delete_path = f"{IDPS_PATH}/idp-1"
+    httpserver.expect_request(delete_path, method="DELETE").respond_with_json(
+        _user_role_not_linked_json(), status=400
+    )
+
+    with pytest.raises(httpx2.HTTPStatusError):
+        api.delete_identity_provider("cluster-1", "idp-1")
+
+
+def test_create_identity_provider_other_400_propagates_unchanged(
+    httpserver: HTTPServer,
+) -> None:
+    """A 400 with a different Error_Key is a genuine, unexpected error - it must
+
+    propagate as the original HTTPStatusError, not be swallowed or mistranslated.
+    """
+    api = _make_ocm_api(httpserver, token="test-token")
+    httpserver.expect_request(IDPS_PATH, method="POST").respond_with_json(
+        _user_role_not_linked_json(error_key="SomeOtherError"), status=400
+    )
+
+    with pytest.raises(httpx2.HTTPStatusError):
+        api.create_identity_provider("cluster-1", _new_oidc_idp())
+
+
+def test_create_identity_provider_400_without_details_propagates_unchanged(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    httpserver.expect_request(IDPS_PATH, method="POST").respond_with_json(
+        {"kind": "Error", "id": "400", "reason": "some other bad request"},
+        status=400,
+    )
+
+    with pytest.raises(httpx2.HTTPStatusError):
+        api.create_identity_provider("cluster-1", _new_oidc_idp())
+
+
+def test_create_identity_provider_400_non_json_body_propagates_unchanged(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    httpserver.expect_request(IDPS_PATH, method="POST").respond_with_data(
+        "not json", status=400, content_type="text/plain"
+    )
+
+    with pytest.raises(httpx2.HTTPStatusError):
+        api.create_identity_provider("cluster-1", _new_oidc_idp())
+
+
+def test_create_identity_provider_500_propagates_unchanged(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_ocm_api(httpserver, token="test-token")
+    httpserver.expect_request(IDPS_PATH, method="POST").respond_with_data(status=500)
+
+    with pytest.raises(httpx2.HTTPStatusError):
+        api.create_identity_provider("cluster-1", _new_oidc_idp())
 
 
 #

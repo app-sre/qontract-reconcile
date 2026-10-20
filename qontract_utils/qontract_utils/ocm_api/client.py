@@ -8,6 +8,7 @@ logging via hooks (ADR-006), on top of the wire-format models in _raw_client.py.
 from __future__ import annotations
 
 import contextvars
+import json
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
@@ -25,6 +26,7 @@ from qontract_utils.ocm_api._raw_client import (
     RawOrganizationLabel,
     RawSubscriptionLabel,
 )
+from qontract_utils.ocm_api.exceptions import OcmUserRoleNotLinkedError
 from qontract_utils.ocm_api.models import (
     OcmCluster,
     OcmClusterGroup,
@@ -47,6 +49,7 @@ logger = structlog.get_logger(__name__)
 TIMEOUT = 60.0
 MAX_RETRIES = 3
 CHUNK_SIZE = 100
+HTTP_BAD_REQUEST = 400
 
 # Prometheus metrics
 ocm_request = Counter(
@@ -112,6 +115,34 @@ def _request_log_hook(context: OcmApiCallContext) -> None:
         verb=context.verb,
         client_id=context.client_id,
     )
+
+
+def _raise_for_user_role_not_linked(
+    exc: httpx2.HTTPStatusError, *, cluster_id: str
+) -> None:
+    """Re-raise as OcmUserRoleNotLinkedError if exc is OCM's UserRoleIsNotLinkedToAccount 400.
+
+    Returns normally (letting the caller re-raise the original exc) for any other
+    status code, an unparseable body, or a 400 with a different Error_Key - this
+    carve-out must only ever match the one specific, tenant-actionable error it
+    names, never 400s in general.
+    """
+    if exc.response.status_code != HTTP_BAD_REQUEST:
+        return
+    try:
+        body = exc.response.json()
+    except json.JSONDecodeError:
+        return
+    if not isinstance(body, dict):
+        return
+    details = body.get("details", [])
+    if any(
+        isinstance(d, dict) and d.get("Error_Key") == "UserRoleIsNotLinkedToAccount"
+        for d in details
+    ):
+        raise OcmUserRoleNotLinkedError(
+            cluster_id=cluster_id, reason=body.get("reason", str(exc))
+        ) from exc
 
 
 def _fetch_access_token(
@@ -308,11 +339,20 @@ class OcmApi:
     def create_identity_provider(
         self, cluster_id: str, idp: OcmIdentityProviderOidc
     ) -> OcmIdentityProviderOidc:
-        """Create an OIDC identity provider on a cluster."""
-        raw = self._raw.create_identity_provider(
-            cluster_id=cluster_id,
-            body=idp.model_dump(exclude_none=True, exclude={"id"}),
-        )
+        """Create an OIDC identity provider on a cluster.
+
+        Raises OcmUserRoleNotLinkedError (instead of the generic HTTPStatusError) if
+        OCM rejects this with UserRoleIsNotLinkedToAccount - a tenant-side STS
+        misconfiguration callers may want to handle specially (see APPSRE-15204).
+        """
+        try:
+            raw = self._raw.create_identity_provider(
+                cluster_id=cluster_id,
+                body=idp.model_dump(exclude_none=True, exclude={"id"}),
+            )
+        except httpx2.HTTPStatusError as exc:
+            _raise_for_user_role_not_linked(exc, cluster_id=cluster_id)
+            raise
         return _oidc_identity_provider_from_raw(raw)
 
     @invoke_with_hooks(
@@ -327,13 +367,19 @@ class OcmApi:
     ) -> OcmIdentityProviderOidc:
         """Update an existing OIDC identity provider.
 
-        Name is immutable on OCM, so it is excluded from the request body.
+        Name is immutable on OCM, so it is excluded from the request body. Raises
+        OcmUserRoleNotLinkedError (instead of the generic HTTPStatusError) if OCM
+        rejects this with UserRoleIsNotLinkedToAccount - see create_identity_provider.
         """
-        raw = self._raw.update_identity_provider(
-            cluster_id=cluster_id,
-            idp_id=idp_id,
-            body=idp.model_dump(exclude_none=True, exclude={"id", "name"}),
-        )
+        try:
+            raw = self._raw.update_identity_provider(
+                cluster_id=cluster_id,
+                idp_id=idp_id,
+                body=idp.model_dump(exclude_none=True, exclude={"id", "name"}),
+            )
+        except httpx2.HTTPStatusError as exc:
+            _raise_for_user_role_not_linked(exc, cluster_id=cluster_id)
+            raise
         return _oidc_identity_provider_from_raw(raw)
 
     @invoke_with_hooks(

@@ -5,7 +5,11 @@ from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
 
 import pytest
-from qontract_utils.ocm_api import OcmIdentityProvider, OcmIdentityProviderOidc
+from qontract_utils.ocm_api import (
+    OcmIdentityProvider,
+    OcmIdentityProviderOidc,
+    OcmUserRoleNotLinkedError,
+)
 from qontract_utils.ocm_api.models import (
     OcmIdentityProviderOidcOpenId,
     OcmIdentityProviderOidcOpenIdClaims,
@@ -98,7 +102,9 @@ def _current_oidc_idp(
 
 @pytest.fixture
 def mock_cache() -> MagicMock:
-    return MagicMock(spec=CacheBackend)
+    cache = MagicMock(spec=CacheBackend)
+    cache.exists.return_value = False
+    return cache
 
 
 @pytest.fixture
@@ -500,13 +506,14 @@ def test_process_adds_skips_non_oidc_desired_idp(
     foreign = OcmIdentityProvider(type="GithubIdentityProvider", name="github")
     state = _IdpState(cluster=cluster, idp=foreign)
 
-    actions, applied, errors = OcmOidcIdpService._process_adds(
+    actions, applied, errors, blocked = OcmOidcIdpService._process_adds(
         mock_workspace_client, [state], dry_run=False
     )
 
     assert actions == []
     assert applied == []
     assert errors == []
+    assert blocked == []
     mock_workspace_client.create_identity_provider.assert_not_called()
 
 
@@ -548,3 +555,115 @@ def test_reconcile_increments_error_counter_on_failure(
         "ocm-oidc-idp", "error-env"
     )._value.get()
     assert after == before + 1
+
+
+#
+# UserRoleIsNotLinkedToAccount (APPSRE-15204): cache-block, don't fail the run
+#
+
+
+def test_reconcile_create_user_role_not_linked_blocks_cluster_without_error(
+    service: OcmOidcIdpService,
+    mock_cache: MagicMock,
+    mock_secret_manager: MagicMock,
+    mock_workspace_client: MagicMock,
+) -> None:
+    cluster = _cluster()
+    mock_secret_manager.read_all.return_value = _stored_secret(cluster)
+    mock_workspace_client.create_identity_provider.side_effect = (
+        OcmUserRoleNotLinkedError(
+            cluster_id=cluster.cluster_id, reason="sts_user_role is not linked"
+        )
+    )
+
+    result = service.reconcile(
+        "prod", OCM_CONNECTION, [cluster], VAULT_TARGET, dry_run=False
+    )
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.errors == []
+    assert result.applied_actions == []
+    mock_cache.set.assert_called_once()
+    cache_key, _value, ttl = mock_cache.set.call_args[0]
+    assert cluster.cluster_id in cache_key
+    assert "prod" in cache_key
+    assert ttl == service.settings.ocm.clusters_cache_ttl
+
+
+def test_reconcile_update_user_role_not_linked_blocks_cluster_without_error(
+    service: OcmOidcIdpService,
+    mock_cache: MagicMock,
+    mock_secret_manager: MagicMock,
+    mock_workspace_client: MagicMock,
+) -> None:
+    cluster = _cluster(group_filter_regex="^ai-.*")
+    mock_secret_manager.read_all.return_value = _stored_secret(
+        cluster, attributes={"group-filter-regex": "^ai-.*"}
+    )
+    mock_workspace_client.get_identity_providers.return_value = [
+        _current_oidc_idp(idp_id="idp-1", groups=[])
+    ]
+    mock_workspace_client.update_identity_provider.side_effect = (
+        OcmUserRoleNotLinkedError(
+            cluster_id=cluster.cluster_id, reason="sts_user_role is not linked"
+        )
+    )
+
+    result = service.reconcile(
+        "prod", OCM_CONNECTION, [cluster], VAULT_TARGET, dry_run=False
+    )
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.errors == []
+    assert result.applied_actions == []
+    mock_cache.set.assert_called_once()
+    cache_key, _value, ttl = mock_cache.set.call_args[0]
+    assert cluster.cluster_id in cache_key
+    assert ttl == service.settings.ocm.clusters_cache_ttl
+
+
+def test_reconcile_skips_cache_blocked_cluster_without_calling_ocm_or_vault(
+    service: OcmOidcIdpService,
+    mock_cache: MagicMock,
+    mock_secret_manager: MagicMock,
+    mock_workspace_client: MagicMock,
+) -> None:
+    cluster = _cluster()
+    mock_cache.exists.return_value = True
+
+    result = service.reconcile(
+        "prod", OCM_CONNECTION, [cluster], VAULT_TARGET, dry_run=False
+    )
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.actions == []
+    mock_workspace_client.get_identity_providers.assert_not_called()
+    mock_secret_manager.read_all.assert_not_called()
+    mock_cache.set.assert_not_called()
+
+
+def test_reconcile_cache_blocked_cluster_isolated_from_others(
+    service: OcmOidcIdpService,
+    mock_cache: MagicMock,
+    mock_secret_manager: MagicMock,
+    mock_workspace_client: MagicMock,
+) -> None:
+    blocked_cluster = _cluster(name="blocked-cluster", cluster_id="cluster-blocked")
+    ok_cluster = _cluster(name="ok-cluster", cluster_id="cluster-ok")
+    mock_secret_manager.read_all.return_value = _stored_secret(ok_cluster)
+    mock_cache.exists.side_effect = lambda key: "cluster-blocked" in key
+
+    result = service.reconcile(
+        "prod",
+        OCM_CONNECTION,
+        [blocked_cluster, ok_cluster],
+        VAULT_TARGET,
+        dry_run=False,
+    )
+
+    assert result.status == TaskStatus.SUCCESS
+    assert len(result.applied_actions) == 1
+    mock_workspace_client.create_identity_provider.assert_called_once()
+    assert (
+        mock_workspace_client.create_identity_provider.call_args[0][0] == "cluster-ok"
+    )
