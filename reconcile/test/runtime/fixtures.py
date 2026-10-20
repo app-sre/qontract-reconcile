@@ -84,3 +84,14 @@ class ShardableApiTestIntegration(
 
     async def async_run(self, dry_run: bool) -> None:
         pass
+
+
+class ApiTestIntegration(QontractReconcileApiIntegration[SimpleTestIntegrationParams]):
+    """API integration that deliberately does not opt into desired-state support."""
+
+    @property
+    def name(self) -> str:
+        return "api-test-integration"
+
+    async def async_run(self, dry_run: bool) -> None:
+        pass

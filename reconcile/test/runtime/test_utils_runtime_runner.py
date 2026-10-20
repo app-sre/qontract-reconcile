@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -8,11 +9,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from reconcile.test.runtime.fixtures import (
+    ApiTestIntegration,
     ShardableApiTestIntegration,
     ShardableApiTestIntegrationParams,
     ShardableTestIntegration,
     ShardableTestIntegrationParams,
     SimpleTestIntegration,
+    SimpleTestIntegrationParams,
 )
 from reconcile.utils import gql
 from reconcile.utils.runtime import runner
@@ -367,6 +370,122 @@ def test_api_integration_dry_run_shards(
         "a",
         "b",
     }
+
+
+def test_api_integration_without_opt_in_runs_full_dry_run(
+    mocker: MockerFixture,
+) -> None:
+    """The new runtime hooks preserve legacy API integration behavior by default."""
+    integration = ApiTestIntegration(SimpleTestIntegrationParams(int_arg=1))
+    async_run = mocker.patch.object(
+        integration, "async_run", new_callable=mocker.AsyncMock
+    )
+    mocker.patch.object(runner, "setup_qontract_api_client")
+    mocker.patch.object(
+        runner.qontract_api_client, "aclose", new_callable=mocker.AsyncMock
+    )
+
+    _integration_dry_run(integration, None)
+
+    async_run.assert_awaited_once_with(True)
+
+
+def test_api_integration_exits_early_without_async_run(
+    mocker: MockerFixture,
+) -> None:
+    integration = ShardableApiTestIntegration(ShardableApiTestIntegrationParams())
+    async_run = mocker.patch.object(
+        integration, "async_run", new_callable=mocker.AsyncMock
+    )
+
+    _integration_dry_run(
+        integration,
+        DesiredStateDiff({}, {}, diff_found=False, affected_shards=set()),
+    )
+
+    async_run.assert_not_awaited()
+
+
+def test_api_shard_failure_fails_parent_and_closes_client_once(
+    mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+) -> None:
+    async def async_run(self: ShardableApiTestIntegration, dry_run: bool) -> None:
+        await asyncio.sleep(0)
+        if self.params.shard == "broken":
+            raise RuntimeError("broken shard")
+
+    integration = ShardableApiTestIntegration(ShardableApiTestIntegrationParams())
+    mocker.patch.object(
+        ShardableApiTestIntegration, "async_run", side_effect=async_run, autospec=True
+    )
+    mocker.patch.object(runner, "setup_qontract_api_client")
+    aclose = mocker.patch.object(
+        runner.qontract_api_client, "aclose", new_callable=mocker.AsyncMock
+    )
+
+    with pytest.raises(SystemExit, match="1"):
+        _integration_dry_run(
+            integration,
+            DesiredStateDiff(
+                {}, {}, diff_found=True, affected_shards={"healthy", "broken"}
+            ),
+        )
+
+    aclose.assert_awaited_once()
+    assert "Failed to run integration shard broken: broken shard" in caplog.text
+
+
+def test_api_desired_state_comparison_failure_runs_full_dry_run(
+    mocker: MockerFixture,
+) -> None:
+    integration = ShardableApiTestIntegration(ShardableApiTestIntegrationParams())
+    cfg = MockIntegrationRunConfiguration(
+        integration=integration,
+        valdiate_schemas=False,
+        dry_run=True,
+        early_exit_compare_sha="base",
+        check_only_affected_shards=True,
+        gql_sha_url=False,
+        print_url=False,
+        main_data={},
+        comparison_data={},
+    )
+    mocker.patch.object(
+        cfg, "comparison_bundle_desired_state", side_effect=RuntimeError("unavailable")
+    )
+    async_run = mocker.patch.object(
+        integration, "async_run", new_callable=mocker.AsyncMock
+    )
+    mocker.patch.object(runner, "setup_qontract_api_client")
+    mocker.patch.object(
+        runner.qontract_api_client, "aclose", new_callable=mocker.AsyncMock
+    )
+
+    run_integration_cfg(cfg)
+
+    async_run.assert_awaited_once_with(True)
+
+
+def test_api_integration_with_shard_param_does_not_shard_again(
+    mocker: MockerFixture,
+) -> None:
+    integration = ShardableApiTestIntegration(
+        ShardableApiTestIntegrationParams(shard="already-selected")
+    )
+    async_run = mocker.patch.object(
+        integration, "async_run", new_callable=mocker.AsyncMock
+    )
+    mocker.patch.object(runner, "setup_qontract_api_client")
+    mocker.patch.object(
+        runner.qontract_api_client, "aclose", new_callable=mocker.AsyncMock
+    )
+
+    _integration_dry_run(
+        integration,
+        DesiredStateDiff({}, {}, diff_found=True, affected_shards={"another-shard"}),
+    )
+
+    async_run.assert_awaited_once_with(True)
 
 
 def test_run_configuration_dry_run_diff_no_early_exit_shard_err(
