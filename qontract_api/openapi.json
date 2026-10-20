@@ -3052,12 +3052,19 @@
             "description": "Task execution status (pending/success/failed/skipped)"
           },
           "updated_managed_groups": {
-            "description": "Managed group names after reconciliation (persist to S3 client-side)",
-            "items": {
-              "type": "string"
-            },
-            "title": "Updated Managed Groups",
-            "type": "array"
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Managed group names after reconciliation (persist to S3 client-side). Null when the bookmark is unavailable (synthetic Celery/dedup result).",
+            "title": "Updated Managed Groups"
           }
         },
         "required": [

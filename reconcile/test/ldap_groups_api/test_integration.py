@@ -56,7 +56,7 @@ def _task_result(
     return LdapGroupsTaskResult(
         status=status,
         errors=errors or [],
-        updated_managed_groups=updated_managed_groups or [],
+        updated_managed_groups=updated_managed_groups,
         applied_count=applied_count,
     )
 
@@ -483,7 +483,7 @@ async def test_synthetic_empty_bookmark_not_persisted() -> None:
     task_result = _task_result(
         status=TaskStatus.SUCCESS,
         errors=["Task skipped: duplicate"],
-        updated_managed_groups=[],
+        updated_managed_groups=None,
     )
 
     with (
@@ -516,6 +516,43 @@ async def test_synthetic_empty_bookmark_not_persisted() -> None:
 
 
 @pytest.mark.asyncio
+async def test_confirmed_empty_bookmark_persisted() -> None:
+    integration = make_integration()
+    state_data: dict[str, Any] = {"managed_groups": ["previously-managed"]}
+    mock = _mock_state(state_data)
+    task_result = _task_result(
+        status=TaskStatus.SUCCESS,
+        updated_managed_groups=[],
+    )
+
+    with (
+        patch(f"{_MOD}.validate_no_circular_memberships"),
+        patch(f"{_MOD}.resolve_role_members", new=AsyncMock(return_value=[])),
+        patch(f"{_MOD}.get_desired_groups_for_roles", return_value=[]),
+        patch(f"{_MOD}.get_desired_groups_for_aws_roles", return_value=[]),
+        patch(
+            f"{_MOD}.reconcile_ldap_groups",
+            new=AsyncMock(return_value=_task_response()),
+        ),
+        patch.object(
+            integration,
+            "poll_task_status",
+            new=AsyncMock(return_value=task_result),
+        ),
+    ):
+        await integration._run_reconcile(
+            dry_run=False,
+            state_obj=mock,
+            roles=[],
+            settings=_settings(),
+            secret=_SECRET,
+            query_func=MagicMock(),
+        )
+
+    assert state_data["managed_groups"] == []
+
+
+@pytest.mark.asyncio
 async def test_synthetic_empty_bookmark_not_persisted_on_failed() -> None:
     integration = make_integration()
     state_data: dict[str, Any] = {"managed_groups": ["previously-managed"]}
@@ -523,7 +560,7 @@ async def test_synthetic_empty_bookmark_not_persisted_on_failed() -> None:
     task_result = _task_result(
         status=TaskStatus.FAILED,
         errors=["Worker lost"],
-        updated_managed_groups=[],
+        updated_managed_groups=None,
     )
 
     with (

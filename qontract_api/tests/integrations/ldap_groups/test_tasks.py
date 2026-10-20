@@ -95,7 +95,7 @@ def test_reconcile_task_unexpected_error_returns_failed(
 
     assert result.status == TaskStatus.FAILED
     assert result.errors == ["Unexpected err=RuntimeError('boom')"]
-    assert result.updated_managed_groups == ["a-group", "z-group"]
+    assert result.updated_managed_groups is None
 
 
 def _mock_cache_backend() -> MagicMock:
