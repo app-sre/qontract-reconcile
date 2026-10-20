@@ -14,10 +14,12 @@ Differences from reconcile/slack_usergroups.py:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import sys
 from collections import defaultdict
 from datetime import datetime
+from operator import itemgetter
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
@@ -91,6 +93,7 @@ from reconcile.utils.datetime_util import ensure_utc, utc_now
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.membershipsources.async_resolver import resolve_role_members
 from reconcile.utils.runtime.integration import (
+    DesiredStateShardConfig,
     PydanticRunParams,
     QontractReconcileApiIntegration,
 )
@@ -110,6 +113,8 @@ if TYPE_CHECKING:
 QONTRACT_INTEGRATION = "slack-usergroups-api"
 INTEGRATION_VERSION = "0.1.0"
 DATE_FORMAT = "%Y-%m-%d %H:%M"
+FULL_VALIDATION_SHARD = "__full_validation_required__"
+MAX_AFFECTED_USERGROUPS = 10
 
 
 class SlackRoleUser(BaseModel, extra="ignore", frozen=True):
@@ -187,6 +192,7 @@ class SlackUsergroupsIntegrationParams(PydanticRunParams):
 
     workspace_name: str | None
     usergroup_name: str | None
+    shard_id: str | None = None
 
 
 def get_token_from_url(
@@ -232,8 +238,96 @@ class SlackUsergroupsIntegration(
     def name(self) -> str:
         return QONTRACT_INTEGRATION
 
+    @staticmethod
+    def _shard_id(workspace_name: str, usergroup_handle: str) -> str:
+        return json.dumps([workspace_name, usergroup_handle], separators=(",", ":"))
+
+    @staticmethod
+    def _shard_filters(shard_id: str) -> tuple[str, str]:
+        try:
+            workspace_name, usergroup_handle = json.loads(shard_id)
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"Invalid Slack usergroup shard identifier: {shard_id!r}"
+            ) from e
+        if not isinstance(workspace_name, str) or not isinstance(usergroup_handle, str):
+            raise TypeError(f"Invalid Slack usergroup shard identifier: {shard_id!r}")
+        return workspace_name, usergroup_handle
+
+    @staticmethod
+    def _json_model(model: BaseModel) -> Any:
+        return model.model_dump(mode="json", by_alias=True, warnings=False)
+
+    def get_early_exit_desired_state(self) -> dict[str, Any] | None:
+        """Snapshot only declarative inputs; never resolve external memberships here."""
+        if (
+            self.params.workspace_name
+            or self.params.usergroup_name
+            or self.params.shard_id
+        ):
+            return None
+        gqlapi = gql.get_api()
+        raw_permissions = permissions_query(query_func=gqlapi.query).permissions or []
+        permissions = [
+            permission
+            for permission in raw_permissions
+            if isinstance(permission, PermissionSlackUsergroupV1)
+        ]
+        return {
+            "usergroups": sorted(
+                [
+                    {
+                        "shard": self._shard_id(
+                            permission.workspace.name, permission.handle
+                        ),
+                        "permission": self._json_model(permission),
+                    }
+                    for permission in permissions
+                ],
+                key=itemgetter("shard"),
+            ),
+            "shared_inputs": [
+                {
+                    "shard": FULL_VALIDATION_SHARD,
+                    "users": [
+                        self._json_model(user) for user in self.get_users(gqlapi.query)
+                    ],
+                    "clusters": [
+                        self._json_model(cluster)
+                        for cluster in self.get_clusters(gqlapi.query)
+                    ],
+                    "roles": [
+                        self._json_model(role)
+                        for role in roles_query(query_func=gqlapi.query).roles
+                    ],
+                    "vcs_instances": [
+                        self._json_model(vcs) for vcs in get_vcs_instances(gqlapi.query)
+                    ],
+                    "ldap_settings": self._json_model(
+                        get_ldap_settings(query_func=gqlapi.query)
+                    ),
+                }
+            ],
+        }
+
+    def get_desired_state_shard_config(self) -> DesiredStateShardConfig:
+        return DesiredStateShardConfig(
+            shard_path_selectors={"usergroups[*].shard", "shared_inputs[*].shard"},
+            shard_arg_name="shard_id",
+            sharded_run_review=lambda proposal: (
+                bool(proposal.proposed_shards)
+                and FULL_VALIDATION_SHARD not in proposal.proposed_shards
+                and len(proposal.proposed_shards) <= MAX_AFFECTED_USERGROUPS
+            ),
+        )
+
     async def get_permissions(
-        self, query_func: Callable, *, ldap_settings: LdapSettingsV1 | None = None
+        self,
+        query_func: Callable,
+        *,
+        ldap_settings: LdapSettingsV1 | None = None,
+        workspace_name: str | None = None,
+        usergroup_name: str | None = None,
     ) -> list[SlackUsergroupPermission]:
         """Fetch selected Slack permissions with resolved role memberships.
 
@@ -243,6 +337,8 @@ class SlackUsergroupsIntegration(
         Returns:
             List of Slack usergroup permissions with integration-owned roles
         """
+        workspace_name = workspace_name or self.params.workspace_name
+        usergroup_name = usergroup_name or self.params.usergroup_name
         result = permissions_query(query_func=query_func)
         if not result.permissions:
             return []
@@ -253,14 +349,8 @@ class SlackUsergroupsIntegration(
             if isinstance(permission, PermissionSlackUsergroupV1)
             and not permission.skip
             and permission.workspace.managed_usergroups
-            and (
-                not self.params.workspace_name
-                or permission.workspace.name == self.params.workspace_name
-            )
-            and (
-                not self.params.usergroup_name
-                or permission.handle == self.params.usergroup_name
-            )
+            and (not workspace_name or permission.workspace.name == workspace_name)
+            and (not usergroup_name or permission.handle == usergroup_name)
         ]
         for permission in permissions:
             if permission.handle not in permission.workspace.managed_usergroups:
@@ -319,8 +409,10 @@ class SlackUsergroupsIntegration(
         *,
         cluster_names: Collection[str] | None = None,
         ldap_settings: LdapSettingsV1 | None = None,
+        usergroup_name: str | None = None,
     ) -> list[SlackClusterRole]:
         """Fetch relevant cluster roles with resolved Slack identities."""
+        usergroup_name = usergroup_name or self.params.usergroup_name
         roles = [
             role
             for role in expiration.filter(roles_query(query_func=query_func).roles)
@@ -328,9 +420,8 @@ class SlackUsergroupsIntegration(
                 (name := _cluster_name_for_access(access))
                 and (cluster_names is None or name in cluster_names)
                 and (
-                    not self.params.usergroup_name
-                    or self.compute_cluster_user_group(name)
-                    == self.params.usergroup_name
+                    not usergroup_name
+                    or self.compute_cluster_user_group(name) == usergroup_name
                 )
                 for access in role.access or []
             )
@@ -492,32 +583,68 @@ class SlackUsergroupsIntegration(
         if not pagerduties:
             return []
 
+        async def fetch_users(
+            target_type: str,
+            target_id: str,
+            request: Coroutine[
+                Any, Any, EscalationPolicyUsersResponse | ScheduleUsersResponse
+            ],
+        ) -> EscalationPolicyUsersResponse | ScheduleUsersResponse:
+            try:
+                with self.log_api_exceptions():
+                    return await request
+            except Exception:
+                logging.exception(
+                    "PagerDuty target lookup failed",
+                    extra={
+                        "integration": QONTRACT_INTEGRATION,
+                        "pagerduty_target_type": target_type,
+                        "pagerduty_target_id": target_id,
+                    },
+                )
+                raise
+
         tasks: list[
             Coroutine[Any, Any, EscalationPolicyUsersResponse | ScheduleUsersResponse]
         ] = []
         for pagerduty in pagerduties:
             if pagerduty.schedule_id:
                 tasks.append(
-                    pagerduty_schedule_users(
-                        schedule_id=pagerduty.schedule_id,
-                        secret_manager_url=self.secret_manager_url,
-                        path=pagerduty.instance.token.path,
-                        field=pagerduty.instance.token.field,
-                        version=pagerduty.instance.token.version,
+                    fetch_users(
+                        "schedule",
+                        pagerduty.schedule_id,
+                        pagerduty_schedule_users(
+                            schedule_id=pagerduty.schedule_id,
+                            secret_manager_url=self.secret_manager_url,
+                            path=pagerduty.instance.token.path,
+                            field=pagerduty.instance.token.field,
+                            version=pagerduty.instance.token.version,
+                        ),
                     )
                 )
             if pagerduty.escalation_policy_id:
                 tasks.append(
-                    pagerduty_escalation_policy_users(
-                        policy_id=pagerduty.escalation_policy_id,
-                        secret_manager_url=self.secret_manager_url,
-                        path=pagerduty.instance.token.path,
-                        field=pagerduty.instance.token.field,
-                        version=pagerduty.instance.token.version,
+                    fetch_users(
+                        "escalation_policy",
+                        pagerduty.escalation_policy_id,
+                        pagerduty_escalation_policy_users(
+                            policy_id=pagerduty.escalation_policy_id,
+                            secret_manager_url=self.secret_manager_url,
+                            path=pagerduty.instance.token.path,
+                            field=pagerduty.instance.token.field,
+                            version=pagerduty.instance.token.version,
+                        ),
                     )
                 )
 
-        responses = await asyncio.gather(*tasks)
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        failures = [
+            response for response in responses if isinstance(response, Exception)
+        ]
+        if failures:
+            raise RuntimeError(
+                f"{len(failures)} PagerDuty target lookup(s) failed; see target-scoped logs"
+            ) from failures[0]
         users_map: dict[str, str] = {
             user.pagerduty_username: user.org_username
             for user in app_interface_users
@@ -528,6 +655,7 @@ class SlackUsergroupsIntegration(
         return [
             users_map.get(user.username, user.username)
             for resp in responses
+            if not isinstance(resp, Exception)
             for user in resp.users or []
         ]
 
@@ -950,6 +1078,25 @@ class SlackUsergroupsIntegration(
 
     async def async_run(self, dry_run: bool) -> None:
         """Run the integration"""
+        shard_workspace_name: str | None = None
+        shard_usergroup_name: str | None = None
+        if self.params.shard_id:
+            shard_workspace_name, shard_usergroup_name = self._shard_filters(
+                self.params.shard_id
+            )
+            if (
+                self.params.workspace_name
+                and self.params.workspace_name != shard_workspace_name
+            ) or (
+                self.params.usergroup_name
+                and self.params.usergroup_name != shard_usergroup_name
+            ):
+                raise ValueError(
+                    "Slack usergroup shard conflicts with explicit workspace or usergroup filters"
+                )
+        desired_workspace_name = shard_workspace_name or self.params.workspace_name
+        desired_usergroup_name = shard_usergroup_name or self.params.usergroup_name
+
         # TODO async gql client?
         gqlapi = gql.get_api()
         users = self.get_users(query_func=gqlapi.query)
@@ -957,11 +1104,17 @@ class SlackUsergroupsIntegration(
         vcs_instances = get_vcs_instances(query_func=gqlapi.query)
         ldap_settings = get_ldap_settings(query_func=gqlapi.query)
         permissions, roles = await asyncio.gather(
-            self.get_permissions(query_func=gqlapi.query, ldap_settings=ldap_settings),
+            self.get_permissions(
+                query_func=gqlapi.query,
+                ldap_settings=ldap_settings,
+                workspace_name=desired_workspace_name,
+                usergroup_name=desired_usergroup_name,
+            ),
             self.get_roles(
                 query_func=gqlapi.query,
                 cluster_names={cluster.name for cluster in clusters},
                 ldap_settings=ldap_settings,
+                usergroup_name=desired_usergroup_name,
             ),
         )
 
@@ -970,15 +1123,15 @@ class SlackUsergroupsIntegration(
             app_interface_users=users,
             vcs_instances=vcs_instances,
             ldap_settings=ldap_settings,
-            desired_workspace_name=self.params.workspace_name,
-            desired_usergroup_name=self.params.usergroup_name,
+            desired_workspace_name=desired_workspace_name,
+            desired_usergroup_name=desired_usergroup_name,
         )
         workspaces = self.compile_desired_state_cluster_usergroups(
             workspaces=workspaces,
             clusters=clusters,
             roles=roles,
-            desired_workspace_name=self.params.workspace_name,
-            desired_usergroup_name=self.params.usergroup_name,
+            desired_workspace_name=desired_workspace_name,
+            desired_usergroup_name=desired_usergroup_name,
             app_interface_users=users,
         )
 
