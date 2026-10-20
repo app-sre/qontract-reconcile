@@ -872,3 +872,122 @@ async def test_delayed_completion_desired_removal() -> None:
     request = mock_reconcile.call_args[0][0]
     assert request.managed_group_names == ["orphan-group"]
     assert "pending_task" not in state_data
+
+
+@pytest.mark.asyncio
+async def test_dry_run_skips_pending_task_recovery() -> None:
+    integration = make_integration()
+    state_data: dict[str, Any] = {
+        "pending_task": {"id": "task-old", "status_url": "/status/old"},
+        "managed_groups": ["keep"],
+    }
+    mock = _mock_state(state_data)
+    poll = AsyncMock(return_value=_task_result(updated_managed_groups=["lost"]))
+
+    with (
+        patch(f"{_MOD}.validate_no_circular_memberships"),
+        patch(f"{_MOD}.resolve_role_members", new=AsyncMock(return_value=[])),
+        patch(f"{_MOD}.get_desired_groups_for_roles", return_value=[]),
+        patch(f"{_MOD}.get_desired_groups_for_aws_roles", return_value=[]),
+        patch(
+            f"{_MOD}.reconcile_ldap_groups",
+            new=AsyncMock(return_value=_task_response()),
+        ),
+        patch.object(integration, "poll_task_status", new=poll),
+    ):
+        await integration._run_reconcile(
+            dry_run=True,
+            state_obj=mock,
+            roles=[],
+            settings=_settings(),
+            secret=_SECRET,
+            query_func=MagicMock(),
+        )
+
+    assert state_data["pending_task"]["id"] == "task-old"
+    assert state_data["managed_groups"] == ["keep"]
+    poll.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_pending_task_retained_when_poll_returns_pending() -> None:
+    integration = make_integration()
+    state_data: dict[str, Any] = {"managed_groups": []}
+    mock = _mock_state(state_data)
+
+    with (
+        patch(f"{_MOD}.validate_no_circular_memberships"),
+        patch(f"{_MOD}.resolve_role_members", new=AsyncMock(return_value=[])),
+        patch(f"{_MOD}.get_desired_groups_for_roles", return_value=[]),
+        patch(f"{_MOD}.get_desired_groups_for_aws_roles", return_value=[]),
+        patch(
+            f"{_MOD}.reconcile_ldap_groups",
+            new=AsyncMock(return_value=_task_response()),
+        ),
+        patch.object(
+            integration,
+            "poll_task_status",
+            new=AsyncMock(return_value=_task_result(status=TaskStatus.PENDING)),
+        ),
+        pytest.raises(IntegrationError, match="timeout"),
+    ):
+        await integration._run_reconcile(
+            dry_run=False,
+            state_obj=mock,
+            roles=[],
+            settings=_settings(),
+            secret=_SECRET,
+            query_func=MagicMock(),
+        )
+
+    assert mock.data["pending_task"]["id"] == "task-1"
+
+
+@pytest.mark.asyncio
+async def test_builders_receive_resolved_roles(
+    gql_class_factory: Callable[..., RoleV1],
+) -> None:
+    integration = make_integration()
+    role = gql_class_factory(
+        RoleV1,
+        {"name": "r1", "ldapGroup": {"name": "g1"}, "users": []},
+    )
+    resolved = gql_class_factory(
+        RoleV1,
+        {
+            "name": "r1",
+            "ldapGroup": {"name": "g1"},
+            "users": [{"org_username": "resolved-user"}],
+        },
+    )
+    roles_mock = MagicMock(return_value=[])
+    aws_mock = MagicMock(return_value=[])
+
+    with (
+        patch(f"{_MOD}.validate_no_circular_memberships"),
+        patch(f"{_MOD}.resolve_role_members", new=AsyncMock(return_value=[resolved])),
+        patch(f"{_MOD}.get_desired_groups_for_roles", new=roles_mock),
+        patch(f"{_MOD}.get_desired_groups_for_aws_roles", new=aws_mock),
+        patch(
+            f"{_MOD}.reconcile_ldap_groups",
+            new=AsyncMock(return_value=_task_response()),
+        ),
+        patch.object(
+            integration,
+            "poll_task_status",
+            new=AsyncMock(return_value=_task_result()),
+        ),
+    ):
+        await integration._run_reconcile(
+            dry_run=True,
+            state_obj=_mock_state({}),
+            roles=[role],
+            settings=_settings(),
+            secret=_SECRET,
+            query_func=MagicMock(),
+        )
+
+    roles_mock.assert_called_once()
+    assert roles_mock.call_args[0][0] == [resolved]
+    aws_mock.assert_called_once()
+    assert aws_mock.call_args[0][0] == [resolved]

@@ -20,8 +20,8 @@ Manages Internal Groups (LDAP/Rover) group membership and metadata from App-Inte
 
 ### Rollback to legacy `ldap-groups`
 
-1. Stop `ldap-groups-api`.
-2. Wait for in-flight tasks (or let the next API run recover `pending_task`).
+1. If S3 state has `pending_task`, run `ldap-groups-api` once (production, not dry-run) and wait until that task finishes and `pending_task` is cleared (or confirm the task failed and recovery completed).
+2. Stop `ldap-groups-api`.
 3. Enable `ldap-groups` (reads `state/ldap-groups/managed_groups`, kept in sync by the API client).
 4. Do not run both jobs long term.
 
@@ -64,6 +64,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 ```http
 GET /api/v1/integrations/ldap-groups/reconcile/{task_id}
+Authorization: Bearer <JWT_TOKEN>
 ```
 
 Returns `LdapGroupsTaskResult` including `updated_managed_groups`.
