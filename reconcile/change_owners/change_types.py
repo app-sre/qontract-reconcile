@@ -846,6 +846,7 @@ class ChangeTypeContext:
     approvers: list[Approver]
     approver_reachability: list[ApproverReachability] | None = None
     change_owner_labels: AbstractSet[str] | None = None
+    self_service_role_name: str | None = None
 
     @property
     def disabled(self) -> bool:
