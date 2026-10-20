@@ -77,22 +77,20 @@ class LdapGroupMember(BaseModel, extra="ignore"):
     org_username: str
 
 
+def _ldap_group_members(role: RoleV1) -> list[LdapGroupMember]:
+    return [LdapGroupMember(org_username=u.org_username) for u in (role.users or [])]
+
+
 def get_desired_groups_for_roles(
     roles: Iterable[RoleV1],
     default_owners: list[Entity],
     contact_list: str,
-    resolved_members: Mapping[str, list[LdapGroupMember]] | None = None,
 ) -> list[Group]:
     groups: list[Group] = []
     for role in roles:
         if not role.ldap_group:
             continue
-        if resolved_members is not None:
-            role_members = resolved_members.get(role.name, [])
-        else:
-            role_members = [
-                LdapGroupMember(org_username=u.org_username) for u in role.users
-            ]
+        role_members = _ldap_group_members(role)
         members = [
             Entity(type=EntityType.USER, id=m.org_username) for m in role_members
         ]
@@ -152,18 +150,12 @@ def get_desired_groups_for_aws_roles(
     default_owners: Iterable[Entity],
     contact_list: str,
     aws_sso_namespace: str,
-    resolved_members: Mapping[str, list[LdapGroupMember]] | None = None,
 ) -> list[Group]:
     groups: list[Group] = []
     for role in roles:
         if not role.aws_groups and not role.user_policies:
             continue
-        if resolved_members is not None:
-            role_members = resolved_members.get(role.name, [])
-        else:
-            role_members = [
-                LdapGroupMember(org_username=u.org_username) for u in (role.users or [])
-            ]
+        role_members = _ldap_group_members(role)
         if not role_members:
             continue
         user_policies = role.user_policies or []

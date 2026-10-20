@@ -197,15 +197,13 @@ def test_aws_groups_source_only_members(
         RoleV1,
         next(item for item in raw["roles"] if item["name"] == "aws-role-aws-groups"),
     )
-    role.users = []
+    role.users = [LdapGroupMember(org_username="ldap-user")]
     owner = Entity(type=EntityType.SERVICE_ACCOUNT, id="sa-1")
-    resolved = {"aws-role-aws-groups": [LdapGroupMember(org_username="ldap-user")]}
     groups = get_desired_groups_for_aws_roles(
         [role],
         default_owners=[owner],
         contact_list="a@b.com",
         aws_sso_namespace="rover-prefix",
-        resolved_members=resolved,
     )
     assert len(groups) == 1
     assert groups[0].members[0].id == "ldap-user"
@@ -221,18 +219,15 @@ def test_aws_groups_mixed_members(
         next(item for item in raw["roles"] if item["name"] == "aws-role-aws-groups"),
     )
     owner = Entity(type=EntityType.SERVICE_ACCOUNT, id="sa-1")
-    resolved = {
-        "aws-role-aws-groups": [
-            LdapGroupMember(org_username="pike"),
-            LdapGroupMember(org_username="source-user"),
-        ]
-    }
+    role.users = [
+        LdapGroupMember(org_username="pike"),
+        LdapGroupMember(org_username="source-user"),
+    ]
     groups = get_desired_groups_for_aws_roles(
         [role],
         default_owners=[owner],
         contact_list="a@b.com",
         aws_sso_namespace="rover-prefix",
-        resolved_members=resolved,
     )
     member_ids = {m.id for m in groups[0].members}
     assert member_ids == {"pike", "source-user"}

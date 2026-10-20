@@ -69,10 +69,24 @@ class InternalGroupsWorkspaceClient:
         except RuntimeError as err:
             logger.warning(f"Could not acquire lock for {key}: {err}")
 
+    def _get_group_from_shared_cache(self, key: str) -> Group | None:
+        """Read cached group from the shared tier only (skip process-local L1)."""
+        try:
+            value = self.cache.get(key)
+            if value is None:
+                return None
+        except (ConnectionError, TimeoutError) as err:
+            logger.warning(
+                f"Shared cache unavailable for {key}: {err}",
+            )
+            return None
+        data = self.cache.deserializer(value)
+        return CachedGroup.model_validate(data).group
+
     def _fetch_and_cache(self, key: str, name: str) -> Group | None:
         """Fetch group from API and populate cache (call only while holding the lock)."""
-        if cached := self.cache.get_obj(key, CachedGroup):
-            return cached.group
+        if cached := self._get_group_from_shared_cache(key):
+            return cached
         try:
             group = Group(**self.api.group(name))
         except NotFoundError:
@@ -87,8 +101,8 @@ class InternalGroupsWorkspaceClient:
     def get_group(self, name: str) -> Group | None:
         """Return group by name, or None if not found (cached with distributed locking)."""
         key = self._cache_key(name)
-        if cached := self.cache.get_obj(key, CachedGroup):
-            return cached.group
+        if cached := self._get_group_from_shared_cache(key):
+            return cached
 
         try:
             with self.cache.lock(key):

@@ -150,6 +150,12 @@ class LdapGroupsApiIntegration(
         )
 
     async def _recover_pending_task(self, state_obj: State, dry_run: bool) -> None:
+        if dry_run:
+            if state_obj.exists(PENDING_TASK_STATE_KEY):
+                logging.warning(
+                    "Skipping recovery of pending ldap-groups-api task in dry-run"
+                )
+            return
         try:
             pending: PendingTaskRef = state_obj[PENDING_TASK_STATE_KEY]
         except KeyError:
@@ -169,7 +175,7 @@ class LdapGroupsApiIntegration(
                 f"{pending['id']} is still pending"
             )
 
-        if not dry_run and task_result.updated_managed_groups is not None:
+        if task_result.updated_managed_groups is not None:
             self._persist_managed_groups(
                 state_obj, list(task_result.updated_managed_groups)
             )
@@ -206,24 +212,16 @@ class LdapGroupsApiIntegration(
             if ldap_settings is not None
             else None,
         )
-        resolved_members = {
-            role.name: [
-                LdapGroupMember(org_username=m.org_username) for m in (role.users or [])
-            ]
-            for role in resolved_roles
-        }
 
         desired_groups = get_desired_groups_for_roles(
-            roles,
+            resolved_roles,
             contact_list=settings.contact_list,
             default_owners=[owner],
-            resolved_members=resolved_members,
         ) + get_desired_groups_for_aws_roles(
-            roles,
+            resolved_roles,
             contact_list=settings.contact_list,
             default_owners=[owner],
             aws_sso_namespace=self.params.aws_sso_namespace,
-            resolved_members=resolved_members,
         )
         validate_no_circular_memberships(roles, desired_groups)
 
@@ -270,9 +268,6 @@ class LdapGroupsApiIntegration(
             )
             raise
 
-        if not dry_run:
-            self._clear_pending_task(state_obj)
-
         if task_result.status == TaskStatus.PENDING:
             raise IntegrationError(
                 "ldap-groups-api: task did not complete within the timeout period"
@@ -285,6 +280,9 @@ class LdapGroupsApiIntegration(
             self._persist_managed_groups(
                 state_obj, list(task_result.updated_managed_groups)
             )
+
+        if not dry_run:
+            self._clear_pending_task(state_obj)
 
         if errors_summary := "; ".join(task_result.errors or []):
             raise IntegrationError(

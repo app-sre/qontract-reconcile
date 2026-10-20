@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from qontract_utils.internal_groups_api import Group
+from qontract_utils.json_utils import json_dumps, json_loads
 
 from qontract_api.cache.base import CacheBackend
+from qontract_api.cache.redis import RedisCacheBackend
 from qontract_api.config import Settings
 from qontract_api.internal_groups.internal_groups_workspace_client import (
     CachedGroup,
@@ -34,7 +36,9 @@ def mock_api() -> MagicMock:
 @pytest.fixture
 def mock_cache() -> MagicMock:
     m = MagicMock(spec=CacheBackend)
-    m.get_obj.return_value = None
+    m.get.return_value = None
+    m.serializer = json_dumps
+    m.deserializer = json_loads
     m.lock.return_value.__enter__ = MagicMock()
     m.lock.return_value.__exit__ = MagicMock(return_value=False)
     return m
@@ -88,7 +92,7 @@ def test_get_group_cache_hit_skips_api_call(
     mock_cache: MagicMock,
 ) -> None:
     cached = CachedGroup(group=_group())
-    mock_cache.get_obj.return_value = cached
+    mock_cache.get.return_value = json_dumps(cached.model_dump())
 
     with client:
         result = client.get_group(GROUP_NAME)
@@ -135,9 +139,16 @@ def test_get_group_double_check_inside_lock(
     mock_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
-    """Second get_obj call (inside lock) returns data -> API must not be called."""
+    """Shared-cache hit after lock -> API must not be called."""
     cached = CachedGroup(group=_group())
-    mock_cache.get_obj.side_effect = [None, cached]
+    serialized = json_dumps(cached.model_dump())
+
+    def _get(key: str) -> str | None:
+        if mock_cache.lock.call_count > 0:
+            return serialized
+        return None
+
+    mock_cache.get.side_effect = _get
 
     with client:
         result = client.get_group(GROUP_NAME)
@@ -145,3 +156,86 @@ def test_get_group_double_check_inside_lock(
     assert result == cached.group
     mock_api.group.assert_not_called()
     mock_cache.set_obj.assert_not_called()
+
+
+def _shared_redis_mock() -> tuple[Mock, dict[str, str]]:
+    store: dict[str, str] = {}
+    mock = Mock()
+
+    def _get(key: str) -> str | None:
+        return store.get(key)
+
+    def _set(key: str, value: str) -> None:
+        store[key] = value
+
+    def _setex(key: str, _ttl: int, value: str) -> None:
+        store[key] = value
+
+    def _delete(key: str) -> None:
+        store.pop(key, None)
+
+    def _exists(key: str) -> bool:
+        return key in store
+
+    mock.get = _get
+    mock.set = _set
+    mock.setex = _setex
+    mock.delete = _delete
+    mock.exists = _exists
+    mock.ping.return_value = True
+    lock_mock = Mock()
+    lock_mock.acquire.return_value = True
+    lock_mock.release = Mock()
+    mock.lock.return_value = lock_mock
+    return mock, store
+
+
+def test_get_group_shared_cache_not_stale_after_peer_invalidation(
+    mock_settings: Settings,
+) -> None:
+    """Process-local L1 must not hide invalidation from another cache instance."""
+    redis_mock, _store = _shared_redis_mock()
+    cache_a = RedisCacheBackend(redis_mock, memory_max_size=100, memory_ttl=3600)
+    cache_b = RedisCacheBackend(redis_mock, memory_max_size=100, memory_ttl=3600)
+
+    api_a = MagicMock()
+    api_a.__enter__ = MagicMock(return_value=api_a)
+    api_a.__exit__ = MagicMock(return_value=False)
+    api_b = MagicMock()
+    api_b.__enter__ = MagicMock(return_value=api_b)
+    api_b.__exit__ = MagicMock(return_value=False)
+
+    client_a = InternalGroupsWorkspaceClient(
+        api_factory=lambda: api_a,
+        cache=cache_a,
+        settings=mock_settings,
+        environment_key=ENV_KEY,
+    )
+    client_b = InternalGroupsWorkspaceClient(
+        api_factory=lambda: api_b,
+        cache=cache_b,
+        settings=mock_settings,
+        environment_key=ENV_KEY,
+    )
+
+    stale_payload = _group_payload()
+    fresh_payload = {**_group_payload(), "description": "updated"}
+    api_a.group.return_value = stale_payload
+    api_b.update_group.return_value = fresh_payload
+
+    with client_a:
+        first = client_a.get_group(GROUP_NAME)
+    assert first is not None
+    assert first.description == "desc"
+    assert api_a.group.call_count == 1
+
+    with client_b:
+        client_b.update_group(_group())
+
+    api_a.group.return_value = fresh_payload
+    with client_a:
+        second = client_a.get_group(GROUP_NAME)
+
+    assert second is not None
+    assert second.description == "updated"
+    assert api_a.group.call_count == 2
