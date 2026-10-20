@@ -136,6 +136,8 @@ def _raise_for_user_role_not_linked(
     if not isinstance(body, dict):
         return
     details = body.get("details", [])
+    if not isinstance(details, list):
+        return
     if any(
         isinstance(d, dict) and d.get("Error_Key") == "UserRoleIsNotLinkedToAccount"
         for d in details

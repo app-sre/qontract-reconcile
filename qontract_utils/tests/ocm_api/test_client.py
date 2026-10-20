@@ -527,6 +527,28 @@ def test_create_identity_provider_other_400_propagates_unchanged(
         api.create_identity_provider("cluster-1", _new_oidc_idp())
 
 
+def test_create_identity_provider_400_null_details_propagates_unchanged(
+    httpserver: HTTPServer,
+) -> None:
+    """A 400 with an explicit `"details": null` must propagate as the original
+
+    HTTPStatusError, not crash with a TypeError from iterating None.
+    """
+    api = _make_ocm_api(httpserver, token="test-token")
+    httpserver.expect_request(IDPS_PATH, method="POST").respond_with_json(
+        {
+            "kind": "Error",
+            "id": "400",
+            "reason": "some other bad request",
+            "details": None,
+        },
+        status=400,
+    )
+
+    with pytest.raises(httpx2.HTTPStatusError):
+        api.create_identity_provider("cluster-1", _new_oidc_idp())
+
+
 def test_create_identity_provider_400_without_details_propagates_unchanged(
     httpserver: HTTPServer,
 ) -> None:
