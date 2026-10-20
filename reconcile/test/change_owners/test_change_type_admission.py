@@ -381,6 +381,25 @@ def test_self_service_portion_approved_requires_parent_direct_tenant_approval(
     assert not is_self_service_portion_approved([parent], {"app-sre-bot"})
 
 
+def test_self_service_portion_approved_any_tenant_context_approval_is_enough(
+    mocker: MockerFixture,
+) -> None:
+    """ChangeDecision.is_approved() treats multiple covering contexts as
+    alternative approval paths - any one explicit approval is sufficient,
+    not all of them. The parent's own direct-coverage check must honor the
+    same rule: two tenant-approvable contexts, only one approved, neither
+    held, is already satisfied"""
+    ctx_a = _context(mocker, name="ctx-a", approvers=["alice"])
+    ctx_b = _context(mocker, name="ctx-b", approvers=["bob"])
+    parent = _decision_with_coverage(mocker, [ctx_a, ctx_b])
+    parent.apply_context_decision("ctx-a", DecisionCommand.APPROVED)
+    parent.coverable_by_fragment_decisions = True
+    approved_fragment = _change_decision(mocker, approvers=["carol"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    parent.fragment_decisions = [approved_fragment]
+    assert is_self_service_portion_approved([parent], set())
+
+
 #
 # status message tests
 #

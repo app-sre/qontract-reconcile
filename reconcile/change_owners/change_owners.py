@@ -377,27 +377,37 @@ def _is_unblockable_by_tenant_context(
     return all(a.org_username in app_sre_usernames for a in ctx.approvers)
 
 
-def _is_unblockable_by_tenant(
-    coverage: Iterable[ChangeTypeContext], app_sre_usernames: AbstractSet[str]
-) -> bool:
+def _direct_coverage_satisfied(
+    d: ChangeDecision, app_sre_usernames: AbstractSet[str]
+) -> bool | None:
     """
-    True if every active change-type context covering a diff can never be
-    satisfied by a tenant.
+    Resolves a decision's own direct (non-fragment) tenant-approvable
+    coverage, mirroring ChangeDecision.is_approved()'s own rule (any
+    explicit approval, or all auto-approved) and is_held()'s rule (any
+    hold blocks) - but scoped to just the contexts a tenant could actually
+    satisfy, plus the author's own hold, which always blocks regardless of
+    coverage.
+
+    Returns None if there's no tenant-approvable direct coverage at all
+    (no coverage, covered only by change-types no tenant could ever
+    satisfy, or disabled) - the caller decides what "no opinion" means for
+    its own branch.
     """
-    coverage = list(coverage)
-    return bool(coverage) and all(
-        _is_unblockable_by_tenant_context(ctx, app_sre_usernames) for ctx in coverage
+    tenant_coverage = [
+        ctx
+        for ctx in _active_coverage(d.coverage)
+        if not _is_unblockable_by_tenant_context(ctx, app_sre_usernames)
+    ]
+    if d.hold.get("mr-author", False) or any(
+        d.hold.get(ctx.context, False) for ctx in tenant_coverage
+    ):
+        return False
+    if not tenant_coverage:
+        return None
+    contexts = {ctx.context for ctx in tenant_coverage}
+    return any(d.approve.get(c, False) for c in contexts) or all(
+        d.context_auto_approval.get(c, False) for c in contexts
     )
-
-
-def _is_context_satisfied(d: ChangeDecision, context: str) -> bool:
-    """
-    True if a specific context's own decision is resolved: approved,
-    directly or via auto-approval, and not held.
-    """
-    return (
-        d.approve.get(context, False) or d.context_auto_approval.get(context, False)
-    ) and not d.hold.get(context, False)
 
 
 def _is_self_service_satisfied(
@@ -416,33 +426,18 @@ def _is_self_service_satisfied(
     until AppSRE can see the MR in the first place. The parent can also
     carry its own direct, tenant-approvable coverage added after the
     split (see _cover_changes_for_diffs() in changes.py, which doesn't
-    propagate a newly covering context into existing fragments) - each
-    such context must be independently approved and unheld, regardless of
-    the fragments' own state, the same way it would be if it weren't
-    fragment-covered at all. An author's own hold ("mr-author" context)
-    always blocks, same as for a non-fragment decision.
+    propagate a newly covering context into existing fragments) - that
+    coverage is evaluated independently of the fragments' own state, the
+    same way it would be if it weren't fragment-covered at all.
     """
     if d.coverable_by_fragment_decisions:
-        active_coverage = _active_coverage(d.coverage)
-        tenant_coverage = [
-            ctx
-            for ctx in active_coverage
-            if not _is_unblockable_by_tenant_context(ctx, app_sre_usernames)
-        ]
-        if d.hold.get("mr-author", False) or any(
-            not _is_context_satisfied(d, ctx.context) for ctx in tenant_coverage
-        ):
+        if _direct_coverage_satisfied(d, app_sre_usernames) is False:
             return False
         return all(
             _is_self_service_satisfied(fragment, app_sre_usernames)
             for fragment in d.fragment_decisions
         )
-    active_coverage = _active_coverage(d.coverage)
-    if not active_coverage or _is_unblockable_by_tenant(
-        active_coverage, app_sre_usernames
-    ):
-        return True
-    return d.is_approved() and not d.is_held()
+    return _direct_coverage_satisfied(d, app_sre_usernames) is not False
 
 
 def is_self_service_portion_approved(
