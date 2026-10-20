@@ -158,6 +158,36 @@ def test_assert_restrictive_ok_to_test(
 #
 
 
+def _context(
+    mocker: MockerFixture,
+    *,
+    name: str,
+    approvers: list[str],
+    disabled: bool = False,
+) -> ChangeTypeContext:
+    processor = mocker.patch("reconcile.change_owners.change_types.ChangeTypeProcessor")
+    processor.disabled = disabled
+    return ChangeTypeContext(
+        change_type_processor=processor,
+        context=name,
+        origin="",
+        context_file=FileRef(
+            file_type=BundleFileType.DATAFILE, path="/x.yml", schema=None
+        ),
+        approvers=[Approver(org_username=u) for u in approvers],
+    )
+
+
+def _decision_with_coverage(
+    mocker: MockerFixture, coverage: list[ChangeTypeContext]
+) -> ChangeDecision:
+    return ChangeDecision(
+        file=mocker.patch("reconcile.change_owners.bundle.FileRef"),
+        diff=mocker.patch("reconcile.change_owners.diff.Diff"),
+        coverage=coverage,
+    )
+
+
 def _change_decision(
     mocker: MockerFixture,
     *,
@@ -166,28 +196,12 @@ def _change_decision(
 ) -> ChangeDecision:
     """approvers=None means uncovered; otherwise a single covering context
     with the given approver usernames."""
-    processor = mocker.patch("reconcile.change_owners.change_types.ChangeTypeProcessor")
-    processor.disabled = disabled
     coverage = (
-        [
-            ChangeTypeContext(
-                change_type_processor=processor,
-                context="ctx",
-                origin="",
-                context_file=FileRef(
-                    file_type=BundleFileType.DATAFILE, path="/x.yml", schema=None
-                ),
-                approvers=[Approver(org_username=u) for u in approvers],
-            )
-        ]
+        [_context(mocker, name="ctx", approvers=approvers, disabled=disabled)]
         if approvers is not None
         else []
     )
-    return ChangeDecision(
-        file=mocker.patch("reconcile.change_owners.bundle.FileRef"),
-        diff=mocker.patch("reconcile.change_owners.diff.Diff"),
-        coverage=coverage,
-    )
+    return _decision_with_coverage(mocker, coverage)
 
 
 def test_self_service_portion_approved_no_covered_changes(
@@ -330,6 +344,41 @@ def test_self_service_portion_approved_ignores_app_sre_only_parent_hold(
     parent = _fragment_parent(mocker, [approved_fragment], approvers=["app-sre-bot"])
     parent.apply_context_decision("ctx", DecisionCommand.HOLD)
     assert is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_ignores_app_sre_only_hold_in_mixed_parent_coverage(
+    mocker: MockerFixture,
+) -> None:
+    """a parent with two separate direct contexts - one tenant-approvable
+    (itself approved), one AppSRE-only (held) - must not block on the
+    AppSRE context's own hold, which is AppSRE's business to clear, not
+    the tenant's"""
+    tenant_ctx = _context(mocker, name="tenant-ctx", approvers=["alice"])
+    appsre_ctx = _context(mocker, name="appsre-ctx", approvers=["app-sre-bot"])
+    parent = _decision_with_coverage(mocker, [tenant_ctx, appsre_ctx])
+    parent.apply_context_decision("tenant-ctx", DecisionCommand.APPROVED)
+    parent.apply_context_decision("appsre-ctx", DecisionCommand.HOLD)
+    parent.coverable_by_fragment_decisions = True
+    approved_fragment = _change_decision(mocker, approvers=["bob"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    parent.fragment_decisions = [approved_fragment]
+    assert is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_requires_parent_direct_tenant_approval(
+    mocker: MockerFixture,
+) -> None:
+    """a parent's own direct, tenant-approvable coverage that was never
+    approved (and never held either) must still block, even if every
+    fragment is independently exempt (e.g. AppSRE-only) - otherwise the
+    fragments alone could satisfy a decision whose own direct coverage
+    was never addressed at all"""
+    tenant_ctx = _context(mocker, name="tenant-ctx", approvers=["alice"])
+    parent = _decision_with_coverage(mocker, [tenant_ctx])
+    parent.coverable_by_fragment_decisions = True
+    app_sre_only_fragment = _change_decision(mocker, approvers=["app-sre-bot"])
+    parent.fragment_decisions = [app_sre_only_fragment]
+    assert not is_self_service_portion_approved([parent], {"app-sre-bot"})
 
 
 #
