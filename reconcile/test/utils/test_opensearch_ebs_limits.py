@@ -133,6 +133,37 @@ def test_warn_elasticsearch_ebs_limits_by_type_and_boundary(
 
 
 @pytest.mark.parametrize(
+    ("configured_version", "api_version"),
+    [
+        ("7.10", "Elasticsearch_7.10"),
+        ("Elasticsearch_7.10", "Elasticsearch_7.10"),
+        ("OpenSearch_2.15", "OpenSearch_2.15"),
+    ],
+)
+def test_warn_elasticsearch_ebs_limits_normalizes_engine_version_for_api_only(
+    terrascript_client: TerrascriptClient,
+    mocker: MockerFixture,
+    configured_version: str,
+    api_version: str,
+) -> None:
+    spec = build_spec()
+    values = build_values()
+    values["elasticsearch_version"] = configured_version
+    terrascript_client.account_resource_specs = {"some-account": [spec]}
+    mocker.patch.object(terrascript_client, "init_values", return_value=values)
+    aws_api = mocker.create_autospec(AWSApi, instance=True)
+    aws_api.get_opensearch_instance_type_limits.return_value = build_limits()
+
+    terrascript_client.warn_elasticsearch_ebs_limits(aws_api)
+
+    aws_api.get_opensearch_instance_type_limits.assert_called_once_with(
+        "some-account", "us-east-1", api_version, "m5.large.search"
+    )
+    assert values["elasticsearch_version"] == configured_version
+    assert spec.resource == {"identifier": "test-domain", "provider": "elasticsearch"}
+
+
+@pytest.mark.parametrize(
     "ebs_options",
     [
         None,
