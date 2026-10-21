@@ -380,12 +380,23 @@ class AWSApi:
 
         This best-effort check needs ``es:DescribeInstanceTypeLimits``. Errors
         return no limit so callers can skip validation without blocking Terraform.
+        The optional lookup is limited to one attempt with 5-second connect and
+        read timeouts so it cannot inherit the default 60-second API timeout.
         AWS API reference: https://docs.aws.amazon.com/opensearch-service/latest/APIReference/API_DescribeInstanceTypeLimits.html
         """
         try:
-            client = self.get_session_client(
-                self.get_session(account_name), "opensearch", region_name
+            session = self.get_session(account_name)
+            client = session.client(
+                "opensearch",
+                region_name=region_name,
+                config=Config(
+                    use_fips_endpoint=self.use_fips,
+                    connect_timeout=5,
+                    read_timeout=5,
+                    retries={"total_max_attempts": 1},
+                ),
             )
+            self._session_clients.append(client)
             return client.describe_instance_type_limits(
                 EngineVersion=engine_version,
                 InstanceType=cast("OpenSearchPartitionInstanceTypeType", instance_type),
