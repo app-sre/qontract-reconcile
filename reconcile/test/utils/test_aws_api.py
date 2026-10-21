@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import boto3
 import pytest
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ReadTimeoutError
 from moto import mock_aws
 
 from reconcile.utils.aws_api import AmiTag, AWSApi
@@ -109,9 +109,8 @@ def test_get_opensearch_instance_type_limits_is_cached_by_region_and_engine(
     client = mocker.Mock()
     response: dict[str, Any] = {"LimitsByRole": {"data": {"StorageTypes": []}}}
     client.describe_instance_type_limits.return_value = response
-    get_session_client = mocker.patch.object(
-        aws_api, "get_session_client", return_value=client
-    )
+    session = aws_api.sessions["some-account"]
+    session_client = mocker.patch.object(session, "client", return_value=client)
 
     first = aws_api.get_opensearch_instance_type_limits(
         "some-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
@@ -128,7 +127,11 @@ def test_get_opensearch_instance_type_limits_is_cached_by_region_and_engine(
     another_instance = aws_api.get_opensearch_instance_type_limits(
         "some-account", "us-east-1", "OpenSearch_2.15", "r5.large.search"
     )
-    aws_api.sessions["another-account"] = mocker.MagicMock()
+    another_account_session = mocker.MagicMock()
+    aws_api.sessions["another-account"] = another_account_session
+    another_session_client = mocker.patch.object(
+        another_account_session, "client", return_value=client
+    )
     another_account = aws_api.get_opensearch_instance_type_limits(
         "another-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
     )
@@ -142,11 +145,11 @@ def test_get_opensearch_instance_type_limits_is_cached_by_region_and_engine(
         == another_account
         == response
     )
-    assert get_session_client.call_count == 5
-    assert [call.args[2] for call in get_session_client.call_args_list] == [
+    assert session_client.call_count == 4
+    assert another_session_client.call_count == 1
+    assert [call.kwargs["region_name"] for call in session_client.call_args_list] == [
         "us-east-1",
         "us-west-2",
-        "us-east-1",
         "us-east-1",
         "us-east-1",
     ]
@@ -160,6 +163,35 @@ def test_get_opensearch_instance_type_limits_is_cached_by_region_and_engine(
     ]
 
 
+def test_get_opensearch_instance_type_limits_uses_bounded_fips_config(
+    aws_api: AWSApi, mocker: MockerFixture
+) -> None:
+    session = aws_api.sessions["some-account"]
+    client = mocker.Mock()
+    session_client = mocker.patch.object(session, "client", return_value=client)
+    aws_api.use_fips = True
+
+    aws_api.get_opensearch_instance_type_limits(
+        "some-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
+    )
+
+    open_search_config = session_client.call_args.kwargs["config"]
+    assert session_client.call_args.args == ("opensearch",)
+    assert session_client.call_args.kwargs["region_name"] == "us-east-1"
+    assert open_search_config.use_fips_endpoint is True
+    assert open_search_config.connect_timeout == 5
+    assert open_search_config.read_timeout == 5
+    assert open_search_config.retries == {"total_max_attempts": 1}
+
+    aws_api.get_session_client(session, "ec2")
+    ec2_config = session_client.call_args.kwargs["config"]
+    assert ec2_config is not open_search_config
+    assert ec2_config.use_fips_endpoint is True
+    assert ec2_config.connect_timeout == 60
+    assert ec2_config.read_timeout == 60
+    assert ec2_config.retries is None
+
+
 def test_get_opensearch_instance_type_limits_fails_open(
     aws_api: AWSApi, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -169,7 +201,8 @@ def test_get_opensearch_instance_type_limits_fails_open(
         {"Error": {"Code": "AccessDeniedException", "Message": "denied"}},
         "DescribeInstanceTypeLimits",
     )
-    mocker.patch.object(aws_api, "get_session_client", return_value=client)
+    session = aws_api.sessions["some-account"]
+    mocker.patch.object(session, "client", return_value=client)
 
     result = aws_api.get_opensearch_instance_type_limits(
         "some-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
@@ -181,6 +214,26 @@ def test_get_opensearch_instance_type_limits_fails_open(
     assert result is cached_result is None
     assert client.describe_instance_type_limits.call_count == 1
     assert "es:DescribeInstanceTypeLimits" in caplog.text
+
+
+def test_get_opensearch_instance_type_limits_fails_open_on_timeout(
+    aws_api: AWSApi, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level("INFO")
+    client = mocker.Mock()
+    client.describe_instance_type_limits.side_effect = ReadTimeoutError(
+        endpoint_url="https://es.us-east-1.amazonaws.com"
+    )
+    session = aws_api.sessions["some-account"]
+    mocker.patch.object(session, "client", return_value=client)
+
+    result = aws_api.get_opensearch_instance_type_limits(
+        "some-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
+    )
+
+    assert result is None
+    assert "ReadTimeoutError" in caplog.text
+    assert "Skipping OpenSearch instance limit lookup" in caplog.text
 
 
 def test_users_not_populated_eagerly_on_init(aws_api: AWSApi) -> None:

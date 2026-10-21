@@ -1686,10 +1686,16 @@ class TerrascriptClient:
                         api_instance_type.removesuffix(".elasticsearch") + ".search"
                     )
 
+                api_engine_version = engine_version
+                if isinstance(engine_version, str) and re.fullmatch(
+                    r"\d+\.\d{1,2}", engine_version
+                ):
+                    api_engine_version = f"Elasticsearch_{engine_version}"
+
                 limits = aws_api.get_opensearch_instance_type_limits(
                     spec.provisioner_name,
                     region,
-                    engine_version,
+                    api_engine_version,
                     api_instance_type,
                 )
                 if limits is None:
