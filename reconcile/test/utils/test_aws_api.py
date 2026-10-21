@@ -216,6 +216,23 @@ def test_get_opensearch_instance_type_limits_fails_open(
     assert "es:DescribeInstanceTypeLimits" in caplog.text
 
 
+def test_get_opensearch_instance_type_limits_fails_open_without_session(
+    aws_api: AWSApi, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level("INFO")
+    aws_api.sessions.clear()
+
+    result = aws_api.get_opensearch_instance_type_limits(
+        "some-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
+    )
+    cached_result = aws_api.get_opensearch_instance_type_limits(
+        "some-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
+    )
+
+    assert result is cached_result is None
+    assert caplog.text.count("no AWS session is available") == 1
+
+
 def test_get_opensearch_instance_type_limits_fails_open_on_timeout(
     aws_api: AWSApi, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
 ) -> None:
