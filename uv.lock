@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = "==3.14.*"
 
 [manifest]
@@ -615,7 +615,7 @@ wheels = [
 
 [[package]]
 name = "clientele"
-version = "2.3.0"
+version = "2.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx2" },
@@ -623,9 +623,9 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "stamina" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fc/cb/1583c290311caa5e06cfd97e71ce0464e9c913b98ceed8e9080be90a2bcc/clientele-2.3.0.tar.gz", hash = "sha256:39453b8505d8469500c723843968ad4d175a8a918c9dc1987fe51b60512f0899", size = 1336841, upload-time = "2026-07-24T10:02:13.527Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0d/e9/ec62cde63160a28e5321d8132795e1d27bc56f4aa52dc6c19908510a69f8/clientele-2.3.1.tar.gz", hash = "sha256:c90e0a3d0de36f1ec50206eab4e0467aa58a32a989291a3eb23cf454387084e4", size = 1337082, upload-time = "2026-10-02T09:04:17.636Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/3f/e1ca7f8a46fcb5c1af1c5d85d112242f978938b4f1f988339bfc9f756e9e/clientele-2.3.0-py3-none-any.whl", hash = "sha256:83948d365358f920b666090c6a358f12cbf921357c391d6a27c50307bdf74cd1", size = 76800, upload-time = "2026-07-24T10:02:12.097Z" },
+    { url = "https://files.pythonhosted.org/packages/40/4d/c504dfc8c1372782c7e2d1a23d8c6da14fb44eac5abeea3cb9897805d464/clientele-2.3.1-py3-none-any.whl", hash = "sha256:b38cd971e4b2957436a3cf025c43117984e66cf65aea0d6633437c61c046115d", size = 76828, upload-time = "2026-10-02T08:59:58.42Z" },
 ]
 
 [package.optional-dependencies]
@@ -2501,11 +2501,11 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "clientele", extras = ["core"], specifier = "==2.3.0" }]
+requires-dist = [{ name = "clientele", extras = ["core"], specifier = "==2.3.1" }]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "clientele", extras = ["cli"], specifier = "==2.3.0" },
+    { name = "clientele", extras = ["cli"], specifier = "==2.3.1" },
     { name = "mypy", specifier = "==2.3.1" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-cov", specifier = "==7.1.0" },
