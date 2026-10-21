@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from reconcile.utils.aws_api import AmiTag, AWSApi
@@ -100,6 +101,86 @@ def test_get_user_key_status(aws_api: AWSApi, iam_client: IAMClient) -> None:
 def test_default_region(aws_api: AWSApi, accounts: list[dict]) -> None:
     for a in accounts:
         assert aws_api.sessions[a["name"]].region_name == a["resourcesDefaultRegion"]
+
+
+def test_get_opensearch_instance_type_limits_is_cached_by_region_and_engine(
+    aws_api: AWSApi, mocker: MockerFixture
+) -> None:
+    client = mocker.Mock()
+    response: dict[str, Any] = {"LimitsByRole": {"data": {"StorageTypes": []}}}
+    client.describe_instance_type_limits.return_value = response
+    get_session_client = mocker.patch.object(
+        aws_api, "get_session_client", return_value=client
+    )
+
+    first = aws_api.get_opensearch_instance_type_limits(
+        "some-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
+    )
+    repeated = aws_api.get_opensearch_instance_type_limits(
+        "some-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
+    )
+    another_region = aws_api.get_opensearch_instance_type_limits(
+        "some-account", "us-west-2", "OpenSearch_2.15", "m5.large.search"
+    )
+    another_engine = aws_api.get_opensearch_instance_type_limits(
+        "some-account", "us-east-1", "Elasticsearch_7.10", "m5.large.search"
+    )
+    another_instance = aws_api.get_opensearch_instance_type_limits(
+        "some-account", "us-east-1", "OpenSearch_2.15", "r5.large.search"
+    )
+    aws_api.sessions["another-account"] = mocker.MagicMock()
+    another_account = aws_api.get_opensearch_instance_type_limits(
+        "another-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
+    )
+
+    assert (
+        first
+        == repeated
+        == another_region
+        == another_engine
+        == another_instance
+        == another_account
+        == response
+    )
+    assert get_session_client.call_count == 5
+    assert [call.args[2] for call in get_session_client.call_args_list] == [
+        "us-east-1",
+        "us-west-2",
+        "us-east-1",
+        "us-east-1",
+        "us-east-1",
+    ]
+    assert client.describe_instance_type_limits.call_count == 5
+    assert client.describe_instance_type_limits.call_args_list == [
+        mocker.call(EngineVersion="OpenSearch_2.15", InstanceType="m5.large.search"),
+        mocker.call(EngineVersion="OpenSearch_2.15", InstanceType="m5.large.search"),
+        mocker.call(EngineVersion="Elasticsearch_7.10", InstanceType="m5.large.search"),
+        mocker.call(EngineVersion="OpenSearch_2.15", InstanceType="r5.large.search"),
+        mocker.call(EngineVersion="OpenSearch_2.15", InstanceType="m5.large.search"),
+    ]
+
+
+def test_get_opensearch_instance_type_limits_fails_open(
+    aws_api: AWSApi, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level("INFO")
+    client = mocker.Mock()
+    client.describe_instance_type_limits.side_effect = ClientError(
+        {"Error": {"Code": "AccessDeniedException", "Message": "denied"}},
+        "DescribeInstanceTypeLimits",
+    )
+    mocker.patch.object(aws_api, "get_session_client", return_value=client)
+
+    result = aws_api.get_opensearch_instance_type_limits(
+        "some-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
+    )
+    cached_result = aws_api.get_opensearch_instance_type_limits(
+        "some-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
+    )
+
+    assert result is cached_result is None
+    assert client.describe_instance_type_limits.call_count == 1
+    assert "es:DescribeInstanceTypeLimits" in caplog.text
 
 
 def test_users_not_populated_eagerly_on_init(aws_api: AWSApi) -> None:
