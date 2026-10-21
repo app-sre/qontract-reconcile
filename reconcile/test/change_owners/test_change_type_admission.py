@@ -6,11 +6,16 @@ import pytest
 
 from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.bundle import BundleFileType, FileRef
-from reconcile.change_owners.change_owners import is_change_admitted
+from reconcile.change_owners.change_owners import (
+    build_status_message,
+    is_change_admitted,
+    is_self_service_portion_approved,
+)
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     DiffCoverage,
 )
+from reconcile.change_owners.decision import ChangeDecision, DecisionCommand
 from reconcile.test.change_owners.fixtures import (
     change_type_to_processor,
 )
@@ -146,3 +151,344 @@ def test_assert_restrictive_ok_to_test(
     assert (
         is_change_admitted(restrictive_change, "baz", ok_to_test_approver) == expected
     )
+
+
+#
+# self-service portion approval tests
+#
+
+
+def _context(
+    mocker: MockerFixture,
+    *,
+    name: str,
+    approvers: list[str],
+    disabled: bool = False,
+) -> ChangeTypeContext:
+    processor = mocker.patch("reconcile.change_owners.change_types.ChangeTypeProcessor")
+    processor.disabled = disabled
+    return ChangeTypeContext(
+        change_type_processor=processor,
+        context=name,
+        origin="",
+        context_file=FileRef(
+            file_type=BundleFileType.DATAFILE, path="/x.yml", schema=None
+        ),
+        approvers=[Approver(org_username=u) for u in approvers],
+    )
+
+
+def _decision_with_coverage(
+    mocker: MockerFixture, coverage: list[ChangeTypeContext]
+) -> ChangeDecision:
+    return ChangeDecision(
+        file=mocker.patch("reconcile.change_owners.bundle.FileRef"),
+        diff=mocker.patch("reconcile.change_owners.diff.Diff"),
+        coverage=coverage,
+    )
+
+
+def _change_decision(
+    mocker: MockerFixture,
+    *,
+    approvers: list[str] | None = None,
+    disabled: bool = False,
+) -> ChangeDecision:
+    """approvers=None means uncovered; otherwise a single covering context
+    with the given approver usernames."""
+    coverage = (
+        [_context(mocker, name="ctx", approvers=approvers, disabled=disabled)]
+        if approvers is not None
+        else []
+    )
+    return _decision_with_coverage(mocker, coverage)
+
+
+def test_self_service_portion_approved_no_covered_changes(
+    mocker: MockerFixture,
+) -> None:
+    """an MR with only non-self-serviceable changes is vacuously approved here"""
+    uncovered = _change_decision(mocker)
+    assert is_self_service_portion_approved([uncovered], set())
+
+
+def test_self_service_portion_approved_ignores_uncovered_changes(
+    mocker: MockerFixture,
+) -> None:
+    """the non-self-serviceable part of the MR must not block this check"""
+    covered = _change_decision(mocker, approvers=["alice"])
+    covered.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    uncovered = _change_decision(mocker)
+    assert is_self_service_portion_approved([covered, uncovered], set())
+
+
+def test_self_service_portion_approved_false_when_covered_not_approved(
+    mocker: MockerFixture,
+) -> None:
+    covered = _change_decision(mocker, approvers=["alice"])
+    assert not is_self_service_portion_approved([covered], set())
+
+
+def test_self_service_portion_approved_false_when_covered_held(
+    mocker: MockerFixture,
+) -> None:
+    covered = _change_decision(mocker, approvers=["alice"])
+    covered.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    covered.apply_context_decision("ctx", DecisionCommand.HOLD)
+    assert not is_self_service_portion_approved([covered], set())
+
+
+def test_self_service_portion_approved_ignores_app_sre_only_coverage(
+    mocker: MockerFixture,
+) -> None:
+    """a change whose only possible approver is AppSRE must not block the
+    review queue on AppSRE approving it themselves - they can't see it in
+    the queue to do so until it's no longer hidden"""
+    covered = _change_decision(mocker, approvers=["app-sre-bot"])
+    assert is_self_service_portion_approved([covered], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_ignores_coverage_with_no_approvers(
+    mocker: MockerFixture,
+) -> None:
+    """a context with zero approvers (e.g. every role member lacked an
+    org_username) can never be approved by anyone, including AppSRE - it
+    must not block the review queue forever either"""
+    covered = _change_decision(mocker, approvers=[])
+    assert is_self_service_portion_approved([covered], set())
+
+
+def test_self_service_portion_approved_requires_approval_when_tenant_also_approver(
+    mocker: MockerFixture,
+) -> None:
+    """a mixed tenant/AppSRE approver list is still genuinely
+    self-serviceable - the tenant can approve it without AppSRE"""
+    covered = _change_decision(mocker, approvers=["app-sre-bot", "alice"])
+    assert not is_self_service_portion_approved([covered], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_ignores_disabled_only_coverage(
+    mocker: MockerFixture,
+) -> None:
+    """a diff covered only by a disabled change-type can never be
+    approved (_apply_decision_to_diff ignores disabled contexts), so it
+    must not block the review queue on an approval that can't happen"""
+    covered = _change_decision(mocker, approvers=["alice"], disabled=True)
+    assert is_self_service_portion_approved([covered], set())
+
+
+def _fragment_parent(
+    mocker: MockerFixture,
+    fragments: list[ChangeDecision],
+    *,
+    approvers: list[str] | None = None,
+) -> ChangeDecision:
+    """approvers=None means the parent has no direct coverage of its own
+    (the common case); otherwise it also carries a direct, tenant-approvable
+    context alongside the fragments (see _cover_changes_for_diffs() in
+    changes.py, which can append a new covering context to an
+    already-split diff without propagating it into existing fragments)."""
+    parent = _change_decision(mocker, approvers=approvers)
+    parent.coverable_by_fragment_decisions = True
+    parent.fragment_decisions = fragments
+    return parent
+
+
+def test_self_service_portion_approved_ignores_app_sre_only_fragment(
+    mocker: MockerFixture,
+) -> None:
+    """a fragment-split diff where one fragment is only AppSRE-approvable
+    must not keep the whole parent pending on an approval AppSRE can't
+    give until the MR is visible to them"""
+    approved_fragment = _change_decision(mocker, approvers=["alice"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    app_sre_only_fragment = _change_decision(mocker, approvers=["app-sre-bot"])
+    parent = _fragment_parent(mocker, [approved_fragment, app_sre_only_fragment])
+    assert is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_requires_approval_for_tenant_fragment(
+    mocker: MockerFixture,
+) -> None:
+    """an unapproved, genuinely tenant-approvable fragment still blocks,
+    regardless of any other AppSRE-only fragment alongside it"""
+    approved_fragment = _change_decision(mocker, approvers=["alice"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    unapproved_tenant_fragment = _change_decision(mocker, approvers=["bob"])
+    parent = _fragment_parent(mocker, [approved_fragment, unapproved_tenant_fragment])
+    assert not is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_honors_parent_hold_alongside_fragments(
+    mocker: MockerFixture,
+) -> None:
+    """a direct, tenant-approvable context added to the parent after the
+    split carries a hold that's invisible to any individual fragment's own
+    is_held() - it must still block, even though every fragment itself is
+    fully approved"""
+    approved_fragment = _change_decision(mocker, approvers=["alice"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    parent = _fragment_parent(mocker, [approved_fragment], approvers=["carol"])
+    parent.apply_context_decision("ctx", DecisionCommand.HOLD)
+    assert not is_self_service_portion_approved([parent], set())
+
+
+def test_self_service_portion_approved_ignores_app_sre_only_parent_hold(
+    mocker: MockerFixture,
+) -> None:
+    """a hold on the parent's own direct coverage is only exempt from
+    blocking when that coverage is itself AppSRE-only - same exemption as
+    everywhere else, applied to the parent instead of a fragment"""
+    approved_fragment = _change_decision(mocker, approvers=["alice"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    parent = _fragment_parent(mocker, [approved_fragment], approvers=["app-sre-bot"])
+    parent.apply_context_decision("ctx", DecisionCommand.HOLD)
+    assert is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_blocks_on_appsre_hold_in_mixed_parent_coverage(
+    mocker: MockerFixture,
+) -> None:
+    """a parent with two separate direct contexts - one tenant-approvable
+    (itself approved), one AppSRE-only (held) - must still block: once
+    there's any tenant-approvable coverage, holds are evaluated across
+    every active context symmetrically with approvals (an AppSRE
+    approval on its own context resolves mixed coverage exactly like a
+    tenant's would, so an AppSRE hold on its own context blocks it too).
+    Full exemption only applies when every active context is AppSRE-only."""
+    tenant_ctx = _context(mocker, name="tenant-ctx", approvers=["alice"])
+    appsre_ctx = _context(mocker, name="appsre-ctx", approvers=["app-sre-bot"])
+    parent = _decision_with_coverage(mocker, [tenant_ctx, appsre_ctx])
+    parent.apply_context_decision("tenant-ctx", DecisionCommand.APPROVED)
+    parent.apply_context_decision("appsre-ctx", DecisionCommand.HOLD)
+    parent.coverable_by_fragment_decisions = True
+    approved_fragment = _change_decision(mocker, approvers=["bob"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    parent.fragment_decisions = [approved_fragment]
+    assert not is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_appsre_approval_resolves_mixed_fragment_parent(
+    mocker: MockerFixture,
+) -> None:
+    """an AppSRE context's own explicit approval resolves mixed direct
+    coverage the same way a tenant's would - the tenant context here is
+    left unapproved"""
+    tenant_ctx = _context(mocker, name="tenant-ctx", approvers=["alice"])
+    appsre_ctx = _context(mocker, name="appsre-ctx", approvers=["app-sre-bot"])
+    parent = _decision_with_coverage(mocker, [tenant_ctx, appsre_ctx])
+    parent.apply_context_decision("appsre-ctx", DecisionCommand.APPROVED)
+    parent.coverable_by_fragment_decisions = True
+    approved_fragment = _change_decision(mocker, approvers=["bob"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    parent.fragment_decisions = [approved_fragment]
+    assert is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_appsre_approval_resolves_mixed_coverage_without_fragments(
+    mocker: MockerFixture,
+) -> None:
+    """same as above, but for an ordinary (non-fragment) decision with
+    mixed direct coverage"""
+    tenant_ctx = _context(mocker, name="tenant-ctx", approvers=["alice"])
+    appsre_ctx = _context(mocker, name="appsre-ctx", approvers=["app-sre-bot"])
+    d = _decision_with_coverage(mocker, [tenant_ctx, appsre_ctx])
+    d.apply_context_decision("appsre-ctx", DecisionCommand.APPROVED)
+    assert is_self_service_portion_approved([d], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_requires_parent_direct_tenant_approval(
+    mocker: MockerFixture,
+) -> None:
+    """a parent's own direct, tenant-approvable coverage that was never
+    approved (and never held either) must still block, even if every
+    fragment is independently exempt (e.g. AppSRE-only) - otherwise the
+    fragments alone could satisfy a decision whose own direct coverage
+    was never addressed at all"""
+    tenant_ctx = _context(mocker, name="tenant-ctx", approvers=["alice"])
+    parent = _decision_with_coverage(mocker, [tenant_ctx])
+    parent.coverable_by_fragment_decisions = True
+    app_sre_only_fragment = _change_decision(mocker, approvers=["app-sre-bot"])
+    parent.fragment_decisions = [app_sre_only_fragment]
+    assert not is_self_service_portion_approved([parent], {"app-sre-bot"})
+
+
+def test_self_service_portion_approved_any_tenant_context_approval_is_enough(
+    mocker: MockerFixture,
+) -> None:
+    """ChangeDecision.is_approved() treats multiple covering contexts as
+    alternative approval paths - any one explicit approval is sufficient,
+    not all of them. The parent's own direct-coverage check must honor the
+    same rule: two tenant-approvable contexts, only one approved, neither
+    held, is already satisfied"""
+    ctx_a = _context(mocker, name="ctx-a", approvers=["alice"])
+    ctx_b = _context(mocker, name="ctx-b", approvers=["bob"])
+    parent = _decision_with_coverage(mocker, [ctx_a, ctx_b])
+    parent.apply_context_decision("ctx-a", DecisionCommand.APPROVED)
+    parent.coverable_by_fragment_decisions = True
+    approved_fragment = _change_decision(mocker, approvers=["carol"])
+    approved_fragment.apply_context_decision("ctx", DecisionCommand.APPROVED)
+    parent.fragment_decisions = [approved_fragment]
+    assert is_self_service_portion_approved([parent], set())
+
+
+#
+# status message tests
+#
+
+
+def test_status_message_not_admitted_takes_priority() -> None:
+    message = build_status_message(
+        self_serviceable=True,
+        self_service_portion_approved=True,
+        authoritative=True,
+        change_admitted=False,
+        approver_reachability=set(),
+        supported_commands=[],
+    )
+    assert "Approval Required" in message
+    assert "/ok-to-test" in message
+
+
+def test_status_message_self_serviceable() -> None:
+    message = build_status_message(
+        self_serviceable=True,
+        self_service_portion_approved=True,
+        authoritative=True,
+        change_admitted=True,
+        approver_reachability=set(),
+        supported_commands=[],
+    )
+    assert "Ready for Review" in message
+
+
+def test_status_message_pending_self_service_approval() -> None:
+    """not self-serviceable overall, and the self-serviceable part isn't
+    approved yet - must not claim AppSRE is already reviewing it"""
+    message = build_status_message(
+        self_serviceable=False,
+        self_service_portion_approved=False,
+        authoritative=True,
+        change_admitted=True,
+        approver_reachability=set(),
+        supported_commands=[],
+    )
+    assert "Self-Service Approval Needed First" in message
+    # must not claim AppSRE is already reviewing - it isn't, the MR is
+    # hidden from their review queue until the self-service part lands
+    assert "AppSRE Review Required" not in message
+    assert "will review via" not in message
+
+
+def test_status_message_appsre_review_required() -> None:
+    """not self-serviceable overall, but the self-serviceable part (if any)
+    is already approved - genuinely waiting on AppSRE now"""
+    message = build_status_message(
+        self_serviceable=False,
+        self_service_portion_approved=True,
+        authoritative=True,
+        change_admitted=True,
+        approver_reachability=set(),
+        supported_commands=[],
+    )
+    assert "AppSRE Review Required" in message

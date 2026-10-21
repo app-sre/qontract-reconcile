@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from operator import attrgetter
 from typing import TYPE_CHECKING
@@ -81,6 +81,10 @@ class ChangeDecision:
     diff: Diff
     coverage: list[ChangeTypeContext]
     coverable_by_fragment_decisions: bool = False
+    # populated alongside coverable_by_fragment_decisions, so callers can
+    # inspect each fragment's own coverage/approval instead of only the
+    # aggregate approved-if-all-fragments-approved outcome
+    fragment_decisions: list[ChangeDecision] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.approve: dict[str, bool] = defaultdict(bool)
@@ -190,6 +194,7 @@ def _apply_decision_to_diff(
             )
             for fragment in diff.diff_fragments
         ]
+        change_decision.fragment_decisions = fragment_decisions
         if all(
             fragment.is_approved() and not fragment.is_held()
             for fragment in fragment_decisions

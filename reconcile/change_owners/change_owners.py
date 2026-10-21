@@ -46,6 +46,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import (
     HOLD,
     NOT_SELF_SERVICEABLE,
+    PENDING_SELF_SERVICE_APPROVAL,
     RESTRICTED,
     SELF_SERVICEABLE,
     change_owner_label,
@@ -56,6 +57,9 @@ from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from collections.abc import Set as AbstractSet
+
     from gitlab.v4.objects import ProjectMergeRequest
 
 QONTRACT_INTEGRATION = "change-owners"
@@ -127,6 +131,7 @@ def manage_conditional_label(
 
 def build_status_message(
     self_serviceable: bool,
+    self_service_portion_approved: bool,
     authoritative: bool,
     change_admitted: bool,
     approver_reachability: set[str],
@@ -155,6 +160,16 @@ Your changes need `/ok-to-test` approval from a listed approver before review ca
     if self_serviceable:
         return f"""## ✅ Ready for Review
 Get `/lgtm` approval from the listed approvers below.
+
+{code_warning}{approver_section}
+
+{commands_text}"""
+
+    if not self_service_portion_approved:
+        return f"""## 📝 Self-Service Approval Needed First
+This MR also touches changes that AppSRE will need to review, but AppSRE won't see it in their review queue until the self-serviceable changes below are approved first.
+
+Get `/lgtm` approval from the listed approvers below for the self-serviceable changes.
 
 {code_warning}{approver_section}
 
@@ -198,6 +213,7 @@ def _format_change_responsible(cr: ChangeResponsibles) -> str:
 
 def write_coverage_report_to_mr(
     self_serviceable: bool,
+    self_service_portion_approved: bool,
     change_decisions: list[ChangeDecision],
     change_admitted: bool,
     authoritative: bool,
@@ -253,6 +269,7 @@ def write_coverage_report_to_mr(
     supported_commands = [d.value for d in DecisionCommand]
     status_message = build_status_message(
         self_serviceable=self_serviceable,
+        self_service_portion_approved=self_service_portion_approved,
         authoritative=authoritative,
         change_admitted=change_admitted,
         approver_reachability=approver_reachability,
@@ -330,6 +347,117 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     return GitLabApi(
         instance, project_id=gitlab_project_id, secret_reader=secret_reader
+    )
+
+
+def _active_coverage(
+    coverage: Iterable[ChangeTypeContext],
+) -> list[ChangeTypeContext]:
+    """
+    Non-disabled contexts covering a diff. _apply_decision_to_diff() ignores
+    the approvers of a disabled change-type when applying decisions, so a
+    diff covered only by disabled contexts can never be approved - it must
+    not count as "covered" for this check either, the same way
+    DiffCoverage.is_directly_covered() treats it.
+    """
+    return [ctx for ctx in coverage if not ctx.disabled]
+
+
+def _is_unblockable_by_tenant_context(
+    ctx: ChangeTypeContext, app_sre_usernames: AbstractSet[str]
+) -> bool:
+    """
+    True if this single change-type context can never be satisfied by a
+    tenant: either it has no approvers at all (e.g. a role whose only
+    members lack an org_username - build_role_approvers() drops those
+    silently, even though role validation only requires the role to have
+    *some* users/bots/memberSources, not that any survive
+    approver-building), or every approver is an AppSRE member.
+    """
+    return all(a.org_username in app_sre_usernames for a in ctx.approvers)
+
+
+def _direct_coverage_satisfied(
+    d: ChangeDecision, app_sre_usernames: AbstractSet[str]
+) -> bool | None:
+    """
+    Resolves a decision's own direct (non-fragment) coverage, mirroring
+    ChangeDecision.is_approved()'s own rule (any explicit approval, or all
+    auto-approved) and is_held()'s rule (any hold blocks) across every
+    active direct context - tenant and AppSRE alike. An AppSRE context's
+    own explicit approval resolves mixed coverage exactly like a tenant's
+    would, so symmetrically its own hold blocks it too; the author's own
+    hold ("mr-author") always blocks regardless of coverage.
+
+    Returns None - fully exempt, no opinion either way - only when there's
+    no tenant-approvable direct coverage at all: no coverage, every active
+    context is AppSRE-only, or the only coverage is disabled. That's the
+    one case nothing here could ever be resolved by anyone but AppSRE, so
+    there's nothing for this check to gate on.
+    """
+    if d.hold.get("mr-author", False):
+        return False
+    active_coverage = _active_coverage(d.coverage)
+    tenant_coverage = [
+        ctx
+        for ctx in active_coverage
+        if not _is_unblockable_by_tenant_context(ctx, app_sre_usernames)
+    ]
+    if not tenant_coverage:
+        return None
+    if any(d.hold.get(ctx.context, False) for ctx in active_coverage):
+        return False
+    contexts = {ctx.context for ctx in active_coverage}
+    return any(d.approve.get(c, False) for c in contexts) or all(
+        d.context_auto_approval.get(c, False) for c in contexts
+    )
+
+
+def _is_self_service_satisfied(
+    d: ChangeDecision, app_sre_usernames: AbstractSet[str]
+) -> bool:
+    """
+    True if this decision doesn't need (further) self-service approval:
+    either it isn't blocking in the first place (no active coverage, or
+    covered only by change-types no tenant could ever satisfy), or it's
+    already approved and not held.
+
+    For a diff split into fragments, each fragment is evaluated the same
+    way independently, rather than relying on the parent's own
+    is_approved()/is_held() - which aggregate across *every* context the
+    parent carries, including any AppSRE-only ones that can't be approved
+    until AppSRE can see the MR in the first place. The parent can also
+    carry its own direct, tenant-approvable coverage added after the
+    split (see _cover_changes_for_diffs() in changes.py, which doesn't
+    propagate a newly covering context into existing fragments) - that
+    coverage is evaluated independently of the fragments' own state, the
+    same way it would be if it weren't fragment-covered at all.
+    """
+    if d.coverable_by_fragment_decisions:
+        if _direct_coverage_satisfied(d, app_sre_usernames) is False:
+            return False
+        return all(
+            _is_self_service_satisfied(fragment, app_sre_usernames)
+            for fragment in d.fragment_decisions
+        )
+    return _direct_coverage_satisfied(d, app_sre_usernames) is not False
+
+
+def is_self_service_portion_approved(
+    change_decisions: Iterable[ChangeDecision],
+    app_sre_usernames: AbstractSet[str],
+) -> bool:
+    """
+    Checks whether every self-serviceable (covered) part of the MR has been
+    approved and is not held. Changes that aren't blocking in the first
+    place are ignored — see _is_self_service_satisfied() for the full list
+    of cases (no coverage, AppSRE-only coverage, disabled coverage, and the
+    same recursively for fragment-split diffs). Their approval, if any, is
+    AppSRE's call via the NOT_SELF_SERVICEABLE/review-queue path, not this
+    one. Vacuously True when there's nothing left to approve.
+    """
+    return all(
+        _is_self_service_satisfied(d, app_sre_usernames) for d in change_decisions
     )
 
 
@@ -452,6 +580,7 @@ def run(
 
         with init_gitlab(gitlab_project_id) as gl:
             merge_request = gl.get_merge_request(gitlab_merge_request_id)
+            app_sre_usernames = {u.username for u in gl.get_app_sre_group_users()}
 
             comments = gl.get_merge_request_comments(merge_request)
             ok_to_test_approvers = {
@@ -485,6 +614,9 @@ def run(
             approved = all(
                 d.is_approved() and not d.is_held() for d in change_decisions
             )
+            self_service_portion_approved = is_self_service_portion_approved(
+                change_decisions, app_sre_usernames
+            )
 
             #
             #   R E P O R T I N G
@@ -493,6 +625,7 @@ def run(
             if mr_management_enabled:
                 write_coverage_report_to_mr(
                     self_serviceable,
+                    self_service_portion_approved,
                     change_decisions,
                     change_admitted,
                     change_type_processing_mode
@@ -512,6 +645,9 @@ def run(
                 NOT_SELF_SERVICEABLE: not self_serviceable,
                 HOLD: hold,
                 RESTRICTED: not change_admitted,
+                PENDING_SELF_SERVICE_APPROVAL: (
+                    not self_serviceable and not self_service_portion_approved
+                ),
             }
 
             # priority labels
@@ -541,12 +677,25 @@ def run(
 
             if mr_management_enabled:
                 gl.set_labels_on_merge_request(merge_request, labels)
-            elif SELF_SERVICEABLE in labels:
-                # if MR management is disabled, we need to make sure the self-serviceable
-                # labels is not present, because other integration react to them
-                # e.g. gitlab-housekeeper rejects direct lgtm labels and the review-queue
-                # skips MRs with this label
-                gl.remove_label(merge_request, SELF_SERVICEABLE)
+            else:
+                # if MR management is disabled, we need to make sure these
+                # bot-managed labels are not left stale on the real MR when
+                # their condition is no longer true, because other
+                # integrations react to them, e.g. gitlab-housekeeping
+                # rejects direct lgtm labels on self-serviceable MRs, and
+                # the review queue skips MRs with PENDING_SELF_SERVICE_APPROVAL.
+                # Check the condition directly against the MR's actual
+                # current labels, not the locally computed `labels` set -
+                # that set already reflects the desired (post-removal)
+                # state, so checking it here would miss exactly the
+                # transition (condition just turned false) this is meant
+                # to clean up.
+                if not self_serviceable and SELF_SERVICEABLE in merge_request.labels:
+                    gl.remove_label(merge_request, SELF_SERVICEABLE)
+                if (
+                    self_serviceable or self_service_portion_approved
+                ) and PENDING_SELF_SERVICE_APPROVAL in merge_request.labels:
+                    gl.remove_label(merge_request, PENDING_SELF_SERVICE_APPROVAL)
 
             if not change_admitted:
                 raise NotAdmittedError("Change not admitted")
