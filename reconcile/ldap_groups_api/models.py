@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 from qontract_utils.internal_groups_api.models import Entity, EntityType, Group
@@ -12,6 +12,7 @@ from reconcile.gql_definitions.ldap_groups.roles import RoleV1
 from reconcile.gql_definitions.ldap_groups.roles import query as roles_query
 from reconcile.gql_definitions.ldap_groups.settings import LdapGroupsSettingsV1
 from reconcile.gql_definitions.ldap_groups.settings import query as settings_query
+from reconcile.utils.aws_helper import AccountSSO
 from reconcile.utils.disabled_integrations import (
     HasDisableIntegrations,
     disabled_integrations,
@@ -112,12 +113,6 @@ def get_desired_groups_for_roles(
 
 # Both names during ldap-groups → ldap-groups-api cutover (disable.integrations).
 _LDAP_GROUPS_AWS_DISABLE_NAMES = frozenset({"ldap-groups", "ldap-groups-api"})
-
-
-class AccountSSO(HasDisableIntegrations, Protocol):
-    name: str
-    uid: str
-    sso: bool | None
 
 
 def ldap_groups_aws_integration_enabled(

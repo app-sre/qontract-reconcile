@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 from typing import TYPE_CHECKING
 
-from qontract_utils.internal_groups_api import InternalGroupsApi
+from qontract_utils.internal_groups_api.client import InternalGroupsClient
 
 from qontract_api.internal_groups.internal_groups_workspace_client import (
     InternalGroupsWorkspaceClient,
@@ -28,8 +28,8 @@ def create_internal_groups_workspace_client(
     credentials = secret_manager.read_all(connection)
     client_secret = credentials["client_secret"]
 
-    def _build_api() -> InternalGroupsApi:
-        return InternalGroupsApi(
+    def _build_client() -> InternalGroupsClient:
+        return InternalGroupsClient(
             api_url=connection.api_url,
             issuer_url=connection.issuer_url,
             client_id=connection.client_id,
@@ -41,7 +41,7 @@ def create_internal_groups_workspace_client(
     ).hexdigest()
 
     return InternalGroupsWorkspaceClient(
-        api_factory=_build_api,
+        client_factory=_build_client,
         cache=cache,
         settings=settings,
         environment_key=environment_key,

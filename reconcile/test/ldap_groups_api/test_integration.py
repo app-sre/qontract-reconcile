@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -13,6 +14,7 @@ if TYPE_CHECKING:
 
 import pytest
 from botocore.exceptions import ClientError
+from qontract_api_client.exceptions import APIException
 from qontract_api_client.schemas import (
     LdapGroupsTaskResponse,
     LdapGroupsTaskResult,
@@ -36,6 +38,24 @@ def make_integration() -> _TestableIntegration:
     return _TestableIntegration(
         LdapGroupsApiIntegrationParams(aws_sso_namespace="it-cloud-aws")
     )
+
+
+def _recent_pending_task(**extra: Any) -> dict[str, Any]:
+    return {
+        "id": "task-1",
+        "status_url": "/status/1",
+        "submitted_at": (datetime.now(UTC) - timedelta(hours=1)).isoformat(),
+        **extra,
+    }
+
+
+def _stale_pending_task(**extra: Any) -> dict[str, Any]:
+    return {
+        "id": "task-1",
+        "status_url": "/status/1",
+        "submitted_at": (datetime.now(UTC) - timedelta(hours=7)).isoformat(),
+        **extra,
+    }
 
 
 def _task_response() -> LdapGroupsTaskResponse:
@@ -603,6 +623,7 @@ async def test_pending_task_persisted_before_poll() -> None:
         await asyncio.sleep(0)
         assert "pending_task" in mock.data
         assert mock.data["pending_task"]["id"] == "task-1"
+        assert mock.data["pending_task"].get("submitted_at")
         return _task_result(updated_managed_groups=["g1"])
 
     poll = AsyncMock(side_effect=_poll_with_pending_check)
@@ -671,7 +692,7 @@ async def test_recover_pending_task() -> None:
     integration = make_integration()
     state_data: dict[str, Any] = {
         "managed_groups": ["old"],
-        "pending_task": {"id": "task-1", "status_url": "/status/1"},
+        "pending_task": _recent_pending_task(),
     }
     mock = _mock_state(state_data)
     poll = AsyncMock(
@@ -701,6 +722,111 @@ async def test_recover_pending_task() -> None:
     assert state_data["managed_groups"] == ["old", "recovered"]
     assert "pending_task" not in state_data
     assert poll.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_recover_pending_task_raises_on_errors() -> None:
+    integration = make_integration()
+    state_data: dict[str, Any] = {"pending_task": _recent_pending_task()}
+    mock = _mock_state(state_data)
+    poll = AsyncMock(return_value=_task_result(errors=["group create failed"]))
+
+    with (
+        patch.object(integration, "poll_task_status", new=poll),
+        pytest.raises(IntegrationError, match="group create failed"),
+    ):
+        await integration._recover_pending_task(mock, dry_run=False)
+
+    assert "pending_task" not in state_data
+
+
+@pytest.mark.asyncio
+async def test_recover_pending_task_retains_reference_on_status_timeout_when_recent() -> (
+    None
+):
+    integration = make_integration()
+    state_data: dict[str, Any] = {"pending_task": _recent_pending_task()}
+    mock = _mock_state(state_data)
+    response = MagicMock()
+    response.status_code = 408
+
+    async def poll_side_effect(
+        *_args: object, timeout: int = 300, **_kwargs: object
+    ) -> LdapGroupsTaskResult:
+        if timeout == 0:
+            return _task_result(status=TaskStatus.PENDING)
+        raise APIException(response, "timeout")
+
+    with (
+        patch.object(
+            integration,
+            "poll_task_status",
+            new=AsyncMock(side_effect=poll_side_effect),
+        ),
+        pytest.raises(IntegrationError, match="status poll timeout"),
+    ):
+        await integration._recover_pending_task(mock, dry_run=False)
+
+    assert "pending_task" in state_data
+
+
+@pytest.mark.asyncio
+async def test_recover_pending_task_clears_when_older_than_max_age() -> None:
+    integration = make_integration()
+    state_data: dict[str, Any] = {"pending_task": _stale_pending_task()}
+    mock = _mock_state(state_data)
+    poll = AsyncMock()
+
+    with patch.object(integration, "poll_task_status", new=poll):
+        await integration._recover_pending_task(mock, dry_run=False)
+
+    assert "pending_task" not in state_data
+    poll.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_recover_pending_task_nonblocking_probe_skips_blocking_poll_when_done() -> (
+    None
+):
+    integration = make_integration()
+    state_data: dict[str, Any] = {"pending_task": _recent_pending_task()}
+    mock = _mock_state(state_data)
+    calls: list[int] = []
+
+    async def poll_side_effect(
+        *_args: object, timeout: int = 300, **_kwargs: object
+    ) -> LdapGroupsTaskResult:
+        calls.append(timeout)
+        if timeout == 0:
+            return _task_result(updated_managed_groups=["recovered"])
+        raise AssertionError("blocking poll should not run when task already finished")
+
+    with patch.object(
+        integration,
+        "poll_task_status",
+        new=AsyncMock(side_effect=poll_side_effect),
+    ):
+        await integration._recover_pending_task(mock, dry_run=False)
+
+    assert calls == [0]
+    assert state_data["managed_groups"] == ["recovered"]
+    assert "pending_task" not in state_data
+
+
+@pytest.mark.asyncio
+async def test_recover_pending_task_clears_legacy_pending_without_submitted_at() -> None:
+    integration = make_integration()
+    state_data: dict[str, Any] = {
+        "pending_task": {"id": "task-1", "status_url": "/status/1"},
+    }
+    mock = _mock_state(state_data)
+    poll = AsyncMock()
+
+    with patch.object(integration, "poll_task_status", new=poll):
+        await integration._recover_pending_task(mock, dry_run=False)
+
+    assert "pending_task" not in state_data
+    poll.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -840,7 +966,7 @@ async def test_delayed_completion_desired_removal() -> None:
     integration = make_integration()
     state_data: dict[str, Any] = {
         "managed_groups": [],
-        "pending_task": {"id": "task-1", "status_url": "/status/1"},
+        "pending_task": _recent_pending_task(),
     }
     mock = _mock_state(state_data)
     poll_results = [

@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import TYPE_CHECKING, Any, TypedDict
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from botocore.exceptions import ClientError
 from qontract_api_client.client import ldap_groups as reconcile_ldap_groups
+from qontract_api_client.exceptions import APIException
 from qontract_api_client.schemas import (
     Group as ApiGroup,
 )
@@ -51,11 +53,14 @@ if TYPE_CHECKING:
 
 LEGACY_INTEGRATION = "ldap-groups"
 PENDING_TASK_STATE_KEY = "pending_task"
+# Max age before pending_task is treated as a lost Celery reference (not Celery result_expires).
+PENDING_TASK_MAX_AGE = timedelta(hours=6)
 
 
 class PendingTaskRef(TypedDict):
     id: str
     status_url: str
+    submitted_at: NotRequired[str]
 
 
 class LdapGroupsApiIntegrationParams(PydanticRunParams):
@@ -147,7 +152,62 @@ class LdapGroupsApiIntegration(
         state_obj[PENDING_TASK_STATE_KEY] = PendingTaskRef(
             id=response.id,
             status_url=response.status_url,
+            submitted_at=datetime.now(UTC).isoformat(),
         )
+
+    @staticmethod
+    def _pending_task_stale_reason(pending: PendingTaskRef) -> str | None:
+        raw = pending.get("submitted_at")
+        if not raw:
+            return "missing_submitted_at"
+        submitted = datetime.fromisoformat(raw)
+        if submitted.tzinfo is None:
+            submitted = submitted.replace(tzinfo=UTC)
+        if datetime.now(UTC) - submitted > PENDING_TASK_MAX_AGE:
+            return f"older_than_{PENDING_TASK_MAX_AGE}"
+        return None
+
+    def _clear_lost_pending_task(
+        self, state_obj: State, pending: PendingTaskRef, reason: str
+    ) -> None:
+        try:
+            managed_count = len(state_obj["managed_groups"])
+        except KeyError:
+            managed_count = 0
+        logging.warning(
+            "Clearing lost ldap-groups-api Celery task %s (%s); "
+            "managed_groups bookmark unchanged (%d groups in state)",
+            pending["id"],
+            reason,
+            managed_count,
+        )
+        self._clear_pending_task(state_obj)
+
+    async def _poll_recovery_task_result(
+        self, pending: PendingTaskRef
+    ) -> LdapGroupsTaskResult:
+        """Non-blocking status probe, then blocking poll if still pending."""
+        quick = await self.poll_task_status(
+            status_url=pending["status_url"],
+            result_type=LdapGroupsTaskResult,
+            timeout=0,
+        )
+        if quick.status != TaskStatus.PENDING:
+            return quick
+        try:
+            return await self.poll_task_status(
+                status_url=pending["status_url"],
+                result_type=LdapGroupsTaskResult,
+            )
+        except APIException as exc:
+            if exc.response.status_code != 408:
+                raise
+            if self._pending_task_stale_reason(pending) is not None:
+                raise
+            raise IntegrationError(
+                "ldap-groups-api: previous reconciliation task "
+                f"{pending['id']} did not complete within the status poll timeout"
+            ) from exc
 
     async def _recover_pending_task(self, state_obj: State, dry_run: bool) -> None:
         if dry_run:
@@ -161,14 +221,21 @@ class LdapGroupsApiIntegration(
         except KeyError:
             return
 
+        stale_reason = self._pending_task_stale_reason(pending)
+        if stale_reason:
+            if stale_reason == "missing_submitted_at":
+                logging.warning(
+                    "pending_task %s has no submitted_at; treating as lost",
+                    pending["id"],
+                )
+            self._clear_lost_pending_task(state_obj, pending, stale_reason)
+            return
+
         logging.info(
             "Recovering pending ldap-groups-api task %s from prior run",
             pending["id"],
         )
-        task_result = await self.poll_task_status(
-            status_url=pending["status_url"],
-            result_type=LdapGroupsTaskResult,
-        )
+        task_result = await self._poll_recovery_task_result(pending)
         if task_result.status == TaskStatus.PENDING:
             raise IntegrationError(
                 "ldap-groups-api: previous reconciliation task "
@@ -180,6 +247,10 @@ class LdapGroupsApiIntegration(
                 state_obj, list(task_result.updated_managed_groups)
             )
         self._clear_pending_task(state_obj)
+        if errors_summary := "; ".join(task_result.errors or []):
+            raise IntegrationError(
+                f"ldap-groups-api: {len(task_result.errors)} error(s): {errors_summary}"
+            )
 
     async def _run_reconcile(
         self,

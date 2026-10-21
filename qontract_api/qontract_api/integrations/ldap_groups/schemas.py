@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-from qontract_api.integrations.ldap_groups.domain import Group
+from qontract_utils.internal_groups_api.models import Group
 from qontract_api.internal_groups.domain import InternalGroupsConnectionSecret
 from qontract_api.models import TaskResult, TaskStatus
 

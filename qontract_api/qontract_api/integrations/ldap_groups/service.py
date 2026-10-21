@@ -28,7 +28,7 @@ from qontract_api.models import TaskStatus
 if TYPE_CHECKING:
     from qontract_api.cache import CacheBackend
     from qontract_api.config import Settings
-    from qontract_api.integrations.ldap_groups.domain import Group
+    from qontract_utils.internal_groups_api.models import Group
     from qontract_api.internal_groups.domain import InternalGroupsConnectionSecret
     from qontract_api.internal_groups.internal_groups_workspace_client import (
         InternalGroupsWorkspaceClient,

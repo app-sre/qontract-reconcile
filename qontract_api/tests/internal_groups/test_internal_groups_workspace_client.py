@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, Mock
 
 import pytest
 from qontract_utils.internal_groups_api import Group
+from qontract_utils.internal_groups_api.client import InternalGroupsClient
 from qontract_utils.json_utils import json_dumps, json_loads
 
 from qontract_api.cache.base import CacheBackend
@@ -17,20 +17,14 @@ from qontract_api.internal_groups.internal_groups_workspace_client import (
     InternalGroupsWorkspaceClient,
 )
 
-if TYPE_CHECKING:
-    from qontract_utils.internal_groups_api.api import InternalGroupsApi
-
 ENV_KEY = "test-env-key"
 GROUP_NAME = "team"
 CACHE_KEY = f"internal_groups:{ENV_KEY}:group:{GROUP_NAME}"
 
 
 @pytest.fixture
-def mock_api() -> MagicMock:
-    mock = MagicMock()
-    mock.__enter__ = MagicMock(return_value=mock)
-    mock.__exit__ = MagicMock(return_value=False)
-    return mock
+def mock_layer1() -> MagicMock:
+    return MagicMock(spec=InternalGroupsClient)
 
 
 @pytest.fixture
@@ -51,15 +45,15 @@ def mock_settings() -> Settings:
 
 @pytest.fixture
 def client(
-    mock_api: MagicMock,
+    mock_layer1: MagicMock,
     mock_cache: MagicMock,
     mock_settings: Settings,
 ) -> InternalGroupsWorkspaceClient:
-    def _factory() -> InternalGroupsApi:
-        return mock_api
+    def _factory() -> InternalGroupsClient:
+        return mock_layer1
 
     return InternalGroupsWorkspaceClient(
-        api_factory=_factory,
+        client_factory=_factory,
         cache=mock_cache,
         settings=mock_settings,
         environment_key=ENV_KEY,
@@ -76,19 +70,9 @@ def _group(name: str = GROUP_NAME) -> Group:
     )
 
 
-def _group_payload(name: str = GROUP_NAME) -> dict[str, object]:
-    return {
-        "name": name,
-        "description": "desc",
-        "contactList": "c@example.com",
-        "owners": [],
-        "displayName": "Team",
-    }
-
-
 def test_get_group_cache_hit_skips_api_call(
     client: InternalGroupsWorkspaceClient,
-    mock_api: MagicMock,
+    mock_layer1: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     cached = CachedGroup(group=_group())
@@ -98,16 +82,16 @@ def test_get_group_cache_hit_skips_api_call(
         result = client.get_group(GROUP_NAME)
 
     assert result == cached.group
-    mock_api.group.assert_not_called()
+    mock_layer1.group.assert_not_called()
     mock_cache.lock.assert_not_called()
 
 
 def test_get_group_cache_miss_acquires_lock(
     client: InternalGroupsWorkspaceClient,
-    mock_api: MagicMock,
+    mock_layer1: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
-    mock_api.group.return_value = _group_payload()
+    mock_layer1.group.return_value = _group()
 
     with client:
         client.get_group(GROUP_NAME)
@@ -117,12 +101,12 @@ def test_get_group_cache_miss_acquires_lock(
 
 def test_get_group_cache_miss_stores_result_with_configured_ttl(
     client: InternalGroupsWorkspaceClient,
-    mock_api: MagicMock,
+    mock_layer1: MagicMock,
     mock_cache: MagicMock,
     mock_settings: Settings,
 ) -> None:
-    mock_api.group.return_value = _group_payload()
     fetched = _group()
+    mock_layer1.group.return_value = fetched
 
     with client:
         client.get_group(GROUP_NAME)
@@ -136,7 +120,7 @@ def test_get_group_cache_miss_stores_result_with_configured_ttl(
 
 def test_get_group_double_check_inside_lock(
     client: InternalGroupsWorkspaceClient,
-    mock_api: MagicMock,
+    mock_layer1: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     """Shared-cache hit after lock -> API must not be called."""
@@ -154,7 +138,7 @@ def test_get_group_double_check_inside_lock(
         result = client.get_group(GROUP_NAME)
 
     assert result == cached.group
-    mock_api.group.assert_not_called()
+    mock_layer1.group.assert_not_called()
     mock_cache.set_obj.assert_not_called()
 
 
@@ -198,44 +182,41 @@ def test_get_group_shared_cache_not_stale_after_peer_invalidation(
     cache_a = RedisCacheBackend(redis_mock, memory_max_size=100, memory_ttl=3600)
     cache_b = RedisCacheBackend(redis_mock, memory_max_size=100, memory_ttl=3600)
 
-    api_a = MagicMock()
-    api_a.__enter__ = MagicMock(return_value=api_a)
-    api_a.__exit__ = MagicMock(return_value=False)
-    api_b = MagicMock()
-    api_b.__enter__ = MagicMock(return_value=api_b)
-    api_b.__exit__ = MagicMock(return_value=False)
+    client_a_layer1 = MagicMock(spec=InternalGroupsClient)
+    client_b_layer1 = MagicMock(spec=InternalGroupsClient)
 
     client_a = InternalGroupsWorkspaceClient(
-        api_factory=lambda: api_a,
+        client_factory=lambda: client_a_layer1,
         cache=cache_a,
         settings=mock_settings,
         environment_key=ENV_KEY,
     )
     client_b = InternalGroupsWorkspaceClient(
-        api_factory=lambda: api_b,
+        client_factory=lambda: client_b_layer1,
         cache=cache_b,
         settings=mock_settings,
         environment_key=ENV_KEY,
     )
 
-    stale_payload = _group_payload()
-    fresh_payload = {**_group_payload(), "description": "updated"}
-    api_a.group.return_value = stale_payload
-    api_b.update_group.return_value = fresh_payload
+    stale = _group()
+    fresh = _group()
+    fresh.description = "updated"
+    client_a_layer1.group.return_value = stale
+    client_b_layer1.update_group.return_value = fresh
 
     with client_a:
         first = client_a.get_group(GROUP_NAME)
     assert first is not None
     assert first.description == "desc"
-    assert api_a.group.call_count == 1
+    assert client_a_layer1.group.call_count == 1
 
     with client_b:
         client_b.update_group(_group())
 
-    api_a.group.return_value = fresh_payload
+    client_a_layer1.group.return_value = fresh
     with client_a:
         second = client_a.get_group(GROUP_NAME)
 
     assert second is not None
     assert second.description == "updated"
-    assert api_a.group.call_count == 2
+    assert client_a_layer1.group.call_count == 2

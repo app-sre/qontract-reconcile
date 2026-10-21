@@ -22,7 +22,7 @@ from qontract_api.tasks import celery_app, deduplicated_task
 if TYPE_CHECKING:
     from celery import Task
 
-    from qontract_api.integrations.ldap_groups.domain import Group
+    from qontract_utils.internal_groups_api.models import Group
     from qontract_api.internal_groups.domain import InternalGroupsConnectionSecret
 
 logger = get_logger(__name__)
