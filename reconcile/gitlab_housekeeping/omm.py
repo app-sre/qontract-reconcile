@@ -365,7 +365,7 @@ def _without_skip_ci_bot_pipelines(
             continue
         kept.append(pipeline)
     if dropped:
-        logging.info([
+        logging.debug([
             "omm-group",
             "skip-ci-bot-pipeline-ignored",
             gl.project.name,
