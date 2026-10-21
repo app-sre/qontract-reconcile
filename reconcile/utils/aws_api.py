@@ -401,7 +401,10 @@ class AWSApi:
                 "opensearch",
                 region_name=region_name,
                 config=Config(
-                    use_fips_endpoint=self.use_fips,
+                    use_fips_endpoint=(
+                        self.accounts.get(account_name, {}).get("partition")
+                        == GOVCLOUD_PARTITION
+                    ),
                     connect_timeout=5,
                     read_timeout=5,
                     retries={"total_max_attempts": 1},

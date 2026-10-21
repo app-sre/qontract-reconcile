@@ -169,6 +169,10 @@ def test_get_opensearch_instance_type_limits_uses_bounded_fips_config(
     session = aws_api.sessions["some-account"]
     client = mocker.Mock()
     session_client = mocker.patch.object(session, "client", return_value=client)
+    aws_api.accounts["some-account"] = {
+        **aws_api.accounts["some-account"],
+        "partition": "aws-us-gov",
+    }
     aws_api.use_fips = True
 
     aws_api.get_opensearch_instance_type_limits(
@@ -190,6 +194,60 @@ def test_get_opensearch_instance_type_limits_uses_bounded_fips_config(
     assert ec2_config.connect_timeout == 60
     assert ec2_config.read_timeout == 60
     assert ec2_config.retries is None
+
+
+@pytest.mark.parametrize(
+    "accounts",
+    [
+        [
+            {"name": "gov", "partition": "aws-us-gov"},
+            {"name": "commercial", "partition": "aws"},
+        ],
+        [
+            {"name": "commercial", "partition": "aws"},
+            {"name": "gov", "partition": "aws-us-gov"},
+        ],
+    ],
+)
+def test_opensearch_limits_use_requested_accounts_fips_partition(
+    accounts: list[dict], mocker: MockerFixture
+) -> None:
+    for account in accounts:
+        account.update({
+            "automationToken": {"path": "path"},
+            "resourcesDefaultRegion": "us-east-1",
+        })
+    mock_secret_reader = mocker.patch(
+        "reconcile.utils.aws_api.SecretReader", autospec=True
+    )
+    mock_secret_reader.return_value.read_all.return_value = {
+        "aws_access_key_id": "key_id",
+        "aws_secret_access_key": "access_key",
+    }
+    aws_api = AWSApi(1, accounts)
+
+    for account_name, expected_fips in (("gov", True), ("commercial", False)):
+        session = aws_api.sessions[account_name]
+        client = mocker.Mock()
+        session_client = mocker.patch.object(session, "client", return_value=client)
+
+        aws_api.get_opensearch_instance_type_limits(
+            account_name, "us-east-1", "OpenSearch_2.15", "m5.large.search"
+        )
+
+        open_search_config = session_client.call_args.kwargs["config"]
+        assert open_search_config.use_fips_endpoint is expected_fips
+        assert open_search_config.connect_timeout == 5
+        assert open_search_config.read_timeout == 5
+        assert open_search_config.retries == {"total_max_attempts": 1}
+
+        aws_api.get_session_client(session, "ec2")
+        ec2_config = session_client.call_args.kwargs["config"]
+        assert ec2_config.use_fips_endpoint is (
+            accounts[-1]["partition"] == "aws-us-gov"
+        )
+        assert ec2_config.connect_timeout == 60
+        assert ec2_config.retries is None
 
 
 def test_get_opensearch_instance_type_limits_fails_open(
