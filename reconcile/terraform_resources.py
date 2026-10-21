@@ -290,6 +290,7 @@ def setup(
         account_names,
         provider_exclusions,
     )
+    ts.warn_elasticsearch_ebs_limits(aws_api)
     tf.populate_terraform_output_secrets(
         resource_specs=ts.resource_spec_inventory, init_rds_replica_source=True
     )

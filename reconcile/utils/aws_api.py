@@ -16,6 +16,7 @@ from typing import (
 
 from boto3 import Session
 from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError
 from pydantic import BaseModel
 from sretoolbox.utils import threaded
 
@@ -57,6 +58,11 @@ if TYPE_CHECKING:
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
     from mypy_boto3_logs import CloudWatchLogsClient
     from mypy_boto3_logs.type_defs import LogGroupTypeDef
+    from mypy_boto3_opensearch import OpenSearchServiceClient
+    from mypy_boto3_opensearch.literals import OpenSearchPartitionInstanceTypeType
+    from mypy_boto3_opensearch.type_defs import (
+        DescribeInstanceTypeLimitsResponseTypeDef,
+    )
     from mypy_boto3_organizations import OrganizationsClient
     from mypy_boto3_rds import RDSClient
     from mypy_boto3_rds.type_defs import (
@@ -104,6 +110,7 @@ SERVICE_NAME = Literal[
     "iam",
     "logs",
     "organizations",
+    "opensearch",
     "rds",
     "route53",
     "s3",
@@ -155,6 +162,9 @@ class AWSApi:
         self.get_account_amis = lru_cache()(self.get_account_amis)  # type: ignore[method-assign]
         self.get_account_vpcs = lru_cache()(self.get_account_vpcs)  # type: ignore[method-assign]
         self.get_session_client = lru_cache()(self.get_session_client)  # type: ignore[method-assign, assignment]
+        self.get_opensearch_instance_type_limits = lru_cache()(  # type: ignore[method-assign]
+            self.get_opensearch_instance_type_limits
+        )
         self.get_transit_gateway_vpc_attachments = lru_cache()(  # type: ignore[method-assign]
             self.get_transit_gateway_vpc_attachments
         )
@@ -231,6 +241,14 @@ class AWSApi:
         service_name: Literal["route53"],
         region_name: str | None = None,
     ) -> Route53Client: ...
+
+    @overload
+    def get_session_client(
+        self,
+        session: Session,
+        service_name: Literal["opensearch"],
+        region_name: str | None = None,
+    ) -> OpenSearchServiceClient: ...
 
     @overload
     def get_session_client(
@@ -334,6 +352,7 @@ class AWSApi:
         | ElasticLoadBalancingClient
         | IAMClient
         | OrganizationsClient
+        | OpenSearchServiceClient
         | RDSClient
         | Route53Client
         | S3Client
@@ -349,6 +368,45 @@ class AWSApi:
         )
         self._session_clients.append(client)
         return client
+
+    def get_opensearch_instance_type_limits(
+        self,
+        account_name: str,
+        region_name: str,
+        engine_version: str,
+        instance_type: str,
+    ) -> DescribeInstanceTypeLimitsResponseTypeDef | None:
+        """Fetch OpenSearch limits when IAM/network access permits.
+
+        This best-effort check needs ``es:DescribeInstanceTypeLimits``. Errors
+        return no limit so callers can skip validation without blocking Terraform.
+        AWS API reference: https://docs.aws.amazon.com/opensearch-service/latest/APIReference/API_DescribeInstanceTypeLimits.html
+        """
+        try:
+            client = self.get_session_client(
+                self.get_session(account_name), "opensearch", region_name
+            )
+            return client.describe_instance_type_limits(
+                EngineVersion=engine_version,
+                InstanceType=cast("OpenSearchPartitionInstanceTypeType", instance_type),
+            )
+        except (BotoCoreError, ClientError) as error:
+            error_code = (
+                error.response.get("Error", {}).get("Code", "UnknownError")
+                if isinstance(error, ClientError)
+                else type(error).__name__
+            )
+            logging.info(
+                "Skipping OpenSearch instance limit lookup for account %s, region "
+                "%s, engine %s, instance %s: %s. Grant es:DescribeInstanceTypeLimits "
+                "and allow access to the regional OpenSearch endpoint to enable it.",
+                account_name,
+                region_name,
+                engine_version,
+                instance_type,
+                error_code,
+            )
+            return None
 
     @overload
     @staticmethod
@@ -818,6 +876,15 @@ class AWSApi:
         account_name: str,
         assume_role: str | None,
         assume_region: str,
+        client_type: Literal["opensearch"],
+    ) -> OpenSearchServiceClient: ...
+
+    @overload
+    def _get_assumed_role_client(
+        self,
+        account_name: str,
+        assume_role: str | None,
+        assume_region: str,
         client_type: Literal["rds"],
     ) -> RDSClient: ...
 
@@ -890,6 +957,7 @@ class AWSApi:
         | ElasticLoadBalancingClient
         | IAMClient
         | OrganizationsClient
+        | OpenSearchServiceClient
         | RDSClient
         | Route53Client
         | S3Client
