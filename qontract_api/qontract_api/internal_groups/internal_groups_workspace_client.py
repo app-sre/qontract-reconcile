@@ -6,7 +6,8 @@ import contextlib
 from typing import TYPE_CHECKING, Self
 
 from pydantic import BaseModel
-from qontract_utils.internal_groups_api import Group, InternalGroupsApi, NotFoundError
+from qontract_utils.internal_groups_api import Group, NotFoundError
+from qontract_utils.internal_groups_api.client import InternalGroupsClient
 
 from qontract_api.logger import get_logger
 
@@ -30,33 +31,30 @@ class InternalGroupsWorkspaceClient:
 
     def __init__(
         self,
-        api_factory: Callable[[], InternalGroupsApi],
+        client_factory: Callable[[], InternalGroupsClient],
         cache: CacheBackend,
         settings: Settings,
         environment_key: str,
     ) -> None:
-        self._api_factory = api_factory
-        self._raw_api: InternalGroupsApi | None = None
+        self._client_factory = client_factory
+        self._client: InternalGroupsClient | None = None
         self.cache = cache
         self.settings = settings
         self.environment_key = environment_key
 
-    @property
-    def api(self) -> InternalGroupsApi:
-        if self._raw_api is None:
-            raise RuntimeError("InternalGroupsWorkspaceClient is not entered")
-        return self._raw_api
-
     def __enter__(self) -> Self:
-        self._raw_api = self._api_factory()
-        self._raw_api.__enter__()
+        self._client = self._client_factory()
         return self
 
     def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
-        if self._raw_api is not None:
-            self._raw_api.__exit__(exc_type, exc_value, traceback)
-            self._raw_api.close()
-            self._raw_api = None
+        if self._client is not None:
+            self._client.close()
+            self._client = None
+
+    def _require_client(self) -> InternalGroupsClient:
+        if self._client is None:
+            raise RuntimeError("InternalGroupsWorkspaceClient is not entered")
+        return self._client
 
     def _cache_key(self, group_name: str) -> str:
         return f"internal_groups:{self.environment_key}:group:{group_name}"
@@ -87,8 +85,9 @@ class InternalGroupsWorkspaceClient:
         """Fetch group from API and populate cache (call only while holding the lock)."""
         if cached := self._get_group_from_shared_cache(key):
             return cached
+        client = self._require_client()
         try:
-            group = Group(**self.api.group(name))
+            group = client.group(name)
         except NotFoundError:
             return None
         self.cache.set_obj(
@@ -111,23 +110,21 @@ class InternalGroupsWorkspaceClient:
             logger.warning(f"Could not acquire lock for {key}: {err}")
             # Lock unavailable: still serve API data, skip cache write.
             try:
-                return Group(**self.api.group(name))
+                return self._require_client().group(name)
             except NotFoundError:
                 return None
 
     def create_group(self, group: Group) -> Group:
-        created = Group(**self.api.create_group(group.model_dump(by_alias=True)))
+        created = self._require_client().create_group(group)
         self._invalidate(group.name)
         return created
 
     def update_group(self, group: Group) -> Group:
-        updated = Group(
-            **self.api.update_group(group.name, group.model_dump(by_alias=True))
-        )
+        updated = self._require_client().update_group(group)
         self._invalidate(group.name)
         return updated
 
     def delete_group(self, name: str) -> None:
         with contextlib.suppress(NotFoundError):
-            self.api.delete_group(name)
+            self._require_client().delete_group(name)
         self._invalidate(name)

@@ -187,6 +187,12 @@ def get_celery_task_result[T: TaskResult](
                 task_id=task_id,
                 celery_state=async_result.state,
             )
+            if async_result.state == states.PENDING:
+                logger.info(
+                    "Celery task %s is PENDING in the result backend "
+                    "(may be in-flight or unknown/expired id)",
+                    task_id=task_id,
+                )
             return result_cls(
                 status=TaskStatus.PENDING,
                 actions=[],
