@@ -2617,14 +2617,6 @@ def gitlab_members(ctx: click.Context) -> None:
     run_integration(reconcile.gitlab_members, ctx)
 
 
-@integration.command(short_help="Create GitLab projects.")
-@click.pass_context
-def gitlab_projects(ctx: click.Context) -> None:
-    import reconcile.gitlab_projects
-
-    run_integration(reconcile.gitlab_projects, ctx)
-
-
 @integration.command(short_help="Create GitLab projects via qontract-api.")
 @click.option(
     "--instance-name", help="Reconcile just this GitLab instance.", default=None
@@ -2636,12 +2628,12 @@ def gitlab_projects(ctx: click.Context) -> None:
     help="Reconcile just this project i.e.: --project-name foo --project-name bar",
 )
 @click.pass_context
-def gitlab_projects_api(
+def gitlab_projects(
     ctx: click.Context,
     instance_name: str | None,
     project_name: Iterable[str] | None,
 ) -> None:
-    from reconcile.gitlab_projects_api import (
+    from reconcile.gitlab_projects import (
         GitLabProjectsIntegration,
         GitlabProjectsIntegrationParams,
     )

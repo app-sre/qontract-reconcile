@@ -1,4 +1,4 @@
-"""Tests for the gitlab-projects-api client-side integration."""
+"""Tests for the gitlab-projects client-side integration."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from qontract_api_client.schemas import (
 )
 from qontract_utils.exceptions import IntegrationError
 
-from reconcile.gitlab_projects_api import (
+from reconcile.gitlab_projects import (
     GitLabProjectsIntegration,
     GitlabProjectsIntegrationParams,
 )
@@ -291,7 +291,7 @@ async def test_reconcile_sends_request_and_returns_response() -> None:
     )
 
     with patch(
-        "reconcile.gitlab_projects_api.gitlab_projects_reconcile",
+        "reconcile.gitlab_projects.gitlab_projects_reconcile",
         new_callable=AsyncMock,
         return_value=fake_response,
     ) as mock_reconcile:
@@ -314,11 +314,11 @@ async def test_async_run_no_desired_state_exits_early() -> None:
     integration = _make_integration()
 
     with (
-        patch("reconcile.gitlab_projects_api.gql") as mock_gql,
+        patch("reconcile.gitlab_projects.gql") as mock_gql,
         patch.object(integration, "get_gitlab_instances", return_value=[]),
         patch.object(integration, "get_code_components", return_value=[]),
         patch(
-            "reconcile.gitlab_projects_api.gitlab_projects_reconcile",
+            "reconcile.gitlab_projects.gitlab_projects_reconcile",
             new_callable=AsyncMock,
         ) as mock_reconcile,
     ):
@@ -349,11 +349,11 @@ async def test_async_run_dry_run_polls_and_logs_actions() -> None:
     )
 
     with (
-        patch("reconcile.gitlab_projects_api.gql") as mock_gql,
+        patch("reconcile.gitlab_projects.gql") as mock_gql,
         patch.object(integration, "get_gitlab_instances", return_value=[instance]),
         patch.object(integration, "get_code_components", return_value=code_components),
         patch(
-            "reconcile.gitlab_projects_api.gitlab_projects_reconcile",
+            "reconcile.gitlab_projects.gitlab_projects_reconcile",
             new_callable=AsyncMock,
             return_value=fake_response,
         ) as mock_reconcile,
@@ -390,11 +390,11 @@ async def test_async_run_non_dry_run_does_not_poll() -> None:
     )
 
     with (
-        patch("reconcile.gitlab_projects_api.gql") as mock_gql,
+        patch("reconcile.gitlab_projects.gql") as mock_gql,
         patch.object(integration, "get_gitlab_instances", return_value=[instance]),
         patch.object(integration, "get_code_components", return_value=code_components),
         patch(
-            "reconcile.gitlab_projects_api.gitlab_projects_reconcile",
+            "reconcile.gitlab_projects.gitlab_projects_reconcile",
             new_callable=AsyncMock,
             return_value=fake_response,
         ),
@@ -431,11 +431,11 @@ async def test_async_run_raises_on_task_result_errors() -> None:
     )
 
     with (
-        patch("reconcile.gitlab_projects_api.gql") as mock_gql,
+        patch("reconcile.gitlab_projects.gql") as mock_gql,
         patch.object(integration, "get_gitlab_instances", return_value=[instance]),
         patch.object(integration, "get_code_components", return_value=code_components),
         patch(
-            "reconcile.gitlab_projects_api.gitlab_projects_reconcile",
+            "reconcile.gitlab_projects.gitlab_projects_reconcile",
             new_callable=AsyncMock,
             return_value=fake_response,
         ),
@@ -466,11 +466,11 @@ async def test_async_run_raises_on_pending_timeout() -> None:
     fake_result = GitlabProjectsTaskResult(status=TaskStatus.PENDING)
 
     with (
-        patch("reconcile.gitlab_projects_api.gql") as mock_gql,
+        patch("reconcile.gitlab_projects.gql") as mock_gql,
         patch.object(integration, "get_gitlab_instances", return_value=[instance]),
         patch.object(integration, "get_code_components", return_value=code_components),
         patch(
-            "reconcile.gitlab_projects_api.gitlab_projects_reconcile",
+            "reconcile.gitlab_projects.gitlab_projects_reconcile",
             new_callable=AsyncMock,
             return_value=fake_response,
         ),

@@ -280,10 +280,6 @@ GITLAB_INSTANCES_QUERY = """
       format
     }
     managedGroups
-    projectRequests {
-      group
-      projects
-    }
     sslVerify
   }
 }
