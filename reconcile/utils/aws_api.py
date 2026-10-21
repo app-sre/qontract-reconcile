@@ -384,8 +384,19 @@ class AWSApi:
         read timeouts so it cannot inherit the default 60-second API timeout.
         AWS API reference: https://docs.aws.amazon.com/opensearch-service/latest/APIReference/API_DescribeInstanceTypeLimits.html
         """
+        session = self.sessions.get(account_name)
+        if session is None:
+            logging.info(
+                "Skipping OpenSearch instance limit lookup for account %s, region "
+                "%s, engine %s, instance %s: no AWS session is available.",
+                account_name,
+                region_name,
+                engine_version,
+                instance_type,
+            )
+            return None
+
         try:
-            session = self.get_session(account_name)
             client = session.client(
                 "opensearch",
                 region_name=region_name,
