@@ -162,6 +162,67 @@ class TestGetObjRootOwner(TestCase):
         oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         result_owner_obj = oc.get_obj_root_owner("namespace", obj)
         self.assertEqual(result_owner_obj, owner_obj)
+        oc_get.assert_called_once_with(
+            "namespace", "ownerkind", "ownername", allow_not_found=False
+        )
+
+    @patch.object(OCCli, "get")
+    def test_owner_kind_is_qualified_with_api_version_group(
+        self, oc_get: MagicMock
+    ) -> None:
+        obj = {
+            "metadata": {
+                "name": "collector",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "observability.openshift.io/v1",
+                        "controller": True,
+                        "kind": "ClusterLogForwarder",
+                        "name": "instance",
+                    }
+                ],
+            }
+        }
+        owner_obj = {
+            "kind": "ClusterLogForwarder",
+            "metadata": {"name": "instance"},
+        }
+        oc_get.return_value = owner_obj
+
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
+        result_owner_obj = oc.get_obj_root_owner("namespace", obj)
+        self.assertEqual(result_owner_obj, owner_obj)
+        oc_get.assert_called_once_with(
+            "namespace",
+            "ClusterLogForwarder.observability.openshift.io",
+            "instance",
+            allow_not_found=False,
+        )
+
+    @patch.object(OCCli, "get")
+    def test_owner_core_kind_is_preserved(self, oc_get: MagicMock) -> None:
+        obj = {
+            "metadata": {
+                "name": "pod1",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "v1",
+                        "controller": True,
+                        "kind": "Pod",
+                        "name": "ownername",
+                    }
+                ],
+            }
+        }
+        owner_obj = {"kind": "Pod", "metadata": {"name": "ownername"}}
+        oc_get.return_value = owner_obj
+
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
+        result_owner_obj = oc.get_obj_root_owner("namespace", obj)
+        self.assertEqual(result_owner_obj, owner_obj)
+        oc_get.assert_called_once_with(
+            "namespace", "Pod", "ownername", allow_not_found=False
+        )
 
     def test_no_owner(self) -> None:
         obj = {
