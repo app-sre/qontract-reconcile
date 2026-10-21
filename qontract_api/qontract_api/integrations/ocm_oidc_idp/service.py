@@ -9,7 +9,11 @@ from typing import TYPE_CHECKING
 
 import pydantic
 from qontract_utils.differ import DiffPair, diff_iterables
-from qontract_utils.ocm_api import OcmIdentityProvider, OcmIdentityProviderOidc
+from qontract_utils.ocm_api import (
+    OcmIdentityProvider,
+    OcmIdentityProviderOidc,
+    OcmUserRoleNotLinkedError,
+)
 from qontract_utils.ocm_api.models import (
     OcmIdentityProviderOidcOpenId,
     OcmIdentityProviderOidcOpenIdClaims,
@@ -106,6 +110,26 @@ class OcmOidcIdpService:
         self.cache = cache
         self.secret_manager = secret_manager
         self.settings = settings
+
+    @staticmethod
+    def _blocked_cache_key(ocm_environment: str, cluster_id: str) -> str:
+        return f"ocm:oidc-idp:blocked:{ocm_environment}:{cluster_id}"
+
+    def _is_cluster_blocked(self, ocm_environment: str, cluster_id: str) -> bool:
+        """Whether this cluster was blocked by a prior UserRoleIsNotLinkedToAccount 400.
+
+        Expires with the cluster cache TTL - after that, the cluster is retried
+        automatically, re-blocked if still broken or reconciled normally if the
+        tenant fixed their STS user_role linkage in the meantime.
+        """
+        return self.cache.exists(self._blocked_cache_key(ocm_environment, cluster_id))
+
+    def _block_cluster(self, ocm_environment: str, cluster_id: str) -> None:
+        self.cache.set(
+            self._blocked_cache_key(ocm_environment, cluster_id),
+            "1",
+            self.settings.ocm.clusters_cache_ttl,
+        )
 
     @staticmethod
     def _expose_cluster_metrics(
@@ -259,7 +283,14 @@ class OcmOidcIdpService:
         delete_states: Iterable[_IdpState],
         *,
         dry_run: bool,
-    ) -> tuple[list[OcmOidcIdpAction], list[OcmOidcIdpAction], list[str]]:
+    ) -> tuple[list[OcmOidcIdpAction], list[OcmOidcIdpAction], list[str], list[str]]:
+        """Returns (actions, applied, errors, blocked_cluster_ids).
+
+        blocked_cluster_ids is always empty here: deleting an identity provider
+        never requires a linked STS user role, unlike create/update (see
+        _process_adds/_process_changes) - this 4th element only exists so reconcile()
+        can iterate all three _process_* results uniformly.
+        """
         actions: list[OcmOidcIdpAction] = []
         applied: list[OcmOidcIdpAction] = []
         errors: list[str] = []
@@ -300,7 +331,7 @@ class OcmOidcIdpService:
                 logger.exception(error_msg)
                 errors.append(error_msg)
 
-        return actions, applied, errors
+        return actions, applied, errors, []
 
     @staticmethod
     def _process_adds(
@@ -308,10 +339,19 @@ class OcmOidcIdpService:
         add_states: Iterable[_IdpState],
         *,
         dry_run: bool,
-    ) -> tuple[list[OcmOidcIdpAction], list[OcmOidcIdpAction], list[str]]:
+    ) -> tuple[list[OcmOidcIdpAction], list[OcmOidcIdpAction], list[str], list[str]]:
+        """Returns (actions, applied, errors, blocked_cluster_ids).
+
+        A cluster whose STS user_role isn't linked to its account (APPSRE-15204) is
+        tenant-side and not actionable by AppSRE - it is reported via
+        blocked_cluster_ids (for reconcile() to cache-block, see
+        OcmOidcIdpService._block_cluster), never via errors, so it does not fail the
+        run and is not retried every reconcile.
+        """
         actions: list[OcmOidcIdpAction] = []
         applied: list[OcmOidcIdpAction] = []
         errors: list[str] = []
+        blocked_cluster_ids: list[str] = []
 
         for idp_state in add_states:
             if not isinstance(idp_state.idp, OcmIdentityProviderOidc):
@@ -332,6 +372,12 @@ class OcmOidcIdpService:
                     idp_state.cluster.cluster_id, idp_state.idp
                 )
                 applied.append(action)
+            except OcmUserRoleNotLinkedError as e:
+                logger.warning(
+                    f"{idp_state.cluster.name}: skipped - STS user_role not linked "
+                    f"to account, blocking cluster until cache expiry: {e.reason}"
+                )
+                blocked_cluster_ids.append(idp_state.cluster.cluster_id)
             except Exception as e:
                 error_msg = (
                     f"{idp_state.cluster.name}: failed to create identity provider "
@@ -340,7 +386,7 @@ class OcmOidcIdpService:
                 logger.exception(error_msg)
                 errors.append(error_msg)
 
-        return actions, applied, errors
+        return actions, applied, errors, blocked_cluster_ids
 
     @staticmethod
     def _process_changes(
@@ -348,10 +394,12 @@ class OcmOidcIdpService:
         change_pairs: Iterable[DiffPair[_IdpState, _IdpState]],
         *,
         dry_run: bool,
-    ) -> tuple[list[OcmOidcIdpAction], list[OcmOidcIdpAction], list[str]]:
+    ) -> tuple[list[OcmOidcIdpAction], list[OcmOidcIdpAction], list[str], list[str]]:
+        """Returns (actions, applied, errors, blocked_cluster_ids) - see _process_adds."""
         actions: list[OcmOidcIdpAction] = []
         applied: list[OcmOidcIdpAction] = []
         errors: list[str] = []
+        blocked_cluster_ids: list[str] = []
 
         for diff_pair in change_pairs:
             current_idp = diff_pair.current.idp
@@ -382,6 +430,12 @@ class OcmOidcIdpService:
                     cluster.cluster_id, current_idp.id, desired_idp
                 )
                 applied.append(action)
+            except OcmUserRoleNotLinkedError as e:
+                logger.warning(
+                    f"{cluster.name}: skipped - STS user_role not linked to "
+                    f"account, blocking cluster until cache expiry: {e.reason}"
+                )
+                blocked_cluster_ids.append(cluster.cluster_id)
             except Exception as e:
                 error_msg = (
                     f"{cluster.name}: failed to update identity provider "
@@ -390,7 +444,7 @@ class OcmOidcIdpService:
                 logger.exception(error_msg)
                 errors.append(error_msg)
 
-        return actions, applied, errors
+        return actions, applied, errors, blocked_cluster_ids
 
     @staticmethod
     def _diff_key(state: _IdpState) -> tuple[str, str, str, str]:
@@ -412,8 +466,27 @@ class OcmOidcIdpService:
     ) -> OcmOidcIdpTaskResult:
         """Reconcile OCM OIDC identity providers for one OCM environment."""
         self._expose_cluster_metrics(ocm_environment, clusters)
+
+        # Clusters blocked by a prior UserRoleIsNotLinkedToAccount 400 (APPSRE-15204)
+        # are excluded from this run entirely - no OCM or Vault calls for them - until
+        # the block expires (see _is_cluster_blocked), so a tenant-side STS
+        # misconfiguration doesn't hammer OCM with the same failing request forever.
+        active_clusters: list[OcmOidcIdpCluster] = []
+        blocked_clusters: list[OcmOidcIdpCluster] = []
+        for cluster in clusters:
+            if self._is_cluster_blocked(ocm_environment, cluster.cluster_id):
+                blocked_clusters.append(cluster)
+            else:
+                active_clusters.append(cluster)
+        if blocked_clusters:
+            logger.info(
+                f"Skipping {len(blocked_clusters)} cluster(s) blocked due to "
+                f"unlinked STS user_role (will retry after cache expiry): "
+                f"{sorted(cluster.name for cluster in blocked_clusters)}"
+            )
+
         desired_state, unresolved_keys, errors = self._fetch_desired_state(
-            clusters, vault_target
+            active_clusters, vault_target
         )
 
         actions: list[OcmOidcIdpAction] = []
@@ -426,7 +499,7 @@ class OcmOidcIdpService:
         ) as workspace_client:
             current_state = self._fetch_current_state(
                 workspace_client,
-                clusters,
+                active_clusters,
                 max_workers=self.settings.ocm.identity_providers_fetch_concurrency,
             )
             # A cluster whose desired state couldn't be resolved must never look
@@ -444,7 +517,12 @@ class OcmOidcIdpService:
                 current_state, desired_state, key=self._diff_key, equal=operator.eq
             )
 
-            for category_actions, category_applied, category_errors in (
+            for (
+                category_actions,
+                category_applied,
+                category_errors,
+                category_blocked,
+            ) in (
                 self._process_deletes(
                     workspace_client, diff_result.delete.values(), dry_run=dry_run
                 ),
@@ -458,6 +536,8 @@ class OcmOidcIdpService:
                 actions.extend(category_actions)
                 applied_actions.extend(category_applied)
                 errors.extend(category_errors)
+                for cluster_id in category_blocked:
+                    self._block_cluster(ocm_environment, cluster_id)
 
         if errors:
             rhidp_ocm_oidc_idp_reconcile_errors.labels(

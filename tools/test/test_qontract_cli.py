@@ -12,6 +12,7 @@ from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheSta
 from reconcile.utils.mr.labels import (
     HOLD,
     LGTM,
+    PENDING_SELF_SERVICE_APPROVAL,
     PIPELINE_ERROR,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
@@ -710,6 +711,43 @@ def test_review_queue_includes_bot_authored_self_serviceable_mr_with_pipeline_er
     )
     assert result.exit_code == 0
     assert "MR 7" in result.output
+
+
+def test_review_queue_excludes_pending_self_service_approval_mr_without_error(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(14, [PENDING_SELF_SERVICE_APPROVAL])
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 14" not in result.output
+
+
+def test_review_queue_includes_pending_self_service_approval_mr_with_pipeline_error(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(15, [LGTM, PIPELINE_ERROR, PENDING_SELF_SERVICE_APPROVAL])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.FAILED)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 15" in result.output
 
 
 def test_rds_command_columns_replace_storage_type(mocker: MockerFixture) -> None:

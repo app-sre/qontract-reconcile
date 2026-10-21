@@ -339,9 +339,6 @@ class GitLabApi:
     def get_group(self, group_name: str) -> Group:
         return self.gl.groups.get(group_name)
 
-    def create_project(self, group_id: str, project: str) -> None:
-        self.gl.projects.create({"name": project, "namespace_id": group_id})
-
     def get_project_url(self, group: str, project: str) -> str:
         return f"{self.server}/{group}/{project}"
 
@@ -700,20 +697,6 @@ class GitLabApi:
             )
         except GitlabGetError:
             return None
-
-    def initiate_saas_bundle_repo(self, repo_url: str) -> None:
-        project = self.get_project(repo_url)
-        if project is None:
-            return
-        self.project = project
-        self.create_file(
-            "master",
-            "README.md",
-            "Initial commit",
-            "Use the staging or the production branches.",
-        )
-        self.create_branch("staging", "master")
-        self.create_branch("production", "master")
 
     def is_last_action_by_team(
         self, mr: ProjectMergeRequest, team_usernames: set[str], hold_labels: list[str]

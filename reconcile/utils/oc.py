@@ -50,6 +50,7 @@ from reconcile.status import RunningState
 from reconcile.utils.json import json_dumps
 from reconcile.utils.metrics import oc_get_items_duration, reconcile_time
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import fully_qualified_kind
 from reconcile.utils.secret_reader import (
     SecretNotFoundError,
     SecretReader,
@@ -1031,8 +1032,9 @@ class OCCli:
         refs = obj["metadata"].get("ownerReferences", [])
         for r in refs:
             if r.get("controller") or allow_not_controller:
+                kind = fully_qualified_kind(r["kind"], r.get("apiVersion", ""))
                 controller_obj = self.get(
-                    ns, r["kind"], r["name"], allow_not_found=allow_not_found
+                    ns, kind, r["name"], allow_not_found=allow_not_found
                 )
                 if controller_obj:
                     return self.get_obj_root_owner(

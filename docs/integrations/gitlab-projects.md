@@ -1,10 +1,10 @@
 # GitLab Projects Integration
 
-**Last Updated:** 2026-09-28
+**Last Updated:** 2026-10-19
 
 ## Description
 
-The `gitlab-projects-api` integration creates GitLab projects declared in App-Interface under configured GitLab instances/groups.
+The `gitlab-projects` integration creates GitLab projects declared in App-Interface under configured GitLab instances/groups.
 
 Every requested project is cross-validated against App-Interface `codeComponents`.
 
@@ -51,7 +51,7 @@ codeComponents:
 
 ## Architecture
 
-**Client-Side (`reconcile/gitlab_projects_api.py`):**
+**Client-Side (`reconcile/gitlab_projects.py`):**
 
 - Queries `gitlabinstance_v1` and `apps_v1.codeComponents` from App-Interface using qenerate-generated types
 - Optionally narrows instances/projects to `--instance-name`/`--project-name` filters for targeted debug runs
@@ -219,9 +219,9 @@ projectRequests:
 
 ## Client Integration
 
-**File:** `reconcile/gitlab_projects_api.py`
+**File:** `reconcile/gitlab_projects.py`
 
-**CLI Command:** `qontract-reconcile gitlab-projects-api`
+**CLI Command:** `qontract-reconcile gitlab-projects`
 
 **Arguments and Options:**
 
@@ -237,7 +237,7 @@ projectRequests:
 
 **Missing codeComponent**
 
-- **Symptom:** `IntegrationError: gitlab-projects-api: N project(s) missing from codeComponents: <url>, ...`
+- **Symptom:** `IntegrationError: gitlab-projects: N project(s) missing from codeComponents: <url>, ...`
 - **Cause:** A `projectRequests` entry declares a project with no matching `codeComponents` entry (or the URL doesn't exactly match, e.g. a trailing slash mismatch)
 - **Solution:** Add the missing codeComponent to the owning app in App-Interface, or remove the project from `projectRequests`
 
@@ -249,7 +249,7 @@ projectRequests:
 
 **Task timeout in dry-run**
 
-- **Symptom:** `IntegrationError: gitlab-projects-api: task did not complete within the timeout period`
+- **Symptom:** `IntegrationError: gitlab-projects: task did not complete within the timeout period`
 - **Cause:** Worker is overloaded or Celery task queue is backed up
 - **Solution:** Check worker health and Celery queue depth; retry the run
 
@@ -258,7 +258,7 @@ projectRequests:
 **Code:**
 
 - Server: [qontract_api/qontract_api/integrations/gitlab_projects/](../../qontract_api/qontract_api/integrations/gitlab_projects/)
-- Client: [reconcile/gitlab_projects_api.py](../../reconcile/gitlab_projects_api.py)
+- Client: [reconcile/gitlab_projects.py](../../reconcile/gitlab_projects.py)
 - Layer 1 (administration): [qontract_utils/qontract_utils/gitlab_api/](../../qontract_utils/qontract_utils/gitlab_api/)
 
 **External:**
