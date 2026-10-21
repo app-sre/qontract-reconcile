@@ -24,6 +24,7 @@ Example:
 """
 
 from qontract_utils.ocm_api.client import TIMEOUT, OcmApi, OcmApiCallContext
+from qontract_utils.ocm_api.exceptions import OcmUserRoleNotLinkedError
 from qontract_utils.ocm_api.models import (
     OcmCluster,
     OcmClusterGroup,
@@ -67,6 +68,7 @@ __all__ = [
     "OcmOrganizationLabel",
     "OcmSubscription",
     "OcmSubscriptionLabel",
+    "OcmUserRoleNotLinkedError",
     "build_subscription_filter",
     "cluster_ready_for_app_interface",
     "organization_label_filter",
