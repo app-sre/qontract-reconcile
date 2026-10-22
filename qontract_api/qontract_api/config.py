@@ -60,6 +60,19 @@ class OPASettings(BaseModel):
     )
 
 
+def _default_slack_api_method_configs() -> dict[str, dict[str, Any]]:
+    return {
+        "users.list": {"limit": 1000},
+        # Public channels plus private channels this bot token is a member
+        # of. Private channels the bot is not a member of remain invisible
+        # -- there is no API to enumerate those.
+        "conversations.list": {
+            "limit": 1000,
+            "types": "public_channel,private_channel",
+        },
+    }
+
+
 class SlackSettings(BaseModel):
     """Slack API and integration configuration."""
 
@@ -78,10 +91,7 @@ class SlackSettings(BaseModel):
         description="Slack API max retries for failed requests including rate limiting",
     )
     api_method_configs: dict[str, dict[str, Any]] = Field(
-        default_factory=lambda: {
-            "users.list": {"limit": 1000},
-            "conversations.list": {"limit": 1000},
-        },
+        default_factory=_default_slack_api_method_configs,
         description="Slack API method-specific configurations",
     )
 

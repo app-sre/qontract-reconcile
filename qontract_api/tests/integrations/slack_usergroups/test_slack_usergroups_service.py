@@ -18,7 +18,10 @@ from qontract_api.slack.domain import (
     SlackUsergroupConfig,
     SlackWorkspace,
 )
-from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
+from qontract_api.slack.slack_workspace_client import (
+    HandleAlreadyExistsError,
+    SlackWorkspaceClient,
+)
 
 
 @pytest.fixture
@@ -616,6 +619,159 @@ def test_reconcile_error_in_action_execution(
     assert result.errors is not None
     assert len(result.errors) == 1
     assert "Slack API error" in result.errors[0]
+
+
+# Handle uniqueness validation (APPSRE-15361)
+
+
+def _workspace_with_new_handle(token: Secret) -> SlackWorkspace:
+    return SlackWorkspace(
+        name="test-workspace",
+        managed_usergroups=["team-rosa-trust-engineering"],
+        usergroups=[
+            SlackUsergroup(
+                handle="team-rosa-trust-engineering",
+                config=SlackUsergroupConfig(
+                    users=["alice"], channels=[], description=""
+                ),
+            )
+        ],
+        token=token,
+    )
+
+
+def test_reconcile_create_blocked_by_existing_user(
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
+) -> None:
+    """A handle colliding with an existing user must fail the dry-run, not create."""
+    workspace = _workspace_with_new_handle(test_token)
+    mock_slack_client.get_slack_usergroups.return_value = []
+    mock_slack_client.clean_slack_usergroups.return_value = workspace.usergroups
+    mock_slack_client.validate_usergroup_handle_available.side_effect = (
+        HandleAlreadyExistsError(
+            "test-workspace: usergroup handle 'team-rosa-trust-engineering' is "
+            "already used by an existing user "
+            "('team-rosa-trust-engineering') in this Slack workspace"
+        )
+    )
+
+    result = service.reconcile(workspaces=[workspace], dry_run=True)
+
+    assert result.status == TaskStatus.FAILED
+    assert result.actions == []
+    assert len(result.errors) == 1
+    assert "test-workspace" in result.errors[0]
+    assert "team-rosa-trust-engineering" in result.errors[0]
+    assert "user" in result.errors[0]
+    mock_slack_client.create_usergroup.assert_not_called()
+
+
+def test_reconcile_create_blocked_by_existing_channel(
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
+) -> None:
+    """A handle colliding with an existing channel must fail the dry-run, not create."""
+    workspace = _workspace_with_new_handle(test_token)
+    mock_slack_client.get_slack_usergroups.return_value = []
+    mock_slack_client.clean_slack_usergroups.return_value = workspace.usergroups
+    mock_slack_client.validate_usergroup_handle_available.side_effect = (
+        HandleAlreadyExistsError(
+            "test-workspace: usergroup handle 'team-rosa-trust-engineering' is "
+            "already used by an existing channel "
+            "('team-rosa-trust-engineering') in this Slack workspace"
+        )
+    )
+
+    result = service.reconcile(workspaces=[workspace], dry_run=True)
+
+    assert result.status == TaskStatus.FAILED
+    assert result.actions == []
+    assert len(result.errors) == 1
+    assert "channel" in result.errors[0]
+    mock_slack_client.create_usergroup.assert_not_called()
+
+
+def test_reconcile_create_blocked_by_existing_usergroup(
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
+) -> None:
+    """A handle colliding with an existing (unmanaged) usergroup must fail the dry-run."""
+    workspace = _workspace_with_new_handle(test_token)
+    mock_slack_client.get_slack_usergroups.return_value = []
+    mock_slack_client.clean_slack_usergroups.return_value = workspace.usergroups
+    mock_slack_client.validate_usergroup_handle_available.side_effect = (
+        HandleAlreadyExistsError(
+            "test-workspace: usergroup handle 'team-rosa-trust-engineering' is "
+            "already used by an existing usergroup "
+            "('team-rosa-trust-engineering') in this Slack workspace"
+        )
+    )
+
+    result = service.reconcile(workspaces=[workspace], dry_run=True)
+
+    assert result.status == TaskStatus.FAILED
+    assert result.actions == []
+    assert len(result.errors) == 1
+    assert "usergroup" in result.errors[0]
+    mock_slack_client.create_usergroup.assert_not_called()
+
+
+def test_reconcile_create_validates_handle_when_no_collision(
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
+) -> None:
+    """Happy path: validation is called but doesn't block the create action."""
+    workspace = _workspace_with_new_handle(test_token)
+    mock_slack_client.get_slack_usergroups.return_value = []
+    mock_slack_client.clean_slack_usergroups.return_value = workspace.usergroups
+
+    result = service.reconcile(workspaces=[workspace], dry_run=True)
+
+    mock_slack_client.validate_usergroup_handle_available.assert_called_once_with(
+        "team-rosa-trust-engineering"
+    )
+    assert result.status == TaskStatus.SUCCESS
+    assert len(result.actions) == 1
+    assert isinstance(result.actions[0], SlackUsergroupActionCreate)
+    assert result.errors == []
+
+
+def test_reconcile_apply_handle_already_exists_surfaces_clear_error(
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
+) -> None:
+    """A handle_already_exists error at apply time must surface a clear error.
+
+    This happens when the proactive check couldn't catch the collision, e.g.
+    an invisible private channel.
+    """
+    workspace = _workspace_with_new_handle(test_token)
+    mock_slack_client.get_slack_usergroups.return_value = []
+    mock_slack_client.clean_slack_usergroups.return_value = workspace.usergroups
+    # Proactive check passes (default MagicMock behavior: no exception raised)
+    mock_slack_client.create_usergroup.side_effect = HandleAlreadyExistsError(
+        "test-workspace: usergroup handle 'team-rosa-trust-engineering' was "
+        "rejected by Slack as already in use, likely a private channel not "
+        "visible to this integration's bot token"
+    )
+
+    result = service.reconcile(workspaces=[workspace], dry_run=False)
+
+    assert result.status == TaskStatus.FAILED
+    assert result.applied_count == 0
+    assert len(result.errors) == 1
+    assert "private channel" in result.errors[0]
 
 
 # Multi-workspace apply correctness
