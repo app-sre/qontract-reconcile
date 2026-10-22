@@ -983,7 +983,7 @@ def test_validate_usergroup_handle_available_collides_with_user(
     message = str(exc_info.value)
     assert "test-workspace" in message
     assert "team-rosa-trust-engineering" in message
-    assert "user" in message
+    assert "existing user" in message
 
 
 def test_validate_usergroup_handle_available_ignores_deleted_user(
@@ -1038,7 +1038,7 @@ def test_validate_usergroup_handle_available_collides_with_usergroup(
     message = str(exc_info.value)
     assert "test-workspace" in message
     assert "team-rosa-trust-engineering" in message
-    assert "usergroup" in message
+    assert "existing usergroup" in message
 
 
 # create_usergroup - handle_already_exists handling
