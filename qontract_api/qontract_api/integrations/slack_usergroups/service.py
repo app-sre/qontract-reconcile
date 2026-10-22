@@ -16,6 +16,7 @@ from qontract_api.integrations.slack_usergroups.schemas import (
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.slack.slack_client_factory import create_slack_workspace_client
+from qontract_api.slack.slack_workspace_client import HandleAlreadyExistsError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -208,6 +209,31 @@ class SlackUsergroupsService:
                 )
         return actions
 
+    @staticmethod
+    def _validate_create_actions(
+        slack: SlackWorkspaceClient, actions: list[SlackUsergroupAction]
+    ) -> tuple[list[SlackUsergroupAction], list[str]]:
+        """Drop create actions whose handle collides with an existing workspace entity.
+
+        Args:
+            slack: SlackWorkspaceClient (Layer 2 - Cache + Compute)
+            actions: Actions calculated for a single workspace
+
+        Returns:
+            Tuple of (actions with colliding creates removed, collision error messages)
+        """
+        valid_actions: list[SlackUsergroupAction] = []
+        errors: list[str] = []
+        for action in actions:
+            if isinstance(action, SlackUsergroupActionCreate):
+                try:
+                    slack.validate_usergroup_handle_available(action.usergroup)
+                except HandleAlreadyExistsError as e:
+                    errors.append(str(e))
+                    continue
+            valid_actions.append(action)
+        return valid_actions, errors
+
     def reconcile(
         self,
         workspaces: list[SlackWorkspace],
@@ -249,6 +275,10 @@ class SlackUsergroupsService:
                     current_state=current_state,
                     desired_state=desired_state,
                 )
+                workspace_actions, validation_errors = self._validate_create_actions(
+                    slack=slack, actions=workspace_actions
+                )
+                errors.extend(validation_errors)
             except Exception as e:
                 error_msg = f"{workspace.name}: Unexpected error: {e}"
                 logger.exception(error_msg)
