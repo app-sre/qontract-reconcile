@@ -164,7 +164,8 @@ class RawIdentityProviderList(BaseModel):
 
 class RawTaint(BaseModel):
     key: str
-    value: str
+    # OCM's Taint schema (like Kubernetes taints) does not require a value
+    value: str | None = None
     effect: str
 
 

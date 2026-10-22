@@ -109,10 +109,14 @@ class OcmIdentityProviderOidc(BaseModel, frozen=True):
 
 
 class OcmTaint(BaseModel, frozen=True):
-    """A taint applied to the nodes of a machine pool or node pool."""
+    """A taint applied to the nodes of a machine pool or node pool.
+
+    Matches OCM's Taint schema (and Kubernetes taints): key and effect are
+    required, value is optional.
+    """
 
     key: str
-    value: str
+    value: str | None = None
     effect: str
 
 
