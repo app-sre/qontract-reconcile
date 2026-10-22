@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import Mock, create_autospec
 
-from gitlab.exceptions import GitlabCreateError, GitlabListError
+from gitlab.exceptions import GitlabCreateError, GitlabHttpError, GitlabListError
 from gitlab.v4.objects import (
     Project,
     ProjectMergeRequest,
@@ -330,6 +330,36 @@ def test_pipeline_lookup_failure_does_not_block_other_merge_requests() -> None:
     mr_lookup_succeeds = _mr(source_project_id=FORK_PROJECT_ID, iid=16, sha="sha-b")
     gl.get_merge_request_pipelines.side_effect = [
         GitlabListError("500 Internal Server Error"),
+        [],
+    ]
+
+    trigger_fork_pipelines(
+        dry_run=False,
+        gl=gl,
+        project_merge_requests=[mr_lookup_fails, mr_lookup_succeeds],
+        state=state,
+        pipeline_cache={},
+    )
+
+    state.add.assert_not_called()
+    gl.create_merge_request_pipeline.assert_called_once_with(mr_lookup_succeeds)
+
+
+def test_pipeline_lookup_failure_past_the_first_page_does_not_block_other_merge_requests() -> (
+    None
+):
+    """get_merge_request_pipelines consumes a paginated iterator inside
+    sorted(). Only the first page's fetch is wrapped as GitlabListError;
+    a failure fetching a later page surfaces as GitlabHttpError instead
+    (a sibling exception, not a subclass of GitlabListError) -- that must
+    be caught too, not just GitlabListError."""
+    project = _project()
+    gl = _gl(project)
+    state = _state()
+    mr_lookup_fails = _mr(source_project_id=FORK_PROJECT_ID, iid=17, sha="sha-a")
+    mr_lookup_succeeds = _mr(source_project_id=FORK_PROJECT_ID, iid=18, sha="sha-b")
+    gl.get_merge_request_pipelines.side_effect = [
+        GitlabHttpError("500 Internal Server Error"),
         [],
     ]
 

@@ -106,10 +106,20 @@ def trigger_fork_pipelines(
         else:
             try:
                 pipelines = gl.get_merge_request_pipelines(mr)
-            except gitlab.exceptions.GitlabListError as e:
-                # A lookup failure here is unrelated to whether this MR has
-                # CI config -- don't cache anything, just skip this MR for
-                # this loop iteration and keep processing the rest.
+            except gitlab.exceptions.GitlabError as e:
+                # get_merge_request_pipelines consumes a paginated iterator
+                # (mr.pipelines.list(iterator=True)) inside sorted(). Only
+                # the first page fetch happens inside ListMixin.list()'s own
+                # @on_http_error(GitlabListError) wrapper; subsequent pages
+                # are fetched lazily by GitlabList._query(), which calls
+                # http_request() directly with no such wrapper, so a
+                # failure past the first page raises GitlabHttpError
+                # instead -- a sibling of GitlabListError under GitlabError,
+                # not a subclass of it. Catching the common base here covers
+                # both. Either way, a lookup failure is unrelated to whether
+                # this MR has CI config -- don't cache anything, just skip
+                # this MR for this loop iteration and keep processing the
+                # rest.
                 logging.warning([
                     "trigger_fork_pipeline",
                     "pipeline_lookup_failed",
