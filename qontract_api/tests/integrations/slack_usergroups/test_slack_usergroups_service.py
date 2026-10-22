@@ -618,6 +618,79 @@ def test_reconcile_error_in_action_execution(
     assert "Slack API error" in result.errors[0]
 
 
+# Multi-workspace apply correctness
+
+
+def test_reconcile_multiple_workspaces_apply_executes_each_workspace_actions_once(
+    service: SlackUsergroupsService,
+    test_token: Secret,
+) -> None:
+    """Each workspace's actions must execute exactly once.
+
+    Each must use that workspace's own Slack client -- not be re-executed
+    against a different workspace's client as more workspaces are processed.
+    """
+    workspace_a = SlackWorkspace(
+        name="workspace-a",
+        managed_usergroups=["team-a"],
+        usergroups=[
+            SlackUsergroup(
+                handle="team-a",
+                config=SlackUsergroupConfig(
+                    users=["alice"], channels=[], description=""
+                ),
+            )
+        ],
+        token=test_token,
+    )
+    workspace_b = SlackWorkspace(
+        name="workspace-b",
+        managed_usergroups=["team-b"],
+        usergroups=[
+            SlackUsergroup(
+                handle="team-b",
+                config=SlackUsergroupConfig(users=["bob"], channels=[], description=""),
+            )
+        ],
+        token=test_token,
+    )
+
+    mock_client_a = MagicMock(spec=SlackWorkspaceClient)
+    mock_client_a.get_slack_usergroups.return_value = []
+    mock_client_a.clean_slack_usergroups.return_value = workspace_a.usergroups
+
+    mock_client_b = MagicMock(spec=SlackWorkspaceClient)
+    mock_client_b.get_slack_usergroups.return_value = []
+    mock_client_b.clean_slack_usergroups.return_value = workspace_b.usergroups
+
+    clients_by_workspace = {
+        "workspace-a": mock_client_a,
+        "workspace-b": mock_client_b,
+    }
+
+    def _factory(
+        *,
+        secret: Secret,
+        workspace_name: str,
+        cache: MagicMock,
+        secret_manager: MagicMock,
+        settings: Settings,
+    ) -> MagicMock:
+        del secret, cache, secret_manager, settings
+        return clients_by_workspace[workspace_name]
+
+    with patch(
+        "qontract_api.integrations.slack_usergroups.service.create_slack_workspace_client",
+        side_effect=_factory,
+    ):
+        result = service.reconcile(workspaces=[workspace_a, workspace_b], dry_run=False)
+
+    mock_client_a.create_usergroup.assert_called_once_with(handle="team-a")
+    mock_client_b.create_usergroup.assert_called_once_with(handle="team-b")
+    assert result.applied_count == 2
+    assert result.errors == []
+
+
 # Dependency Injection
 
 
