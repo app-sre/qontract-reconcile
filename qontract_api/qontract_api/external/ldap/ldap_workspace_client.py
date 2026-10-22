@@ -192,7 +192,7 @@ class LdapWorkspaceClient:
             resolved[login] = uids[0]
         return resolved
 
-    def _get_org_username_to_github_map(self) -> dict[str, str]:
+    def get_org_username_to_github_map(self) -> dict[str, str]:
         """Invert the GitHub-login -> uid(s) map to org_username -> GitHub login.
 
         Shared logins and org_usernames claiming multiple distinct logins are
@@ -289,7 +289,7 @@ class LdapWorkspaceClient:
                 members_by_cn[ldap_group.cn] = ldap_group.members
 
             github_by_org_username = (
-                self._get_org_username_to_github_map()
+                self.get_org_username_to_github_map()
                 if include_github_usernames
                 else {}
             )
