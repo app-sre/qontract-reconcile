@@ -81,6 +81,36 @@ class LdapGithubUsernamesResponse(BaseModel, frozen=True):
     )
 
 
+class LdapOrgGithubUsernamesRequest(BaseModel, frozen=True):
+    """Request to resolve every internal user's linked GitHub account via LDAP."""
+
+    secret: LdapDirectSecret = Field(
+        ..., description="Vault secret reference for LDAP credentials"
+    )
+
+
+class LdapOrgGithubUser(BaseModel, frozen=True):
+    """Resolved mapping of a single LDAP uid to its linked GitHub account."""
+
+    org_username: str = Field(..., description="LDAP uid (app-interface org_username)")
+    github_username: str = Field(
+        ..., description="GitHub login resolved via rhatSocialURL"
+    )
+
+
+class LdapOrgGithubUsernamesResponse(BaseModel, frozen=True):
+    """Response with resolved org_username -> GitHub login mappings.
+
+    Only contains uids with an unambiguous GitHub link - uids with no linked
+    GitHub account, or whose link is ambiguous, are omitted.
+    """
+
+    users: list[LdapOrgGithubUser] = Field(
+        ...,
+        description="Resolved org_username to GitHub login mappings",
+    )
+
+
 class LdapGroupMembersRequest(BaseModel, frozen=True):
     """Request to resolve members of one or more LDAP groups."""
 

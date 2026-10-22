@@ -2599,6 +2599,59 @@
         "title": "LdapGroupResult",
         "type": "object"
       },
+      "LdapOrgGithubUser": {
+        "description": "Resolved mapping of a single LDAP uid to its linked GitHub account.",
+        "properties": {
+          "github_username": {
+            "description": "GitHub login resolved via rhatSocialURL",
+            "title": "Github Username",
+            "type": "string"
+          },
+          "org_username": {
+            "description": "LDAP uid (app-interface org_username)",
+            "title": "Org Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_username",
+          "github_username"
+        ],
+        "title": "LdapOrgGithubUser",
+        "type": "object"
+      },
+      "LdapOrgGithubUsernamesRequest": {
+        "description": "Request to resolve every internal user's linked GitHub account via LDAP.",
+        "properties": {
+          "secret": {
+            "$ref": "#/components/schemas/LdapDirectSecret",
+            "description": "Vault secret reference for LDAP credentials"
+          }
+        },
+        "required": [
+          "secret"
+        ],
+        "title": "LdapOrgGithubUsernamesRequest",
+        "type": "object"
+      },
+      "LdapOrgGithubUsernamesResponse": {
+        "description": "Response with resolved org_username -> GitHub login mappings.\n\nOnly contains uids with an unambiguous GitHub link - uids with no linked\nGitHub account, or whose link is ambiguous, are omitted.",
+        "properties": {
+          "users": {
+            "description": "Resolved org_username to GitHub login mappings",
+            "items": {
+              "$ref": "#/components/schemas/LdapOrgGithubUser"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "users"
+        ],
+        "title": "LdapOrgGithubUsernamesResponse",
+        "type": "object"
+      },
       "LdapUserStatus": {
         "description": "Existence status of a single LDAP user.",
         "properties": {
@@ -5850,6 +5903,43 @@
           }
         ],
         "summary": "Group Members",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/ldap/org-github-usernames": {
+      "post": {
+        "description": "Resolve every internal user's linked GitHub account via the rhatSocialURL attribute.\n\nMaps each LDAP uid (app-interface org_username) to the GitHub account that\nassociate has linked in their Rover profile. The full map is cached for\nperformance; uids with no linked account, or an ambiguous one, are omitted.\n\nArgs:\n    request: Vault secret reference for LDAP credentials\n    cache: Cache dependency\n    secret_manager: Secret manager dependency\n\nReturns:\n    LdapOrgGithubUsernamesResponse with resolved org_username -> github_username pairs",
+        "operationId": "ldap-org-github-usernames",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LdapOrgGithubUsernamesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LdapOrgGithubUsernamesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve Org Github Usernames",
         "tags": [
           "external"
         ]
