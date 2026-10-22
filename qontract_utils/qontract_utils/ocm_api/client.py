@@ -11,7 +11,7 @@ import contextvars
 import json
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Any, Self
 
 import httpx2
 import structlog
@@ -22,9 +22,12 @@ from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.ocm_api._raw_client import (
     RawIdentityProvider,
     RawIdentityProviderOidc,
+    RawMachinePool,
+    RawNodePool,
     RawOcmClient,
     RawOrganizationLabel,
     RawSubscriptionLabel,
+    RawTaint,
 )
 from qontract_utils.ocm_api.exceptions import OcmUserRoleNotLinkedError
 from qontract_utils.ocm_api.models import (
@@ -34,9 +37,15 @@ from qontract_utils.ocm_api.models import (
     OcmIdentityProviderOidc,
     OcmIdentityProviderOidcOpenId,
     OcmIdentityProviderOidcOpenIdClaims,
+    OcmMachinePool,
+    OcmMachinePoolAutoscaling,
+    OcmNodePool,
+    OcmNodePoolAutoscaling,
+    OcmNodePoolAws,
     OcmOrganizationLabel,
     OcmSubscription,
     OcmSubscriptionLabel,
+    OcmTaint,
 )
 from qontract_utils.user_agent import DEFAULT_USER_AGENT
 
@@ -441,6 +450,145 @@ class OcmApi:
             cluster_id=cluster_id, group_id=group_id, user_id=user_id
         )
 
+    # Machine Pool operations (OSD / ROSA classic clusters)
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="machine_pools.list",
+            verb="GET",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def get_machine_pools(self, cluster_id: str) -> list[OcmMachinePool]:
+        """List all machine pools on a cluster."""
+        return [
+            _machine_pool_from_raw(pool)
+            for pool in self._raw.get_machine_pools(cluster_id=cluster_id)
+        ]
+
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="machine_pools.create",
+            verb="POST",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def create_machine_pool(
+        self, cluster_id: str, pool: OcmMachinePool
+    ) -> OcmMachinePool:
+        """Create a machine pool on a cluster.
+
+        The pool id is client-chosen in OCM (unlike most other resources), so it
+        is included in the request body.
+        """
+        raw = self._raw.create_machine_pool(
+            cluster_id=cluster_id,
+            body=pool.model_dump(exclude_none=True),
+        )
+        return _machine_pool_from_raw(raw)
+
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="machine_pools.update",
+            verb="PATCH",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def update_machine_pool(
+        self, cluster_id: str, pool: OcmMachinePool
+    ) -> OcmMachinePool:
+        """Update an existing machine pool on a cluster.
+
+        instance_type is immutable on OCM, so it is excluded from the request
+        body (the pool id travels in the URL path). Callers are expected to
+        detect instance_type diffs themselves and fail instead of calling this.
+        """
+        raw = self._raw.update_machine_pool(
+            cluster_id=cluster_id,
+            machine_pool_id=pool.id,
+            body=_machine_pool_update_body(pool),
+        )
+        return _machine_pool_from_raw(raw)
+
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="machine_pools.delete",
+            verb="DELETE",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def delete_machine_pool(self, cluster_id: str, machine_pool_id: str) -> None:
+        """Delete a machine pool from a cluster."""
+        self._raw.delete_machine_pool(
+            cluster_id=cluster_id, machine_pool_id=machine_pool_id
+        )
+
+    # Node Pool operations (HyperShift / ROSA HCP clusters)
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="node_pools.list",
+            verb="GET",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def get_node_pools(self, cluster_id: str) -> list[OcmNodePool]:
+        """List all node pools on a cluster."""
+        return [
+            _node_pool_from_raw(pool)
+            for pool in self._raw.get_node_pools(cluster_id=cluster_id)
+        ]
+
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="node_pools.create",
+            verb="POST",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def create_node_pool(self, cluster_id: str, pool: OcmNodePool) -> OcmNodePool:
+        """Create a node pool on a cluster.
+
+        The pool id is client-chosen in OCM (unlike most other resources), so it
+        is included in the request body.
+        """
+        raw = self._raw.create_node_pool(
+            cluster_id=cluster_id,
+            body=pool.model_dump(exclude_none=True),
+        )
+        return _node_pool_from_raw(raw)
+
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="node_pools.update",
+            verb="PATCH",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def update_node_pool(self, cluster_id: str, pool: OcmNodePool) -> OcmNodePool:
+        """Update an existing node pool on a cluster.
+
+        aws_node_pool (instance_type) and subnet are immutable on OCM, so they
+        are excluded from the request body (the pool id travels in the URL
+        path). Callers are expected to detect those diffs themselves and fail
+        instead of calling this.
+        """
+        raw = self._raw.update_node_pool(
+            cluster_id=cluster_id,
+            node_pool_id=pool.id,
+            body=_node_pool_update_body(pool),
+        )
+        return _node_pool_from_raw(raw)
+
+    @invoke_with_hooks(
+        lambda self: OcmApiCallContext(
+            method="node_pools.delete",
+            verb="DELETE",
+            client_id=self.access_token_client_id,
+        )
+    )
+    def delete_node_pool(self, cluster_id: str, node_pool_id: str) -> None:
+        """Delete a node pool from a cluster."""
+        self._raw.delete_node_pool(cluster_id=cluster_id, node_pool_id=node_pool_id)
+
 
 def _label_from_raw(
     label: RawSubscriptionLabel | RawOrganizationLabel,
@@ -506,3 +654,75 @@ def _oidc_identity_provider_from_raw(
             ),
         ),
     )
+
+
+def _taints_from_raw(raw: list[RawTaint] | None) -> list[OcmTaint] | None:
+    if raw is None:
+        return None
+    return [OcmTaint(key=t.key, value=t.value, effect=t.effect) for t in raw]
+
+
+def _machine_pool_from_raw(raw: RawMachinePool) -> OcmMachinePool:
+    return OcmMachinePool(
+        id=raw.id,
+        instance_type=raw.instance_type,
+        replicas=raw.replicas,
+        autoscaling=(
+            OcmMachinePoolAutoscaling(
+                min_replicas=raw.autoscaling.min_replicas,
+                max_replicas=raw.autoscaling.max_replicas,
+            )
+            if raw.autoscaling
+            else None
+        ),
+        labels=raw.labels,
+        taints=_taints_from_raw(raw.taints),
+    )
+
+
+def _node_pool_from_raw(raw: RawNodePool) -> OcmNodePool:
+    return OcmNodePool(
+        id=raw.id,
+        aws_node_pool=OcmNodePoolAws(instance_type=raw.aws_node_pool.instance_type),
+        replicas=raw.replicas,
+        autoscaling=(
+            OcmNodePoolAutoscaling(
+                min_replica=raw.autoscaling.min_replica,
+                max_replica=raw.autoscaling.max_replica,
+            )
+            if raw.autoscaling
+            else None
+        ),
+        labels=raw.labels,
+        taints=_taints_from_raw(raw.taints),
+        subnet=raw.subnet,
+    )
+
+
+def _drop_empty_labels_and_taints(body: dict[str, Any]) -> dict[str, Any]:
+    """Drop empty labels/taints entries from an update body.
+
+    OCM rejects empty labels/taints on update - the legacy client deleted these
+    keys before PATCHing, so this preserves that behavior.
+    """
+    return {k: v for k, v in body.items() if not (k in {"labels", "taints"} and not v)}
+
+
+def _machine_pool_update_body(pool: OcmMachinePool) -> dict[str, Any]:
+    """Build the PATCH body for a machine pool update.
+
+    Excludes id (travels in the URL path) and instance_type (immutable on OCM),
+    and drops empty labels/taints.
+    """
+    body = pool.model_dump(exclude={"id", "instance_type"}, exclude_none=True)
+    return _drop_empty_labels_and_taints(body)
+
+
+def _node_pool_update_body(pool: OcmNodePool) -> dict[str, Any]:
+    """Build the PATCH body for a node pool update.
+
+    Excludes id (travels in the URL path), aws_node_pool and subnet (immutable
+    on OCM), and drops empty labels/taints.
+    """
+    body = pool.model_dump(exclude={"id", "aws_node_pool", "subnet"}, exclude_none=True)
+    return _drop_empty_labels_and_taints(body)
