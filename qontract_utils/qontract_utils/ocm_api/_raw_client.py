@@ -162,6 +162,75 @@ class RawIdentityProviderList(BaseModel):
     total: int = 0
 
 
+class RawTaint(BaseModel):
+    key: str
+    value: str
+    effect: str
+
+
+class RawMachinePoolAutoscaling(BaseModel):
+    """Machine pool autoscaling wire format (OSD / ROSA classic) - plural fields."""
+
+    min_replicas: int
+    max_replicas: int
+
+
+class RawNodePoolAutoscaling(BaseModel):
+    """Node pool autoscaling wire format (HyperShift / ROSA HCP) - singular fields."""
+
+    min_replica: int
+    max_replica: int
+
+
+class RawNodePoolAws(BaseModel):
+    instance_type: str
+
+
+class RawMachinePool(BaseModel):
+    """Machine pool wire format (OSD / ROSA classic clusters).
+
+    Scoped to the fields the legacy client kept (MACHINE_POOL_DESIRED_KEYS) -
+    extra fields returned by OCM are ignored.
+    """
+
+    id: str
+    instance_type: str
+    replicas: int | None = None
+    autoscaling: RawMachinePoolAutoscaling | None = None
+    labels: dict[str, str] | None = None
+    taints: list[RawTaint] | None = None
+
+
+class RawMachinePoolList(BaseModel):
+    items: list[RawMachinePool] = Field(default_factory=list)
+    page: int = 1
+    size: int = 0
+    total: int = 0
+
+
+class RawNodePool(BaseModel):
+    """Node pool wire format (HyperShift / ROSA HCP clusters).
+
+    Scoped to the fields the legacy client kept (NODE_POOL_DESIRED_KEYS, minus
+    the read-only "version") - extra fields returned by OCM are ignored.
+    """
+
+    id: str
+    aws_node_pool: RawNodePoolAws
+    replicas: int | None = None
+    autoscaling: RawNodePoolAutoscaling | None = None
+    labels: dict[str, str] | None = None
+    taints: list[RawTaint] | None = None
+    subnet: str | None = None
+
+
+class RawNodePoolList(BaseModel):
+    items: list[RawNodePool] = Field(default_factory=list)
+    page: int = 1
+    size: int = 0
+    total: int = 0
+
+
 def _parse_raw_identity_provider(
     data: dict[str, Any],
 ) -> RawIdentityProviderOidc | RawIdentityProvider:
@@ -359,5 +428,91 @@ class RawOcmClient:
         """Remove a user from a cluster group."""
         response = self._client.delete(
             f"/api/clusters_mgmt/v1/clusters/{cluster_id}/groups/{group_id}/users/{user_id}"
+        )
+        response.raise_for_status()
+
+    # Machine Pool operations (OSD / ROSA classic clusters)
+    def get_machine_pools(self, *, cluster_id: str) -> list[RawMachinePool]:
+        """List all machine pools on a cluster."""
+
+        def fetch_page(page: int) -> tuple[list[RawMachinePool], int]:
+            response = self._client.get(
+                f"/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools",
+                params={"page": page, "size": MAX_PAGE_SIZE},
+            )
+            response.raise_for_status()
+            raw_list = RawMachinePoolList.model_validate(response.json())
+            return raw_list.items, raw_list.size
+
+        return self._fetch_all_pages(fetch_page)
+
+    def create_machine_pool(
+        self, *, cluster_id: str, body: dict[str, Any]
+    ) -> RawMachinePool:
+        """Create a machine pool on a cluster."""
+        response = self._client.post(
+            f"/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools",
+            json=body,
+        )
+        response.raise_for_status()
+        return RawMachinePool.model_validate(response.json())
+
+    def update_machine_pool(
+        self, *, cluster_id: str, machine_pool_id: str, body: dict[str, Any]
+    ) -> RawMachinePool:
+        """Update an existing machine pool on a cluster."""
+        response = self._client.patch(
+            f"/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools/{machine_pool_id}",
+            json=body,
+        )
+        response.raise_for_status()
+        return RawMachinePool.model_validate(response.json())
+
+    def delete_machine_pool(self, *, cluster_id: str, machine_pool_id: str) -> None:
+        """Delete a machine pool from a cluster."""
+        response = self._client.delete(
+            f"/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools/{machine_pool_id}"
+        )
+        response.raise_for_status()
+
+    # Node Pool operations (HyperShift / ROSA HCP clusters)
+    def get_node_pools(self, *, cluster_id: str) -> list[RawNodePool]:
+        """List all node pools on a cluster."""
+
+        def fetch_page(page: int) -> tuple[list[RawNodePool], int]:
+            response = self._client.get(
+                f"/api/clusters_mgmt/v1/clusters/{cluster_id}/node_pools",
+                params={"page": page, "size": MAX_PAGE_SIZE},
+            )
+            response.raise_for_status()
+            raw_list = RawNodePoolList.model_validate(response.json())
+            return raw_list.items, raw_list.size
+
+        return self._fetch_all_pages(fetch_page)
+
+    def create_node_pool(self, *, cluster_id: str, body: dict[str, Any]) -> RawNodePool:
+        """Create a node pool on a cluster."""
+        response = self._client.post(
+            f"/api/clusters_mgmt/v1/clusters/{cluster_id}/node_pools",
+            json=body,
+        )
+        response.raise_for_status()
+        return RawNodePool.model_validate(response.json())
+
+    def update_node_pool(
+        self, *, cluster_id: str, node_pool_id: str, body: dict[str, Any]
+    ) -> RawNodePool:
+        """Update an existing node pool on a cluster."""
+        response = self._client.patch(
+            f"/api/clusters_mgmt/v1/clusters/{cluster_id}/node_pools/{node_pool_id}",
+            json=body,
+        )
+        response.raise_for_status()
+        return RawNodePool.model_validate(response.json())
+
+    def delete_node_pool(self, *, cluster_id: str, node_pool_id: str) -> None:
+        """Delete a node pool from a cluster."""
+        response = self._client.delete(
+            f"/api/clusters_mgmt/v1/clusters/{cluster_id}/node_pools/{node_pool_id}"
         )
         response.raise_for_status()
