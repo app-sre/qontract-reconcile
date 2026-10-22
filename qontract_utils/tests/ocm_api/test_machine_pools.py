@@ -36,6 +36,7 @@ def _close_ocm_apis() -> Generator[None]:
 
 
 def _make_ocm_api(httpserver: HTTPServer, token: str) -> OcmApi:
+    """Build an OcmApi against the test HTTP server, closed after each test."""
     httpserver.expect_request(TOKEN_PATH, method="POST").respond_with_json(
         {"access_token": token, "token_type": "bearer", "expires_in": 300}
     )
@@ -55,6 +56,7 @@ def _machine_pool_json(
     pool_id: str = "worker",
     instance_type: str = "m5.xlarge",
 ) -> dict[str, Any]:
+    """A machine pool wire payload, including extra fields OCM returns."""
     return {
         "id": pool_id,
         "instance_type": instance_type,
@@ -72,6 +74,7 @@ def _node_pool_json(
     pool_id: str = "worker",
     instance_type: str = "m5.xlarge",
 ) -> dict[str, Any]:
+    """A node pool wire payload, including extra fields OCM returns."""
     return {
         "id": pool_id,
         "aws_node_pool": {"instance_type": instance_type},
@@ -93,6 +96,7 @@ def _node_pool_json(
 
 
 def test_get_machine_pools_maps_fields(httpserver: HTTPServer) -> None:
+    """Machine pool reads map all wire fields onto the domain model."""
     api = _make_ocm_api(httpserver, token="test-token")
     httpserver.expect_request(MACHINE_POOLS_PATH, method="GET").respond_with_json(
         {"items": [_machine_pool_json()], "page": 1, "size": 1, "total": 1}
@@ -113,6 +117,7 @@ def test_get_machine_pools_maps_fields(httpserver: HTTPServer) -> None:
 
 
 def test_get_machine_pools_empty(httpserver: HTTPServer) -> None:
+    """A cluster with no machine pools yields an empty list."""
     api = _make_ocm_api(httpserver, token="test-token")
     httpserver.expect_request(MACHINE_POOLS_PATH, method="GET").respond_with_json(
         {"items": [], "page": 1, "size": 0, "total": 0}
@@ -122,9 +127,11 @@ def test_get_machine_pools_empty(httpserver: HTTPServer) -> None:
 
 
 def test_get_machine_pools_paginates(httpserver: HTTPServer) -> None:
+    """Machine pool reads follow pagination until the last short page."""
     api = _make_ocm_api(httpserver, token="test-token")
 
     def handler(request: Request) -> Response:
+        """Serve a full first page of machine pools, then a single-item second page."""
         page = int(request.args.get("page", "1"))
         if page == 1:
             items = [_machine_pool_json(pool_id=f"pool-{i}") for i in range(100)]
@@ -144,6 +151,7 @@ def test_get_machine_pools_paginates(httpserver: HTTPServer) -> None:
 def test_get_machine_pools_without_autoscaling_or_labels(
     httpserver: HTTPServer,
 ) -> None:
+    """Machine pool fields absent from the wire payload map to None."""
     api = _make_ocm_api(httpserver, token="test-token")
     httpserver.expect_request(MACHINE_POOLS_PATH, method="GET").respond_with_json(
         {
@@ -162,7 +170,7 @@ def test_get_machine_pools_without_autoscaling_or_labels(
 
 
 def test_get_node_pools_accepts_taint_without_value(httpserver: HTTPServer) -> None:
-    """OCM's Taint schema (like Kubernetes taints) does not require a value."""
+    """OCM's Taint schema does not require a value."""
     api = _make_ocm_api(httpserver, token="test-token")
     httpserver.expect_request(NODE_POOLS_PATH, method="GET").respond_with_json(
         {
@@ -185,6 +193,7 @@ def test_get_node_pools_accepts_taint_without_value(httpserver: HTTPServer) -> N
 
 
 def test_create_machine_pool_sends_full_body(httpserver: HTTPServer) -> None:
+    """Machine pool creation sends the full spec, including the pool id."""
     api = _make_ocm_api(httpserver, token="test-token")
     httpserver.expect_request(MACHINE_POOLS_PATH, method="POST").respond_with_json(
         _machine_pool_json()
@@ -221,6 +230,7 @@ def test_create_machine_pool_sends_full_body(httpserver: HTTPServer) -> None:
 def test_update_machine_pool_excludes_id_and_instance_type(
     httpserver: HTTPServer,
 ) -> None:
+    """Machine pool updates exclude the id and the immutable instance_type."""
     api = _make_ocm_api(httpserver, token="test-token")
     update_path = f"{MACHINE_POOLS_PATH}/worker"
     httpserver.expect_request(update_path, method="PATCH").respond_with_json(
@@ -253,6 +263,7 @@ def test_update_machine_pool_excludes_id_and_instance_type(
 def test_update_machine_pool_drops_empty_labels_and_taints(
     httpserver: HTTPServer,
 ) -> None:
+    """Machine pool updates drop empty labels and taints entries."""
     api = _make_ocm_api(httpserver, token="test-token")
     update_path = f"{MACHINE_POOLS_PATH}/worker"
     httpserver.expect_request(update_path, method="PATCH").respond_with_json(
@@ -270,6 +281,7 @@ def test_update_machine_pool_drops_empty_labels_and_taints(
 
 
 def test_delete_machine_pool(httpserver: HTTPServer) -> None:
+    """Machine pool deletion hits the per-pool DELETE endpoint."""
     api = _make_ocm_api(httpserver, token="test-token")
     delete_path = f"{MACHINE_POOLS_PATH}/worker"
     httpserver.expect_request(delete_path, method="DELETE").respond_with_data(
@@ -289,6 +301,7 @@ def test_delete_machine_pool(httpserver: HTTPServer) -> None:
 
 
 def test_get_node_pools_maps_fields(httpserver: HTTPServer) -> None:
+    """Node pool reads map all wire fields onto the domain model."""
     api = _make_ocm_api(httpserver, token="test-token")
     httpserver.expect_request(NODE_POOLS_PATH, method="GET").respond_with_json(
         {"items": [_node_pool_json()], "page": 1, "size": 1, "total": 1}
@@ -310,6 +323,7 @@ def test_get_node_pools_maps_fields(httpserver: HTTPServer) -> None:
 
 
 def test_get_node_pools_empty(httpserver: HTTPServer) -> None:
+    """A cluster with no node pools yields an empty list."""
     api = _make_ocm_api(httpserver, token="test-token")
     httpserver.expect_request(NODE_POOLS_PATH, method="GET").respond_with_json(
         {"items": [], "page": 1, "size": 0, "total": 0}
@@ -319,9 +333,11 @@ def test_get_node_pools_empty(httpserver: HTTPServer) -> None:
 
 
 def test_get_node_pools_paginates(httpserver: HTTPServer) -> None:
+    """Node pool reads follow pagination until the last short page."""
     api = _make_ocm_api(httpserver, token="test-token")
 
     def handler(request: Request) -> Response:
+        """Serve a full first page of node pools, then a single-item second page."""
         page = int(request.args.get("page", "1"))
         if page == 1:
             items = [_node_pool_json(pool_id=f"pool-{i}") for i in range(100)]
@@ -339,6 +355,7 @@ def test_get_node_pools_paginates(httpserver: HTTPServer) -> None:
 
 
 def test_create_node_pool_sends_full_body(httpserver: HTTPServer) -> None:
+    """Node pool creation sends the full spec, including the pool id."""
     api = _make_ocm_api(httpserver, token="test-token")
     httpserver.expect_request(NODE_POOLS_PATH, method="POST").respond_with_json(
         _node_pool_json()
@@ -367,6 +384,7 @@ def test_create_node_pool_sends_full_body(httpserver: HTTPServer) -> None:
 
 
 def test_update_node_pool_excludes_immutable_fields(httpserver: HTTPServer) -> None:
+    """Node pool updates exclude the id and the immutable aws_node_pool/subnet."""
     api = _make_ocm_api(httpserver, token="test-token")
     update_path = f"{NODE_POOLS_PATH}/worker"
     httpserver.expect_request(update_path, method="PATCH").respond_with_json(
@@ -398,6 +416,7 @@ def test_update_node_pool_excludes_immutable_fields(httpserver: HTTPServer) -> N
 def test_update_node_pool_drops_empty_labels_and_taints(
     httpserver: HTTPServer,
 ) -> None:
+    """Node pool updates drop empty labels and taints entries."""
     api = _make_ocm_api(httpserver, token="test-token")
     update_path = f"{NODE_POOLS_PATH}/worker"
     httpserver.expect_request(update_path, method="PATCH").respond_with_json(
@@ -419,6 +438,7 @@ def test_update_node_pool_drops_empty_labels_and_taints(
 
 
 def test_delete_node_pool(httpserver: HTTPServer) -> None:
+    """Node pool deletion hits the per-pool DELETE endpoint."""
     api = _make_ocm_api(httpserver, token="test-token")
     delete_path = f"{NODE_POOLS_PATH}/worker"
     httpserver.expect_request(delete_path, method="DELETE").respond_with_data(

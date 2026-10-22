@@ -437,6 +437,7 @@ class RawOcmClient:
         """List all machine pools on a cluster."""
 
         def fetch_page(page: int) -> tuple[list[RawMachinePool], int]:
+            """Fetch one page of machine pools."""
             response = self._client.get(
                 f"/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools",
                 params={"page": page, "size": MAX_PAGE_SIZE},
@@ -481,6 +482,7 @@ class RawOcmClient:
         """List all node pools on a cluster."""
 
         def fetch_page(page: int) -> tuple[list[RawNodePool], int]:
+            """Fetch one page of node pools."""
             response = self._client.get(
                 f"/api/clusters_mgmt/v1/clusters/{cluster_id}/node_pools",
                 params={"page": page, "size": MAX_PAGE_SIZE},
