@@ -161,6 +161,29 @@ def test_get_machine_pools_without_autoscaling_or_labels(
     assert pool.taints is None
 
 
+def test_get_node_pools_accepts_taint_without_value(httpserver: HTTPServer) -> None:
+    """OCM's Taint schema (like Kubernetes taints) does not require a value."""
+    api = _make_ocm_api(httpserver, token="test-token")
+    httpserver.expect_request(NODE_POOLS_PATH, method="GET").respond_with_json(
+        {
+            "items": [
+                {
+                    "id": "worker",
+                    "aws_node_pool": {"instance_type": "m5.xlarge"},
+                    "taints": [{"key": "dedicated", "effect": "NoSchedule"}],
+                }
+            ],
+            "page": 1,
+            "size": 1,
+            "total": 1,
+        }
+    )
+
+    pool = api.get_node_pools(CLUSTER_ID)[0]
+
+    assert pool.taints == [OcmTaint(key="dedicated", value=None, effect="NoSchedule")]
+
+
 def test_create_machine_pool_sends_full_body(httpserver: HTTPServer) -> None:
     api = _make_ocm_api(httpserver, token="test-token")
     httpserver.expect_request(MACHINE_POOLS_PATH, method="POST").respond_with_json(
