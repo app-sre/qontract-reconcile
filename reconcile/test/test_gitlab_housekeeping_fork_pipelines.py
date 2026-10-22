@@ -29,7 +29,7 @@ def _project() -> Project:
     return project
 
 
-def _gl(project: Project) -> GitLabApi:
+def _gl(project: Project) -> Mock:
     gl = create_autospec(GitLabApi)
     gl.project = project
     return gl
