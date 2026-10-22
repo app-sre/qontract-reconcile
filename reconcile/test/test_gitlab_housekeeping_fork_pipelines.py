@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import Mock, create_autospec
 
-from gitlab.exceptions import GitlabCreateError
+from gitlab.exceptions import GitlabCreateError, GitlabListError
 from gitlab.v4.objects import (
     Project,
     ProjectMergeRequest,
@@ -187,7 +187,7 @@ def test_missing_gitlab_ci_yml_does_not_block_other_merge_requests() -> None:
     mr_with_ci_config = _mr(source_project_id=FORK_PROJECT_ID, iid=8, sha="sha-b")
     gl.get_merge_request_pipelines.return_value = []
     gl.create_merge_request_pipeline.side_effect = [
-        GitlabCreateError("Missing .gitlab-ci.yml file"),
+        GitlabCreateError("Missing .gitlab-ci.yml file", response_code=400),
         None,
     ]
 
@@ -211,7 +211,7 @@ def test_missing_gitlab_ci_yml_is_remembered_in_state() -> None:
     mr = _mr(source_project_id=FORK_PROJECT_ID, iid=9, sha="sha-a")
     gl.get_merge_request_pipelines.return_value = []
     gl.create_merge_request_pipeline.side_effect = GitlabCreateError(
-        "Missing .gitlab-ci.yml file"
+        "Missing .gitlab-ci.yml file", response_code=400
     )
 
     trigger_fork_pipelines(
@@ -268,6 +268,81 @@ def test_new_commit_is_retried_even_if_a_previous_sha_had_no_ci_config() -> None
     )
 
     gl.create_merge_request_pipeline.assert_called_once_with(mr)
+
+
+def test_error_mentioning_the_filename_but_not_the_exact_message_is_not_cached() -> (
+    None
+):
+    """A loose substring match on "gitlab-ci.yml" would wrongly treat an
+    unrelated error that happens to mention the filename as a confirmed
+    missing-config result. Only the exact, documented message + status
+    should be cached."""
+    project = _project()
+    gl = _gl(project)
+    state = _state()
+    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=13, sha="sha-a")
+    gl.get_merge_request_pipelines.return_value = []
+    gl.create_merge_request_pipeline.side_effect = GitlabCreateError(
+        "Validation failed: gitlab-ci.yml reference is invalid",
+        response_code=400,
+    )
+
+    trigger_fork_pipelines(
+        dry_run=False,
+        gl=gl,
+        project_merge_requests=[mr],
+        state=state,
+        pipeline_cache={},
+    )
+
+    state.add.assert_not_called()
+
+
+def test_wrong_response_code_with_matching_message_is_not_cached() -> None:
+    project = _project()
+    gl = _gl(project)
+    state = _state()
+    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=14, sha="sha-a")
+    gl.get_merge_request_pipelines.return_value = []
+    gl.create_merge_request_pipeline.side_effect = GitlabCreateError(
+        "Missing .gitlab-ci.yml file", response_code=403
+    )
+
+    trigger_fork_pipelines(
+        dry_run=False,
+        gl=gl,
+        project_merge_requests=[mr],
+        state=state,
+        pipeline_cache={},
+    )
+
+    state.add.assert_not_called()
+
+
+def test_pipeline_lookup_failure_does_not_block_other_merge_requests() -> None:
+    """get_merge_request_pipelines failing for one MR (e.g. a transient
+    GitLab error) must not abort processing of the rest of this project's
+    MRs in the same loop iteration."""
+    project = _project()
+    gl = _gl(project)
+    state = _state()
+    mr_lookup_fails = _mr(source_project_id=FORK_PROJECT_ID, iid=15, sha="sha-a")
+    mr_lookup_succeeds = _mr(source_project_id=FORK_PROJECT_ID, iid=16, sha="sha-b")
+    gl.get_merge_request_pipelines.side_effect = [
+        GitlabListError("500 Internal Server Error"),
+        [],
+    ]
+
+    trigger_fork_pipelines(
+        dry_run=False,
+        gl=gl,
+        project_merge_requests=[mr_lookup_fails, mr_lookup_succeeds],
+        state=state,
+        pipeline_cache={},
+    )
+
+    state.add.assert_not_called()
+    gl.create_merge_request_pipeline.assert_called_once_with(mr_lookup_succeeds)
 
 
 def test_non_missing_ci_error_is_not_cached_and_is_retried_next_run() -> None:

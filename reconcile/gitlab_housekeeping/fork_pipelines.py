@@ -26,7 +26,17 @@ triggered_fork_pipelines = Counter(
 
 NO_CI_CONFIG_STATE_VALUE = "missing-gitlab-ci-yml"
 STATE_KEY_PREFIX = "gitlab-housekeeping-fork-pipeline"
-MISSING_CI_CONFIG_MARKER = "gitlab-ci.yml"
+# GitLab's exact, documented response for a ref with no CI config at all:
+# https://docs.gitlab.com/ci/pipelines/merge_request_pipelines/
+MISSING_CI_CONFIG_RESPONSE_CODE = 400
+MISSING_CI_CONFIG_MESSAGE = "Missing .gitlab-ci.yml file"
+
+
+def _is_missing_ci_config_error(e: gitlab.exceptions.GitlabCreateError) -> bool:
+    return (
+        e.response_code == MISSING_CI_CONFIG_RESPONSE_CODE
+        and (e.error_message or "").strip() == MISSING_CI_CONFIG_MESSAGE
+    )
 
 
 def trigger_fork_pipelines(
@@ -60,22 +70,26 @@ def trigger_fork_pipelines(
     between reconcile loop iterations). A fork branch with no .gitlab-ci.yml
     at all -- the normal case for the vast majority of MRs until GitLab CI
     adoption grows -- leaves nothing on GitLab's side to detect (GitLab
-    reports a GitlabCreateError, "Missing .gitlab-ci.yml file", rather than
-    a silent no-op), so that specific, positively-identified outcome is
-    instead remembered in `state` (this integration's S3-backed per-run
-    state store), keyed by (mr, sha) under a key prefix distinct from
-    queue.py's verify_on_demand_tests() (which uses the same
-    {project}/{iid}/{sha} shape for a different purpose -- an unprefixed
-    key here would collide and corrupt both features' state on repos that
-    enable both). Without this, a fork MR with no CI config would retry the
-    same doomed API call on every single loop iteration for as long as it
-    stays open -- this integration runs with no sleep interval in
-    production (sharded, back-to-back), so that's unbounded wasted traffic
-    against the bot's API rate-limit budget, not a one-off cost. Any other
-    creation failure (transient errors, permissions issues, etc.) is logged
-    but not cached, so it's retried next run rather than suppressed
-    forever. The state key is scoped to the exact sha, so a new commit on
-    the MR is always retried fresh.
+    responds with a 400 GitlabCreateError whose message is exactly "Missing
+    .gitlab-ci.yml file", rather than a silent no-op), so that specific,
+    positively-identified response (matched on both status code and exact
+    message via _is_missing_ci_config_error -- not a loose substring match,
+    since an unrelated error could coincidentally mention the filename too)
+    is remembered in `state` (this integration's S3-backed per-run state
+    store), keyed by (mr, sha) under a key prefix distinct from queue.py's
+    verify_on_demand_tests() (which uses the same {project}/{iid}/{sha}
+    shape for a different purpose -- an unprefixed key here would collide
+    and corrupt both features' state on repos that enable both). Without
+    this, a fork MR with no CI config would retry the same doomed API call
+    on every single loop iteration for as long as it stays open -- this
+    integration runs with no sleep interval in production (sharded,
+    back-to-back), so that's unbounded wasted traffic against the bot's
+    API rate-limit budget, not a one-off cost. Any other creation failure,
+    and any failure just listing the MR's existing pipelines, is logged
+    but not cached and does not stop the rest of this project's MRs from
+    being processed -- it's simply retried next run. The state key is
+    scoped to the exact sha, so a new commit on the MR is always retried
+    fresh.
     """
     for mr in project_merge_requests:
         if mr.source_project_id == gl.project.id:
@@ -90,7 +104,20 @@ def trigger_fork_pipelines(
         if mr.iid in pipeline_cache:
             pipelines = pipeline_cache[mr.iid]
         else:
-            pipelines = gl.get_merge_request_pipelines(mr)
+            try:
+                pipelines = gl.get_merge_request_pipelines(mr)
+            except gitlab.exceptions.GitlabListError as e:
+                # A lookup failure here is unrelated to whether this MR has
+                # CI config -- don't cache anything, just skip this MR for
+                # this loop iteration and keep processing the rest.
+                logging.warning([
+                    "trigger_fork_pipeline",
+                    "pipeline_lookup_failed",
+                    gl.project.name,
+                    mr.iid,
+                    str(e),
+                ])
+                continue
             pipeline_cache[mr.iid] = pipelines
 
         # get_merge_request_pipelines lists every pipeline tied to the MR
@@ -112,7 +139,7 @@ def trigger_fork_pipelines(
         try:
             gl.create_merge_request_pipeline(mr)
         except gitlab.exceptions.GitlabCreateError as e:
-            if MISSING_CI_CONFIG_MARKER in (e.error_message or ""):
+            if _is_missing_ci_config_error(e):
                 # "Missing .gitlab-ci.yml file": the fork branch simply has
                 # no CI config at this commit, which is the normal case for
                 # the vast majority of MRs until GitLab CI adoption grows --
