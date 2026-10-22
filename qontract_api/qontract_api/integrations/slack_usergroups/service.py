@@ -244,12 +244,10 @@ class SlackUsergroupsService:
                 )
                 desired_state = slack.clean_slack_usergroups(workspace.usergroups)
                 logger.info(f"Calculating actions for workspace: {workspace.name}")
-                all_actions.extend(
-                    self._calculate_update_actions(
-                        workspace=workspace.name,
-                        current_state=current_state,
-                        desired_state=desired_state,
-                    )
+                workspace_actions = self._calculate_update_actions(
+                    workspace=workspace.name,
+                    current_state=current_state,
+                    desired_state=desired_state,
                 )
             except Exception as e:
                 error_msg = f"{workspace.name}: Unexpected error: {e}"
@@ -257,9 +255,11 @@ class SlackUsergroupsService:
                 errors.append(error_msg)
                 continue
 
-            # Execute actions if not dry_run
-            if not dry_run and all_actions:
-                for action in all_actions:
+            all_actions.extend(workspace_actions)
+
+            # Execute this workspace's actions if not dry_run
+            if not dry_run and workspace_actions:
+                for action in workspace_actions:
                     try:
                         self._execute_action(slack=slack, action=action)
                         applied_actions.append(action)
