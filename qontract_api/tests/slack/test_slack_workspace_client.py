@@ -965,7 +965,7 @@ def test_validate_usergroup_handle_available_no_collision(
 def test_validate_usergroup_handle_available_collides_with_user(
     client: SlackWorkspaceClient, mock_cache: MagicMock
 ) -> None:
-    """Raises when the handle matches an existing user's org_username."""
+    """Raises when the handle matches an existing user's Slack name."""
     _setup_namespace(
         mock_cache,
         users=[
@@ -984,6 +984,35 @@ def test_validate_usergroup_handle_available_collides_with_user(
     assert "test-workspace" in message
     assert "team-rosa-trust-engineering" in message
     assert "existing user" in message
+
+
+def test_validate_usergroup_handle_available_uses_slack_name_not_org_username(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Collision check is keyed on the Slack name, not the email-derived org_username.
+
+    org_username and name diverge for users whose Slack username doesn't
+    mirror their email local-part. The check must track Slack's own
+    handle_already_exists semantics (keyed on name), not app-interface's
+    org_username identity.
+    """
+    _setup_namespace(
+        mock_cache,
+        users=[
+            SlackUser(
+                id="U1",
+                name="jdoe",
+                profile=SlackUserProfile(email="john.doe@example.com"),
+            )
+        ],
+    )
+
+    # Matches the Slack name -> collision.
+    with pytest.raises(HandleAlreadyExistsError):
+        client.validate_usergroup_handle_available("jdoe")
+
+    # Matches only the org_username (email local-part) -> no collision.
+    client.validate_usergroup_handle_available("john.doe")
 
 
 def test_validate_usergroup_handle_available_ignores_deleted_user(
