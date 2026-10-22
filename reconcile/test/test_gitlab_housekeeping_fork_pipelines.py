@@ -11,6 +11,7 @@ from gitlab.v4.objects import (
 
 from reconcile.gitlab_housekeeping.fork_pipelines import (
     NO_CI_CONFIG_STATE_VALUE,
+    STATE_KEY_PREFIX,
     trigger_fork_pipelines,
 )
 from reconcile.utils.gitlab_api import GitLabApi
@@ -42,8 +43,10 @@ def _mr(*, source_project_id: int, iid: int, sha: str) -> ProjectMergeRequest:
     return mr
 
 
-def _pipeline(sha: str) -> ProjectMergeRequestPipeline:
-    return create_autospec(ProjectMergeRequestPipeline, sha=sha)
+def _pipeline(
+    sha: str, *, project_id: int = TARGET_PROJECT_ID
+) -> ProjectMergeRequestPipeline:
+    return create_autospec(ProjectMergeRequestPipeline, sha=sha, project_id=project_id)
 
 
 def _state() -> Mock:
@@ -70,12 +73,14 @@ def test_skips_non_fork_merge_requests() -> None:
     gl.create_merge_request_pipeline.assert_not_called()
 
 
-def test_skips_fork_mr_with_pipeline_for_current_sha() -> None:
+def test_skips_fork_mr_with_parent_context_pipeline_for_current_sha() -> None:
     project = _project()
     gl = _gl(project)
     state = _state()
     mr = _mr(source_project_id=FORK_PROJECT_ID, iid=2, sha="abc123")
-    gl.get_merge_request_pipelines.return_value = [_pipeline("abc123")]
+    gl.get_merge_request_pipelines.return_value = [
+        _pipeline("abc123", project_id=TARGET_PROJECT_ID)
+    ]
 
     trigger_fork_pipelines(
         dry_run=False,
@@ -88,11 +93,35 @@ def test_skips_fork_mr_with_pipeline_for_current_sha() -> None:
     gl.create_merge_request_pipeline.assert_not_called()
 
 
+def test_fork_side_pipeline_for_same_sha_does_not_block_parent_trigger() -> None:
+    """get_merge_request_pipelines lists pipelines from both the fork and
+    the parent project. A fork with its own CI/runner having already run
+    its own pipeline for this exact commit must not be mistaken for the
+    parent-context pipeline this function exists to create."""
+    project = _project()
+    gl = _gl(project)
+    state = _state()
+    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=3, sha="abc123")
+    gl.get_merge_request_pipelines.return_value = [
+        _pipeline("abc123", project_id=FORK_PROJECT_ID)
+    ]
+
+    trigger_fork_pipelines(
+        dry_run=False,
+        gl=gl,
+        project_merge_requests=[mr],
+        state=state,
+        pipeline_cache={},
+    )
+
+    gl.create_merge_request_pipeline.assert_called_once_with(mr)
+
+
 def test_triggers_fork_mr_with_no_pipeline_for_current_sha() -> None:
     project = _project()
     gl = _gl(project)
     state = _state()
-    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=3, sha="new-sha")
+    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=4, sha="new-sha")
     # only has a pipeline for an older, already-superseded commit
     gl.get_merge_request_pipelines.return_value = [_pipeline("old-sha")]
 
@@ -111,7 +140,7 @@ def test_dry_run_does_not_trigger() -> None:
     project = _project()
     gl = _gl(project)
     state = _state()
-    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=4, sha="new-sha")
+    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=5, sha="new-sha")
     gl.get_merge_request_pipelines.return_value = []
 
     trigger_fork_pipelines(
@@ -129,8 +158,8 @@ def test_uses_and_refreshes_pipeline_cache() -> None:
     project = _project()
     gl = _gl(project)
     state = _state()
-    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=5, sha="new-sha")
-    pipeline_cache = {5: [_pipeline("old-sha")]}
+    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=6, sha="new-sha")
+    pipeline_cache = {6: [_pipeline("old-sha")]}
 
     trigger_fork_pipelines(
         dry_run=False,
@@ -144,7 +173,7 @@ def test_uses_and_refreshes_pipeline_cache() -> None:
     gl.get_merge_request_pipelines.assert_not_called()
     gl.create_merge_request_pipeline.assert_called_once_with(mr)
     # cache entry dropped so a later lookup this run re-fetches and sees it
-    assert 5 not in pipeline_cache
+    assert 6 not in pipeline_cache
 
 
 def test_missing_gitlab_ci_yml_does_not_block_other_merge_requests() -> None:
@@ -154,8 +183,8 @@ def test_missing_gitlab_ci_yml_does_not_block_other_merge_requests() -> None:
     project = _project()
     gl = _gl(project)
     state = _state()
-    mr_without_ci_config = _mr(source_project_id=FORK_PROJECT_ID, iid=6, sha="sha-a")
-    mr_with_ci_config = _mr(source_project_id=FORK_PROJECT_ID, iid=7, sha="sha-b")
+    mr_without_ci_config = _mr(source_project_id=FORK_PROJECT_ID, iid=7, sha="sha-a")
+    mr_with_ci_config = _mr(source_project_id=FORK_PROJECT_ID, iid=8, sha="sha-b")
     gl.get_merge_request_pipelines.return_value = []
     gl.create_merge_request_pipeline.side_effect = [
         GitlabCreateError("Missing .gitlab-ci.yml file"),
@@ -179,7 +208,7 @@ def test_missing_gitlab_ci_yml_is_remembered_in_state() -> None:
     project = _project()
     gl = _gl(project)
     state = _state()
-    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=8, sha="sha-a")
+    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=9, sha="sha-a")
     gl.get_merge_request_pipelines.return_value = []
     gl.create_merge_request_pipeline.side_effect = GitlabCreateError(
         "Missing .gitlab-ci.yml file"
@@ -194,7 +223,7 @@ def test_missing_gitlab_ci_yml_is_remembered_in_state() -> None:
     )
 
     state.add.assert_called_once_with(
-        "service/app-interface/8/sha-a",
+        f"{STATE_KEY_PREFIX}/service/app-interface/9/sha-a",
         NO_CI_CONFIG_STATE_VALUE,
         force=True,
     )
@@ -205,7 +234,7 @@ def test_does_not_retry_a_sha_already_known_to_have_no_ci_config() -> None:
     gl = _gl(project)
     state = _state()
     state.get.return_value = NO_CI_CONFIG_STATE_VALUE
-    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=9, sha="sha-a")
+    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=10, sha="sha-a")
 
     trigger_fork_pipelines(
         dry_run=False,
@@ -227,8 +256,48 @@ def test_new_commit_is_retried_even_if_a_previous_sha_had_no_ci_config() -> None
     state.get.side_effect = lambda key, default=None: (
         NO_CI_CONFIG_STATE_VALUE if key.endswith("/sha-old") else default
     )
-    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=10, sha="sha-new")
+    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=11, sha="sha-new")
     gl.get_merge_request_pipelines.return_value = []
+
+    trigger_fork_pipelines(
+        dry_run=False,
+        gl=gl,
+        project_merge_requests=[mr],
+        state=state,
+        pipeline_cache={},
+    )
+
+    gl.create_merge_request_pipeline.assert_called_once_with(mr)
+
+
+def test_non_missing_ci_error_is_not_cached_and_is_retried_next_run() -> None:
+    """A transient/unrelated creation failure must not be permanently
+    suppressed the way a positively-identified missing-config result is --
+    it should be retried, and succeed, once the underlying issue clears."""
+    project = _project()
+    gl = _gl(project)
+    state = _state()
+    mr = _mr(source_project_id=FORK_PROJECT_ID, iid=12, sha="sha-a")
+    gl.get_merge_request_pipelines.return_value = []
+    gl.create_merge_request_pipeline.side_effect = GitlabCreateError(
+        "500 Internal Server Error"
+    )
+
+    # first run: fails with an unrelated error
+    trigger_fork_pipelines(
+        dry_run=False,
+        gl=gl,
+        project_merge_requests=[mr],
+        state=state,
+        pipeline_cache={},
+    )
+
+    state.add.assert_not_called()
+
+    # second run (fresh pipeline_cache, as every real loop iteration is):
+    # not suppressed by state, so it's retried and this time succeeds
+    gl.create_merge_request_pipeline.side_effect = None
+    gl.create_merge_request_pipeline.reset_mock()
 
     trigger_fork_pipelines(
         dry_run=False,
