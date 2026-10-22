@@ -391,7 +391,7 @@ class SlackWorkspaceClient:
         workspace = self.slack_api.workspace_name
 
         usernames = {
-            user.org_username for user in self.get_users().values() if not user.deleted
+            user.name for user in self.get_users().values() if not user.deleted
         }
         if handle in usernames:
             msg = (
