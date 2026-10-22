@@ -657,12 +657,14 @@ def _oidc_identity_provider_from_raw(
 
 
 def _taints_from_raw(raw: list[RawTaint] | None) -> list[OcmTaint] | None:
+    """Map raw wire taints to domain taints, preserving None."""
     if raw is None:
         return None
     return [OcmTaint(key=t.key, value=t.value, effect=t.effect) for t in raw]
 
 
 def _machine_pool_from_raw(raw: RawMachinePool) -> OcmMachinePool:
+    """Map a raw machine pool wire object to the domain model."""
     return OcmMachinePool(
         id=raw.id,
         instance_type=raw.instance_type,
@@ -681,6 +683,7 @@ def _machine_pool_from_raw(raw: RawMachinePool) -> OcmMachinePool:
 
 
 def _node_pool_from_raw(raw: RawNodePool) -> OcmNodePool:
+    """Map a raw node pool wire object to the domain model."""
     return OcmNodePool(
         id=raw.id,
         aws_node_pool=OcmNodePoolAws(instance_type=raw.aws_node_pool.instance_type),
