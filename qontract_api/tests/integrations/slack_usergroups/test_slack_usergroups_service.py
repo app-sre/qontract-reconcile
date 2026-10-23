@@ -665,7 +665,7 @@ def test_reconcile_create_blocked_by_existing_user(
     assert len(result.errors) == 1
     assert "test-workspace" in result.errors[0]
     assert "team-rosa-trust-engineering" in result.errors[0]
-    assert "existing user" in result.errors[0]
+    assert "existing user (" in result.errors[0]
     mock_slack_client.create_usergroup.assert_not_called()
 
 

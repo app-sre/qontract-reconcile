@@ -983,7 +983,7 @@ def test_validate_usergroup_handle_available_collides_with_user(
     message = str(exc_info.value)
     assert "test-workspace" in message
     assert "team-rosa-trust-engineering" in message
-    assert "existing user" in message
+    assert "existing user (" in message
 
 
 def test_validate_usergroup_handle_available_uses_slack_name_not_org_username(
