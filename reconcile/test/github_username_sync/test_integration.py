@@ -53,11 +53,22 @@ def test_compute_updates_flags_drifted_user() -> None:
     assert updates == [
         GithubUsernameUpdate(
             org_username="alice",
-            path="/access/users/alice.yml",
+            path="data/access/users/alice.yml",
             current_github_username="alice-old",
             github_username="alice-new",
         )
     ]
+
+
+def test_compute_updates_normalizes_path_to_repo_root() -> None:
+    """The GraphQL schema-relative path is normalized to the repo-root path
+    expected by the VCS API, mirroring ldap-users-api's PathSpec normalization.
+    """
+    users = [_make_user("alice", "alice-old")]
+
+    updates = compute_updates(users, {"alice": "alice-new"})
+
+    assert updates[0].path == "data/access/users/alice.yml"
 
 
 def test_compute_updates_skips_case_only_difference() -> None:
