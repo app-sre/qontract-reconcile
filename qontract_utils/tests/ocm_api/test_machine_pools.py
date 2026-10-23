@@ -260,10 +260,14 @@ def test_update_machine_pool_excludes_id_and_instance_type(
     ]
 
 
-def test_update_machine_pool_drops_empty_labels_and_taints(
+def test_update_machine_pool_sends_empty_labels_and_omits_empty_taints(
     httpserver: HTTPServer,
 ) -> None:
-    """Machine pool updates drop empty labels and taints entries."""
+    """Machine pool updates keep the legacy labels/taints wire contract.
+
+    The legacy client always sent labels (as {} when empty, so a PATCH can
+    clear them) but omitted taints when empty.
+    """
     api = _make_ocm_api(httpserver, token="test-token")
     update_path = f"{MACHINE_POOLS_PATH}/worker"
     httpserver.expect_request(update_path, method="PATCH").respond_with_json(
@@ -276,8 +280,59 @@ def test_update_machine_pool_drops_empty_labels_and_taints(
 
     update_requests = [req for req, _ in httpserver.log if req.path == update_path]
     body = update_requests[0].get_json()
-    assert "labels" not in body
+    assert body["labels"] == {}
     assert "taints" not in body
+
+
+def test_update_machine_pool_mode_transition_to_autoscaling(
+    httpserver: HTTPServer,
+) -> None:
+    """Switching a machine pool to autoscaling sends replicas as explicit null.
+
+    The legacy client always sent both replicas and autoscaling, with an
+    explicit null for the inactive one, so mode transitions are unambiguous
+    on the wire.
+    """
+    api = _make_ocm_api(httpserver, token="test-token")
+    update_path = f"{MACHINE_POOLS_PATH}/worker"
+    httpserver.expect_request(update_path, method="PATCH").respond_with_json(
+        _machine_pool_json()
+    )
+
+    pool = OcmMachinePool(
+        id="worker",
+        instance_type="m5.xlarge",
+        autoscaling=OcmMachinePoolAutoscaling(min_replicas=2, max_replicas=5),
+    )
+
+    api.update_machine_pool(CLUSTER_ID, pool)
+
+    update_requests = [req for req, _ in httpserver.log if req.path == update_path]
+    body = update_requests[0].get_json()
+    assert "replicas" in body
+    assert body["replicas"] is None
+    assert body["autoscaling"] == {"min_replicas": 2, "max_replicas": 5}
+
+
+def test_update_machine_pool_mode_transition_to_fixed_replicas(
+    httpserver: HTTPServer,
+) -> None:
+    """Switching a machine pool to fixed replicas sends autoscaling as null."""
+    api = _make_ocm_api(httpserver, token="test-token")
+    update_path = f"{MACHINE_POOLS_PATH}/worker"
+    httpserver.expect_request(update_path, method="PATCH").respond_with_json(
+        _machine_pool_json()
+    )
+
+    pool = OcmMachinePool(id="worker", instance_type="m5.xlarge", replicas=5)
+
+    api.update_machine_pool(CLUSTER_ID, pool)
+
+    update_requests = [req for req, _ in httpserver.log if req.path == update_path]
+    body = update_requests[0].get_json()
+    assert body["replicas"] == 5
+    assert "autoscaling" in body
+    assert body["autoscaling"] is None
 
 
 def test_delete_machine_pool(httpserver: HTTPServer) -> None:
@@ -413,10 +468,14 @@ def test_update_node_pool_excludes_immutable_fields(httpserver: HTTPServer) -> N
     assert body["labels"] == {"tier": "backend"}
 
 
-def test_update_node_pool_drops_empty_labels_and_taints(
+def test_update_node_pool_sends_empty_labels_and_omits_empty_taints(
     httpserver: HTTPServer,
 ) -> None:
-    """Node pool updates drop empty labels and taints entries."""
+    """Node pool updates keep the legacy labels/taints wire contract.
+
+    The legacy client always sent labels (as {} when empty, so a PATCH can
+    clear them) but omitted taints when empty.
+    """
     api = _make_ocm_api(httpserver, token="test-token")
     update_path = f"{NODE_POOLS_PATH}/worker"
     httpserver.expect_request(update_path, method="PATCH").respond_with_json(
@@ -433,8 +492,38 @@ def test_update_node_pool_drops_empty_labels_and_taints(
 
     update_requests = [req for req, _ in httpserver.log if req.path == update_path]
     body = update_requests[0].get_json()
-    assert "labels" not in body
+    assert body["labels"] == {}
     assert "taints" not in body
+
+
+def test_update_node_pool_mode_transition_to_autoscaling(
+    httpserver: HTTPServer,
+) -> None:
+    """Switching a node pool to autoscaling sends replicas as explicit null.
+
+    The legacy client always sent both replicas and autoscaling, with an
+    explicit null for the inactive one, so mode transitions are unambiguous
+    on the wire.
+    """
+    api = _make_ocm_api(httpserver, token="test-token")
+    update_path = f"{NODE_POOLS_PATH}/worker"
+    httpserver.expect_request(update_path, method="PATCH").respond_with_json(
+        _node_pool_json()
+    )
+
+    pool = OcmNodePool(
+        id="worker",
+        aws_node_pool=OcmNodePoolAws(instance_type="m5.xlarge"),
+        autoscaling=OcmNodePoolAutoscaling(min_replica=2, max_replica=5),
+    )
+
+    api.update_node_pool(CLUSTER_ID, pool)
+
+    update_requests = [req for req, _ in httpserver.log if req.path == update_path]
+    body = update_requests[0].get_json()
+    assert "replicas" in body
+    assert body["replicas"] is None
+    assert body["autoscaling"] == {"min_replica": 2, "max_replica": 5}
 
 
 def test_delete_node_pool(httpserver: HTTPServer) -> None:

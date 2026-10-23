@@ -702,30 +702,42 @@ def _node_pool_from_raw(raw: RawNodePool) -> OcmNodePool:
     )
 
 
-def _drop_empty_labels_and_taints(body: dict[str, Any]) -> dict[str, Any]:
-    """Drop empty labels/taints entries from an update body.
+def _apply_legacy_update_contract(
+    body: dict[str, Any], pool: OcmMachinePool | OcmNodePool
+) -> dict[str, Any]:
+    """Apply the legacy update-body wire contract to a dumped pool.
 
-    OCM rejects empty labels/taints on update - the legacy client deleted these
-    keys before PATCHing, so this preserves that behavior.
+    Mirrors reconcile/utils/ocm/ocm.py + reconcile/ocm_machine_pools.py, which
+    have sent this exact shape to OCM in production since 2021:
+
+    - replicas and autoscaling are BOTH always present, with an explicit null
+      for the inactive one, so fixed <-> autoscaling mode transitions are
+      explicit on the wire
+    - labels are always sent, as {} when empty, so a PATCH can clear them
+      (the legacy OCM client re-added labels unconditionally)
+    - taints are omitted when empty (the legacy client deleted them)
     """
-    return {k: v for k, v in body.items() if not (k in {"labels", "taints"} and not v)}
+    body["labels"] = pool.labels or {}
+    if not pool.taints:
+        del body["taints"]
+    return body
 
 
 def _machine_pool_update_body(pool: OcmMachinePool) -> dict[str, Any]:
     """Build the PATCH body for a machine pool update.
 
-    Excludes id (travels in the URL path) and instance_type (immutable on OCM),
-    and drops empty labels/taints.
+    Excludes id (travels in the URL path) and instance_type (immutable on
+    OCM), then applies the shared legacy update-body contract.
     """
-    body = pool.model_dump(exclude={"id", "instance_type"}, exclude_none=True)
-    return _drop_empty_labels_and_taints(body)
+    body = pool.model_dump(exclude={"id", "instance_type"})
+    return _apply_legacy_update_contract(body, pool)
 
 
 def _node_pool_update_body(pool: OcmNodePool) -> dict[str, Any]:
     """Build the PATCH body for a node pool update.
 
     Excludes id (travels in the URL path), aws_node_pool and subnet (immutable
-    on OCM), and drops empty labels/taints.
+    on OCM), then applies the shared legacy update-body contract.
     """
-    body = pool.model_dump(exclude={"id", "aws_node_pool", "subnet"}, exclude_none=True)
-    return _drop_empty_labels_and_taints(body)
+    body = pool.model_dump(exclude={"id", "aws_node_pool", "subnet"})
+    return _apply_legacy_update_contract(body, pool)
