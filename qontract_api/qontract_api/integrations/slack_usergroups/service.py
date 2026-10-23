@@ -16,9 +16,11 @@ from qontract_api.integrations.slack_usergroups.schemas import (
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.slack.slack_client_factory import create_slack_workspace_client
+from qontract_api.slack.slack_workspace_client import HandleAlreadyExistsError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from typing import Any
 
     from qontract_utils.secret_reader import Secret
 
@@ -29,6 +31,20 @@ if TYPE_CHECKING:
     from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
 
 logger = get_logger(__name__)
+
+# validate_usergroup_handle_available needs to see private channels this bot
+# token is a member of, not just public ones, to catch handle collisions with
+# them. Scoped to this integration's client only -- the shared
+# SlackSettings.api_method_configs default stays public-channel-only, since
+# other create_slack_workspace_client() callers (e.g. /external/slack/chat)
+# use caller-supplied tokens not guaranteed to carry the groups:read scope
+# this requires.
+_CONVERSATIONS_LIST_WITH_PRIVATE_CHANNELS: dict[str, dict[str, Any]] = {
+    "conversations.list": {
+        "limit": 1000,
+        "types": "public_channel,private_channel",
+    },
+}
 
 
 class SlackUsergroupsService:
@@ -77,6 +93,7 @@ class SlackUsergroupsService:
             cache=self.cache,
             secret_manager=self.secret_manager,
             settings=self.settings,
+            method_configs_override=_CONVERSATIONS_LIST_WITH_PRIVATE_CHANNELS,
         )
 
     @staticmethod
@@ -208,6 +225,31 @@ class SlackUsergroupsService:
                 )
         return actions
 
+    @staticmethod
+    def _validate_create_actions(
+        slack: SlackWorkspaceClient, actions: list[SlackUsergroupAction]
+    ) -> tuple[list[SlackUsergroupAction], list[str]]:
+        """Drop create actions whose handle collides with an existing workspace entity.
+
+        Args:
+            slack: SlackWorkspaceClient (Layer 2 - Cache + Compute)
+            actions: Actions calculated for a single workspace
+
+        Returns:
+            Tuple of (actions with colliding creates removed, collision error messages)
+        """
+        valid_actions: list[SlackUsergroupAction] = []
+        errors: list[str] = []
+        for action in actions:
+            if isinstance(action, SlackUsergroupActionCreate):
+                try:
+                    slack.validate_usergroup_handle_available(action.usergroup)
+                except HandleAlreadyExistsError as e:
+                    errors.append(str(e))
+                    continue
+            valid_actions.append(action)
+        return valid_actions, errors
+
     def reconcile(
         self,
         workspaces: list[SlackWorkspace],
@@ -244,22 +286,26 @@ class SlackUsergroupsService:
                 )
                 desired_state = slack.clean_slack_usergroups(workspace.usergroups)
                 logger.info(f"Calculating actions for workspace: {workspace.name}")
-                all_actions.extend(
-                    self._calculate_update_actions(
-                        workspace=workspace.name,
-                        current_state=current_state,
-                        desired_state=desired_state,
-                    )
+                workspace_actions = self._calculate_update_actions(
+                    workspace=workspace.name,
+                    current_state=current_state,
+                    desired_state=desired_state,
                 )
+                workspace_actions, validation_errors = self._validate_create_actions(
+                    slack=slack, actions=workspace_actions
+                )
+                errors.extend(validation_errors)
             except Exception as e:
                 error_msg = f"{workspace.name}: Unexpected error: {e}"
                 logger.exception(error_msg)
                 errors.append(error_msg)
                 continue
 
-            # Execute actions if not dry_run
-            if not dry_run and all_actions:
-                for action in all_actions:
+            all_actions.extend(workspace_actions)
+
+            # Execute this workspace's actions if not dry_run
+            if not dry_run and workspace_actions:
+                for action in workspace_actions:
                     try:
                         self._execute_action(slack=slack, action=action)
                         applied_actions.append(action)
