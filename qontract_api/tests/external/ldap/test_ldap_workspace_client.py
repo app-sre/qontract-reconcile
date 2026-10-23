@@ -334,6 +334,87 @@ def test_resolve_github_usernames_no_log_for_non_requested_ambiguous(
     mock_logger.warning.assert_not_called()
 
 
+# --- get_org_username_to_github_map ---
+
+
+def test_get_org_username_to_github_map_resolves_unambiguous(
+    workspace_client: LdapWorkspaceClient,
+    mock_cache: MagicMock,
+) -> None:
+    """Each uid with exactly one linked login, shared with no one else, resolves."""
+    mock_cache.get_obj.return_value = CachedGithubUsernames(
+        mapping={"alice-gh": ["alice"], "bob-gh": ["bob"]}
+    )
+
+    result = workspace_client.get_org_username_to_github_map()
+
+    assert result == {"alice": "alice-gh", "bob": "bob-gh"}
+
+
+def test_get_org_username_to_github_map_excludes_uid_with_shared_login(
+    workspace_client: LdapWorkspaceClient,
+    mock_cache: MagicMock,
+) -> None:
+    """A uid's own multi-login ambiguity must not be masked by a login it shares.
+
+    Alice links both "alice-gh" and "shared-gh"; Bob also links "shared-gh".
+    "shared-gh" is ambiguous (two uids), but Alice's own set {"alice-gh",
+    "shared-gh"} is independently ambiguous (two distinct logins) and must be
+    skipped on that basis alone - regardless of what happens to "shared-gh".
+    """
+    mock_cache.get_obj.return_value = CachedGithubUsernames(
+        mapping={
+            "alice-gh": ["alice"],
+            "shared-gh": ["alice", "bob"],
+        }
+    )
+
+    result = workspace_client.get_org_username_to_github_map()
+
+    assert result == {}
+
+
+def test_get_org_username_to_github_map_excludes_uid_with_multiple_logins(
+    workspace_client: LdapWorkspaceClient,
+    mock_cache: MagicMock,
+) -> None:
+    """A uid claiming multiple distinct logins is ambiguous.
+
+    This holds even if neither login is itself shared with another uid.
+    """
+    mock_cache.get_obj.return_value = CachedGithubUsernames(
+        mapping={"carol-gh-1": ["carol"], "carol-gh-2": ["carol"]}
+    )
+
+    result = workspace_client.get_org_username_to_github_map()
+
+    assert result == {}
+
+
+def test_get_org_username_to_github_map_logs_both_ambiguity_reasons(
+    workspace_client: LdapWorkspaceClient,
+    mock_cache: MagicMock,
+) -> None:
+    """Both ambiguity conditions are logged with their own warning."""
+    mock_cache.get_obj.return_value = CachedGithubUsernames(
+        mapping={
+            "shared-gh": ["alice", "bob"],
+            "carol-gh-1": ["carol"],
+            "carol-gh-2": ["carol"],
+        }
+    )
+
+    with patch(
+        "qontract_api.external.ldap.ldap_workspace_client.logger"
+    ) as mock_logger:
+        result = workspace_client.get_org_username_to_github_map()
+
+    assert result == {}
+    warning_calls = mock_logger.warning.call_args_list
+    assert any(call.kwargs.get("github_login") == "shared-gh" for call in warning_calls)
+    assert any(call.kwargs.get("org_username") == "carol" for call in warning_calls)
+
+
 # --- get_group_members ---
 
 
@@ -547,7 +628,12 @@ def test_get_group_members_skips_shared_github_login(
     *,
     include_unique_login: bool,
 ) -> None:
-    """A login claimed by multiple LDAP uids must not identify either one."""
+    """A login claimed by multiple LDAP uids must not identify either one.
+
+    When the shared uid also has its own additional login (include_unique_login),
+    that uid is independently ambiguous too - it has two distinct logins of its
+    own and must not fall back to the other one once the shared login is dropped.
+    """
     mock_api.check_groups_exist.return_value = {"team-a"}
     mock_api.get_group_members.return_value = [
         LdapGroup(
@@ -573,20 +659,21 @@ def test_get_group_members_skips_shared_github_login(
         LdapGroupResult(
             group="team-a",
             members=[
-                LdapGroupMember(
-                    name="alice",
-                    org_username="alice",
-                    github_username="alice-gh" if include_unique_login else None,
-                ),
+                LdapGroupMember(name="alice", org_username="alice"),
                 LdapGroupMember(name="bob", org_username="bob"),
             ],
         )
     ]
-    mock_logger.warning.assert_called_once()
-    assert mock_logger.warning.call_args.kwargs == {
-        "github_login": "shared-gh",
-        "uids": ["alice", "bob"],
-    }
+    warning_calls = [call.kwargs for call in mock_logger.warning.call_args_list]
+    assert {"github_login": "shared-gh", "uids": ["alice", "bob"]} in warning_calls
+    if include_unique_login:
+        assert mock_logger.warning.call_count == 2
+        assert {
+            "org_username": "alice",
+            "github_logins": ["alice-gh", "shared-gh"],
+        } in warning_calls
+    else:
+        assert mock_logger.warning.call_count == 1
 
 
 def test_get_group_members_fail_closed_on_oversized_group(
