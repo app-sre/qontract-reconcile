@@ -2113,6 +2113,61 @@ def managed_sso_client(ctx: click.Context) -> None:
 
 
 @integration.command(
+    short_help="Syncs github_username on internal users from LDAP (API)."
+)
+@click.option(
+    "--app-interface-repo-url",
+    required=True,
+    help="App-interface GitLab repository URL.",
+)
+@click.option(
+    "--app-interface-target-branch",
+    default="master",
+    help="App-interface repository target branch.",
+)
+@click.option(
+    "--label",
+    multiple=True,
+    default=["github-username-sync"],
+    help="Labels to apply to created MRs (repeatable).",
+)
+@click.option(
+    "--auto-merge-threshold",
+    type=int,
+    default=10,
+    help=(
+        "If the number of github_username updates in a run exceeds this "
+        "threshold, auto-merge is suppressed on the resulting MR, requiring "
+        "manual review."
+    ),
+)
+@click.pass_context
+def github_username_sync(
+    ctx: click.Context,
+    app_interface_repo_url: str,
+    app_interface_target_branch: str,
+    label: tuple[str, ...],
+    auto_merge_threshold: int,
+) -> None:
+    from reconcile.github_username_sync.integration import (
+        GithubUsernameSyncIntegration,
+        GithubUsernameSyncParams,
+    )
+
+    run_class_integration(
+        integration=GithubUsernameSyncIntegration(
+            GithubUsernameSyncParams(
+                app_interface_repo_url=app_interface_repo_url,
+                app_interface_target_branch=app_interface_target_branch,
+                labels=list(label),
+                auto_merge_threshold=auto_merge_threshold,
+            )
+        ),
+        ctx=ctx,
+    )
+
+
+@integration.command(
     short_help="Removes users which are not found in LDAP search (API)."
 )
 @click.option(

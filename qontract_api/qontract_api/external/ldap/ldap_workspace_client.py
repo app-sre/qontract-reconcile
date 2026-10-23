@@ -192,14 +192,24 @@ class LdapWorkspaceClient:
             resolved[login] = uids[0]
         return resolved
 
-    def _get_org_username_to_github_map(self) -> dict[str, str]:
+    def get_org_username_to_github_map(self) -> dict[str, str]:
         """Invert the GitHub-login -> uid(s) map to org_username -> GitHub login.
 
         Shared logins and org_usernames claiming multiple distinct logins are
-        ambiguous and skipped with a warning.
+        ambiguous and skipped with a warning. Both ambiguity checks are
+        evaluated against each uid's complete original set of linked logins
+        before either one discards anything - checking them sequentially
+        would let a uid's own multi-login ambiguity be masked whenever one of
+        its logins happens to also be shared by another uid.
         """
         login_to_uids = self._get_github_username_map()
-        uids_to_logins: dict[str, set[str]] = defaultdict(set)
+
+        uid_to_logins: dict[str, set[str]] = defaultdict(set)
+        for login, uids in login_to_uids.items():
+            for uid in uids:
+                uid_to_logins[uid].add(login)
+
+        ambiguous_logins: set[str] = set()
         for login, uids in login_to_uids.items():
             if len(uids) > 1:
                 logger.warning(
@@ -207,12 +217,10 @@ class LdapWorkspaceClient:
                     github_login=login,
                     uids=uids,
                 )
-                continue
-            for uid in uids:
-                uids_to_logins[uid].add(login)
+                ambiguous_logins.add(login)
 
         resolved: dict[str, str] = {}
-        for uid, logins in uids_to_logins.items():
+        for uid, logins in uid_to_logins.items():
             if len(logins) > 1:
                 logger.warning(
                     "Ambiguous LDAP uid claims multiple GitHub logins; skipping",
@@ -220,7 +228,10 @@ class LdapWorkspaceClient:
                     github_logins=sorted(logins),
                 )
                 continue
-            resolved[uid] = next(iter(logins))
+            login = next(iter(logins))
+            if login in ambiguous_logins:
+                continue
+            resolved[uid] = login
         return resolved
 
     def _group_members_cache_key(
@@ -289,7 +300,7 @@ class LdapWorkspaceClient:
                 members_by_cn[ldap_group.cn] = ldap_group.members
 
             github_by_org_username = (
-                self._get_org_username_to_github_map()
+                self.get_org_username_to_github_map()
                 if include_github_usernames
                 else {}
             )

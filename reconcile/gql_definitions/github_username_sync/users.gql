@@ -1,0 +1,9 @@
+# qenerate: plugin=pydantic_v2
+
+query GithubUsernameSyncUsers {
+  users: users_v1 {
+    path
+    org_username
+    github_username
+  }
+}
