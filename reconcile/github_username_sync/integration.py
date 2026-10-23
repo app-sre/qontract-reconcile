@@ -28,6 +28,7 @@ from qontract_api_client.schemas import (
     LdapOrgGithubUsernamesRequest,
     Secret,
 )
+from qontract_utils.vcs import normalize_app_interface_path
 
 from reconcile.github_username_sync.models import GithubUsernameUpdate
 from reconcile.github_username_sync.mr_builder import (
@@ -108,7 +109,7 @@ def compute_updates(
         updates.append(
             GithubUsernameUpdate(
                 org_username=user.org_username,
-                path=user.path,
+                path=normalize_app_interface_path(user.path),
                 current_github_username=user.github_username,
                 github_username=ldap_github_username,
             )
