@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -279,8 +280,8 @@ async def test_async_run_empty_ldap_result_returns_early(
     mock_toggle: MagicMock,
     integration: GithubUsernameSyncIntegration,
 ) -> None:
-    """An empty LDAP mapping is harmless here (unlike ldap-users-api): no updates,
-    no abort, no warning - just nothing to propose.
+    """An empty LDAP mapping is harmless here (unlike ldap-users-api): no updates
+    and no abort - every user is simply reported as unresolved and left untouched.
     """
     mock_query.return_value = _users_data([_make_user("alice", "alice-old")])
     mock_settings.return_value = _ldap_settings()
@@ -289,6 +290,42 @@ async def test_async_run_empty_ldap_result_returns_early(
     await integration.async_run(dry_run=False)
 
     mock_vcs.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch(f"{_MOD}.get_feature_toggle_state", return_value=False)
+@patch(f"{_MOD}.get_vcs_instances")
+@patch(f"{_MOD}.get_ldap_settings")
+@patch(f"{_MOD}.gql")
+@patch(f"{_MOD}.ldap_org_github_usernames", new_callable=AsyncMock)
+@patch(f"{_MOD}.query_users")
+async def test_async_run_reports_unresolved_users(
+    mock_query: MagicMock,
+    mock_ldap: AsyncMock,
+    mock_gql: MagicMock,
+    mock_settings: MagicMock,
+    mock_vcs: MagicMock,
+    mock_toggle: MagicMock,
+    integration: GithubUsernameSyncIntegration,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Per the design doc, users with no unambiguous LDAP-linked GitHub account
+    are reported (not silently dropped), whether or not any update is produced.
+    """
+    mock_query.return_value = _users_data([
+        _make_user("alice", "alice-old"),
+        _make_user("bob", "bob-gh"),
+    ])
+    mock_settings.return_value = _ldap_settings()
+    mock_ldap.return_value = _ldap_response({"alice": "alice-new"})
+
+    with caplog.at_level(logging.WARNING):
+        await integration.async_run(dry_run=True)
+
+    assert any(
+        "bob" in record.message and "unambiguous" in record.message
+        for record in caplog.records
+    )
 
 
 @pytest.mark.asyncio

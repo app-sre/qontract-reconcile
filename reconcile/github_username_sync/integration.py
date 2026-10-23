@@ -161,6 +161,16 @@ class GithubUsernameSyncIntegration(
             u.org_username: u.github_username for u in ldap_response.users
         }
 
+        if unresolved := sorted(
+            user.org_username
+            for user in users
+            if user.org_username not in org_username_to_github
+        ):
+            logger.warning(
+                "no unambiguous LDAP-linked GitHub account found; "
+                f"leaving github_username unchanged for: {', '.join(unresolved)}"
+            )
+
         updates = compute_updates(users, org_username_to_github)
         if not updates:
             return
