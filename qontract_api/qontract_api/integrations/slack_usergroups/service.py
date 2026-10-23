@@ -20,6 +20,7 @@ from qontract_api.slack.slack_workspace_client import HandleAlreadyExistsError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from typing import Any
 
     from qontract_utils.secret_reader import Secret
 
@@ -30,6 +31,20 @@ if TYPE_CHECKING:
     from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
 
 logger = get_logger(__name__)
+
+# validate_usergroup_handle_available needs to see private channels this bot
+# token is a member of, not just public ones, to catch handle collisions with
+# them. Scoped to this integration's client only -- the shared
+# SlackSettings.api_method_configs default stays public-channel-only, since
+# other create_slack_workspace_client() callers (e.g. /external/slack/chat)
+# use caller-supplied tokens not guaranteed to carry the groups:read scope
+# this requires.
+_CONVERSATIONS_LIST_WITH_PRIVATE_CHANNELS: dict[str, dict[str, Any]] = {
+    "conversations.list": {
+        "limit": 1000,
+        "types": "public_channel,private_channel",
+    },
+}
 
 
 class SlackUsergroupsService:
@@ -78,6 +93,7 @@ class SlackUsergroupsService:
             cache=self.cache,
             secret_manager=self.secret_manager,
             settings=self.settings,
+            method_configs_override=_CONVERSATIONS_LIST_WITH_PRIVATE_CHANNELS,
         )
 
     @staticmethod

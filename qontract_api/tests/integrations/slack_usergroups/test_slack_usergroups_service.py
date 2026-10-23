@@ -11,7 +11,10 @@ from qontract_api.integrations.slack_usergroups.schemas import (
     SlackUsergroupActionUpdateMetadata,
     SlackUsergroupActionUpdateUsers,
 )
-from qontract_api.integrations.slack_usergroups.service import SlackUsergroupsService
+from qontract_api.integrations.slack_usergroups.service import (
+    _CONVERSATIONS_LIST_WITH_PRIVATE_CHANNELS,
+    SlackUsergroupsService,
+)
 from qontract_api.models import Secret, TaskStatus
 from qontract_api.slack.domain import (
     SlackUsergroup,
@@ -831,8 +834,9 @@ def test_reconcile_multiple_workspaces_apply_executes_each_workspace_actions_onc
         cache: MagicMock,
         secret_manager: MagicMock,
         settings: Settings,
+        method_configs_override: dict[str, dict[str, object]] | None = None,
     ) -> MagicMock:
-        del secret, cache, secret_manager, settings
+        del secret, cache, secret_manager, settings, method_configs_override
         return clients_by_workspace[workspace_name]
 
     with patch(
@@ -870,6 +874,7 @@ def test_create_slack_client_uses_factory(
         cache=mock_cache,
         secret_manager=mock_secret_manager,
         settings=mock_settings,
+        method_configs_override=_CONVERSATIONS_LIST_WITH_PRIVATE_CHANNELS,
     )
 
     assert client is not None
