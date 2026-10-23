@@ -1087,6 +1087,7 @@ def test_create_usergroup_handle_already_exists_raises_clear_error(
     message = str(exc_info.value)
     assert "new-team" in message
     assert "private channel" in message
+    assert "stale" in message
 
 
 def test_create_usergroup_other_slack_api_error_propagates(
