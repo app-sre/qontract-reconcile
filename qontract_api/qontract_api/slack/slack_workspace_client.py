@@ -434,8 +434,10 @@ class SlackWorkspaceClient:
         Raises:
             HandleAlreadyExistsError: If Slack rejects the handle as already in
                 use. This can happen even after validate_usergroup_handle_available
-                passed, if the collision is with a private channel invisible to
-                this integration's bot token.
+                passed, either because the collision is with a private channel
+                invisible to this integration's bot token, or because the user,
+                channel, or usergroup cache validate_usergroup_handle_available
+                read from was stale.
         """
         try:
             created_ug = self.slack_api.usergroup_create(handle=handle, name=name)
@@ -443,9 +445,11 @@ class SlackWorkspaceClient:
             if e.response.get("error") == "handle_already_exists":
                 msg = (
                     f"{self.slack_api.workspace_name}: usergroup handle "
-                    f"'{handle}' was rejected by Slack as already in use, "
-                    "likely a private channel not visible to this "
-                    "integration's bot token"
+                    f"'{handle}' was rejected by Slack as already in use. "
+                    "This can happen if the collision is with a private "
+                    "channel invisible to this integration's bot token, or "
+                    "if the cached user/channel/usergroup inventory used by "
+                    "validate_usergroup_handle_available was stale"
                 )
                 raise HandleAlreadyExistsError(msg) from e
             raise
