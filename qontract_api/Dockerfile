@@ -23,7 +23,7 @@ ENV \
     SSL_CERT_FILE=/etc/pki/tls/cert.pem \
     TESTFLAG=/tmp/.tests_passed
 
-COPY --from=quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master@sha256:889c023a24b52ab735f030202fefc70191417082c3e9f8108ab66db8581ca2dd /etc/pki/ /etc/pki/
+COPY --from=quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master@sha256:a2ad55ebe8cc2661c6f029cc7309dd3645ffaa93fd0fd4b8e7bdb6e0f39c1484 /etc/pki/ /etc/pki/
 
 # Install base dependencies
 RUN microdnf install -y python3.14 make && microdnf clean all
