@@ -384,6 +384,8 @@ def _status_requires_wait(status: Any, *, require_success: bool) -> bool:
     return True
 
 
+_WORST_PIPELINE_STATUS_SEVERITY = 2
+
 _PIPELINE_STATUS_SEVERITY: dict[PipelineStatus, int] = {
     PipelineStatus.SUCCESS: 0,
     PipelineStatus.RUNNING: 1,
@@ -392,7 +394,7 @@ _PIPELINE_STATUS_SEVERITY: dict[PipelineStatus, int] = {
 
 
 def _pipeline_status_severity(status: Any) -> int:
-    return _PIPELINE_STATUS_SEVERITY.get(status, 2)
+    return _PIPELINE_STATUS_SEVERITY.get(status, _WORST_PIPELINE_STATUS_SEVERITY)
 
 
 def _usable_sha_status(pipelines: list[Any], sha: str) -> Any:
