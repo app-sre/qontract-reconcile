@@ -925,6 +925,50 @@ async def test_compile_users_from_pagerduty_logs_actionable_schedule_error(
     assert "request-123" in caplog.text
 
 
+@pytest.mark.asyncio
+async def test_unrelated_usergroup_compilation_does_not_query_stale_schedule(
+    integration: SlackUsergroupsIntegration,
+    permission_query: MagicMock,
+) -> None:
+    """An isolated unrelated permission never reaches ACS's PagerDuty dependency."""
+    workspace = _workspace(name="red-hat", managed=["acs", "unrelated"])
+    acs = _permission(
+        handle="acs",
+        workspace=workspace,
+        pagerduty=[
+            PagerDutyTargetV1(
+                name="acs",
+                instance=PagerDutyInstanceV1(token=_vault_secret("secret/pd")),
+                scheduleID="PTA0024",
+                escalationPolicyID=None,
+            )
+        ],
+    )
+    unrelated = _permission(handle="unrelated", workspace=workspace)
+    permission_query.return_value.permissions = [acs, unrelated]
+
+    selected = await integration.get_permissions(
+        query_func=MagicMock(),
+        ldap_settings=_ldap_settings(),
+        workspace_name="red-hat",
+        usergroup_name="unrelated",
+    )
+    with patch(
+        f"{_MOD}.pagerduty_schedule_users", new_callable=AsyncMock
+    ) as pagerduty_schedule:
+        workspaces = await integration.compile_desired_state_from_permissions(
+            permissions=selected,
+            app_interface_users=[],
+            vcs_instances=[],
+            ldap_settings=_ldap_settings(),
+            desired_workspace_name="red-hat",
+            desired_usergroup_name="unrelated",
+        )
+
+    assert [usergroup.handle for usergroup in workspaces[0].usergroups] == ["unrelated"]
+    pagerduty_schedule.assert_not_awaited()
+
+
 # --- GitHub org membership (APPSRE-15221) ---
 
 
