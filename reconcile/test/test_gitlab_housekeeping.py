@@ -5639,6 +5639,33 @@ def test_serial_merge_skips_when_older_success_outranks_head_failure(
     fresh.merge.assert_not_called()
 
 
+def test_serial_merge_skips_when_second_pipeline_at_head_sha_failed(
+    mocker: MockerFixture,
+) -> None:
+    """Gate 1 (pipelines[0].status) only fast-paths; gate 2 re-checks every
+    usable pipeline at the live head sha before merge. A native GitLab
+    pipeline reporting SUCCESS first in API order must not hide a same-sha
+    external (Jenkins) pipeline that FAILED.
+    """
+    mr = _make_merge_mr(10, ["approved", "tenant-foo"], sha="head-sha")
+    _call_merge(
+        mocker,
+        [_make_merge_item(mr)],
+        rebased_iids={10},
+        multi_merge=False,
+        pipelines_by_iid={
+            10: [
+                _pipeline(
+                    PipelineStatus.SUCCESS, "head-sha", source="merge_request_event"
+                ),
+                _pipeline(PipelineStatus.FAILED, "head-sha", source="external"),
+            ]
+        },
+    )
+
+    mr.merge.assert_not_called()
+
+
 def test_serial_merge_pins_sha_from_fresh_mr(mocker: MockerFixture) -> None:
     """merge() must send the live head SHA, not the pre-healthcheck snapshot."""
     listed = _make_merge_mr(

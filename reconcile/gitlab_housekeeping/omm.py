@@ -384,12 +384,15 @@ def _status_requires_wait(status: Any, *, require_success: bool) -> bool:
     return True
 
 
+_PIPELINE_STATUS_SEVERITY: dict[PipelineStatus, int] = {
+    PipelineStatus.SUCCESS: 0,
+    PipelineStatus.RUNNING: 1,
+    PipelineStatus.PENDING: 1,
+}
+
+
 def _pipeline_status_severity(status: Any) -> int:
-    if status == PipelineStatus.SUCCESS:
-        return 0
-    if status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
-        return 1
-    return 2
+    return _PIPELINE_STATUS_SEVERITY.get(status, 2)
 
 
 def _usable_sha_status(pipelines: list[Any], sha: str) -> Any:
