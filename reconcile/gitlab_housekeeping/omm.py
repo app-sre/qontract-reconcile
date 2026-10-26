@@ -384,17 +384,40 @@ def _status_requires_wait(status: Any, *, require_success: bool) -> bool:
     return True
 
 
+_WORST_PIPELINE_STATUS_SEVERITY = 2
+
+_PIPELINE_STATUS_SEVERITY: dict[PipelineStatus, int] = {
+    PipelineStatus.SUCCESS: 0,
+    PipelineStatus.RUNNING: 1,
+    PipelineStatus.PENDING: 1,
+}
+
+
+def _pipeline_status_severity(status: Any) -> int:
+    return _PIPELINE_STATUS_SEVERITY.get(status, _WORST_PIPELINE_STATUS_SEVERITY)
+
+
 def _usable_sha_status(pipelines: list[Any], sha: str) -> Any:
-    return next(
-        (
-            getattr(p, "status", None)
-            for p in pipelines
-            if getattr(p, "sha", None) == sha
-            and getattr(p, "status", None) != PipelineStatus.SKIPPED
-            and getattr(p, "source", None) != "push"
-        ),
-        None,
-    )
+    """Worst status among every usable (non-skipped, non-push) pipeline at this sha.
+
+    A native GitLab pipeline and an external one (Jenkins, Konflux, ...) can
+    both report for the same sha. Returning the first match in whatever order
+    the API happened to return is order-dependent and unsafe: a lighter
+    pipeline reporting SUCCESS first could mask a real failure reported by
+    another pipeline for the same commit. Require every matching pipeline to
+    agree (treat any non-SUCCESS as the result) before this sha counts as
+    usable.
+    """
+    statuses = [
+        getattr(p, "status", None)
+        for p in pipelines
+        if getattr(p, "sha", None) == sha
+        and getattr(p, "status", None) != PipelineStatus.SKIPPED
+        and getattr(p, "source", None) != "push"
+    ]
+    if not statuses:
+        return None
+    return max(statuses, key=_pipeline_status_severity)
 
 
 def _prior_revision_requires_wait(

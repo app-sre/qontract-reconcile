@@ -55,6 +55,7 @@ from reconcile.gitlab_housekeeping.labels import (
 from reconcile.gitlab_housekeeping.omm import (
     _committed_during_label,
     _MemberResult,
+    _usable_sha_status,
     apply_omm_pending,
     form_omm_group,
     process_omm_group,
@@ -4205,6 +4206,64 @@ def test_omm_group_fork_external_pipeline_preserved_at_current_sha(
     mr.rebase.assert_called_once_with(skip_ci=True)
 
 
+# --- _usable_sha_status: multiple usable pipelines for the same sha ---
+
+
+def test_usable_sha_status_single_pipeline_returns_its_status() -> None:
+    pipelines = [_pipeline(PipelineStatus.SUCCESS, "sha1", source="external")]
+    assert _usable_sha_status(pipelines, "sha1") == PipelineStatus.SUCCESS
+
+
+def test_usable_sha_status_all_success_returns_success() -> None:
+    """A native GitLab pipeline and an external one (Jenkins) both reporting
+    for the same sha, both SUCCESS: the sha is usable."""
+    pipelines = [
+        _pipeline(PipelineStatus.SUCCESS, "sha1", source="merge_request_event"),
+        _pipeline(PipelineStatus.SUCCESS, "sha1", source="external"),
+    ]
+    assert _usable_sha_status(pipelines, "sha1") == PipelineStatus.SUCCESS
+
+
+def test_usable_sha_status_requires_all_matching_pipelines_to_succeed() -> None:
+    """Regression guard: a native GitLab pipeline reporting SUCCESS must not
+    mask a real failure from another pipeline (e.g. external Jenkins/Konflux)
+    for the same sha. Returning the first match, as this function used to,
+    is order-dependent and unsafe."""
+    pipelines = [
+        _pipeline(PipelineStatus.SUCCESS, "sha1", source="merge_request_event"),
+        _pipeline(PipelineStatus.FAILED, "sha1", source="external"),
+    ]
+    assert _usable_sha_status(pipelines, "sha1") == PipelineStatus.FAILED
+
+
+def test_usable_sha_status_result_is_order_independent() -> None:
+    """Same two pipelines as above, reversed order: the result must not
+    change depending on which one the API happened to list first."""
+    pipelines = [
+        _pipeline(PipelineStatus.FAILED, "sha1", source="external"),
+        _pipeline(PipelineStatus.SUCCESS, "sha1", source="merge_request_event"),
+    ]
+    assert _usable_sha_status(pipelines, "sha1") == PipelineStatus.FAILED
+
+
+def test_usable_sha_status_running_does_not_mask_failure() -> None:
+    pipelines = [
+        _pipeline(PipelineStatus.RUNNING, "sha1", source="merge_request_event"),
+        _pipeline(PipelineStatus.FAILED, "sha1", source="external"),
+    ]
+    assert _usable_sha_status(pipelines, "sha1") == PipelineStatus.FAILED
+
+
+def test_usable_sha_status_success_does_not_mask_running() -> None:
+    """A still-running pipeline must not be shadowed by another, already-
+    successful one for the same sha - merging must still wait."""
+    pipelines = [
+        _pipeline(PipelineStatus.SUCCESS, "sha1", source="merge_request_event"),
+        _pipeline(PipelineStatus.RUNNING, "sha1", source="external"),
+    ]
+    assert _usable_sha_status(pipelines, "sha1") == PipelineStatus.RUNNING
+
+
 # --- Skipped pipeline filtering in serial merge and _form_omm_group ---
 
 
@@ -5578,6 +5637,33 @@ def test_serial_merge_skips_when_older_success_outranks_head_failure(
 
     listed.merge.assert_not_called()
     fresh.merge.assert_not_called()
+
+
+def test_serial_merge_skips_when_second_pipeline_at_head_sha_failed(
+    mocker: MockerFixture,
+) -> None:
+    """Gate 1 (pipelines[0].status) only fast-paths; gate 2 re-checks every
+    usable pipeline at the live head sha before merge. A native GitLab
+    pipeline reporting SUCCESS first in API order must not hide a same-sha
+    external (Jenkins) pipeline that FAILED.
+    """
+    mr = _make_merge_mr(10, ["approved", "tenant-foo"], sha="head-sha")
+    _call_merge(
+        mocker,
+        [_make_merge_item(mr)],
+        rebased_iids={10},
+        multi_merge=False,
+        pipelines_by_iid={
+            10: [
+                _pipeline(
+                    PipelineStatus.SUCCESS, "head-sha", source="merge_request_event"
+                ),
+                _pipeline(PipelineStatus.FAILED, "head-sha", source="external"),
+            ]
+        },
+    )
+
+    mr.merge.assert_not_called()
 
 
 def test_serial_merge_pins_sha_from_fresh_mr(mocker: MockerFixture) -> None:
