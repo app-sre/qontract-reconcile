@@ -68,6 +68,10 @@ class ShardableApiTestIntegrationParams(PydanticRunParams):
 class ShardableApiTestIntegration(
     QontractReconcileApiIntegration[ShardableApiTestIntegrationParams]
 ):
+    def __init__(self, params: ShardableApiTestIntegrationParams):
+        super().__init__(params)
+        self.desired_state_data: dict[str, Any] = {}
+
     @property
     def name(self) -> str:
         return "shardable-api-test-integration"

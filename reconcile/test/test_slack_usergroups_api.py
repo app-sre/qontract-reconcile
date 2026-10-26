@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from clientele.http.response import Response
+from qontract_api_client.exceptions import APIException
 from qontract_api_client.schemas import (
     EscalationPolicyUsersResponse,
     GithubOrgMembersResponse,
@@ -363,6 +365,45 @@ def test_get_token_from_url_no_match_raises() -> None:
 
 def test_integration_name(integration: SlackUsergroupsIntegration) -> None:
     assert integration.name == QONTRACT_INTEGRATION == "slack-usergroups-api"
+
+
+def test_early_exit_snapshot_uses_only_declarative_inputs(
+    integration: SlackUsergroupsIntegration,
+    mocker: MockerFixture,
+) -> None:
+    """Snapshot construction must not resolve any mutable external state."""
+    gql_api = MagicMock()
+    mocker.patch(f"{_MOD}.gql.get_api", return_value=gql_api)
+    permissions = [
+        _permission(handle="z-team", workspace=_workspace(name="z-workspace")),
+        _permission(handle="a-team", workspace=_workspace(name="a-workspace")),
+    ]
+    mocker.patch(f"{_MOD}.permissions_query").return_value.permissions = permissions
+    mocker.patch(f"{_MOD}.users_query").return_value.users = [
+        _app_user("alice", "alice-gh")
+    ]
+    mocker.patch(f"{_MOD}.clusters_query").return_value.clusters = []
+    mocker.patch(f"{_MOD}.roles_query").return_value.roles = []
+    mocker.patch(f"{_MOD}.get_vcs_instances", return_value=[])
+    mocker.patch(f"{_MOD}.get_ldap_settings", return_value=_ldap_settings())
+    external_calls = [
+        mocker.patch(f"{_MOD}.pagerduty_schedule_users"),
+        mocker.patch(f"{_MOD}.pagerduty_escalation_policy_users"),
+        mocker.patch(f"{_MOD}.github_org_members"),
+        mocker.patch(f"{_MOD}.ldap_github_usernames"),
+        mocker.patch(f"{_MOD}.vcs_repo_owners"),
+        mocker.patch(f"{_MOD}.slack_usergroups"),
+    ]
+
+    snapshot = integration.get_early_exit_desired_state()
+
+    assert snapshot is not None
+    assert [item["shard"] for item in snapshot["usergroups"]] == [
+        '["a-workspace","a-team"]',
+        '["z-workspace","z-team"]',
+    ]
+    for external_call in external_calls:
+        external_call.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -839,6 +880,49 @@ async def test_compile_users_from_pagerduty_maps_usernames(
         )
     # alice-pd maps to org_username alice; carol has no mapping -> passthrough
     assert sorted(result) == ["alice", "carol"]
+
+
+@pytest.mark.asyncio
+async def test_compile_users_from_pagerduty_logs_actionable_schedule_error(
+    integration: SlackUsergroupsIntegration,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Jenkins output identifies the failed target and qontract-api request."""
+    pagerduties = [
+        PagerDutyTargetV1(
+            name="acs",
+            instance=PagerDutyInstanceV1(token=_vault_secret("secret/pd")),
+            scheduleID="PTA0024",
+            escalationPolicyID=None,
+        )
+    ]
+    response = Response(
+        status_code=404,
+        headers={"X-Request-ID": "request-123"},
+        content=(
+            b'{"message":"PagerDuty schedule \'PTA0024\' was not found",'
+            b'"type":"NotFoundError","request_id":"request-123"}'
+        ),
+    )
+
+    with (
+        patch(
+            f"{_MOD}.pagerduty_schedule_users",
+            new_callable=AsyncMock,
+            side_effect=APIException(response, "Not Found"),
+        ),
+        caplog.at_level(logging.ERROR),
+        pytest.raises(RuntimeError, match="1 PagerDuty target lookup"),
+    ):
+        await integration.compile_users_from_pagerduty_schedules(
+            pagerduties=pagerduties,
+            app_interface_users=[],
+        )
+
+    assert "PagerDuty schedule 'PTA0024' lookup failed" in caplog.text
+    assert "status_code=404" in caplog.text
+    assert "PagerDuty schedule 'PTA0024' was not found" in caplog.text
+    assert "request-123" in caplog.text
 
 
 # --- GitHub org membership (APPSRE-15221) ---
@@ -1728,8 +1812,53 @@ async def test_async_run_no_workspaces_returns_early(
         caplog.at_level(logging.DEBUG),
     ):
         await integration.async_run(dry_run=True)
+
     mock_recon.assert_not_called()
     assert any("No desired state found" in r.message for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_async_run_missing_shard_falls_back_to_complete_dry_run(
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Removed or unmappable usergroups cannot silently pass isolated validation."""
+    integration = SlackUsergroupsIntegration(
+        SlackUsergroupsIntegrationParams(
+            workspace_name=None,
+            usergroup_name=None,
+            shard_id='["red-hat","removed"]',
+        )
+    )
+    original_async_run = SlackUsergroupsIntegration.async_run
+    full_run = mocker.patch.object(
+        SlackUsergroupsIntegration,
+        "async_run",
+        autospec=True,
+    )
+    # Exercise the original implementation for the selected invocation while
+    # intercepting the recursively-created complete integration.
+    patches = _patch_async_run_deps(integration, workspaces=[])
+    with (
+        patches[0],
+        patches[1],
+        patches[2],
+        patches[3],
+        patches[4],
+        patches[5],
+        patches[6],
+        patches[7],
+        patches[8],
+        caplog.at_level(logging.WARNING),
+    ):
+        await original_async_run(integration, True)
+
+    full_run.assert_awaited_once()
+    assert full_run.await_args is not None
+    fallback_integration, fallback_dry_run = full_run.await_args.args
+    assert fallback_dry_run is True
+    assert fallback_integration.params.shard_id is None
+    assert "falling back to complete dry-run validation" in caplog.text
 
 
 @pytest.mark.asyncio

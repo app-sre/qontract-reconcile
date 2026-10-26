@@ -298,7 +298,7 @@ class SlackUsergroupsIntegration(
                     ],
                     "roles": [
                         self._json_model(role)
-                        for role in roles_query(query_func=gqlapi.query).roles
+                        for role in roles_query(query_func=gqlapi.query).roles or []
                     ],
                     "vcs_instances": [
                         self._json_model(vcs) for vcs in get_vcs_instances(gqlapi.query)
@@ -595,7 +595,7 @@ class SlackUsergroupsIntegration(
                     return await request
             except Exception:
                 logging.exception(
-                    "PagerDuty target lookup failed",
+                    f"PagerDuty {target_type} {target_id!r} lookup failed",
                     extra={
                         "integration": QONTRACT_INTEGRATION,
                         "pagerduty_target_type": target_type,
@@ -639,7 +639,7 @@ class SlackUsergroupsIntegration(
 
         responses = await asyncio.gather(*tasks, return_exceptions=True)
         failures = [
-            response for response in responses if isinstance(response, Exception)
+            response for response in responses if isinstance(response, BaseException)
         ]
         if failures:
             raise RuntimeError(
@@ -655,7 +655,7 @@ class SlackUsergroupsIntegration(
         return [
             users_map.get(user.username, user.username)
             for resp in responses
-            if not isinstance(resp, Exception)
+            if not isinstance(resp, BaseException)
             for user in resp.users or []
         ]
 
@@ -1136,6 +1136,18 @@ class SlackUsergroupsIntegration(
         )
 
         if not workspaces:
+            if self.params.shard_id:
+                if not dry_run:
+                    raise RuntimeError(
+                        "Slack usergroup shard execution is supported only in dry-run mode"
+                    )
+                logging.warning(
+                    f"Unable to materialize affected Slack usergroup "
+                    f"{self.params.shard_id}; falling back to complete dry-run validation"
+                )
+                full_params = self.params.copy_and_update({"shard_id": None})
+                await type(self)(full_params).async_run(True)
+                return
             logging.debug("No desired state found, nothing to reconcile")
             return
 
