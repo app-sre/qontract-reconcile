@@ -133,7 +133,8 @@ def test_get_machine_pools_paginates(httpserver: HTTPServer) -> None:
     def handler(request: Request) -> Response:
         """Serve a full first page of machine pools, then a single-item second page."""
         page = int(request.args.get("page", "1"))
-        assert request.args.get("order") == "id"
+        # MachinePools.List does not support an order parameter
+        assert "order" not in request.args
         if page == 1:
             items = [_machine_pool_json(pool_id=f"pool-{i}") for i in range(100)]
             body = {"items": items, "page": 1, "size": 100, "total": 101}

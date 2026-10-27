@@ -437,12 +437,16 @@ class RawOcmClient:
         """List all machine pools on a cluster."""
 
         def fetch_page(page: int) -> tuple[list[RawMachinePool], int]:
-            """Fetch one page of machine pools."""
+            """Fetch one page of machine pools.
+
+            The published MachinePools.List contract exposes only page and
+            size - unlike NodePools.List it accepts no order parameter, so
+            pagination order stays undefined (the legacy client had the same
+            limitation).
+            """
             response = self._client.get(
                 f"/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools",
-                # order by an indexed field: pagination order is undefined
-                # without it, so successive pages can overlap or miss pools
-                params={"page": page, "size": MAX_PAGE_SIZE, "order": "id"},
+                params={"page": page, "size": MAX_PAGE_SIZE},
             )
             response.raise_for_status()
             raw_list = RawMachinePoolList.model_validate(response.json())
