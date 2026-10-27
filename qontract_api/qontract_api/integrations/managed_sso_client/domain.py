@@ -175,11 +175,14 @@ def _field_values_match(desired: object, current: object) -> bool:
     """Compare two field values, treating lists as order-insensitive sets.
 
     Keycloak returns list-valued fields (e.g. redirectUris) from a Set
-    internally, so their element order is not stable across requests -
-    comparing them positionally would report spurious drift every reconcile.
+    internally, so their element order is not stable across requests, and
+    duplicate entries are collapsed - comparing them positionally (even
+    sorted) would report spurious drift every reconcile for a duplicate in
+    the desired list, and would permanently block a legitimate immutable
+    scope update too.
     """
     if isinstance(desired, list) and isinstance(current, list):
-        return sorted(desired) == sorted(current)
+        return set(desired) == set(current)
     return desired == current
 
 
