@@ -440,7 +440,9 @@ class RawOcmClient:
             """Fetch one page of machine pools."""
             response = self._client.get(
                 f"/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools",
-                params={"page": page, "size": MAX_PAGE_SIZE},
+                # order by an indexed field: pagination order is undefined
+                # without it, so successive pages can overlap or miss pools
+                params={"page": page, "size": MAX_PAGE_SIZE, "order": "id"},
             )
             response.raise_for_status()
             raw_list = RawMachinePoolList.model_validate(response.json())
@@ -485,7 +487,9 @@ class RawOcmClient:
             """Fetch one page of node pools."""
             response = self._client.get(
                 f"/api/clusters_mgmt/v1/clusters/{cluster_id}/node_pools",
-                params={"page": page, "size": MAX_PAGE_SIZE},
+                # order by an indexed field: pagination order is undefined
+                # without it, so successive pages can overlap or miss pools
+                params={"page": page, "size": MAX_PAGE_SIZE, "order": "id"},
             )
             response.raise_for_status()
             raw_list = RawNodePoolList.model_validate(response.json())

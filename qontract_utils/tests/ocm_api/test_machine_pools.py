@@ -133,6 +133,7 @@ def test_get_machine_pools_paginates(httpserver: HTTPServer) -> None:
     def handler(request: Request) -> Response:
         """Serve a full first page of machine pools, then a single-item second page."""
         page = int(request.args.get("page", "1"))
+        assert request.args.get("order") == "id"
         if page == 1:
             items = [_machine_pool_json(pool_id=f"pool-{i}") for i in range(100)]
             body = {"items": items, "page": 1, "size": 100, "total": 101}
@@ -394,6 +395,7 @@ def test_get_node_pools_paginates(httpserver: HTTPServer) -> None:
     def handler(request: Request) -> Response:
         """Serve a full first page of node pools, then a single-item second page."""
         page = int(request.args.get("page", "1"))
+        assert request.args.get("order") == "id"
         if page == 1:
             items = [_node_pool_json(pool_id=f"pool-{i}") for i in range(100)]
             body = {"items": items, "page": 1, "size": 100, "total": 101}
