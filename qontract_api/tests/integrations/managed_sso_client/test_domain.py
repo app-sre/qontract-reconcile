@@ -283,6 +283,36 @@ def test_matches_detects_drift_when_direct_access_grants_enabled_defaults_to_fal
     assert _desired().matches(current) is False
 
 
+def test_matches_ignores_list_order_only_differences() -> None:
+    """Keycloak returns list fields from a Set - order is not stable.
+
+    An order-only difference must not register as drift, or every reconcile
+    would issue a PUT that flips the order back and forth forever.
+    """
+    current = ManagedKeycloakClient(
+        client_id="my-app-ci-bot",
+        redirect_uris=[
+            "https://b.example.com/callback",
+            "https://a.example.com/callback",
+        ],
+        enabled=True,
+        public_client=False,
+        bearer_only=False,
+        direct_access_grants_enabled=False,
+    )
+    desired = ManagedSsoClientDesiredState(
+        client_id="my-app-ci-bot",
+        keycloak_instance=_keycloak_instance(),
+        oidc=OidcDesiredState(
+            redirect_uris=[
+                "https://a.example.com/callback",
+                "https://b.example.com/callback",
+            ]
+        ),
+    )
+    assert desired.matches(current) is True
+
+
 def test_matches_detects_drift_in_explicitly_set_empty_list() -> None:
     """An explicit [] is a real desired value, not "unset" - still diffed."""
     current = ManagedKeycloakClient(
@@ -295,6 +325,90 @@ def test_matches_detects_drift_in_explicitly_set_empty_list() -> None:
     )
     desired = _desired(web_origins=[])
     assert desired.matches(current) is False
+
+
+def test_immutable_field_drift_empty_for_matching_scopes() -> None:
+    current = ManagedKeycloakClient(
+        client_id="my-app-ci-bot",
+        redirect_uris=["https://example.com/callback"],
+        default_client_scopes=["profile", "email"],
+        optional_client_scopes=["groups"],
+    )
+    desired = _desired(
+        default_client_scopes=["profile", "email"],
+        optional_client_scopes=["groups"],
+    )
+    assert desired.immutable_field_drift(current) == []
+
+
+def test_immutable_field_drift_empty_for_order_only_differences() -> None:
+    """Order-only scope differences must not be reported as immutable drift."""
+    current = ManagedKeycloakClient(
+        client_id="my-app-ci-bot",
+        redirect_uris=["https://example.com/callback"],
+        default_client_scopes=["email", "profile"],
+    )
+    desired = _desired(default_client_scopes=["profile", "email"])
+    assert desired.immutable_field_drift(current) == []
+
+
+def test_immutable_field_drift_detects_optional_client_scopes_change() -> None:
+    current = ManagedKeycloakClient(
+        client_id="my-app-ci-bot",
+        redirect_uris=["https://example.com/callback"],
+        optional_client_scopes=["offline_access"],
+    )
+    desired = _desired(optional_client_scopes=["groups"])
+    assert desired.immutable_field_drift(current) == ["optional_client_scopes"]
+
+
+def test_immutable_field_drift_detects_default_client_scopes_change() -> None:
+    current = ManagedKeycloakClient(
+        client_id="my-app-ci-bot",
+        redirect_uris=["https://example.com/callback"],
+        default_client_scopes=["profile"],
+    )
+    desired = _desired(default_client_scopes=["email"])
+    assert desired.immutable_field_drift(current) == ["default_client_scopes"]
+
+
+def test_immutable_field_drift_detects_both_fields_changed() -> None:
+    current = ManagedKeycloakClient(
+        client_id="my-app-ci-bot",
+        redirect_uris=["https://example.com/callback"],
+        default_client_scopes=["profile"],
+        optional_client_scopes=["offline_access"],
+    )
+    desired = _desired(
+        default_client_scopes=["email"],
+        optional_client_scopes=["groups"],
+    )
+    assert desired.immutable_field_drift(current) == [
+        "default_client_scopes",
+        "optional_client_scopes",
+    ]
+
+
+def test_immutable_field_drift_ignores_unmanaged_scope_fields() -> None:
+    """A scope field left unset (None) is unmanaged, not implicitly empty."""
+    current = ManagedKeycloakClient(
+        client_id="my-app-ci-bot",
+        redirect_uris=["https://example.com/callback"],
+        default_client_scopes=["profile"],
+        optional_client_scopes=["offline_access"],
+    )
+    assert _desired().immutable_field_drift(current) == []
+
+
+def test_immutable_field_drift_ignores_mutable_field_changes() -> None:
+    """A changed mutable field (e.g. web_origins) is not reported as immutable drift."""
+    current = ManagedKeycloakClient(
+        client_id="my-app-ci-bot",
+        redirect_uris=["https://example.com/callback"],
+        web_origins=["https://old-origin.example.com"],
+    )
+    desired = _desired(web_origins=["https://new-origin.example.com"])
+    assert desired.immutable_field_drift(current) == []
 
 
 def test_management_secret_with_registration_access_token_returns_new_instance() -> (

@@ -160,6 +160,28 @@ _DRIFT_COMPARISON_EXCLUDED_FIELDS = {
     "extra_attributes",
 }
 
+# Keycloak's client-registration PUT silently ignores changes to these fields
+# on an existing client - the request returns 200 but the live value is
+# unchanged (verified against a live instance, see APPSRE-15637). Detected
+# separately from ordinary drift so the caller can fail loudly instead of
+# looping forever on a PUT that never actually applies.
+_IMMUTABLE_OIDC_FIELDS = frozenset({
+    "default_client_scopes",
+    "optional_client_scopes",
+})
+
+
+def _field_values_match(desired: object, current: object) -> bool:
+    """Compare two field values, treating lists as order-insensitive sets.
+
+    Keycloak returns list-valued fields (e.g. redirectUris) from a Set
+    internally, so their element order is not stable across requests -
+    comparing them positionally would report spurious drift every reconcile.
+    """
+    if isinstance(desired, list) and isinstance(current, list):
+        return sorted(desired) == sorted(current)
+    return desired == current
+
 
 class ManagedSsoClientDesiredState(BaseModel, frozen=True):
     """Desired state for a single managed SSO client."""
@@ -201,14 +223,35 @@ class ManagedSsoClientDesiredState(BaseModel, frozen=True):
         Only compares fields this desired state actually specifies (non-None).
         Keycloak's client-registration PUT merges by field, so an unset field
         here is never sent and never managed - comparing it against whatever
-        Keycloak happens to have would be permanent, spurious drift.
+        Keycloak happens to have would be permanent, spurious drift. List
+        fields are compared order-insensitively (see _field_values_match).
         """
         desired_state = self.to_managed_keycloak_client().model_dump(
             exclude=_DRIFT_COMPARISON_EXCLUDED_FIELDS, exclude_none=True
         )
         current_state = current.model_dump(exclude=_DRIFT_COMPARISON_EXCLUDED_FIELDS)
         return all(
-            current_state.get(field) == value for field, value in desired_state.items()
+            _field_values_match(value, current_state.get(field))
+            for field, value in desired_state.items()
+        )
+
+    def immutable_field_drift(self, current: ManagedKeycloakClient) -> list[str]:
+        """Which immutable OIDC fields differ from the client's live Keycloak state.
+
+        Only checks fields this desired state actually specifies (non-None) -
+        same unmanaged-when-unset semantic as matches(). An empty result means
+        no immutable field was changed; the caller should still check matches()
+        separately for ordinary (mutable) drift.
+        """
+        desired_state = self.to_managed_keycloak_client().model_dump(
+            exclude=_DRIFT_COMPARISON_EXCLUDED_FIELDS, exclude_none=True
+        )
+        current_state = current.model_dump(exclude=_DRIFT_COMPARISON_EXCLUDED_FIELDS)
+        return sorted(
+            field
+            for field in _IMMUTABLE_OIDC_FIELDS
+            if field in desired_state
+            and not _field_values_match(desired_state[field], current_state.get(field))
         )
 
 

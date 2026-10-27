@@ -387,6 +387,135 @@ def test_update_reports_keycloak_bad_request_error(
     assert "Invalid web origin" in result.errors[0]
 
 
+def test_reconcile_detects_order_only_list_drift_as_no_change(
+    service: ManagedSsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak: MagicMock,
+) -> None:
+    """Keycloak returns list fields from a Set - order-only diffs are not drift."""
+    desired = _desired(
+        web_origins=[
+            "https://a.example.com",
+            "https://b.example.com",
+        ]
+    )
+    mock_secret_manager.list.return_value = [desired.client_id]
+    mock_secret_manager.read_all.return_value = _management(
+        desired.client_id
+    ).model_dump()
+    assert desired.oidc is not None
+    mock_keycloak.get_client.return_value = desired.oidc.to_managed_keycloak_client(
+        client_id=desired.client_id, enabled=desired.enabled
+    ).model_copy(
+        update={
+            "web_origins": [
+                "https://b.example.com",
+                "https://a.example.com",
+            ]
+        }
+    )
+
+    result = service.reconcile([desired], dry_run=True)
+
+    assert result.actions == []
+    assert result.status == TaskStatus.SUCCESS
+    mock_keycloak.update_client.assert_not_called()
+
+
+def test_reconcile_reports_error_when_optional_client_scopes_change(
+    service: ManagedSsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak: MagicMock,
+) -> None:
+    """Scope changes on an existing client must fail loudly, not loop forever.
+
+    Keycloak's registration API silently ignores scope changes on PUT - an
+    ordinary update action would never actually apply and would re-trigger
+    every reconcile.
+    """
+    desired = _desired(optional_client_scopes=["groups"])
+    mock_secret_manager.list.return_value = [desired.client_id]
+    mock_secret_manager.read_all.return_value = _management(
+        desired.client_id
+    ).model_dump()
+    mock_keycloak.get_client.return_value = ManagedKeycloakClient(
+        client_id=desired.client_id,
+        redirect_uris=["https://example.com/callback"],
+        optional_client_scopes=["offline_access"],
+    )
+
+    result = service.reconcile([desired], dry_run=True)
+
+    assert result.status == TaskStatus.FAILED
+    assert result.actions == []
+    assert len(result.errors) == 1
+    assert result.errors[0].startswith(f"{desired.client_id}: ")
+    assert "optional_client_scopes" in result.errors[0]
+    assert "delete and recreate" in result.errors[0].lower()
+    mock_keycloak.update_client.assert_not_called()
+
+
+def test_reconcile_reports_error_when_default_client_scopes_change(
+    service: ManagedSsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak: MagicMock,
+) -> None:
+    desired = _desired(default_client_scopes=["email"])
+    mock_secret_manager.list.return_value = [desired.client_id]
+    mock_secret_manager.read_all.return_value = _management(
+        desired.client_id
+    ).model_dump()
+    mock_keycloak.get_client.return_value = ManagedKeycloakClient(
+        client_id=desired.client_id,
+        redirect_uris=["https://example.com/callback"],
+        default_client_scopes=["profile"],
+    )
+
+    result = service.reconcile([desired], dry_run=True)
+
+    assert result.status == TaskStatus.FAILED
+    assert len(result.errors) == 1
+    assert "default_client_scopes" in result.errors[0]
+    mock_keycloak.update_client.assert_not_called()
+
+
+def test_reconcile_allows_mutable_field_drift_alongside_unchanged_scopes(
+    service: ManagedSsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak: MagicMock,
+) -> None:
+    """A mutable field change must still produce an ordinary update action.
+
+    Only immutable scope fields are blocked - everything else reconciles
+    normally.
+    """
+    desired = _desired(
+        web_origins=["https://new-origin.example.com"],
+        optional_client_scopes=["groups"],
+    )
+    mock_secret_manager.list.return_value = [desired.client_id]
+    mock_secret_manager.read_all.return_value = _management(
+        desired.client_id
+    ).model_dump()
+    mock_keycloak.get_client.return_value = ManagedKeycloakClient(
+        client_id=desired.client_id,
+        redirect_uris=["https://example.com/callback"],
+        optional_client_scopes=["groups"],
+    )
+    mock_keycloak.update_client.return_value = ManagedKeycloakClient(
+        client_id=desired.client_id,
+        redirect_uris=["https://example.com/callback"],
+        registration_access_token="new-reg-token",
+    )
+
+    result = service.reconcile([desired], dry_run=False)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert len(result.applied_actions) == 1
+    assert isinstance(result.applied_actions[0], ManagedSsoClientActionUpdate)
+    mock_keycloak.update_client.assert_called_once()
+
+
 def test_update_token_persist_failure_raises_distinct_error(
     service: ManagedSsoClientService,
     mock_secret_manager: MagicMock,
