@@ -208,6 +208,24 @@ def test_delete_client_invalidates_cache(
     mock_cache.delete.assert_called_once_with(CACHE_KEY)
 
 
+def test_delete_client_invalidates_cache_even_when_api_call_raises(
+    client: KeycloakWorkspaceClient, mock_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """A stale cache entry must not survive a 404 the caller treats as already-deleted.
+
+    Otherwise a same-client_id client registered later could be diffed
+    against the deleted client's cached representation for up to the cache
+    TTL - under immutable_field_drift() this could wrongly block a
+    legitimate delete+recreate.
+    """
+    mock_api.delete_client.side_effect = RuntimeError("404 not found")
+
+    with pytest.raises(RuntimeError):
+        client.delete_client("my-app-ci-bot", "reg-token")
+
+    mock_cache.delete.assert_called_once_with(CACHE_KEY)
+
+
 # ---------------------------------------------------------------------------
 # Lifecycle
 # ---------------------------------------------------------------------------

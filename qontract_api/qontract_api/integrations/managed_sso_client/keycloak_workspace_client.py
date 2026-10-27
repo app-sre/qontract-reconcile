@@ -81,14 +81,22 @@ class KeycloakWorkspaceClient:
             return updated
 
     def delete_client(self, client_id: str, registration_access_token: str) -> None:
-        """Delete a registered managed SSO client, locked per instance+client id."""
+        """Delete a registered managed SSO client, locked per instance+client id.
+
+        Invalidates the cache even when the delete call raises (e.g. a 404
+        the caller treats as already-deleted) - otherwise a stale cached
+        representation survives and could wrongly inform a drift check
+        against a same-client_id client registered later.
+        """
         cache_key = self._client_key(client_id)
         with self.cache.lock(cache_key):
-            self.keycloak_api.delete_client(
-                client_id=client_id,
-                registration_access_token=registration_access_token,
-            )
-            self.cache.delete(cache_key)
+            try:
+                self.keycloak_api.delete_client(
+                    client_id=client_id,
+                    registration_access_token=registration_access_token,
+                )
+            finally:
+                self.cache.delete(cache_key)
 
     def close(self) -> None:
         """Release the underlying Keycloak API client's HTTP connection."""
