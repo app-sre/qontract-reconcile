@@ -69,15 +69,20 @@ class KeycloakWorkspaceClient:
 
         Invalidates the cached representation - the caller must not treat the
         rotated registration_access_token as cacheable state either way.
+        Invalidates even when the update call raises, so a lost response for
+        a PUT Keycloak actually applied cannot leave a stale cached value
+        behind until the cache TTL expires.
         """
         cache_key = self._client_key(client_id)
         with self.cache.lock(cache_key):
-            updated = self.keycloak_api.update_client(
-                client_id=client_id,
-                registration_access_token=registration_access_token,
-                data=data,
-            )
-            self.cache.delete(cache_key)
+            try:
+                updated = self.keycloak_api.update_client(
+                    client_id=client_id,
+                    registration_access_token=registration_access_token,
+                    data=data,
+                )
+            finally:
+                self.cache.delete(cache_key)
             return updated
 
     def delete_client(self, client_id: str, registration_access_token: str) -> None:

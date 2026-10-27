@@ -185,6 +185,22 @@ def test_update_client_is_locked_per_instance_and_client_id(
     mock_cache.lock.assert_called_once_with(CACHE_KEY)
 
 
+def test_update_client_invalidates_cache_even_when_api_call_raises(
+    client: KeycloakWorkspaceClient, mock_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """A lost response for a PUT must not leave a stale cache entry.
+
+    Otherwise a PUT Keycloak actually applied could leave a stale cached
+    value behind until the cache TTL expires.
+    """
+    mock_api.update_client.side_effect = RuntimeError("timeout")
+
+    with pytest.raises(RuntimeError):
+        client.update_client("my-app-ci-bot", "reg-token", _client_repr())
+
+    mock_cache.delete.assert_called_once_with(CACHE_KEY)
+
+
 # ---------------------------------------------------------------------------
 # delete_client - delegates + invalidates
 # ---------------------------------------------------------------------------
