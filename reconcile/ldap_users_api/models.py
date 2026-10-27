@@ -1,6 +1,7 @@
 from enum import StrEnum
 
 from pydantic import BaseModel, Field, field_validator
+from qontract_utils.vcs import normalize_app_interface_path
 
 
 class PathType(StrEnum):
@@ -20,10 +21,7 @@ class PathSpec(BaseModel, frozen=True):
     @field_validator("path")
     @classmethod
     def prepend_data_to_path(cls, v: str) -> str:
-        normalized = v.strip()
-        if normalized == "data" or normalized.startswith("data/"):
-            return normalized
-        return f"data/{normalized.lstrip('/')}"
+        return normalize_app_interface_path(v)
 
 
 class UserPaths(BaseModel, frozen=True):

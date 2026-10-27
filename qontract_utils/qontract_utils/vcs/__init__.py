@@ -8,6 +8,7 @@ Following ADR-014: Three-Layer Architecture (Layer 1)
 Following ADR-017: VCS Provider Registry Pattern
 """
 
+from qontract_utils.vcs.app_interface_paths import normalize_app_interface_path
 from qontract_utils.vcs.models import OwnersFileData, Provider, RepoOwners, RepoTreeItem
 from qontract_utils.vcs.owners_parser import OwnersParser
 from qontract_utils.vcs.provider_protocol import VCSApiProtocol, VCSProviderProtocol
@@ -44,4 +45,5 @@ __all__ = [
     "VCSProviderProtocol",
     "VCSProviderRegistry",
     "get_default_registry",
+    "normalize_app_interface_path",
 ]
