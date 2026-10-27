@@ -106,3 +106,58 @@ class OcmIdentityProviderOidc(BaseModel, frozen=True):
         if not isinstance(other, OcmIdentityProviderOidc):
             return NotImplemented
         return self.name == other.name and self.open_id == other.open_id
+
+
+class OcmTaint(BaseModel, frozen=True):
+    """A taint applied to the nodes of a machine pool or node pool.
+
+    Matches OCM's Taint schema (and Kubernetes taints): key and effect are
+    required, value is optional.
+    """
+
+    key: str
+    value: str | None = None
+    effect: str
+
+
+class OcmMachinePoolAutoscaling(BaseModel, frozen=True):
+    """Machine pool autoscaling (OSD / ROSA classic) - plural field names."""
+
+    min_replicas: int
+    max_replicas: int
+
+
+class OcmNodePoolAutoscaling(BaseModel, frozen=True):
+    """Node pool autoscaling (HyperShift / ROSA HCP) - singular field names."""
+
+    min_replica: int
+    max_replica: int
+
+
+class OcmNodePoolAws(BaseModel, frozen=True):
+    """AWS-specific node pool settings (HyperShift / ROSA HCP)."""
+
+    instance_type: str
+
+
+class OcmMachinePool(BaseModel, frozen=True):
+    """A machine pool on an OSD or ROSA classic cluster."""
+
+    id: str
+    instance_type: str
+    replicas: int | None = None
+    autoscaling: OcmMachinePoolAutoscaling | None = None
+    labels: dict[str, str] | None = None
+    taints: list[OcmTaint] | None = None
+
+
+class OcmNodePool(BaseModel, frozen=True):
+    """A node pool on a HyperShift (ROSA HCP) cluster."""
+
+    id: str
+    aws_node_pool: OcmNodePoolAws
+    replicas: int | None = None
+    autoscaling: OcmNodePoolAutoscaling | None = None
+    labels: dict[str, str] | None = None
+    taints: list[OcmTaint] | None = None
+    subnet: str | None = None
