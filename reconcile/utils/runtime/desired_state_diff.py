@@ -183,11 +183,18 @@ def build_desired_state_diff(
     shards introduced by the change between the two desired states.
     """
     # is there even a difference?
-    previous_hash = DeepHash(previous_desired_state)
-    current_hash = DeepHash(current_desired_state)
-    desired_state_diff_found = previous_hash.get(
-        previous_desired_state
-    ) != current_hash.get(current_desired_state)
+    # Fast-path: when both states are identical in value and list ordering,
+    # native equality avoids recursively hashing the entire structure.
+    # If == returns False (e.g., list ordering differs or a value changed),
+    # fall back to DeepHash for order-insensitive comparison.
+    if previous_desired_state == current_desired_state:
+        desired_state_diff_found = False
+    else:
+        previous_hash = DeepHash(previous_desired_state)
+        current_hash = DeepHash(current_desired_state)
+        desired_state_diff_found = previous_hash.get(
+            previous_desired_state
+        ) != current_hash.get(current_desired_state)
 
     shards = set()
     exract_diff_timeout_seconds = 10
