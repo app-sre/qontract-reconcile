@@ -86,37 +86,3 @@ def test_create_slack_workspace_client_returns_workspace_client(
     assert client.slack_api is not None
     assert client.cache is mock_cache
     assert client.settings is mock_settings
-
-
-def test_create_slack_workspace_client_merges_method_configs_override(
-    mock_cache: MagicMock,
-    mock_secret_manager: MagicMock,
-    mock_settings: Settings,
-) -> None:
-    """method_configs_override layers on top of, not replaces, the default configs."""
-    secret = Secret(
-        secret_manager_url="https://vault.example.com",
-        path="secret/slack/test-workspace",
-    )
-    mock_secret_manager.read.return_value = "xoxb-test-token"
-
-    client = create_slack_workspace_client(
-        secret=secret,
-        workspace_name="test-workspace",
-        cache=mock_cache,
-        secret_manager=mock_secret_manager,
-        settings=mock_settings,
-        method_configs_override={
-            "conversations.list": {
-                "limit": 1000,
-                "types": "public_channel,private_channel",
-            },
-        },
-    )
-
-    method_configs = client.slack_api._method_configs
-    assert method_configs["conversations.list"]["types"] == (
-        "public_channel,private_channel"
-    )
-    # users.list, untouched by the override, keeps the setting's default.
-    assert method_configs["users.list"] == {"limit": 1000}

@@ -13,8 +13,6 @@ from qontract_utils.slack_api import SlackApi
 from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
 
 if TYPE_CHECKING:
-    from typing import Any
-
     from qontract_utils.secret_reader import Secret
 
     from qontract_api.cache import CacheBackend
@@ -28,7 +26,6 @@ def create_slack_workspace_client(
     cache: CacheBackend,
     secret_manager: SecretManager,
     settings: Settings,
-    method_configs_override: dict[str, dict[str, Any]] | None = None,
 ) -> SlackWorkspaceClient:
     """Create SlackWorkspaceClient with credentials from Vault.
 
@@ -41,29 +38,19 @@ def create_slack_workspace_client(
         cache: Cache backend for distributed caching and locking
         secret_manager: Secret backend for retrieving tokens from Vault
         settings: Application settings with Slack configuration
-        method_configs_override: Per-method config overrides layered on top of
-            settings.slack.api_method_configs, for callers that need
-            non-default behavior (e.g. including private channels in
-            conversations.list) without changing it for every caller of this
-            factory, since the token backing `secret` isn't guaranteed to
-            carry the scopes that behavior requires.
 
     Returns:
         SlackWorkspaceClient instance with full caching + compute layer
     """
     token = secret_manager.read(secret)
 
-    method_configs = {
-        **settings.slack.api_method_configs,
-        **(method_configs_override or {}),
-    }
     slack_api = SlackApi(
         slack_api_url=settings.slack.api_url,
         workspace_name=workspace_name,
         token=token,
         timeout=settings.slack.api_timeout,
         max_retries=settings.slack.api_max_retries,
-        method_configs=method_configs,
+        method_configs=settings.slack.api_method_configs,
         hooks=Hooks(retry_config=DEFAULT_RETRY_CONFIG),
     )
 
