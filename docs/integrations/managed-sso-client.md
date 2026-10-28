@@ -172,7 +172,7 @@ The integration can perform these reconciliation actions:
 
 `update`:
 
-**Description:** OIDC configuration drift only — updates the client in place via live `GET`/diff/`PUT`. Rotates and persists the registration access token; leaves `client_secret` unchanged. Never touches the tenant secret's Vault path; that's an independent concern, see `move_tenant_secret` below.
+**Description:** OIDC configuration drift only — updates the client in place via live `GET`/diff/`PUT`. Rotates and persists the registration access token; leaves `client_secret` unchanged. Never touches the tenant secret's Vault path; that's an independent concern, see `move_tenant_secret` below. **Exception:** a change to `defaultClientScopes` or `optionalClientScopes` is rejected with an error instead of being applied — see the known limitation below.
 
 **Fields:**
 
@@ -207,6 +207,7 @@ The integration can perform these reconciliation actions:
 - A failed Vault write during create rolls back the Keycloak registration
 - Before creating a client, the reconciler verifies qontract-api's Vault service account can actually write to both the AppSRE-owned management secret path and the tenant secret path (default or custom `output`) — via Vault's `sys/capabilities-self` API, checked unconditionally rather than assuming either is writable. Visible as an error in **dry-run**, before the Keycloak client is ever registered. This is a static policy check, not a full guarantee: Vault's KV v2 create-vs-update ACL distinction depends on whether a version already exists at the path at write time, which the check can't see — a policy granting only `update` could still be denied on an actual first write
 - **Known risk:** if `PUT` succeeds on Keycloak but persisting the rotated token to Vault fails, that client's stored token is permanently stale until manually recovered — this does **not** self-heal on the next reconcile. Surfaced as a distinct `ManagedSsoClientTokenPersistError` and a dedicated `managed_sso_client_token_persist_failures` counter; treat any non-zero rate as needing immediate investigation
+- **Known limitation:** `defaultClientScopes` and `optionalClientScopes` are immutable after a client is created — Keycloak's client-registration `PUT` silently ignores changes to these two fields on an existing client (returns 200, live value unchanged). The reconciler detects this up front and fails the client with an error instead of looping forever on a `PUT` that never actually applies. To change either field, delete the client from App-Interface, let it reconcile away, then recreate it with the new scope configuration
 
 **Managed Resources:**
 
