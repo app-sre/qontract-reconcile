@@ -12,9 +12,13 @@ from typing import TYPE_CHECKING
 
 from qontract_utils.keycloak_api import KeycloakApi, ManagedKeycloakClient
 
+from qontract_api.logger import get_logger
+
 if TYPE_CHECKING:
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
+
+logger = get_logger(__name__)
 
 
 class KeycloakWorkspaceClient:
@@ -82,7 +86,7 @@ class KeycloakWorkspaceClient:
                     data=data,
                 )
             finally:
-                self.cache.delete(cache_key)
+                self._invalidate_cache(cache_key)
             return updated
 
     def delete_client(self, client_id: str, registration_access_token: str) -> None:
@@ -101,7 +105,23 @@ class KeycloakWorkspaceClient:
                     registration_access_token=registration_access_token,
                 )
             finally:
-                self.cache.delete(cache_key)
+                self._invalidate_cache(cache_key)
+
+    def _invalidate_cache(self, cache_key: str) -> None:
+        """Best-effort cache delete that must never mask the Keycloak call's outcome.
+
+        Called from a finally block after update_client/delete_client - if this
+        raised uncaught, it would replace a successful result or the real
+        Keycloak exception with a misleading cache error. Worst case on
+        failure, the entry survives until the client cache TTL expires.
+        """
+        try:
+            self.cache.delete(cache_key)
+        except Exception:
+            logger.exception(
+                f"Failed to invalidate managed SSO client cache entry {cache_key}; "
+                "it will expire via TTL"
+            )
 
     def close(self) -> None:
         """Release the underlying Keycloak API client's HTTP connection."""
