@@ -17,6 +17,7 @@ from reconcile.utils.gql import (
     GqlApiError,
     GqlApiErrorForbiddenSchemaError,
     GqlApiIntegrationNotFoundError,
+    GqlGetResourceError,
     PersistentRequestsHTTPTransport,
 )
 
@@ -203,3 +204,180 @@ def test_gqlapi_query_full_stack_transport_error(httpserver: HTTPServer) -> None
     )
     with pytest.raises(GqlApiError, match="error.*returned with GraphQL response"):
         gql_api.query.__wrapped__(gql_api, SIMPLE_QUERY)  # type: ignore[attr-defined]
+
+
+def test_gqlapi_pinned_resource_and_template_memoization_and_mutation_isolation(
+    mocker: MockerFixture,
+) -> None:
+    gql_api = GqlApi(
+        "http://localhost/graphqlsha/0123456789abcdef",
+        validate_schemas=False,
+    )
+    assert gql_api._is_sha_pinned is True
+
+    query_mock = mocker.patch.object(
+        gql_api,
+        "query",
+        side_effect=[
+            {
+                "resources": [
+                    {
+                        "path": "/terraform/resources/s3-private-1.yml",
+                        "content": "bucket: private",
+                        "sha256sum": "sha-1",
+                    }
+                ]
+            },
+            {
+                "templates": [
+                    {
+                        "path": "/templates/role.j2",
+                        "template": "kind: Role",
+                    }
+                ]
+            },
+        ],
+    )
+
+    res1 = gql_api.get_resource("/terraform/resources/s3-private-1.yml")
+    res1["content"] = "mutated-by-caller"
+    res2 = gql_api.get_resource("/terraform/resources/s3-private-1.yml")
+
+    tpl1 = gql_api.get_template("/templates/role.j2")
+    tpl1["template"] = "mutated-template"
+    tpl2 = gql_api.get_template("/templates/role.j2")
+
+    assert query_mock.call_count == 2
+    assert res2 == {
+        "path": "/terraform/resources/s3-private-1.yml",
+        "content": "bucket: private",
+        "sha256sum": "sha-1",
+    }
+    assert res2 is not res1
+    assert tpl2 == {
+        "path": "/templates/role.j2",
+        "template": "kind: Role",
+    }
+    assert tpl2 is not tpl1
+
+
+def test_gqlapi_separate_clients_for_different_bundle_shas(
+    mocker: MockerFixture,
+) -> None:
+    client_master = GqlApi(
+        "http://localhost/graphqlsha/master-sha-111",
+        validate_schemas=False,
+    )
+    client_mr = GqlApi(
+        "http://localhost/graphqlsha/mr-sha-222",
+        validate_schemas=False,
+    )
+    mocker.patch.object(
+        client_master,
+        "query",
+        return_value={
+            "resources": [{"path": "/res.yml", "content": "v1", "sha256sum": "sha-v1"}]
+        },
+    )
+    mocker.patch.object(
+        client_mr,
+        "query",
+        return_value={
+            "resources": [{"path": "/res.yml", "content": "v2", "sha256sum": "sha-v2"}]
+        },
+    )
+
+    assert client_master.get_resource("/res.yml")["content"] == "v1"
+    assert client_mr.get_resource("/res.yml")["content"] == "v2"
+    assert client_master.get_resource("/res.yml")["sha256sum"] == "sha-v1"
+
+
+def test_gqlapi_unpinned_reads_observe_updated_content(
+    mocker: MockerFixture,
+) -> None:
+    gql_api = GqlApi("http://localhost/graphql", validate_schemas=False)
+    assert gql_api._is_sha_pinned is False
+
+    query_mock = mocker.patch.object(
+        gql_api,
+        "query",
+        side_effect=[
+            {"resources": [{"path": "/res.yml", "content": "old", "sha256sum": "s1"}]},
+            {"resources": [{"path": "/res.yml", "content": "new", "sha256sum": "s2"}]},
+            {"templates": [{"path": "/tpl.j2", "template": "old-tpl"}]},
+            {"templates": [{"path": "/tpl.j2", "template": "new-tpl"}]},
+        ],
+    )
+
+    assert gql_api.get_resource("/res.yml")["content"] == "old"
+    assert gql_api.get_resource("/res.yml")["content"] == "new"
+    assert gql_api.get_template("/tpl.j2")["template"] == "old-tpl"
+    assert gql_api.get_template("/tpl.j2")["template"] == "new-tpl"
+    assert query_mock.call_count == 4
+
+
+def test_gqlapi_failed_reads_remain_retryable(
+    mocker: MockerFixture,
+) -> None:
+    gql_api = GqlApi(
+        "http://localhost/graphqlsha/0123456789abcdef",
+        validate_schemas=False,
+    )
+    query_mock = mocker.patch.object(
+        gql_api,
+        "query",
+        side_effect=[
+            GqlApiError("transient failure"),
+            {"resources": []},
+            {
+                "resources": [
+                    {"path": "/res.yml", "content": "recovered", "sha256sum": "s1"}
+                ]
+            },
+            GqlApiError("transient template failure"),
+            {"templates": [{"path": "/tpl.j2", "template": "recovered-tpl"}]},
+        ],
+    )
+
+    with pytest.raises(GqlGetResourceError, match="Resource not found"):
+        gql_api.get_resource("/res.yml")
+    with pytest.raises(
+        GqlGetResourceError, match="Expecting one and only one resource"
+    ):
+        gql_api.get_resource("/res.yml")
+
+    assert gql_api.get_resource("/res.yml")["content"] == "recovered"
+    assert gql_api.get_resource("/res.yml")["content"] == "recovered"
+
+    with pytest.raises(GqlGetResourceError, match="Template not found"):
+        gql_api.get_template("/tpl.j2")
+
+    assert gql_api.get_template("/tpl.j2")["template"] == "recovered-tpl"
+    assert gql_api.get_template("/tpl.j2")["template"] == "recovered-tpl"
+    assert query_mock.call_count == 5
+
+
+def test_gqlapi_cache_cleanup_on_close(
+    mocker: MockerFixture,
+) -> None:
+    gql_api = GqlApi(
+        "http://localhost/graphqlsha/0123456789abcdef",
+        validate_schemas=False,
+    )
+    mocker.patch.object(
+        gql_api,
+        "query",
+        side_effect=[
+            {"resources": [{"path": "/res.yml", "content": "v1", "sha256sum": "s1"}]},
+            {"templates": [{"path": "/tpl.j2", "template": "t1"}]},
+        ],
+    )
+
+    gql_api.get_resource("/res.yml")
+    gql_api.get_template("/tpl.j2")
+    assert len(gql_api._resource_cache) == 1
+    assert len(gql_api._template_cache) == 1
+
+    gql_api.close()
+    assert gql_api._resource_cache == {}
+    assert gql_api._template_cache == {}
