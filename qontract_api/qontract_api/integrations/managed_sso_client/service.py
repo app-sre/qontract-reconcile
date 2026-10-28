@@ -435,6 +435,14 @@ class ManagedSsoClientService:
         current = keycloak.get_client(
             desired.client_id, management.registration_access_token
         )
+        if immutable_drift := desired.immutable_field_drift(current):
+            fields = ", ".join(immutable_drift)
+            msg = (
+                f"{fields} cannot be updated in place - Keycloak's registration "
+                "API silently ignores scope changes on an existing client. "
+                "Delete and recreate the client with the new scope configuration."
+            )
+            raise ValueError(msg)
         if desired.matches(current):
             return None, management
         return ManagedSsoClientActionUpdate(client_id=desired.client_id), management

@@ -12,9 +12,13 @@ from typing import TYPE_CHECKING
 
 from qontract_utils.keycloak_api import KeycloakApi, ManagedKeycloakClient
 
+from qontract_api.logger import get_logger
+
 if TYPE_CHECKING:
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
+
+logger = get_logger(__name__)
 
 
 class KeycloakWorkspaceClient:
@@ -69,26 +73,55 @@ class KeycloakWorkspaceClient:
 
         Invalidates the cached representation - the caller must not treat the
         rotated registration_access_token as cacheable state either way.
+        Invalidates even when the update call raises, so a lost response for
+        a PUT Keycloak actually applied cannot leave a stale cached value
+        behind until the cache TTL expires.
         """
         cache_key = self._client_key(client_id)
         with self.cache.lock(cache_key):
-            updated = self.keycloak_api.update_client(
-                client_id=client_id,
-                registration_access_token=registration_access_token,
-                data=data,
-            )
-            self.cache.delete(cache_key)
+            try:
+                updated = self.keycloak_api.update_client(
+                    client_id=client_id,
+                    registration_access_token=registration_access_token,
+                    data=data,
+                )
+            finally:
+                self._invalidate_cache(cache_key)
             return updated
 
     def delete_client(self, client_id: str, registration_access_token: str) -> None:
-        """Delete a registered managed SSO client, locked per instance+client id."""
+        """Delete a registered managed SSO client, locked per instance+client id.
+
+        Invalidates the cache even when the delete call raises (e.g. a 404
+        the caller treats as already-deleted) - otherwise a stale cached
+        representation survives and could wrongly inform a drift check
+        against a same-client_id client registered later.
+        """
         cache_key = self._client_key(client_id)
         with self.cache.lock(cache_key):
-            self.keycloak_api.delete_client(
-                client_id=client_id,
-                registration_access_token=registration_access_token,
-            )
+            try:
+                self.keycloak_api.delete_client(
+                    client_id=client_id,
+                    registration_access_token=registration_access_token,
+                )
+            finally:
+                self._invalidate_cache(cache_key)
+
+    def _invalidate_cache(self, cache_key: str) -> None:
+        """Best-effort cache delete that must never mask the Keycloak call's outcome.
+
+        Called from a finally block after update_client/delete_client - if this
+        raised uncaught, it would replace a successful result or the real
+        Keycloak exception with a misleading cache error. Worst case on
+        failure, the entry survives until the client cache TTL expires.
+        """
+        try:
             self.cache.delete(cache_key)
+        except Exception:
+            logger.exception(
+                f"Failed to invalidate managed SSO client cache entry {cache_key}; "
+                "it will expire via TTL"
+            )
 
     def close(self) -> None:
         """Release the underlying Keycloak API client's HTTP connection."""
