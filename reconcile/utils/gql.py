@@ -101,6 +101,10 @@ class GqlApi:
         self.commit = commit
         self.commit_timestamp = commit_timestamp
         self.client = self._init_gql_client()
+        self._is_sha_pinned = self._is_sha_pinned_url(self.url)
+        self._cache_lock = threading.Lock()
+        self._resource_cache: dict[str, dict[str, Any]] = {}
+        self._template_cache: dict[str, dict[str, str]] = {}
 
         if validate_schemas and not int_name:
             raise Exception(
@@ -118,6 +122,12 @@ class GqlApi:
             if validate_schemas and not self._valid_schemas:
                 raise GqlApiIntegrationNotFoundError(int_name)
 
+    @staticmethod
+    def _is_sha_pinned_url(url: str) -> bool:
+        path = urlparse(url).path.strip("/")
+        parts = path.split("/")
+        return len(parts) >= 2 and parts[-2] == "graphqlsha" and bool(parts[-1])
+
     def _init_gql_client(self) -> Client:
         req_headers = None
         if self.token:
@@ -130,6 +140,9 @@ class GqlApi:
 
     def close(self) -> None:
         logging.debug("Closing GqlApi client")
+        with self._cache_lock:
+            self._resource_cache.clear()
+            self._template_cache.clear()
         if hasattr(self.client.transport, "session") and self.client.transport.session:
             self.client.transport.session.close()
 
@@ -175,6 +188,11 @@ class GqlApi:
         return result["data"]
 
     def get_template(self, path: str) -> dict[str, str]:
+        if self._is_sha_pinned:
+            with self._cache_lock:
+                if path in self._template_cache:
+                    return dict(self._template_cache[path])
+
         query = """
         query Template($path: String) {
           templates: template_v1(path: $path) {
@@ -195,9 +213,18 @@ class GqlApi:
         if len(templates) != 1:
             raise GqlGetResourceError(path, "Expecting one and only one template.")
 
-        return templates[0]
+        template: dict[str, str] = templates[0]
+        if self._is_sha_pinned:
+            with self._cache_lock:
+                self._template_cache[path] = dict(template)
+        return dict(template)
 
     def get_resource(self, path: str) -> dict[str, Any]:
+        if self._is_sha_pinned:
+            with self._cache_lock:
+                if path in self._resource_cache:
+                    return dict(self._resource_cache[path])
+
         query = """
         query Resource($path: String) {
             resources: resources_v1 (path: $path) {
@@ -220,7 +247,11 @@ class GqlApi:
         if len(resources) != 1:
             raise GqlGetResourceError(path, "Expecting one and only one resource.")
 
-        return resources[0]
+        resource: dict[str, Any] = resources[0]
+        if self._is_sha_pinned:
+            with self._cache_lock:
+                self._resource_cache[path] = dict(resource)
+        return dict(resource)
 
     def get_resources_by_schema(self, schema: str) -> list[dict[str, str]]:
         """Return all resources (resources_v1) filtered by given schema."""
