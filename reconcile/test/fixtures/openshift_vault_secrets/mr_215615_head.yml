@@ -1,0 +1,6 @@
+---
+# Minimal causal slice from service/app-interface MR 215615 head
+# ebcc96f4ad7a0e0af5a810e1dad6ec2aabe17412.
+name: playbook-dispatcher-prod
+cluster: crcp01ue1
+openshiftResources: []

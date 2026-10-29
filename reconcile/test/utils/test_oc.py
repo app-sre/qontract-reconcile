@@ -887,6 +887,94 @@ def test_get_resources_used_in_pod_spec_secret(
     assert results == expected
 
 
+@pytest.mark.parametrize(
+    ("spec", "expected"),
+    [
+        (
+            {
+                "containers": [],
+                "volumes": [
+                    {
+                        "projected": {
+                            "sources": [
+                                {
+                                    "secret": {
+                                        "name": "projected-secret",
+                                        "items": [
+                                            {"key": "tls.crt", "path": "tls.crt"}
+                                        ],
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+            },
+            {"projected-secret": {"tls.crt"}},
+        ),
+        (
+            {
+                "containers": [],
+                "imagePullSecrets": [{"name": "registry-secret"}],
+            },
+            {"registry-secret": set()},
+        ),
+        (
+            {
+                "containers": [],
+                "ephemeralContainers": [
+                    {
+                        "env": [
+                            {
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "debug-secret",
+                                        "key": "token",
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ],
+            },
+            {"debug-secret": {"token"}},
+        ),
+    ],
+)
+def test_get_resources_used_in_pod_spec_additional_secret_references(
+    oc_cli: OCCli,
+    spec: dict[str, Any],
+    expected: dict[str, set[str]],
+) -> None:
+    assert oc_cli.get_resources_used_in_pod_spec(spec, "Secret") == expected
+
+
+def test_get_resources_used_in_pod_spec_excludes_optional_projected_secret(
+    oc_cli: OCCli,
+) -> None:
+    spec = {
+        "containers": [],
+        "volumes": [
+            {
+                "projected": {
+                    "sources": [
+                        {"secret": {"name": "optional-secret", "optional": True}}
+                    ]
+                }
+            }
+        ],
+    }
+
+    assert (
+        oc_cli.get_resources_used_in_pod_spec(
+            spec,
+            "Secret",
+            include_optional=False,
+        )
+        == {}
+    )
+
+
 def test_get_resources_used_in_pod_spec_configmap(
     oc_cli: OCCli, pod: dict[str, Any]
 ) -> None:
@@ -897,6 +985,30 @@ def test_get_resources_used_in_pod_spec_configmap(
     }
     results = oc_cli.get_resources_used_in_pod_spec(pod["spec"], "ConfigMap")
     assert results == expected
+
+
+def test_get_resources_used_in_pod_spec_projected_configmap(oc_cli: OCCli) -> None:
+    spec = {
+        "containers": [],
+        "volumes": [
+            {
+                "projected": {
+                    "sources": [
+                        {
+                            "configMap": {
+                                "name": "projected-config",
+                                "items": [{"key": "config.yaml", "path": "config"}],
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+    }
+
+    assert oc_cli.get_resources_used_in_pod_spec(spec, "ConfigMap") == {
+        "projected-config": {"config.yaml"}
+    }
 
 
 def test_secret_used_in_pod_true(oc_cli: OCCli, pod: dict[str, Any]) -> None:

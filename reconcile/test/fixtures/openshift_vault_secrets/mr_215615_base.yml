@@ -1,0 +1,9 @@
+---
+# Minimal causal slice from service/app-interface MR 215615 base
+# f61443f7bc33331624205356f2e7ddf98bf2b754.
+name: playbook-dispatcher-prod
+cluster: crcp01ue1
+openshiftResources:
+- provider: vault-secret
+  path: insights/secrets/insights-prod/playbook-dispatcher-prod/auth-psk-config-manager
+  version: 1

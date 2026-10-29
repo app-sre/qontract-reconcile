@@ -1075,6 +1075,10 @@ class OCCli:
         Get resources (Secrets or ConfigMaps) used in a Pod spec.
         Returns a dictionary where keys are resource names and values are sets of keys used from that resource.
 
+        Supported references are direct and projected volumes, container and init
+        container ``env``/``envFrom`` entries, and Pod ``imagePullSecrets`` for
+        Secrets. Optional references are omitted when ``include_optional`` is false.
+
         Args:
             spec: Pod spec
             kind: "Secret" or "ConfigMap"
@@ -1114,8 +1118,31 @@ class OCCli:
                 resource_name = volume_ref[volume_kind_ref]
                 resources.setdefault(resource_name, set())
             except KeyError, TypeError:
-                continue
-        for c in spec["containers"] + (spec.get("initContainers") or []):
+                pass
+
+            for source in (v.get("projected") or {}).get("sources") or []:
+                try:
+                    resource_ref = source[volume_kind]
+                    if resource_ref.get(optional) and not include_optional:
+                        continue
+                    resource_name = resource_ref["name"]
+                    resources.setdefault(resource_name, set()).update(
+                        item["key"] for item in resource_ref.get("items") or []
+                    )
+                except KeyError, TypeError:
+                    continue
+
+        if kind == "Secret":
+            for image_pull_secret in spec.get("imagePullSecrets") or []:
+                try:
+                    resources.setdefault(image_pull_secret["name"], set())
+                except KeyError, TypeError:
+                    continue
+        for c in (
+            spec["containers"]
+            + (spec.get("initContainers") or [])
+            + (spec.get("ephemeralContainers") or [])
+        ):
             for e in c.get("envFrom") or []:
                 try:
                     resource_ref = e[env_from_kind]
