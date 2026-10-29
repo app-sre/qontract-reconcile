@@ -118,6 +118,88 @@ def test_validate_users_filters_by_account_type(
 
 
 @patch("qontract_api.external.github.router.GithubClientFactory")
+def test_validate_users_returns_bot_accounts_without_crashing(
+    mock_factory: MagicMock,
+    api_client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """A Bot-type account is a known, supported type.
+
+    It is returned (not dropped, not a 500) when no account_type filter
+    narrows the request.
+    """
+    mock_client = MagicMock()
+    mock_client.lookup_users.return_value = [
+        GithubUser(login="alice", type="User", id=1),
+        GithubUser(login="dependabot[bot]", type="Bot", id=2),
+    ]
+    mock_factory.return_value.create_user_workspace_client.return_value = mock_client
+
+    response = api_client.post(
+        VALIDATE_ENDPOINT,
+        json=REQUEST_BODY,
+        headers=auth_headers,
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()["users"] == [
+        {"login": "alice", "type": "User"},
+        {"login": "dependabot[bot]", "type": "Bot"},
+    ]
+
+
+@patch("qontract_api.external.github.router.GithubClientFactory")
+def test_validate_users_filters_out_bot_with_account_type(
+    mock_factory: MagicMock,
+    api_client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """A Bot account is excluded via the account_type=User filter, not a crash.
+
+    This is github-username-sync's actual usage pattern.
+    """
+    mock_client = MagicMock()
+    mock_client.lookup_users.return_value = [
+        GithubUser(login="alice", type="User", id=1),
+        GithubUser(login="dependabot[bot]", type="Bot", id=2),
+    ]
+    mock_factory.return_value.create_user_workspace_client.return_value = mock_client
+
+    response = api_client.post(
+        VALIDATE_ENDPOINT,
+        json={**REQUEST_BODY, "account_type": "User"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()["users"] == [{"login": "alice", "type": "User"}]
+
+
+@patch("qontract_api.external.github.router.GithubClientFactory")
+def test_validate_users_skips_unsupported_type_without_crashing(
+    mock_factory: MagicMock,
+    api_client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """A future, currently-unknown GitHub account type is skipped, not a 500."""
+    mock_client = MagicMock()
+    mock_client.lookup_users.return_value = [
+        GithubUser(login="alice", type="User", id=1),
+        GithubUser(login="mystery-account", type="SomeFutureType", id=2),
+    ]
+    mock_factory.return_value.create_user_workspace_client.return_value = mock_client
+
+    response = api_client.post(
+        VALIDATE_ENDPOINT,
+        json=REQUEST_BODY,
+        headers=auth_headers,
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()["users"] == [{"login": "alice", "type": "User"}]
+
+
+@patch("qontract_api.external.github.router.GithubClientFactory")
 def test_validate_users_without_account_type_returns_all(
     mock_factory: MagicMock,
     api_client: TestClient,

@@ -139,6 +139,7 @@ class GetFileResponse(pydantic.BaseModel):
 class GithubAccountType(str, enum.Enum):
     USER = "User"
     ORGANIZATION = "Organization"
+    BOT = "Bot"
 
 
 class GithubOrgDesiredState(pydantic.BaseModel):
