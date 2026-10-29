@@ -103,7 +103,7 @@ class GqlApi:
         self.client = self._init_gql_client()
         self._is_sha_pinned = self._is_sha_pinned_url(self.url)
         self._cache_lock = threading.Lock()
-        self._resource_cache: dict[str, dict[str, Any]] = {}
+        self._resource_cache: dict[str, dict[str, str]] = {}
         self._template_cache: dict[str, dict[str, str]] = {}
 
         if validate_schemas and not int_name:
@@ -219,7 +219,7 @@ class GqlApi:
                 self._template_cache[path] = dict(template)
         return dict(template)
 
-    def get_resource(self, path: str) -> dict[str, Any]:
+    def get_resource(self, path: str) -> dict[str, str]:
         if self._is_sha_pinned:
             with self._cache_lock:
                 if path in self._resource_cache:
@@ -247,7 +247,7 @@ class GqlApi:
         if len(resources) != 1:
             raise GqlGetResourceError(path, "Expecting one and only one resource.")
 
-        resource: dict[str, Any] = resources[0]
+        resource: dict[str, str] = resources[0]
         if self._is_sha_pinned:
             with self._cache_lock:
                 self._resource_cache[path] = dict(resource)
@@ -330,7 +330,7 @@ def init(
     )
 
 
-def get_resource(path: str) -> dict[str, Any]:
+def get_resource(path: str) -> dict[str, str]:
     return get_api().get_resource(path)
 
 
