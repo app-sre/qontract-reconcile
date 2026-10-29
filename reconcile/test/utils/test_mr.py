@@ -334,7 +334,7 @@ def test_promote_qontract_schemas_updates_env_and_gitlab_ci() -> None:
         for call in gitlab_cli.update_file.call_args_list
     }
     assert "export SCHEMAS_IMAGE_TAG=newtag" in written[".env"]
-    assert "SCHEMAS_IMAGE_TAG: newtag" in written[".gitlab-ci.yml"]
+    assert 'SCHEMAS_IMAGE_TAG: "newtag"' in written[".gitlab-ci.yml"]
 
 
 def test_promote_qontract_schemas_skips_gitlab_ci_when_missing() -> None:
@@ -375,7 +375,7 @@ def test_promote_qontract_validator_updates_env_and_gitlab_ci() -> None:
         for call in gitlab_cli.update_file.call_args_list
     }
     assert "export VALIDATOR_IMAGE_TAG=newtag" in written[".env"]
-    assert "VALIDATOR_IMAGE_TAG: newtag" in written[".gitlab-ci.yml"]
+    assert 'VALIDATOR_IMAGE_TAG: "newtag"' in written[".gitlab-ci.yml"]
 
 
 def test_promote_qontract_validator_skips_gitlab_ci_when_missing() -> None:
@@ -393,14 +393,23 @@ def test_promote_qontract_validator_skips_gitlab_ci_when_missing() -> None:
     assert gitlab_cli.update_file.call_args.kwargs["file_path"] == ".env"
 
 
+@patch("reconcile.utils.mr.promote_qontract.Image")
 @patch.object(PromoteQontractReconcileCommercial, "_process_file_with_json_paths")
 @patch.object(PromoteQontractReconcileCommercial, "_process_by")
 def test_promote_qontract_reconcile_updates_gitlab_ci(
-    process_by_mock: MagicMock, process_file_with_json_paths_mock: MagicMock
+    process_by_mock: MagicMock,
+    process_file_with_json_paths_mock: MagicMock,
+    image_mock: MagicMock,
 ) -> None:
     """process() touches several files via _process_by/_process_file_with_json_paths
     (already covered by their own unit tests and the saas-qontract-api regression
-    test); mock both helpers here to isolate just the new .gitlab-ci.yml call."""
+    test); mock both helpers here to isolate just the new .gitlab-ci.yml call.
+
+    Image is also mocked: _resolve_opa_image_pin_replacements() is called
+    eagerly while building _process_file_with_json_paths's replacements
+    argument, before the mocked method itself ever runs, so it would
+    otherwise make a real network call to Quay.
+    """
     mr = PromoteQontractReconcileCommercial(
         "newtag", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
     )
@@ -417,7 +426,9 @@ def test_promote_qontract_reconcile_updates_gitlab_ci(
     (method,) = gitlab_ci_calls[0].args
     assert method == "line_search"
     assert gitlab_ci_calls[0].kwargs["search_text"] == "  RECONCILE_IMAGE_TAG:"
-    assert gitlab_ci_calls[0].kwargs["replace_text"] == "  RECONCILE_IMAGE_TAG: newtag"
+    assert (
+        gitlab_ci_calls[0].kwargs["replace_text"] == '  RECONCILE_IMAGE_TAG: "newtag"'
+    )
     assert gitlab_ci_calls[0].kwargs["optional"] is True
 
 
