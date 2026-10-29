@@ -83,16 +83,16 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
         )
 
         # .gitlab-ci.yml's variables: block mirrors .env - image: is resolved
-        # before any script runs, so it can't source .env at runtime. This
-        # file doesn't exist on master yet everywhere this promotion runs,
-        # so a missing file must not fail the MR - use get_file (returns
-        # None on 404) instead of get_raw_file (raises).
+        # before any script runs, so it can't source .env at runtime. Not
+        # every app-interface instance this promotion runs against (e.g.
+        # FedRAMP) necessarily has this file - skip rather than fail the
+        # whole promotion MR over it.
         gitlab_ci_path = ".gitlab-ci.yml"
         gitlab_ci_raw = gitlab_cli.get_file(
             path=gitlab_ci_path, ref=gitlab_cli.main_branch
         )
         if gitlab_ci_raw is None:
-            logging.info(
+            logging.warning(
                 f"{gitlab_ci_path} does not exist on {gitlab_cli.main_branch}, skipping"
             )
             return
@@ -185,18 +185,16 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
         path: str,
         search_text: str,
         replace_text: str,
-        optional: bool = False,
     ) -> None:
+        # Not every file touched here exists in every app-interface instance
+        # this promotion runs against (e.g. FedRAMP) - skip rather than fail
+        # the whole promotion MR over one missing, instance-specific file.
         raw_file = gitlab_cli.get_file(path=path, ref=gitlab_cli.main_branch)
         if raw_file is None:
-            if optional:
-                logging.info(
-                    f"{path} does not exist on {gitlab_cli.main_branch}, skipping"
-                )
-                return
-            raise FileNotFoundError(
-                f"{path} does not exist on {gitlab_cli.main_branch}"
+            logging.warning(
+                f"{path} does not exist on {gitlab_cli.main_branch}, skipping"
             )
+            return
         match method:
             case "line_search":
                 new_content = self._process_by_line_search(
@@ -307,15 +305,12 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
 
         # .gitlab-ci.yml's variables: block mirrors .env - image: is resolved
         # before any script runs, so it can't source .env at runtime.
-        # optional=True: this file doesn't exist on master yet everywhere
-        # this promotion runs, so a missing file must not fail the MR.
         self._process_by(
             "line_search",
             gitlab_cli=gitlab_cli,
             path=".gitlab-ci.yml",
             search_text="  RECONCILE_IMAGE_TAG:",
             replace_text=f'  RECONCILE_IMAGE_TAG: "{self.version}"',
-            optional=True,
         )
 
         # resources/jenkins/global/defaults.yaml
@@ -404,15 +399,12 @@ class PromoteQontractValidator(PromoteQontractReconcileCommercial):
 
         # .gitlab-ci.yml's variables: block mirrors .env - image: is resolved
         # before any script runs, so it can't source .env at runtime.
-        # optional=True: this file doesn't exist on master yet everywhere
-        # this promotion runs, so a missing file must not fail the MR.
         self._process_by(
             "line_search",
             gitlab_cli=gitlab_cli,
             path=".gitlab-ci.yml",
             search_text="  VALIDATOR_IMAGE_TAG:",
             replace_text=f'  VALIDATOR_IMAGE_TAG: "{self.version}"',
-            optional=True,
         )
 
 
