@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from qontract_utils.differ import diff_iterables
-from qontract_utils.github_org import GithubRateLimitExceededError
+from qontract_utils.github_api import GithubRateLimitExceededError
 
 from qontract_api.integrations.github_owners.schemas import (
     GithubOwnerActionAddOwner,
@@ -24,7 +24,7 @@ from qontract_api.models import TaskStatus
 
 if TYPE_CHECKING:
     from qontract_api.config import Settings
-    from qontract_api.github import GithubOrgClientFactory, GithubOrgWorkspaceClient
+    from qontract_api.github import GithubClientFactory, GithubOrgWorkspaceClient
     from qontract_api.integrations.github_owners.domain import GithubOrgDesiredState
     from qontract_api.secret_manager import SecretManager
 
@@ -45,18 +45,18 @@ class GithubOwnersService:
 
     def __init__(
         self,
-        github_org_client_factory: GithubOrgClientFactory,
+        github_client_factory: GithubClientFactory,
         secret_manager: SecretManager,
         settings: Settings,
     ) -> None:
         """Initialize service.
 
         Args:
-            github_org_client_factory: Factory for creating GithubOrgWorkspaceClient instances
+            github_client_factory: Factory for creating GithubOrgWorkspaceClient instances
             secret_manager: Secret backend for retrieving GitHub tokens
             settings: Application settings
         """
-        self.github_org_client_factory = github_org_client_factory
+        self.github_client_factory = github_client_factory
         self.secret_manager = secret_manager
         self.settings = settings
 
@@ -72,7 +72,7 @@ class GithubOwnersService:
             GithubOrgWorkspaceClient with caching layer
         """
         token = self.secret_manager.read(org.token)
-        return self.github_org_client_factory.create_workspace_client(
+        return self.github_client_factory.create_workspace_client(
             token=token,
             base_url=org.base_url,
         )

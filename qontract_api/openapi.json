@@ -637,6 +637,16 @@
         "title": "GetFileResponse",
         "type": "object"
       },
+      "GithubAccountType": {
+        "description": "GitHub account entity type, as reported by the GitHub API.\n\nKnown values the GitHub users API returns for `GET /users/{username}`.\nAny other value (GitHub could introduce new account types) is treated as\nunsupported and skipped rather than raised - see validate_users in router.py.",
+        "enum": [
+          "User",
+          "Organization",
+          "Bot"
+        ],
+        "title": "GithubAccountType",
+        "type": "string"
+      },
       "GithubOrgDesiredState": {
         "description": "Desired owner state for a single GitHub organization.\n\nAttributes:\n    org_name: GitHub organization name\n    token: Vault secret reference for the org's GitHub API token\n    base_url: GitHub API base URL (override for GitHub Enterprise)\n    owners: Desired set of lowercase GitHub usernames that should be org admins",
         "properties": {
@@ -832,6 +842,78 @@
           "status"
         ],
         "title": "GithubOwnersTaskResult",
+        "type": "object"
+      },
+      "GithubUserInfo": {
+        "description": "A validated GitHub account.",
+        "properties": {
+          "login": {
+            "description": "Canonical login, as returned by GitHub",
+            "title": "Login",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/GithubAccountType",
+            "description": "Account entity type"
+          }
+        },
+        "required": [
+          "login",
+          "type"
+        ],
+        "title": "GithubUserInfo",
+        "type": "object"
+      },
+      "GithubUsersValidateRequest": {
+        "description": "Request to validate GitHub usernames against the GitHub API.",
+        "properties": {
+          "account_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GithubAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "If set, only accounts of this type are returned; accounts of another type are treated as not found. If unset, all existing accounts are returned regardless of type."
+          },
+          "secret": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Vault secret reference for the GitHub API token"
+          },
+          "usernames": {
+            "description": "GitHub usernames to validate",
+            "items": {
+              "type": "string"
+            },
+            "title": "Usernames",
+            "type": "array"
+          }
+        },
+        "required": [
+          "secret",
+          "usernames"
+        ],
+        "title": "GithubUsersValidateRequest",
+        "type": "object"
+      },
+      "GithubUsersValidateResponse": {
+        "description": "Response with validated GitHub accounts.\n\nUsernames that do not exist, or do not match the requested account_type,\nare omitted from the response - callers must treat a missing username as\nunresolved, not as an error.",
+        "properties": {
+          "users": {
+            "description": "Validated GitHub accounts",
+            "items": {
+              "$ref": "#/components/schemas/GithubUserInfo"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "users"
+        ],
+        "title": "GithubUsersValidateResponse",
         "type": "object"
       },
       "GitlabGroupConfig": {
@@ -5736,7 +5818,7 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/v1/external/github-org/members": {
+    "/api/v1/external/github/org-members": {
       "get": {
         "description": "Get all members of a GitHub organization.\n\nLists every member of the organization (any role) using the GitHub API\ntoken resolved from Vault. Results are cached for performance (TTL\nconfigured in settings).",
         "operationId": "github-org-members",
@@ -5829,6 +5911,43 @@
           }
         ],
         "summary": "Get Org Members",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/github/users/validate": {
+      "post": {
+        "description": "Validate GitHub usernames against the GitHub API.\n\nLooks up each requested username via the GitHub API, using the token\nresolved from Vault. Results are cached per-username (including negative\ncaching of non-existent accounts) for performance.\n\nUsernames that do not exist, or do not match the requested account_type,\nare omitted from the response - callers must treat a missing username as\nunresolved, not as an error. This endpoint does not know the caller's\nintent (e.g. LDAP-sourced usernames, manual input); it only validates\nexistence and canonical casing, so it is reusable across any future\nGitHub username validation need.",
+        "operationId": "github-users-validate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GithubUsersValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubUsersValidateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Validate Users",
         "tags": [
           "external"
         ]

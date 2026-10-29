@@ -1,6 +1,11 @@
-"""GitHub domain layer: workspace client and factory for org membership operations."""
+"""GitHub domain layer: workspace clients and factory for org/user operations."""
 
-from qontract_api.github.github_org_client_factory import GithubOrgClientFactory
+from qontract_api.github.github_client_factory import GithubClientFactory
 from qontract_api.github.github_org_workspace_client import GithubOrgWorkspaceClient
+from qontract_api.github.github_user_workspace_client import GithubUserWorkspaceClient
 
-__all__ = ["GithubOrgClientFactory", "GithubOrgWorkspaceClient"]
+__all__ = [
+    "GithubClientFactory",
+    "GithubOrgWorkspaceClient",
+    "GithubUserWorkspaceClient",
+]
