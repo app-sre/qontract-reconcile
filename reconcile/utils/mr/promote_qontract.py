@@ -187,18 +187,15 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
         replace_text: str,
         optional: bool = False,
     ) -> None:
-        if optional:
-            raw_file = gitlab_cli.get_file(path=path, ref=gitlab_cli.main_branch)
-            if raw_file is None:
+        raw_file = gitlab_cli.get_file(path=path, ref=gitlab_cli.main_branch)
+        if raw_file is None:
+            if optional:
                 logging.info(
                     f"{path} does not exist on {gitlab_cli.main_branch}, skipping"
                 )
                 return
-        else:
-            raw_file = gitlab_cli.get_raw_file(
-                project=gitlab_cli.project,
-                path=path,
-                ref=gitlab_cli.main_branch,
+            raise FileNotFoundError(
+                f"{path} does not exist on {gitlab_cli.main_branch}"
             )
         match method:
             case "line_search":

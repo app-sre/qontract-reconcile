@@ -381,10 +381,10 @@ def test_promote_qontract_validator_updates_env_and_gitlab_ci() -> None:
 def test_promote_qontract_validator_skips_gitlab_ci_when_missing() -> None:
     gitlab_cli = MagicMock(spec=GitLabApi)
     gitlab_cli.project = MagicMock()
-    gitlab_cli.get_raw_file.return_value = bytes(
-        "export VALIDATOR_IMAGE_TAG=oldtag\n", "utf-8"
+    file_contents = {".env": "export VALIDATOR_IMAGE_TAG=oldtag\n"}
+    gitlab_cli.get_file.side_effect = lambda path, ref: (
+        bytes(file_contents[path], "utf-8") if path in file_contents else None
     )
-    gitlab_cli.get_file.return_value = None
 
     mr = PromoteQontractValidator("newtag", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p")
     mr.process(gitlab_cli)
