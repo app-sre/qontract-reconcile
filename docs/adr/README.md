@@ -29,8 +29,7 @@ An Architecture Decision Record (ADR) documents an important architecture decisi
 | [ADR-017](ADR-017-factory-pattern.md)                            | Factory Pattern                                        | Accepted |
 | [ADR-018](ADR-018-event-driven-communication.md)                 | Event-Driven Communication Pattern                     | Accepted |
 | [ADR-019](ADR-019-merge-queue-acceleration.md)                   | Merge Queue Acceleration via Optimistic Multi-Merge    | Proposed |
-| [ADR-021](ADR-021-opa-authorization.md)                        | OPA-Based Authorization for qontract-api               | Accepted |
-| [ADR-022](ADR-022-stateful-qontract-api-integrations.md)             | Stateful qontract-api Integrations               | Proposed |
+| [ADR-022](ADR-022-stateful-qontract-api-integrations.md)       | Stateful qontract-api Integrations                     | Proposed |
 
 ## ADR Categories
 

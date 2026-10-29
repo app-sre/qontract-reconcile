@@ -20,6 +20,7 @@ Reviewers proposed moving durable state to qontract-api with a **generic** patte
 - Integration layout stays ADR-014 (L1 utils, L2 workspace client, L3 router/service/tasks).
 - New HTTP `operation_id`s require OPA when policies are enabled (ADR-021).
 - Legacy rollback for ldap-groups depends on `state/ldap-groups/managed_groups` remaining authoritative during cutover.
+- **Cutover:** While server-owned bookmarks are active for a StateRef, the legacy integration (ADR-007 / ADR-008 feature flag) must not write the same S3 object. Cutover docs disable legacy jobs before `-api` owns the bookmark; only the StateStore path writes under the per-StateRef lock.
 
 ## Decision
 
@@ -27,10 +28,10 @@ Adopt a **server-owned integration state** model for qontract-api integrations t
 
 1. **Client contract:** Reconcile `-api` integrations send **desired state** and `dry_run` only; integration bookmarks live on the server.
 2. **StateRef:** Each integration registers a fixed server-side reference mapped to a stable persistence key (typically an S3 object path). Reuse pre-migration keys when cutover or rollback depends on them (e.g. `ldap-groups.managed_groups` → `state/ldap-groups/managed_groups` for ldap-groups).
-3. **StateStore:** qontract-api provides load/save with a **per-StateRef lock** so only one worker mutates a bookmark at a time.
+3. **StateStore:** qontract-api provides load/save with a **per-StateRef lock** so only one worker mutates a bookmark at a time. Locks use a bounded lease; **save** runs only while the holder still owns the lock (renewal, stale-holder recovery, and fencing are defined in StateStore implementation).
 4. **Worker flow:** On task execution: acquire lock → load bookmark → reconcile external API using the loaded bookmark as the current managed set → **reduce** only **applied** actions into a new bookmark → save (skip save on dry-run) → release lock. When `dry_run` is true, skip external mutations; **applied actions** are empty and the bookmark is unchanged.
 5. **Reducer:** Each integration defines a pure function `(old_bookmark, applied_actions) → new_bookmark`. **Applied actions** are those that succeeded against the external API in that run when `dry_run` is false. Transitions depend on that integration's action model and bookmark schema (see **Implementation Guidelines**).
-6. **Crash safety:** Use two-phase bookmark updates when a crash mid-task could confuse the next run. **Creates:** update the bookmark **before** the external create (next run re-checks before creating again). **Deletes:** update the bookmark **after** the external delete succeeds. **Updates:** no special bookmark ordering unless the integration doc says otherwise.
+6. **Crash safety:** Use two-phase bookmark updates when a crash mid-task could confuse the next run. **Creates:** update the bookmark **before** the external create (next run re-checks before creating again). **Deletes:** update the bookmark **after** the external delete succeeds. **Updates:** no special bookmark ordering unless the integration doc says otherwise. Document crash recovery in the integration doc (see **Implementation Guidelines**).
 
 ### Key Points
 
@@ -97,8 +98,7 @@ qontract-api owns bookmarks: StateRef registration, StateStore load/save, per-St
 
 - **More platform to run:** StateStore, locks, and registration are owned and operated like other qontract-api infrastructure.
 - **Per-integration design:** Each integration documents its bookmark shape, reducer, and which operations need two-phase updates.
-- **Concurrency limits:** Heavy load on one StateRef can queue workers.
-  - **Mitigation:** Per-StateRef locks; watch lock time and Celery backlog.
+- **Concurrency limits:** Heavy load on one StateRef can queue Celery workers behind the per-StateRef lock.
 
 ## Implementation Guidelines
 
@@ -122,7 +122,8 @@ qontract-api owns bookmarks: StateRef registration, StateStore load/save, per-St
 - [ ] Add OPA policies for new `operation_id`s (ADR-021).
 - [ ] Tests cover reducer logic and dry-run.
 - [ ] **reconcile `-api` client (ADR-008):** `reconcile/<integration>_api.py`, GraphQL desired state (ADR-002), POST desired payload and `dry_run`, poll task status (ADR-003).
-- [ ] **Integration doc:** when this pattern applies, StateRef → key, rollback, and cutover.
+- [ ] **Integration doc:** when this pattern applies, StateRef → key, rollback, cutover (legacy job off before shared key), crash recovery and two-phase rules (Decision item 6).
+- [ ] **StateStore implementation:** lock lease, stale-holder rejection on save, tests for concurrent workers and expired lock holders.
 
 ## References
 
