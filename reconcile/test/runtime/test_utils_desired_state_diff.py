@@ -57,6 +57,66 @@ def test_desired_state_diff_building_no_diffs(
     assert desired_state_diff.can_exit_early()
 
 
+def test_desired_state_diff_equal_states_skip_deep_hash(
+    mocker: MockerFixture,
+    simple_test_integration: SimpleTestIntegration,
+) -> None:
+    """When both states are equal in value and list order, == short-circuits and DeepHash is not called."""
+    deep_hash_spy = mocker.spy(desired_state_diff, "DeepHash")
+    diff_result = build_desired_state_diff(
+        simple_test_integration.get_desired_state_shard_config(),
+        previous_desired_state={
+            "data": [
+                {"name": "a", "nested": {"enabled": True, "count": 3, "extra": None}},
+                {"name": "b", "nested": {"enabled": False, "count": 0, "extra": []}},
+            ]
+        },
+        current_desired_state={
+            "data": [
+                {"name": "a", "nested": {"enabled": True, "count": 3, "extra": None}},
+                {"name": "b", "nested": {"enabled": False, "count": 0, "extra": []}},
+            ]
+        },
+    )
+    assert not diff_result.diff_found
+    assert diff_result.can_exit_early()
+    assert diff_result.affected_shards == set()
+    deep_hash_spy.assert_not_called()
+
+
+def test_desired_state_diff_reordered_list_falls_back_to_deep_hash(
+    mocker: MockerFixture,
+    simple_test_integration: SimpleTestIntegration,
+) -> None:
+    """When list ordering differs (== is False), DeepHash is called and confirms no diff."""
+    deep_hash_spy = mocker.spy(desired_state_diff, "DeepHash")
+    diff_result = build_desired_state_diff(
+        simple_test_integration.get_desired_state_shard_config(),
+        previous_desired_state={"data": [{"name": "a"}, {"name": "b"}]},
+        current_desired_state={"data": [{"name": "b"}, {"name": "a"}]},
+    )
+    assert not diff_result.diff_found
+    assert diff_result.can_exit_early()
+    assert diff_result.affected_shards == set()
+    assert deep_hash_spy.call_count == 2
+
+
+def test_desired_state_diff_changed_states_invoke_deep_hash(
+    mocker: MockerFixture,
+    simple_test_integration: SimpleTestIntegration,
+) -> None:
+    """When a value changes (== is False), DeepHash is called and reports diff_found=True."""
+    deep_hash_spy = mocker.spy(desired_state_diff, "DeepHash")
+    diff_result = build_desired_state_diff(
+        simple_test_integration.get_desired_state_shard_config(),
+        previous_desired_state={"data": [{"name": "a"}, {"name": "b"}]},
+        current_desired_state={"data": [{"name": "a"}, {"name": "c"}]},
+    )
+    assert diff_result.diff_found
+    assert not diff_result.can_exit_early()
+    assert deep_hash_spy.call_count == 2
+
+
 def test_desired_state_diff_building_unshardable_integration(
     simple_test_integration: SimpleTestIntegration,
 ) -> None:
