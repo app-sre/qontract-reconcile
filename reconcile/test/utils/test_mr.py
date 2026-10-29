@@ -291,7 +291,7 @@ resourceTemplates:
     assert expected == result
 
 
-def test_process_by_optional_skips_when_file_missing() -> None:
+def test_process_by_skips_when_file_missing() -> None:
     mr = PromoteQontractReconcileCommercial(
         "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
     )
@@ -304,7 +304,6 @@ def test_process_by_optional_skips_when_file_missing() -> None:
         path=".gitlab-ci.yml",
         search_text="  RECONCILE_IMAGE_TAG:",
         replace_text="  RECONCILE_IMAGE_TAG: 1q2w3e4",
-        optional=True,
     )
 
     gitlab_cli.get_raw_file.assert_not_called()
@@ -429,7 +428,6 @@ def test_promote_qontract_reconcile_updates_gitlab_ci(
     assert (
         gitlab_ci_calls[0].kwargs["replace_text"] == '  RECONCILE_IMAGE_TAG: "newtag"'
     )
-    assert gitlab_ci_calls[0].kwargs["optional"] is True
 
 
 SAAS_QONTRACT_API_CONTENT = """---
