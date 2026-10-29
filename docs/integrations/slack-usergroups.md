@@ -94,7 +94,7 @@ check output. They do not block reconciliation of the rest of the usergroup.
 
 **API Endpoints:**
 
-- `/api/v1/external/github-org/members`
+- `/api/v1/external/github/org-members`
 - `/api/v1/external/ldap/github-usernames`
 
 #### 6. Cluster Access (Automatic Cluster Usergroups)
@@ -519,7 +519,7 @@ The integration uses GraphQL queries to fetch desired state from app-interface. 
    - Time-based schedules (filtered by active time window)
    - Git OWNERS files (via qontract-api `/api/v1/external/vcs-repo-owners`)
    - PagerDuty schedules/policies (via qontract-api `/api/v1/external/pagerduty-*`)
-   - GitHub org members (via qontract-api `/api/v1/external/github-org/members`,
+   - GitHub org members (via qontract-api `/api/v1/external/github/org-members`,
      mapped via `github_username` then `/api/v1/external/ldap/github-usernames`)
    - Cluster access roles
 3. Build `SlackWorkspace` objects with usergroups
