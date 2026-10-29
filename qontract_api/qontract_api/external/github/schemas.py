@@ -28,10 +28,16 @@ class GithubOrgMembersResponse(BaseModel, frozen=True):
 
 
 class GithubAccountType(StrEnum):
-    """GitHub account entity type, as reported by the GitHub API."""
+    """GitHub account entity type, as reported by the GitHub API.
+
+    Known values the GitHub users API returns for `GET /users/{username}`.
+    Any other value (GitHub could introduce new account types) is treated as
+    unsupported and skipped rather than raised - see validate_users in router.py.
+    """
 
     USER = "User"
     ORGANIZATION = "Organization"
+    BOT = "Bot"
 
 
 class GithubUsersValidateRequest(BaseModel, frozen=True):

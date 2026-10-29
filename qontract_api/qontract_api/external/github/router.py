@@ -99,12 +99,13 @@ def validate_users(
         settings=settings,
     ).create_user_workspace_client(token=secret_manager.read(request.secret))
 
+    supported_types = set(GithubAccountType)
     validated = [
         GithubUserInfo(login=u.login, type=GithubAccountType(u.type))
         for u in client.lookup_users(request.usernames)
+        if u.type in supported_types
+        and (request.account_type is None or u.type == request.account_type)
     ]
-    if request.account_type is not None:
-        validated = [u for u in validated if u.type == request.account_type]
 
     logger.info(
         f"Validated {len(validated)}/{len(request.usernames)} GitHub usernames",

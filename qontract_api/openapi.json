@@ -638,10 +638,11 @@
         "type": "object"
       },
       "GithubAccountType": {
-        "description": "GitHub account entity type, as reported by the GitHub API.",
+        "description": "GitHub account entity type, as reported by the GitHub API.\n\nKnown values the GitHub users API returns for `GET /users/{username}`.\nAny other value (GitHub could introduce new account types) is treated as\nunsupported and skipped rather than raised - see validate_users in router.py.",
         "enum": [
           "User",
-          "Organization"
+          "Organization",
+          "Bot"
         ],
         "title": "GithubAccountType",
         "type": "string"
