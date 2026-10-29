@@ -949,6 +949,8 @@ def run(
     exclude_cluster: Sequence[str] | None = None,
     namespace_name: str | None = None,
     init_api_resources: bool = False,
+    deletion_gate_factory: Callable[[ob.ClusterMap], ob.ResourceDeletionGate]
+    | None = None,
     defer: Callable | None = None,
 ) -> ResourceInventory | None:
     # https://click.palletsprojects.com/en/8.1.x/options/#multiple-options
@@ -996,7 +998,14 @@ def run(
             sys.exit(1)
 
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
-    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
+    deletion_gate = deletion_gate_factory(oc_map) if deletion_gate_factory else None
+    ob.realize_data(
+        dry_run,
+        oc_map,
+        ri,
+        thread_pool_size,
+        deletion_gate=deletion_gate,
+    )
 
     if ri.has_error_registered():
         sys.exit(1)

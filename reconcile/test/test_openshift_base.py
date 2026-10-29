@@ -1542,6 +1542,43 @@ def test_handle_deleted_resources(
     delete_mock.assert_called_with(**delete_expected_args)
 
 
+def test_handle_deleted_resources_blocks_delete_rejected_by_gate(
+    mocker: MockerFixture,
+    oc_map: oc.OC_Map,
+    resource_inventory: resource.ResourceInventory,
+    diff_result: DiffResult,
+    apply_options: sut.ApplyOptions,
+) -> None:
+    delete_mock = mocker.patch.object(sut, "delete", autospec=True)
+    mocker.patch.object(
+        resource.OpenshiftResource, "has_qontract_annotations", autospec=True
+    ).return_value = True
+    deletion_gate = mocker.MagicMock(spec=sut.ResourceDeletionGate)
+    deletion_gate.is_delete_allowed.return_value = False
+    apply_options.deletion_gate = deletion_gate
+
+    actions = sut.handle_deleted_resources(
+        oc_map=oc_map,
+        ri=resource_inventory,
+        deleted_resources=diff_result.delete,
+        cluster="test-cluster",
+        namespace="test-namespace",
+        resource_type="Secret",
+        data={"use_admin_token": {"test-resource": False}},
+        options=apply_options,
+    )
+
+    assert actions == []
+    assert resource_inventory.has_error_registered(cluster="test-cluster")
+    deletion_gate.is_delete_allowed.assert_called_once_with(
+        cluster="test-cluster",
+        namespace="test-namespace",
+        resource_type="Secret",
+        resource_name="test-resource",
+    )
+    delete_mock.assert_not_called()
+
+
 # Fixtures does not work with parametrize
 # functions are used to build resources instead
 @pytest.mark.parametrize(
