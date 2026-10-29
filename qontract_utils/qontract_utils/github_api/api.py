@@ -1,8 +1,9 @@
-"""GitHub Organization API client with hook system.
+"""GitHub API client with hook system.
 
 Following ADR-014 (Three-Layer Architecture) - Layer 1: Pure Communication.
-This module provides a stateless API client for GitHub organization operations
-with support for metrics and rate limiting via hooks (ADR-006).
+This module provides a stateless API client for GitHub organization
+membership operations and individual account lookups, with support for
+metrics and rate limiting via hooks (ADR-006).
 
 Note: PyGithub does not support listing pending org invitations, so that
 endpoint is implemented directly using requests.
@@ -22,7 +23,11 @@ from typing import Any
 import requests
 import structlog
 from github import Github
-from github.GithubException import GithubException, RateLimitExceededException
+from github.GithubException import (
+    GithubException,
+    RateLimitExceededException,
+    UnknownObjectException,
+)
 from github.NamedUser import NamedUser
 from prometheus_client import Counter, Histogram
 
@@ -36,6 +41,29 @@ logger = structlog.get_logger(__name__)
 # fallback when a rate-limit response carries neither a Retry-After nor an
 # X-RateLimit-Reset header.
 _DEFAULT_RATE_LIMIT_FALLBACK_SECONDS = 3600
+
+
+@dataclass(frozen=True)
+class GithubUser:
+    """A GitHub account, as returned by the GitHub users API.
+
+    Attributes:
+        login: The account's current username, in GitHub's canonical casing.
+            Mutable - a user can rename their GitHub account at any time,
+            which changes this value (and frees the old login for reuse by
+            someone else).
+        type: Entity type - "User" for a personal account, "Organization"
+            for a GitHub organization. A GitHub username can resolve to
+            either, so callers that expect a personal account must check
+            this field.
+        id: GitHub's immutable numeric account ID. Unlike `login`, this
+            never changes across a username rename - it is the stable
+            identifier GitHub itself uses to track "the same account".
+    """
+
+    login: str
+    type: str
+    id: int
 
 
 class GithubRateLimitExceededError(Exception):
@@ -167,7 +195,7 @@ _latency_tracker: contextvars.ContextVar[tuple[float, ...]] = contextvars.Contex
 
 
 @dataclass(frozen=True)
-class GithubOrgApiCallContext:
+class GithubApiCallContext:
     """Context information passed to API call hooks.
 
     Attributes:
@@ -181,17 +209,17 @@ class GithubOrgApiCallContext:
     org: str
 
 
-def _metrics_hook(context: GithubOrgApiCallContext) -> None:
+def _metrics_hook(context: GithubApiCallContext) -> None:
     """Built-in Prometheus metrics hook."""
     github_org_request.labels(context.method, context.verb).inc()
 
 
-def _latency_start_hook(_context: GithubOrgApiCallContext) -> None:
+def _latency_start_hook(_context: GithubApiCallContext) -> None:
     """Built-in hook to start latency measurement."""
     _latency_tracker.set((*_latency_tracker.get(), time.perf_counter()))
 
 
-def _latency_end_hook(context: GithubOrgApiCallContext) -> None:
+def _latency_end_hook(context: GithubApiCallContext) -> None:
     """Built-in hook to record latency measurement."""
     stack = _latency_tracker.get()
     start_time = stack[-1]
@@ -200,7 +228,7 @@ def _latency_end_hook(context: GithubOrgApiCallContext) -> None:
     github_org_request_duration.labels(context.method, context.verb).observe(duration)
 
 
-def _request_log_hook(context: GithubOrgApiCallContext) -> None:
+def _request_log_hook(context: GithubApiCallContext) -> None:
     """Built-in hook for logging API requests."""
     logger.debug(
         "GitHub Org API request",
@@ -210,7 +238,7 @@ def _request_log_hook(context: GithubOrgApiCallContext) -> None:
     )
 
 
-def _rate_limit_error_hook(_context: GithubOrgApiCallContext, exc: Exception) -> None:
+def _rate_limit_error_hook(_context: GithubApiCallContext, exc: Exception) -> None:
     """Convert GitHub rate-limit errors into GithubRateLimitExceededError.
 
     Runs as an error hook, receiving the exception that triggered it, so all
@@ -233,13 +261,14 @@ _DEFAULT_HOOKS = Hooks(
 
 
 @with_hooks(hooks=_DEFAULT_HOOKS)
-class GithubOrgApi:
-    """Layer 1: Pure API client for GitHub organization member operations.
+class GithubApi:
+    """Layer 1: Pure API client for GitHub organization and account operations.
 
-    Provides stateless access to GitHub org membership APIs:
-    - Listing current admin (owner) members
-    - Listing pending invitations (not supported by PyGithub, uses requests)
-    - Adding a member as org admin
+    Provides stateless access to:
+    - GitHub org membership APIs: listing current admin (owner) members,
+      listing pending invitations (not supported by PyGithub, uses requests),
+      adding a member as org admin
+    - Individual account lookup by username (existence + canonical login)
 
     All methods are synchronous for use in Celery workers.
     """
@@ -254,7 +283,7 @@ class GithubOrgApi:
         hooks: Hooks | None = None,  # ruff: ignore[unused-method-argument] - handled by @with_hooks
         user_agent: str = DEFAULT_USER_AGENT,
     ) -> None:
-        """Initialize GithubOrgApi.
+        """Initialize GithubApi.
 
         Args:
             token: GitHub API token
@@ -298,7 +327,7 @@ class GithubOrgApi:
         return items
 
     @invoke_with_hooks(
-        lambda self, org_name: GithubOrgApiCallContext(  # ruff: ignore[unused-lambda-argument]
+        lambda self, org_name: GithubApiCallContext(  # ruff: ignore[unused-lambda-argument]
             method="org.get_admin_members", verb="GET", org=org_name
         )
     )
@@ -317,7 +346,7 @@ class GithubOrgApi:
         return sorted(m.login.lower() for m in org.get_members(role="admin"))
 
     @invoke_with_hooks(
-        lambda self, org_name: GithubOrgApiCallContext(  # ruff: ignore[unused-lambda-argument]
+        lambda self, org_name: GithubApiCallContext(  # ruff: ignore[unused-lambda-argument]
             method="org.get_members", verb="GET", org=org_name
         )
     )
@@ -339,7 +368,7 @@ class GithubOrgApi:
         return sorted(m.login for m in org.get_members())
 
     @invoke_with_hooks(
-        lambda self, org_name: GithubOrgApiCallContext(  # ruff: ignore[unused-lambda-argument]
+        lambda self, org_name: GithubApiCallContext(  # ruff: ignore[unused-lambda-argument]
             method="org.get_pending_invitations", verb="GET", org=org_name
         )
     )
@@ -361,7 +390,7 @@ class GithubOrgApi:
         )
 
     @invoke_with_hooks(
-        lambda self, org_name, username: GithubOrgApiCallContext(  # ruff: ignore[unused-lambda-argument]
+        lambda self, org_name, username: GithubApiCallContext(  # ruff: ignore[unused-lambda-argument]
             method="org.add_member_as_admin", verb="PUT", org=org_name
         )
     )
@@ -379,3 +408,24 @@ class GithubOrgApi:
                 f"Expected NamedUser for '{username}', got {type(user).__name__}"
             )
         org.add_to_members(user, "admin")
+
+    @invoke_with_hooks(
+        lambda self, username: GithubApiCallContext(  # ruff: ignore[unused-lambda-argument]
+            method="user.get_user", verb="GET", org=""
+        )
+    )
+    def get_user(self, username: str) -> GithubUser | None:
+        """Fetch a GitHub account by username.
+
+        Args:
+            username: GitHub username to look up
+
+        Returns:
+            GithubUser with the canonical login and entity type ("User" or
+            "Organization"), or None if the username does not exist.
+        """
+        try:
+            user = self._gh.get_user(username)
+        except UnknownObjectException:
+            return None
+        return GithubUser(login=user.login, type=user.type, id=user.id)

@@ -7,7 +7,7 @@ from . import config, schemas
 client = clientele_api.APIClient(config=config.Config())
 
 
-@client.get("/api/v1/external/github-org/members")
+@client.get("/api/v1/external/github/org-members")
 async def github_org_members(
     result: schemas.GithubOrgMembersResponse,
     secret_manager_url: str,
@@ -23,6 +23,29 @@ async def github_org_members(
     Lists every member of the organization (any role) using the GitHub API
     token resolved from Vault. Results are cached for performance (TTL
     configured in settings).
+    """
+    return result
+
+
+@client.post("/api/v1/external/github/users/validate")
+async def github_users_validate(
+    result: schemas.GithubUsersValidateResponse,
+    data: schemas.GithubUsersValidateRequest,
+) -> schemas.GithubUsersValidateResponse:
+    """Validate Users
+
+        Validate GitHub usernames against the GitHub API.
+
+    Looks up each requested username via the GitHub API, using the token
+    resolved from Vault. Results are cached per-username (including negative
+    caching of non-existent accounts) for performance.
+
+    Usernames that do not exist, or do not match the requested account_type,
+    are omitted from the response - callers must treat a missing username as
+    unresolved, not as an error. This endpoint does not know the caller's
+    intent (e.g. LDAP-sourced usernames, manual input); it only validates
+    existence and canonical casing, so it is reusable across any future
+    GitHub username validation need.
     """
     return result
 

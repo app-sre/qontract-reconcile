@@ -1,23 +1,25 @@
-"""Factory for creating GithubOrgWorkspaceClient instances."""
+"""Factory for creating GitHub workspace client instances."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from qontract_utils.github_org.api import GithubOrgApi
+from qontract_utils.github_api.api import GithubApi
 
 from qontract_api.github.github_org_workspace_client import GithubOrgWorkspaceClient
+from qontract_api.github.github_user_workspace_client import GithubUserWorkspaceClient
 
 if TYPE_CHECKING:
     from qontract_api.cache import CacheBackend
     from qontract_api.config import Settings
 
 
-class GithubOrgClientFactory:
-    """Factory for creating GithubOrgWorkspaceClient instances.
+class GithubClientFactory:
+    """Factory for creating GitHub workspace client instances.
 
     Encapsulates all dependencies and configuration needed to create
-    GithubOrgWorkspaceClient instances with caching.
+    GithubOrgWorkspaceClient (org membership) and GithubUserWorkspaceClient
+    (account validation) instances with caching.
     """
 
     def __init__(self, cache: CacheBackend, settings: Settings) -> None:
@@ -31,20 +33,20 @@ class GithubOrgClientFactory:
         self.settings = settings
 
     @staticmethod
-    def create_github_org_api(
+    def create_github_api(
         token: str,
         base_url: str = "https://api.github.com",
-    ) -> GithubOrgApi:
-        """Create a GithubOrgApi instance (Layer 1).
+    ) -> GithubApi:
+        """Create a GithubApi instance (Layer 1).
 
         Args:
             token: GitHub API token
             base_url: GitHub API base URL (override for GHE)
 
         Returns:
-            GithubOrgApi instance
+            GithubApi instance
         """
-        return GithubOrgApi(token=token, base_url=base_url)
+        return GithubApi(token=token, base_url=base_url)
 
     def create_workspace_client(
         self,
@@ -60,9 +62,30 @@ class GithubOrgClientFactory:
         Returns:
             GithubOrgWorkspaceClient with caching layer
         """
-        api = self.create_github_org_api(token=token, base_url=base_url)
+        api = self.create_github_api(token=token, base_url=base_url)
         return GithubOrgWorkspaceClient(
-            github_org_api=api,
+            github_api=api,
+            cache=self.cache,
+            settings=self.settings,
+        )
+
+    def create_user_workspace_client(
+        self,
+        token: str,
+        base_url: str = "https://api.github.com",
+    ) -> GithubUserWorkspaceClient:
+        """Create GithubUserWorkspaceClient with full dependency stack.
+
+        Args:
+            token: GitHub API token
+            base_url: GitHub API base URL (override for GHE)
+
+        Returns:
+            GithubUserWorkspaceClient with caching layer
+        """
+        api = self.create_github_api(token=token, base_url=base_url)
+        return GithubUserWorkspaceClient(
+            github_api=api,
             cache=self.cache,
             settings=self.settings,
         )

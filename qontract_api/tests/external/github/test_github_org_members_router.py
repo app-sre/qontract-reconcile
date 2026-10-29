@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from qontract_api.auth import create_access_token
-from qontract_api.external.github_org.schemas import GithubOrgMembersParams
+from qontract_api.external.github.schemas import GithubOrgMembersParams
 from qontract_api.models import TokenData
 
 
@@ -36,7 +36,7 @@ def auth_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {test_token}"}
 
 
-MEMBERS_ENDPOINT = "/api/v1/external/github-org/members"
+MEMBERS_ENDPOINT = "/api/v1/external/github/org-members"
 
 QUERY_PARAMS = GithubOrgMembersParams(
     org_name="my-org",
@@ -46,7 +46,7 @@ QUERY_PARAMS = GithubOrgMembersParams(
 ).model_dump(mode="json", exclude_none=True)
 
 
-@patch("qontract_api.external.github_org.router.GithubOrgClientFactory")
+@patch("qontract_api.external.github.router.GithubClientFactory")
 def test_get_org_members_returns_members(
     mock_factory: MagicMock,
     api_client: TestClient,
@@ -68,7 +68,7 @@ def test_get_org_members_returns_members(
     mock_client.get_all_members.assert_called_once_with("my-org")
 
 
-@patch("qontract_api.external.github_org.router.GithubOrgClientFactory")
+@patch("qontract_api.external.github.router.GithubClientFactory")
 def test_get_org_members_resolves_token_from_secret(
     mock_factory: MagicMock,
     api_client: TestClient,

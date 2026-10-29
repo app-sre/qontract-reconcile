@@ -136,6 +136,11 @@ class GetFileResponse(pydantic.BaseModel):
     content: str
 
 
+class GithubAccountType(str, enum.Enum):
+    USER = "User"
+    ORGANIZATION = "Organization"
+
+
 class GithubOrgDesiredState(pydantic.BaseModel):
     base_url: str = "https://api.github.com"
     org_name: str
@@ -180,6 +185,23 @@ class GithubOwnersTaskResult(pydantic.BaseModel):
     applied_count: int = 0
     errors: list[str] = []
     status: TaskStatus
+
+
+class GithubUserInfo(pydantic.BaseModel):
+    login: str
+    type_: GithubAccountType = pydantic.Field(alias="type")
+
+    model_config = pydantic.ConfigDict(populate_by_name=True)
+
+
+class GithubUsersValidateRequest(pydantic.BaseModel):
+    account_type: GithubAccountType | None | None = None
+    secret: Secret
+    usernames: list[str]
+
+
+class GithubUsersValidateResponse(pydantic.BaseModel):
+    users: list[GithubUserInfo]
 
 
 class GitlabGroupConfig(pydantic.BaseModel):

@@ -3,10 +3,19 @@
 Compares each internal user's github_username against the GitHub account they
 linked in their Rover profile (resolved via LDAP's rhatSocialURL attribute,
 exposed through qontract-api's external LDAP endpoint) and proposes
-corrections for stale/mistyped values through a single, batched app-interface
-MR. Follows the same fail-safes as ldap-users-api: dry-run by default,
-auto-merge gated behind an Unleash toggle, and suppressed above a
-configurable threshold to limit merge-queue/CI blast radius.
+corrections through a single, batched app-interface MR.
+
+LDAP's rhatSocialURL is untrusted: it may reference a GitHub account that no
+longer exists, a GitHub organization instead of a personal account, or only
+ever carries a lowercased login. Every LDAP-linked login is therefore
+re-validated against the GitHub API (qontract-api's external GitHub
+endpoint) before being proposed as an update - this both filters out
+non-existent/organization accounts and supplies the canonical casing needed
+to correct case-only mismatches.
+
+Follows the same fail-safes as ldap-users-api: dry-run by default, auto-merge
+gated behind an Unleash toggle, and suppressed above a configurable threshold
+to limit merge-queue/CI blast radius.
 """
 
 from __future__ import annotations
@@ -16,6 +25,7 @@ from functools import partial
 
 from pydantic import Field
 from qontract_api_client.client import (
+    github_users_validate,
     ldap_org_github_usernames,
     vcs_file_sync,
     vcs_get_file,
@@ -24,6 +34,8 @@ from qontract_api_client.exceptions import HTTPStatusError
 from qontract_api_client.schemas import (
     FileSyncRequest,
     FileSyncStatus,
+    GithubAccountType,
+    GithubUsersValidateRequest,
     LdapDirectSecret,
     LdapOrgGithubUsernamesRequest,
     Secret,
@@ -40,6 +52,7 @@ from reconcile.gql_definitions.github_username_sync.users import (
 from reconcile.gql_definitions.github_username_sync.users import (
     query as query_users,
 )
+from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.ldap_settings import get_ldap_settings
 from reconcile.typed_queries.vcs import Vcs, get_vcs_instances
 from reconcile.utils import gql
@@ -83,35 +96,53 @@ def _find_vcs_secret(
     raise ValueError(f"No VCS instance found for repo URL: {repo_url}")
 
 
+def _find_default_github_secret(secret_manager_url: str) -> Secret:
+    """Find the default GitHub org's API token, used for username validation.
+
+    Raises:
+        ValueError: If no default GitHub org is configured
+    """
+    for org in get_github_orgs():
+        if org.default:
+            return Secret(
+                secret_manager_url=secret_manager_url,
+                path=org.token.path,
+                field=org.token.field,
+                version=org.token.version,
+            )
+    raise ValueError("No default GitHub org configured")
+
+
 def compute_updates(
     users: list[UserV1],
     org_username_to_github: dict[str, str],
 ) -> list[GithubUsernameUpdate]:
-    """Compare internal users against the LDAP-sourced GitHub mapping.
+    """Compare internal users against the GitHub-validated LDAP mapping.
 
     Args:
         users: Internal app-interface users (org_username, path, github_username)
-        org_username_to_github: org_username -> GitHub login, resolved via LDAP
+        org_username_to_github: org_username -> canonical GitHub login, resolved
+            via LDAP's rhatSocialURL and confirmed to exist (as a personal
+            account) via the GitHub API
 
     Returns:
-        Users whose stored github_username genuinely differs (case-insensitively)
-        from the LDAP-linked login. Users with no LDAP mapping, or whose stored
-        value differs only in case, are left untouched - LDAP only yields a
-        lowercased login, not GitHub's canonically-cased spelling, so a
-        case-only mismatch cannot be corrected with confidence here.
+        Users whose stored github_username differs from the canonical GitHub
+        login - including case-only differences, since the mapping now carries
+        GitHub's own canonical casing. Users with no validated mapping are
+        left untouched.
     """
     updates = []
     for user in users:
-        if not (ldap_github_username := org_username_to_github.get(user.org_username)):
+        if not (github_username := org_username_to_github.get(user.org_username)):
             continue
-        if ldap_github_username.lower() == user.github_username.lower():
+        if github_username == user.github_username:
             continue
         updates.append(
             GithubUsernameUpdate(
                 org_username=user.org_username,
                 path=normalize_app_interface_path(user.path),
                 current_github_username=user.github_username,
-                github_username=ldap_github_username,
+                github_username=github_username,
             )
         )
     return updates
@@ -123,8 +154,10 @@ class GithubUsernameSyncIntegration(
     """Sync github_username on internal app-interface users from LDAP.
 
     Queries GraphQL for internal users, resolves their Rover-linked GitHub
-    account via qontract-api's external LDAP endpoint, diffs locally, and
-    reconciles via the VCS file-sync endpoint.
+    account via qontract-api's external LDAP endpoint, validates each
+    resolved login against the GitHub API (existence + canonical casing) via
+    qontract-api's external GitHub endpoint, diffs locally, and reconciles
+    via the VCS file-sync endpoint.
     """
 
     @property
@@ -157,18 +190,48 @@ class GithubUsernameSyncIntegration(
                 ),
             )
 
-        org_username_to_github = {
+        org_username_to_ldap_login = {
             u.org_username: u.github_username for u in ldap_response.users
         }
 
         if unresolved := sorted(
             user.org_username
             for user in users
-            if user.org_username not in org_username_to_github
+            if user.org_username not in org_username_to_ldap_login
         ):
             logger.warning(
                 "no unambiguous LDAP-linked GitHub account found; "
                 f"leaving github_username unchanged for: {', '.join(unresolved)}"
+            )
+
+        canonical_logins: dict[str, str] = {}
+        if org_username_to_ldap_login:
+            github_secret = _find_default_github_secret(self.secret_manager_url)
+            with self.log_api_exceptions():
+                validate_response = await github_users_validate(
+                    GithubUsersValidateRequest(
+                        secret=github_secret,
+                        usernames=sorted(set(org_username_to_ldap_login.values())),
+                        account_type=GithubAccountType.USER,
+                    ),
+                )
+            canonical_logins = {
+                u.login.lower(): u.login for u in validate_response.users
+            }
+
+        org_username_to_github: dict[str, str] = {}
+        invalid_ldap_logins: set[str] = set()
+        for org_username, ldap_login in org_username_to_ldap_login.items():
+            if canonical := canonical_logins.get(ldap_login.lower()):
+                org_username_to_github[org_username] = canonical
+            else:
+                invalid_ldap_logins.add(ldap_login)
+
+        if invalid_ldap_logins:
+            logger.warning(
+                "LDAP-linked GitHub account does not exist or is not a "
+                "personal account; leaving github_username unchanged for "
+                f"LDAP-linked login(s): {', '.join(sorted(invalid_ldap_logins))}"
             )
 
         updates = compute_updates(users, org_username_to_github)
