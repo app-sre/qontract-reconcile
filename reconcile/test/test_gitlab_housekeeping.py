@@ -3500,6 +3500,7 @@ def test_multi_merge_insist_only_before_first_merge(
     mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
     items = [_make_merge_item(mr1)]
 
+    mocker.patch("time.sleep")
     mocker.patch(
         "reconcile.gitlab_housekeeping.integration.preprocess_merge_requests",
         return_value=items,
