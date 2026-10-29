@@ -214,6 +214,23 @@ def test_find_default_github_secret_not_found() -> None:
         _find_default_github_secret("https://vault.example.com")
 
 
+def test_find_default_github_secret_raises_on_multiple_defaults() -> None:
+    """_find_default_github_secret raises ValueError on an ambiguous config - it must
+    not silently pick the first match, matching reconcile.utils.vcs._get_default_gh_token
+    and reconcile.github_org.get_config(default=True).
+    """
+    github_orgs = [
+        _make_github_org("app-sre", default=True),
+        _make_github_org("app-sre-2", default=True),
+    ]
+
+    with (
+        patch(f"{_MOD}.get_github_orgs", return_value=github_orgs),
+        pytest.raises(ValueError, match="More than one default GitHub org configured"),
+    ):
+        _find_default_github_secret("https://vault.example.com")
+
+
 # --- async_run ---
 
 _MOD = "reconcile.github_username_sync.integration"

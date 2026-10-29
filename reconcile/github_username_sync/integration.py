@@ -100,17 +100,27 @@ def _find_default_github_secret(secret_manager_url: str) -> Secret:
     """Find the default GitHub org's API token, used for username validation.
 
     Raises:
-        ValueError: If no default GitHub org is configured
+        ValueError: If no default GitHub org is configured, or more than one is -
+            matching reconcile.utils.vcs._get_default_gh_token and
+            reconcile.github_org.get_config(default=True), which both treat an
+            ambiguous default as a fatal misconfiguration rather than picking
+            one arbitrarily.
     """
-    for org in get_github_orgs():
-        if org.default:
-            return Secret(
-                secret_manager_url=secret_manager_url,
-                path=org.token.path,
-                field=org.token.field,
-                version=org.token.version,
-            )
-    raise ValueError("No default GitHub org configured")
+    defaults = [org for org in get_github_orgs() if org.default]
+    if not defaults:
+        raise ValueError("No default GitHub org configured")
+    if len(defaults) > 1:
+        raise ValueError(
+            "More than one default GitHub org configured: "
+            f"{sorted(org.name for org in defaults)}"
+        )
+    org = defaults[0]
+    return Secret(
+        secret_manager_url=secret_manager_url,
+        path=org.token.path,
+        field=org.token.field,
+        version=org.token.version,
+    )
 
 
 def compute_updates(
