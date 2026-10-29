@@ -99,10 +99,10 @@ def test_desired_state_diff_building_shardable_integration(
     assert desired_state_diff.affected_shards == {"b"}
 
 
-def diff_extration_with_3_second_sleep(
+def diff_extration_with_1_second_sleep(
     old_file_content: Any, new_file_content: Any
 ) -> list[Diff]:
-    sleep(3)
+    sleep(1)
     return [
         Diff(
             diff_type=DiffType.CHANGED,
@@ -175,18 +175,18 @@ def test_extract_diffs_with_timeout() -> None:
     # the timeout is lower than the extraction duration -> TIMEOUT
     with pytest.raises(DiffDetectionTimeoutError):
         extract_diffs_with_timeout(
-            diff_extration_with_3_second_sleep,
+            diff_extration_with_1_second_sleep,
             previous_desired_state=previous_desired_state,
             current_desired_state=current_desired_state,
-            timeout_seconds=1,
+            timeout_seconds=0,
         )
 
     # the timeout is higher than the extraction duration -> NO TIMEOUT
     diffs = extract_diffs_with_timeout(
-        diff_extration_with_3_second_sleep,
+        diff_extration_with_1_second_sleep,
         previous_desired_state=previous_desired_state,
         current_desired_state=current_desired_state,
-        timeout_seconds=5,
+        timeout_seconds=2,
     )
     assert diffs
     assert isinstance(diffs[0], Diff)
