@@ -22,6 +22,7 @@ from qontract_api.slack.slack_workspace_client import (
     CachedChannels,
     CachedUsergroups,
     CachedUsers,
+    HandleAlreadyExistsError,
     SlackUsergroupNotFoundError,
     SlackWorkspaceClient,
 )
@@ -915,3 +916,189 @@ def test_get_slack_usergroups_enterprise_grid_user_resolved(
 
     assert len(result) == 1
     assert result[0].config.users == ["testuser"]
+
+
+# validate_usergroup_handle_available
+
+
+def _setup_namespace(
+    mock_cache: MagicMock,
+    *,
+    users: list[SlackUser] | None = None,
+    channels: list[SlackChannel] | None = None,
+    usergroups: list[SlackUsergroup] | None = None,
+) -> None:
+    """Populate the cache so get_users/get_channels/get_usergroups return fixed data."""
+
+    def get_obj_side_effect(cache_key: str, *_args: Any, **_kwargs: Any) -> Any:
+        if "usergroups" in cache_key:
+            return CachedUsergroups(items=usergroups or [])
+        if "users" in cache_key:
+            return CachedUsers(items=users or [])
+        if "channels" in cache_key:
+            return CachedChannels(items=channels or [])
+        return None
+
+    mock_cache.get_obj.side_effect = get_obj_side_effect
+
+
+def test_validate_usergroup_handle_available_no_collision(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """No exception when the handle is free."""
+    _setup_namespace(
+        mock_cache,
+        users=[
+            SlackUser(
+                id="U1",
+                name="alice",
+                profile=SlackUserProfile(email="alice@example.com"),
+            )
+        ],
+        channels=[SlackChannel(id="C1", name="general")],
+        usergroups=[SlackUsergroup(id="UG1", handle="existing-team")],
+    )
+
+    client.validate_usergroup_handle_available("new-team")
+
+
+def test_validate_usergroup_handle_available_collides_with_user(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Raises when the handle matches an existing user's Slack name."""
+    _setup_namespace(
+        mock_cache,
+        users=[
+            SlackUser(
+                id="U1",
+                name="team-rosa-trust-engineering",
+                profile=SlackUserProfile(),
+            )
+        ],
+    )
+
+    with pytest.raises(HandleAlreadyExistsError) as exc_info:
+        client.validate_usergroup_handle_available("team-rosa-trust-engineering")
+
+    message = str(exc_info.value)
+    assert "test-workspace" in message
+    assert "team-rosa-trust-engineering" in message
+    assert "existing user (" in message
+
+
+def test_validate_usergroup_handle_available_uses_slack_name_not_org_username(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Collision check is keyed on the Slack name, not the email-derived org_username.
+
+    org_username and name diverge for users whose Slack username doesn't
+    mirror their email local-part. The check must track Slack's own
+    handle_already_exists semantics (keyed on name), not app-interface's
+    org_username identity.
+    """
+    _setup_namespace(
+        mock_cache,
+        users=[
+            SlackUser(
+                id="U1",
+                name="jdoe",
+                profile=SlackUserProfile(email="john.doe@example.com"),
+            )
+        ],
+    )
+
+    # Matches the Slack name -> collision.
+    with pytest.raises(HandleAlreadyExistsError):
+        client.validate_usergroup_handle_available("jdoe")
+
+    # Matches only the org_username (email local-part) -> no collision.
+    client.validate_usergroup_handle_available("john.doe")
+
+
+def test_validate_usergroup_handle_available_ignores_deleted_user(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """A deleted user's org_username must not block reuse of the handle."""
+    _setup_namespace(
+        mock_cache,
+        users=[
+            SlackUser(
+                id="U1",
+                name="former-employee",
+                deleted=True,
+                profile=SlackUserProfile(),
+            )
+        ],
+    )
+
+    client.validate_usergroup_handle_available("former-employee")
+
+
+def test_validate_usergroup_handle_available_collides_with_channel(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Raises when the handle matches an existing channel name."""
+    _setup_namespace(
+        mock_cache,
+        channels=[SlackChannel(id="C1", name="team-rosa-trust-engineering")],
+    )
+
+    with pytest.raises(HandleAlreadyExistsError) as exc_info:
+        client.validate_usergroup_handle_available("team-rosa-trust-engineering")
+
+    message = str(exc_info.value)
+    assert "test-workspace" in message
+    assert "team-rosa-trust-engineering" in message
+    assert "channel" in message
+
+
+def test_validate_usergroup_handle_available_collides_with_usergroup(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Raises when the handle matches an existing (possibly unmanaged) usergroup."""
+    _setup_namespace(
+        mock_cache,
+        usergroups=[SlackUsergroup(id="UG1", handle="team-rosa-trust-engineering")],
+    )
+
+    with pytest.raises(HandleAlreadyExistsError) as exc_info:
+        client.validate_usergroup_handle_available("team-rosa-trust-engineering")
+
+    message = str(exc_info.value)
+    assert "test-workspace" in message
+    assert "team-rosa-trust-engineering" in message
+    assert "existing usergroup" in message
+
+
+# create_usergroup - handle_already_exists handling
+
+
+def test_create_usergroup_handle_already_exists_raises_clear_error(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock
+) -> None:
+    """A handle_already_exists Slack API error is surfaced with an actionable hint."""
+    mock_slack_api.usergroup_create.side_effect = SlackApiError(
+        message="handle_already_exists", response={"error": "handle_already_exists"}
+    )
+
+    with pytest.raises(HandleAlreadyExistsError) as exc_info:
+        client.create_usergroup(handle="new-team")
+
+    message = str(exc_info.value)
+    assert "new-team" in message
+    assert "private channel" in message
+    assert "stale" in message
+
+
+def test_create_usergroup_other_slack_api_error_propagates(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock
+) -> None:
+    """Non-collision Slack API errors are not rewrapped."""
+    mock_slack_api.usergroup_create.side_effect = SlackApiError(
+        message="invalid_arg_name", response={"error": "invalid_arg_name"}
+    )
+
+    with pytest.raises(SlackApiError) as exc_info:
+        client.create_usergroup(handle="new-team")
+
+    assert exc_info.value.response["error"] == "invalid_arg_name"

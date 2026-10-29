@@ -427,7 +427,7 @@ The integration can perform these reconciliation actions:
 **Vault Secrets:**
 
 - `<vault_token_path>`: Slack API token for each workspace (e.g., `app-sre/integrations-output/slack-workspace-1/slack-api-token`)
-  - Scopes required: `usergroups:read`, `usergroups:write`, `users:read`, `channels:read`
+  - Scopes required: `usergroups:read`, `usergroups:write`, `users:read`, `channels:read`, `groups:read`
 
 **External APIs:**
 

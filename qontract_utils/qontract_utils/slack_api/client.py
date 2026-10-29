@@ -267,6 +267,16 @@ class SlackApi:
 
         Returns:
             Created SlackUsergroup object
+
+        Raises:
+            SlackApiError: Handles must be unique workspace-wide -- not just
+                among other usergroups, but also against existing user names
+                and channel names (public and private). A collision raises
+                SlackApiError with response["error"] == "handle_already_exists".
+                This can happen even after a proactive uniqueness check, since
+                private channels this token is not a member of cannot be
+                enumerated via conversations_list() and are invisible to any
+                such check.
         """
         response = self._sc.usergroups_create(name=name or handle, handle=handle)
         return SlackUsergroup(**response["usergroup"])
