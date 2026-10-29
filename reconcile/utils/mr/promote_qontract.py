@@ -82,6 +82,26 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
             content=new_content,
         )
 
+        # .gitlab-ci.yml's variables: block mirrors .env - image: is resolved
+        # before any script runs, so it can't source .env at runtime.
+        gitlab_ci_path = ".gitlab-ci.yml"
+        gitlab_ci_raw = gitlab_cli.get_raw_file(
+            project=gitlab_cli.project,
+            path=gitlab_ci_path,
+            ref=gitlab_cli.main_branch,
+        )
+        gitlab_ci_lines = gitlab_ci_raw.decode("utf-8").splitlines()
+        for index, text in enumerate(gitlab_ci_lines):
+            if text.startswith("  SCHEMAS_IMAGE_TAG:"):
+                gitlab_ci_lines[index] = f"  SCHEMAS_IMAGE_TAG: {self.version}"
+
+        gitlab_cli.update_file(
+            branch_name=self.branch,
+            file_path=gitlab_ci_path,
+            commit_message=self.description,
+            content="\n".join(gitlab_ci_lines) + "\n",
+        )
+
 
 class PromoteQontractReconcileCommercial(MergeRequestBase):
     name = "promote_qontract_reconcile"
@@ -272,6 +292,16 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
             replace_text=f"export RECONCILE_IMAGE_TAG={self.version}",
         )
 
+        # .gitlab-ci.yml's variables: block mirrors .env - image: is resolved
+        # before any script runs, so it can't source .env at runtime.
+        self._process_by(
+            "line_search",
+            gitlab_cli=gitlab_cli,
+            path=".gitlab-ci.yml",
+            search_text="  RECONCILE_IMAGE_TAG:",
+            replace_text=f"  RECONCILE_IMAGE_TAG: {self.version}",
+        )
+
         # resources/jenkins/global/defaults.yaml
         self._process_by(
             "line_search",
@@ -354,6 +384,16 @@ class PromoteQontractValidator(PromoteQontractReconcileCommercial):
             path=".env",
             search_text="export VALIDATOR_IMAGE_TAG=",
             replace_text=f"export VALIDATOR_IMAGE_TAG={self.version}",
+        )
+
+        # .gitlab-ci.yml's variables: block mirrors .env - image: is resolved
+        # before any script runs, so it can't source .env at runtime.
+        self._process_by(
+            "line_search",
+            gitlab_cli=gitlab_cli,
+            path=".gitlab-ci.yml",
+            search_text="  VALIDATOR_IMAGE_TAG:",
+            replace_text=f"  VALIDATOR_IMAGE_TAG: {self.version}",
         )
 
 
