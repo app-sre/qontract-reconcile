@@ -1,17 +1,22 @@
-"""Tests for qontract_utils.github_org.api."""
+"""Tests for qontract_utils.github_api.api."""
 
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
 import requests
-from github.GithubException import GithubException, RateLimitExceededException
+from github.GithubException import (
+    GithubException,
+    RateLimitExceededException,
+    UnknownObjectException,
+)
 from github.NamedUser import NamedUser
 from pytest_httpserver import HTTPServer
-from qontract_utils.github_org.api import (
+from qontract_utils.github_api.api import (
     _DEFAULT_RATE_LIMIT_FALLBACK_SECONDS,
-    GithubOrgApi,
+    GithubApi,
     GithubRateLimitExceededError,
+    GithubUser,
 )
 from werkzeug import Response
 
@@ -19,7 +24,7 @@ INVITATIONS_PATH = "/orgs/my-org/invitations"
 
 
 def test_default_user_agent_identifies_qontract_utils(httpserver: HTTPServer) -> None:
-    api = GithubOrgApi(token="token", base_url=httpserver.url_for(""))
+    api = GithubApi(token="token", base_url=httpserver.url_for(""))
     httpserver.expect_request(INVITATIONS_PATH, method="GET").respond_with_json([])
 
     api.get_pending_invitations("my-org")
@@ -29,7 +34,7 @@ def test_default_user_agent_identifies_qontract_utils(httpserver: HTTPServer) ->
 
 
 def test_custom_user_agent_overrides_default(httpserver: HTTPServer) -> None:
-    api = GithubOrgApi(
+    api = GithubApi(
         token="token",
         base_url=httpserver.url_for(""),
         user_agent="qontract-api/1.2.3",
@@ -45,7 +50,7 @@ def test_custom_user_agent_overrides_default(httpserver: HTTPServer) -> None:
 def test_paginated_get_raises_rate_limit_error_on_403_remaining_zero(
     httpserver: HTTPServer,
 ) -> None:
-    api = GithubOrgApi(token="token", base_url=httpserver.url_for(""))
+    api = GithubApi(token="token", base_url=httpserver.url_for(""))
     reset_epoch = int(datetime(2026, 9, 4, 17, 22, 2, tzinfo=UTC).timestamp())
     httpserver.expect_request(INVITATIONS_PATH, method="GET").respond_with_json(
         {"message": "API rate limit exceeded"},
@@ -62,7 +67,7 @@ def test_paginated_get_raises_rate_limit_error_on_403_remaining_zero(
 def test_paginated_get_raises_rate_limit_error_on_429(
     httpserver: HTTPServer,
 ) -> None:
-    api = GithubOrgApi(token="token", base_url=httpserver.url_for(""))
+    api = GithubApi(token="token", base_url=httpserver.url_for(""))
     httpserver.expect_request(INVITATIONS_PATH, method="GET").respond_with_json(
         {"message": "secondary rate limit"},
         status=429,
@@ -84,7 +89,7 @@ def test_paginated_get_raises_rate_limit_error_on_429(
 def test_paginated_get_403_without_ratelimit_raises_httperror(
     httpserver: HTTPServer,
 ) -> None:
-    api = GithubOrgApi(token="token", base_url=httpserver.url_for(""))
+    api = GithubApi(token="token", base_url=httpserver.url_for(""))
     httpserver.expect_request(INVITATIONS_PATH, method="GET").respond_with_json(
         {"message": "Forbidden"},
         status=403,
@@ -96,7 +101,7 @@ def test_paginated_get_403_without_ratelimit_raises_httperror(
 
 
 def test_get_members_preserves_case_and_sorts() -> None:
-    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    api = GithubApi(token="token", base_url="https://api.github.com")
     org = MagicMock()
     org.get_members.return_value = [
         MagicMock(login="Bob"),
@@ -114,7 +119,7 @@ def test_get_members_preserves_case_and_sorts() -> None:
 
 
 def test_get_members_raises_rate_limit_error() -> None:
-    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    api = GithubApi(token="token", base_url="https://api.github.com")
     reset_epoch = 1788542522
     org = MagicMock()
     org.get_members.side_effect = RateLimitExceededException(
@@ -130,7 +135,7 @@ def test_get_members_raises_rate_limit_error() -> None:
 
 
 def test_get_admin_members_raises_rate_limit_error() -> None:
-    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    api = GithubApi(token="token", base_url="https://api.github.com")
     reset_epoch = 1788542522
     org = MagicMock()
     org.get_members.side_effect = RateLimitExceededException(
@@ -146,7 +151,7 @@ def test_get_admin_members_raises_rate_limit_error() -> None:
 
 
 def test_add_member_as_admin_raises_rate_limit_error_on_429() -> None:
-    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    api = GithubApi(token="token", base_url="https://api.github.com")
     org = MagicMock()
     org.add_to_members.side_effect = GithubException(
         429, {"message": "secondary rate limit"}, {"retry-after": "15"}
@@ -168,7 +173,7 @@ def test_add_member_as_admin_raises_rate_limit_error_on_429() -> None:
 
 
 def test_reset_at_fallback_when_headers_missing() -> None:
-    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    api = GithubApi(token="token", base_url="https://api.github.com")
     org = MagicMock()
     org.get_members.side_effect = RateLimitExceededException(
         403, {"message": "rate limit"}, {}
@@ -187,7 +192,7 @@ def test_reset_at_fallback_when_headers_missing() -> None:
 
 def test_reset_at_fallback_on_non_numeric_retry_after() -> None:
     """A non-numeric Retry-After (an HTTP-date, which HTTP allows) must not raise."""
-    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    api = GithubApi(token="token", base_url="https://api.github.com")
     org = MagicMock()
     org.get_members.side_effect = RateLimitExceededException(
         403,
@@ -208,7 +213,7 @@ def test_reset_at_fallback_on_non_numeric_retry_after() -> None:
 
 def test_reset_at_fallback_on_oversized_retry_after() -> None:
     """An oversized-but-numeric Retry-After must not raise OverflowError."""
-    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    api = GithubApi(token="token", base_url="https://api.github.com")
     org = MagicMock()
     org.get_members.side_effect = RateLimitExceededException(
         403, {"message": "rate limit"}, {"retry-after": str(10**20)}
@@ -227,7 +232,7 @@ def test_reset_at_fallback_on_oversized_retry_after() -> None:
 
 def test_reset_at_fallback_on_non_numeric_ratelimit_reset() -> None:
     """A non-numeric X-RateLimit-Reset must not raise ValueError - fall back."""
-    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    api = GithubApi(token="token", base_url="https://api.github.com")
     org = MagicMock()
     org.get_members.side_effect = RateLimitExceededException(
         403, {"message": "rate limit"}, {"x-ratelimit-reset": "not-a-number"}
@@ -248,7 +253,7 @@ def test_secondary_limit_403_without_remaining_zero_is_rate_limit(
     httpserver: HTTPServer,
 ) -> None:
     """A secondary-limit 403+Retry-After without remaining=0 is still a rate limit."""
-    api = GithubOrgApi(token="token", base_url=httpserver.url_for(""))
+    api = GithubApi(token="token", base_url=httpserver.url_for(""))
     httpserver.expect_request(INVITATIONS_PATH, method="GET").respond_with_json(
         {"message": "You have exceeded a secondary rate limit"},
         status=403,
@@ -270,7 +275,7 @@ def test_secondary_limit_403_without_remaining_zero_is_rate_limit(
 @pytest.mark.usefixtures("enable_retry")
 def test_rate_limit_is_not_retried(httpserver: HTTPServer) -> None:
     """A rate-limited request must fail on the first attempt, never retried."""
-    api = GithubOrgApi(token="token", base_url=httpserver.url_for(""))
+    api = GithubApi(token="token", base_url=httpserver.url_for(""))
     httpserver.expect_request(INVITATIONS_PATH, method="GET").respond_with_json(
         {"message": "API rate limit exceeded"},
         status=403,
@@ -304,7 +309,7 @@ def test_transient_server_error_is_retried_then_succeeds(
     httpserver.expect_request(INVITATIONS_PATH, method="GET").respond_with_handler(
         handler
     )
-    api = GithubOrgApi(token="token", base_url=httpserver.url_for(""))
+    api = GithubApi(token="token", base_url=httpserver.url_for(""))
 
     result = api.get_pending_invitations("my-org")
 
@@ -317,7 +322,7 @@ def test_persistent_server_error_exhausts_retries_and_raises(
     httpserver: HTTPServer,
 ) -> None:
     """A persistent 503 must be retried up to the configured limit, then raise."""
-    api = GithubOrgApi(token="token", base_url=httpserver.url_for(""))
+    api = GithubApi(token="token", base_url=httpserver.url_for(""))
     httpserver.expect_request(INVITATIONS_PATH, method="GET").respond_with_json(
         {"message": "Service Unavailable"}, status=503
     )
@@ -333,7 +338,7 @@ def test_transient_connection_error_is_retried_and_succeeds(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A network-level connection error must be retried, not fail immediately."""
-    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    api = GithubApi(token="token", base_url="https://api.github.com")
     call_count = {"n": 0}
 
     def flaky_get(*_args: object, **_kwargs: object) -> requests.Response:
@@ -345,7 +350,7 @@ def test_transient_connection_error_is_retried_and_succeeds(
         response._content = b"[]"
         return response
 
-    monkeypatch.setattr("qontract_utils.github_org.api.requests.get", flaky_get)
+    monkeypatch.setattr("qontract_utils.github_api.api.requests.get", flaky_get)
 
     result = api.get_pending_invitations("my-org")
 
@@ -358,14 +363,14 @@ def test_persistent_connection_error_exhausts_retries(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A persistent connection error must exhaust retries, then propagate."""
-    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    api = GithubApi(token="token", base_url="https://api.github.com")
     call_count = {"n": 0}
 
     def always_fails(*_args: object, **_kwargs: object) -> requests.Response:
         call_count["n"] += 1
         raise requests.ConnectionError("connection reset by peer")
 
-    monkeypatch.setattr("qontract_utils.github_org.api.requests.get", always_fails)
+    monkeypatch.setattr("qontract_utils.github_api.api.requests.get", always_fails)
 
     with pytest.raises(requests.ConnectionError):
         api.get_pending_invitations("my-org")
@@ -373,10 +378,63 @@ def test_persistent_connection_error_exhausts_retries(
     assert call_count["n"] == 3
 
 
+def test_get_user_returns_canonical_login_and_type() -> None:
+    api = GithubApi(token="token", base_url="https://api.github.com")
+    user = MagicMock(spec=NamedUser)
+    user.login = "ChunxiAlexLuo"
+    user.type = "User"
+    user.id = 12345
+    api._gh = MagicMock()
+    api._gh.get_user.return_value = user
+
+    result = api.get_user("chunxialexluo")
+
+    assert result == GithubUser(login="ChunxiAlexLuo", type="User", id=12345)
+    api._gh.get_user.assert_called_once_with("chunxialexluo")
+
+
+def test_get_user_returns_organization_type() -> None:
+    api = GithubApi(token="token", base_url="https://api.github.com")
+    org_account = MagicMock(spec=NamedUser)
+    org_account.login = "app-sre"
+    org_account.type = "Organization"
+    org_account.id = 999
+    api._gh = MagicMock()
+    api._gh.get_user.return_value = org_account
+
+    result = api.get_user("app-sre")
+
+    assert result == GithubUser(login="app-sre", type="Organization", id=999)
+
+
+def test_get_user_returns_none_on_404() -> None:
+    api = GithubApi(token="token", base_url="https://api.github.com")
+    api._gh = MagicMock()
+    api._gh.get_user.side_effect = UnknownObjectException(
+        404, {"message": "Not Found"}, {}
+    )
+
+    assert api.get_user("nonexistent-user") is None
+
+
+def test_get_user_raises_rate_limit_error() -> None:
+    api = GithubApi(token="token", base_url="https://api.github.com")
+    reset_epoch = 1788542522
+    api._gh = MagicMock()
+    api._gh.get_user.side_effect = RateLimitExceededException(
+        403, {"message": "rate limit"}, {"x-ratelimit-reset": str(reset_epoch)}
+    )
+
+    with pytest.raises(GithubRateLimitExceededError) as exc_info:
+        api.get_user("alice")
+
+    assert exc_info.value.reset_at == datetime.fromtimestamp(reset_epoch, tz=UTC)
+
+
 @pytest.mark.usefixtures("enable_retry")
 def test_transient_pygithub_server_error_is_retried_and_succeeds() -> None:
     """A 5xx GithubException from PyGithub must be retried, not fail immediately."""
-    api = GithubOrgApi(token="token", base_url="https://api.github.com")
+    api = GithubApi(token="token", base_url="https://api.github.com")
     member = MagicMock()
     member.login = "Alice"
     org = MagicMock()
