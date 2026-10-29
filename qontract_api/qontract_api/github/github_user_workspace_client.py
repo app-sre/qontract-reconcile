@@ -23,6 +23,10 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Bump when the rate-limit key's format or derivation changes, so stale
+# entries under the old format are never misread as valid under the new one.
+_RATE_LIMIT_KEY_VERSION = "v1"
+
 
 class CachedGithubUser(BaseModel, frozen=True):
     """Cached result of a single GitHub user lookup.
@@ -75,9 +79,15 @@ class GithubUserWorkspaceClient:
     def _cache_key(username: str) -> str:
         return f"github-user:{username.lower()}:info"
 
-    @staticmethod
-    def _rate_limit_key() -> str:
-        return "github-user:rate-limited"
+    def _rate_limit_key(self) -> str:
+        """Scope the rate-limit marker to this client's credential.
+
+        Without this, a rate limit hit by one GitHub token would also
+        short-circuit requests made with a different, unaffected token -
+        GitHub's rate limits are per-credential, but the cache backend is
+        shared across every caller of this endpoint.
+        """
+        return f"github-user:rate-limited:{_RATE_LIMIT_KEY_VERSION}:{self._api.credential_id}"
 
     def _cache_rate_limit_marker(self, exc: GithubRateLimitExceededError) -> None:
         """Cache a rate-limit marker so subsequent lookups short-circuit until reset."""

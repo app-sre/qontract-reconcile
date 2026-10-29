@@ -12,6 +12,7 @@ endpoint is implemented directly using requests.
 from __future__ import annotations
 
 import contextvars
+import hashlib
 import time
 from collections.abc import Mapping
 from contextlib import suppress
@@ -297,6 +298,17 @@ class GithubApi:
         self._base_url = base_url
         self._user_agent = user_agent
         self._gh = Github(token, base_url=base_url, user_agent=user_agent)
+
+    @property
+    def credential_id(self) -> str:
+        """A stable, non-secret identifier for this client's token.
+
+        Derived via SHA-256 so two GithubApi instances backed by the same
+        token share an identifier, without ever exposing the plaintext token.
+        Intended for scoping credential-specific cache keys (e.g. a rate-limit
+        marker) so unrelated credentials don't short-circuit each other.
+        """
+        return hashlib.sha256(self._token.encode()).hexdigest()[:16]
 
     def _paginated_get(self, path: str) -> list[dict[str, Any]]:
         """Perform a paginated GET against the GitHub REST API.

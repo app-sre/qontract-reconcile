@@ -431,6 +431,27 @@ def test_get_user_raises_rate_limit_error() -> None:
     assert exc_info.value.reset_at == datetime.fromtimestamp(reset_epoch, tz=UTC)
 
 
+def test_credential_id_is_deterministic_for_same_token() -> None:
+    api_a = GithubApi(token="my-secret-token", base_url="https://api.github.com")
+    api_b = GithubApi(token="my-secret-token", base_url="https://api.github.com")
+
+    assert api_a.credential_id == api_b.credential_id
+
+
+def test_credential_id_differs_for_different_tokens() -> None:
+    api_a = GithubApi(token="token-a", base_url="https://api.github.com")
+    api_b = GithubApi(token="token-b", base_url="https://api.github.com")
+
+    assert api_a.credential_id != api_b.credential_id
+
+
+def test_credential_id_does_not_contain_the_token() -> None:
+    token = "my-secret-token"
+    api = GithubApi(token=token, base_url="https://api.github.com")
+
+    assert token not in api.credential_id
+
+
 @pytest.mark.usefixtures("enable_retry")
 def test_transient_pygithub_server_error_is_retried_and_succeeds() -> None:
     """A 5xx GithubException from PyGithub must be retried, not fail immediately."""
