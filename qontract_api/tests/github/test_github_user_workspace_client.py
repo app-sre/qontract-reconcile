@@ -10,6 +10,7 @@ import pytest
 from qontract_utils.github_api import GithubRateLimitExceededError, GithubUser
 
 from qontract_api.github.github_user_workspace_client import (
+    _RATE_LIMIT_KEY_VERSION,
     CachedGithubUser,
     GithubUserWorkspaceClient,
     RateLimitMarker,
@@ -151,8 +152,29 @@ def test_sets_marker_and_reraises_on_rate_limit(
         client.lookup_users(["alice"])
 
     key, marker, _ttl = mock_cache.set_obj.call_args[0]
-    assert key == "github-user:rate-limited"
+    assert (
+        key == f"github-user:rate-limited:{_RATE_LIMIT_KEY_VERSION}:test-credential-id"
+    )
     assert marker == RateLimitMarker(reset_at=reset_at)
+
+
+def test_rate_limit_key_scoped_to_credential(
+    mock_cache: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    """Two clients backed by different credentials must not share a rate-limit key."""
+    api_a = MagicMock()
+    api_a.credential_id = "credential-a"
+    api_b = MagicMock()
+    api_b.credential_id = "credential-b"
+    client_a = GithubUserWorkspaceClient(
+        github_api=api_a, cache=mock_cache, settings=mock_settings
+    )
+    client_b = GithubUserWorkspaceClient(
+        github_api=api_b, cache=mock_cache, settings=mock_settings
+    )
+
+    assert client_a._rate_limit_key() != client_b._rate_limit_key()
 
 
 def test_marker_ttl_derived_from_reset(

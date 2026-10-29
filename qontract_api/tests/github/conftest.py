@@ -9,7 +9,9 @@ from qontract_api.config import Settings
 
 @pytest.fixture
 def mock_github_api() -> MagicMock:
-    return MagicMock(spec=GithubApi)
+    m = MagicMock(spec=GithubApi)
+    m.credential_id = "test-credential-id"
+    return m
 
 
 @pytest.fixture
