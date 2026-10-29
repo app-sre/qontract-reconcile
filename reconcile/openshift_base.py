@@ -80,6 +80,10 @@ class ValidationErrorJobFailedError(Exception):
     pass
 
 
+class ResourceDeletionBlockedError(Exception):
+    """Raised when an integration-owned gate rejects an internal deletion."""
+
+
 @dataclass
 class BaseStateSpec:
     oc: OCClient = field(compare=False, repr=False)
@@ -442,6 +446,7 @@ def apply(
     wait_for_namespace: bool,
     recycle_pods: bool = True,
     privileged: bool = False,
+    deletion_gate: ResourceDeletionGate | None = None,
 ) -> None:
     logging.info([
         "apply",
@@ -492,6 +497,13 @@ def apply(
             # sure they're safe.
             if resource_type not in {"Route", "Service", "Secret", "Job"}:
                 raise
+            if deletion_gate and not deletion_gate.is_delete_allowed(
+                cluster=cluster,
+                namespace=namespace,
+                resource_type=resource_type,
+                resource_name=resource.name,
+            ):
+                raise ResourceDeletionBlockedError from None
             oc.delete(namespace=namespace, kind=resource_type, name=resource.name)
             oc.apply(namespace=namespace, resource=annotated)
         except DeploymentFieldIsImmutableError:
@@ -1002,8 +1014,11 @@ def apply_action(
             wait_for_namespace=options.wait_for_namespace,
             recycle_pods=options.recycle_pods,
             privileged=bool(options.privileged),
+            deletion_gate=options.deletion_gate,
         )
 
+    except ResourceDeletionBlockedError:
+        ri.register_error(cluster=cluster)
     except StatusCodeError as e:
         ri.register_error()
         err = (

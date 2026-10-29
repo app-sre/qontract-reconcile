@@ -75,6 +75,53 @@ def test_secret_in_use_gate_blocks_mr_215615_deletion(
     assert "Pod/playbook-dispatcher-api-abc123" in caplog.text
 
 
+@pytest.mark.parametrize(
+    "pod_spec",
+    [
+        {
+            "containers": [{"name": "consumer"}],
+            "volumes": [
+                {
+                    "name": "projected",
+                    "projected": {
+                        "sources": [
+                            {"secret": {"name": "referenced-secret"}},
+                        ]
+                    },
+                }
+            ],
+        },
+        {
+            "containers": [{"name": "consumer"}],
+            "imagePullSecrets": [{"name": "referenced-secret"}],
+        },
+    ],
+)
+def test_secret_in_use_gate_blocks_additional_pod_reference_forms(
+    pod_spec: dict[str, Any],
+) -> None:
+    pod = {
+        "apiVersion": "v1",
+        "kind": "Pod",
+        "metadata": {"name": "consumer"},
+        "spec": pod_spec,
+    }
+    oc_client = MagicMock()
+    oc_client.get_items.return_value = [pod]
+    oc_client.is_resource_used_in_pod.side_effect = lambda name, kind, candidate: (
+        name in OCCli.get_resources_used_in_pod_spec(candidate["spec"], kind)
+    )
+    oc_map = MagicMock()
+    oc_map.get_cluster.return_value = oc_client
+
+    assert not sut.SecretInUseDeletionGate(oc_map).is_delete_allowed(
+        cluster="test-cluster",
+        namespace="test-namespace",
+        resource_type="Secret",
+        resource_name="referenced-secret",
+    )
+
+
 def test_mr_215615_base_to_head_replay_blocks_unsafe_deletion(
     caplog: pytest.LogCaptureFixture,
     mocker: MockerFixture,
