@@ -291,6 +291,26 @@ resourceTemplates:
     assert expected == result
 
 
+def test_process_by_optional_skips_when_file_missing() -> None:
+    mr = PromoteQontractReconcileCommercial(
+        "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    )
+    gitlab_cli = MagicMock(spec=GitLabApi)
+    gitlab_cli.get_file.return_value = None
+
+    mr._process_by(
+        "line_search",
+        gitlab_cli=gitlab_cli,
+        path=".gitlab-ci.yml",
+        search_text="  RECONCILE_IMAGE_TAG:",
+        replace_text="  RECONCILE_IMAGE_TAG: 1q2w3e4",
+        optional=True,
+    )
+
+    gitlab_cli.get_raw_file.assert_not_called()
+    gitlab_cli.update_file.assert_not_called()
+
+
 def test_promote_qontract_schemas_updates_env_and_gitlab_ci() -> None:
     gitlab_cli = MagicMock(spec=GitLabApi)
     gitlab_cli.project = MagicMock()
@@ -299,6 +319,9 @@ def test_promote_qontract_schemas_updates_env_and_gitlab_ci() -> None:
         ".gitlab-ci.yml": "variables:\n  SCHEMAS_IMAGE_TAG: oldtag\n",
     }
     gitlab_cli.get_raw_file.side_effect = lambda project, path, ref: bytes(
+        file_contents[path], "utf-8"
+    )
+    gitlab_cli.get_file.side_effect = lambda path, ref: bytes(
         file_contents[path], "utf-8"
     )
 
@@ -314,6 +337,21 @@ def test_promote_qontract_schemas_updates_env_and_gitlab_ci() -> None:
     assert "SCHEMAS_IMAGE_TAG: newtag" in written[".gitlab-ci.yml"]
 
 
+def test_promote_qontract_schemas_skips_gitlab_ci_when_missing() -> None:
+    gitlab_cli = MagicMock(spec=GitLabApi)
+    gitlab_cli.project = MagicMock()
+    gitlab_cli.get_raw_file.return_value = bytes(
+        "export SCHEMAS_IMAGE_TAG=oldtag\n", "utf-8"
+    )
+    gitlab_cli.get_file.return_value = None
+
+    mr = PromoteQontractSchemas("newtag", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p")
+    mr.process(gitlab_cli)
+
+    gitlab_cli.update_file.assert_called_once()
+    assert gitlab_cli.update_file.call_args.kwargs["file_path"] == ".env"
+
+
 def test_promote_qontract_validator_updates_env_and_gitlab_ci() -> None:
     gitlab_cli = MagicMock(spec=GitLabApi)
     gitlab_cli.project = MagicMock()
@@ -322,6 +360,9 @@ def test_promote_qontract_validator_updates_env_and_gitlab_ci() -> None:
         ".gitlab-ci.yml": "variables:\n  VALIDATOR_IMAGE_TAG: oldtag\n",
     }
     gitlab_cli.get_raw_file.side_effect = lambda project, path, ref: bytes(
+        file_contents[path], "utf-8"
+    )
+    gitlab_cli.get_file.side_effect = lambda path, ref: bytes(
         file_contents[path], "utf-8"
     )
 
@@ -335,6 +376,21 @@ def test_promote_qontract_validator_updates_env_and_gitlab_ci() -> None:
     }
     assert "export VALIDATOR_IMAGE_TAG=newtag" in written[".env"]
     assert "VALIDATOR_IMAGE_TAG: newtag" in written[".gitlab-ci.yml"]
+
+
+def test_promote_qontract_validator_skips_gitlab_ci_when_missing() -> None:
+    gitlab_cli = MagicMock(spec=GitLabApi)
+    gitlab_cli.project = MagicMock()
+    gitlab_cli.get_raw_file.return_value = bytes(
+        "export VALIDATOR_IMAGE_TAG=oldtag\n", "utf-8"
+    )
+    gitlab_cli.get_file.return_value = None
+
+    mr = PromoteQontractValidator("newtag", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p")
+    mr.process(gitlab_cli)
+
+    gitlab_cli.update_file.assert_called_once()
+    assert gitlab_cli.update_file.call_args.kwargs["file_path"] == ".env"
 
 
 @patch.object(PromoteQontractReconcileCommercial, "_process_file_with_json_paths")
@@ -362,6 +418,7 @@ def test_promote_qontract_reconcile_updates_gitlab_ci(
     assert method == "line_search"
     assert gitlab_ci_calls[0].kwargs["search_text"] == "  RECONCILE_IMAGE_TAG:"
     assert gitlab_ci_calls[0].kwargs["replace_text"] == "  RECONCILE_IMAGE_TAG: newtag"
+    assert gitlab_ci_calls[0].kwargs["optional"] is True
 
 
 SAAS_QONTRACT_API_CONTENT = """---
