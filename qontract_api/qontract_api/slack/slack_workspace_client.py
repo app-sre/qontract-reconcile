@@ -100,6 +100,10 @@ class AllUsersUnresolvableError(Exception):
     """Raised when a non-empty desired users list resolves to no Slack user IDs."""
 
 
+class HandleAlreadyExistsError(Exception):
+    """Raised when a usergroup handle collides with an existing user, channel, or usergroup."""
+
+
 class SlackWorkspaceClient:
     """Caching + compute layer for Slack workspace data.
 
@@ -367,6 +371,51 @@ class SlackWorkspaceClient:
             for ug in usergroups
         ]
 
+    def validate_usergroup_handle_available(self, handle: str) -> None:
+        """Check that a handle doesn't collide with an existing workspace entity.
+
+        Slack usergroup handles must be unique workspace-wide -- not just among
+        managed usergroups, but also against existing user names and channel
+        names (public, and private channels this bot token is a member of).
+        Private channels invisible to the bot cannot be checked this way; see
+        create_usergroup's handling of the handle_already_exists Slack API
+        error for that residual case.
+
+        Args:
+            handle: Desired usergroup handle to check.
+
+        Raises:
+            HandleAlreadyExistsError: If the handle is already used by a user,
+                channel, or usergroup in the workspace.
+        """
+        workspace = self.slack_api.workspace_name
+
+        usernames = {
+            user.name for user in self.get_users().values() if not user.deleted
+        }
+        if handle in usernames:
+            msg = (
+                f"{workspace}: usergroup handle '{handle}' is already used by "
+                f"an existing user ('{handle}') in this Slack workspace"
+            )
+            raise HandleAlreadyExistsError(msg)
+
+        channel_names = {channel.name for channel in self.get_channels().values()}
+        if handle in channel_names:
+            msg = (
+                f"{workspace}: usergroup handle '{handle}' is already used by "
+                f"an existing channel ('{handle}') in this Slack workspace"
+            )
+            raise HandleAlreadyExistsError(msg)
+
+        usergroup_handles = {ug.handle for ug in self.get_usergroups().values()}
+        if handle in usergroup_handles:
+            msg = (
+                f"{workspace}: usergroup handle '{handle}' is already used by "
+                f"an existing usergroup ('{handle}') in this Slack workspace"
+            )
+            raise HandleAlreadyExistsError(msg)
+
     def create_usergroup(
         self,
         *,
@@ -381,8 +430,29 @@ class SlackWorkspaceClient:
 
         Returns:
             Created SlackUsergroupAPI object
+
+        Raises:
+            HandleAlreadyExistsError: If Slack rejects the handle as already in
+                use. This can happen even after validate_usergroup_handle_available
+                passed, either because the collision is with a private channel
+                invisible to this integration's bot token, or because the user,
+                channel, or usergroup cache validate_usergroup_handle_available
+                read from was stale.
         """
-        created_ug = self.slack_api.usergroup_create(handle=handle, name=name)
+        try:
+            created_ug = self.slack_api.usergroup_create(handle=handle, name=name)
+        except SlackApiError as e:
+            if e.response.get("error") == "handle_already_exists":
+                msg = (
+                    f"{self.slack_api.workspace_name}: usergroup handle "
+                    f"'{handle}' was rejected by Slack as already in use. "
+                    "This can happen if the collision is with a private "
+                    "channel invisible to this integration's bot token, or "
+                    "if the cached user/channel/usergroup inventory used by "
+                    "validate_usergroup_handle_available was stale"
+                )
+                raise HandleAlreadyExistsError(msg) from e
+            raise
 
         # Add to cache
         try:

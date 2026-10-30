@@ -34,9 +34,13 @@ def change_owner_label(label: str) -> str:
     return f"change-owner/{label}"
 
 
-SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE = change_owner_label(
-    "show-self-serviceable-in-review-queue"
-)
+# Applied by github-username-sync / ldap-users-api to keep an MR visible in
+# AppSRE's review queue when auto-merge is suppressed. Deliberately NOT a
+# change_owner_label(), for the same reason as PENDING_SELF_SERVICE_APPROVAL
+# above: change-owners' labeling step strips every "change-owner/"-prefixed
+# label and only re-adds the ones sourced from bc.change_owner_labels, which
+# would silently drop this one on its very next run.
+SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE = "show-self-serviceable-in-review-queue"
 # Optimistic Multi-Merge group labels — must be pre-created in the GitLab
 # project with appropriate color/description before enabling the feature.
 OMM_PENDING = "omm-pending"

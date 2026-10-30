@@ -7,12 +7,16 @@ from reconcile.change_owners.bundle import (
     BundleFileType,
     FileRef,
 )
-from reconcile.change_owners.change_owners import manage_conditional_label
+from reconcile.change_owners.change_owners import (
+    manage_conditional_label,
+    rebuild_change_owner_labels,
+)
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     PathExpression,
 )
 from reconcile.change_owners.changes import parse_resource_file_content
+from reconcile.utils.mr.labels import SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE
 
 #
 # label management tests
@@ -74,6 +78,26 @@ def test_label_management_add_and_remove() -> None:
         },
         dry_run=False,
     )
+
+
+def test_rebuild_change_owner_labels_strips_stale_and_adds_current() -> None:
+    assert rebuild_change_owner_labels(
+        current_labels={"change-owner/stale-label", "unrelated-label"},
+        change_owner_labels=["current-label"],
+    ) == {"change-owner/current-label", "unrelated-label"}
+
+
+def test_rebuild_change_owner_labels_preserves_show_self_serviceable_in_review_queue() -> (
+    None
+):
+    # Regression test for APPSRE-15674: SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE is set
+    # directly by github-username-sync / ldap-users-api, not sourced from
+    # bc.change_owner_labels, so it must survive change-owners' strip-and-rebuild
+    # step on the very next run instead of being silently wiped.
+    assert rebuild_change_owner_labels(
+        current_labels={SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE, "change-owner/stale"},
+        change_owner_labels=[],
+    ) == {SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE}
 
 
 #

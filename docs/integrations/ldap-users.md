@@ -15,7 +15,7 @@ Removes users from app-interface and infra repositories when they no longer exis
 - Server-side MR deduplication by title via VCS file-sync endpoint
 - Auto-merge controlled via Unleash feature toggle, and additionally suppressed when a run's
   deletion count exceeds `--auto-merge-threshold` (manual review required via the
-  `change-owner/show-self-serviceable-in-review-queue` label)
+  `show-self-serviceable-in-review-queue` label)
 - Configurable MR labels
 
 ## Desired State Details
@@ -184,7 +184,7 @@ The integration scans infra YAML files for user lists with known name fields (`n
 - `auto_merge` defaults to `false` — controlled via Unleash feature toggle `ldap-users-api-allow-auto-merge-mrs`
 - `auto_merge` is additionally forced to `false`, regardless of the Unleash toggle, when the number
   of users to delete in a run exceeds `--auto-merge-threshold` (default `10`). The
-  `change-owner/show-self-serviceable-in-review-queue` label is added to both the app-interface and
+  `show-self-serviceable-in-review-queue` label is added to both the app-interface and
   infra MRs so they show up in the IC review queue for manual approval
 - MR deduplication: file-sync endpoint checks for existing open MRs by title before creating new ones
 

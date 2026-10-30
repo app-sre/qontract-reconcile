@@ -83,6 +83,30 @@ async def ldap_group_members(
     return result
 
 
+@client.post("/api/v1/external/ldap/org-github-usernames")
+async def ldap_org_github_usernames(
+    result: schemas.LdapOrgGithubUsernamesResponse,
+    data: schemas.LdapOrgGithubUsernamesRequest,
+) -> schemas.LdapOrgGithubUsernamesResponse:
+    """Resolve Org Github Usernames
+
+        Resolve every internal user's linked GitHub account via the rhatSocialURL attribute.
+
+    Maps each LDAP uid (app-interface org_username) to the GitHub account that
+    associate has linked in their Rover profile. The full map is cached for
+    performance; uids with no linked account, or an ambiguous one, are omitted.
+
+    Args:
+        request: Vault secret reference for LDAP credentials
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapOrgGithubUsernamesResponse with resolved org_username -> github_username pairs
+    """
+    return result
+
+
 @client.post("/api/v1/external/ldap/users/check")
 async def ldap_users_check(
     result: schemas.LdapUsersCheckResponse, data: schemas.LdapUsersCheckRequest

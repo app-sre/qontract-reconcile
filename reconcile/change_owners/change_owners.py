@@ -129,6 +129,27 @@ def manage_conditional_label(
     return set(new_labels)
 
 
+def rebuild_change_owner_labels(
+    current_labels: AbstractSet[str],
+    change_owner_labels: Iterable[str],
+) -> set[str]:
+    """
+    Strips every "change-owner/"-prefixed label from `current_labels` and
+    re-adds only the ones derived from `change_owner_labels`. Labels that
+    must survive across change-owners runs (e.g.
+    SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE, set directly by other
+    integrations) must not be created via change_owner_label() for this
+    reason - see its definition in reconcile/utils/mr/labels.py.
+    """
+    labels = {
+        co_label
+        for co_label in current_labels
+        if not co_label.startswith("change-owner/")
+    }
+    labels.update(change_owner_label(label) for label in change_owner_labels)
+    return labels
+
+
 def build_status_message(
     self_serviceable: bool,
     self_service_portion_approved: bool,
@@ -665,15 +686,10 @@ def run(
             )
 
             # change-owner labels
-            labels = {
-                co_label
-                for co_label in labels
-                if not co_label.startswith("change-owner/")
-            }
-            for bc in changes:
-                labels.update(
-                    change_owner_label(label) for label in bc.change_owner_labels
-                )
+            labels = rebuild_change_owner_labels(
+                labels,
+                (label for bc in changes for label in bc.change_owner_labels),
+            )
 
             if mr_management_enabled:
                 gl.set_labels_on_merge_request(merge_request, labels)

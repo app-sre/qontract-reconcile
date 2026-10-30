@@ -19,6 +19,9 @@ from qontract_api.external.ldap.schemas import (
     LdapGithubUsernamesResponse,
     LdapGroupMembersRequest,
     LdapGroupMembersResponse,
+    LdapOrgGithubUser,
+    LdapOrgGithubUsernamesRequest,
+    LdapOrgGithubUsernamesResponse,
     LdapUsersCheckRequest,
     LdapUsersCheckResponse,
 )
@@ -117,6 +120,54 @@ def resolve_github_usernames(
         users=[
             LdapGithubUser(github_username=login, org_username=uid)
             for login, uid in resolved.items()
+        ]
+    )
+
+
+@router.post(
+    "/org-github-usernames",
+    operation_id="ldap-org-github-usernames",
+)
+def resolve_org_github_usernames(
+    request: LdapOrgGithubUsernamesRequest,
+    cache: CacheDep,
+    secret_manager: SecretManagerDep,
+    _user: UserDep,
+) -> LdapOrgGithubUsernamesResponse:
+    """Resolve every internal user's linked GitHub account via the rhatSocialURL attribute.
+
+    Maps each LDAP uid (app-interface org_username) to the GitHub account that
+    associate has linked in their Rover profile. The full map is cached for
+    performance; uids with no linked account, or an ambiguous one, are omitted.
+
+    Args:
+        request: Vault secret reference for LDAP credentials
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapOrgGithubUsernamesResponse with resolved org_username -> github_username pairs
+    """
+    client = create_ldap_workspace_client(
+        secret=request.secret,
+        cache=cache,
+        secret_manager=secret_manager,
+        settings=settings,
+    )
+
+    resolved = client.get_org_username_to_github_map()
+
+    logger.info(
+        f"Resolved {len(resolved)} org_username to GitHub username mappings via LDAP",
+        resolved=len(resolved),
+    )
+
+    return LdapOrgGithubUsernamesResponse(
+        users=[
+            LdapOrgGithubUser(
+                org_username=org_username, github_username=github_username
+            )
+            for org_username, github_username in resolved.items()
         ]
     )
 

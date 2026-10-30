@@ -185,6 +185,46 @@ def test_update_client_is_locked_per_instance_and_client_id(
     mock_cache.lock.assert_called_once_with(CACHE_KEY)
 
 
+def test_update_client_invalidates_cache_even_when_api_call_raises(
+    client: KeycloakWorkspaceClient, mock_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """A lost response for a PUT must not leave a stale cache entry.
+
+    Otherwise a PUT Keycloak actually applied could leave a stale cached
+    value behind until the cache TTL expires.
+    """
+    mock_api.update_client.side_effect = RuntimeError("timeout")
+
+    with pytest.raises(RuntimeError):
+        client.update_client("my-app-ci-bot", "reg-token", _client_repr())
+
+    mock_cache.delete.assert_called_once_with(CACHE_KEY)
+
+
+def test_update_client_cache_delete_failure_does_not_mask_successful_update(
+    client: KeycloakWorkspaceClient, mock_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """A cache backend error must not replace a successful update's result."""
+    updated = _client_repr()
+    mock_api.update_client.return_value = updated
+    mock_cache.delete.side_effect = ConnectionError("redis unreachable")
+
+    result = client.update_client("my-app-ci-bot", "reg-token", _client_repr())
+
+    assert result == updated
+
+
+def test_update_client_cache_delete_failure_does_not_mask_api_exception(
+    client: KeycloakWorkspaceClient, mock_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """A cache backend error must not replace the real Keycloak exception."""
+    mock_api.update_client.side_effect = RuntimeError("timeout")
+    mock_cache.delete.side_effect = ConnectionError("redis unreachable")
+
+    with pytest.raises(RuntimeError, match="timeout"):
+        client.update_client("my-app-ci-bot", "reg-token", _client_repr())
+
+
 # ---------------------------------------------------------------------------
 # delete_client - delegates + invalidates
 # ---------------------------------------------------------------------------
@@ -206,6 +246,44 @@ def test_delete_client_invalidates_cache(
     client.delete_client("my-app-ci-bot", "reg-token")
 
     mock_cache.delete.assert_called_once_with(CACHE_KEY)
+
+
+def test_delete_client_invalidates_cache_even_when_api_call_raises(
+    client: KeycloakWorkspaceClient, mock_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """A stale cache entry must not survive a 404 the caller treats as already-deleted.
+
+    Otherwise a same-client_id client registered later could be diffed
+    against the deleted client's cached representation for up to the cache
+    TTL - under immutable_field_drift() this could wrongly block a
+    legitimate delete+recreate.
+    """
+    mock_api.delete_client.side_effect = RuntimeError("404 not found")
+
+    with pytest.raises(RuntimeError):
+        client.delete_client("my-app-ci-bot", "reg-token")
+
+    mock_cache.delete.assert_called_once_with(CACHE_KEY)
+
+
+def test_delete_client_cache_delete_failure_does_not_mask_api_exception(
+    client: KeycloakWorkspaceClient, mock_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """A cache backend error must not replace the real Keycloak exception."""
+    mock_api.delete_client.side_effect = RuntimeError("404 not found")
+    mock_cache.delete.side_effect = ConnectionError("redis unreachable")
+
+    with pytest.raises(RuntimeError, match="404 not found"):
+        client.delete_client("my-app-ci-bot", "reg-token")
+
+
+def test_delete_client_cache_delete_failure_does_not_raise_on_success(
+    client: KeycloakWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """A cache backend error must not surface when the Keycloak call succeeded."""
+    mock_cache.delete.side_effect = ConnectionError("redis unreachable")
+
+    client.delete_client("my-app-ci-bot", "reg-token")
 
 
 # ---------------------------------------------------------------------------
