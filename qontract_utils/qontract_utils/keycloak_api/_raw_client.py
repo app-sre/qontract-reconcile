@@ -20,6 +20,20 @@ import httpx2
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class RawProtocolMapperRepresentation(BaseModel):
+    """Wire-level Keycloak protocol mapper, including its server-owned ID."""
+
+    model_config = ConfigDict(
+        populate_by_name=True, serialize_by_alias=True, frozen=True
+    )
+
+    id: str | None = None
+    name: str
+    protocol: str = "openid-connect"
+    protocol_mapper: str = Field(alias="protocolMapper")
+    config: dict[str, str]
+
+
 class RawClientRepresentation(BaseModel):
     """Wire-level mirror of Keycloak's `ClientRepresentation` JSON.
 
@@ -83,6 +97,9 @@ class RawClientRepresentation(BaseModel):
     )
     optional_client_scopes: list[str] | None = Field(
         default=None, alias="optionalClientScopes"
+    )
+    protocol_mappers: list[RawProtocolMapperRepresentation] | None = Field(
+        default=None, alias="protocolMappers"
     )
     default_roles: list[str] | None = Field(default=None, alias="defaultRoles")
     authentication_flow_binding_overrides: dict[str, str] | None = Field(

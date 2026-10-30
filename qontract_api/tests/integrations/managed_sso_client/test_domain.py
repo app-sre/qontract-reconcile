@@ -1,6 +1,10 @@
 """Unit tests for managed_sso_client domain models."""
 
-from qontract_utils.keycloak_api import ManagedKeycloakClient
+import pytest
+from qontract_utils.keycloak_api import (
+    ManagedKeycloakClient,
+    ManagedKeycloakProtocolMapper,
+)
 
 from qontract_api.integrations.managed_sso_client.domain import (
     AccessType,
@@ -295,6 +299,93 @@ def test_matches_detects_drift_in_explicitly_set_empty_list() -> None:
     )
     desired = _desired(web_origins=[])
     assert desired.matches(current) is False
+
+
+def test_matches_declared_protocol_mapper_and_attributes() -> None:
+    mapper = ManagedKeycloakProtocolMapper(
+        name="service-audience",
+        protocol_mapper="oidc-audience-mapper",
+        config={
+            "included.custom.audience": "my-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+        },
+    )
+    desired = _desired(
+        protocol_mappers=[mapper],
+        attributes={"pkce.code.challenge.method": "S256"},
+    )
+    base = desired.to_managed_keycloak_client()
+    live = base.model_copy(
+        update={
+            "protocol_mappers": [
+                mapper.model_copy(
+                    update={"config": {**mapper.config, "extra": "value"}}
+                )
+            ],
+            "extra_attributes": {
+                "pkce.code.challenge.method": "S256",
+                "client.secret.creation.time": "123",
+            },
+        }
+    )
+
+    assert desired.matches(live) is True
+    assert (
+        desired.matches(
+            live.model_copy(
+                update={"extra_attributes": {"client.secret.creation.time": "123"}}
+            )
+        )
+        is False
+    )
+    assert desired.matches(live.model_copy(update={"protocol_mappers": []})) is False
+    changed_audience = mapper.model_copy(
+        update={
+            "config": {
+                **mapper.config,
+                "included.custom.audience": "different-api",
+            }
+        }
+    )
+    assert (
+        desired.matches(
+            live.model_copy(update={"protocol_mappers": [changed_audience]})
+        )
+        is False
+    )
+
+
+def test_unset_mappers_and_attributes_leave_live_values_unmanaged() -> None:
+    live = (
+        _desired()
+        .to_managed_keycloak_client()
+        .model_copy(
+            update={
+                "protocol_mappers": [
+                    ManagedKeycloakProtocolMapper(
+                        name="manual",
+                        protocol_mapper="oidc-audience-mapper",
+                        config={"included.custom.audience": "external"},
+                    )
+                ],
+                "extra_attributes": {"manual.attribute": "value"},
+            }
+        )
+    )
+    assert _desired().matches(live) is True
+
+
+def test_rejects_duplicate_mapper_names_and_attribute_with_dedicated_field() -> None:
+    mapper = ManagedKeycloakProtocolMapper(
+        name="audience",
+        protocol_mapper="oidc-audience-mapper",
+        config={"included.custom.audience": "my-api"},
+    )
+    with pytest.raises(ValueError, match="protocol mapper names must be unique"):
+        _desired(protocol_mappers=[mapper, mapper])
+    with pytest.raises(ValueError, match="use post_logout_redirect_uris"):
+        _desired(attributes={"post.logout.redirect.uris": "https://example.com"})
 
 
 def test_management_secret_with_registration_access_token_returns_new_instance() -> (

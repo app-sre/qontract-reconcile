@@ -2658,6 +2658,38 @@
         "title": "LdapUsersCheckResponse",
         "type": "object"
       },
+      "ManagedKeycloakProtocolMapper": {
+        "description": "Client-owned protocol mapper without Keycloak's generated ID.",
+        "properties": {
+          "config": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Config",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "protocol": {
+            "default": "openid-connect",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "protocol_mapper": {
+            "title": "Protocol Mapper",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "protocol_mapper",
+          "config"
+        ],
+        "title": "ManagedKeycloakProtocolMapper",
+        "type": "object"
+      },
       "ManagedSsoClientActionCreate": {
         "description": "Action: register a new managed SSO client with Keycloak.",
         "properties": {
@@ -3703,6 +3735,21 @@
             ],
             "description": "Keycloak client type/authentication requirement (confidential/public/bearer-only). Defaults to confidential when unset - Keycloak's own create-time default for an omitted access type is public, not confidential."
           },
+          "attributes": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Additional Keycloak OIDC client attributes. Only keys declared here are checked for drift. Unmanaged if unset.",
+            "title": "Attributes"
+          },
           "consent_required": {
             "anyOf": [
               {
@@ -3783,6 +3830,21 @@
             ],
             "description": "Allowed URIs Keycloak may redirect back to after an RP-initiated logout. Unmanaged if unset (see class docstring).",
             "title": "Post Logout Redirect Uris"
+          },
+          "protocol_mappers": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ManagedKeycloakProtocolMapper"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Client-level OIDC protocol mappers. Unmanaged if unset.",
+            "title": "Protocol Mappers"
           },
           "redirect_uris": {
             "description": "Allowed redirect URIs for the standard login flow. Required by Keycloak - a client without at least one cannot log in.",

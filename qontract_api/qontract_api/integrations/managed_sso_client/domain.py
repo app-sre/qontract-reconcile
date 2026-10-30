@@ -6,7 +6,10 @@ from enum import StrEnum
 from typing import Self
 
 from pydantic import BaseModel, Field, field_validator
-from qontract_utils.keycloak_api import ManagedKeycloakClient
+from qontract_utils.keycloak_api import (
+    ManagedKeycloakClient,
+    ManagedKeycloakProtocolMapper,
+)
 
 from qontract_api.models import Secret
 
@@ -127,6 +130,37 @@ class OidcDesiredState(BaseModel, frozen=True):
         "parameter but that aren't included by default. Unmanaged if unset "
         "(see class docstring).",
     )
+    protocol_mappers: list[ManagedKeycloakProtocolMapper] | None = Field(
+        default=None,
+        description="Client-level OIDC protocol mappers. Unmanaged if unset.",
+    )
+    attributes: dict[str, str] | None = Field(
+        default=None,
+        description="Additional Keycloak OIDC client attributes. Only keys "
+        "declared here are checked for drift. Unmanaged if unset.",
+    )
+
+    @field_validator("protocol_mappers")
+    @classmethod
+    def _unique_protocol_mappers(
+        cls, mappers: list[ManagedKeycloakProtocolMapper] | None
+    ) -> list[ManagedKeycloakProtocolMapper] | None:
+        if mappers is not None:
+            names = {(mapper.protocol, mapper.name) for mapper in mappers}
+            if len(names) != len(mappers):
+                msg = "protocol mapper names must be unique within each protocol"
+                raise ValueError(msg)
+        return mappers
+
+    @field_validator("attributes")
+    @classmethod
+    def _reject_dedicated_attributes(
+        cls, attributes: dict[str, str] | None
+    ) -> dict[str, str] | None:
+        if attributes and "post.logout.redirect.uris" in attributes:
+            msg = "use post_logout_redirect_uris instead of the matching attribute"
+            raise ValueError(msg)
+        return attributes
 
     def to_managed_keycloak_client(
         self, *, client_id: str, enabled: bool
@@ -145,6 +179,8 @@ class OidcDesiredState(BaseModel, frozen=True):
             full_scope_allowed=self.full_scope_allowed,
             default_client_scopes=self.default_client_scopes,
             optional_client_scopes=self.optional_client_scopes,
+            protocol_mappers=self.protocol_mappers,
+            extra_attributes=self.attributes or {},
         )
 
 
@@ -158,6 +194,7 @@ _DRIFT_COMPARISON_EXCLUDED_FIELDS = {
     "secret",
     "registration_access_token",
     "extra_attributes",
+    "protocol_mappers",
 }
 
 
@@ -203,13 +240,37 @@ class ManagedSsoClientDesiredState(BaseModel, frozen=True):
         here is never sent and never managed - comparing it against whatever
         Keycloak happens to have would be permanent, spurious drift.
         """
-        desired_state = self.to_managed_keycloak_client().model_dump(
+        desired_client = self.to_managed_keycloak_client()
+        desired_state = desired_client.model_dump(
             exclude=_DRIFT_COMPARISON_EXCLUDED_FIELDS, exclude_none=True
         )
         current_state = current.model_dump(exclude=_DRIFT_COMPARISON_EXCLUDED_FIELDS)
-        return all(
+        if not all(
             current_state.get(field) == value for field, value in desired_state.items()
-        )
+        ):
+            return False
+        if not all(
+            current.extra_attributes.get(key) == value
+            for key, value in desired_client.extra_attributes.items()
+        ):
+            return False
+        if desired_client.protocol_mappers is not None:
+            current_mappers = {
+                (m.protocol, m.name): m for m in current.protocol_mappers or []
+            }
+            if set(current_mappers) != {
+                (mapper.protocol, mapper.name)
+                for mapper in desired_client.protocol_mappers
+            }:
+                return False
+            for mapper in desired_client.protocol_mappers:
+                live = current_mappers[mapper.protocol, mapper.name]
+                if live.protocol_mapper != mapper.protocol_mapper or not all(
+                    live.config.get(key) == value
+                    for key, value in mapper.config.items()
+                ):
+                    return False
+        return True
 
 
 class ManagedSsoClientManagementSecret(BaseModel, frozen=True):

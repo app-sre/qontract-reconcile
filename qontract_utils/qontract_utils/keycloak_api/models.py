@@ -10,7 +10,10 @@ from typing import Self
 
 from pydantic import BaseModel, Field
 
-from qontract_utils.keycloak_api._raw_client import RawClientRepresentation
+from qontract_utils.keycloak_api._raw_client import (
+    RawClientRepresentation,
+    RawProtocolMapperRepresentation,
+)
 
 
 class KeycloakSsoClient(BaseModel, frozen=True):
@@ -25,6 +28,32 @@ class KeycloakSsoClient(BaseModel, frozen=True):
 # key rather than as a top-level JSON array - the one OIDC field ManagedKeycloakClient
 # folds into/out of the wire-level `attributes` map instead of exposing via a plain alias.
 _POST_LOGOUT_REDIRECT_URIS_ATTRIBUTE_KEY = "post.logout.redirect.uris"
+
+
+class ManagedKeycloakProtocolMapper(BaseModel, frozen=True):
+    """Client-owned protocol mapper without Keycloak's generated ID."""
+
+    name: str
+    protocol_mapper: str
+    config: dict[str, str]
+    protocol: str = "openid-connect"
+
+    def to_raw(self) -> RawProtocolMapperRepresentation:
+        return RawProtocolMapperRepresentation(
+            name=self.name,
+            protocol=self.protocol,
+            protocol_mapper=self.protocol_mapper,
+            config=self.config,
+        )
+
+    @classmethod
+    def from_raw(cls, raw: RawProtocolMapperRepresentation) -> Self:
+        return cls(
+            name=raw.name,
+            protocol=raw.protocol,
+            protocol_mapper=raw.protocol_mapper,
+            config=raw.config,
+        )
 
 
 class ManagedKeycloakClient(BaseModel, frozen=True):
@@ -68,6 +97,7 @@ class ManagedKeycloakClient(BaseModel, frozen=True):
     full_scope_allowed: bool | None = None
     default_client_scopes: list[str] | None = None
     optional_client_scopes: list[str] | None = None
+    protocol_mappers: list[ManagedKeycloakProtocolMapper] | None = None
 
     # Attributes a caller wants to set that aren't one of the named OIDC fields
     # above (e.g. rhidp sso_client's group-filter-regex). Not a "preserve on
@@ -102,6 +132,11 @@ class ManagedKeycloakClient(BaseModel, frozen=True):
             full_scope_allowed=self.full_scope_allowed,
             default_client_scopes=self.default_client_scopes,
             optional_client_scopes=self.optional_client_scopes,
+            protocol_mappers=(
+                [mapper.to_raw() for mapper in self.protocol_mappers]
+                if self.protocol_mappers is not None
+                else None
+            ),
             attributes=attributes or None,
         )
 
@@ -133,5 +168,13 @@ class ManagedKeycloakClient(BaseModel, frozen=True):
             full_scope_allowed=raw.full_scope_allowed,
             default_client_scopes=raw.default_client_scopes,
             optional_client_scopes=raw.optional_client_scopes,
+            protocol_mappers=(
+                [
+                    ManagedKeycloakProtocolMapper.from_raw(m)
+                    for m in raw.protocol_mappers
+                ]
+                if raw.protocol_mappers is not None
+                else None
+            ),
             extra_attributes=raw_attributes,
         )

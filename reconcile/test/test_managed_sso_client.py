@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -18,6 +19,7 @@ from reconcile.gql_definitions.managed_sso_client.managed_sso_client import (
     KeycloakInstanceV1,
     ManagedSsoClientOidcV1,
     ManagedSsoClientOpenidConnectV1,
+    ManagedSsoClientProtocolMapperV1,
     ManagedSsoClientV1,
 )
 from reconcile.managed_sso_client.integration import (
@@ -50,6 +52,8 @@ def _make_oidc(**overrides: object) -> ManagedSsoClientOidcV1:
         "fullScopeAllowed": None,
         "defaultClientScopes": None,
         "optionalClientScopes": None,
+        "protocolMappers": None,
+        "attributes": None,
     }
     return ManagedSsoClientOidcV1(**{**defaults, **overrides})
 
@@ -127,6 +131,34 @@ def test_compile_desired_state_maps_basic_fields() -> None:
     )
     assert desired.oidc is not None
     assert desired.oidc.redirect_uris == ["https://example.com/callback"]
+
+
+def test_compile_desired_state_maps_protocol_mappers_and_attributes() -> None:
+    integration = _make_integration()
+    mapper = ManagedSsoClientProtocolMapperV1(
+        name="my-api-audience",
+        protocol=None,
+        protocolMapper="oidc-audience-mapper",
+        config=json.dumps({
+            "included.custom.audience": "my-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+        }),
+    )
+    client = _make_client(
+        protocolMappers=[mapper],
+        attributes=json.dumps({"pkce.code.challenge.method": "S256"}),
+    )
+
+    desired = integration.compile_desired_state([client])[0]
+
+    assert desired.oidc is not None
+    assert desired.oidc.protocol_mappers is not None
+    assert desired.oidc.protocol_mappers[0].protocol_mapper == "oidc-audience-mapper"
+    assert desired.oidc.protocol_mappers[0].config["included.custom.audience"] == (
+        "my-api"
+    )
+    assert desired.oidc.attributes == {"pkce.code.challenge.method": "S256"}
 
 
 def test_compile_desired_state_defaults_enabled_to_true_when_unset() -> None:

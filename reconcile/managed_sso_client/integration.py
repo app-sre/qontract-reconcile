@@ -15,6 +15,7 @@ from qontract_api_client.client import (
 )
 from qontract_api_client.schemas import (
     KeycloakInstanceRef,
+    ManagedKeycloakProtocolMapper,
     ManagedSsoClientActionCreate,
     ManagedSsoClientActionDelete,
     ManagedSsoClientActionMoveTenantSecret,
@@ -97,6 +98,20 @@ class ManagedSsoClientIntegration(
             full_scope_allowed=oidc.full_scope_allowed,
             default_client_scopes=oidc.default_client_scopes,
             optional_client_scopes=oidc.optional_client_scopes,
+            protocol_mappers=(
+                [
+                    ManagedKeycloakProtocolMapper(
+                        name=mapper.name,
+                        protocol=mapper.protocol or "openid-connect",
+                        protocol_mapper=mapper.protocol_mapper,
+                        config=mapper.config,
+                    )
+                    for mapper in oidc.protocol_mappers
+                ]
+                if oidc.protocol_mappers is not None
+                else None
+            ),
+            attributes=oidc.attributes,
         )
 
     def compile_desired_state(

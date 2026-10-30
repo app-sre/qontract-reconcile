@@ -45,7 +45,26 @@ oidc:
   redirectUris:
   - https://my-app.example.com/callback
   serviceAccountsEnabled: true
+  protocolMappers:
+  - name: my-api-audience
+    protocolMapper: oidc-audience-mapper
+    config:
+      included.custom.audience: my-api
+      access.token.claim: "true"
+      id.token.claim: "false"
+  attributes:
+    pkce.code.challenge.method: S256
 ```
+
+`protocolMappers` accepts client-level Keycloak mapper representations. The
+example adds `my-api` to access tokens' `aud` claim, leaving ID tokens unchanged.
+Use `included.client.audience` instead of `included.custom.audience` when the
+audience is another Keycloak client ID. The configured list is authoritative:
+Keycloak updates or adds mappers by protocol and name, then removes client-level
+mappers absent from the list. Leaving `protocolMappers` unset does not manage
+them. `attributes` is a string-valued escape hatch for OIDC client attributes;
+only declared keys are checked for drift, and omitting it leaves existing
+attributes alone.
 
 Renaming a client (changing `name`) changes its derived `clientId`, which the reconciler treats as a delete of the old client plus a create of a new one — not an in-place rename — issuing new credentials.
 
