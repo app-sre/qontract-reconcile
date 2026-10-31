@@ -5,23 +5,23 @@ description = "Shared utilities for qontract-reconcile and qontract-api"
 requires-python = ">=3.14"
 dependencies = [
     # keep in sync with boto3-stubs in dependency-groups.type
-    "boto3==1.43.89",
-    "botocore==1.43.89",
+    "boto3==1.43.120",
+    "botocore==1.43.120",
     "dateparser==1.4.3",
-    "faststream[redis]==0.7.5",
-    "httpx2==2.12.0",
+    "faststream[redis]==0.7.8",
+    "httpx2==2.16.0",
     "hvac==2.4.0",
     "ldap3>=2.9.1,<2.10.0",
     "lightkube==1.0.1",
     "pagerduty==7.0.1",
     "prometheus-client==0.26.0",
-    "pydantic==2.13.5",
+    "pydantic==2.14.1",
     "pygithub==1.59.1",
-    "python-gitlab==6.0.0",
+    "python-gitlab==6.5.0",
     "redis==8.1.0",
     "requests==2.34.2",
     "ruamel-yaml==0.19.1",
-    "slack_sdk==3.44.1",
+    "slack_sdk==3.45.0",
     "stamina==26.1.0",
     "structlog==26.1.0",
 ]
@@ -30,18 +30,18 @@ dependencies = [
 dev = [
     # development and testing tools
     # keep in sync with project.dependencies.boto3
-    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,iam,logs,organizations,s3,service-quotas,sts,support]==1.43.89",
-    "mypy==2.3.1",
-    "pytest-asyncio==1.4.0",
+    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,iam,logs,organizations,s3,service-quotas,sts,support]==1.43.120",
+    "mypy==2.4.0",
+    "pytest-asyncio==1.4.1",
     "pytest-cov==7.1.0",
-    "pytest-httpserver==1.1.5",
-    "pytest-mock==3.15.1",
-    "pytest==9.1.1",
-    "ruff==0.16.6",
+    "pytest-httpserver==1.2.0",
+    "pytest-mock==3.17.0",
+    "pytest==9.2.0",
+    "ruff==0.17.3",
     "types-dateparser",
     "types-hvac==2.4.0.20260731",
     "types-ldap3",
-    "tzdata==2026.3",
+    "tzdata==2026.5",
 ]
 
 [build-system]
