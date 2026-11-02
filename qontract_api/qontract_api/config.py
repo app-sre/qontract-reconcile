@@ -254,6 +254,18 @@ class GithubOrgSettings(BaseModel):
         default=60 * 60,
         description="GitHub org members (admins + pending invitations) cache TTL in seconds (one hour)",
     )
+    user_cache_ttl: int = Field(
+        default=12 * 60 * 60,
+        description="GitHub user lookup cache TTL in seconds (twelve hours)",
+    )
+    user_not_found_cache_ttl: int = Field(
+        default=5 * 60,
+        description=(
+            "GitHub user not-found (404) cache TTL in seconds (five minutes). "
+            "Shorter than user_cache_ttl so a recently-created account isn't "
+            "treated as non-existent for too long."
+        ),
+    )
 
 
 class GlitchtipSettings(BaseModel):

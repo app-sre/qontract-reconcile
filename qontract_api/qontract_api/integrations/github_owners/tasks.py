@@ -13,7 +13,7 @@ from qontract_utils.events import Event
 from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
 from qontract_api.event_manager import get_event_manager
-from qontract_api.github import GithubOrgClientFactory
+from qontract_api.github import GithubClientFactory
 from qontract_api.integrations.github_owners.schemas import GithubOwnersTaskResult
 from qontract_api.integrations.github_owners.service import GithubOwnersService
 from qontract_api.logger import get_logger
@@ -82,9 +82,7 @@ def reconcile_github_owners_task(
         event_manager = get_event_manager()
 
         service = GithubOwnersService(
-            github_org_client_factory=GithubOrgClientFactory(
-                cache=cache, settings=settings
-            ),
+            github_client_factory=GithubClientFactory(cache=cache, settings=settings),
             secret_manager=secret_manager,
             settings=settings,
         )

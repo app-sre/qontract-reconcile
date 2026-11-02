@@ -30,7 +30,10 @@ class Config(clientele_api.BaseConfig):
 
     base_url: str = "http://localhost"
     headers: dict[str, str] = Field(default_factory=dict)
-    timeout: float | None = 5.0
+    # 60s (clientele's default is 5s): some endpoints (e.g. github-users-validate)
+    # make several uncached upstream API calls sequentially within one request on
+    # a cold cache, which can comfortably exceed a short client-side timeout.
+    timeout: float | None = 60.0
     follow_redirects: bool = False
     verify: bool | str = True
     http2: bool = False
