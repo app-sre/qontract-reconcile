@@ -6,6 +6,7 @@ from abc import (
 )
 from collections import defaultdict
 from collections.abc import (
+    Callable,
     MutableMapping,
     Sequence,
 )
@@ -125,10 +126,35 @@ class DiffCoverage:
     def is_directly_covered(self) -> bool:
         return any(not ctx.disabled for ctx in self.coverage)
 
-    def is_covered_by_splits(self) -> bool:
+    def is_directly_covered_by_an_approvable_context(self) -> bool:
+        """
+        True if at least one active (non-disabled) context directly covering
+        this diff has approvers. A context can cover a diff while having zero
+        approvers (e.g. a role whose self-service membership is driven solely
+        by an excluded LDAP memberSources entry) - such coverage can never be
+        approved by anyone, unlike is_directly_covered()'s plain coverage
+        check. See https://redhat.atlassian.net/browse/APPSRE-15598.
+        """
+        return any(ctx.approvers for ctx in self.coverage if not ctx.disabled)
+
+    def is_approvably_covered(self) -> bool:
+        """
+        Same tree-recursive shape as is_covered(), but requires each covering
+        context to actually have approvers - coverage by a zero-approver
+        context alone can never be approved by anyone.
+        """
+        return (
+            self.is_directly_covered_by_an_approvable_context()
+            or self.is_covered_by_splits(DiffCoverage.is_approvably_covered)
+        )
+
+    def is_covered_by_splits(
+        self, is_split_covered: Callable[[DiffCoverage], bool] | None = None
+    ) -> bool:
         """
         determine if the splits of this DiffCoverage would cover it entirely
         """
+        is_split_covered = is_split_covered or DiffCoverage.is_covered
         # remove the parts of this diffs data that are covered by the splits
         # if nothing remains, the splits cover the entire diff
         uncovered_data = self.diff.get_context_data_copy()
@@ -140,7 +166,7 @@ class DiffCoverage:
                 reverse=True,
             )
             for s in sorted_splits:
-                if s.is_covered():
+                if is_split_covered(s):
                     relative_path = s.relative_path()
                     # this removes the data that matches the path
                     relative_path.filter(lambda x: True, uncovered_data)

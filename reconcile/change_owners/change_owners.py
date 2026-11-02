@@ -398,33 +398,25 @@ def _is_unblockable_by_tenant_context(
     return all(a.org_username in app_sre_usernames for a in ctx.approvers)
 
 
-def _diff_covered_by_an_approvable_context(
-    coverage: Iterable[ChangeTypeContext],
-) -> bool:
-    """
-    True if at least one active (non-disabled) context covering this diff
-    has approvers. A context can cover a diff while having zero approvers
-    (e.g. a role whose self-service membership is driven solely by an
-    excluded LDAP memberSources entry) - counting that coverage as
-    self-serviceable would mark the diff SELF_SERVICEABLE while nobody
-    could ever approve it, hiding it from the AppSRE review queue instead
-    of falling back to NOT_SELF_SERVICEABLE/PENDING_SELF_SERVICE_APPROVAL.
-    See https://redhat.atlassian.net/browse/APPSRE-15598.
-    """
-    return any(ctx.approvers for ctx in coverage if not ctx.disabled)
-
-
 def is_self_serviceable(
     changes: list[BundleFileChange], change_type_processing_mode: str
 ) -> bool:
+    """
+    A change is self-serviceable only if every fine-grained diff is covered
+    by an approvable context - directly, or through fragments that are
+    approvably covered in sum (see DiffCoverage.is_approvably_covered()).
+    Coverage by a zero-approver context alone (e.g. a role whose self-service
+    membership is driven solely by an excluded LDAP memberSources entry)
+    would otherwise mark the diff SELF_SERVICEABLE while nobody could ever
+    approve it, hiding it from the AppSRE review queue instead of falling
+    back to NOT_SELF_SERVICEABLE/PENDING_SELF_SERVICE_APPROVAL.
+    See https://redhat.atlassian.net/browse/APPSRE-15598.
+    """
     return (
         len(changes) > 0
         and all(
             c.all_changes_covered()
-            and all(
-                _diff_covered_by_an_approvable_context(dc.coverage)
-                for dc in c.diff_coverage
-            )
+            and all(dc.is_approvably_covered() for dc in c.diff_coverage)
             for c in changes
         )
         and change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE
