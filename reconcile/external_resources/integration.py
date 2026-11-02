@@ -27,6 +27,7 @@ from reconcile.gql_definitions.external_resources.aws_accounts import (
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.typed_queries.external_resources import (
     get_modules,
     get_namespaces,
@@ -124,6 +125,7 @@ def create_er_manager(
                 namespace=workers_namespace,
                 secret_reader=secret_reader,
                 dry_run=dry_run,
+                clusters=get_clusters_minimal(name=workers_cluster),
             ),
             dry_run=dry_run,
             dry_run_job_suffix=dry_run_job_suffix,

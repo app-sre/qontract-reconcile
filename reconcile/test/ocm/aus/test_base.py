@@ -745,6 +745,7 @@ def test_policy_handler_create_cluster_upgrade_with_sts_enabled(
     mocker.patch(
         "reconcile.aus.base.build_job_controller", return_value=mock_job_controller
     )
+    mocker.patch("reconcile.aus.base.get_clusters_minimal", return_value=[])
 
     aus_sts_gate_handler_mock = mocker.patch(
         "reconcile.aus.base.AUSSTSGateHandler",

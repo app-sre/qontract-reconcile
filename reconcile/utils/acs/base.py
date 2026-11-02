@@ -4,18 +4,36 @@ import logging
 from typing import (
     TYPE_CHECKING,
     Any,
+    Protocol,
     Self,
 )
 
 import requests
 from pydantic import BaseModel, ConfigDict
 
-from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
-from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Sequence
+
+    from reconcile.utils.secret_reader import HasSecret
+
+
+class AcsInstanceAuthProvider(Protocol):
+    q_id: str
+
+
+class AcsInstance(Protocol):
+    """Structural subset of the generated `AcsInstanceV1` fragment."""
+
+    name: str
+    url: str
+
+    @property
+    def credentials(self) -> HasSecret: ...
+
+    @property
+    def auth_provider(self) -> AcsInstanceAuthProvider: ...
 
 
 class AcsBaseApi(BaseModel):
@@ -37,15 +55,16 @@ class AcsBaseApi(BaseModel):
         self.session.close()
 
     @staticmethod
-    def get_acs_instances(
-        query_func: Callable, name: str | None = None
-    ) -> list[AcsInstanceV1]:
-        if instances := acs_instances_query(query_func=query_func).instances:
+    def filter_acs_instances(
+        instances: Sequence[AcsInstance], name: str | None = None
+    ) -> list[AcsInstance]:
+        if instances:
+            filtered = list(instances)
             if name:
-                instances = [i for i in instances if i.name == name]
-                if not instances:
+                filtered = [i for i in filtered if i.name == name]
+                if not filtered:
                     raise AppInterfaceSettingsError(f"ACS instance '{name}' not found")
-            return instances
+            return filtered
         raise AppInterfaceSettingsError("No ACS instances found!")
 
     @staticmethod

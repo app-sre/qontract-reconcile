@@ -63,6 +63,7 @@ from reconcile.gql_definitions.common.ocm_env_telemeter import (
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
+from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils import (
     gql,
     metrics,
@@ -537,6 +538,9 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
                     namespace=rosa_role_upgrade_handler_params.job_controller_namespace,
                     secret_reader=secret_reader,
                     dry_run=False,
+                    clusters=get_clusters_minimal(
+                        name=rosa_role_upgrade_handler_params.job_controller_cluster
+                    ),
                 ),
                 aws_iam_role=rosa_role_upgrade_handler_params.rosa_role,
                 rosa_job_service_account=rosa_role_upgrade_handler_params.rosa_job_service_account,

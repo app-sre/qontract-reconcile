@@ -16,9 +16,6 @@ from sretoolbox.utils import retry
 from reconcile import queries
 from reconcile.checkpoint import url_makes_sense
 from reconcile.github_org import get_default_config
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
-)
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.datetime_util import utc_now
@@ -41,7 +38,6 @@ from reconcile.utils.secret_reader import (
     SecretNotFoundError,
     SecretReader,
     SecretReaderBase,
-    create_secret_reader,
 )
 from reconcile.utils.sloth import generate_sloth_rules
 
@@ -237,17 +233,18 @@ def lookup_s3_object(
     path: str,
     region_name: str | None = None,
     cache: Jinja2TemplateCache | None = None,
+    settings: Mapping[str, Any] | None = None,
+    secret_reader: SecretReaderBase | None = None,
 ) -> str:
     cache = cache or Jinja2TemplateCache()
     cache_key = (account_name, bucket_name, path, region_name)
+    sr = secret_reader or SecretReader(settings)
 
     def _fetch() -> str:
-        vault_settings = get_app_interface_vault_settings()
-        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         accounts = queries.get_aws_accounts(name=account_name)
         if not accounts:
             raise Exception(f"aws account not found: {account_name}")
-        with AWSApi(1, accounts, secret_reader=secret_reader) as aws_api:
+        with AWSApi(1, accounts, secret_reader=sr) as aws_api:
             return aws_api.get_s3_object_content(
                 account_name,
                 bucket_name,
@@ -264,17 +261,18 @@ def list_s3_objects(
     path: str,
     region_name: str | None = None,
     cache: Jinja2TemplateCache | None = None,
+    settings: Mapping[str, Any] | None = None,
+    secret_reader: SecretReaderBase | None = None,
 ) -> list[str]:
     cache = cache or Jinja2TemplateCache()
     cache_key = (account_name, bucket_name, path, region_name)
+    sr = secret_reader or SecretReader(settings)
 
     def _fetch() -> list[str]:
-        vault_settings = get_app_interface_vault_settings()
-        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         accounts = queries.get_aws_accounts(name=account_name)
         if not accounts:
             raise Exception(f"aws account not found: {account_name}")
-        with AWSApi(1, accounts, secret_reader=secret_reader) as aws_api:
+        with AWSApi(1, accounts, secret_reader=sr) as aws_api:
             return aws_api.list_s3_objects(
                 account_name,
                 bucket_name,
@@ -395,8 +393,12 @@ def process_jinja2_template(
         "hash_list": hash_list,
         "query": lambda q, **kw: lookup_graphql_query_results(q, cache=cache, **kw),
         "url": url_makes_sense,
-        "s3": lambda a, b, p, r=None: lookup_s3_object(a, b, p, r, cache=cache),
-        "s3_ls": lambda a, b, p, r=None: list_s3_objects(a, b, p, r, cache=cache),
+        "s3": lambda a, b, p, r=None: lookup_s3_object(
+            a, b, p, r, cache=cache, settings=settings, secret_reader=secret_reader
+        ),
+        "s3_ls": lambda a, b, p, r=None: list_s3_objects(
+            a, b, p, r, cache=cache, settings=settings, secret_reader=secret_reader
+        ),
         "flatten_dict": flatten,
         "yesterday": lambda: (utc_now() - datetime.timedelta(1)).strftime("%Y-%m-%d"),
         "sloth_alerts": generate_sloth_rules,

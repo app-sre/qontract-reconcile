@@ -770,7 +770,11 @@ def test_acs_resolution_failure_cannot_remove_members(
     instance = mocker.Mock()
     instance.name = "acs"
     mocker.patch(
-        "reconcile.acs_rbac.AcsRbacApi.get_acs_instances", return_value=[instance]
+        "reconcile.acs_rbac.acs_instances_query",
+        return_value=mocker.Mock(instances=[instance]),
+    )
+    mocker.patch(
+        "reconcile.acs_rbac.AcsRbacApi.filter_acs_instances", return_value=[instance]
     )
     integration = acs_rbac.AcsRbacIntegration()
     reconcile = mocker.patch.object(integration, "reconcile")
