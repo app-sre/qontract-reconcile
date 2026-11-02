@@ -6,6 +6,7 @@ from datetime import (
     UTC,
     datetime,
 )
+from functools import lru_cache
 from typing import Any
 from urllib.parse import ParseResult, urlparse
 
@@ -102,9 +103,8 @@ class GqlApi:
         self.commit_timestamp = commit_timestamp
         self.client = self._init_gql_client()
         self._is_sha_pinned = self._is_sha_pinned_url(self.url)
-        self._cache_lock = threading.Lock()
-        self._resource_cache: dict[str, dict[str, str]] = {}
-        self._template_cache: dict[str, dict[str, str]] = {}
+        self._cached_fetch_resource = lru_cache()(self._fetch_resource)
+        self._cached_fetch_template = lru_cache()(self._fetch_template)
 
         if validate_schemas and not int_name:
             raise Exception(
@@ -140,9 +140,6 @@ class GqlApi:
 
     def close(self) -> None:
         logging.debug("Closing GqlApi client")
-        with self._cache_lock:
-            self._resource_cache.clear()
-            self._template_cache.clear()
         if hasattr(self.client.transport, "session") and self.client.transport.session:
             self.client.transport.session.close()
 
@@ -189,10 +186,11 @@ class GqlApi:
 
     def get_template(self, path: str) -> dict[str, str]:
         if self._is_sha_pinned:
-            with self._cache_lock:
-                if path in self._template_cache:
-                    return dict(self._template_cache[path])
+            return dict(self._cached_fetch_template(path))
 
+        return self._fetch_template(path)
+
+    def _fetch_template(self, path: str) -> dict[str, str]:
         query = """
         query Template($path: String) {
           templates: template_v1(path: $path) {
@@ -213,18 +211,11 @@ class GqlApi:
         if len(templates) != 1:
             raise GqlGetResourceError(path, "Expecting one and only one template.")
 
-        template: dict[str, str] = templates[0]
-        if self._is_sha_pinned:
-            with self._cache_lock:
-                self._template_cache[path] = dict(template)
-        return dict(template)
+        template = templates[0]
+        return template
 
-    def get_resource(self, path: str) -> dict[str, str]:
-        if self._is_sha_pinned:
-            with self._cache_lock:
-                if path in self._resource_cache:
-                    return dict(self._resource_cache[path])
-
+    def _fetch_resource(self, path: str) -> dict[str, str]:
+        """Fetch a single resource mapping."""
         query = """
         query Resource($path: String) {
             resources: resources_v1 (path: $path) {
@@ -247,11 +238,14 @@ class GqlApi:
         if len(resources) != 1:
             raise GqlGetResourceError(path, "Expecting one and only one resource.")
 
-        resource: dict[str, str] = resources[0]
+        resource = resources[0]
+        return resource
+
+    def get_resource(self, path: str) -> dict[str, str]:
         if self._is_sha_pinned:
-            with self._cache_lock:
-                self._resource_cache[path] = dict(resource)
-        return dict(resource)
+            return dict(self._cached_fetch_resource(path))
+
+        return self._fetch_resource(path)
 
     def get_resources_by_schema(self, schema: str) -> list[dict[str, str]]:
         """Return all resources (resources_v1) filtered by given schema."""
