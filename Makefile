@@ -89,7 +89,7 @@ qenerate: gql-introspection gql-query-classes
 localstack:
 	@$(CONTAINER_ENGINE) compose -f dev/localstack/docker-compose.yml up
 
-all-tests: linter-test types-test qenerate-test helm-test unittest
+all-tests: linter-test types-test qenerate-test helm-test import-lint unittest
 
 linter-test:
 	uv run ruff check --no-fix
@@ -97,6 +97,9 @@ linter-test:
 
 types-test:
 	uv run mypy
+
+import-lint:
+	uv run lint-imports
 
 qenerate-test: gql-query-classes
 	git diff --exit-code reconcile/gql_definitions
