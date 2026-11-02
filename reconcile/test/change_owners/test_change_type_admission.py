@@ -153,6 +153,40 @@ def test_assert_restrictive_ok_to_test(
     )
 
 
+def test_restrictive_change_with_zero_approver_role_is_admitted(
+    restrictive_type: ChangeTypeV1, mocker: MockerFixture
+) -> None:
+    """A restrictive change type covered only by a zero-approver context
+    (e.g. a role whose self-service membership is driven solely by an
+    excluded LDAP memberSources entry) can never be satisfied by anyone -
+    not the mr_author, not any /ok-to-test commenter. It must not
+    permanently block admission with no override path.
+    See https://redhat.atlassian.net/browse/APPSRE-15598
+    """
+    b = mocker.patch("reconcile.change_owners.changes.BundleFileChange")
+    b.diff_coverage = [
+        DiffCoverage(
+            diff=mocker.patch("reconcile.change_owners.diff.Diff"),
+            coverage=[
+                ChangeTypeContext(
+                    change_type_processor=change_type_to_processor(restrictive_type),
+                    context="",
+                    origin="",
+                    context_file=FileRef(
+                        file_type=BundleFileType.DATAFILE,
+                        path="/somepath.yml",
+                        schema=None,
+                    ),
+                    approvers=[],
+                )
+            ],
+        )
+    ]
+    changes = [cast("BundleFileChange", b)]  # the cast is to make mypy happy
+
+    assert is_change_admitted(changes, "baz", {"anyone"})
+
+
 #
 # self-service portion approval tests
 #

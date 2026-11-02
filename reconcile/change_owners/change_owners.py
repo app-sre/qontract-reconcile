@@ -525,12 +525,19 @@ def is_change_admitted(
     # A change might be admitted if a user that has the restrictive change
     # type is an approver or an approver adds an /ok-to-test comment.
 
+    # A restrictive context with zero approvers (e.g. a role whose self-service
+    # membership is driven solely by an excluded LDAP memberSources entry) can
+    # never be satisfied by anyone - not the mr_author, not an /ok-to-test
+    # commenter, since is_coverage_admitted() has no approvers to match
+    # against. Excluding it here mirrors _is_unblockable_by_tenant_context():
+    # it imposes no restriction, rather than permanently blocking admission
+    # with no override path. See https://redhat.atlassian.net/browse/APPSRE-15598.
     restrictive_coverages = [
         c
         for change in changes
         for dc in change.diff_coverage
         for c in dc.coverage
-        if c.change_type_processor.restrictive
+        if c.change_type_processor.restrictive and c.approvers
     ]
 
     change_types_to_approve = {c.origin for c in restrictive_coverages}
