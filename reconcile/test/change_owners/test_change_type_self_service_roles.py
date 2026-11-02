@@ -153,6 +153,11 @@ def test_fetch_self_service_roles_ignores_ldap_member_sources(
 def test_self_service_role_with_only_ldap_member_source_has_no_approvers(
     ldap_endpoint: AsyncMock, mocker: MockerFixture
 ) -> None:
+    """A role relying solely on an LDAP memberSources entry for self-service
+    is a valid, permanent "not self-serviceable via this role" state, not an
+    error - it must not raise or abort resolution of other roles.
+    See https://redhat.atlassian.net/browse/APPSRE-15598
+    """
     role = build_role(
         name="role",
         change_type_name="change-type-name",
@@ -166,9 +171,50 @@ def test_self_service_role_with_only_ldap_member_source_has_no_approvers(
         return_value={"roles": [role.model_dump(by_alias=True)]}
     )
 
-    with pytest.raises(NoApproversInSelfServiceRoleError):
-        fetch_self_service_roles(mocker.Mock(query=comparison_query))
+    roles = fetch_self_service_roles(mocker.Mock(query=comparison_query))
 
+    assert roles[0].users == []
+    assert roles[0].bots == []
+    assert roles[0].member_sources == []
+    ldap_endpoint.assert_not_awaited()
+
+
+def test_ldap_only_role_does_not_block_other_roles(
+    ldap_endpoint: AsyncMock, mocker: MockerFixture
+) -> None:
+    """A role left with no approvers after LDAP exclusion must not abort
+    resolution for other, valid self-service roles in the same fetch.
+    See https://redhat.atlassian.net/browse/APPSRE-15598
+    """
+    ldap_only_role = build_role(
+        name="ldap-only-role",
+        change_type_name="change-type-name",
+        datafiles=None,
+        users=[],
+    )
+    ldap_only_role.member_sources = [
+        build_ldap_membership_source(name="ldap", group="source-team")
+    ]
+    valid_role = build_role(
+        name="valid-role",
+        change_type_name="change-type-name",
+        datafiles=None,
+        users=["bob"],
+    )
+    comparison_query = mocker.Mock(
+        return_value={
+            "roles": [
+                ldap_only_role.model_dump(by_alias=True),
+                valid_role.model_dump(by_alias=True),
+            ]
+        }
+    )
+
+    roles = fetch_self_service_roles(mocker.Mock(query=comparison_query))
+
+    roles_by_name = {r.name: r for r in roles}
+    assert roles_by_name["ldap-only-role"].users == []
+    assert [u.org_username for u in roles_by_name["valid-role"].users] == ["bob"]
     ldap_endpoint.assert_not_awaited()
 
 
