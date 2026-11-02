@@ -398,31 +398,6 @@ def _is_unblockable_by_tenant_context(
     return all(a.org_username in app_sre_usernames for a in ctx.approvers)
 
 
-def is_self_serviceable(
-    changes: list[BundleFileChange], change_type_processing_mode: str
-) -> bool:
-    """
-    A change is self-serviceable only if every fine-grained diff is covered
-    by an approvable context - directly, or through fragments that are
-    approvably covered in sum (see DiffCoverage.is_approvably_covered()).
-    Coverage by a zero-approver context alone (e.g. a role whose self-service
-    membership is driven solely by an excluded LDAP memberSources entry)
-    would otherwise mark the diff SELF_SERVICEABLE while nobody could ever
-    approve it, hiding it from the AppSRE review queue instead of falling
-    back to NOT_SELF_SERVICEABLE/PENDING_SELF_SERVICE_APPROVAL.
-    See https://redhat.atlassian.net/browse/APPSRE-15598.
-    """
-    return (
-        len(changes) > 0
-        and all(
-            c.all_changes_covered()
-            and all(dc.is_approvably_covered() for dc in c.diff_coverage)
-            for c in changes
-        )
-        and change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE
-    )
-
-
 def _direct_coverage_satisfied(
     d: ChangeDecision, app_sre_usernames: AbstractSet[str]
 ) -> bool | None:
@@ -525,19 +500,12 @@ def is_change_admitted(
     # A change might be admitted if a user that has the restrictive change
     # type is an approver or an approver adds an /ok-to-test comment.
 
-    # A restrictive context with zero approvers (e.g. a role whose self-service
-    # membership is driven solely by an excluded LDAP memberSources entry) can
-    # never be satisfied by anyone - not the mr_author, not an /ok-to-test
-    # commenter, since is_coverage_admitted() has no approvers to match
-    # against. Excluding it here mirrors _is_unblockable_by_tenant_context():
-    # it imposes no restriction, rather than permanently blocking admission
-    # with no override path. See https://redhat.atlassian.net/browse/APPSRE-15598.
     restrictive_coverages = [
         c
         for change in changes
         for dc in change.diff_coverage
         for c in dc.coverage
-        if c.change_type_processor.restrictive and c.approvers
+        if c.change_type_processor.restrictive
     ]
 
     change_types_to_approve = {c.origin for c in restrictive_coverages}
@@ -621,7 +589,11 @@ def run(
             change_type_processors,
             comparison_gql_api,
         )
-        self_serviceable = is_self_serviceable(changes, change_type_processing_mode)
+        self_serviceable = (
+            len(changes) > 0
+            and all(c.all_changes_covered() for c in changes)
+            and change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE
+        )
 
         #
         #   D E C I S I O N S

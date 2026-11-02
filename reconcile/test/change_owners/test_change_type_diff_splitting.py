@@ -1,13 +1,8 @@
 import jsonpath_ng
 
-from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.bundle import (
     BundleFileType,
     FileRef,
-)
-from reconcile.change_owners.change_owners import (
-    CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE,
-    is_self_serviceable,
 )
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
@@ -65,64 +60,6 @@ def test_root_diff_fully_covered_by_splits() -> None:
 
     for d in diffs:
         assert d.is_covered()
-
-
-def test_is_self_serviceable_true_when_root_has_no_approvers_but_fragments_do() -> None:
-    """A diff directly covered by a zero-approver context stays in
-    diff_coverage alongside its fragments (fine_grained_diff_coverages()
-    only drops a diff that is *not* directly covered). If the fragments
-    fully cover the same diff and each has approvers, the diff as a whole
-    must still be self-serviceable - the zero-approver context's own direct
-    coverage must not veto what the fragments already satisfy.
-    See https://redhat.atlassian.net/browse/APPSRE-15598
-    """
-    bundle_change = build_bundle_datafile_change(
-        path="path",
-        schema="/my/schema-1.yml",
-        old_content=None,
-        new_content={"split-a": "a", "split-b": "b"},
-    )
-    assert bundle_change
-
-    root_ldap_only = ChangeTypeContext(
-        change_type_processor=build_change_type("root-ldap-only", ["$"]),
-        context="context",
-        origin="",
-        context_file=FileRef(
-            path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
-        ),
-        approvers=[],
-    )
-    split_a = ChangeTypeContext(
-        change_type_processor=build_change_type("split-a", ["split-a"]),
-        context="context",
-        origin="",
-        context_file=FileRef(
-            path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
-        ),
-        approvers=[Approver(org_username="user-a", tag_on_merge_requests=False)],
-    )
-    split_b = ChangeTypeContext(
-        change_type_processor=build_change_type("split-b", ["split-b"]),
-        context="context",
-        origin="",
-        context_file=FileRef(
-            path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
-        ),
-        approvers=[Approver(org_username="user-b", tag_on_merge_requests=False)],
-    )
-
-    bundle_change.cover_changes(root_ldap_only)
-    bundle_change.cover_changes(split_a)
-    bundle_change.cover_changes(split_b)
-
-    # the root stays present (directly covered), alongside both fragments
-    diffs = bundle_change.diff_coverage
-    assert len(diffs) == 3
-    assert bundle_change.all_changes_covered()
-    assert is_self_serviceable(
-        [bundle_change], CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE
-    )
 
 
 def test_root_diff_uncovered_fully_covered_by_splits() -> None:
