@@ -150,12 +150,13 @@ def test_fetch_self_service_roles_ignores_ldap_member_sources(
     ldap_endpoint.assert_not_awaited()
 
 
-def test_self_service_role_with_only_ldap_member_source_has_no_approvers(
+def test_self_service_role_with_only_ldap_member_source_is_excluded(
     ldap_endpoint: AsyncMock, mocker: MockerFixture
 ) -> None:
     """A role relying solely on an LDAP memberSources entry for self-service
-    is a valid, permanent "not self-serviceable via this role" state, not an
-    error - it must not raise or abort resolution of other roles.
+    is left with no approvers once LDAP is excluded - it must not raise, and
+    it must not be returned at all: a role nobody can approve through is
+    equivalent to no self-service coverage from that role.
     See https://redhat.atlassian.net/browse/APPSRE-15598
     """
     role = build_role(
@@ -173,9 +174,7 @@ def test_self_service_role_with_only_ldap_member_source_has_no_approvers(
 
     roles = fetch_self_service_roles(mocker.Mock(query=comparison_query))
 
-    assert roles[0].users == []
-    assert roles[0].bots == []
-    assert roles[0].member_sources == []
+    assert roles == []
     ldap_endpoint.assert_not_awaited()
 
 
@@ -183,7 +182,8 @@ def test_ldap_only_role_does_not_block_other_roles(
     ldap_endpoint: AsyncMock, mocker: MockerFixture
 ) -> None:
     """A role left with no approvers after LDAP exclusion must not abort
-    resolution for other, valid self-service roles in the same fetch.
+    resolution for other, valid self-service roles in the same fetch, and
+    must not appear in the result alongside them.
     See https://redhat.atlassian.net/browse/APPSRE-15598
     """
     ldap_only_role = build_role(
@@ -213,7 +213,7 @@ def test_ldap_only_role_does_not_block_other_roles(
     roles = fetch_self_service_roles(mocker.Mock(query=comparison_query))
 
     roles_by_name = {r.name: r for r in roles}
-    assert roles_by_name["ldap-only-role"].users == []
+    assert "ldap-only-role" not in roles_by_name
     assert [u.org_username for u in roles_by_name["valid-role"].users] == ["bob"]
     ldap_endpoint.assert_not_awaited()
 

@@ -58,22 +58,27 @@ def fetch_self_service_roles(
 
     A role left with no approvers once LDAP sources are excluded (e.g. a role
     whose self-service membership is driven solely by an LDAP memberSources
-    entry, by design) is a valid, permanent "not self-serviceable via this
-    role" state, not an error: it already passed validate_self_service_role()
-    on its declared (pre-exclusion) sources in _query_self_service_roles(), so
-    it is known to declare *some* source. Re-validating the resolved role here
+    entry, by design) is excluded from the result entirely, the same as if it
+    declared no self-service configuration at all: it already passed
+    validate_self_service_role() on its declared (pre-exclusion) sources in
+    _query_self_service_roles(), so re-validating the resolved role here
     would raise for that legitimate state and - with no per-role isolation -
     abort resolution for every other self-service role in app-interface.
-    See https://redhat.atlassian.net/browse/APPSRE-15598. Downstream coverage
-    code already treats a role with zero approvers as unblockable by any
-    tenant, falling back to normal AppSRE review.
+    Dropping it here, rather than keeping it around as an approver-less role,
+    means no downstream consumer (coverage, admission, auto-approval) needs
+    to special-case it - it simply never covers anything.
+    See https://redhat.atlassian.net/browse/APPSRE-15598.
     """
-    return resolve_role_members(
-        _query_self_service_roles(gql_api, name=name),
-        user_cls=UserV1,
-        query_func=gql_api.query,
-        exclude_providers=frozenset({MembershipSourceProvider.LDAP}),
-    )
+    return [
+        role
+        for role in resolve_role_members(
+            _query_self_service_roles(gql_api, name=name),
+            user_cls=UserV1,
+            query_func=gql_api.query,
+            exclude_providers=frozenset({MembershipSourceProvider.LDAP}),
+        )
+        if role.users or role.bots
+    ]
 
 
 def validate_self_service_roles(gql_api: gql.GqlApi) -> None:
