@@ -230,7 +230,7 @@ class VPCRequest(Protocol):
     def subnets(self) -> VPCRequestSubnetsLists | None: ...
 
 
-class _NamespaceTerraformResourceLifecycle(BaseModel):
+class _NamespaceTerraformResourceLifecycle(BaseModel, extra="forbid"):
     """Structural subset of the generated `NamespaceTerraformResourceLifecycleV1`
     fragment, used only to validate and apply defaults to raw lifecycle config."""
 
