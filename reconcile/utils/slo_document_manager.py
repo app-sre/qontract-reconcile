@@ -2,31 +2,99 @@ from __future__ import annotations
 
 import itertools
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from math import isnan
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, Protocol, Self
 
 import jinja2
 import requests
 from sretoolbox.utils import threaded
 
-from reconcile.gql_definitions.fragments.saas_slo_document import (
-    SLODocument,
-    SLODocumentSLOV1,
-    SLOExternalPrometheusAccessV1,
-    SLONamespacesV1,
-)
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.oc_connection_parameters import resolve_automation_token
 from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth
 
 if TYPE_CHECKING:
-    from reconcile.utils.secret_reader import SecretReaderBase
+    from reconcile.utils.oc_connection_parameters import TokenEntry
+    from reconcile.utils.secret_reader import HasSecret, SecretReaderBase
 
 PROM_QUERY_URL = "api/v1/query"
 
 DEFAULT_READ_TIMEOUT = 30
 DEFAULT_RETRIES = 3
+
+
+class SLOParameters(Protocol):
+    window: str
+
+
+class SLODocumentSLOV1(Protocol):
+    name: str
+    expr: str
+    sli_type: str
+    slo_target: float
+    slo_target_unit: str
+
+    @property
+    def slo_parameters(self) -> SLOParameters: ...
+
+
+class SLOExternalPrometheusAccessV1(Protocol):
+    url: str
+
+    @property
+    def username(self) -> HasSecret | None: ...
+
+    @property
+    def password(self) -> HasSecret | None: ...
+
+
+class SLOAppV1(Protocol):
+    name: str
+
+
+class SLOClusterV1(Protocol):
+    name: str
+    prometheus_url: str
+
+    @property
+    def automation_token(self) -> HasSecret | None: ...
+
+    @property
+    def automation_tokens(self) -> Sequence[TokenEntry] | None: ...
+
+
+class SLONamespaceV1(Protocol):
+    name: str
+
+    @property
+    def app(self) -> SLOAppV1: ...
+
+    @property
+    def cluster(self) -> SLOClusterV1: ...
+
+
+class SLONamespacesV1(Protocol):
+    @property
+    def prometheus_access(self) -> SLOExternalPrometheusAccessV1 | None: ...
+
+    @property
+    def namespace(self) -> SLONamespaceV1: ...
+
+
+class SLODocument(Protocol):
+    """Structural subset of the generated `SLODocument` fragment."""
+
+    name: str
+
+    @property
+    def namespaces(self) -> Sequence[SLONamespacesV1]: ...
+
+    @property
+    def slos(self) -> Sequence[SLODocumentSLOV1] | None: ...
+
+    def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
 class EmptySLOResultError(Exception):
@@ -55,7 +123,7 @@ class SLODetails:
 class NamespaceSLODocument:
     name: str
     namespace: SLONamespacesV1
-    slos: list[SLODocumentSLOV1] | None
+    slos: Sequence[SLODocumentSLOV1] | None
 
     def get_host_url(self) -> str:
         return (
@@ -212,7 +280,7 @@ class SLODocumentManager:
 
     def __init__(
         self,
-        slo_documents: list[SLODocument],
+        slo_documents: Sequence[SLODocument],
         secret_reader: SecretReaderBase,
         thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
         read_timeout: int = DEFAULT_READ_TIMEOUT,
@@ -228,7 +296,7 @@ class SLODocumentManager:
 
     @staticmethod
     def _build_namespace_slo_documents(
-        slo_documents: list[SLODocument],
+        slo_documents: Sequence[SLODocument],
     ) -> list[NamespaceSLODocument]:
         return [
             NamespaceSLODocument(

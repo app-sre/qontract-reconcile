@@ -29,8 +29,6 @@ if TYPE_CHECKING:
     )
     from types import TracebackType
 
-    from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
-
 REQUEST_TIMEOUT_SEC = 60
 
 USER_AGENT = f"qontract-reconcile/{resolve_version('qontract-reconcile')}"
@@ -196,8 +194,21 @@ class OCMAPIClientConfiguration(BaseModel, arbitrary_types_allowed=True):
     access_token_client_secret: HasSecret
 
 
+class AUSOCMOrganizationProtocol(Protocol):
+    """Structural subset of the generated `AUSOCMOrganization` fragment."""
+
+    access_token_client_id: str | None
+    access_token_url: str | None
+
+    @property
+    def access_token_client_secret(self) -> HasSecret | None: ...
+
+    @property
+    def environment(self) -> OCMAPIClientConfigurationProtocol: ...
+
+
 def init_ocm_base_client_for_org(
-    org: AUSOCMOrganization,
+    org: AUSOCMOrganizationProtocol,
     secret_reader: SecretReaderBase,
     session: Session | None = None,
 ) -> OCMBaseClient:

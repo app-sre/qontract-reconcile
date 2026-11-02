@@ -1,18 +1,52 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, Protocol
+from typing import TYPE_CHECKING, NamedTuple, Protocol, runtime_checkable
 
 import requests
 from pydantic import BaseModel, Field
 
-from reconcile.gql_definitions.fragments.prometheus_instance import (
-    PrometheusInstance,
-    PrometheusInstanceBearerAuthV1,
-    PrometheusInstanceOidcAuthV1,
-)
-
 if TYPE_CHECKING:
-    from reconcile.utils.secret_reader import SecretReaderBase
+    from reconcile.utils.secret_reader import HasSecret, SecretReaderBase
+
+
+@runtime_checkable
+class PrometheusInstanceBearerAuth(Protocol):
+    """Structural subset of the generated `PrometheusInstanceBearerAuthV1` fragment."""
+
+    @property
+    def token(self) -> HasSecret: ...
+
+
+@runtime_checkable
+class PrometheusInstanceOidcAuth(Protocol):
+    """Structural subset of the generated `PrometheusInstanceOidcAuthV1` fragment."""
+
+    access_token_client_id: str
+    access_token_url: str
+
+    @property
+    def access_token_client_secret(self) -> HasSecret: ...
+
+
+class PrometheusInstanceAuth(Protocol):
+    provider: str
+
+
+class PrometheusInstance(Protocol):
+    """Structural subset of the generated `PrometheusInstance` fragment."""
+
+    base_url: str
+    query_path: str | None
+
+    @property
+    def auth(
+        self,
+    ) -> (
+        PrometheusInstanceBearerAuth
+        | PrometheusInstanceOidcAuth
+        | PrometheusInstanceAuth
+    ): ...
+
 
 INSTANT_VECTOR_RESULT_TYPE = "vector"
 
@@ -102,9 +136,9 @@ def init_prometheus_http_querier_from_prometheus_instance(
     prometheus: PrometheusInstance, secret_reader: SecretReaderBase
 ) -> PrometheusHttpQuerier:
     match prometheus.auth:
-        case PrometheusInstanceBearerAuthV1():
+        case PrometheusInstanceBearerAuth():
             auth_token = secret_reader.read_secret(prometheus.auth.token)
-        case PrometheusInstanceOidcAuthV1():
+        case PrometheusInstanceOidcAuth():
             client_secret = secret_reader.read_secret(
                 prometheus.auth.access_token_client_secret
             )
