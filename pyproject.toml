@@ -341,6 +341,16 @@ allow_indirect_imports = true
 ignore_imports = [
     # Pure dict-merge helper, no I/O - kept here deliberately, see review discussion.
     "reconcile.utils.terrascript_aws_client -> reconcile.typed_queries.aws_account_tags",
+    # Vault-vs-config backend selection for the s3()/s3_ls() template helpers.
+    # A parameter-threading fix was attempted here but reverted: at least 4
+    # callers of process_jinja2_template() (external_resource_spec.py,
+    # terrascript_aws_client.py, fleet_labeler/integration.py,
+    # templating/renderer.py) don't pass settings/secret_reader down, so the
+    # helpers would silently fall back to a config-file-only reader on
+    # Vault-backed installations instead of raising or behaving correctly -
+    # a real regression caught in review (PR #5895). Self-fetching here keeps
+    # the pre-existing, correct behavior.
+    "reconcile.utils.jinja2.utils -> reconcile.typed_queries.app_interface_vault_settings",
     # Lazily fetches a static custom message; moving this out would require eager
     # fetches in every TerraformClient caller or a loader-registry indirection -
     # not worth it for one log message.
