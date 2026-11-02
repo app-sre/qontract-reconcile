@@ -54,9 +54,9 @@ class GithubUser:
             which changes this value (and frees the old login for reuse by
             someone else).
         type: Entity type - "User" for a personal account, "Organization"
-            for a GitHub organization. A GitHub username can resolve to
-            either, so callers that expect a personal account must check
-            this field.
+            for a GitHub organization, "Bot" for a bot account (e.g.
+            dependabot[bot]). A GitHub username can resolve to any of these,
+            so callers that expect a personal account must check this field.
         id: GitHub's immutable numeric account ID. Unlike `login`, this
             never changes across a username rename - it is the stable
             identifier GitHub itself uses to track "the same account".
@@ -433,8 +433,8 @@ class GithubApi:
             username: GitHub username to look up
 
         Returns:
-            GithubUser with the canonical login and entity type ("User" or
-            "Organization"), or None if the username does not exist.
+            GithubUser with the canonical login and entity type ("User",
+            "Organization", or "Bot"), or None if the username does not exist.
         """
         try:
             user = self._gh.get_user(username)

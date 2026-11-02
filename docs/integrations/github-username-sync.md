@@ -135,7 +135,7 @@ Content-Type: application/json
 }
 ```
 
-`mnovak1` is omitted because it does not exist on GitHub (a 404 from the GitHub API). `account_type` is optional — when set, accounts of another type (e.g. an organization) are treated the same as not found; when omitted, both users and organizations are returned. This endpoint carries no knowledge of app-interface or LDAP — it is a generic GitHub username validator, reusable by any future integration that needs one.
+`mnovak1` is omitted because it does not exist on GitHub (a 404 from the GitHub API). `account_type` is optional — when set, accounts of another type are treated the same as not found; when omitted, all supported types (`User`, `Organization`, `Bot`) are returned. An account of an unsupported type (one the GitHub API introduces in the future) is skipped rather than raised. This endpoint carries no knowledge of app-interface or LDAP — it is a generic GitHub username validator, reusable by any future integration that needs one.
 
 ### File Sync Reconciliation
 
