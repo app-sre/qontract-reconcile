@@ -200,8 +200,11 @@ class GithubUsernameSyncIntegration(
                 ),
             )
 
+        app_interface_org_usernames = {user.org_username for user in users}
         org_username_to_ldap_login = {
-            u.org_username: u.github_username for u in ldap_response.users
+            u.org_username: u.github_username
+            for u in ldap_response.users
+            if u.org_username in app_interface_org_usernames
         }
 
         if unresolved := sorted(

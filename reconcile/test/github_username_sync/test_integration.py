@@ -434,6 +434,50 @@ async def test_async_run_reports_unresolved_users(
 @patch(f"{_MOD}.gql")
 @patch(f"{_MOD}.ldap_org_github_usernames", new_callable=AsyncMock)
 @patch(f"{_MOD}.query_users")
+async def test_async_run_ignores_ldap_users_outside_app_interface(
+    mock_query: MagicMock,
+    mock_ldap: AsyncMock,
+    mock_gql: MagicMock,
+    mock_settings: MagicMock,
+    mock_vcs: MagicMock,
+    mock_toggle: MagicMock,
+    mock_github_orgs: MagicMock,
+    mock_validate: AsyncMock,
+    integration: GithubUsernameSyncIntegration,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The LDAP endpoint resolves the whole active-LDAP population, not just
+    app-interface users - a login for someone outside users_v1 must not be sent
+    to GitHub validation nor reported as an invalid/unresolved login.
+    """
+    mock_query.return_value = _users_data([_make_user("alice", "alice-new")])
+    mock_settings.return_value = _ldap_settings()
+    mock_ldap.return_value = _ldap_response({
+        "alice": "alice-new",
+        "not-an-app-interface-user": "some-other-ldap-login",
+    })
+    mock_github_orgs.return_value = _github_orgs()
+    mock_validate.return_value = _github_validate_response(["alice-new"])
+
+    with caplog.at_level(logging.WARNING):
+        await integration.async_run(dry_run=True)
+
+    mock_validate.assert_awaited_once()
+    assert mock_validate.call_args.args[0].usernames == ["alice-new"]
+    assert not any(
+        "some-other-ldap-login" in record.message for record in caplog.records
+    )
+
+
+@pytest.mark.asyncio
+@patch(f"{_MOD}.github_users_validate", new_callable=AsyncMock)
+@patch(f"{_MOD}.get_github_orgs")
+@patch(f"{_MOD}.get_feature_toggle_state", return_value=False)
+@patch(f"{_MOD}.get_vcs_instances")
+@patch(f"{_MOD}.get_ldap_settings")
+@patch(f"{_MOD}.gql")
+@patch(f"{_MOD}.ldap_org_github_usernames", new_callable=AsyncMock)
+@patch(f"{_MOD}.query_users")
 async def test_async_run_no_drifted_users_returns_early(
     mock_query: MagicMock,
     mock_ldap: AsyncMock,
