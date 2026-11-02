@@ -6,6 +6,10 @@ import jsonpath_ng
 import pytest
 
 from reconcile.change_owners.approver import Approver
+from reconcile.change_owners.change_owners import (
+    CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE,
+    is_self_serviceable,
+)
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     DiffCoverage,
@@ -339,3 +343,50 @@ def test_no_diff_but_file_move(saas_file_changetype: ChangeTypeV1) -> None:
     dc = saas_file_move.diff_coverage[0]
     assert dc.diff.path_str() == METADATA_CHANGE_PATH
     assert dc.coverage == [ctx]
+
+
+def test_is_self_serviceable_true_when_covering_context_has_approvers(
+    saas_file_changetype: ChangeTypeV1, saas_file: StubFile
+) -> None:
+    saas_file_change = saas_file.create_bundle_change({
+        "resourceTemplates[0].targets[0].ref": "new-ref"
+    })
+    ctx = ChangeTypeContext(
+        change_type_processor=change_type_to_processor(saas_file_changetype),
+        context="RoleV1 - some-role",
+        origin="",
+        approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
+        context_file=saas_file.file_ref(),
+    )
+    saas_file_change.cover_changes(ctx)
+
+    assert is_self_serviceable(
+        [saas_file_change], CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE
+    )
+
+
+def test_is_self_serviceable_false_when_covering_context_has_no_approvers(
+    saas_file_changetype: ChangeTypeV1, saas_file: StubFile
+) -> None:
+    """A change covered only by a context with zero approvers (e.g. a role
+    whose self-service membership source was excluded, like LDAP) must not
+    be marked self-serviceable - nobody could ever approve it, so it must
+    fall back to the normal AppSRE review path instead of being hidden from
+    the review queue. See https://redhat.atlassian.net/browse/APPSRE-15598
+    """
+    saas_file_change = saas_file.create_bundle_change({
+        "resourceTemplates[0].targets[0].ref": "new-ref"
+    })
+    ctx = ChangeTypeContext(
+        change_type_processor=change_type_to_processor(saas_file_changetype),
+        context="RoleV1 - ldap-only-role",
+        origin="",
+        approvers=[],
+        context_file=saas_file.file_ref(),
+    )
+    saas_file_change.cover_changes(ctx)
+
+    assert saas_file_change.all_changes_covered()
+    assert not is_self_serviceable(
+        [saas_file_change], CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE
+    )

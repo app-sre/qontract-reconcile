@@ -398,6 +398,39 @@ def _is_unblockable_by_tenant_context(
     return all(a.org_username in app_sre_usernames for a in ctx.approvers)
 
 
+def _diff_covered_by_an_approvable_context(
+    coverage: Iterable[ChangeTypeContext],
+) -> bool:
+    """
+    True if at least one active (non-disabled) context covering this diff
+    has approvers. A context can cover a diff while having zero approvers
+    (e.g. a role whose self-service membership is driven solely by an
+    excluded LDAP memberSources entry) - counting that coverage as
+    self-serviceable would mark the diff SELF_SERVICEABLE while nobody
+    could ever approve it, hiding it from the AppSRE review queue instead
+    of falling back to NOT_SELF_SERVICEABLE/PENDING_SELF_SERVICE_APPROVAL.
+    See https://redhat.atlassian.net/browse/APPSRE-15598.
+    """
+    return any(ctx.approvers for ctx in coverage if not ctx.disabled)
+
+
+def is_self_serviceable(
+    changes: list[BundleFileChange], change_type_processing_mode: str
+) -> bool:
+    return (
+        len(changes) > 0
+        and all(
+            c.all_changes_covered()
+            and all(
+                _diff_covered_by_an_approvable_context(dc.coverage)
+                for dc in c.diff_coverage
+            )
+            for c in changes
+        )
+        and change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE
+    )
+
+
 def _direct_coverage_satisfied(
     d: ChangeDecision, app_sre_usernames: AbstractSet[str]
 ) -> bool | None:
@@ -589,11 +622,7 @@ def run(
             change_type_processors,
             comparison_gql_api,
         )
-        self_serviceable = (
-            len(changes) > 0
-            and all(c.all_changes_covered() for c in changes)
-            and change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE
-        )
+        self_serviceable = is_self_serviceable(changes, change_type_processing_mode)
 
         #
         #   D E C I S I O N S
