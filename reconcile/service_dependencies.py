@@ -32,12 +32,12 @@ QONTRACT_INTEGRATION = "service-dependencies"
 def get_dependency_names(
     dependency_map: Iterable[AppInterfaceDependencyMappingV1], dep_type: str
 ) -> list[str]:
-    # NOTE: pre-existing bug (introduced in #4794) — this iterates the top-level
-    # {type, services} entries directly instead of descending into `.services`,
-    # so it always returns an empty list. Preserved as-is during this typed
-    # migration; tracked separately in https://redhat.atlassian.net/browse/APPSRE-15579
-    dependency_maps = (dm for dm in dependency_map if dm.q_type == dep_type)
-    return [name for dm in dependency_maps if (name := getattr(dm, "name", None))]
+    return [
+        service.name
+        for dm in dependency_map
+        if dm.q_type == dep_type
+        for service in dm.services
+    ]
 
 
 def get_desired_dependency_names(
