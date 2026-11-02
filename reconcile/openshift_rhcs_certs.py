@@ -14,7 +14,6 @@ from reconcile.gql_definitions.rhcs.certs import (
 from reconcile.gql_definitions.rhcs.certs import (
     query as rhcs_certs_query,
 )
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -39,6 +38,7 @@ from reconcile.utils.rhcsv2_certs import (
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.status import ExitCodes
 from reconcile.utils.vault import SecretNotFoundError, VaultClient
 
 if TYPE_CHECKING:

@@ -24,8 +24,8 @@ from gql.transport.requests import log as requests_logger
 from sentry_sdk import capture_exception
 from sretoolbox.utils import retry
 
-from reconcile.status import RunningState
 from reconcile.utils.config import get_config
+from reconcile.utils.status import RunningState
 
 INTEGRATIONS_QUERY = """
 {

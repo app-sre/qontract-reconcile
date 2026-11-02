@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 
 import reconcile.openshift_base as ob
 from reconcile import queries
-from reconcile.status import ExitCodes
 from reconcile.utils.aggregated_list import RunnerError
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.datetime_util import ensure_utc, utc_now
@@ -23,6 +22,7 @@ from reconcile.utils.openshift_resource import (
     ResourceInventory,
 )
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.status import ExitCodes
 
 if TYPE_CHECKING:
     from collections.abc import (

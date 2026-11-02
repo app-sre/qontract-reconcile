@@ -19,7 +19,7 @@ from reconcile.utils.rosa.rosa_cli import (
 )
 
 if TYPE_CHECKING:
-    from reconcile.ocm.types import OCMSpec
+    from reconcile.utils.ocm.types import OCMSpec
     from reconcile.utils.ocm_base_client import OCMBaseClient
 
 

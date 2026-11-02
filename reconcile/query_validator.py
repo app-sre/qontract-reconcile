@@ -8,9 +8,9 @@ from reconcile.openshift_resources_base import (
     OPENSHIFT_RESOURCE,
     fetch_openshift_resource,
 )
-from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.status import ExitCodes
 
 QONTRACT_INTEGRATION = "query-validator"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

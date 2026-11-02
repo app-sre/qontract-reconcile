@@ -10,7 +10,6 @@ from typing import (
 from qontract_api_client.client import client as qontract_api_client
 from sretoolbox.utils import threaded as sretoolbox_threaded
 
-from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.runtime.desired_state_diff import (
     DesiredStateDiff,
@@ -22,6 +21,7 @@ from reconcile.utils.runtime.integration import (
     RunParams,
     setup_qontract_api_client,
 )
+from reconcile.utils.status import ExitCodes
 
 RunParamsTypeVar = TypeVar("RunParamsTypeVar", bound=RunParams)
 

@@ -14,13 +14,13 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
 from reconcile.gql_definitions.fragments.aws_vpc_request import (
     VPCRequest,
 )
-from reconcile.status import ExitCodes
 from reconcile.terraform_vpc_resources.integration import (
     QONTRACT_INTEGRATION,
     TerraformVpcResources,
     TerraformVpcResourcesParams,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.status import ExitCodes
 
 if TYPE_CHECKING:
     from collections.abc import Callable

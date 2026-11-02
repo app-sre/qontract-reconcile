@@ -5,7 +5,6 @@ import sys
 from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -20,6 +19,7 @@ from reconcile.utils.external_resources import (
 )
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.status import ExitCodes
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 

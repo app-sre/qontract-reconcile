@@ -12,7 +12,6 @@ from reconcile.gql_definitions.quay_membership.quay_membership import (
     UserV1,
 )
 from reconcile.quay_base import OrgKey, QuayApiStore, get_quay_api_store
-from reconcile.status import ExitCodes
 from reconcile.utils import (
     expiration,
     gql,
@@ -24,6 +23,7 @@ from reconcile.utils.aggregated_list import (
     RunnerError,
 )
 from reconcile.utils.quay_api import QuayTeamNotFoundError
+from reconcile.utils.status import ExitCodes
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

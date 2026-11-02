@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from reconcile.ocm.types import (
+from reconcile.ocm_clusters import get_app_interface_spec_updates
+from reconcile.utils.ocm.types import (
     OCMClusterNetwork,
     OCMSpec,
     OSDClusterSpec,
 )
-from reconcile.ocm_clusters import get_app_interface_spec_updates
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
