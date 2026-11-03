@@ -117,6 +117,33 @@ def test_desired_state_diff_changed_states_invoke_deep_hash(
     assert deep_hash_spy.call_count == 2
 
 
+@pytest.mark.parametrize(
+    ("prev_val", "curr_val"),
+    [
+        (1, 1.0),
+        (1, True),
+        (0, False),
+        (0, 0.0),
+    ],
+)
+def test_desired_state_diff_scalar_type_change_detected(
+    mocker: MockerFixture,
+    simple_test_integration: SimpleTestIntegration,
+    prev_val: Any,
+    curr_val: Any,
+) -> None:
+    """Scalar type changes where Python == is True (1 vs 1.0 vs True) must fall back to DeepHash and report a diff."""
+    deep_hash_spy = mocker.spy(desired_state_diff, "DeepHash")
+    diff_result = build_desired_state_diff(
+        simple_test_integration.get_desired_state_shard_config(),
+        previous_desired_state={"data": [{"variables": {"v": prev_val}}]},
+        current_desired_state={"data": [{"variables": {"v": curr_val}}]},
+    )
+    assert diff_result.diff_found
+    assert not diff_result.can_exit_early()
+    assert deep_hash_spy.call_count == 2
+
+
 def test_desired_state_diff_building_unshardable_integration(
     simple_test_integration: SimpleTestIntegration,
 ) -> None:
