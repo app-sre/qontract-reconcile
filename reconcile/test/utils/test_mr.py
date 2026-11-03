@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
-from gitlab.exceptions import GitlabError
+from gitlab.exceptions import GitlabError, GitlabGetError
 
 import reconcile.typed_queries.smtp
 from reconcile.gql_definitions.common.smtp_client_settings import SmtpSettingsV1
@@ -296,7 +296,8 @@ def test_process_by_skips_when_file_missing() -> None:
         "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
     )
     gitlab_cli = MagicMock(spec=GitLabApi)
-    gitlab_cli.get_file.return_value = None
+    gitlab_cli.project = MagicMock()
+    gitlab_cli.get_raw_file.side_effect = GitlabGetError(response_code=404)
 
     mr._process_by(
         "line_search",
@@ -306,7 +307,29 @@ def test_process_by_skips_when_file_missing() -> None:
         replace_text="  RECONCILE_IMAGE_TAG: 1q2w3e4",
     )
 
-    gitlab_cli.get_raw_file.assert_not_called()
+    gitlab_cli.update_file.assert_not_called()
+
+
+def test_process_by_reraises_non_404_errors() -> None:
+    """A transient/non-missing-file GitLab read error (500, permissions,
+    rate limit, ...) must fail the promotion, not be treated as proof the
+    file doesn't exist and silently skipped."""
+    mr = PromoteQontractReconcileCommercial(
+        "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    )
+    gitlab_cli = MagicMock(spec=GitLabApi)
+    gitlab_cli.project = MagicMock()
+    gitlab_cli.get_raw_file.side_effect = GitlabGetError(response_code=500)
+
+    with pytest.raises(GitlabGetError):
+        mr._process_by(
+            "line_search",
+            gitlab_cli=gitlab_cli,
+            path=".gitlab-ci.yml",
+            search_text="  RECONCILE_IMAGE_TAG:",
+            replace_text="  RECONCILE_IMAGE_TAG: 1q2w3e4",
+        )
+
     gitlab_cli.update_file.assert_not_called()
 
 
@@ -318,9 +341,6 @@ def test_promote_qontract_schemas_updates_env_and_gitlab_ci() -> None:
         ".gitlab-ci.yml": "variables:\n  SCHEMAS_IMAGE_TAG: oldtag\n",
     }
     gitlab_cli.get_raw_file.side_effect = lambda project, path, ref: bytes(
-        file_contents[path], "utf-8"
-    )
-    gitlab_cli.get_file.side_effect = lambda path, ref: bytes(
         file_contents[path], "utf-8"
     )
 
@@ -339,10 +359,13 @@ def test_promote_qontract_schemas_updates_env_and_gitlab_ci() -> None:
 def test_promote_qontract_schemas_skips_gitlab_ci_when_missing() -> None:
     gitlab_cli = MagicMock(spec=GitLabApi)
     gitlab_cli.project = MagicMock()
-    gitlab_cli.get_raw_file.return_value = bytes(
-        "export SCHEMAS_IMAGE_TAG=oldtag\n", "utf-8"
-    )
-    gitlab_cli.get_file.return_value = None
+
+    def get_raw_file(project: Any, path: str, ref: str) -> bytes:
+        if path == ".gitlab-ci.yml":
+            raise GitlabGetError(response_code=404)
+        return bytes("export SCHEMAS_IMAGE_TAG=oldtag\n", "utf-8")
+
+    gitlab_cli.get_raw_file.side_effect = get_raw_file
 
     mr = PromoteQontractSchemas("newtag", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p")
     mr.process(gitlab_cli)
@@ -361,9 +384,6 @@ def test_promote_qontract_validator_updates_env_and_gitlab_ci() -> None:
     gitlab_cli.get_raw_file.side_effect = lambda project, path, ref: bytes(
         file_contents[path], "utf-8"
     )
-    gitlab_cli.get_file.side_effect = lambda path, ref: bytes(
-        file_contents[path], "utf-8"
-    )
 
     mr = PromoteQontractValidator("newtag", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p")
     mr.process(gitlab_cli)
@@ -380,10 +400,13 @@ def test_promote_qontract_validator_updates_env_and_gitlab_ci() -> None:
 def test_promote_qontract_validator_skips_gitlab_ci_when_missing() -> None:
     gitlab_cli = MagicMock(spec=GitLabApi)
     gitlab_cli.project = MagicMock()
-    file_contents = {".env": "export VALIDATOR_IMAGE_TAG=oldtag\n"}
-    gitlab_cli.get_file.side_effect = lambda path, ref: (
-        bytes(file_contents[path], "utf-8") if path in file_contents else None
-    )
+
+    def get_raw_file(project: Any, path: str, ref: str) -> bytes:
+        if path == ".gitlab-ci.yml":
+            raise GitlabGetError(response_code=404)
+        return bytes("export VALIDATOR_IMAGE_TAG=oldtag\n", "utf-8")
+
+    gitlab_cli.get_raw_file.side_effect = get_raw_file
 
     mr = PromoteQontractValidator("newtag", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p")
     mr.process(gitlab_cli)
