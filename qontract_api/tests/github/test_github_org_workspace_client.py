@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from qontract_utils.github_org import GithubRateLimitExceededError
+from qontract_utils.github_api import GithubRateLimitExceededError
 
 from qontract_api.github.github_org_workspace_client import (
     CachedOrgMembers,
@@ -23,12 +23,12 @@ ORG_NAME = "my-org"
 
 @pytest.fixture
 def client(
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
     mock_settings: Settings,
 ) -> GithubOrgWorkspaceClient:
     return GithubOrgWorkspaceClient(
-        github_org_api=mock_github_org_api,
+        github_api=mock_github_api,
         cache=mock_cache,
         settings=mock_settings,
     )
@@ -41,7 +41,7 @@ def client(
 
 def test_members_cache_hit_still_returns(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     mock_cache.get_obj.side_effect = [None, CachedOrgMembers(members=["alice"])]
@@ -51,8 +51,8 @@ def test_members_cache_hit_still_returns(
     assert members == ["alice"]
     assert mock_cache.get_obj.call_count == 2
     mock_cache.lock.assert_not_called()
-    mock_github_org_api.get_admin_members.assert_not_called()
-    mock_github_org_api.get_pending_invitations.assert_not_called()
+    mock_github_api.get_admin_members.assert_not_called()
+    mock_github_api.get_pending_invitations.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -62,11 +62,11 @@ def test_members_cache_hit_still_returns(
 
 def test_sets_marker_and_reraises_on_rate_limit(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     reset_at = datetime.now(UTC) + timedelta(seconds=120)
-    mock_github_org_api.get_admin_members.side_effect = GithubRateLimitExceededError(
+    mock_github_api.get_admin_members.side_effect = GithubRateLimitExceededError(
         reset_at
     )
 
@@ -81,11 +81,11 @@ def test_sets_marker_and_reraises_on_rate_limit(
 
 def test_marker_ttl_derived_from_reset(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     reset_at = datetime.now(UTC) + timedelta(seconds=120)
-    mock_github_org_api.get_admin_members.side_effect = GithubRateLimitExceededError(
+    mock_github_api.get_admin_members.side_effect = GithubRateLimitExceededError(
         reset_at
     )
 
@@ -98,12 +98,12 @@ def test_marker_ttl_derived_from_reset(
 
 def test_marker_ttl_capped_at_members_cache_ttl(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
     mock_settings: Settings,
 ) -> None:
     reset_at = datetime.now(UTC) + timedelta(seconds=100_000)
-    mock_github_org_api.get_admin_members.side_effect = GithubRateLimitExceededError(
+    mock_github_api.get_admin_members.side_effect = GithubRateLimitExceededError(
         reset_at
     )
 
@@ -116,7 +116,7 @@ def test_marker_ttl_capped_at_members_cache_ttl(
 
 def test_short_circuits_when_marker_present(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     reset_at = datetime.now(UTC) + timedelta(seconds=60)
@@ -127,13 +127,13 @@ def test_short_circuits_when_marker_present(
 
     assert exc_info.value.reset_at == reset_at
     mock_cache.lock.assert_not_called()
-    mock_github_org_api.get_admin_members.assert_not_called()
-    mock_github_org_api.get_pending_invitations.assert_not_called()
+    mock_github_api.get_admin_members.assert_not_called()
+    mock_github_api.get_pending_invitations.assert_not_called()
 
 
 def test_marker_takes_priority_over_stale_members_cache(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     """A rate-limit marker must short-circuit even when a stale members cache exists.
@@ -154,13 +154,13 @@ def test_marker_takes_priority_over_stale_members_cache(
 
     assert exc_info.value.reset_at == reset_at
     mock_cache.lock.assert_not_called()
-    mock_github_org_api.get_admin_members.assert_not_called()
-    mock_github_org_api.get_pending_invitations.assert_not_called()
+    mock_github_api.get_admin_members.assert_not_called()
+    mock_github_api.get_pending_invitations.assert_not_called()
 
 
 def test_marker_rechecked_after_acquiring_lock(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     """A marker written while waiting on the lock must still short-circuit.
@@ -180,8 +180,8 @@ def test_marker_rechecked_after_acquiring_lock(
         client.get_current_members(ORG_NAME)
 
     assert exc_info.value.reset_at == reset_at
-    mock_github_org_api.get_admin_members.assert_not_called()
-    mock_github_org_api.get_pending_invitations.assert_not_called()
+    mock_github_api.get_admin_members.assert_not_called()
+    mock_github_api.get_pending_invitations.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -191,17 +191,17 @@ def test_marker_rechecked_after_acquiring_lock(
 
 def test_get_all_members_cache_miss_fetches_and_caches(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
     mock_settings: Settings,
 ) -> None:
-    mock_github_org_api.get_members.return_value = ["Bob", "alice"]
+    mock_github_api.get_members.return_value = ["Bob", "alice"]
 
     members = client.get_all_members(ORG_NAME)
 
     # returned verbatim from the API (case preserved, no lowercasing here)
     assert members == ["Bob", "alice"]
-    mock_github_org_api.get_members.assert_called_once_with(ORG_NAME)
+    mock_github_api.get_members.assert_called_once_with(ORG_NAME)
     key, cached_obj, ttl = mock_cache.set_obj.call_args[0]
     assert key == f"github-org:{ORG_NAME}:all-members"
     assert cached_obj == CachedOrgMembers(members=["Bob", "alice"])
@@ -210,7 +210,7 @@ def test_get_all_members_cache_miss_fetches_and_caches(
 
 def test_get_all_members_cache_hit_skips_api(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     mock_cache.get_obj.side_effect = [None, CachedOrgMembers(members=["alice"])]
@@ -219,12 +219,12 @@ def test_get_all_members_cache_hit_skips_api(
 
     assert members == ["alice"]
     mock_cache.lock.assert_not_called()
-    mock_github_org_api.get_members.assert_not_called()
+    mock_github_api.get_members.assert_not_called()
 
 
 def test_get_all_members_short_circuits_when_marker_present(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     reset_at = datetime.now(UTC) + timedelta(seconds=60)
@@ -235,16 +235,16 @@ def test_get_all_members_short_circuits_when_marker_present(
 
     assert exc_info.value.reset_at == reset_at
     mock_cache.lock.assert_not_called()
-    mock_github_org_api.get_members.assert_not_called()
+    mock_github_api.get_members.assert_not_called()
 
 
 def test_get_all_members_sets_marker_and_reraises_on_rate_limit(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     reset_at = datetime.now(UTC) + timedelta(seconds=120)
-    mock_github_org_api.get_members.side_effect = GithubRateLimitExceededError(reset_at)
+    mock_github_api.get_members.side_effect = GithubRateLimitExceededError(reset_at)
 
     with pytest.raises(GithubRateLimitExceededError):
         client.get_all_members(ORG_NAME)
@@ -261,7 +261,7 @@ def test_get_all_members_sets_marker_and_reraises_on_rate_limit(
 
 def test_add_member_as_admin_sets_marker_and_reraises_on_rate_limit(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     """A rate limit hit while applying a mutation must also cache the marker.
@@ -271,7 +271,7 @@ def test_add_member_as_admin_sets_marker_and_reraises_on_rate_limit(
     the read path, not the write path.
     """
     reset_at = datetime.now(UTC) + timedelta(seconds=120)
-    mock_github_org_api.add_member_as_admin.side_effect = GithubRateLimitExceededError(
+    mock_github_api.add_member_as_admin.side_effect = GithubRateLimitExceededError(
         reset_at
     )
 
@@ -286,11 +286,11 @@ def test_add_member_as_admin_sets_marker_and_reraises_on_rate_limit(
 
 def test_add_member_as_admin_does_not_clear_members_cache_on_rate_limit(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     reset_at = datetime.now(UTC) + timedelta(seconds=120)
-    mock_github_org_api.add_member_as_admin.side_effect = GithubRateLimitExceededError(
+    mock_github_api.add_member_as_admin.side_effect = GithubRateLimitExceededError(
         reset_at
     )
 
@@ -302,7 +302,7 @@ def test_add_member_as_admin_does_not_clear_members_cache_on_rate_limit(
 
 def test_add_member_as_admin_clears_both_member_caches(
     client: GithubOrgWorkspaceClient,
-    mock_github_org_api: MagicMock,
+    mock_github_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
     """A successful mutation must invalidate BOTH cached member lists.
@@ -313,7 +313,7 @@ def test_add_member_as_admin_clears_both_member_caches(
     """
     client.add_member_as_admin(ORG_NAME, "alice")
 
-    mock_github_org_api.add_member_as_admin.assert_called_once_with(ORG_NAME, "alice")
+    mock_github_api.add_member_as_admin.assert_called_once_with(ORG_NAME, "alice")
     deleted_keys = {c.args[0] for c in mock_cache.delete.call_args_list}
     assert deleted_keys == {
         f"github-org:{ORG_NAME}:members",

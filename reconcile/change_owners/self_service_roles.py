@@ -55,18 +55,39 @@ def fetch_self_service_roles(
     depend on live LDAP state for merge approval, since a role whose LDAP
     memberSources group is missing or deleted would otherwise abort self-service
     resolution fleet-wide. See https://redhat.atlassian.net/browse/APPSRE-15570.
-    A role left with no approvers once LDAP sources are excluded is invalid,
-    same as one with no approvers at all.
+
+    A role left with no approvers once LDAP sources are excluded (e.g. a role
+    whose self-service membership is driven solely by an LDAP memberSources
+    entry, by design) is excluded from the result entirely, the same as if it
+    declared no self-service configuration at all: it already passed
+    validate_self_service_role() on its declared (pre-exclusion) sources in
+    _query_self_service_roles(), so re-validating the resolved role here
+    would raise for that legitimate state and - with no per-role isolation -
+    abort resolution for every other self-service role in app-interface.
+    Dropping it here, rather than keeping it around as an approver-less role,
+    means no downstream consumer (coverage, admission, auto-approval) needs
+    to special-case it - it simply never covers anything.
+
+    Accepted trade-off: if the role's change-type is restrictive, dropping it
+    also removes that change-type's admission gate for paths exclusively
+    covered by this role - is_change_admitted() never sees a restrictive
+    context there, so any author can propose the change. This is intentional,
+    not an oversight: the change still correctly falls back to
+    NOT_SELF_SERVICEABLE and goes through normal AppSRE review before merge,
+    which is accepted as sufficient for this case rather than reintroducing
+    per-consumer special-casing of zero-approver contexts.
+    See https://redhat.atlassian.net/browse/APPSRE-15598.
     """
-    roles = resolve_role_members(
-        _query_self_service_roles(gql_api, name=name),
-        user_cls=UserV1,
-        query_func=gql_api.query,
-        exclude_providers=frozenset({MembershipSourceProvider.LDAP}),
-    )
-    for role in roles:
-        validate_self_service_role(role)
-    return roles
+    return [
+        role
+        for role in resolve_role_members(
+            _query_self_service_roles(gql_api, name=name),
+            user_cls=UserV1,
+            query_func=gql_api.query,
+            exclude_providers=frozenset({MembershipSourceProvider.LDAP}),
+        )
+        if role.users or role.bots
+    ]
 
 
 def validate_self_service_roles(gql_api: gql.GqlApi) -> None:

@@ -354,7 +354,7 @@ curl -s -X POST http://localhost:8000/api/v1/integrations/github-owners/reconcil
 
 - Server: [qontract_api/qontract_api/integrations/github_owners/](../../qontract_api/qontract_api/integrations/github_owners/)
 - Client: [reconcile/github_owners_api.py](../../reconcile/github_owners_api.py)
-- Layer 1 API client: [qontract_utils/qontract_utils/github_org/api.py](../../qontract_utils/qontract_utils/github_org/api.py)
+- Layer 1 API client: [qontract_utils/qontract_utils/github_api/api.py](../../qontract_utils/qontract_utils/github_api/api.py)
 - GQL definitions: [reconcile/gql_definitions/github_owners_api/](../../reconcile/gql_definitions/github_owners_api/)
 
 **ADRs:**

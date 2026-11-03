@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = "==3.14.*"
 
 [manifest]
@@ -334,6 +334,9 @@ iam = [
 ]
 logs = [
     { name = "mypy-boto3-logs" },
+]
+opensearch = [
+    { name = "mypy-boto3-opensearch" },
 ]
 organizations = [
     { name = "mypy-boto3-organizations" },
@@ -1702,6 +1705,15 @@ wheels = [
 ]
 
 [[package]]
+name = "mypy-boto3-opensearch"
+version = "1.43.115"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a8/92/2f868b29c254d02f14f53ce46217d7fbf6349aee3615086c35c1f21f08f4/mypy_boto3_opensearch-1.43.115.tar.gz", hash = "sha256:dcb9fa7190fd80e8e751afcf3ba1f1157427f30cbc73ec1bea4cf9d37732c886", size = 52024, upload-time = "2026-10-19T20:43:42.063Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a8/32/339f13206cdad9328bff1596cae8dd50d58921b1262c2e87ca1248a9adbe/mypy_boto3_opensearch-1.43.115-py3-none-any.whl", hash = "sha256:ce71d8abd3d5cd60bd421ae7233e58deebd9a88ee49199313cc78f9ae9a2b119", size = 58328, upload-time = "2026-10-19T20:43:39.493Z" },
+]
+
+[[package]]
 name = "mypy-boto3-organizations"
 version = "1.43.73"
 source = { registry = "https://pypi.org/simple" }
@@ -2568,7 +2580,7 @@ debugger = [
     { name = "debugpy" },
 ]
 dev = [
-    { name = "boto3-stubs", extra = ["accessanalyzer", "account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"] },
+    { name = "boto3-stubs", extra = ["accessanalyzer", "account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "opensearch", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"] },
     { name = "moto", extra = ["s3"] },
     { name = "mypy" },
     { name = "pyfakefs" },
@@ -2651,7 +2663,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 debugger = [{ name = "debugpy", specifier = "~=1.8.17" }]
 dev = [
-    { name = "boto3-stubs", extras = ["accessanalyzer", "account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"], specifier = "==1.43.89" },
+    { name = "boto3-stubs", extras = ["accessanalyzer", "account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "opensearch", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"], specifier = "==1.43.89" },
     { name = "moto", extras = ["ec2", "iam", "logs", "s3", "route53"], specifier = "==5.2.3" },
     { name = "mypy", specifier = "==2.3.1" },
     { name = "pyfakefs", specifier = "==6.2.0" },
