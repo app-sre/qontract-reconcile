@@ -24,7 +24,6 @@ from reconcile.gql_definitions.openshift_cluster_bots.clusters import (
 # qenerate emits separate classes when the same type appears under different parent
 # fields in the same query. Both are structurally identical so all helpers accept either.
 AnyTokenEntry = AutomationTokenEntryV1 | ClusterV1_AutomationTokenEntryV1
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -40,6 +39,7 @@ from reconcile.utils.openshift_resource import (
 )
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.status import ExitCodes
 from reconcile.utils.vault import VaultClient
 
 if TYPE_CHECKING:

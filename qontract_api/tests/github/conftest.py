@@ -1,15 +1,17 @@
 from unittest.mock import MagicMock
 
 import pytest
-from qontract_utils.github_org.api import GithubOrgApi
+from qontract_utils.github_api.api import GithubApi
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import Settings
 
 
 @pytest.fixture
-def mock_github_org_api() -> MagicMock:
-    return MagicMock(spec=GithubOrgApi)
+def mock_github_api() -> MagicMock:
+    m = MagicMock(spec=GithubApi)
+    m.credential_id = "test-credential-id"
+    return m
 
 
 @pytest.fixture

@@ -29,7 +29,6 @@ from sretoolbox.utils import (
 )
 
 from reconcile.github_org import get_default_config
-from reconcile.status import RunningState
 from reconcile.utils import helm
 from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.github_api import GithubRepositoryApi
@@ -79,6 +78,7 @@ from reconcile.utils.saasherder.models import (
     UpstreamJob,
 )
 from reconcile.utils.slo_document_manager import SLODetails, SLODocumentManager
+from reconcile.utils.status import RunningState
 from reconcile.utils.vcs import VCS
 
 if TYPE_CHECKING:

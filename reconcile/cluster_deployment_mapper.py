@@ -2,7 +2,6 @@ import logging
 import sys
 from typing import Any
 
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -10,6 +9,7 @@ from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils.oc import OCLogMsg
 from reconcile.utils.oc_map import init_oc_map_from_clusters
 from reconcile.utils.secret_reader import create_secret_reader
+from reconcile.utils.status import ExitCodes
 from reconcile.utils.vault import VaultClient
 
 QONTRACT_INTEGRATION = "cluster-deployment-mapper"

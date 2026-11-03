@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
-from qontract_utils.github_org import GithubRateLimitExceededError
+from qontract_utils.github_api import GithubRateLimitExceededError
 
 from qontract_api.config import Settings
 from qontract_api.github import GithubOrgWorkspaceClient
@@ -62,7 +62,7 @@ def service(
     mock_settings: Settings,
 ) -> GithubOwnersService:
     return GithubOwnersService(
-        github_org_client_factory=mock_github_client_factory,
+        github_client_factory=mock_github_client_factory,
         secret_manager=mock_secret_manager,
         settings=mock_settings,
     )

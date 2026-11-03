@@ -31,6 +31,7 @@ dev = [
     # development and testing tools
     # keep in sync with project.dependencies.boto3
     "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,iam,logs,organizations,s3,service-quotas,sts,support]==1.43.89",
+    "import-linter==2.15",
     "mypy==2.3.1",
     "pytest-asyncio==1.4.0",
     "pytest-cov==7.1.0",
@@ -144,3 +145,17 @@ warn_unused_ignores = true
 show_error_codes = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+
+[tool.importlinter]
+# Only qontract_utils itself is present in this package's build context (see
+# qontract_utils/Dockerfile) - include_external_packages lets forbidden_modules
+# reference the siblings anyway, so the contract still holds if that ever changes.
+root_packages = ["qontract_utils"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+id = "qontract-utils-standalone"
+name = "qontract_utils must not import sibling packages (ADR-007)"
+type = "forbidden"
+source_modules = ["qontract_utils"]
+forbidden_modules = ["reconcile", "qontract_api", "qontract_api_client"]

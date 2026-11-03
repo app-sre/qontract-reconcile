@@ -29,6 +29,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     # development and testing tools
+    "import-linter==2.15",
     "mypy==2.3.1",
     "pytest-asyncio==1.4.0",
     "pytest-cov==7.1.0",
@@ -170,3 +171,20 @@ ignore_missing_imports = true
 
 # [tool.coverage.report]
 # fail_under = 90
+
+[tool.importlinter]
+# reconcile/ and tools/ are not copied into this package's build context (see
+# qontract_api/Dockerfile) - include_external_packages lets forbidden_modules
+# reference "reconcile" anyway, so the contract still holds if that ever changes.
+# Only contracts about qontract_api itself belong here - qontract_utils and
+# qontract_api_client own their own standalone-ness contracts in their own
+# pyproject.toml.
+root_packages = ["qontract_api", "qontract_utils", "qontract_api_client"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+id = "qontract-api-no-reconcile-import"
+name = "qontract_api must not import reconcile (ADR-007)"
+type = "forbidden"
+source_modules = ["qontract_api"]
+forbidden_modules = ["reconcile"]

@@ -6,10 +6,10 @@ import yaml
 
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.utils import gql
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.status import ExitCodes
 
 QONTRACT_INTEGRATION = "resource-template-tester"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

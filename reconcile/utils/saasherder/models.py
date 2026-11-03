@@ -11,9 +11,6 @@ from typing import Any, NotRequired, TypedDict
 from github import Github
 from pydantic import BaseModel, Field, model_validator
 
-from reconcile.gql_definitions.fragments.saas_slo_document import (
-    SLODocument,
-)
 from reconcile.utils.jenkins_api import JobBuildState
 from reconcile.utils.json import json_dumps
 from reconcile.utils.oc_connection_parameters import Cluster
@@ -29,6 +26,7 @@ from reconcile.utils.saasherder.interfaces import (
     SaasResourceTemplateTarget,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.slo_document_manager import SLODocument
 
 
 class Providers(Enum):
@@ -127,7 +125,7 @@ class TriggerSpecConfigStateContent(TypedDict):
 class TriggerSpecConfig(TriggerSpecBase):
     state_content: TriggerSpecConfigStateContent | None
     resource_template_url: str
-    slos: list[SLODocument] | None = None
+    slos: Sequence[SLODocument] | None = None
     target_name: str | None = None
 
     @property

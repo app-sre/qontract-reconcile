@@ -16,13 +16,6 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
-from reconcile.ocm.types import (
-    ClusterMachinePool,
-    OCMClusterNetwork,
-    OCMSpec,
-    OSDClusterSpec,
-    ROSAClusterSpec,
-)
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.mr.clusters_updates import CreateClustersUpdates
 from reconcile.utils.ocm import (
@@ -39,6 +32,13 @@ from reconcile.utils.ocm.products import (
     OCMProductOsd,
     OCMProductPortfolio,
     OCMProductRosa,
+)
+from reconcile.utils.ocm.types import (
+    ClusterMachinePool,
+    OCMClusterNetwork,
+    OCMSpec,
+    OSDClusterSpec,
+    ROSAClusterSpec,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 

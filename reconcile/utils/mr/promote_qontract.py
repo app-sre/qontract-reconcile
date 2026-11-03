@@ -4,6 +4,7 @@ import logging
 from io import StringIO
 from typing import TYPE_CHECKING
 
+from gitlab.exceptions import GitlabGetError
 from jsonpath_ng.ext import parser
 from qontract_utils.ruamel import create_ruamel_instance
 from sretoolbox.container import Image
@@ -21,6 +22,27 @@ IMAGE_REQUEST_TIMEOUT = 60
 OPA_MASTER_IMAGE = (
     "quay.io/redhat-services-prod/app-sre-tenant/qontract-reconcile-master/opa-master"
 )
+
+
+def _get_file_if_exists(gitlab_cli: GitLabApi, path: str) -> bytes | None:
+    """Like GitLabApi.get_file, but only a confirmed 404 is treated as
+    "missing" - every other GitlabGetError (500s, permission errors, rate
+    limits, ...) is re-raised instead of silently skipping the promotion.
+    get_file itself swallows any GitlabGetError as None, which is the
+    right contract for its other callers (e.g. repo_owners.py) but wrong
+    here: a transient read error must fail/retry the promotion, not look
+    like the file never existed.
+    """
+    try:
+        return gitlab_cli.get_raw_file(
+            project=gitlab_cli.project,
+            path=path,
+            ref=gitlab_cli.main_branch,
+        )
+    except GitlabGetError as e:
+        if e.response_code == 404:
+            return None
+        raise
 
 
 class PromoteQontractSchemas(MergeRequestBase):
@@ -80,6 +102,31 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
             file_path=self.path,
             commit_message=self.description,
             content=new_content,
+        )
+
+        # .gitlab-ci.yml's variables: block mirrors .env - image: is resolved
+        # before any script runs, so it can't source .env at runtime. Not
+        # every app-interface instance this promotion runs against (e.g.
+        # FedRAMP) necessarily has this file - skip rather than fail the
+        # whole promotion MR over it.
+        gitlab_ci_path = ".gitlab-ci.yml"
+        gitlab_ci_raw = _get_file_if_exists(gitlab_cli, gitlab_ci_path)
+        if gitlab_ci_raw is None:
+            logging.warning(
+                f"{gitlab_ci_path} does not exist on {gitlab_cli.main_branch}, skipping"
+            )
+            return
+
+        gitlab_ci_lines = gitlab_ci_raw.decode("utf-8").splitlines()
+        for index, text in enumerate(gitlab_ci_lines):
+            if text.startswith("  SCHEMAS_IMAGE_TAG:"):
+                gitlab_ci_lines[index] = f'  SCHEMAS_IMAGE_TAG: "{self.version}"'
+
+        gitlab_cli.update_file(
+            branch_name=self.branch,
+            file_path=gitlab_ci_path,
+            commit_message=self.description,
+            content="\n".join(gitlab_ci_lines) + "\n",
         )
 
 
@@ -159,11 +206,15 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
         search_text: str,
         replace_text: str,
     ) -> None:
-        raw_file = gitlab_cli.get_raw_file(
-            project=gitlab_cli.project,
-            path=path,
-            ref=gitlab_cli.main_branch,
-        )
+        # Not every file touched here exists in every app-interface instance
+        # this promotion runs against (e.g. FedRAMP) - skip rather than fail
+        # the whole promotion MR over one missing, instance-specific file.
+        raw_file = _get_file_if_exists(gitlab_cli, path)
+        if raw_file is None:
+            logging.warning(
+                f"{path} does not exist on {gitlab_cli.main_branch}, skipping"
+            )
+            return
         match method:
             case "line_search":
                 new_content = self._process_by_line_search(
@@ -272,6 +323,16 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
             replace_text=f"export RECONCILE_IMAGE_TAG={self.version}",
         )
 
+        # .gitlab-ci.yml's variables: block mirrors .env - image: is resolved
+        # before any script runs, so it can't source .env at runtime.
+        self._process_by(
+            "line_search",
+            gitlab_cli=gitlab_cli,
+            path=".gitlab-ci.yml",
+            search_text="  RECONCILE_IMAGE_TAG:",
+            replace_text=f'  RECONCILE_IMAGE_TAG: "{self.version}"',
+        )
+
         # resources/jenkins/global/defaults.yaml
         self._process_by(
             "line_search",
@@ -354,6 +415,16 @@ class PromoteQontractValidator(PromoteQontractReconcileCommercial):
             path=".env",
             search_text="export VALIDATOR_IMAGE_TAG=",
             replace_text=f"export VALIDATOR_IMAGE_TAG={self.version}",
+        )
+
+        # .gitlab-ci.yml's variables: block mirrors .env - image: is resolved
+        # before any script runs, so it can't source .env at runtime.
+        self._process_by(
+            "line_search",
+            gitlab_cli=gitlab_cli,
+            path=".gitlab-ci.yml",
+            search_text="  VALIDATOR_IMAGE_TAG:",
+            replace_text=f'  VALIDATOR_IMAGE_TAG: "{self.version}"',
         )
 
 

@@ -6,8 +6,8 @@ from reconcile.quay_base import (
     OrgKey,
     get_quay_api_store,
 )
-from reconcile.status import ExitCodes
 from reconcile.utils import gql
+from reconcile.utils.status import ExitCodes
 
 QUAY_REPOS_QUERY = """
 {

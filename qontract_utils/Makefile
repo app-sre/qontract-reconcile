@@ -12,6 +12,7 @@ test:
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run mypy .
+	uv run lint-imports
 	uv run pytest --cov=qontract_utils --cov-report=term-missing --cov-report xml
 
 .PHONY: format

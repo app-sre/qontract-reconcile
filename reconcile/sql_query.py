@@ -17,7 +17,6 @@ from reconcile import (
     typed_queries,
 )
 from reconcile import openshift_resources_base as orb
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.utils.defer import defer
 from reconcile.utils.external_resources import get_external_resource_specs
@@ -43,6 +42,7 @@ from reconcile.utils.state import (
     State,
     init_state,
 )
+from reconcile.utils.status import ExitCodes
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
 if TYPE_CHECKING:

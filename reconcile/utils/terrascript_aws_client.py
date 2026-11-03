@@ -5,6 +5,7 @@ import base64
 import enum
 import json
 import logging
+import math
 import os
 import random
 import re
@@ -17,6 +18,7 @@ from threading import Lock
 from typing import (
     TYPE_CHECKING,
     Any,
+    Protocol,
     Self,
     cast,
 )
@@ -26,6 +28,7 @@ import filetype
 import requests
 from botocore.errorfactory import ClientError
 from github import Github
+from pydantic import BaseModel, Field
 from sretoolbox.utils import threaded
 
 # temporary to create aws_ecrpublic_repository
@@ -140,11 +143,7 @@ from terrascript.resource import (
 
 import reconcile.utils.aws_helper as awsh
 from reconcile import queries
-from reconcile.cli import TERRAFORM_VERSION
 from reconcile.github_org import get_default_config
-from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
-    NamespaceTerraformResourceLifecycleV1,
-)
 from reconcile.typed_queries.aws_account_tags import get_aws_account_tags
 from reconcile.utils import gql
 from reconcile.utils.aws_api import (
@@ -184,13 +183,11 @@ from reconcile.utils.password_validator import (
 from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
 from reconcile.utils.terraform import safe_resource_id
 from reconcile.utils.vcs import VCS
+from reconcile.utils.versions import TERRAFORM_VERSION
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, MutableMapping
 
-    from reconcile.gql_definitions.fragments.aws_vpc_request import (
-        VPCRequest,
-    )
     from reconcile.terraform_tgw_attachments import DesiredStateItem
     from reconcile.terraform_users import Role
     from reconcile.utils.external_resource_spec import (
@@ -198,6 +195,48 @@ if TYPE_CHECKING:
         ExternalResourceSpecInventory,
     )
     from reconcile.utils.ocm import OCMMap
+
+
+class VPCRequestAccount(Protocol):
+    name: str
+
+
+class VPCRequestNetwork(Protocol):
+    network_address: str
+
+
+class VPCRequestSubnetsLists(Protocol):
+    private: list[str] | None
+    public: list[str] | None
+    availability_zones: list[str] | None
+    private_subnet_tags: dict[str, str] | None
+    public_subnet_tags: dict[str, str] | None
+
+
+class VPCRequest(Protocol):
+    """Structural subset of the generated `VPCRequest` fragment."""
+
+    identifier: str
+    delete: bool | None
+    vpc_tags: dict[str, str] | None
+
+    @property
+    def account(self) -> VPCRequestAccount: ...
+
+    @property
+    def cidr_block(self) -> VPCRequestNetwork: ...
+
+    @property
+    def subnets(self) -> VPCRequestSubnetsLists | None: ...
+
+
+class _NamespaceTerraformResourceLifecycle(BaseModel, extra="forbid"):
+    """Structural subset of the generated `NamespaceTerraformResourceLifecycleV1`
+    fragment, used only to validate and apply defaults to raw lifecycle config."""
+
+    create_before_destroy: bool | None = Field(...)
+    prevent_destroy: bool | None = Field(...)
+    ignore_changes: list[str] | None = Field(...)
 
 
 type TFResource = type[
@@ -1003,7 +1042,7 @@ class TerrascriptClient:
         common_values: Mapping[str, Any],
     ) -> dict[str, Any] | None:
         if lifecycle := common_values.get("lifecycle"):
-            lifecycle = NamespaceTerraformResourceLifecycleV1(**lifecycle)
+            lifecycle = _NamespaceTerraformResourceLifecycle(**lifecycle)
             if lifecycle.create_before_destroy is None:
                 lifecycle.create_before_destroy = False
             if lifecycle.prevent_destroy is None:
@@ -1621,6 +1660,167 @@ class TerrascriptClient:
         for specs in self.account_resource_specs.values():
             for spec in specs:
                 self.populate_tf_resources(spec, ocm_map=ocm_map)
+
+    def warn_elasticsearch_ebs_limits(self, aws_api: AWSApi) -> None:
+        """Warn on EBS volumes above AWS's instance-specific maximum.
+
+        Limits are fetched from AWS best-effort; missing limits or API access
+        never block configuration generation. The read-only API requires
+        ``es:DescribeInstanceTypeLimits``. See
+        https://docs.aws.amazon.com/opensearch-service/latest/developerguide/limits.html#ebsresource
+        """
+        reported_missing_limits: set[tuple[str, str, str, str, str]] = set()
+        for specs in self.account_resource_specs.values():
+            for spec in specs:
+                if spec.provider != "elasticsearch":
+                    continue
+
+                values = self.init_values(spec)
+                ebs_options = values.get("ebs_options") or {}
+                if not ebs_options or not ebs_options.get("ebs_enabled", True):
+                    continue
+
+                volume_size = ebs_options.get("volume_size")
+                cluster_config = values.get("cluster_config") or {}
+                instance_type = cluster_config.get("instance_type") or (
+                    "t2.small.elasticsearch"
+                )
+                engine_version = values.get("elasticsearch_version")
+                region = values.get("region") or self.default_regions.get(
+                    spec.provisioner_name
+                )
+                volume_type = ebs_options.get("volume_type", "gp2")
+                if volume_size is None:
+                    continue
+                if not isinstance(instance_type, str):
+                    logging.info(
+                        "Skipping OpenSearch EBS limit check for %s: invalid "
+                        "instance type %r",
+                        spec.identifier,
+                        instance_type,
+                    )
+                    continue
+
+                if not engine_version or not region:
+                    missing_key = (
+                        spec.provisioner_name,
+                        str(region or ""),
+                        str(engine_version or ""),
+                        str(instance_type),
+                        str(volume_type),
+                    )
+                    if missing_key not in reported_missing_limits:
+                        logging.info(
+                            "Skipping OpenSearch EBS limit check for %s: engine "
+                            "version or region is not configured",
+                            spec.identifier,
+                        )
+                        reported_missing_limits.add(missing_key)
+                    continue
+
+                api_instance_type = instance_type
+                if api_instance_type.endswith(".elasticsearch"):
+                    api_instance_type = (
+                        api_instance_type.removesuffix(".elasticsearch") + ".search"
+                    )
+
+                api_engine_version = engine_version
+                if isinstance(engine_version, str) and re.fullmatch(
+                    r"\d+\.\d{1,2}", engine_version
+                ):
+                    api_engine_version = f"Elasticsearch_{engine_version}"
+
+                limits = aws_api.get_opensearch_instance_type_limits(
+                    spec.provisioner_name,
+                    region,
+                    api_engine_version,
+                    api_instance_type,
+                )
+                if limits is None:
+                    continue
+                maximum_volume_size = self._get_opensearch_ebs_volume_limit(
+                    limits, volume_type
+                )
+                if maximum_volume_size is None:
+                    missing_key = (
+                        spec.provisioner_name,
+                        region,
+                        engine_version,
+                        api_instance_type,
+                        str(volume_type),
+                    )
+                    if missing_key not in reported_missing_limits:
+                        logging.info(
+                            "Skipping OpenSearch EBS limit check for %s: AWS did not "
+                            "return a maximum for volume type %s on instance %s",
+                            spec.identifier,
+                            volume_type,
+                            api_instance_type,
+                        )
+                        reported_missing_limits.add(missing_key)
+                    continue
+
+                try:
+                    requested_volume_size = float(volume_size)
+                except TypeError, ValueError:
+                    logging.info(
+                        "Skipping OpenSearch EBS limit check for %s: invalid volume "
+                        "size %r",
+                        spec.identifier,
+                        volume_size,
+                    )
+                    continue
+                if not math.isfinite(requested_volume_size):
+                    logging.info(
+                        "Skipping OpenSearch EBS limit check for %s: invalid volume "
+                        "size %r",
+                        spec.identifier,
+                        volume_size,
+                    )
+                    continue
+
+                if requested_volume_size > maximum_volume_size:
+                    logging.warning(
+                        "OpenSearch domain %s in account %s requests %s GiB per-node "
+                        "%s EBS volume for %s; AWS maximum is %s GiB. See %s",
+                        spec.identifier,
+                        spec.provisioner_name,
+                        volume_size,
+                        volume_type,
+                        api_instance_type,
+                        maximum_volume_size,
+                        "https://docs.aws.amazon.com/opensearch-service/latest/developerguide/limits.html#ebsresource",
+                    )
+
+    @staticmethod
+    def _get_opensearch_ebs_volume_limit(
+        response: Mapping[str, Any] | None, volume_type: str
+    ) -> float | None:
+        if not response:
+            return None
+
+        limits_by_role = response.get("LimitsByRole") or {}
+        data_limits = limits_by_role.get("data", {}) or {}
+        for storage in data_limits.get("StorageTypes", []) or []:
+            if (
+                storage.get("StorageTypeName") != "ebs"
+                or storage.get("StorageSubTypeName") != volume_type
+            ):
+                continue
+            for limit in storage.get("StorageTypeLimits", []) or []:
+                if limit.get("LimitName") != "MaximumVolumeSize":
+                    continue
+                values = limit.get("LimitValues") or []
+                if not values:
+                    return None
+                try:
+                    maximum_volume_size = float(values[0])
+                except TypeError, ValueError:
+                    return None
+                return (
+                    maximum_volume_size if math.isfinite(maximum_volume_size) else None
+                )
+        return None
 
     def _is_provisioner_excluded(
         self,
