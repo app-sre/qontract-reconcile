@@ -22,7 +22,7 @@ from reconcile.utils.binary import (
     binary,
     binary_version,
 )
-from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE, REQUEST_TIMEOUT
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gql import GqlApiSingleton
@@ -694,9 +694,10 @@ def terraform_aws_route53(
 )
 @click.option(
     "--request-timeout",
-    help="SAML metadata request timeout in seconds. Default: 30",
+    help="SAML metadata request timeout in seconds",
     required=False,
-    default=30,
+    default=REQUEST_TIMEOUT,
+    show_default=True,
 )
 @enable_extended_early_exit
 @extended_early_exit_cache_ttl_seconds

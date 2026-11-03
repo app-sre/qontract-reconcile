@@ -11,6 +11,7 @@ from typing import (
 import requests
 from pydantic import BaseModel, HttpUrl
 
+from reconcile.aws_saml_idp.constants import REQUEST_TIMEOUT
 from reconcile.gql_definitions.aws_saml_idp.aws_accounts import (
     AWSAccountV1,
 )
@@ -45,7 +46,6 @@ if TYPE_CHECKING:
 
 QONTRACT_INTEGRATION = "aws-saml-idp"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
-REQUEST_TIMEOUT = 30
 
 
 class AwsSamlIdpIntegrationParams(PydanticRunParams):

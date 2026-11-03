@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from reconcile.aws_saml_idp.constants import REQUEST_TIMEOUT
 from reconcile.aws_saml_idp.integration import (
-    REQUEST_TIMEOUT,
     AwsSamlIdpIntegration,
     AwsSamlIdpIntegrationParams,
     SamlIdpConfig,
