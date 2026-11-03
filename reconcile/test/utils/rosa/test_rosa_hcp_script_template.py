@@ -2,9 +2,9 @@ import re
 
 import pytest
 
-from reconcile.ocm.types import OCMSpec, ROSAClusterSpec
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.models import data_default_none
+from reconcile.utils.ocm.types import OCMSpec, ROSAClusterSpec
 from reconcile.utils.rosa.session import generate_rosa_creation_script
 
 

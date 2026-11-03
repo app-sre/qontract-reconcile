@@ -13,7 +13,6 @@ from kubernetes.client import (
     V1Secret,
 )
 
-from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils.jobcontroller.models import (
     JOB_GENERATION_ANNOTATION,
     JobConcurrencyPolicy,
@@ -25,7 +24,10 @@ from reconcile.utils.oc_map import init_oc_map_from_clusters
 from reconcile.utils.openshift_resource import OpenshiftResource
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from reconcile.utils.oc import OCCli
+    from reconcile.utils.oc_connection_parameters import Cluster
     from reconcile.utils.secret_reader import SecretReaderBase
 
 
@@ -36,6 +38,7 @@ def build_job_controller(
     namespace: str,
     secret_reader: SecretReaderBase,
     dry_run: bool,
+    clusters: Iterable[Cluster],
 ) -> K8sJobController:
     """
     Builds a job controller that will act on the given cluster and namespace.
@@ -43,11 +46,11 @@ def build_job_controller(
     created by the controller so there is a way to identify the source for them.
 
     The cluster parameter is the name of a cluster defined in app-interface. The namespace
-    is expected to exist in the cluster.
+    is expected to exist in the cluster. The clusters parameter must contain at least
+    the cluster referenced by the cluster parameter (e.g. from `get_clusters_minimal()`).
 
     If dry_run is set to True, the controller will not perform any changes to the cluster.
     """
-    clusters = get_clusters_minimal(name=cluster)
     oc_map = init_oc_map_from_clusters(
         clusters=clusters,
         secret_reader=secret_reader,

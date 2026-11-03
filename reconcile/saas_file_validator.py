@@ -5,7 +5,6 @@ import sys
 from typing import TYPE_CHECKING
 
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -19,6 +18,7 @@ from reconcile.utils.defer import defer
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.status import ExitCodes
 
 if TYPE_CHECKING:
     from collections.abc import Callable

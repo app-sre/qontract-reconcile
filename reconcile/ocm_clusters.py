@@ -10,17 +10,10 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
-from reconcile.ocm.types import (
-    OCMSpec,
-    ROSAClusterAWSAccount,
-    ROSAClusterSpec,
-    ROSAOcmAwsAttrs,
-    ROSAOcmAwsStsAttrs,
-)
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.jobcontroller.controller import build_job_controller
@@ -31,6 +24,13 @@ from reconcile.utils.ocm.products import (
     OCMValidationError,
     build_product_portfolio,
 )
+from reconcile.utils.ocm.types import (
+    OCMSpec,
+    ROSAClusterAWSAccount,
+    ROSAClusterSpec,
+    ROSAOcmAwsAttrs,
+    ROSAOcmAwsStsAttrs,
+)
 from reconcile.utils.rosa.session import RosaSessionBuilder
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
@@ -38,6 +38,7 @@ from reconcile.utils.runtime.integration import (
 )
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver, parse_semver
+from reconcile.utils.status import ExitCodes
 
 if TYPE_CHECKING:
     from collections.abc import (
@@ -371,6 +372,7 @@ class OcmClusters(QontractReconcileIntegration[OcmClustersParams]):
                 integration_version=QONTRACT_INTEGRATION_VERSION,
                 secret_reader=self.secret_reader,
                 dry_run=False,
+                clusters=get_clusters_minimal(name=self.params.job_controller_cluster),
             ),
         )
 

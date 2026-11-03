@@ -20,7 +20,7 @@ from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
-    from reconcile.ocm.types import OCMSpec
+    from reconcile.utils.ocm.types import OCMSpec
 
 QONTRACT_INTEGRATION = "ocm-update-recommended-version"
 

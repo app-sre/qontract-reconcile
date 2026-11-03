@@ -1,18 +1,61 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, Protocol
+from enum import StrEnum
+from typing import TYPE_CHECKING, NamedTuple, Protocol, runtime_checkable
 
 import requests
 from pydantic import BaseModel, Field
 
-from reconcile.gql_definitions.fragments.prometheus_instance import (
-    PrometheusInstance,
-    PrometheusInstanceBearerAuthV1,
-    PrometheusInstanceOidcAuthV1,
-)
-
 if TYPE_CHECKING:
-    from reconcile.utils.secret_reader import SecretReaderBase
+    from reconcile.utils.secret_reader import HasSecret, SecretReaderBase
+
+
+class PrometheusAuthProvider(StrEnum):
+    """Known discriminator values for `PrometheusInstanceAuth.provider`,
+    per qontract-schemas' dependencies/prometheus-instance-1.yml."""
+
+    BEARER = "bearer"
+    OIDC = "oidc"
+
+
+class PrometheusInstanceAuth(Protocol):
+    provider: str
+
+
+@runtime_checkable
+class PrometheusInstanceBearerAuth(PrometheusInstanceAuth, Protocol):
+    """Structural subset of the generated `PrometheusInstanceBearerAuthV1` fragment."""
+
+    @property
+    def token(self) -> HasSecret: ...
+
+
+@runtime_checkable
+class PrometheusInstanceOidcAuth(PrometheusInstanceAuth, Protocol):
+    """Structural subset of the generated `PrometheusInstanceOidcAuthV1` fragment."""
+
+    access_token_client_id: str
+    access_token_url: str
+
+    @property
+    def access_token_client_secret(self) -> HasSecret: ...
+
+
+class PrometheusInstance(Protocol):
+    """Structural subset of the generated `PrometheusInstance` fragment."""
+
+    base_url: str
+    query_path: str | None
+
+    @property
+    def auth(
+        self,
+    ) -> (
+        PrometheusInstanceBearerAuth
+        | PrometheusInstanceOidcAuth
+        | PrometheusInstanceAuth
+    ): ...
+
 
 INSTANT_VECTOR_RESULT_TYPE = "vector"
 
@@ -101,10 +144,12 @@ class PrometheusHttpQuerier(BaseModel):
 def init_prometheus_http_querier_from_prometheus_instance(
     prometheus: PrometheusInstance, secret_reader: SecretReaderBase
 ) -> PrometheusHttpQuerier:
-    match prometheus.auth:
-        case PrometheusInstanceBearerAuthV1():
+    match prometheus.auth.provider:
+        case PrometheusAuthProvider.BEARER:
+            assert isinstance(prometheus.auth, PrometheusInstanceBearerAuth)
             auth_token = secret_reader.read_secret(prometheus.auth.token)
-        case PrometheusInstanceOidcAuthV1():
+        case PrometheusAuthProvider.OIDC:
+            assert isinstance(prometheus.auth, PrometheusInstanceOidcAuth)
             client_secret = secret_reader.read_secret(
                 prometheus.auth.access_token_client_secret
             )

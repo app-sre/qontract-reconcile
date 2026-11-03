@@ -24,7 +24,6 @@ from reconcile.gql_definitions.integrations.integrations import (
     IntegrationV1,
     NamespaceV1,
 )
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
 from reconcile.utils import (
     gql,
@@ -46,6 +45,7 @@ from reconcile.utils.runtime.sharding import (
     StaticShardingStrategy,
 )
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.status import ExitCodes
 from reconcile.utils.vcs import GITHUB_BASE_URL
 
 if TYPE_CHECKING:

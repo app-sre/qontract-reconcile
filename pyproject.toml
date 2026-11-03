@@ -69,6 +69,7 @@ debugger = ["debugpy ~=1.8.17"]
 dev = [
     # keep in sync project.dependencies.boto3
     "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,ec2,ecr,elb,iam,logs,opensearch,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.43.89",
+    "import-linter==2.15",
     "moto[ec2,iam,logs,s3,route53]==5.2.3",
     "mypy==2.3.1",
     "pyfakefs==6.2.0",
@@ -310,3 +311,110 @@ module = [
     "yamllint.*",
 ]
 ignore_missing_imports = true
+
+[tool.importlinter]
+# This is reconcile's own config - only contracts where reconcile is the
+# subject belong here. qontract_utils/qontract_api_client own their own
+# standalone-ness contracts in their own pyproject.toml; qontract_api owns
+# "qontract_api must not import reconcile" in its own pyproject.toml.
+#
+# qontract_api is not a dependency of reconcile (ADR-007) and is therefore
+# never copied into this image (see dockerfiles/Dockerfile's build-image
+# stage - only reconcile, qontract_utils, qontract_api_client are COPY'd),
+# so it can't be listed as a root_package here: import-linter would error
+# with "Could not find package 'qontract_api' in your Python path" trying
+# to introspect it. include_external_packages lets forbidden_modules
+# reference it anyway, purely via import-statement matching.
+root_packages = ["reconcile"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+id = "reconcile-no-qontract-api-import"
+name = "reconcile must not import qontract_api (ADR-007)"
+type = "forbidden"
+source_modules = ["reconcile"]
+forbidden_modules = ["qontract_api"]
+
+[[tool.importlinter.contracts]]
+id = "utils-no-generated-imports"
+name = "reconcile.utils must not import anything else from reconcile (APPSRE-15240)"
+type = "forbidden"
+source_modules = ["reconcile.utils"]
+forbidden_modules = ["reconcile.*"]
+# Only direct imports matter here - reconcile.utils already imports other
+# reconcile/ modules (a separate, pre-existing architectural question), and those
+# modules transitively import gql_definitions/typed_queries all over the place.
+allow_indirect_imports = true
+# Known, documented exceptions - each needs its own write-up in a future PR before
+# it can be removed from this list. See APPSRE-15240 for the rationale per file.
+ignore_imports = [
+    # Pure dict-merge helper, no I/O - kept here deliberately, see review discussion.
+    "reconcile.utils.terrascript_aws_client -> reconcile.typed_queries.aws_account_tags",
+    # Vault-vs-config backend selection for the s3()/s3_ls() template helpers.
+    # A parameter-threading fix was attempted here but reverted: at least 4
+    # callers of process_jinja2_template() (external_resource_spec.py,
+    # terrascript_aws_client.py, fleet_labeler/integration.py,
+    # templating/renderer.py) don't pass settings/secret_reader down, so the
+    # helpers would silently fall back to a config-file-only reader on
+    # Vault-backed installations instead of raising or behaving correctly -
+    # a real regression caught in review (PR #5895). Self-fetching here keeps
+    # the pre-existing, correct behavior.
+    "reconcile.utils.jinja2.utils -> reconcile.typed_queries.app_interface_vault_settings",
+    # Lazily fetches a static custom message; moving this out would require eager
+    # fetches in every TerraformClient caller or a loader-registry indirection -
+    # not worth it for one log message.
+    "reconcile.utils.terraform_client -> reconcile.typed_queries.app_interface_custom_messages",
+    # State bucket configuration/credentials resolution - widely used (init_state is
+    # called from 20+ integrations); decoupling needs a dedicated design, not a
+    # reconcile.utils.** blanket exception.
+    "reconcile.utils.state -> reconcile.gql_definitions.common.app_interface_state_settings",
+    "reconcile.utils.state -> reconcile.typed_queries.app_interface_state_settings",
+    "reconcile.utils.state -> reconcile.typed_queries.app_interface_vault_settings",
+    "reconcile.utils.state -> reconcile.typed_queries.get_state_aws_account",
+    # LDAP settings auto-fetch - used by 11+ membership-source consumers; must stay
+    # transparent to integration business logic (see AGENTS.md), so a loader-registry
+    # indirection is needed, not a simple parameter.
+    "reconcile.utils.membershipsources.async_resolver -> reconcile.typed_queries.ldap_settings",
+    # Queries a dynamically-configured *remote* app-interface GQL instance at
+    # resolution time - no caller to move the fetch to.
+    "reconcile.utils.membershipsources.app_interface_resolver -> reconcile.gql_definitions.membershipsources.roles",
+    # Reconstructed from an external SQS message with a fixed field set (see
+    # reconcile/utils/mr/__init__.py:init_from_sqs_message) - can't thread users
+    # through the constructor.
+    "reconcile.utils.mr.promote_qontract -> reconcile.typed_queries.users",
+    # Vault settings for the lazy secret_reader property on the integration base
+    # class, used by 50+ integrations; decoupling needs a dedicated design.
+    "reconcile.utils.runtime.integration -> reconcile.typed_queries.app_interface_vault_settings",
+    # Sharding strategy types/queries, deeply embedded (15+ types, isinstance
+    # dispatch, direct construction); needs a dedicated refactor.
+    "reconcile.utils.runtime.sharding -> reconcile.gql_definitions.integrations.integrations",
+    "reconcile.utils.runtime.sharding -> reconcile.gql_definitions.sharding.aws_accounts",
+    "reconcile.utils.runtime.sharding -> reconcile.gql_definitions.sharding.ocm_organization",
+    "reconcile.utils.runtime.sharding -> reconcile.typed_queries.clusters_minimal",
+    "reconcile.utils.runtime.sharding -> reconcile.gql_definitions.common.clusters_minimal",
+    "reconcile.utils.runtime.sharding -> reconcile.gql_definitions.fragments.minimal_ocm_organization",
+    # Below: direct imports from non-generated reconcile/ modules (not gql_definitions
+    # or typed_queries). Broadened from the original APPSRE-15240 scope to "nothing
+    # outside reconcile.utils"; each of these is a substantial integration-adjacent
+    # package and needs its own dedicated decoupling design, not a quick Protocol swap.
+    "reconcile.utils.mr.clusters_updates -> reconcile.change_owners.decision",
+    "reconcile.utils.runtime.desired_state_diff -> reconcile.change_owners.diff",
+    # Single helper function (url_makes_sense); reconcile.checkpoint is otherwise a
+    # full change-owners-adjacent module.
+    "reconcile.utils.jinja2.utils -> reconcile.checkpoint",
+    "reconcile.utils.external_resources -> reconcile.external_resources.model",
+    "reconcile.utils.openshift_resource -> reconcile.external_resources.meta",
+    # get_default_config() reads local env/config, not GQL - but reconcile.github_org
+    # is otherwise a full integration module.
+    "reconcile.utils.jinja2.utils -> reconcile.github_org",
+    "reconcile.utils.saasherder.saasherder -> reconcile.github_org",
+    "reconcile.utils.terrascript_aws_client -> reconcile.github_org",
+    # reconcile.queries is the legacy raw-dict GQL query module (pre-dates
+    # gql_definitions/qenerate) - same underlying concern as the generated-code rule
+    # above, just not caught by it since it's hand-written rather than generated.
+    "reconcile.utils.jinja2.utils -> reconcile.queries",
+    "reconcile.utils.membershipsources.app_interface_resolver -> reconcile.queries",
+    "reconcile.utils.terrascript_aws_client -> reconcile.queries",
+    "reconcile.utils.terrascript_aws_client -> reconcile.terraform_tgw_attachments",
+    "reconcile.utils.terrascript_aws_client -> reconcile.terraform_users",
+]

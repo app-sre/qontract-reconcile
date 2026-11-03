@@ -18,6 +18,7 @@ from threading import Lock
 from typing import (
     TYPE_CHECKING,
     Any,
+    Protocol,
     Self,
     cast,
 )
@@ -27,6 +28,7 @@ import filetype
 import requests
 from botocore.errorfactory import ClientError
 from github import Github
+from pydantic import BaseModel, Field
 from sretoolbox.utils import threaded
 
 # temporary to create aws_ecrpublic_repository
@@ -141,11 +143,7 @@ from terrascript.resource import (
 
 import reconcile.utils.aws_helper as awsh
 from reconcile import queries
-from reconcile.cli import TERRAFORM_VERSION
 from reconcile.github_org import get_default_config
-from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
-    NamespaceTerraformResourceLifecycleV1,
-)
 from reconcile.typed_queries.aws_account_tags import get_aws_account_tags
 from reconcile.utils import gql
 from reconcile.utils.aws_api import (
@@ -185,13 +183,11 @@ from reconcile.utils.password_validator import (
 from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
 from reconcile.utils.terraform import safe_resource_id
 from reconcile.utils.vcs import VCS
+from reconcile.utils.versions import TERRAFORM_VERSION
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, MutableMapping
 
-    from reconcile.gql_definitions.fragments.aws_vpc_request import (
-        VPCRequest,
-    )
     from reconcile.terraform_tgw_attachments import DesiredStateItem
     from reconcile.terraform_users import Role
     from reconcile.utils.external_resource_spec import (
@@ -199,6 +195,48 @@ if TYPE_CHECKING:
         ExternalResourceSpecInventory,
     )
     from reconcile.utils.ocm import OCMMap
+
+
+class VPCRequestAccount(Protocol):
+    name: str
+
+
+class VPCRequestNetwork(Protocol):
+    network_address: str
+
+
+class VPCRequestSubnetsLists(Protocol):
+    private: list[str] | None
+    public: list[str] | None
+    availability_zones: list[str] | None
+    private_subnet_tags: dict[str, str] | None
+    public_subnet_tags: dict[str, str] | None
+
+
+class VPCRequest(Protocol):
+    """Structural subset of the generated `VPCRequest` fragment."""
+
+    identifier: str
+    delete: bool | None
+    vpc_tags: dict[str, str] | None
+
+    @property
+    def account(self) -> VPCRequestAccount: ...
+
+    @property
+    def cidr_block(self) -> VPCRequestNetwork: ...
+
+    @property
+    def subnets(self) -> VPCRequestSubnetsLists | None: ...
+
+
+class _NamespaceTerraformResourceLifecycle(BaseModel, extra="forbid"):
+    """Structural subset of the generated `NamespaceTerraformResourceLifecycleV1`
+    fragment, used only to validate and apply defaults to raw lifecycle config."""
+
+    create_before_destroy: bool | None = Field(...)
+    prevent_destroy: bool | None = Field(...)
+    ignore_changes: list[str] | None = Field(...)
 
 
 type TFResource = type[
@@ -1004,7 +1042,7 @@ class TerrascriptClient:
         common_values: Mapping[str, Any],
     ) -> dict[str, Any] | None:
         if lifecycle := common_values.get("lifecycle"):
-            lifecycle = NamespaceTerraformResourceLifecycleV1(**lifecycle)
+            lifecycle = _NamespaceTerraformResourceLifecycle(**lifecycle)
             if lifecycle.create_before_destroy is None:
                 lifecycle.create_before_destroy = False
             if lifecycle.prevent_destroy is None:

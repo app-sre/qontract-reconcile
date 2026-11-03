@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any
 
 import jinja2
 
-from reconcile.status import ExitCodes
 from reconcile.terraform_vpc_resources.merge_request import Renderer, create_parser
 from reconcile.terraform_vpc_resources.merge_request_manager import (
     MergeRequestManager,
@@ -29,6 +28,7 @@ from reconcile.utils.runtime.integration import (
 )
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.status import ExitCodes
 from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript_aws_client import (
     VPC_REQUEST_DEFAULT_PRIVATE_SUBNET_TAGS,
