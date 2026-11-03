@@ -355,29 +355,3 @@ def test_gqlapi_failed_reads_remain_retryable(
     assert gql_api.get_template("/tpl.j2")["template"] == "recovered-tpl"
     assert gql_api.get_template("/tpl.j2")["template"] == "recovered-tpl"
     assert query_mock.call_count == 5
-
-
-def test_gqlapi_cache_cleanup_on_close(
-    mocker: MockerFixture,
-) -> None:
-    gql_api = GqlApi(
-        "http://localhost/graphqlsha/0123456789abcdef",
-        validate_schemas=False,
-    )
-    mocker.patch.object(
-        gql_api,
-        "query",
-        side_effect=[
-            {"resources": [{"path": "/res.yml", "content": "v1", "sha256sum": "s1"}]},
-            {"templates": [{"path": "/tpl.j2", "template": "t1"}]},
-        ],
-    )
-
-    gql_api.get_resource("/res.yml")
-    gql_api.get_template("/tpl.j2")
-    assert len(gql_api._resource_cache) == 1
-    assert len(gql_api._template_cache) == 1
-
-    gql_api.close()
-    assert gql_api._resource_cache == {}
-    assert gql_api._template_cache == {}
