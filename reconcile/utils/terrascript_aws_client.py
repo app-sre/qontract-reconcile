@@ -1732,14 +1732,36 @@ class TerrascriptClient:
 
         # Standalone callers have no shared client, so scope a temporary one to
         # the spec's account; terraform_resources.setup threads in its client.
-        with AWSApi(
-            1,
-            [self.accounts[spec.provisioner_name]],
-            secret_reader=self.secret_reader,
-        ) as account_api:
-            return account_api.get_opensearch_instance_type_limits(
-                spec.provisioner_name, region, engine_version, instance_type
+        # The account can be disabled for this integration, and secret retrieval
+        # during construction can fail, so both cases stay best-effort.
+        account = self.accounts.get(spec.provisioner_name)
+        if account is None:
+            logging.info(
+                "Skipping OpenSearch EBS limit check for %s: account %s is not "
+                "enabled for this integration",
+                spec.identifier,
+                spec.provisioner_name,
             )
+            return None
+
+        try:
+            with AWSApi(
+                1,
+                [account],
+                secret_reader=self.secret_reader,
+            ) as account_api:
+                return account_api.get_opensearch_instance_type_limits(
+                    spec.provisioner_name, region, engine_version, instance_type
+                )
+        except Exception as error:
+            # Secret backends raise their own exception types and this optional
+            # check must never block configuration generation.
+            logging.info(
+                "Skipping OpenSearch EBS limit check for %s: AWS access failed (%s)",
+                spec.identifier,
+                type(error).__name__,
+            )
+            return None
 
     def _warn_elasticsearch_ebs_limit(
         self,

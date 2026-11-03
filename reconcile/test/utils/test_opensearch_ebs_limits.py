@@ -430,3 +430,43 @@ def test_builds_scoped_aws_api_when_none_is_supplied(
     account_api.get_opensearch_instance_type_limits.assert_called_once_with(
         "some-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
     )
+
+
+def test_standalone_skips_when_account_is_not_enabled(
+    terrascript_client: TerrascriptClient,
+    populate_mocks: PopulateMocks,
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO")
+    spec = build_spec()
+    mocker.patch.object(terrascript_client, "init_values", return_value=build_values())
+    aws_api_constructor = mocker.patch("reconcile.utils.terrascript_aws_client.AWSApi")
+
+    terrascript_client.populate_tf_resource_elasticsearch(spec)
+
+    aws_api_constructor.assert_not_called()
+    assert "account some-account is not enabled" in caplog.text
+    assert populate_mocks.build_elasticsearch_domain.called
+
+
+def test_standalone_survives_aws_api_construction_failure(
+    terrascript_client: TerrascriptClient,
+    populate_mocks: PopulateMocks,
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO")
+    spec = build_spec()
+    mocker.patch.object(terrascript_client, "init_values", return_value=build_values())
+    terrascript_client.accounts = {"some-account": {"name": "some-account"}}
+    mocker.patch(
+        "reconcile.utils.terrascript_aws_client.AWSApi",
+        side_effect=RuntimeError("secret backend unavailable"),
+    )
+
+    terrascript_client.populate_tf_resource_elasticsearch(spec)
+
+    assert "AWS access failed (RuntimeError)" in caplog.text
+    assert "OpenSearch domain test-domain" not in caplog.text
+    assert populate_mocks.build_elasticsearch_domain.called
