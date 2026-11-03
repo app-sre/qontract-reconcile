@@ -1746,6 +1746,7 @@ APPS_QUERY = """
         }
         must_pass
         multi_merge
+        trigger_fork_pipelines
       }
       jira {
         serverUrl
