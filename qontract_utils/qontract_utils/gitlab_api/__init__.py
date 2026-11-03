@@ -1,7 +1,8 @@
 """GitLab group/project administration API client.
 
 This package provides a stateless GitLab client for group/project
-administration, following the three-layer architecture pattern (ADR-014).
+administration and group membership management, following the three-layer
+architecture pattern (ADR-014).
 
 Layer 1 (Pure Communication):
 - GitlabApi: Stateless API client scoped to a single GitLab instance, with
@@ -18,12 +19,26 @@ Example:
     >>> project = api.create_project(group.id, "my-project")
 """
 
-from qontract_utils.gitlab_api.client import GitlabApi, GitlabApiCallContext
-from qontract_utils.gitlab_api.models import GitlabGroup, GitlabProject
+from qontract_utils.gitlab_api.client import (
+    GitlabApi,
+    GitlabApiCallContext,
+    GitlabUserNotFoundError,
+)
+from qontract_utils.gitlab_api.models import (
+    GitlabAccessLevel,
+    GitlabGroup,
+    GitlabGroupMember,
+    GitlabProject,
+    GitlabUser,
+)
 
 __all__ = [
+    "GitlabAccessLevel",
     "GitlabApi",
     "GitlabApiCallContext",
     "GitlabGroup",
+    "GitlabGroupMember",
     "GitlabProject",
+    "GitlabUser",
+    "GitlabUserNotFoundError",
 ]

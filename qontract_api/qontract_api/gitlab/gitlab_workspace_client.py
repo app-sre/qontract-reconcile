@@ -10,7 +10,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Self
 
 from pydantic import BaseModel
-from qontract_utils.gitlab_api import GitlabApi, GitlabGroup, GitlabProject
+from qontract_utils.gitlab_api import (
+    GitlabAccessLevel,
+    GitlabApi,
+    GitlabGroup,
+    GitlabGroupMember,
+    GitlabProject,
+    GitlabUser,
+)
 
 from qontract_api.logger import get_logger
 
@@ -26,6 +33,12 @@ class CachedGroup(BaseModel, frozen=True):
 
     id: int
     project_names: list[str]
+
+
+class CachedGroupMembers(BaseModel, frozen=True):
+    """Serializable wrapper for a group's cached member list."""
+
+    members: list[GitlabGroupMember]
 
 
 class GitlabWorkspaceClient:
@@ -45,6 +58,12 @@ class GitlabWorkspaceClient:
 
     def _cache_key_group(self, group_name: str) -> str:
         return f"gitlab:{self._url}:group:{group_name}:projects"
+
+    def _cache_key_members(self, group_name: str) -> str:
+        return f"gitlab:{self._url}:group:{group_name}:members"
+
+    def _cache_key_user(self, username: str) -> str:
+        return f"gitlab:{self._url}:user:{username}"
 
     # ------------------------------------------------------------------
     # Cached read
@@ -79,6 +98,42 @@ class GitlabWorkspaceClient:
             )
             return group
 
+    def get_group_members(self, group_name: str) -> list[GitlabGroupMember]:
+        """Fetch a group's members, excluding bot users (cached)."""
+        cache_key = self._cache_key_members(group_name)
+
+        if cached := self.cache.get_obj(cache_key, CachedGroupMembers):
+            return cached.members
+
+        with self.cache.lock(cache_key):
+            if cached := self.cache.get_obj(cache_key, CachedGroupMembers):
+                return cached.members
+
+            members = self.gitlab_api.get_group_members(group_name)
+            self.cache.set_obj(
+                cache_key,
+                CachedGroupMembers(members=members),
+                self.settings.gitlab_projects.group_members_cache_ttl,
+            )
+            return members
+
+    def get_user_by_username(self, username: str) -> GitlabUser:
+        """Resolve a username to its GitLab user ID (cached)."""
+        cache_key = self._cache_key_user(username)
+
+        if cached := self.cache.get_obj(cache_key, GitlabUser):
+            return cached
+
+        with self.cache.lock(cache_key):
+            if cached := self.cache.get_obj(cache_key, GitlabUser):
+                return cached
+
+            user = self.gitlab_api.get_user_by_username(username)
+            self.cache.set_obj(
+                cache_key, user, self.settings.gitlab_projects.group_members_cache_ttl
+            )
+            return user
+
     # ------------------------------------------------------------------
     # Mutations
     # ------------------------------------------------------------------
@@ -99,6 +154,56 @@ class GitlabWorkspaceClient:
                 path_with_namespace=project.path_with_namespace,
             )
             return project
+
+    def add_group_member(
+        self, group_name: str, user_id: int, access_level: GitlabAccessLevel
+    ) -> GitlabGroupMember:
+        """Add a user to the group and invalidate its cached member list."""
+        cache_key = self._cache_key_members(group_name)
+        with self.cache.lock(cache_key):
+            try:
+                member = self.gitlab_api.add_group_member(
+                    group_name, user_id, access_level
+                )
+            finally:
+                self.cache.delete(cache_key)
+            logger.info(
+                "Added group member",
+                group=group_name,
+                username=member.username,
+                access_level=access_level,
+            )
+            return member
+
+    def remove_group_member(self, group_name: str, member_id: int) -> None:
+        """Remove a member from the group and invalidate its cached member list."""
+        cache_key = self._cache_key_members(group_name)
+        with self.cache.lock(cache_key):
+            try:
+                self.gitlab_api.remove_group_member(group_name, member_id)
+            finally:
+                self.cache.delete(cache_key)
+            logger.info("Removed group member", group=group_name, member_id=member_id)
+
+    def update_group_member_access(
+        self, group_name: str, member_id: int, access_level: GitlabAccessLevel
+    ) -> GitlabGroupMember:
+        """Change a group member's access level and invalidate its cached member list."""
+        cache_key = self._cache_key_members(group_name)
+        with self.cache.lock(cache_key):
+            try:
+                member = self.gitlab_api.update_group_member_access(
+                    group_name, member_id, access_level
+                )
+            finally:
+                self.cache.delete(cache_key)
+            logger.info(
+                "Updated group member access",
+                group=group_name,
+                username=member.username,
+                access_level=access_level,
+            )
+            return member
 
     def close(self) -> None:
         self.gitlab_api.close()

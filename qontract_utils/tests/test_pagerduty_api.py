@@ -207,6 +207,39 @@ def test_get_schedule_users_handles_empty_schedule(
     assert len(users) == 0
 
 
+def test_get_schedule_users_filters_nobody_placeholder(
+    pagerduty_api: PagerDutyApi,
+    mock_pagerduty_client: MagicMock,
+) -> None:
+    """Rotation gaps / schedule handoffs resolve to PagerDuty's placeholder user."""
+    mock_schedule: dict = {
+        "final_schedule": {
+            "rendered_schedule_entries": [
+                {"user": {"id": "USER1"}},
+                {"user": {"id": "NOBODY1"}},
+            ]
+        }
+    }
+
+    def rget_side_effect(path: str, **kwargs: dict) -> dict:
+        if path == "/schedules/SCHEDULE123":
+            return mock_schedule
+        if path == "/users/USER1":
+            return {"email": "alice@example.com", "name": "Alice Smith"}
+        if path == "/users/NOBODY1":
+            return {
+                "email": "nobody-1234@incidents.pagerduty.com",
+                "name": "No One",
+            }
+        return {}
+
+    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)  # type: ignore[method-assign]
+
+    users = pagerduty_api.get_schedule_users("SCHEDULE123")
+
+    assert [u.username for u in users] == ["alice"]
+
+
 def test_get_schedule_users_calls_api_with_time_window(
     pagerduty_api: PagerDutyApi,
     mock_pagerduty_client: MagicMock,
@@ -402,6 +435,41 @@ def test_get_escalation_policy_users_handles_schedule_reference(
     assert {u.username for u in users} == {"alice", "bob"}
 
 
+def test_get_escalation_policy_users_filters_nobody_placeholder(
+    pagerduty_api: PagerDutyApi,
+    mock_pagerduty_client: MagicMock,
+) -> None:
+    mock_policy = {
+        "escalation_rules": [
+            {
+                "targets": [
+                    {"type": "user_reference", "id": "USER1"},
+                    {"type": "user_reference", "id": "NOBODY1"},
+                ],
+                "escalation_delay_in_minutes": 0,
+            }
+        ]
+    }
+
+    def rget_side_effect(path: str, **kwargs: dict) -> dict:
+        if path == "/escalation_policies/POLICY123":
+            return mock_policy
+        if path == "/users/USER1":
+            return {"email": "alice@example.com", "name": "Alice Smith"}
+        if path == "/users/NOBODY1":
+            return {
+                "email": "nobody-1234@incidents.pagerduty.com",
+                "name": "No One",
+            }
+        return {}
+
+    pagerduty_api._client.rget = MagicMock(side_effect=rget_side_effect)  # type: ignore[method-assign]
+
+    users = pagerduty_api.get_escalation_policy_users("POLICY123")
+
+    assert [u.username for u in users] == ["alice"]
+
+
 def test_get_escalation_policy_users_handles_empty_policy(
     pagerduty_api: PagerDutyApi,
     mock_pagerduty_client: MagicMock,
@@ -470,6 +538,23 @@ def test_pagerduty_user_username_property() -> None:
     # Test email without @ sign
     user3 = PagerDutyUser(id="USER3", email="username", name="Test User")
     assert user3.username == "username"
+
+
+def test_pagerduty_user_username_strips_plus_addressing() -> None:
+    """Test username property strips any plus-addressing suffix."""
+    user = PagerDutyUser(id="USER1", email="jsmith+pd@example.com", name="John Smith")
+    assert user.username == "jsmith"
+
+
+def test_pagerduty_user_is_nobody_placeholder() -> None:
+    """Test is_nobody_placeholder detects PagerDuty's no-one-on-call user."""
+    nobody = PagerDutyUser(
+        id="USER1", email="nobody-1234@incidents.pagerduty.com", name="No One"
+    )
+    real_user = PagerDutyUser(id="USER2", email="jsmith@example.com", name="John Smith")
+
+    assert nobody.is_nobody_placeholder is True
+    assert real_user.is_nobody_placeholder is False
 
 
 def test_pagerduty_api_call_context_immutable() -> None:

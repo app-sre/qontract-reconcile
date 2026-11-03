@@ -475,6 +475,10 @@ class GitlabProjectsSettings(BaseModel):
         default=60 * 11,
         description="GitLab group project list cache TTL in seconds (11 minutes)",
     )
+    group_members_cache_ttl: int = Field(
+        default=60 * 60,
+        description="GitLab group members list cache TTL in seconds (one hour)",
+    )
 
 
 class QuaySettings(BaseModel):

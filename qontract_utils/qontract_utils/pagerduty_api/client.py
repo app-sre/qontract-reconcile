@@ -187,7 +187,9 @@ class PagerDutyApi:
         """Get users currently on-call in a schedule.
 
         Uses a time window from now to now + 60 seconds to fetch on-call users.
-        Extracts organization username from user email addresses.
+        Extracts organization username from user email addresses. Excludes
+        PagerDuty's "no one is on-call" placeholder user (e.g. during a
+        rotation gap or schedule handoff).
 
         Args:
             schedule_id: PagerDuty schedule ID
@@ -215,11 +217,12 @@ class PagerDutyApi:
             },
         )
 
-        return [
+        users = [
             self.get_user(entry["user"]["id"])
             for entry in schedule["final_schedule"]["rendered_schedule_entries"]
             if not entry["user"].get("deleted_at")
         ]
+        return [user for user in users if not user.is_nobody_placeholder]
 
     @invoke_with_hooks(
         lambda self: PagerDutyApiCallContext(
@@ -265,7 +268,9 @@ class PagerDutyApi:
                     case "schedule_reference":
                         users.extend(self.get_schedule_users(target["id"]))
                     case "user_reference":
-                        users.append(self.get_user(target["id"]))
+                        user = self.get_user(target["id"])
+                        if not user.is_nobody_placeholder:
+                            users.append(user)
             if users and rule["escalation_delay_in_minutes"] != 0:
                 # process rules until users are found and next escalation is not 0 minutes from now
                 break
