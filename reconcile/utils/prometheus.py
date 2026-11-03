@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import TYPE_CHECKING, NamedTuple, Protocol, runtime_checkable
 
 import requests
@@ -9,8 +10,20 @@ if TYPE_CHECKING:
     from reconcile.utils.secret_reader import HasSecret, SecretReaderBase
 
 
+class PrometheusAuthProvider(StrEnum):
+    """Known discriminator values for `PrometheusInstanceAuth.provider`,
+    per qontract-schemas' dependencies/prometheus-instance-1.yml."""
+
+    BEARER = "bearer"
+    OIDC = "oidc"
+
+
+class PrometheusInstanceAuth(Protocol):
+    provider: str
+
+
 @runtime_checkable
-class PrometheusInstanceBearerAuth(Protocol):
+class PrometheusInstanceBearerAuth(PrometheusInstanceAuth, Protocol):
     """Structural subset of the generated `PrometheusInstanceBearerAuthV1` fragment."""
 
     @property
@@ -18,7 +31,7 @@ class PrometheusInstanceBearerAuth(Protocol):
 
 
 @runtime_checkable
-class PrometheusInstanceOidcAuth(Protocol):
+class PrometheusInstanceOidcAuth(PrometheusInstanceAuth, Protocol):
     """Structural subset of the generated `PrometheusInstanceOidcAuthV1` fragment."""
 
     access_token_client_id: str
@@ -26,10 +39,6 @@ class PrometheusInstanceOidcAuth(Protocol):
 
     @property
     def access_token_client_secret(self) -> HasSecret: ...
-
-
-class PrometheusInstanceAuth(Protocol):
-    provider: str
 
 
 class PrometheusInstance(Protocol):
@@ -135,10 +144,12 @@ class PrometheusHttpQuerier(BaseModel):
 def init_prometheus_http_querier_from_prometheus_instance(
     prometheus: PrometheusInstance, secret_reader: SecretReaderBase
 ) -> PrometheusHttpQuerier:
-    match prometheus.auth:
-        case PrometheusInstanceBearerAuth():
+    match prometheus.auth.provider:
+        case PrometheusAuthProvider.BEARER:
+            assert isinstance(prometheus.auth, PrometheusInstanceBearerAuth)
             auth_token = secret_reader.read_secret(prometheus.auth.token)
-        case PrometheusInstanceOidcAuth():
+        case PrometheusAuthProvider.OIDC:
+            assert isinstance(prometheus.auth, PrometheusInstanceOidcAuth)
             client_secret = secret_reader.read_secret(
                 prometheus.auth.access_token_client_secret
             )
