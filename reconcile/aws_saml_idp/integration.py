@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 
 QONTRACT_INTEGRATION = "aws-saml-idp"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
+REQUEST_TIMEOUT = 30
 
 
 class AwsSamlIdpIntegrationParams(PydanticRunParams):
@@ -119,7 +120,7 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
 
     def get_saml_metadata(self, saml_metadata_url: str) -> str:
         """Get the SAML metadata from the given URL."""
-        response = requests.get(saml_metadata_url)
+        response = requests.get(saml_metadata_url, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
         return response.text
 

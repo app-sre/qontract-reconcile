@@ -2,13 +2,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from reconcile.aws_saml_idp.integration import AwsSamlIdpIntegration, SamlIdpConfig
+from reconcile.aws_saml_idp.integration import (
+    REQUEST_TIMEOUT,
+    AwsSamlIdpIntegration,
+    SamlIdpConfig,
+)
 from reconcile.gql_definitions.aws_saml_idp.aws_accounts import AWSAccountV1
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from pytest_httpserver import HTTPServer
+    from pytest_mock import MockFixture
 
 
 def test_aws_saml_idp_get_early_exit_desired_state(
@@ -90,3 +95,23 @@ def test_aws_saml_idp_get_saml_metadata(
         intg.get_saml_metadata(saml_metadata_url=httpserver.url_for("/metadata.xml"))
         == "metadata"
     )
+
+
+def test_aws_saml_idp_get_saml_metadata_uses_timeout(
+    intg: AwsSamlIdpIntegration, mocker: MockFixture
+) -> None:
+    response = mocker.Mock(text="metadata")
+    mocked_get = mocker.patch(
+        "reconcile.aws_saml_idp.integration.requests.get",
+        return_value=response,
+    )
+
+    assert intg.get_saml_metadata("https://metadata.example.com/metadata.xml") == (
+        "metadata"
+    )
+
+    mocked_get.assert_called_once_with(
+        "https://metadata.example.com/metadata.xml",
+        timeout=REQUEST_TIMEOUT,
+    )
+    response.raise_for_status.assert_called_once_with()
