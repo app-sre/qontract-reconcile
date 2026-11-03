@@ -24,14 +24,18 @@ class ClusterType(StrEnum):
 
 
 def _validate_max_greater_min(
-    field_values: dict[str, object], min_field: str, max_field: str
+    field_values: object, min_field: str, max_field: str
 ) -> None:
     """Reject autoscaling configs whose max is not greater than their min."""
+    if not isinstance(field_values, dict):
+        # Already-constructed models re-validated through a union arrive as
+        # instances - nothing to check then, construction already validated.
+        return
     min_value = field_values.get(min_field)
     max_value = field_values.get(max_field)
     if min_value is None or max_value is None:
         raise ValueError(f"{min_field} and {max_field} must be set")
-    if min_value > max_value:  # type: ignore[operator]
+    if min_value > max_value:
         raise ValueError(f"{max_field} must be greater than {min_field}")
 
 
@@ -43,7 +47,7 @@ class DesiredMachinePoolAutoscaling(BaseModel, frozen=True):
 
     @model_validator(mode="before")
     @classmethod
-    def validate_scaling(cls, field_values: dict[str, object]) -> dict[str, object]:
+    def validate_scaling(cls, field_values: object) -> object:
         """Reject max <= min."""
         _validate_max_greater_min(field_values, "min_replicas", "max_replicas")
         return field_values
@@ -57,17 +61,19 @@ class DesiredNodePoolAutoscaling(BaseModel, frozen=True):
 
     @model_validator(mode="before")
     @classmethod
-    def validate_scaling(cls, field_values: dict[str, object]) -> dict[str, object]:
+    def validate_scaling(cls, field_values: object) -> object:
         """Reject max <= min."""
         _validate_max_greater_min(field_values, "min_replica", "max_replica")
         return field_values
 
 
-def _validate_autoscaling_xor_replicas(
-    field_values: dict[str, object],
-) -> None:
+def _validate_autoscaling_xor_replicas(field_values: object) -> None:
     """Reject pools declaring both autoscaling and a fixed replica count."""
-    if field_values.get("autoscaling") and field_values.get("replicas"):
+    if (
+        isinstance(field_values, dict)
+        and field_values.get("autoscaling")
+        and field_values.get("replicas")
+    ):
         raise ValueError("autoscaling and replicas are mutually exclusive")
 
 
@@ -83,7 +89,7 @@ class DesiredMachinePool(BaseModel, frozen=True):
 
     @model_validator(mode="before")
     @classmethod
-    def validate_scaling(cls, field_values: dict[str, object]) -> dict[str, object]:
+    def validate_scaling(cls, field_values: object) -> object:
         """Reject autoscaling together with a fixed replica count."""
         _validate_autoscaling_xor_replicas(field_values)
         return field_values
@@ -102,7 +108,7 @@ class DesiredNodePool(BaseModel, frozen=True):
 
     @model_validator(mode="before")
     @classmethod
-    def validate_scaling(cls, field_values: dict[str, object]) -> dict[str, object]:
+    def validate_scaling(cls, field_values: object) -> object:
         """Reject autoscaling together with a fixed replica count."""
         _validate_autoscaling_xor_replicas(field_values)
         return field_values
