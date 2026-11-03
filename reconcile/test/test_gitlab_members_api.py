@@ -1,5 +1,6 @@
 """Tests for the gitlab-members-api client-side integration."""
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -154,6 +155,42 @@ def test_get_gitlab_instance_raises_when_multiple_found() -> None:
 
     with pytest.raises(Exception, match="More than one gitlab instance found"):
         GitlabMembersIntegration.get_gitlab_instance(mock_query)
+
+
+# ---------------------------------------------------------------------------
+# get_permissions
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_permissions_filters_by_managed_groups_and_resolves_roles() -> None:
+    query_func = MagicMock()
+    queried_role = make_role(name="team-role", users=[])
+    resolved_role = make_role(name="team-role", users=["alice"])
+    permissions = [
+        make_permission(group="team", roles=[queried_role]),
+        make_permission(group="other-team", roles=[queried_role]),
+    ]
+
+    with (
+        patch(
+            "reconcile.gitlab_members_api._query_permissions",
+            return_value=permissions,
+        ),
+        patch(
+            "reconcile.gitlab_members_api.resolve_role_members",
+            new=AsyncMock(return_value=[resolved_role]),
+        ) as mock_resolve,
+    ):
+        result = await GitlabMembersIntegration.get_permissions(
+            query_func, managed_groups=["team"]
+        )
+
+    assert [p.group for p in result] == ["team"]
+    assert result[0].roles == [resolved_role]
+    mock_resolve.assert_awaited_once()
+    assert mock_resolve.call_args.kwargs["user_cls"] is UserV1
+    assert mock_resolve.call_args.kwargs["query_func"] is query_func
 
 
 # ---------------------------------------------------------------------------
@@ -450,7 +487,9 @@ def _make_desired_instance() -> GitlabMembersInstanceConfig:
 
 
 @pytest.mark.asyncio
-async def test_dry_run_waits_for_task_and_logs_actions() -> None:
+async def test_dry_run_waits_for_task_and_logs_actions(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     integration = make_integration()
     task_response = _make_task_response()
     action = GitlabMemberActionAdd(
@@ -479,13 +518,20 @@ async def test_dry_run_waits_for_task_and_logs_actions() -> None:
         patch(
             "reconcile.gitlab_members_api.reconcile_gitlab_members",
             new=AsyncMock(return_value=task_response),
-        ),
+        ) as mock_reconcile,
         patch.object(
             integration, "poll_task_status", new=AsyncMock(return_value=task_result)
-        ),
+        ) as mock_poll,
+        caplog.at_level(logging.INFO),
     ):
         mock_gql.get_api.return_value = MagicMock()
         await integration.async_run(dry_run=True)
+
+    mock_reconcile.assert_awaited_once()
+    mock_poll.assert_awaited_once()
+    assert "action.action_type='add_member'" in caplog.text
+    assert "action.group='team'" in caplog.text
+    assert "action.username='alice'" in caplog.text
 
 
 @pytest.mark.asyncio
