@@ -1582,6 +1582,43 @@ def test_handle_deleted_resources_blocks_delete_rejected_by_gate(
     delete_mock.assert_not_called()
 
 
+def test_handle_deleted_resources_continues_after_gate_rejection(
+    mocker: MockerFixture,
+    oc_map: oc.OC_Map,
+    resource_inventory: resource.ResourceInventory,
+    diff_result: DiffResult,
+    apply_options: sut.ApplyOptions,
+) -> None:
+    delete_mock = mocker.patch.object(sut, "delete", autospec=True)
+    mocker.patch.object(
+        resource.OpenshiftResource, "has_qontract_annotations", autospec=True
+    ).return_value = True
+    deletion_gate = mocker.MagicMock(spec=sut.ResourceDeletionGate)
+    deletion_gate.is_delete_allowed.side_effect = [False, True]
+    apply_options.deletion_gate = deletion_gate
+    current = diff_result.delete["test-resource"]
+
+    actions = sut.handle_deleted_resources(
+        oc_map=oc_map,
+        ri=resource_inventory,
+        deleted_resources={"blocked-secret": current, "unused-secret": current},
+        cluster="test-cluster",
+        namespace="test-namespace",
+        resource_type="Secret",
+        data={
+            "use_admin_token": {
+                "blocked-secret": False,
+                "unused-secret": False,
+            }
+        },
+        options=apply_options,
+    )
+
+    assert [action["name"] for action in actions] == ["unused-secret"]
+    assert resource_inventory.has_error_registered(cluster="test-cluster")
+    delete_mock.assert_called_once()
+
+
 def test_handle_deleted_resources_isolates_deletion_gate_failure(
     mocker: MockerFixture,
     oc_map: oc.OC_Map,
@@ -1595,9 +1632,8 @@ def test_handle_deleted_resources_isolates_deletion_gate_failure(
         resource.OpenshiftResource, "has_qontract_annotations", autospec=True
     ).return_value = True
     deletion_gate = mocker.MagicMock(spec=sut.ResourceDeletionGate)
-    deletion_gate.is_delete_allowed.side_effect = RuntimeError(
-        "pod inventory unavailable"
-    )
+    sensitive_error = "sensitive response body must not be logged"
+    deletion_gate.is_delete_allowed.side_effect = RuntimeError(sensitive_error)
     apply_options.deletion_gate = deletion_gate
 
     actions = sut.handle_deleted_resources(
@@ -1614,6 +1650,7 @@ def test_handle_deleted_resources_isolates_deletion_gate_failure(
     assert actions == []
     assert resource_inventory.has_error_registered(cluster="failing-cluster")
     assert "unable to validate Secret/test-resource deletion" in caplog.text
+    assert sensitive_error not in caplog.text
     delete_mock.assert_not_called()
 
 
@@ -1682,9 +1719,8 @@ def test_apply_action_isolates_immutable_recreation_gate_failure(
     oc_map = mocker.MagicMock(spec=sut.ClusterMap)
     oc_map.get_cluster.return_value = oc_client
     deletion_gate = mocker.MagicMock(spec=sut.ResourceDeletionGate)
-    deletion_gate.is_delete_allowed.side_effect = RuntimeError(
-        "pod inventory unavailable"
-    )
+    sensitive_error = "sensitive response body must not be logged"
+    deletion_gate.is_delete_allowed.side_effect = RuntimeError(sensitive_error)
     apply_options.dry_run = False
     apply_options.deletion_gate = deletion_gate
     desired = build_openshift_resource(
@@ -1694,20 +1730,58 @@ def test_apply_action_isolates_immutable_recreation_gate_failure(
         extra_body=None,
     )
 
-    sut.apply_action(
-        oc_map=oc_map,
-        ri=resource_inventory,
-        cluster="failing-cluster",
-        namespace="test-namespace",
-        resource_type="Secret",
-        resource=desired,
-        options=apply_options,
-    )
+    with pytest.raises(sut.ResourceDeletionGateCheckError):
+        sut.apply_action(
+            oc_map=oc_map,
+            ri=resource_inventory,
+            cluster="failing-cluster",
+            namespace="test-namespace",
+            resource_type="Secret",
+            resource=desired,
+            options=apply_options,
+        )
 
-    assert resource_inventory.has_error_registered(cluster="failing-cluster")
+    assert not resource_inventory.has_error_registered(cluster="failing-cluster")
     assert "unable to validate Secret/referenced-secret deletion" in caplog.text
+    assert sensitive_error not in caplog.text
     oc_client.delete.assert_not_called()
     assert oc_client.apply.call_count == 1
+
+
+def test_realize_resource_data_isolates_deletion_gate_check_failure(
+    mocker: MockerFixture,
+    resource_inventory: resource.ResourceInventory,
+) -> None:
+    realize = mocker.patch.object(
+        sut,
+        "_realize_resource_data_3way_diff",
+        side_effect=sut.ResourceDeletionGateCheckError,
+    )
+    ri_item: tuple[str, str, str, Mapping[str, Any]] = (
+        "failing-cluster",
+        "test-namespace",
+        "Secret",
+        {},
+    )
+
+    actions = sut._realize_resource_data(
+        ri_item=ri_item,
+        dry_run=False,
+        oc_map=mocker.MagicMock(spec=sut.ClusterMap),
+        ri=resource_inventory,
+        take_over=False,
+        caller="test-caller",
+        all_callers=["test-caller"],
+        wait_for_namespace=False,
+        no_dry_run_skip_compare=False,
+        override_enable_deletion=False,
+        recycle_pods=True,
+        deletion_gate=mocker.MagicMock(spec=sut.ResourceDeletionGate),
+    )
+
+    assert actions == []
+    assert resource_inventory.has_error_registered(cluster="failing-cluster")
+    realize.assert_called_once()
 
 
 # Fixtures does not work with parametrize

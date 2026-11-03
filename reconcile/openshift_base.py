@@ -84,6 +84,10 @@ class ResourceDeletionBlockedError(Exception):
     """Raised when an integration-owned gate rejects an internal deletion."""
 
 
+class ResourceDeletionGateCheckError(Exception):
+    """Raised when an integration-owned deletion gate cannot complete its check."""
+
+
 @dataclass
 class BaseStateSpec:
     oc: OCClient = field(compare=False, repr=False)
@@ -147,7 +151,7 @@ def is_delete_allowed(
     resource_type: str,
     resource_name: str,
 ) -> bool:
-    """Fail closed when an integration-owned deletion check cannot complete."""
+    """Evaluate a deletion gate and fail closed without leaking error details."""
     if not deletion_gate:
         return True
 
@@ -159,14 +163,14 @@ def is_delete_allowed(
             resource_name=resource_name,
         )
     except Exception:
-        logging.exception(
+        logging.error(
             "[%s/%s] Deletion blocked: unable to validate %s/%s deletion",
             cluster,
             namespace,
             resource_type,
             resource_name,
         )
-        return False
+        raise ResourceDeletionGateCheckError from None
 
 
 def validate_managed_resource_types(
@@ -994,15 +998,20 @@ def handle_deleted_resources(
             resource_type=resource_type,
             options=options,
         ):
-            if not is_delete_allowed(
-                options.deletion_gate,
-                cluster=cluster,
-                namespace=namespace,
-                resource_type=resource_type,
-                resource_name=name,
-            ):
+            try:
+                delete_allowed = is_delete_allowed(
+                    options.deletion_gate,
+                    cluster=cluster,
+                    namespace=namespace,
+                    resource_type=resource_type,
+                    resource_name=name,
+                )
+            except ResourceDeletionGateCheckError:
                 ri.register_error(cluster=cluster)
                 return actions
+            if not delete_allowed:
+                ri.register_error(cluster=cluster)
+                continue
             options.privileged = data["use_admin_token"].get(name, False)
             action = {
                 "action": ACTION_DELETED,
@@ -1115,9 +1124,13 @@ def _realize_resource_data(
         enable_deletion=False,
         deletion_gate=deletion_gate,
     )
-    return _realize_resource_data_3way_diff(
-        ri_item=ri_item, oc_map=oc_map, ri=ri, options=options
-    )
+    try:
+        return _realize_resource_data_3way_diff(
+            ri_item=ri_item, oc_map=oc_map, ri=ri, options=options
+        )
+    except ResourceDeletionGateCheckError:
+        ri.register_error(cluster=ri_item[0])
+        return []
 
 
 def _realize_resource_data_3way_diff(
