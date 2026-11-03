@@ -37,7 +37,8 @@ def generate_lock_key(
     _self: Task,
     ocm_environment: str,
     ocm_connection: OcmConnectionParams,
-    **_: Any,
+    *_args: Any,
+    **_kwargs: Any,
 ) -> str:
     """Generate lock key for task deduplication.
 
