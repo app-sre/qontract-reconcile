@@ -20,6 +20,8 @@ from qontract_utils.ocm_api import (
     OcmClusterGroup,
     OcmIdentityProvider,
     OcmIdentityProviderOidc,
+    OcmMachinePool,
+    OcmNodePool,
     OcmOrganizationLabel,
     OcmSubscriptionLabel,
     build_subscription_filter,
@@ -78,6 +80,18 @@ class CachedOcmClusterGroups(BaseModel, frozen=True):
     """Cached list of cluster groups for one (environment, cluster_id) pair."""
 
     items: list[OcmClusterGroup] = Field(default_factory=list)
+
+
+class CachedOcmMachinePools(BaseModel, frozen=True):
+    """Cached list of machine pools for one (environment, cluster_id) pair."""
+
+    items: list[OcmMachinePool] = Field(default_factory=list)
+
+
+class CachedOcmNodePools(BaseModel, frozen=True):
+    """Cached list of node pools for one (environment, cluster_id) pair."""
+
+    items: list[OcmNodePool] = Field(default_factory=list)
 
 
 class OcmWorkspaceClient:
@@ -378,5 +392,119 @@ class OcmWorkspaceClient:
         """Remove a user from a cluster group, invalidating the groups cache."""
         self._ocm_api.delete_user_from_group(cluster_id, group_id, user_id)
         cache_key = self._groups_cache_key(cluster_id)
+        with self.cache.lock(cache_key):
+            self.cache.delete(cache_key)
+
+    # MACHINE POOLS (OSD / ROSA classic clusters) - cached read, invalidating
+    # mutations, same double-checked-locking pattern as the sections above
+    def _machine_pools_cache_key(self, cluster_id: str) -> str:
+        return f"ocm:machine-pools:{self._environment_key}:{cluster_id}"
+
+    def _get_cached_machine_pools(self, cache_key: str) -> list[OcmMachinePool] | None:
+        """Get cached machine pools.
+
+        Uses `is not None` (not a truthy check) so a genuinely empty result (a
+        cluster with no machine pools) is a cache hit, not indistinguishable
+        from a miss.
+        """
+        cached = self.cache.get_obj(cache_key, CachedOcmMachinePools)
+        return cached.items if cached is not None else None
+
+    def get_machine_pools(self, cluster_id: str) -> list[OcmMachinePool]:
+        """List all machine pools on a cluster, cached with distributed locking."""
+        cache_key = self._machine_pools_cache_key(cluster_id)
+
+        cached = self._get_cached_machine_pools(cache_key)
+        if cached is None:
+            with self.cache.lock(cache_key):
+                cached = self._get_cached_machine_pools(cache_key)
+                if cached is None:
+                    cached = self._ocm_api.get_machine_pools(cluster_id)
+                    self.cache.set_obj(
+                        cache_key,
+                        CachedOcmMachinePools(items=cached),
+                        self.settings.ocm.machine_pools_cache_ttl,
+                    )
+        return cached
+
+    def create_machine_pool(
+        self, cluster_id: str, pool: OcmMachinePool
+    ) -> OcmMachinePool:
+        """Create a machine pool on a cluster, invalidating its cache."""
+        created = self._ocm_api.create_machine_pool(cluster_id, pool)
+        self._invalidate_machine_pools_cache(cluster_id)
+        return created
+
+    def update_machine_pool(
+        self, cluster_id: str, pool: OcmMachinePool
+    ) -> OcmMachinePool:
+        """Update a machine pool on a cluster, invalidating its cache."""
+        updated = self._ocm_api.update_machine_pool(cluster_id, pool)
+        self._invalidate_machine_pools_cache(cluster_id)
+        return updated
+
+    def delete_machine_pool(self, cluster_id: str, machine_pool_id: str) -> None:
+        """Delete a machine pool from a cluster, invalidating its cache."""
+        self._ocm_api.delete_machine_pool(cluster_id, machine_pool_id)
+        self._invalidate_machine_pools_cache(cluster_id)
+
+    def _invalidate_machine_pools_cache(self, cluster_id: str) -> None:
+        """Drop the machine pools cache entry for a cluster."""
+        cache_key = self._machine_pools_cache_key(cluster_id)
+        with self.cache.lock(cache_key):
+            self.cache.delete(cache_key)
+
+    # NODE POOLS (HyperShift / ROSA HCP clusters) - cached read, invalidating
+    # mutations, same double-checked-locking pattern as the sections above
+    def _node_pools_cache_key(self, cluster_id: str) -> str:
+        return f"ocm:node-pools:{self._environment_key}:{cluster_id}"
+
+    def _get_cached_node_pools(self, cache_key: str) -> list[OcmNodePool] | None:
+        """Get cached node pools.
+
+        Uses `is not None` (not a truthy check) so a genuinely empty result (a
+        cluster with no node pools) is a cache hit, not indistinguishable
+        from a miss.
+        """
+        cached = self.cache.get_obj(cache_key, CachedOcmNodePools)
+        return cached.items if cached is not None else None
+
+    def get_node_pools(self, cluster_id: str) -> list[OcmNodePool]:
+        """List all node pools on a cluster, cached with distributed locking."""
+        cache_key = self._node_pools_cache_key(cluster_id)
+
+        cached = self._get_cached_node_pools(cache_key)
+        if cached is None:
+            with self.cache.lock(cache_key):
+                cached = self._get_cached_node_pools(cache_key)
+                if cached is None:
+                    cached = self._ocm_api.get_node_pools(cluster_id)
+                    self.cache.set_obj(
+                        cache_key,
+                        CachedOcmNodePools(items=cached),
+                        self.settings.ocm.machine_pools_cache_ttl,
+                    )
+        return cached
+
+    def create_node_pool(self, cluster_id: str, pool: OcmNodePool) -> OcmNodePool:
+        """Create a node pool on a cluster, invalidating its cache."""
+        created = self._ocm_api.create_node_pool(cluster_id, pool)
+        self._invalidate_node_pools_cache(cluster_id)
+        return created
+
+    def update_node_pool(self, cluster_id: str, pool: OcmNodePool) -> OcmNodePool:
+        """Update a node pool on a cluster, invalidating its cache."""
+        updated = self._ocm_api.update_node_pool(cluster_id, pool)
+        self._invalidate_node_pools_cache(cluster_id)
+        return updated
+
+    def delete_node_pool(self, cluster_id: str, node_pool_id: str) -> None:
+        """Delete a node pool from a cluster, invalidating its cache."""
+        self._ocm_api.delete_node_pool(cluster_id, node_pool_id)
+        self._invalidate_node_pools_cache(cluster_id)
+
+    def _invalidate_node_pools_cache(self, cluster_id: str) -> None:
+        """Drop the node pools cache entry for a cluster."""
+        cache_key = self._node_pools_cache_key(cluster_id)
         with self.cache.lock(cache_key):
             self.cache.delete(cache_key)
