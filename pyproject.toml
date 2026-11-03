@@ -317,7 +317,16 @@ ignore_missing_imports = true
 # subject belong here. qontract_utils/qontract_api_client own their own
 # standalone-ness contracts in their own pyproject.toml; qontract_api owns
 # "qontract_api must not import reconcile" in its own pyproject.toml.
-root_packages = ["reconcile", "qontract_api", "qontract_utils", "qontract_api_client"]
+#
+# qontract_api is not a dependency of reconcile (ADR-007) and is therefore
+# never copied into this image (see dockerfiles/Dockerfile's build-image
+# stage - only reconcile, qontract_utils, qontract_api_client are COPY'd),
+# so it can't be listed as a root_package here: import-linter would error
+# with "Could not find package 'qontract_api' in your Python path" trying
+# to introspect it. include_external_packages lets forbidden_modules
+# reference it anyway, purely via import-statement matching.
+root_packages = ["reconcile"]
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 id = "reconcile-no-qontract-api-import"
