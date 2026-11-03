@@ -30,7 +30,9 @@ class GenericEventFormatter:
         "create": "🟢",
         "add": "🟢",
         "update": "🔄",
+        "change": "🔄",
         "delete": "🗑️",
+        "remove": "🗑️",
         "default": "📢",
     }
 
