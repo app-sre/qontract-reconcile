@@ -23,34 +23,18 @@ class ClusterType(StrEnum):
     ROSA_HCP = "hypershift"
 
 
-def _validate_max_greater_min(
-    field_values: object, min_field: str, max_field: str
-) -> None:
-    """Reject autoscaling configs whose max is not greater than their min."""
-    if not isinstance(field_values, dict):
-        # Already-constructed models re-validated through a union arrive as
-        # instances - nothing to check then, construction already validated.
-        return
-    min_value = field_values.get(min_field)
-    max_value = field_values.get(max_field)
-    if min_value is None or max_value is None:
-        raise ValueError(f"{min_field} and {max_field} must be set")
-    if min_value > max_value:
-        raise ValueError(f"{max_field} must be greater than {min_field}")
-
-
 class DesiredMachinePoolAutoscaling(BaseModel, frozen=True):
     """Machine pool autoscaling (OSD / ROSA classic) - plural field names."""
 
     min_replicas: int
     max_replicas: int
 
-    @model_validator(mode="before")
-    @classmethod
-    def validate_scaling(cls, field_values: object) -> object:
-        """Reject max <= min."""
-        _validate_max_greater_min(field_values, "min_replicas", "max_replicas")
-        return field_values
+    @model_validator(mode="after")
+    def validate_scaling(self) -> Self:
+        """Reject min > max, on the coerced values (legacy parity: equal is OK)."""
+        if self.min_replicas > self.max_replicas:
+            raise ValueError("max_replicas must be greater than min_replicas")
+        return self
 
 
 class DesiredNodePoolAutoscaling(BaseModel, frozen=True):
@@ -59,22 +43,12 @@ class DesiredNodePoolAutoscaling(BaseModel, frozen=True):
     min_replica: int
     max_replica: int
 
-    @model_validator(mode="before")
-    @classmethod
-    def validate_scaling(cls, field_values: object) -> object:
-        """Reject max <= min."""
-        _validate_max_greater_min(field_values, "min_replica", "max_replica")
-        return field_values
-
-
-def _validate_autoscaling_xor_replicas(field_values: object) -> None:
-    """Reject pools declaring both autoscaling and a fixed replica count."""
-    if (
-        isinstance(field_values, dict)
-        and field_values.get("autoscaling")
-        and field_values.get("replicas")
-    ):
-        raise ValueError("autoscaling and replicas are mutually exclusive")
+    @model_validator(mode="after")
+    def validate_scaling(self) -> Self:
+        """Reject min > max, on the coerced values (legacy parity: equal is OK)."""
+        if self.min_replica > self.max_replica:
+            raise ValueError("max_replica must be greater than min_replica")
+        return self
 
 
 class DesiredMachinePool(BaseModel, frozen=True):
@@ -87,12 +61,16 @@ class DesiredMachinePool(BaseModel, frozen=True):
     labels: dict[str, str] | None = None
     taints: list[OcmTaint] | None = None
 
-    @model_validator(mode="before")
-    @classmethod
-    def validate_scaling(cls, field_values: object) -> object:
-        """Reject autoscaling together with a fixed replica count."""
-        _validate_autoscaling_xor_replicas(field_values)
-        return field_values
+    @model_validator(mode="after")
+    def validate_scaling(self) -> Self:
+        """Reject autoscaling together with a fixed replica count.
+
+        Presence-based (`is not None`) so replicas=0 with autoscaling is
+        rejected too.
+        """
+        if self.autoscaling is not None and self.replicas is not None:
+            raise ValueError("autoscaling and replicas are mutually exclusive")
+        return self
 
 
 class DesiredNodePool(BaseModel, frozen=True):
@@ -106,12 +84,16 @@ class DesiredNodePool(BaseModel, frozen=True):
     labels: dict[str, str] | None = None
     taints: list[OcmTaint] | None = None
 
-    @model_validator(mode="before")
-    @classmethod
-    def validate_scaling(cls, field_values: object) -> object:
-        """Reject autoscaling together with a fixed replica count."""
-        _validate_autoscaling_xor_replicas(field_values)
-        return field_values
+    @model_validator(mode="after")
+    def validate_scaling(self) -> Self:
+        """Reject autoscaling together with a fixed replica count.
+
+        Presence-based (`is not None`) so replicas=0 with autoscaling is
+        rejected too.
+        """
+        if self.autoscaling is not None and self.replicas is not None:
+            raise ValueError("autoscaling and replicas are mutually exclusive")
+        return self
 
 
 DesiredPool = DesiredMachinePool | DesiredNodePool

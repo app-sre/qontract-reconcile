@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from qontract_api.integrations.ocm_machine_pools.domain import (
     DesiredClusterMachinePools,
@@ -35,6 +35,21 @@ class OcmMachinePoolsReconcileRequest(BaseModel, frozen=True):
             "Default: True (safety first!)"
         ),
     )
+
+    @model_validator(mode="after")
+    def validate_unique_cluster_names(self) -> Self:
+        """Reject duplicate cluster names.
+
+        The service's diff is keyed by (cluster name, pool id) - two clusters
+        with the same name would silently overwrite each other's state.
+        """
+        names = [cluster.name for cluster in self.clusters]
+        duplicates = {name for name in names if names.count(name) > 1}
+        if duplicates:
+            raise ValueError(
+                f"duplicate cluster names in request: {sorted(duplicates)}"
+            )
+        return self
 
 
 class OcmMachinePoolsActionCreateMachinePool(BaseModel, frozen=True):

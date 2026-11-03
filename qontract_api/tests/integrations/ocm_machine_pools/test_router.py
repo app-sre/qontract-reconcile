@@ -150,6 +150,24 @@ def test_post_reconcile_rejects_pool_shape_mismatch(
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
+def test_post_reconcile_rejects_duplicate_cluster_names(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    sample_reconcile_request: OcmMachinePoolsReconcileRequest,
+) -> None:
+    """Reject duplicate cluster names with 422.
+
+    Two clusters with the same name would collide in the (name, pool id)
+    diff key - rejected instead of silently overwriting state.
+    """
+    request_data = sample_reconcile_request.model_dump()
+    request_data["clusters"].append(dict(request_data["clusters"][0]))
+
+    response = client.post(ENDPOINT, json=request_data, headers=auth_headers)
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
 @patch("qontract_api.integrations.ocm_machine_pools.router.wait_for_task_completion")
 def test_get_task_status(
     mock_wait: MagicMock, client: TestClient, auth_headers: dict[str, str]
