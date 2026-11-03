@@ -55,6 +55,7 @@ class AwsSamlIdpIntegrationParams(PydanticRunParams):
     # integration specific parameters
     saml_idp_name: str
     saml_metadata_url: HttpUrl
+    request_timeout: int = REQUEST_TIMEOUT
     account_name: str | None = None
     # extended early exit parameters
     enable_extended_early_exit: bool = False
@@ -120,7 +121,7 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
 
     def get_saml_metadata(self, saml_metadata_url: str) -> str:
         """Get the SAML metadata from the given URL."""
-        response = requests.get(saml_metadata_url, timeout=REQUEST_TIMEOUT)
+        response = requests.get(saml_metadata_url, timeout=self.params.request_timeout)
         response.raise_for_status()
         return response.text
 

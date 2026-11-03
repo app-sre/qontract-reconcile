@@ -692,6 +692,12 @@ def terraform_aws_route53(
     required=True,
     default="https://auth.redhat.com/auth/realms/EmployeeIDP/protocol/saml/descriptor",
 )
+@click.option(
+    "--request-timeout",
+    help="SAML metadata request timeout in seconds. Default: 30",
+    required=False,
+    default=30,
+)
 @enable_extended_early_exit
 @extended_early_exit_cache_ttl_seconds
 @log_cached_log_output
@@ -704,6 +710,7 @@ def aws_saml_idp(
     account_name: str | None,
     saml_idp_name: str,
     saml_metadata_url: str,
+    request_timeout: int,
     enable_extended_early_exit: bool,
     extended_early_exit_cache_ttl_seconds: int,
     log_cached_log_output: bool,
@@ -721,6 +728,7 @@ def aws_saml_idp(
                 enable_deletion=enable_deletion,
                 saml_idp_name=saml_idp_name,
                 saml_metadata_url=saml_metadata_url,
+                request_timeout=request_timeout,
                 account_name=account_name,
                 enable_extended_early_exit=enable_extended_early_exit,
                 extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
