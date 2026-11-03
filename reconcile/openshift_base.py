@@ -162,13 +162,14 @@ def is_delete_allowed(
             resource_type=resource_type,
             resource_name=resource_name,
         )
-    except Exception:
+    except Exception as e:
         logging.error(
-            "[%s/%s] Deletion blocked: unable to validate %s/%s deletion",
+            "[%s/%s] Deletion blocked: unable to validate %s/%s deletion (%s)",
             cluster,
             namespace,
             resource_type,
             resource_name,
+            type(e).__name__,
         )
         raise ResourceDeletionGateCheckError from None
 

@@ -1649,7 +1649,9 @@ def test_handle_deleted_resources_isolates_deletion_gate_failure(
 
     assert actions == []
     assert resource_inventory.has_error_registered(cluster="failing-cluster")
-    assert "unable to validate Secret/test-resource deletion" in caplog.text
+    assert (
+        "unable to validate Secret/test-resource deletion (RuntimeError)" in caplog.text
+    )
     assert sensitive_error not in caplog.text
     delete_mock.assert_not_called()
 
@@ -1742,7 +1744,10 @@ def test_apply_action_isolates_immutable_recreation_gate_failure(
         )
 
     assert not resource_inventory.has_error_registered(cluster="failing-cluster")
-    assert "unable to validate Secret/referenced-secret deletion" in caplog.text
+    assert (
+        "unable to validate Secret/referenced-secret deletion (RuntimeError)"
+        in caplog.text
+    )
     assert sensitive_error not in caplog.text
     oc_client.delete.assert_not_called()
     assert oc_client.apply.call_count == 1
