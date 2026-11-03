@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
-from gitlab.exceptions import GitlabError
+from gitlab.exceptions import GitlabError, GitlabGetError
 
 import reconcile.typed_queries.smtp
 from reconcile.gql_definitions.common.smtp_client_settings import SmtpSettingsV1
@@ -16,7 +16,11 @@ from reconcile.utils.mr.base import (
     MergeRequestProcessingError,
     app_interface_email,
 )
-from reconcile.utils.mr.promote_qontract import PromoteQontractReconcileCommercial
+from reconcile.utils.mr.promote_qontract import (
+    PromoteQontractReconcileCommercial,
+    PromoteQontractSchemas,
+    PromoteQontractValidator,
+)
 
 
 class DummyMergeRequest(MergeRequestBase):
@@ -285,6 +289,168 @@ resourceTemplates:
     )
 
     assert expected == result
+
+
+def test_process_by_skips_when_file_missing() -> None:
+    mr = PromoteQontractReconcileCommercial(
+        "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    )
+    gitlab_cli = MagicMock(spec=GitLabApi)
+    gitlab_cli.project = MagicMock()
+    gitlab_cli.get_raw_file.side_effect = GitlabGetError(response_code=404)
+
+    mr._process_by(
+        "line_search",
+        gitlab_cli=gitlab_cli,
+        path=".gitlab-ci.yml",
+        search_text="  RECONCILE_IMAGE_TAG:",
+        replace_text="  RECONCILE_IMAGE_TAG: 1q2w3e4",
+    )
+
+    gitlab_cli.update_file.assert_not_called()
+
+
+def test_process_by_reraises_non_404_errors() -> None:
+    """A transient/non-missing-file GitLab read error (500, permissions,
+    rate limit, ...) must fail the promotion, not be treated as proof the
+    file doesn't exist and silently skipped."""
+    mr = PromoteQontractReconcileCommercial(
+        "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    )
+    gitlab_cli = MagicMock(spec=GitLabApi)
+    gitlab_cli.project = MagicMock()
+    gitlab_cli.get_raw_file.side_effect = GitlabGetError(response_code=500)
+
+    with pytest.raises(GitlabGetError):
+        mr._process_by(
+            "line_search",
+            gitlab_cli=gitlab_cli,
+            path=".gitlab-ci.yml",
+            search_text="  RECONCILE_IMAGE_TAG:",
+            replace_text="  RECONCILE_IMAGE_TAG: 1q2w3e4",
+        )
+
+    gitlab_cli.update_file.assert_not_called()
+
+
+def test_promote_qontract_schemas_updates_env_and_gitlab_ci() -> None:
+    gitlab_cli = MagicMock(spec=GitLabApi)
+    gitlab_cli.project = MagicMock()
+    file_contents = {
+        ".env": "export SCHEMAS_IMAGE_TAG=oldtag\n",
+        ".gitlab-ci.yml": "variables:\n  SCHEMAS_IMAGE_TAG: oldtag\n",
+    }
+    gitlab_cli.get_raw_file.side_effect = lambda project, path, ref: bytes(
+        file_contents[path], "utf-8"
+    )
+
+    mr = PromoteQontractSchemas("newtag", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p")
+    mr.process(gitlab_cli)
+
+    assert gitlab_cli.update_file.call_count == 2
+    written = {
+        call.kwargs["file_path"]: call.kwargs["content"]
+        for call in gitlab_cli.update_file.call_args_list
+    }
+    assert "export SCHEMAS_IMAGE_TAG=newtag" in written[".env"]
+    assert 'SCHEMAS_IMAGE_TAG: "newtag"' in written[".gitlab-ci.yml"]
+
+
+def test_promote_qontract_schemas_skips_gitlab_ci_when_missing() -> None:
+    gitlab_cli = MagicMock(spec=GitLabApi)
+    gitlab_cli.project = MagicMock()
+
+    def get_raw_file(project: Any, path: str, ref: str) -> bytes:
+        if path == ".gitlab-ci.yml":
+            raise GitlabGetError(response_code=404)
+        return bytes("export SCHEMAS_IMAGE_TAG=oldtag\n", "utf-8")
+
+    gitlab_cli.get_raw_file.side_effect = get_raw_file
+
+    mr = PromoteQontractSchemas("newtag", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p")
+    mr.process(gitlab_cli)
+
+    gitlab_cli.update_file.assert_called_once()
+    assert gitlab_cli.update_file.call_args.kwargs["file_path"] == ".env"
+
+
+def test_promote_qontract_validator_updates_env_and_gitlab_ci() -> None:
+    gitlab_cli = MagicMock(spec=GitLabApi)
+    gitlab_cli.project = MagicMock()
+    file_contents = {
+        ".env": "export VALIDATOR_IMAGE_TAG=oldtag\n",
+        ".gitlab-ci.yml": "variables:\n  VALIDATOR_IMAGE_TAG: oldtag\n",
+    }
+    gitlab_cli.get_raw_file.side_effect = lambda project, path, ref: bytes(
+        file_contents[path], "utf-8"
+    )
+
+    mr = PromoteQontractValidator("newtag", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p")
+    mr.process(gitlab_cli)
+
+    assert gitlab_cli.update_file.call_count == 2
+    written = {
+        call.kwargs["file_path"]: call.kwargs["content"]
+        for call in gitlab_cli.update_file.call_args_list
+    }
+    assert "export VALIDATOR_IMAGE_TAG=newtag" in written[".env"]
+    assert 'VALIDATOR_IMAGE_TAG: "newtag"' in written[".gitlab-ci.yml"]
+
+
+def test_promote_qontract_validator_skips_gitlab_ci_when_missing() -> None:
+    gitlab_cli = MagicMock(spec=GitLabApi)
+    gitlab_cli.project = MagicMock()
+
+    def get_raw_file(project: Any, path: str, ref: str) -> bytes:
+        if path == ".gitlab-ci.yml":
+            raise GitlabGetError(response_code=404)
+        return bytes("export VALIDATOR_IMAGE_TAG=oldtag\n", "utf-8")
+
+    gitlab_cli.get_raw_file.side_effect = get_raw_file
+
+    mr = PromoteQontractValidator("newtag", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p")
+    mr.process(gitlab_cli)
+
+    gitlab_cli.update_file.assert_called_once()
+    assert gitlab_cli.update_file.call_args.kwargs["file_path"] == ".env"
+
+
+@patch("reconcile.utils.mr.promote_qontract.Image")
+@patch.object(PromoteQontractReconcileCommercial, "_process_file_with_json_paths")
+@patch.object(PromoteQontractReconcileCommercial, "_process_by")
+def test_promote_qontract_reconcile_updates_gitlab_ci(
+    process_by_mock: MagicMock,
+    process_file_with_json_paths_mock: MagicMock,
+    image_mock: MagicMock,
+) -> None:
+    """process() touches several files via _process_by/_process_file_with_json_paths
+    (already covered by their own unit tests and the saas-qontract-api regression
+    test); mock both helpers here to isolate just the new .gitlab-ci.yml call.
+
+    Image is also mocked: _resolve_opa_image_pin_replacements() is called
+    eagerly while building _process_file_with_json_paths's replacements
+    argument, before the mocked method itself ever runs, so it would
+    otherwise make a real network call to Quay.
+    """
+    mr = PromoteQontractReconcileCommercial(
+        "newtag", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    )
+    gitlab_cli = MagicMock(spec=GitLabApi)
+
+    mr.process(gitlab_cli)
+
+    gitlab_ci_calls = [
+        call
+        for call in process_by_mock.call_args_list
+        if call.kwargs.get("path") == ".gitlab-ci.yml"
+    ]
+    assert len(gitlab_ci_calls) == 1
+    (method,) = gitlab_ci_calls[0].args
+    assert method == "line_search"
+    assert gitlab_ci_calls[0].kwargs["search_text"] == "  RECONCILE_IMAGE_TAG:"
+    assert (
+        gitlab_ci_calls[0].kwargs["replace_text"] == '  RECONCILE_IMAGE_TAG: "newtag"'
+    )
 
 
 SAAS_QONTRACT_API_CONTENT = """---
