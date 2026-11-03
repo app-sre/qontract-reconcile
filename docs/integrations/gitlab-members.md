@@ -68,6 +68,7 @@ pagerduty:
 - Fetches each group's current members from GitLab via `GitlabWorkspaceClient` (Layer 2 — cached), and resolves usernames to GitLab user IDs for additions
 - Computes the diff using `qontract_utils.differ.diff_mappings`, keyed by username, comparing access level
 - Executes add/remove/change-access actions per group (if not dry-run), isolating errors per action and per group/instance
+- The `GitlabAccessLevel` enum is used end-to-end (desired state, actions, logs, events) — the conversion to GitLab's numeric access level happens only inside the Layer 1 `qontract_utils.gitlab_api.GitlabApi` client, right before the real GitLab API call
 
 ## API Endpoints
 
@@ -91,7 +92,7 @@ Follows the standard async-only pattern (ADR-003): `POST /api/v1/integrations/gi
         {
           "group": "service",
           "members": [
-            { "username": "jsmith", "access_level": 30 }
+            { "username": "jsmith", "access_level": "developer" }
           ]
         }
       ]
@@ -129,10 +130,10 @@ Follows the standard async-only pattern (ADR-003): `POST /api/v1/integrations/gi
 
 **GitlabMemberConfig Fields:**
 
-| Field          | Type     | Required | Description                               |
-| -------------- | -------- | -------- | -------------------------------------------- |
-| `username`     | `string` | Yes      | GitLab username                              |
-| `access_level` | `int`    | Yes      | Desired GitLab access level (10/20/30/40/50) |
+| Field          | Type                | Required | Description                                                      |
+| -------------- | ------------------- | -------- | ------------------------------------------------------------------ |
+| `username`     | `string`            | Yes      | GitLab username                                                    |
+| `access_level` | `GitlabAccessLevel` | Yes      | Desired access level: `guest` / `reporter` / `developer` / `maintainer` / `owner` |
 
 **Response Fields:**
 
@@ -150,7 +151,7 @@ The integration can perform these reconciliation actions:
 
 **Description:** Add a user to a group at the given access level.
 
-**Fields:** `instance`, `group`, `username`, `user_id`, `access_level`
+**Fields:** `instance`, `group`, `username`, `user_id`, `access_level` (`GitlabAccessLevel`)
 
 **Example:**
 
@@ -161,7 +162,7 @@ The integration can perform these reconciliation actions:
   "group": "service",
   "username": "jsmith",
   "user_id": 42,
-  "access_level": 30
+  "access_level": "developer"
 }
 ```
 
@@ -187,7 +188,7 @@ The integration can perform these reconciliation actions:
 
 **Description:** Change an existing member's access level.
 
-**Fields:** `instance`, `group`, `username`, `member_id`, `access_level`
+**Fields:** `instance`, `group`, `username`, `member_id`, `access_level` (`GitlabAccessLevel`)
 
 **Example:**
 
@@ -198,7 +199,7 @@ The integration can perform these reconciliation actions:
   "group": "service",
   "username": "jsmith",
   "member_id": 42,
-  "access_level": 40
+  "access_level": "maintainer"
 }
 ```
 
