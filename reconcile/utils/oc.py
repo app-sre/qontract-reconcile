@@ -1075,10 +1075,11 @@ class OCCli:
         Get resources (Secrets or ConfigMaps) used in a Pod spec.
         Returns a dictionary where keys are resource names and values are sets of keys used from that resource.
 
-        Supported references are direct and projected volumes, container and init
-        container ``env``/``envFrom`` entries, and Pod ``imagePullSecrets`` for
-        Secrets. Optional references are omitted when ``include_optional`` is false.
-        CSI ``nodePublishSecretRef`` references are intentionally not inspected.
+        Supported references are direct and projected volumes, in-tree volume
+        plugin Secret references, container and init container ``env``/``envFrom``
+        entries, and Pod ``imagePullSecrets`` for Secrets. Optional references are
+        omitted when ``include_optional`` is false. CSI ``nodePublishSecretRef``
+        references are intentionally not inspected.
 
         Args:
             spec: Pod spec
@@ -1120,6 +1121,26 @@ class OCCli:
                 resources.setdefault(resource_name, set())
             except KeyError, TypeError:
                 pass
+
+            if kind == "Secret":
+                in_tree_secret_refs = {
+                    "azureFile": ("secretName",),
+                    "cephfs": ("secretRef", "name"),
+                    "cinder": ("secretRef", "name"),
+                    "flexVolume": ("secretRef", "name"),
+                    "iscsi": ("secretRef", "name"),
+                    "rbd": ("secretRef", "name"),
+                    "scaleIO": ("secretRef", "name"),
+                    "storageos": ("secretRef", "name"),
+                }
+                for plugin, ref_path in in_tree_secret_refs.items():
+                    try:
+                        resource_ref = v[plugin]
+                        for path_component in ref_path:
+                            resource_ref = resource_ref[path_component]
+                        resources.setdefault(resource_ref, set())
+                    except KeyError, TypeError:
+                        continue
 
             for source in (v.get("projected") or {}).get("sources") or []:
                 try:

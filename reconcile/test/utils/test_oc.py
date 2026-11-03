@@ -939,6 +939,31 @@ def test_get_resources_used_in_pod_spec_secret(
             },
             {"debug-secret": {"token"}},
         ),
+        (
+            {
+                "containers": [],
+                "volumes": [
+                    {"azureFile": {"secretName": "azure-secret"}},
+                    {"cephfs": {"secretRef": {"name": "cephfs-secret"}}},
+                    {"cinder": {"secretRef": {"name": "cinder-secret"}}},
+                    {"flexVolume": {"secretRef": {"name": "flex-volume-secret"}}},
+                    {"iscsi": {"secretRef": {"name": "iscsi-secret"}}},
+                    {"rbd": {"secretRef": {"name": "rbd-secret"}}},
+                    {"scaleIO": {"secretRef": {"name": "scale-io-secret"}}},
+                    {"storageos": {"secretRef": {"name": "storage-os-secret"}}},
+                ],
+            },
+            {
+                "azure-secret": set(),
+                "cephfs-secret": set(),
+                "cinder-secret": set(),
+                "flex-volume-secret": set(),
+                "iscsi-secret": set(),
+                "rbd-secret": set(),
+                "scale-io-secret": set(),
+                "storage-os-secret": set(),
+            },
+        ),
     ],
 )
 def test_get_resources_used_in_pod_spec_additional_secret_references(
