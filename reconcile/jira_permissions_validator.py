@@ -16,7 +16,6 @@ from reconcile.gql_definitions.jira_permissions_validator.jira_boards_for_permis
 from reconcile.gql_definitions.jira_permissions_validator.jira_boards_for_permissions_validator import (
     query as query_jira_boards,
 )
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -30,6 +29,7 @@ from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import State, init_state
+from reconcile.utils.status import ExitCodes
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence

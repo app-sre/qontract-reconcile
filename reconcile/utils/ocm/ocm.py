@@ -22,7 +22,7 @@ from reconcile.utils.secret_reader import SecretReader, VaultSecretRef
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, MutableMapping
 
-    from reconcile.ocm.types import OCMSpec
+    from reconcile.utils.ocm.types import OCMSpec
     from reconcile.utils.secret_reader import SecretReaderBase
 
 STATUS_READY = "ready"

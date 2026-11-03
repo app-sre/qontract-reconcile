@@ -1,10 +1,10 @@
 import sys
 
 import reconcile.openshift_saas_deploy_trigger_base as osdt_base
-from reconcile.status import ExitCodes
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.saasherder import TriggerTypes
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.status import ExitCodes
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy-trigger-upstream-jobs"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)

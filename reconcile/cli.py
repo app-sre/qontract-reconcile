@@ -15,10 +15,6 @@ import sentry_sdk
 from qontract_utils.managed_sso_client import DEFAULT_OUTPUT_VAULT_PATH_PREFIX
 from sentry_sdk.integrations.logging import LoggingIntegration
 
-from reconcile.status import (
-    ExitCodes,
-    RunningState,
-)
 from reconcile.utils import gql
 from reconcile.utils.aggregated_list import RunnerError
 from reconcile.utils.amtool import AMTOOL_VERSION, AMTOOL_VERSION_REGEX
@@ -45,21 +41,24 @@ from reconcile.utils.runtime.runner import (
     IntegrationRunConfiguration,
     run_integration_cfg,
 )
+from reconcile.utils.status import (
+    ExitCodes,
+    RunningState,
+)
 from reconcile.utils.unleash import get_feature_toggle_state
+from reconcile.utils.versions import (
+    HELM_VERSION_REGEX,
+    HELM_VERSIONS,
+    OC_VERSION_REGEX,
+    OC_VERSIONS,
+    TERRAFORM_VERSION,
+    TERRAFORM_VERSION_REGEX,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
     from io import TextIOWrapper
     from types import ModuleType
-
-TERRAFORM_VERSION = ["1.6.6"]
-TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
-
-OC_VERSIONS = ["4.19.0", "4.18.0"]
-OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)"
-
-HELM_VERSIONS = ["3.19.4"]
-HELM_VERSION_REGEX = r"^version.BuildInfo{Version:\"v([\d]+\.[\d]+\.[\d]+)\".*$"
 
 
 def before_breadcrumb(crumb: dict, _: Any) -> dict:

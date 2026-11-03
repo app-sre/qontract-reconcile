@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import pytest
 
 from reconcile.gql_definitions.acs.acs_instances import (
@@ -24,42 +22,31 @@ def _make_instance(name: str) -> AcsInstanceV1:
     )
 
 
-def test_get_acs_instances_returns_all() -> None:
+def test_filter_acs_instances_returns_all() -> None:
     instances = [_make_instance("acs-a"), _make_instance("acs-b")]
-    mock_query = MagicMock(
-        return_value={"instances": [i.model_dump(by_alias=True) for i in instances]}
-    )
 
-    result = AcsBaseApi.get_acs_instances(mock_query)
+    result = AcsBaseApi.filter_acs_instances(instances)
 
     assert len(result) == 2
     assert {i.name for i in result} == {"acs-a", "acs-b"}
 
 
-def test_get_acs_instances_filters_by_name() -> None:
+def test_filter_acs_instances_filters_by_name() -> None:
     instances = [_make_instance("acs-a"), _make_instance("acs-b")]
-    mock_query = MagicMock(
-        return_value={"instances": [i.model_dump(by_alias=True) for i in instances]}
-    )
 
-    result = AcsBaseApi.get_acs_instances(mock_query, name="acs-a")
+    result = AcsBaseApi.filter_acs_instances(instances, name="acs-a")
 
     assert len(result) == 1
     assert result[0].name == "acs-a"
 
 
-def test_get_acs_instances_name_not_found() -> None:
+def test_filter_acs_instances_name_not_found() -> None:
     instances = [_make_instance("acs-a")]
-    mock_query = MagicMock(
-        return_value={"instances": [i.model_dump(by_alias=True) for i in instances]}
-    )
 
     with pytest.raises(AppInterfaceSettingsError, match="not found"):
-        AcsBaseApi.get_acs_instances(mock_query, name="nonexistent")
+        AcsBaseApi.filter_acs_instances(instances, name="nonexistent")
 
 
-def test_get_acs_instances_none_found() -> None:
-    mock_query = MagicMock(return_value={"instances": None})
-
+def test_filter_acs_instances_none_found() -> None:
     with pytest.raises(AppInterfaceSettingsError, match="No ACS instances found"):
-        AcsBaseApi.get_acs_instances(mock_query)
+        AcsBaseApi.filter_acs_instances([])

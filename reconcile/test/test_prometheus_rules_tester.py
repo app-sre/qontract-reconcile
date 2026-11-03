@@ -16,8 +16,8 @@ from reconcile.prometheus_rules_tester.integration import (
     check_rules_and_tests,
     run,
 )
-from reconcile.status import ExitCodes
 from reconcile.utils import gql
+from reconcile.utils.status import ExitCodes
 
 from .fixtures import Fixtures
 

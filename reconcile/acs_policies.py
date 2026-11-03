@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, cast
 from qontract_utils.differ import diff_iterables
 
 import reconcile.gql_definitions.acs.acs_policies as gql_acs_policies
+from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
 from reconcile.utils import gql
 from reconcile.utils.acs.policies import AcsPolicyApi, Policy, PolicyCondition, Scope
 from reconcile.utils.runtime.integration import (
@@ -233,8 +234,9 @@ class AcsPoliciesIntegration(
         dry_run: bool,
     ) -> None:
         gqlapi = gql.get_api()
-        instances = AcsPolicyApi.get_acs_instances(
-            gqlapi.query, name=self.params.instance
+        all_instances = acs_instances_query(query_func=gqlapi.query).instances or []
+        instances = AcsPolicyApi.filter_acs_instances(
+            all_instances, name=self.params.instance
         )
 
         errors: list[Exception] = []

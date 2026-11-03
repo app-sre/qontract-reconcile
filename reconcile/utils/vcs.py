@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 from urllib.parse import urlparse
 
 from gitlab.const import PipelineStatus
@@ -21,13 +21,27 @@ if TYPE_CHECKING:
 
     from gitlab.v4.objects import ProjectMergeRequest
 
-    from reconcile.typed_queries.github_orgs import GithubOrgV1
-    from reconcile.typed_queries.gitlab_instances import GitlabInstanceV1
     from reconcile.utils.mr.base import MergeRequestBase
     from reconcile.utils.secret_reader import (
         HasSecret,
         SecretReaderBase,
     )
+
+
+class GithubOrg(Protocol):
+    """Structural subset of the generated `GithubOrgV1` fragment."""
+
+    default: bool | None
+
+    @property
+    def token(self) -> HasSecret: ...
+
+
+class GitlabInstance(Protocol):
+    """Structural subset of the generated `GitlabInstanceV1` fragment."""
+
+    def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]: ...
+
 
 GITHUB_BASE_URL = "https://github.com/"
 
@@ -73,8 +87,8 @@ class VCS:
     def __init__(
         self,
         secret_reader: SecretReaderBase,
-        github_orgs: Iterable[GithubOrgV1],
-        gitlab_instances: Iterable[GitlabInstanceV1],
+        github_orgs: Iterable[GithubOrg],
+        gitlab_instances: Iterable[GitlabInstance],
         app_interface_repo_url: str,
         dry_run: bool,
         allow_deleting_mrs: bool = False,
@@ -105,7 +119,7 @@ class VCS:
 
     def _get_default_gh_token(
         self,
-        github_orgs: Iterable[GithubOrgV1],
+        github_orgs: Iterable[GithubOrg],
     ) -> str:
         defaults: list[str] = []
         for org in github_orgs:
@@ -137,7 +151,7 @@ class VCS:
 
     def _gitlab_api(
         self,
-        gitlab_instances: Iterable[GitlabInstanceV1],
+        gitlab_instances: Iterable[GitlabInstance],
     ) -> GitLabApi:
         return GitLabApi(
             next(iter(gitlab_instances)).model_dump(by_alias=True),
@@ -146,7 +160,7 @@ class VCS:
 
     def _init_app_interface_api(
         self,
-        gitlab_instances: Iterable[GitlabInstanceV1],
+        gitlab_instances: Iterable[GitlabInstance],
         app_interface_repo_url: str,
     ) -> GitLabApi:
         return GitLabApi(

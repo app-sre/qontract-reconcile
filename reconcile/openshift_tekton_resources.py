@@ -10,7 +10,6 @@ import yaml
 
 from reconcile import openshift_base as ob
 from reconcile import queries
-from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
@@ -22,6 +21,7 @@ from reconcile.utils.parse_dhms_duration import (
 from reconcile.utils.saasherder import Providers
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
+from reconcile.utils.status import ExitCodes
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

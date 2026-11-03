@@ -11,7 +11,6 @@ from reconcile import (
     openshift_groups,
     queries,
 )
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -20,6 +19,7 @@ from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.ocm.base import OCMClusterGroupId
 from reconcile.utils.secret_reader import create_secret_reader
+from reconcile.utils.status import ExitCodes
 
 if TYPE_CHECKING:
     from collections.abc import (

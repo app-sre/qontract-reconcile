@@ -13,8 +13,8 @@ from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
     query,
 )
 from reconcile.quay_base import OrgKey, QuayApiStore, get_quay_api_store
-from reconcile.status import ExitCodes
 from reconcile.utils import gql
+from reconcile.utils.status import ExitCodes
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

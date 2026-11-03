@@ -13,6 +13,7 @@ from qontract_utils.differ import (
     diff_iterables,
 )
 
+from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
 from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1, UserV1
 from reconcile.gql_definitions.acs.acs_rbac import query as acs_rbac_query
 from reconcile.utils import gql
@@ -607,8 +608,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsIntegrationParams]):
         dry_run: bool,
     ) -> None:
         gqlapi = gql.get_api()
-        instances = AcsRbacApi.get_acs_instances(
-            gqlapi.query, name=self.params.instance
+        all_instances = acs_instances_query(query_func=gqlapi.query).instances or []
+        instances = AcsRbacApi.filter_acs_instances(
+            all_instances, name=self.params.instance
         )
         if not instances:
             return

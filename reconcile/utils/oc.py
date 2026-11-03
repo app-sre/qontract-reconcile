@@ -46,7 +46,6 @@ from sretoolbox.utils import (
     threaded,
 )
 
-from reconcile.status import RunningState
 from reconcile.utils.json import json_dumps
 from reconcile.utils.metrics import oc_get_items_duration, reconcile_time
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
@@ -55,6 +54,7 @@ from reconcile.utils.secret_reader import (
     SecretNotFoundError,
     SecretReader,
 )
+from reconcile.utils.status import RunningState
 from reconcile.utils.unleash import get_feature_toggle_state
 
 if TYPE_CHECKING:

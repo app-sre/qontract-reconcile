@@ -21,7 +21,7 @@ from reconcile.utils.secret_reader import create_secret_reader
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from reconcile.ocm.types import OCMSpec
+    from reconcile.utils.ocm.types import OCMSpec
     from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler-org-updater"
