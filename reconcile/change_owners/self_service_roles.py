@@ -67,6 +67,15 @@ def fetch_self_service_roles(
     Dropping it here, rather than keeping it around as an approver-less role,
     means no downstream consumer (coverage, admission, auto-approval) needs
     to special-case it - it simply never covers anything.
+
+    Accepted trade-off: if the role's change-type is restrictive, dropping it
+    also removes that change-type's admission gate for paths exclusively
+    covered by this role - is_change_admitted() never sees a restrictive
+    context there, so any author can propose the change. This is intentional,
+    not an oversight: the change still correctly falls back to
+    NOT_SELF_SERVICEABLE and goes through normal AppSRE review before merge,
+    which is accepted as sufficient for this case rather than reintroducing
+    per-consumer special-casing of zero-approver contexts.
     See https://redhat.atlassian.net/browse/APPSRE-15598.
     """
     return [
