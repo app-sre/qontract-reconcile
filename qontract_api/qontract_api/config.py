@@ -380,6 +380,7 @@ class OcmSettings(BaseModel):
     )
     machine_pools_fetch_concurrency: int = Field(
         default=10,
+        ge=1,
         description=(
             "Max concurrent OCM machine/node pool fetches during a reconcile - "
             "each cluster's fetch is an independent HTTP round-trip, so fetching "
