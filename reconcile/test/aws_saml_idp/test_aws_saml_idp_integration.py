@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from reconcile.aws_saml_idp.constants import REQUEST_TIMEOUT
 from reconcile.aws_saml_idp.integration import (
     AwsSamlIdpIntegration,
     AwsSamlIdpIntegrationParams,
     SamlIdpConfig,
 )
 from reconcile.gql_definitions.aws_saml_idp.aws_accounts import AWSAccountV1
+from reconcile.utils.constants import REQUEST_TIMEOUT
 
 if TYPE_CHECKING:
     from collections.abc import Callable

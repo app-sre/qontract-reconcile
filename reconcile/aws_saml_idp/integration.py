@@ -11,7 +11,6 @@ from typing import (
 import requests
 from pydantic import BaseModel, HttpUrl
 
-from reconcile.aws_saml_idp.constants import REQUEST_TIMEOUT
 from reconcile.gql_definitions.aws_saml_idp.aws_accounts import (
     AWSAccountV1,
 )
@@ -21,7 +20,7 @@ from reconcile.gql_definitions.aws_saml_idp.aws_accounts import (
 from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE, REQUEST_TIMEOUT
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.extended_early_exit import (
