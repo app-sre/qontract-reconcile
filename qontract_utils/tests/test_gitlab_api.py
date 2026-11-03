@@ -226,7 +226,7 @@ def test_get_group_members_returns_members_excluding_bots(
 ) -> None:
     group = MagicMock()
     regular = _member_mock(member_id=1, username="jsmith", access_level=30)
-    bot = _member_mock(member_id=2, username="group_foo_bot_12345", access_level=40)
+    bot = _member_mock(member_id=2, username="group_42_bot_a1b2c3", access_level=40)
     group.members.list.return_value = [regular, bot]
     mock_gitlab_client.groups.get.return_value = group
 
@@ -238,6 +238,26 @@ def test_get_group_members_returns_members_excluding_bots(
     assert result[0].access_level == 30
     mock_gitlab_client.groups.get.assert_called_once_with("team/sub")
     group.members.list.assert_called_once_with(iterator=True)
+
+
+def test_get_group_members_keeps_username_resembling_bot_pattern(
+    gitlab_api: GitlabApi, mock_gitlab_client: MagicMock
+) -> None:
+    """A real username should not be mistaken for a generated bot account.
+
+    Only a numeric group ID qualifies, e.g. "group_sales_bot_admin" is a
+    plausible real username, not a bot.
+    """
+    group = MagicMock()
+    lookalike = _member_mock(
+        member_id=1, username="group_sales_bot_admin", access_level=30
+    )
+    group.members.list.return_value = [lookalike]
+    mock_gitlab_client.groups.get.return_value = group
+
+    result = gitlab_api.get_group_members("team/sub")
+
+    assert [m.username for m in result] == ["group_sales_bot_admin"]
 
 
 def test_get_group_members_empty_group(

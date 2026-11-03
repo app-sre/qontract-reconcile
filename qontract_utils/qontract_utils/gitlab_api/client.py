@@ -29,9 +29,12 @@ from qontract_utils.user_agent import DEFAULT_USER_AGENT
 
 logger = structlog.get_logger(__name__)
 
-# Internal GitLab bot users created for group access tokens follow this naming
-# convention: https://docs.gitlab.com/administration/internal_users/
-_GROUP_BOT_USERNAME_RE = re.compile(r"group_.+_bot_.+")
+# Internal GitLab bot users created for group access tokens follow the naming
+# convention `group_{group_id}_bot_{random_string}`, group_id always being numeric:
+# https://docs.gitlab.com/administration/internal_users/
+# Anchored and requiring a numeric group ID so a regular username (e.g.
+# "group_sales_bot_admin") is never mistaken for a generated bot account.
+_GROUP_BOT_USERNAME_RE = re.compile(r"^group_\d+_bot_[a-zA-Z0-9]+$")
 
 gitlab_projects_request = Counter(
     "qontract_reconcile_external_api_gitlab_projects_requests_total",
