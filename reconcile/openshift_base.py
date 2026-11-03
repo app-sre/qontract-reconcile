@@ -139,6 +139,36 @@ class ResourceDeletionGate(Protocol):
     ) -> bool: ...
 
 
+def is_delete_allowed(
+    deletion_gate: ResourceDeletionGate | None,
+    *,
+    cluster: str,
+    namespace: str,
+    resource_type: str,
+    resource_name: str,
+) -> bool:
+    """Fail closed when an integration-owned deletion check cannot complete."""
+    if not deletion_gate:
+        return True
+
+    try:
+        return deletion_gate.is_delete_allowed(
+            cluster=cluster,
+            namespace=namespace,
+            resource_type=resource_type,
+            resource_name=resource_name,
+        )
+    except Exception:
+        logging.exception(
+            "[%s/%s] Deletion blocked: unable to validate %s/%s deletion",
+            cluster,
+            namespace,
+            resource_type,
+            resource_name,
+        )
+        return False
+
+
 def validate_managed_resource_types(
     oc: OCCli,
     managed_resource_types: Iterable[str],
@@ -497,7 +527,8 @@ def apply(
             # sure they're safe.
             if resource_type not in {"Route", "Service", "Secret", "Job"}:
                 raise
-            if deletion_gate and not deletion_gate.is_delete_allowed(
+            if not is_delete_allowed(
+                deletion_gate,
                 cluster=cluster,
                 namespace=namespace,
                 resource_type=resource_type,
@@ -963,14 +994,15 @@ def handle_deleted_resources(
             resource_type=resource_type,
             options=options,
         ):
-            if options.deletion_gate and not options.deletion_gate.is_delete_allowed(
+            if not is_delete_allowed(
+                options.deletion_gate,
                 cluster=cluster,
                 namespace=namespace,
                 resource_type=resource_type,
                 resource_name=name,
             ):
                 ri.register_error(cluster=cluster)
-                continue
+                return actions
             options.privileged = data["use_admin_token"].get(name, False)
             action = {
                 "action": ACTION_DELETED,

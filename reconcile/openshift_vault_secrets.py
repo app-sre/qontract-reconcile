@@ -19,10 +19,16 @@ if TYPE_CHECKING:
 QONTRACT_INTEGRATION = "openshift-vault-secrets"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)
 PROVIDERS = ["vault-secret"]
+TERMINAL_POD_PHASES = frozenset({"Failed", "Succeeded"})
 
 
 class SecretInUseDeletionGate:
-    """Prevent openshift-vault-secrets from deleting Secrets used by live Pods."""
+    """Protect managed Secrets referenced by non-terminal Pods.
+
+    Supported references are limited to those recognized by
+    ``OCCli.get_resources_used_in_pod_spec``. CSI ``nodePublishSecretRef``
+    references are intentionally not inspected.
+    """
 
     def __init__(self, oc_map: ClusterMap) -> None:
         self._oc_map = oc_map
@@ -42,6 +48,7 @@ class SecretInUseDeletionGate:
         consumers: list[Mapping[str, Any]] = [
             pod
             for pod in oc.get_items("Pod", namespace=namespace)
+            if (pod.get("status") or {}).get("phase") not in TERMINAL_POD_PHASES
             if oc.is_resource_used_in_pod(resource_name, "Secret", pod)
         ]
         if not consumers:

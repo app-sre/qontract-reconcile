@@ -1582,6 +1582,41 @@ def test_handle_deleted_resources_blocks_delete_rejected_by_gate(
     delete_mock.assert_not_called()
 
 
+def test_handle_deleted_resources_isolates_deletion_gate_failure(
+    mocker: MockerFixture,
+    oc_map: oc.OC_Map,
+    resource_inventory: resource.ResourceInventory,
+    diff_result: DiffResult,
+    apply_options: sut.ApplyOptions,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    delete_mock = mocker.patch.object(sut, "delete", autospec=True)
+    mocker.patch.object(
+        resource.OpenshiftResource, "has_qontract_annotations", autospec=True
+    ).return_value = True
+    deletion_gate = mocker.MagicMock(spec=sut.ResourceDeletionGate)
+    deletion_gate.is_delete_allowed.side_effect = RuntimeError(
+        "pod inventory unavailable"
+    )
+    apply_options.deletion_gate = deletion_gate
+
+    actions = sut.handle_deleted_resources(
+        oc_map=oc_map,
+        ri=resource_inventory,
+        deleted_resources=diff_result.delete,
+        cluster="failing-cluster",
+        namespace="test-namespace",
+        resource_type="Secret",
+        data={"use_admin_token": {"test-resource": False}},
+        options=apply_options,
+    )
+
+    assert actions == []
+    assert resource_inventory.has_error_registered(cluster="failing-cluster")
+    assert "unable to validate Secret/test-resource deletion" in caplog.text
+    delete_mock.assert_not_called()
+
+
 @pytest.mark.parametrize("delete_allowed", [False, True])
 def test_apply_action_gates_immutable_resource_recreation(
     mocker: MockerFixture,
@@ -1633,6 +1668,46 @@ def test_apply_action_gates_immutable_resource_recreation(
         oc_client.delete.assert_not_called()
         assert oc_client.apply.call_count == 1
         assert resource_inventory.has_error_registered(cluster="test-cluster")
+
+
+def test_apply_action_isolates_immutable_recreation_gate_failure(
+    mocker: MockerFixture,
+    resource_inventory: resource.ResourceInventory,
+    apply_options: sut.ApplyOptions,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    oc_client = mocker.MagicMock()
+    oc_client.project_exists.return_value = True
+    oc_client.apply.side_effect = oc.FieldIsImmutableError()
+    oc_map = mocker.MagicMock(spec=sut.ClusterMap)
+    oc_map.get_cluster.return_value = oc_client
+    deletion_gate = mocker.MagicMock(spec=sut.ResourceDeletionGate)
+    deletion_gate.is_delete_allowed.side_effect = RuntimeError(
+        "pod inventory unavailable"
+    )
+    apply_options.dry_run = False
+    apply_options.deletion_gate = deletion_gate
+    desired = build_openshift_resource(
+        kind="Secret",
+        api_version="v1",
+        name="referenced-secret",
+        extra_body=None,
+    )
+
+    sut.apply_action(
+        oc_map=oc_map,
+        ri=resource_inventory,
+        cluster="failing-cluster",
+        namespace="test-namespace",
+        resource_type="Secret",
+        resource=desired,
+        options=apply_options,
+    )
+
+    assert resource_inventory.has_error_registered(cluster="failing-cluster")
+    assert "unable to validate Secret/referenced-secret deletion" in caplog.text
+    oc_client.delete.assert_not_called()
+    assert oc_client.apply.call_count == 1
 
 
 # Fixtures does not work with parametrize

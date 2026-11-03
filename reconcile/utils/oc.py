@@ -1078,6 +1078,7 @@ class OCCli:
         Supported references are direct and projected volumes, container and init
         container ``env``/``envFrom`` entries, and Pod ``imagePullSecrets`` for
         Secrets. Optional references are omitted when ``include_optional`` is false.
+        CSI ``nodePublishSecretRef`` references are intentionally not inspected.
 
         Args:
             spec: Pod spec
