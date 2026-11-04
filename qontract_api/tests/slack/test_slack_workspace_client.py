@@ -1059,11 +1059,36 @@ def test_chat_post_message_resolves_mentions_in_text(
         ts="1234567890.123456", channel="C1"
     )
 
-    client.chat_post_message(channel="alerts", text="Heads up @oncall-team!")
+    client.chat_post_message(
+        channel="alerts", text="Heads up @oncall-team!", resolve_mentions=True
+    )
 
     mock_slack_api.chat_post_message.assert_called_once_with(
         channel_id="C1",
         text="Heads up <!subteam^UG1>!",
+        thread_ts=None,
+        icon_emoji=None,
+        icon_url=None,
+        username=None,
+    )
+
+
+def test_chat_post_message_does_not_resolve_mentions_by_default(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """Without resolve_mentions=True, free text can't trigger an unintended ping."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C1", name="alerts")]
+    )
+    mock_slack_api.chat_post_message.return_value = ChatPostMessageResponse(
+        ts="1234567890.123456", channel="C1"
+    )
+
+    client.chat_post_message(channel="alerts", text="Heads up @oncall-team!")
+
+    mock_slack_api.chat_post_message.assert_called_once_with(
+        channel_id="C1",
+        text="Heads up @oncall-team!",
         thread_ts=None,
         icon_emoji=None,
         icon_url=None,

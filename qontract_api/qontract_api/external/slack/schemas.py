@@ -51,6 +51,15 @@ class ChatRequest(BaseModel, frozen=True):
         ...,
         description="Secret reference for Slack bot token",
     )
+    resolve_mentions: bool = Field(
+        default=False,
+        description=(
+            "If true, resolve '@handle' tokens in `text` to real Slack mentions "
+            "(usergroup or user). Leave false for free text that should be "
+            "posted literally — only set true when the caller intentionally "
+            "constructs a handle to ping."
+        ),
+    )
 
     @model_validator(mode="after")
     def validate_target(self) -> Self:

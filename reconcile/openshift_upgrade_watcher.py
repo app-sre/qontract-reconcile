@@ -62,7 +62,10 @@ def handle_slack_notification(
     logging.info(["openshift-upgrade-watcher", msg])
     if not slack:
         return
-    slack.chat_post_message(msg)
+    # wait=True: only record the notification as sent once delivery is
+    # confirmed, so a failed send (Slack error, Vault error, etc.) is retried
+    # on the next run instead of being silently lost.
+    slack.chat_post_message(msg, resolve_mentions=True, wait=True)
     state.add(state_key, state_value, force=True)
 
 

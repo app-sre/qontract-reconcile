@@ -61,6 +61,7 @@ def test_task_posts_to_channel_success(
         icon_emoji=None,
         icon_url=None,
         username=None,
+        resolve_mentions=False,
     )
 
 
@@ -83,7 +84,37 @@ def test_task_sends_dm_success(
 
     assert result.status == TaskStatus.SUCCESS
     mock_client.send_dm.assert_called_once_with(
-        org_username="jsmith", text="Hello from qontract-api"
+        org_username="jsmith",
+        text="Hello from qontract-api",
+        resolve_mentions=False,
+    )
+
+
+@patch("qontract_api.external.slack.tasks.get_cache")
+@patch("qontract_api.external.slack.tasks.get_secret_manager")
+@patch("qontract_api.external.slack.tasks.create_slack_workspace_client")
+def test_task_forwards_resolve_mentions(
+    mock_factory: MagicMock,
+    mock_get_secret_manager: MagicMock,
+    mock_get_cache: MagicMock,
+) -> None:
+    """request.resolve_mentions is forwarded to the client call."""
+    mock_client = MagicMock()
+    mock_client.chat_post_message.return_value = ChatPostMessageResponse(
+        ts="1234567890.123456", channel="C12345"
+    )
+    mock_factory.return_value = mock_client
+
+    _run_task(_chat_request(resolve_mentions=True))
+
+    mock_client.chat_post_message.assert_called_once_with(
+        channel="sd-app-sre-reconcile",
+        text="Hello from qontract-api",
+        thread_ts=None,
+        icon_emoji=None,
+        icon_url=None,
+        username=None,
+        resolve_mentions=True,
     )
 
 

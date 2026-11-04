@@ -50,6 +50,12 @@
             "description": "URL to an image to use as the message icon",
             "title": "Icon Url"
           },
+          "resolve_mentions": {
+            "default": false,
+            "description": "If true, resolve '@handle' tokens in `text` to real Slack mentions (usergroup or user). Leave false for free text that should be posted literally \u2014 only set true when the caller intentionally constructs a handle to ping.",
+            "title": "Resolve Mentions",
+            "type": "boolean"
+          },
           "secret": {
             "$ref": "#/components/schemas/Secret",
             "description": "Secret reference for Slack bot token"

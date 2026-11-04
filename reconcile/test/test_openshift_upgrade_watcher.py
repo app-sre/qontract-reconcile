@@ -130,7 +130,42 @@ def test_new_upgrade_notify(
         slack=slack,
     )
     assert slack.chat_post_message.call_count == 1
+    assert slack.chat_post_message.call_args.kwargs == {
+        "resolve_mentions": True,
+        "wait": True,
+    }
     assert state.add.call_count == 1
+
+
+def test_new_upgrade_notify_delivery_failure_does_not_record_state(
+    mocker: MockerFixture,
+    state: MagicMock,
+    slack: MagicMock,
+    ouw_oc_map: MagicMock,
+    ouw_ocm_map: MagicMock,
+    upgrade_config: dict[str, Any],
+    mock_utc_now: MagicMock,
+) -> None:
+    """If the Slack send fails to deliver (wait=True raises), state.add() must
+    not run — otherwise the notification would never be retried."""
+    mock_utc_now.return_value = upgrade_at + timedelta(hours=1)
+    gso = mocker.patch(
+        "reconcile.openshift_upgrade_watcher._get_start_osd", autospec=True
+    )
+    gso.return_value = upgrade_at.strftime("%Y-%m-%dT%H:%M:%SZ"), upgrade_version
+    state.exists.return_value = False
+    slack.chat_post_message.side_effect = RuntimeError(
+        "Slack message delivery failed: channel_not_found"
+    )
+    with pytest.raises(RuntimeError, match="delivery failed"):
+        ouw.notify_upgrades_start(
+            ocm_map=ouw_ocm_map,
+            oc_map=ouw_oc_map,
+            clusters=[load_cluster("cluster1.yml")],
+            state=state,
+            slack=slack,
+        )
+    assert state.add.call_count == 0
 
 
 def test_new_upgrade_already_notified(
@@ -219,6 +254,10 @@ def test_new_version_no_state(
     state.get.return_value = None
     ouw.notify_cluster_new_version(clusters, state=state, slack=slack)
     assert slack.chat_post_message.call_count == 1
+    assert slack.chat_post_message.call_args.kwargs == {
+        "resolve_mentions": True,
+        "wait": True,
+    }
     assert state.add.call_count == 1
 
 
