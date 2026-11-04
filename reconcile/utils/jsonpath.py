@@ -33,7 +33,7 @@ def parse_jsonpath(jsonpath_expression: str) -> jsonpath_ng.JSONPath:
 
 def narrow_jsonpath_node(
     path_1: jsonpath_ng.JSONPath, path_2: jsonpath_ng.JSONPath
-) -> jsonpath_ng.JSONPath:
+) -> jsonpath_ng.JSONPath | None:
     """
     given two jsonpath nodes, return the most specific and narrow one
     e.g. an index is more specific than a slice, a filter is more specific than
@@ -124,7 +124,7 @@ def apply_constraint_to_path(
     e.g. if the path constraints a slice `[*]` and the constraints a
     specific index `[0]`, the `path` will be narrowed down to `[0]`.
     """
-    prefix_path = jsonpath_ng.Root()
+    prefix_path: jsonpath_ng.JSONPath = jsonpath_ng.Root()
     common = True
     common_prefix_length = 0
     for p1, p2 in zip_longest(

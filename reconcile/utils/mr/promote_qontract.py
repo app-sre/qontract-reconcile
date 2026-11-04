@@ -4,6 +4,7 @@ import logging
 from io import StringIO
 from typing import TYPE_CHECKING
 
+import jsonpath_ng
 from gitlab.exceptions import GitlabGetError
 from jsonpath_ng.ext import parser
 from qontract_utils.ruamel import create_ruamel_instance
@@ -43,6 +44,21 @@ def _get_file_if_exists(gitlab_cli: GitLabApi, path: str) -> bytes | None:
         if e.response_code == 404:
             return None
         raise
+
+
+def _set_field_match(match: jsonpath_ng.DatumInContext, replace_text: str) -> None:
+    """Set `replace_text` at a jsonpath match that is expected to resolve to a
+    plain field (e.g. `...targets[?(@.name == 'x')].ref`). Every search_text
+    used by this module ends in a field segment with a parent, never a bare
+    `$` or a filter/index as the final segment.
+    """
+    assert match.context is not None, f"no parent context for match {match!r}"
+    assert isinstance(match.path, jsonpath_ng.Fields), (
+        f"expected a field match, got {match.path!r}"
+    )
+    parent = match.context.value
+    key = match.path.fields[0]
+    parent[key] = replace_text
 
 
 class PromoteQontractSchemas(MergeRequestBase):
@@ -188,9 +204,7 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
         yml = create_ruamel_instance()
         content = yml.load(raw_file)
         for match in parser.parse(search_text).find(content):
-            parent = match.context.value
-            key = match.path.fields[0]
-            parent[key] = replace_text
+            _set_field_match(match, replace_text)
         new_content = "---\n"
         with StringIO() as stream:
             yml.dump(content, stream)
@@ -253,9 +267,7 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
         content = yml.load(raw_file)
         for search_text, replace_text in replacements:
             for match in parser.parse(search_text).find(content):
-                parent = match.context.value
-                key = match.path.fields[0]
-                parent[key] = replace_text
+                _set_field_match(match, replace_text)
         new_content = "---\n"
         with StringIO() as stream:
             yml.dump(content, stream)

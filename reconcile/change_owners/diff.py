@@ -29,11 +29,13 @@ class _DottedChild(jsonpath_ng.Child):
     Same as `jsonpath_ng.Child`, but renders as a plain dotted path, e.g.
     `resourceTemplates.[0].targets.[0].parameters.A`.
 
-    jsonpath_ng 1.8.0 wraps every `Child` in parentheses when stringified
-    (e.g. `(((a.b).c).d)`) to disambiguate operator precedence for
-    re-parsing. `Diff.path` is only ever rendered for display (MR check
-    output, logs, error messages), never re-parsed, so the parens just
-    hurt readability.
+    `jsonpath_ng.Child.__str__` is an internal implementation detail that
+    has changed across versions (e.g. 1.8.0 wrapped every `Child` in
+    parentheses, like `(((a.b).c).d)`, to disambiguate operator precedence
+    for re-parsing; later versions dropped that). `Diff.path` is only ever
+    rendered for display (MR check output, logs, error messages), never
+    re-parsed, so we pin our own display format instead of depending on
+    the library's.
     """
 
     def __str__(self) -> str:

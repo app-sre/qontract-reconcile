@@ -106,7 +106,20 @@ def hash_list(input: Iterable) -> str:
 
 def _find_jsonpath(input: Any, jsonpath: str | None) -> Any:
     assert jsonpath is not None and len(jsonpath) > 0
-    return parse_jsonpath(jsonpath).find(input)
+    parsed = parse_jsonpath(jsonpath)
+    if isinstance(input, str) and isinstance(parsed, jsonpath_ng.Index):
+        # jsonpath_ng (>=1.12) treats integer indices as applying only to
+        # arrays (RFC 9535: a JSON string isn't an array), so indexing a
+        # scalar string no longer matches. Preserve the previous behavior
+        # for a direct, single-segment index path on a scalar string, e.g.
+        # extract_jsonpath("a", "[0]") == ["a"], since Jinja2 templates may
+        # rely on it.
+        return [
+            jsonpath_ng.DatumInContext.wrap(input[index])
+            for index in parsed.indices
+            if -len(input) <= index < len(input)
+        ]
+    return parsed.find(input)
 
 
 def extract_jsonpath(input: Any, jsonpath: str) -> Any:

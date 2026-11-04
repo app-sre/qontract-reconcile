@@ -5,10 +5,7 @@ from abc import (
     abstractmethod,
 )
 from collections import defaultdict
-from collections.abc import (
-    MutableMapping,
-    Sequence,
-)
+from collections.abc import Sequence
 from collections.abc import (
     Set as AbstractSet,
 )
@@ -132,7 +129,7 @@ class DiffCoverage:
         # remove the parts of this diffs data that are covered by the splits
         # if nothing remains, the splits cover the entire diff
         uncovered_data = self.diff.get_context_data_copy()
-        if uncovered_data and isinstance(uncovered_data, MutableMapping):
+        if uncovered_data and isinstance(uncovered_data, dict):
             # sort splits so that later indices are always removed before earlier ones
             sorted_splits = sorted(
                 self._split_into,
@@ -145,11 +142,12 @@ class DiffCoverage:
                     # this removes the data that matches the path
                     relative_path.filter(lambda x: True, uncovered_data)
                     # remove empty parents iteratively
-                    parent_path = relative_path
-                    while parent_path := parent_of_jsonpath(parent_path):
+                    current_path = relative_path
+                    while (parent_path := parent_of_jsonpath(current_path)) is not None:
                         for parent_data in parent_path.find(uncovered_data):
                             if not parent_data.value:
                                 parent_path.filter(lambda x: True, uncovered_data)
+                        current_path = parent_path
         return uncovered_data == {}
 
     def changed_path_covered_by_path(self, path: jsonpath_ng.JSONPath) -> bool:
