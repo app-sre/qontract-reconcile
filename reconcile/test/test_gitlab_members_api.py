@@ -193,6 +193,38 @@ async def test_get_permissions_filters_by_managed_groups_and_resolves_roles() ->
     assert mock_resolve.call_args.kwargs["query_func"] is query_func
 
 
+@pytest.mark.asyncio
+async def test_get_permissions_resolves_roles_for_unmanaged_groups_too() -> None:
+    """Roles must be resolved for every queried permission, including ones for
+    unmanaged groups, before filtering - an unresolved source-backed role must
+    fail the run rather than being silently dropped by the managed_groups filter."""
+    query_func = MagicMock()
+    managed_role = make_role(name="team-role", users=["alice"])
+    unmanaged_role = make_role(name="other-role", users=["bob"])
+    permissions = [
+        make_permission(group="team", roles=[managed_role]),
+        make_permission(group="other-team", roles=[unmanaged_role]),
+    ]
+
+    with (
+        patch(
+            "reconcile.gitlab_members_api._query_permissions",
+            return_value=permissions,
+        ),
+        patch(
+            "reconcile.gitlab_members_api.resolve_role_members",
+            new=AsyncMock(return_value=[managed_role, unmanaged_role]),
+        ) as mock_resolve,
+    ):
+        result = await GitlabMembersIntegration.get_permissions(
+            query_func, managed_groups=["team"]
+        )
+
+    resolved_role_names = {role.name for role in mock_resolve.call_args.args[0]}
+    assert resolved_role_names == {"team-role", "other-role"}
+    assert [p.group for p in result] == ["team"]
+
+
 # ---------------------------------------------------------------------------
 # compile_group_members
 # ---------------------------------------------------------------------------

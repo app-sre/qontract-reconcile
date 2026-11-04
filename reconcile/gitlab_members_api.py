@@ -132,9 +132,7 @@ class GitlabMembersIntegration(
     ) -> list[PermissionGitlabGroupMembershipV1]:
         """Fetch GitLab group membership permissions with resolved role memberships."""
         permissions = [
-            permission.model_copy()
-            for permission in _query_permissions(query_func)
-            if permission.group in managed_groups
+            permission.model_copy() for permission in _query_permissions(query_func)
         ]
         resolved_roles = await resolve_role_members(
             [role for permission in permissions for role in permission.roles or []],
@@ -147,6 +145,7 @@ class GitlabMembersIntegration(
                 permission.roles = [
                     roles_by_name[role.name] for role in permission.roles
                 ]
+        permissions = [p for p in permissions if p.group in managed_groups]
         return permissions
 
     async def compile_users_from_pagerduty(
