@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from reconcile.utils.disabled_integrations import (
     HasDisableIntegrations,
+    disabled_integrations,
     integration_is_enabled,
 )
 
@@ -86,6 +87,35 @@ class AccountSSO(HasDisableIntegrations, Protocol):
     name: str
     uid: str
     sso: bool | None
+
+
+# Both integration names during ldap-groups → ldap-groups-api cutover.
+_LDAP_GROUPS_AWS_DISABLE_NAMES = frozenset({"ldap-groups", "ldap-groups-api"})
+
+
+def ldap_groups_aws_integration_enabled(
+    disable_obj: Mapping[str, Any] | HasDisableIntegrations | None,
+) -> bool:
+    disabled = set(disabled_integrations(disable_obj))
+    return not disabled.intersection(_LDAP_GROUPS_AWS_DISABLE_NAMES)
+
+
+def unique_sso_aws_accounts_for_ldap_groups(
+    accounts: Iterable[AccountSSO], account_name: str | None = None
+) -> list[AccountSSO]:
+    """Unique SSO AWS accounts eligible for ldap-groups rover group generation."""
+    filtered_account: dict[str, AccountSSO] = {}
+    for account in accounts:
+        if account_name and account.name != account_name:
+            continue
+        if not account.sso:
+            continue
+        if not ldap_groups_aws_integration_enabled(account):
+            continue
+        if account.uid in filtered_account:
+            continue
+        filtered_account[account.uid] = account
+    return list(filtered_account.values())
 
 
 def unique_sso_aws_accounts(

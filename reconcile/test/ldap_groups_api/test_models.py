@@ -16,8 +16,11 @@ from reconcile.ldap_groups_api.models import (
     get_desired_groups_for_roles,
     get_integration_settings,
     get_roles,
-    unique_sso_aws_accounts_for_ldap_groups,
     validate_no_circular_memberships,
+)
+from reconcile.utils.aws_helper import (
+    ldap_groups_aws_integration_enabled,
+    unique_sso_aws_accounts_for_ldap_groups,
 )
 from reconcile.utils.exceptions import AppInterfaceLdapGroupsSettingsError
 from reconcile.utils.membershipsources.validation import CircularMembershipError
@@ -69,6 +72,24 @@ def test_unique_sso_aws_accounts_for_ldap_groups_honors_both_disable_names(
         disable=_Disable(integrations=disabled_integrations),
     )
     assert unique_sso_aws_accounts_for_ldap_groups([account]) == []
+
+
+@pytest.mark.parametrize(
+    "integrations, expected",
+    [
+        (["ldap-groups"], False),
+        (["ldap-groups-api"], False),
+        (["ldap-groups", "ldap-groups-api"], False),
+        (["aws-saml-roles"], True),
+        ([], True),
+    ],
+)
+def test_ldap_groups_aws_integration_enabled(
+    integrations: list[str],
+    expected: bool,
+) -> None:
+    disable_obj = {"disable": {"integrations": integrations}}
+    assert ldap_groups_aws_integration_enabled(disable_obj) is expected
 
 
 def test_get_desired_groups_for_aws_roles_builds_group_names(
