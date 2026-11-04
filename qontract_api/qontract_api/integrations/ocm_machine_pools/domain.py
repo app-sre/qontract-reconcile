@@ -33,7 +33,9 @@ class DesiredMachinePoolAutoscaling(BaseModel, frozen=True):
     def validate_scaling(self) -> Self:
         """Reject min > max, on the coerced values (legacy parity: equal is OK)."""
         if self.min_replicas > self.max_replicas:
-            raise ValueError("max_replicas must be greater than min_replicas")
+            raise ValueError(
+                "max_replicas must be greater than or equal to min_replicas"
+            )
         return self
 
 
@@ -47,7 +49,7 @@ class DesiredNodePoolAutoscaling(BaseModel, frozen=True):
     def validate_scaling(self) -> Self:
         """Reject min > max, on the coerced values (legacy parity: equal is OK)."""
         if self.min_replica > self.max_replica:
-            raise ValueError("max_replica must be greater than min_replica")
+            raise ValueError("max_replica must be greater than or equal to min_replica")
         return self
 
 

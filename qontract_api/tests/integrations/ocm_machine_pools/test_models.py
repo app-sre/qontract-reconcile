@@ -22,7 +22,7 @@ def test_cluster_type_values() -> None:
 
 
 def test_machine_pool_autoscaling_rejects_max_below_min() -> None:
-    """max_replicas must be greater than min_replicas."""
+    """max_replicas must be greater than or equal to min_replicas."""
     with pytest.raises(ValidationError, match="max_replicas must be greater"):
         DesiredMachinePoolAutoscaling(min_replicas=5, max_replicas=2)
 
@@ -61,7 +61,7 @@ def test_node_pool_autoscaling_string_bounds_coerced() -> None:
 
 
 def test_node_pool_autoscaling_rejects_max_below_min() -> None:
-    """max_replica must be greater than min_replica (singular HCP fields)."""
+    """max_replica must be greater than or equal to min_replica (singular HCP fields)."""
     with pytest.raises(ValidationError, match="max_replica must be greater"):
         DesiredNodePoolAutoscaling(min_replica=5, max_replica=2)
 
