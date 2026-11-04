@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -40,7 +41,10 @@ class TestControlFile:
 
 @patch("reconcile.utils.gql.get_api", autospec=True)
 @patch("reconcile.quay_mirror_org.get_quay_api_store", return_value={})
-@patch("time.time", return_value=NOW)
+@patch(
+    "reconcile.container_registry_mirror.deep_sync_timer.time",
+    SimpleNamespace(time=lambda: NOW),
+)
 class TestIsCompareTags:
     def setup_method(self) -> None:
         self.tmp_dir = tempfile.TemporaryDirectory()
@@ -56,7 +60,6 @@ class TestIsCompareTags:
     def test_is_compare_tags_elapsed(
         self,
         mock_gql: Mock,
-        mock_time: Mock,
         mock_quay_api_store: Mock,
     ) -> None:
         qm = QuayMirrorOrg(control_file_dir=self.tmp_dir.name, compare_tags_interval=10)
@@ -66,7 +69,6 @@ class TestIsCompareTags:
     def test_is_compare_tags_force_no_compare(
         self,
         mock_gql: Mock,
-        mock_time: Mock,
         mock_quay_api_store: Mock,
     ) -> None:
         qm = QuayMirrorOrg(
@@ -80,7 +82,6 @@ class TestIsCompareTags:
     def test_is_compare_tags_not_elapsed(
         self,
         mock_gql: Mock,
-        mock_time: Mock,
         mock_quay_api_store: Mock,
     ) -> None:
         qm = QuayMirrorOrg(
@@ -92,7 +93,6 @@ class TestIsCompareTags:
     def test_is_compare_tags_force_compare(
         self,
         mock_gql: Mock,
-        mock_time: Mock,
         mock_quay_api_store: Mock,
     ) -> None:
         qm = QuayMirrorOrg(

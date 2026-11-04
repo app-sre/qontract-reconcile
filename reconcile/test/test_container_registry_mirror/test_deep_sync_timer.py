@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -24,8 +25,11 @@ class TestShouldRun:
         )
         assert timer.should_run is True
 
-    @patch("time.time", return_value=NOW)
-    def test_interval_elapsed_triggers_sync(self, _mock_time: object) -> None:
+    @patch(
+        "reconcile.container_registry_mirror.deep_sync_timer.time",
+        SimpleNamespace(time=lambda: NOW),
+    )
+    def test_interval_elapsed_triggers_sync(self) -> None:
         """When enough time has passed since the last deep sync, the
         timer should trigger."""
         with tempfile.NamedTemporaryFile(
@@ -40,8 +44,11 @@ class TestShouldRun:
         finally:
             os.unlink(path)
 
-    @patch("time.time", return_value=NOW)
-    def test_interval_not_elapsed_skips_sync(self, _mock_time: object) -> None:
+    @patch(
+        "reconcile.container_registry_mirror.deep_sync_timer.time",
+        SimpleNamespace(time=lambda: NOW),
+    )
+    def test_interval_not_elapsed_skips_sync(self) -> None:
         """When insufficient time has passed, the timer should not
         trigger."""
         with tempfile.NamedTemporaryFile(
@@ -82,8 +89,11 @@ class TestCliOverride:
         )
         assert timer.should_run is True
 
-    @patch("time.time", return_value=NOW)
-    def test_force_false_overrides_timer(self, _mock_time: object) -> None:
+    @patch(
+        "reconcile.container_registry_mirror.deep_sync_timer.time",
+        SimpleNamespace(time=lambda: NOW),
+    )
+    def test_force_false_overrides_timer(self) -> None:
         """--no-compare-tags should suppress deep sync even when the
         interval has elapsed."""
         with tempfile.NamedTemporaryFile(

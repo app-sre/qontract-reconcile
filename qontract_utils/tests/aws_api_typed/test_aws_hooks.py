@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from qontract_utils.aws_api_typed import _hooks
@@ -44,7 +45,8 @@ def test_latency_nested_calls() -> None:
 def test_latency_end_hook_observes_duration() -> None:
     ctx = AWSApiCallContext(method="test_duration", service="sts")
     _hooks._latency_start_hook(ctx)
-    with patch.object(time, "perf_counter", return_value=time.perf_counter() + 0.5):
+    fake_time = SimpleNamespace(perf_counter=lambda: time.perf_counter() + 0.5)
+    with patch.object(_hooks, "time", fake_time):
         _hooks._latency_end_hook(ctx)
     assert _hooks.aws_request_duration.labels("test_duration", "sts")._sum.get() > 0
 

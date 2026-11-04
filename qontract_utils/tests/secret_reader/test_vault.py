@@ -5,6 +5,8 @@ Tests the VaultSecretBackend implementation with python-hvac.
 
 # ruff: file-ignore[unused-function-argument]
 
+import time
+from types import SimpleNamespace
 from typing import Any, NoReturn
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -733,9 +735,13 @@ class TestVaultSecretBackendAutoRefresh:
 
     def test_auto_refresh_loop_renew_success(self) -> None:
         """Test that the auto-refresh loop successfully renews the token."""
+        mock_sleep = MagicMock()
         with (
             patch("hvac.Client") as mock_client_class,
-            patch("time.sleep") as mock_sleep,
+            patch(
+                "qontract_utils.secret_reader.providers.vault.time",
+                SimpleNamespace(sleep=mock_sleep, perf_counter=time.perf_counter),
+            ),
         ):
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
@@ -772,9 +778,13 @@ class TestVaultSecretBackendAutoRefresh:
 
     def test_auto_refresh_loop_renew_failure_fallback(self) -> None:
         """Test that the auto-refresh loop falls back to login if renew fails."""
+        mock_sleep = MagicMock()
         with (
             patch("hvac.Client") as mock_client_class,
-            patch("time.sleep") as mock_sleep,
+            patch(
+                "qontract_utils.secret_reader.providers.vault.time",
+                SimpleNamespace(sleep=mock_sleep, perf_counter=time.perf_counter),
+            ),
         ):
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
@@ -1121,7 +1131,11 @@ class TestVaultSlowRequestLogging:
             "data": {"data": {"token": "xoxb-test-token"}}
         }
 
-        with patch("time.perf_counter") as mock_time:
+        mock_time = MagicMock()
+        with patch(
+            "qontract_utils.secret_reader.providers.vault.time",
+            SimpleNamespace(perf_counter=mock_time),
+        ):
             # Use a counter to simulate passage of time
             counter = {"calls": 0}
 
@@ -1163,7 +1177,11 @@ class TestVaultSlowRequestLogging:
             "data": {"data": {"token": "xoxb-test-token"}}
         }
 
-        with patch("time.perf_counter") as mock_time:
+        mock_time = MagicMock()
+        with patch(
+            "qontract_utils.secret_reader.providers.vault.time",
+            SimpleNamespace(perf_counter=mock_time),
+        ):
             # Use a counter to simulate passage of time
             counter = {"calls": 0}
 
@@ -1189,7 +1207,11 @@ class TestVaultSlowRequestLogging:
 
     def test_slow_auth_call_omits_path_mount_point(self) -> None:
         """Test that slow auth calls omit path/mount_point fields (they are None)."""
-        with patch("time.perf_counter") as mock_time:
+        mock_time = MagicMock()
+        with patch(
+            "qontract_utils.secret_reader.providers.vault.time",
+            SimpleNamespace(perf_counter=mock_time),
+        ):
             # Use a counter to simulate passage of time
             counter = {"calls": 0}
 
@@ -1244,7 +1266,11 @@ class TestVaultSlowRequestLogging:
         }
 
         # Test exactly 2.0s - NOT slow
-        with patch("time.perf_counter") as mock_time:
+        mock_time = MagicMock()
+        with patch(
+            "qontract_utils.secret_reader.providers.vault.time",
+            SimpleNamespace(perf_counter=mock_time),
+        ):
             counter = {"calls": 0}
 
             def time_func() -> float:
@@ -1270,7 +1296,11 @@ class TestVaultSlowRequestLogging:
         }
 
         # Test 2.001s - IS slow
-        with patch("time.perf_counter") as mock_time:
+        mock_time = MagicMock()
+        with patch(
+            "qontract_utils.secret_reader.providers.vault.time",
+            SimpleNamespace(perf_counter=mock_time),
+        ):
             counter = {"calls": 0}
 
             def time_func() -> float:

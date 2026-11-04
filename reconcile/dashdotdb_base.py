@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 import requests
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Generator, Mapping
 
     from reconcile.utils.secret_reader import (
         HasSecret,
@@ -73,7 +73,7 @@ class DashdotdbBase:
     # so callers become `self._with_token(lambda: self.post(data))`. Deferred:
     # DVO's multi-statement body would first need extracting into a method.
     @contextmanager
-    def _token(self) -> Iterator[None]:
+    def _token(self) -> Generator[None]:
         # Yields nothing: this context manager exists purely for token
         # lifecycle. The acquired token is stored on self.dashdotdb_token and
         # read by _do_post(); callers use `with self._token():` without `as`.

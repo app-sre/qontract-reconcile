@@ -344,13 +344,13 @@ def running_merge_request_pipeline() -> ProjectMergeRequestPipeline:
 
 def test_merge_merge_requests_with_retry(
     mocker: MockerFixture,
+    patch_sleep: MagicMock,
     state: Mock,
     project: Project,
     can_be_merged_merge_request: ProjectMergeRequest,
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
     running_merge_request_pipeline: ProjectMergeRequestPipeline,
 ) -> None:
-    mocker.patch("time.sleep")
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
     mocked_gl.get_merge_requests.return_value = [can_be_merged_merge_request]
@@ -3496,11 +3496,11 @@ def test_multi_merge_running_pipeline_skipped_after_first_merge(
 
 def test_multi_merge_insist_only_before_first_merge(
     mocker: MockerFixture,
+    patch_sleep: MagicMock,
 ) -> None:
     mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
     items = [_make_merge_item(mr1)]
 
-    mocker.patch("time.sleep")
     mocker.patch(
         "reconcile.gitlab_housekeeping.integration.preprocess_merge_requests",
         return_value=items,
