@@ -40,6 +40,12 @@ class ClusterNamespaces(pydantic.BaseModel):
     server_url: str
 
 
+class ClusterType(str, enum.Enum):
+    OSD = "osd"
+    ROSA = "rosa"
+    HYPERSHIFT = "hypershift"
+
+
 class CreateNamespaceAction(pydantic.BaseModel):
     action_type: typing.Literal["create_namespace"] = "create_namespace"
     cluster: str
@@ -52,9 +58,45 @@ class DeleteNamespaceAction(pydantic.BaseModel):
     namespace: str
 
 
+class DesiredClusterMachinePools(pydantic.BaseModel):
+    cluster_id: str
+    cluster_type: ClusterType
+    name: str
+    pools: list[DesiredMachinePool | DesiredNodePool] | None = None
+
+
+class DesiredMachinePool(pydantic.BaseModel):
+    autoscaling: DesiredMachinePoolAutoscaling | None | None = None
+    id: str
+    instance_type: str
+    labels: dict[str, typing.Any] | None = None
+    replicas: int | None = None
+    taints: list[OcmTaint] | None = None
+
+
+class DesiredMachinePoolAutoscaling(pydantic.BaseModel):
+    max_replicas: int
+    min_replicas: int
+
+
 class DesiredNamespace(pydantic.BaseModel):
     delete: bool = False
     name: str
+
+
+class DesiredNodePool(pydantic.BaseModel):
+    autoscaling: DesiredNodePoolAutoscaling | None | None = None
+    aws_node_pool: OcmNodePoolAws
+    id: str
+    labels: dict[str, typing.Any] | None = None
+    replicas: int | None = None
+    subnet: str | None = None
+    taints: list[OcmTaint] | None = None
+
+
+class DesiredNodePoolAutoscaling(pydantic.BaseModel):
+    max_replica: int
+    min_replica: int
 
 
 class EscalationPolicyUsersResponse(pydantic.BaseModel):
@@ -854,6 +896,87 @@ class OcmGroupsTaskResult(pydantic.BaseModel):
     status: TaskStatus
 
 
+class OcmMachinePoolsActionCreateMachinePool(pydantic.BaseModel):
+    action_type: typing.Literal["create_machine_pool"] = "create_machine_pool"
+    cluster: str
+    pool_id: str
+
+
+class OcmMachinePoolsActionCreateNodePool(pydantic.BaseModel):
+    action_type: typing.Literal["create_node_pool"] = "create_node_pool"
+    cluster: str
+    pool_id: str
+
+
+class OcmMachinePoolsActionDeleteMachinePool(pydantic.BaseModel):
+    action_type: typing.Literal["delete_machine_pool"] = "delete_machine_pool"
+    cluster: str
+    pool_id: str
+
+
+class OcmMachinePoolsActionDeleteNodePool(pydantic.BaseModel):
+    action_type: typing.Literal["delete_node_pool"] = "delete_node_pool"
+    cluster: str
+    pool_id: str
+
+
+class OcmMachinePoolsActionUpdateMachinePool(pydantic.BaseModel):
+    action_type: typing.Literal["update_machine_pool"] = "update_machine_pool"
+    cluster: str
+    pool_id: str
+
+
+class OcmMachinePoolsActionUpdateNodePool(pydantic.BaseModel):
+    action_type: typing.Literal["update_node_pool"] = "update_node_pool"
+    cluster: str
+    pool_id: str
+
+
+class OcmMachinePoolsReconcileRequest(pydantic.BaseModel):
+    clusters: list[DesiredClusterMachinePools]
+    dry_run: bool = True
+    ocm_connection: OcmConnectionParams
+    ocm_environment: str
+
+
+class OcmMachinePoolsTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class OcmMachinePoolsTaskResult(pydantic.BaseModel):
+    actions: list[
+        typing.Annotated[
+            OcmMachinePoolsActionCreateMachinePool
+            | OcmMachinePoolsActionUpdateMachinePool
+            | OcmMachinePoolsActionDeleteMachinePool
+            | OcmMachinePoolsActionCreateNodePool
+            | OcmMachinePoolsActionUpdateNodePool
+            | OcmMachinePoolsActionDeleteNodePool,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_actions: list[
+        typing.Annotated[
+            OcmMachinePoolsActionCreateMachinePool
+            | OcmMachinePoolsActionUpdateMachinePool
+            | OcmMachinePoolsActionDeleteMachinePool
+            | OcmMachinePoolsActionCreateNodePool
+            | OcmMachinePoolsActionUpdateNodePool
+            | OcmMachinePoolsActionDeleteNodePool,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
+
+
+class OcmNodePoolAws(pydantic.BaseModel):
+    instance_type: str
+
+
 class OcmOidcIdpActionCreate(pydantic.BaseModel):
     action_type: typing.Literal["create"] = "create"
     auth_name: str
@@ -917,6 +1040,12 @@ class OcmOidcIdpTaskResult(pydantic.BaseModel):
     applied_count: int = 0
     errors: list[str] = []
     status: TaskStatus
+
+
+class OcmTaint(pydantic.BaseModel):
+    effect: str
+    key: str
+    value: str | None = None
 
 
 class OidcDesiredState(pydantic.BaseModel):
