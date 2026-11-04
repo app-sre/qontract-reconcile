@@ -388,6 +388,46 @@ async def github_owners_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/gitlab-members/reconcile")
+async def gitlab_members(
+    result: schemas.GitlabMembersTaskResponse,
+    data: schemas.GitlabMembersReconcileRequest,
+) -> schemas.GitlabMembersTaskResponse:
+    """Gitlab Members
+
+        Queue GitLab members reconciliation task.
+
+    Always queues a background task and returns immediately with a task_id.
+    Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/gitlab-members/reconcile/{task_id}")
+async def gitlab_members_task_status(
+    result: schemas.GitlabMembersTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.GitlabMembersTaskResult:
+    """Gitlab Members Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        timeout: Maximum seconds to wait (default: non-blocking)
+
+    Returns:
+        GitlabMembersTaskResult with lists of calculated and applied actions.
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Task ID not found
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
 @client.post("/api/v1/integrations/gitlab-projects/reconcile")
 async def gitlab_projects(
     result: schemas.GitlabProjectsTaskResponse,

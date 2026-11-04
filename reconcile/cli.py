@@ -2712,6 +2712,20 @@ def gitlab_projects(
     )
 
 
+@integration.command(short_help="Manage GitLab group members via qontract-api.")
+@click.pass_context
+def gitlab_members_api(ctx: click.Context) -> None:
+    from reconcile.gitlab_members_api import (
+        GitlabMembersIntegration,
+        GitlabMembersIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=GitlabMembersIntegration(GitlabMembersIntegrationParams()),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Manage membership in OpenShift groups via OCM.")
 @threaded()
 @click.pass_context

@@ -1,0 +1,34 @@
+# qenerate: plugin=pydantic_v2
+
+query GitlabMembersApiPermission {
+  permissions: permissions_v1 {
+    ... on PermissionGitlabGroupMembership_v1 {
+      name
+      group
+      access
+      pagerduty {
+        name
+        instance {
+          name
+          token {
+            ...VaultSecret
+          }
+        }
+        scheduleID
+        escalationPolicyID
+      }
+      roles {
+        name
+        memberSources {
+          ...RoleMembershipSource
+        }
+        users {
+          org_username
+        }
+        bots {
+          org_username
+        }
+      }
+    }
+  }
+}
