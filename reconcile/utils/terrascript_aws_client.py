@@ -457,7 +457,7 @@ class TerrascriptClient:
 
     ts = TerrascriptClient("terraform_resources", "qrtf", 20, accounts, settings)
     ts.init_populate_specs(tf_namespaces, account_name)
-    ts.populate_resources(ocm_map=ocm_map)
+    ts.populate_resources(ocm_map=ocm_map, aws_api=aws_api)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
     More information on Terrascript: https://python-terrascript.readthedocs.io/en/develop/
@@ -484,6 +484,8 @@ class TerrascriptClient:
             self.secret_reader = SecretReader(settings=settings)
         self.configs: dict[str, dict] = {}
         self.default_tags = default_tags or {"app": "app-sre-infra"}
+        # Deduplicates EBS limit skip messages within one populate run.
+        self._reported_elasticsearch_ebs_limit_skips: set[tuple[str, ...]] = set()
         self.populate_configs(filtered_accounts)
         self.versions: dict[str, str] = {
             a["name"]: a["providerVersion"] for a in filtered_accounts
@@ -1653,14 +1655,14 @@ class TerrascriptClient:
         return results
 
     def populate_resources(
-        self, ocm_map: OCMMap | None = None, aws_api: AWSApi | None = None
+        self, ocm_map: OCMMap | None = None, *, aws_api: AWSApi
     ) -> None:
         """
         Populates the terraform configuration from resource specs.
         :param ocm_map:
-        :param aws_api: shared AWS client for best-effort lookups. A client scoped
-                        to the spec's account is created when this is omitted.
+        :param aws_api: shared AWS client used for best-effort lookups
         """
+        self._reported_elasticsearch_ebs_limit_skips.clear()
         for specs in self.account_resource_specs.values():
             for spec in specs:
                 self.populate_tf_resources(spec, ocm_map=ocm_map, aws_api=aws_api)
@@ -1723,45 +1725,18 @@ class TerrascriptClient:
         region: str,
         engine_version: str,
         instance_type: str,
-        aws_api: AWSApi | None,
+        aws_api: AWSApi,
     ) -> Mapping[str, Any] | None:
-        if aws_api is not None:
-            return aws_api.get_opensearch_instance_type_limits(
-                spec.provisioner_name, region, engine_version, instance_type
-            )
+        return aws_api.get_opensearch_instance_type_limits(
+            spec.provisioner_name, region, engine_version, instance_type
+        )
 
-        # Standalone callers have no shared client, so scope a temporary one to
-        # the spec's account; terraform_resources.setup threads in its client.
-        # The account can be disabled for this integration, and secret retrieval
-        # during construction can fail, so both cases stay best-effort.
-        account = self.accounts.get(spec.provisioner_name)
-        if account is None:
-            logging.info(
-                "Skipping OpenSearch EBS limit check for %s: account %s is not "
-                "enabled for this integration",
-                spec.identifier,
-                spec.provisioner_name,
-            )
-            return None
-
-        try:
-            with AWSApi(
-                1,
-                [account],
-                secret_reader=self.secret_reader,
-            ) as account_api:
-                return account_api.get_opensearch_instance_type_limits(
-                    spec.provisioner_name, region, engine_version, instance_type
-                )
-        except Exception as error:
-            # Secret backends raise their own exception types and this optional
-            # check must never block configuration generation.
-            logging.info(
-                "Skipping OpenSearch EBS limit check for %s: AWS access failed (%s)",
-                spec.identifier,
-                type(error).__name__,
-            )
-            return None
+    def _report_opensearch_ebs_skip(self, key: tuple[str, ...]) -> bool:
+        """Return True the first time a skip reason is seen in this run."""
+        if key in self._reported_elasticsearch_ebs_limit_skips:
+            return False
+        self._reported_elasticsearch_ebs_limit_skips.add(key)
+        return True
 
     def _warn_elasticsearch_ebs_limit(
         self,
@@ -1771,7 +1746,7 @@ class TerrascriptClient:
         engine_version: str | None,
         instance_type: str,
         ebs_values: Mapping[str, Any],
-        aws_api: AWSApi | None,
+        aws_api: AWSApi,
     ) -> None:
         """Warn when an EBS volume exceeds AWS's instance-specific maximum.
 
@@ -1788,11 +1763,19 @@ class TerrascriptClient:
             return
 
         if not engine_version:
-            logging.info(
-                "Skipping OpenSearch EBS limit check for %s: engine version is not "
-                "configured",
-                spec.identifier,
+            engine_skip_key = (
+                "missing-engine-version",
+                spec.provisioner_name,
+                region,
+                str(instance_type),
+                str(ebs_values.get("volume_type", "gp2")),
             )
+            if self._report_opensearch_ebs_skip(engine_skip_key):
+                logging.info(
+                    "Skipping OpenSearch EBS limit check for %s: engine version is "
+                    "not configured",
+                    spec.identifier,
+                )
             return
 
         if not isinstance(instance_type, str):
@@ -1817,13 +1800,22 @@ class TerrascriptClient:
         volume_type = ebs_values.get("volume_type", "gp2")
         maximum_volume_size = self._get_opensearch_ebs_volume_limit(limits, volume_type)
         if maximum_volume_size is None:
-            logging.info(
-                "Skipping OpenSearch EBS limit check for %s: AWS did not return a "
-                "maximum for volume type %s on instance %s",
-                spec.identifier,
-                volume_type,
+            limit_skip_key = (
+                "missing-limit",
+                spec.provisioner_name,
+                region,
+                engine_version,
                 api_instance_type,
+                str(volume_type),
             )
+            if self._report_opensearch_ebs_skip(limit_skip_key):
+                logging.info(
+                    "Skipping OpenSearch EBS limit check for %s: AWS did not return "
+                    "a maximum for volume type %s on instance %s",
+                    spec.identifier,
+                    volume_type,
+                    api_instance_type,
+                )
             return
 
         requested_volume_size = self._to_finite_float(volume_size)
@@ -1938,7 +1930,8 @@ class TerrascriptClient:
         self,
         spec: ExternalResourceSpec,
         ocm_map: OCMMap | None = None,
-        aws_api: AWSApi | None = None,
+        *,
+        aws_api: AWSApi,
     ) -> None:
         if spec.provision_provider != PROVIDER_AWS:
             raise UnknownProviderError(spec.provision_provider)
@@ -4866,7 +4859,7 @@ class TerrascriptClient:
         return advanced_security_options
 
     def populate_tf_resource_elasticsearch(
-        self, spec: ExternalResourceSpec, aws_api: AWSApi | None = None
+        self, spec: ExternalResourceSpec, *, aws_api: AWSApi
     ) -> None:
         account = spec.provisioner_name
         identifier = spec.identifier

@@ -13,10 +13,10 @@ if TYPE_CHECKING:
     from pytest_mock import MockerFixture
 
 
-def build_spec() -> ExternalResourceSpec:
+def build_spec(identifier: str = "test-domain") -> ExternalResourceSpec:
     provisioner = {"name": "some-account"}
     resource: dict[str, Any] = {
-        "identifier": "test-domain",
+        "identifier": identifier,
         "provider": "elasticsearch",
     }
     namespace = {
@@ -390,83 +390,63 @@ def test_does_not_change_generated_resource(
     )
 
 
-def test_uses_supplied_aws_api_without_building_another(
+def test_dedups_skip_message_for_shared_key(
     terrascript_client: TerrascriptClient,
     populate_mocks: PopulateMocks,
     mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    spec = build_spec()
+    caplog.set_level("INFO")
     mocker.patch.object(terrascript_client, "init_values", return_value=build_values())
     aws_api = mocker.create_autospec(AWSApi, instance=True)
-    aws_api.get_opensearch_instance_type_limits.return_value = build_limits()
-    aws_api_constructor = mocker.patch("reconcile.utils.terrascript_aws_client.AWSApi")
+    aws_api.get_opensearch_instance_type_limits.return_value = {}
 
-    terrascript_client.populate_tf_resource_elasticsearch(spec, aws_api=aws_api)
-
-    aws_api_constructor.assert_not_called()
-
-
-def test_builds_scoped_aws_api_when_none_is_supplied(
-    terrascript_client: TerrascriptClient,
-    populate_mocks: PopulateMocks,
-    mocker: MockerFixture,
-) -> None:
-    spec = build_spec()
-    mocker.patch.object(terrascript_client, "init_values", return_value=build_values())
-    account = {"name": "some-account"}
-    terrascript_client.accounts = {"some-account": account}
-    account_api = mocker.MagicMock()
-    account_api.get_opensearch_instance_type_limits.return_value = build_limits()
-    account_api.__enter__.return_value = account_api
-    aws_api_constructor = mocker.patch(
-        "reconcile.utils.terrascript_aws_client.AWSApi", return_value=account_api
+    terrascript_client.populate_tf_resource_elasticsearch(
+        build_spec("test-domain"), aws_api=aws_api
+    )
+    terrascript_client.populate_tf_resource_elasticsearch(
+        build_spec("test-domain-2"), aws_api=aws_api
     )
 
-    terrascript_client.populate_tf_resource_elasticsearch(spec)
-
-    aws_api_constructor.assert_called_once_with(
-        1, [account], secret_reader=terrascript_client.secret_reader
-    )
-    account_api.get_opensearch_instance_type_limits.assert_called_once_with(
-        "some-account", "us-east-1", "OpenSearch_2.15", "m5.large.search"
-    )
+    assert caplog.text.count("AWS did not return a maximum") == 1
 
 
-def test_standalone_skips_when_account_is_not_enabled(
+def test_logs_skip_message_for_distinct_keys(
     terrascript_client: TerrascriptClient,
     populate_mocks: PopulateMocks,
     mocker: MockerFixture,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level("INFO")
-    spec = build_spec()
-    mocker.patch.object(terrascript_client, "init_values", return_value=build_values())
-    aws_api_constructor = mocker.patch("reconcile.utils.terrascript_aws_client.AWSApi")
+    other_region_values = build_values()
+    other_region_values["region"] = "us-west-2"
+    mocker.patch.object(
+        terrascript_client,
+        "init_values",
+        side_effect=[build_values(), other_region_values],
+    )
+    aws_api = mocker.create_autospec(AWSApi, instance=True)
+    aws_api.get_opensearch_instance_type_limits.return_value = {}
 
-    terrascript_client.populate_tf_resource_elasticsearch(spec)
-
-    aws_api_constructor.assert_not_called()
-    assert "account some-account is not enabled" in caplog.text
-    assert populate_mocks.build_elasticsearch_domain.called
-
-
-def test_standalone_survives_aws_api_construction_failure(
-    terrascript_client: TerrascriptClient,
-    populate_mocks: PopulateMocks,
-    mocker: MockerFixture,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    caplog.set_level("INFO")
-    spec = build_spec()
-    mocker.patch.object(terrascript_client, "init_values", return_value=build_values())
-    terrascript_client.accounts = {"some-account": {"name": "some-account"}}
-    mocker.patch(
-        "reconcile.utils.terrascript_aws_client.AWSApi",
-        side_effect=RuntimeError("secret backend unavailable"),
+    terrascript_client.populate_tf_resource_elasticsearch(
+        build_spec("test-domain"), aws_api=aws_api
+    )
+    terrascript_client.populate_tf_resource_elasticsearch(
+        build_spec("test-domain-2"), aws_api=aws_api
     )
 
-    terrascript_client.populate_tf_resource_elasticsearch(spec)
+    assert caplog.text.count("AWS did not return a maximum") == 2
 
-    assert "AWS access failed (RuntimeError)" in caplog.text
-    assert "OpenSearch domain test-domain" not in caplog.text
-    assert populate_mocks.build_elasticsearch_domain.called
+
+def test_populate_resources_resets_reported_skips(
+    terrascript_client: TerrascriptClient,
+    mocker: MockerFixture,
+) -> None:
+    terrascript_client.account_resource_specs = {}
+    terrascript_client._reported_elasticsearch_ebs_limit_skips.add(("stale",))
+    mocker.patch.object(terrascript_client, "populate_tf_resources")
+    aws_api = mocker.create_autospec(AWSApi, instance=True)
+
+    terrascript_client.populate_resources(aws_api=aws_api)
+
+    assert terrascript_client._reported_elasticsearch_ebs_limit_skips == set()
