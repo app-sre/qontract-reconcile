@@ -203,7 +203,7 @@ class GithubUserInfo(pydantic.BaseModel):
     login: str
     type_: GithubAccountType = pydantic.Field(alias="type")
 
-    model_config = pydantic.ConfigDict(populate_by_name=True, serialize_by_alias=True)
+    model_config = pydantic.ConfigDict(populate_by_name=True)
 
 
 class GithubUsersValidateRequest(pydantic.BaseModel):
@@ -1365,7 +1365,7 @@ class ValidationError(pydantic.BaseModel):
     msg: str
     type_: str = pydantic.Field(alias="type")
 
-    model_config = pydantic.ConfigDict(populate_by_name=True, serialize_by_alias=True)
+    model_config = pydantic.ConfigDict(populate_by_name=True)
 
 
 class ResponseLiveness(pydantic.BaseModel):
