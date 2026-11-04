@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from qontract_api_client import schemas as qontract_api_schemas
 
 from reconcile.slack_base import (
     SlackApi,
@@ -145,3 +146,62 @@ def test_chat_post_message_calls_qontract_api(
     assert request.secret.path == "some/path"
     assert request.secret.field == "bot_token"
     assert request.secret.version == 3
+    assert request.resolve_mentions is False
+
+
+def test_chat_post_message_resolve_mentions_opt_in(
+    mocker: MockerFixture, mock_config: MagicMock, mock_setup_client: MagicMock
+) -> None:
+    mock_send = mocker.patch("reconcile.slack_base.slack_chat_post_message")
+    slack_api = SlackApi("coreos", token={"path": "p", "field": "f"}, channel="test")
+
+    slack_api.chat_post_message("hello @my-cluster-cluster", resolve_mentions=True)
+
+    request = mock_send.call_args.kwargs["data"]
+    assert request.resolve_mentions is True
+
+
+def test_chat_post_message_wait_false_does_not_poll_status(
+    mocker: MockerFixture, mock_config: MagicMock, mock_setup_client: MagicMock
+) -> None:
+    mocker.patch("reconcile.slack_base.slack_chat_post_message")
+    mock_status = mocker.patch(
+        "reconcile.slack_base.slack_chat_post_message_task_status"
+    )
+    slack_api = SlackApi("coreos", token={"path": "p", "field": "f"}, channel="test")
+
+    slack_api.chat_post_message("hello")
+
+    mock_status.assert_not_called()
+
+
+def test_chat_post_message_wait_true_succeeds(
+    mocker: MockerFixture, mock_config: MagicMock, mock_setup_client: MagicMock
+) -> None:
+    mock_send = mocker.patch("reconcile.slack_base.slack_chat_post_message")
+    mock_send.return_value.id = "task-123"
+    mock_status = mocker.patch(
+        "reconcile.slack_base.slack_chat_post_message_task_status"
+    )
+    mock_status.return_value.status = qontract_api_schemas.TaskStatus.SUCCESS
+    slack_api = SlackApi("coreos", token={"path": "p", "field": "f"}, channel="test")
+
+    slack_api.chat_post_message("hello", wait=True)
+
+    mock_status.assert_called_once_with(task_id="task-123", timeout=300)
+
+
+def test_chat_post_message_wait_true_raises_on_failure(
+    mocker: MockerFixture, mock_config: MagicMock, mock_setup_client: MagicMock
+) -> None:
+    mock_send = mocker.patch("reconcile.slack_base.slack_chat_post_message")
+    mock_send.return_value.id = "task-123"
+    mock_status = mocker.patch(
+        "reconcile.slack_base.slack_chat_post_message_task_status"
+    )
+    mock_status.return_value.status = qontract_api_schemas.TaskStatus.FAILED
+    mock_status.return_value.errors = ["Slack API error: channel_not_found"]
+    slack_api = SlackApi("coreos", token={"path": "p", "field": "f"}, channel="test")
+
+    with pytest.raises(RuntimeError, match="channel_not_found"):
+        slack_api.chat_post_message("hello", wait=True)

@@ -18,6 +18,7 @@ class ChatRequest(pydantic.BaseModel):
     channel: str | None = None
     icon_emoji: str | None = None
     icon_url: str | None = None
+    resolve_mentions: bool = False
     secret: Secret
     text: str
     thread_ts: str | None = None
@@ -244,7 +245,7 @@ class GithubUserInfo(pydantic.BaseModel):
     login: str
     type_: GithubAccountType = pydantic.Field(alias="type")
 
-    model_config = pydantic.ConfigDict(populate_by_name=True)
+    model_config = pydantic.ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
 class GithubUsersValidateRequest(pydantic.BaseModel):
@@ -1493,7 +1494,7 @@ class ValidationError(pydantic.BaseModel):
     msg: str
     type_: str = pydantic.Field(alias="type")
 
-    model_config = pydantic.ConfigDict(populate_by_name=True)
+    model_config = pydantic.ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
 class ResponseLiveness(pydantic.BaseModel):

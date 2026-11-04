@@ -54,6 +54,7 @@ def send_slack_chat_message_task(self: Any, request: ChatRequest) -> ChatTaskRes
             result = client.send_dm(
                 org_username=request.user,
                 text=request.text,
+                resolve_mentions=request.resolve_mentions,
             )
         else:
             assert request.channel  # guaranteed by model_validator
@@ -64,6 +65,7 @@ def send_slack_chat_message_task(self: Any, request: ChatRequest) -> ChatTaskRes
                 icon_emoji=request.icon_emoji,
                 icon_url=request.icon_url,
                 username=request.username,
+                resolve_mentions=request.resolve_mentions,
             )
     except (ValueError, UserNotFoundError) as e:
         target = request.user or request.channel

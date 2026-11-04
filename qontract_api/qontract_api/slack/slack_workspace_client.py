@@ -620,28 +620,34 @@ class SlackWorkspaceClient:
         icon_emoji: str | None = None,
         icon_url: str | None = None,
         username: str | None = None,
+        resolve_mentions: bool = False,
     ) -> ChatPostMessageResponse:
         """Post a message to a Slack channel.
 
-        Resolves channel name to ID via cached channels, resolves any
-        "@handle" mentions in `text` to working Slack mentions (see
-        `_resolve_mentions`), then delegates to SlackApi.chat_post_message.
-        Exceptions propagate to caller.
-
-        Callers can write plain, natural mentions in `text` without knowing
-        Slack's markup syntax or resolving IDs themselves, e.g.:
-            chat_post_message(channel="alerts", text="Heads up @my-cluster-cluster!")
-        becomes a real ping if "my-cluster-cluster" is a known usergroup handle
-        or a user's org_username — otherwise the "@my-cluster-cluster" text is
-        left as-is.
+        Resolves channel name to ID via cached channels, then delegates to
+        SlackApi.chat_post_message. Exceptions propagate to caller.
 
         Args:
             channel: Channel name (e.g., "sd-app-sre-reconcile")
-            text: Message text, may contain "@handle" mentions
+            text: Message text
             thread_ts: Optional thread timestamp for replies
             icon_emoji: Emoji to use as the message icon (e.g., ":robot_face:")
             icon_url: URL to an image to use as the message icon
             username: Bot username to display
+            resolve_mentions: If True, resolve "@handle" tokens in `text` to
+                working Slack mentions (see `_resolve_mentions`) before
+                posting. Leave False for free text that should be posted
+                literally (e.g. a rendered table, a GitLab MR title) — only
+                set True when the caller intentionally constructs a handle to
+                ping, e.g.:
+                    chat_post_message(channel="alerts",
+                                       text="Heads up @my-cluster-cluster!",
+                                       resolve_mentions=True)
+                becomes a real ping if "my-cluster-cluster" is a known
+                usergroup handle or a user's org_username — otherwise the
+                "@my-cluster-cluster" text is left as-is. With
+                resolve_mentions=False (the default), any "@word" in `text`
+                is posted literally and can never trigger a mention.
 
         Returns:
             ChatPostMessageResponse with ts, channel, thread_ts
@@ -652,7 +658,7 @@ class SlackWorkspaceClient:
         channel_id = self._resolve_channel_id(channel)
         return self.slack_api.chat_post_message(
             channel_id=channel_id,
-            text=self._resolve_mentions(text),
+            text=self._resolve_mentions(text) if resolve_mentions else text,
             thread_ts=thread_ts,
             icon_emoji=icon_emoji,
             icon_url=icon_url,
@@ -716,16 +722,18 @@ class SlackWorkspaceClient:
         *,
         org_username: str,
         text: str,
+        resolve_mentions: bool = False,
     ) -> ChatPostMessageResponse:
         """Send a DM to a user by org_username.
 
-        Resolves any "@handle" mentions in `text` first — see
-        `chat_post_message`/`_resolve_mentions` for details.
+        If resolve_mentions is True, resolves any "@handle" mentions in `text`
+        first — see `chat_post_message`/`_resolve_mentions` for details.
         """
         user_id = self._resolve_user_id(org_username)
         dm_channel_id = self.slack_api.conversations_open(user_ids=[user_id])
         return self.slack_api.chat_post_message(
-            channel_id=dm_channel_id, text=self._resolve_mentions(text)
+            channel_id=dm_channel_id,
+            text=self._resolve_mentions(text) if resolve_mentions else text,
         )
 
     def _resolve_channel_id(self, channel_name: str) -> str:
