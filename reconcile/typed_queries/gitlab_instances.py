@@ -1,4 +1,4 @@
-from reconcile.gql_definitions.gitlab_members.gitlab_instances import (
+from reconcile.gql_definitions.gitlab_members_api.gitlab_instances import (
     GitlabInstanceV1,
     query,
 )
