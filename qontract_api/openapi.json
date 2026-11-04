@@ -6932,6 +6932,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "408": {
+            "description": "Task still pending after timeout"
           }
         },
         "security": [

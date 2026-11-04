@@ -71,6 +71,7 @@ def post_chat(
 @router.get(
     "/chat/{task_id}",
     operation_id="slack-chat-post-message-task-status",
+    responses={408: {"description": "Task still pending after timeout"}},
 )
 async def get_chat_task_status(
     task_id: str,
