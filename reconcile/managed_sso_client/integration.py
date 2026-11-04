@@ -102,7 +102,6 @@ class ManagedSsoClientIntegration(
                 [
                     ManagedKeycloakProtocolMapper(
                         name=mapper.name,
-                        protocol=mapper.protocol or "openid-connect",
                         protocol_mapper=mapper.protocol_mapper,
                         config=mapper.config,
                     )

@@ -137,7 +137,6 @@ def test_compile_desired_state_maps_protocol_mappers_and_attributes() -> None:
     integration = _make_integration()
     mapper = ManagedSsoClientProtocolMapperV1(
         name="my-api-audience",
-        protocol=None,
         protocolMapper="oidc-audience-mapper",
         config=json.dumps({
             "included.custom.audience": "my-api",
@@ -154,6 +153,7 @@ def test_compile_desired_state_maps_protocol_mappers_and_attributes() -> None:
 
     assert desired.oidc is not None
     assert desired.oidc.protocol_mappers is not None
+    assert desired.oidc.protocol_mappers[0].protocol == "openid-connect"
     assert desired.oidc.protocol_mappers[0].protocol_mapper == "oidc-audience-mapper"
     assert desired.oidc.protocol_mappers[0].config["included.custom.audience"] == (
         "my-api"

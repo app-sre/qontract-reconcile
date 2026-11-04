@@ -76,10 +76,38 @@ class KeycloakWorkspaceClient:
         Invalidates even when the update call raises, so a lost response for
         a PUT Keycloak actually applied cannot leave a stale cached value
         behind until the cache TTL expires.
+
+        Keycloak replaces each submitted mapper's entire config. Preserve
+        undeclared keys for matching mapper types using a fresh read under
+        the update lock, since the drift-check cache may be stale.
         """
         cache_key = self._client_key(client_id)
         with self.cache.lock(cache_key):
             try:
+                if data.protocol_mappers:
+                    current = self.keycloak_api.get_client(
+                        client_id=client_id,
+                        registration_access_token=registration_access_token,
+                    )
+                    live_mappers = {
+                        (m.protocol, m.name, m.protocol_mapper): m
+                        for m in current.protocol_mappers or []
+                    }
+                    mappers = []
+                    for mapper in data.protocol_mappers:
+                        if live := live_mappers.get((
+                            mapper.protocol,
+                            mapper.name,
+                            mapper.protocol_mapper,
+                        )):
+                            mappers.append(
+                                mapper.model_copy(
+                                    update={"config": live.config | mapper.config}
+                                )
+                            )
+                        else:
+                            mappers.append(mapper)
+                    data = data.model_copy(update={"protocol_mappers": mappers})
                 updated = self.keycloak_api.update_client(
                     client_id=client_id,
                     registration_access_token=registration_access_token,

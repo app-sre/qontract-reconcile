@@ -370,7 +370,9 @@ def test_matches_declared_protocol_mapper_and_attributes() -> None:
         update={
             "protocol_mappers": [
                 mapper.model_copy(
-                    update={"config": {**mapper.config, "extra": "value"}}
+                    update={
+                        "config": {**mapper.config, "userinfo.token.claim": "false"}
+                    }
                 )
             ],
             "extra_attributes": {
@@ -406,6 +408,64 @@ def test_matches_declared_protocol_mapper_and_attributes() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("config", "live_config", "matches"),
+    [
+        (
+            {"id.token.claim": "false"},
+            {"id.token.claim": "false", "userinfo.token.claim": "false"},
+            True,
+        ),
+        (
+            {"id.token.claim": "false"},
+            {"id.token.claim": "false", "userinfo.token.claim": "true"},
+            True,
+        ),
+        (
+            {"access.token.claim": "true"},
+            {"access.token.claim": "true", "server-added": "value"},
+            True,
+        ),
+        ({}, {"included.custom.audience": "retained-audience"}, True),
+        ({}, {}, True),
+        (
+            {"included.custom.audience": "new-api"},
+            {"included.custom.audience": "old-api"},
+            False,
+        ),
+        ({"access.token.claim": "true"}, {}, False),
+        (
+            {"access.token.claim": "false"},
+            {"access.token.claim": "true"},
+            False,
+        ),
+        (
+            {"id.token.claim": "false", "userinfo.token.claim": "false"},
+            {"id.token.claim": "false", "userinfo.token.claim": "true"},
+            False,
+        ),
+    ],
+)
+def test_only_declared_mapper_config_keys_are_managed(
+    config: dict[str, str],
+    live_config: dict[str, str],
+    matches: bool,
+) -> None:
+    mapper = ManagedKeycloakProtocolMapper(
+        name="audience", protocol_mapper="oidc-audience-mapper", config=config
+    )
+    desired = _desired(protocol_mappers=[mapper])
+    payload = desired.to_managed_keycloak_client()
+    assert payload.protocol_mappers is not None
+    assert payload.protocol_mappers[0].config == config
+    assert mapper.config == config
+    current = payload.model_copy(
+        update={"protocol_mappers": [mapper.model_copy(update={"config": live_config})]}
+    )
+
+    assert desired.matches(current) is matches
+
+
 def test_unset_mappers_and_attributes_leave_live_values_unmanaged() -> None:
     live = (
         _desired()
@@ -436,6 +496,24 @@ def test_rejects_duplicate_mapper_names_and_attribute_with_dedicated_field() -> 
         _desired(protocol_mappers=[mapper, mapper])
     with pytest.raises(ValueError, match="use post_logout_redirect_uris"):
         _desired(attributes={"post.logout.redirect.uris": "https://example.com"})
+
+
+@pytest.mark.parametrize("value", ["", " ", "\t", "\n", " \t\n", "\u00a0"])
+def test_rejects_blank_attribute_values(value: str) -> None:
+    with pytest.raises(
+        ValueError, match="attribute values must not be empty or whitespace-only"
+    ):
+        _desired(attributes={"valid.attribute": "value", "blank.attribute": value})
+
+
+@pytest.mark.parametrize(
+    "attributes",
+    [None, {}, {"custom.attribute": " value "}, {"custom.attribute": "false"}],
+)
+def test_preserves_valid_attributes(attributes: dict[str, str] | None) -> None:
+    oidc = OidcDesiredState(redirect_uris=[], attributes=attributes)
+
+    assert oidc.attributes == attributes
 
 
 def test_immutable_field_drift_empty_for_matching_scopes() -> None:

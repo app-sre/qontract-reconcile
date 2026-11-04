@@ -160,6 +160,9 @@ class OidcDesiredState(BaseModel, frozen=True):
         if attributes and "post.logout.redirect.uris" in attributes:
             msg = "use post_logout_redirect_uris instead of the matching attribute"
             raise ValueError(msg)
+        if attributes and any(not value.strip() for value in attributes.values()):
+            msg = "attribute values must not be empty or whitespace-only"
+            raise ValueError(msg)
         return attributes
 
     def to_managed_keycloak_client(
@@ -265,6 +268,9 @@ class ManagedSsoClientDesiredState(BaseModel, frozen=True):
         here is never sent and never managed - comparing it against whatever
         Keycloak happens to have would be permanent, spurious drift. List
         fields are compared order-insensitively (see _field_values_match).
+        The mapper list is authoritative, but only declared mapper config
+        keys are managed. The workspace client preserves undeclared config
+        keys on PUT for mappers whose protocol, name and type still match.
         """
         desired_client = self.to_managed_keycloak_client()
         desired_state = desired_client.model_dump(

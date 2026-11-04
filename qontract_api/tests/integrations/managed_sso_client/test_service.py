@@ -3,7 +3,10 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from qontract_utils.keycloak_api import ManagedKeycloakClient
+from qontract_utils.keycloak_api import (
+    ManagedKeycloakClient,
+    ManagedKeycloakProtocolMapper,
+)
 from qontract_utils.secret_reader import SecretNotFoundError
 
 from qontract_api.cache.base import CacheBackend
@@ -351,6 +354,91 @@ def test_reconcile_detects_drift_and_updates(
     _written_path, written_data = mock_secret_manager.write.call_args.args
     assert written_data["registration_access_token"] == "new-reg-token"
     assert written_data["client_secret"] == "s3cr3t"  # unchanged by update
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+@pytest.mark.parametrize("other_field_changed", [True, False])
+def test_unrelated_update_preserves_undeclared_mapper_config(
+    mock_secret_manager: MagicMock,
+    mock_cache: MagicMock,
+    mock_settings: Settings,
+    dry_run: bool,
+    other_field_changed: bool,
+) -> None:
+    mapper = ManagedKeycloakProtocolMapper(
+        name="audience",
+        protocol_mapper="oidc-audience-mapper",
+        config={"access.token.claim": "true", "id.token.claim": "false"},
+    )
+    desired = _desired(
+        web_origins=["https://new-origin.example.com"], protocol_mappers=[mapper]
+    )
+    live_mapper = mapper.model_copy(
+        update={"config": {**mapper.config, "included.custom.audience": "retained-api"}}
+    )
+    current = desired.to_managed_keycloak_client().model_copy(
+        update={
+            "protocol_mappers": [live_mapper],
+            "web_origins": []
+            if other_field_changed
+            else ["https://new-origin.example.com"],
+        }
+    )
+    mock_cache.get_obj.return_value = current
+    api = MagicMock()
+    api.url = desired.keycloak_instance.url
+    fresh_mapper = live_mapper.model_copy(
+        update={"config": {**live_mapper.config, "server-added": "value"}}
+    )
+    api.get_client.return_value = current.model_copy(
+        update={"protocol_mappers": [fresh_mapper]}
+    )
+    api.update_client.return_value = desired.to_managed_keycloak_client().model_copy(
+        update={
+            "protocol_mappers": [fresh_mapper],
+            "registration_access_token": "new-reg-token",
+        }
+    )
+    workspace = KeycloakWorkspaceClient(api, mock_cache, mock_settings)
+    service = ManagedSsoClientService(
+        secret_manager=mock_secret_manager,
+        cache=mock_cache,
+        settings=mock_settings,
+        workspace_client_factory=MagicMock(return_value={api.url: workspace}),
+    )
+    mock_secret_manager.list.return_value = [desired.client_id]
+    mock_secret_manager.read_all.return_value = _management().model_dump()
+
+    result = service.reconcile([desired], dry_run=dry_run)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.actions == (
+        [ManagedSsoClientActionUpdate(client_id=desired.client_id)]
+        if other_field_changed
+        else []
+    )
+    if dry_run or not other_field_changed:
+        assert result.applied_count == 0
+        api.update_client.assert_not_called()
+        mock_secret_manager.write.assert_not_called()
+    else:
+        assert result.applied_count == 1
+        sent = api.update_client.call_args.kwargs["data"]
+        assert sent.web_origins == ["https://new-origin.example.com"]
+        assert sent.protocol_mappers[0].config == {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "retained-api",
+            "server-added": "value",
+        }
+        assert desired.matches(sent)
+        written_data = mock_secret_manager.write.call_args.args[1]
+        assert written_data["registration_access_token"] == "new-reg-token"
+        assert written_data["client_secret"] == "s3cr3t"
+        mock_cache.get_obj.return_value = api.update_client.return_value
+
+        assert service.reconcile([desired], dry_run=False).actions == []
+        api.update_client.assert_called_once()
 
 
 def test_update_reports_keycloak_bad_request_error(

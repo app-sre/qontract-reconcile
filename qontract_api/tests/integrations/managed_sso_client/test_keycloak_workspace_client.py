@@ -3,7 +3,10 @@
 from unittest.mock import MagicMock
 
 import pytest
-from qontract_utils.keycloak_api import ManagedKeycloakClient
+from qontract_utils.keycloak_api import (
+    ManagedKeycloakClient,
+    ManagedKeycloakProtocolMapper,
+)
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import Settings
@@ -167,6 +170,113 @@ def test_update_client_delegates_to_api(
     mock_api.update_client.assert_called_once_with(
         client_id="my-app-ci-bot", registration_access_token="reg-token", data=data
     )
+
+
+def test_update_preserves_fresh_mapper_config_and_overrides_declared_keys(
+    client: KeycloakWorkspaceClient, mock_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    mapper = ManagedKeycloakProtocolMapper(
+        name="audience",
+        protocol_mapper="oidc-audience-mapper",
+        config={
+            "included.custom.audience": "old-api",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+        },
+    )
+    current = _client_repr().model_copy(update={"protocol_mappers": [mapper]})
+    mock_api.get_client.return_value = current
+    mock_cache.get_obj.return_value = _client_repr()
+    desired_mapper = mapper.model_copy(
+        update={
+            "config": {"included.custom.audience": "new-api", "id.token.claim": "false"}
+        }
+    )
+    data = _client_repr().model_copy(update={"protocol_mappers": [desired_mapper]})
+
+    client.update_client("my-app-ci-bot", "reg-token", data)
+
+    mock_api.get_client.assert_called_once_with(
+        client_id="my-app-ci-bot", registration_access_token="reg-token"
+    )
+    mock_cache.get_obj.assert_not_called()
+    mock_cache.lock.assert_called_once_with(CACHE_KEY)
+    sent = mock_api.update_client.call_args.kwargs["data"]
+    assert sent.protocol_mappers[0].config == {
+        "included.custom.audience": "new-api",
+        "access.token.claim": "true",
+        "id.token.claim": "false",
+    }
+    assert desired_mapper.config == {
+        "included.custom.audience": "new-api",
+        "id.token.claim": "false",
+    }
+    assert mapper.config == {
+        "included.custom.audience": "old-api",
+        "access.token.claim": "true",
+        "id.token.claim": "true",
+    }
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"name": "new-mapper"},
+        {"protocol": "different-protocol"},
+        {"protocol_mapper": "different-type"},
+    ],
+)
+def test_update_does_not_inherit_config_from_other_mappers(
+    client: KeycloakWorkspaceClient, mock_api: MagicMock, changes: dict[str, str]
+) -> None:
+    live_mapper = ManagedKeycloakProtocolMapper(
+        name="audience",
+        protocol_mapper="oidc-audience-mapper",
+        config={"live-only": "value"},
+    )
+    mock_api.get_client.return_value = _client_repr().model_copy(
+        update={"protocol_mappers": [live_mapper]}
+    )
+    desired_mapper = live_mapper.model_copy(
+        update={**changes, "config": {"declared": "value"}}
+    )
+    data = _client_repr().model_copy(update={"protocol_mappers": [desired_mapper]})
+
+    client.update_client("my-app-ci-bot", "reg-token", data)
+
+    assert mock_api.update_client.call_args.kwargs["data"].protocol_mappers == [
+        desired_mapper
+    ]
+
+
+@pytest.mark.parametrize("mappers", [None, []])
+def test_update_preserves_unmanaged_or_empty_mapper_list_without_fetching(
+    client: KeycloakWorkspaceClient,
+    mock_api: MagicMock,
+    mappers: list[ManagedKeycloakProtocolMapper] | None,
+) -> None:
+    data = _client_repr().model_copy(update={"protocol_mappers": mappers})
+
+    client.update_client("my-app-ci-bot", "reg-token", data)
+
+    mock_api.get_client.assert_not_called()
+    assert mock_api.update_client.call_args.kwargs["data"].protocol_mappers == mappers
+
+
+def test_update_does_not_write_if_fetching_mapper_config_fails(
+    client: KeycloakWorkspaceClient, mock_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    mapper = ManagedKeycloakProtocolMapper(
+        name="audience", protocol_mapper="oidc-audience-mapper", config={}
+    )
+    data = _client_repr().model_copy(update={"protocol_mappers": [mapper]})
+    mock_api.get_client.side_effect = RuntimeError("keycloak unreachable")
+
+    with pytest.raises(RuntimeError, match="keycloak unreachable"):
+        client.update_client("my-app-ci-bot", "reg-token", data)
+
+    mock_api.update_client.assert_not_called()
+    mock_cache.delete.assert_called_once_with(CACHE_KEY)
 
 
 def test_update_client_invalidates_cache(

@@ -56,13 +56,32 @@ oidc:
     pkce.code.challenge.method: S256
 ```
 
-`protocolMappers` accepts client-level Keycloak mapper representations. The
-example adds `my-api` to access tokens' `aud` claim, leaving ID tokens unchanged.
+`protocolMappers` accepts client-level Keycloak mapper representations. The mapper
+protocol is always `openid-connect`, inferred from the enclosing `oidc` section.
+The example adds `my-api` to access tokens' `aud` claim, leaving ID tokens unchanged.
 Use `included.client.audience` instead of `included.custom.audience` when the
 audience is another Keycloak client ID. The configured list is authoritative:
 Keycloak updates or adds mappers by protocol and name, then removes client-level
 mappers absent from the list. Leaving `protocolMappers` unset does not manage
-them. `attributes` is a string-valued escape hatch for OIDC client attributes;
+them; setting it to `[]` removes all client-level mappers.
+
+Within each mapper's `config`, only declared keys are managed. Declared values
+override live values, while undeclared live keys are preserved. Removing an
+individual YAML key stops managing it; it does not delete its live value.
+Likewise, `config: {}` leaves the existing mapper's config unmanaged. To disable
+a boolean setting, explicitly set it to `"false"`. To reset a mapper completely,
+remove it from the list, let reconciliation finish, then add it back with the
+desired config. This preserves the client and its client secret.
+
+The workspace client reads fresh state under its update lock and merges config
+for matching protocol, name and mapper type. New mappers and changed mapper types
+use only their declared config. This merge is necessary because RH-SSO 7.6.12's
+mapper update replaces the full config map, as verified in Red Hat's
+[`18.0.19.redhat-00002` source](https://maven.repository.redhat.com/ga/org/keycloak/keycloak-model-jpa/18.0.19.redhat-00002/keycloak-model-jpa-18.0.19.redhat-00002-sources.jar)
+(`ClientAdapter.updateProtocolMapper` clears the stored config before copying
+the submitted entries).
+
+`attributes` is a string-valued escape hatch for OIDC client attributes;
 only declared keys are checked for drift, and omitting it leaves existing
 attributes alone.
 
