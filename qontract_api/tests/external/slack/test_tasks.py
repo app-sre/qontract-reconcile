@@ -146,3 +146,22 @@ def test_task_slack_api_error_returns_failed(
 
     assert result.status == TaskStatus.FAILED
     assert "Slack API error" in result.errors[0]
+
+
+@patch("qontract_api.external.slack.tasks.get_cache")
+@patch("qontract_api.external.slack.tasks.get_secret_manager")
+@patch("qontract_api.external.slack.tasks.create_slack_workspace_client")
+def test_task_unexpected_error_returns_failed(
+    mock_factory: MagicMock,
+    mock_get_secret_manager: MagicMock,
+    mock_get_cache: MagicMock,
+) -> None:
+    """Task returns a FAILED result (not a raw Celery failure) on an unexpected error."""
+    mock_client = MagicMock()
+    mock_client.chat_post_message.side_effect = RuntimeError("connection reset")
+    mock_factory.return_value = mock_client
+
+    result = _run_task(_chat_request())
+
+    assert result.status == TaskStatus.FAILED
+    assert "connection reset" in result.errors[0]
