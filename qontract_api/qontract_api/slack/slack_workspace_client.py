@@ -674,6 +674,10 @@ class SlackWorkspaceClient:
 
         Uses the same cached `get_usergroups()`/`get_users()` data as the
         rest of this class, so this doesn't cost extra Slack API calls.
+
+        Mention resolution is best-effort: if looking up usergroups/users fails
+        (e.g. missing Slack scope), the original text is posted unchanged
+        rather than failing the whole send.
         """
 
         def replace(match: re.Match[str]) -> str:
@@ -690,7 +694,15 @@ class SlackWorkspaceClient:
             )
             return match.group(0)
 
-        return _MENTION_PATTERN.sub(replace, text)
+        try:
+            return _MENTION_PATTERN.sub(replace, text)
+        except SlackApiError:
+            logger.warning(
+                "Could not resolve mentions (Slack lookup failed), "
+                "posting text unchanged",
+                exc_info=True,
+            )
+            return text
 
     def _resolve_user_id(self, org_username: str) -> str:
         """Resolve org_username to Slack user ID via cached users."""
