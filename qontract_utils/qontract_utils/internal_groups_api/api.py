@@ -79,17 +79,21 @@ def _fetch_access_token(
     client_id: str,
     client_secret: str,
     timeout: float,
+    max_retries: int = MAX_RETRIES,
 ) -> str:
-    response = httpx2.post(
-        token_url,
-        data={
-            "grant_type": "client_credentials",
-            "client_id": client_id,
-            "client_secret": client_secret,
-        },
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    with httpx2.Client(
         timeout=timeout,
-    )
+        transport=httpx2.HTTPTransport(retries=max_retries),
+    ) as client:
+        response = client.post(
+            token_url,
+            data={
+                "grant_type": "client_credentials",
+                "client_id": client_id,
+                "client_secret": client_secret,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
     response.raise_for_status()
     return str(response.json()["access_token"])
 
@@ -127,7 +131,9 @@ class InternalGroupsApi:
         _ = hooks
         self.api_url = api_url.rstrip("/")
         token_url = f"{issuer_url.rstrip('/')}/protocol/openid-connect/token"
-        access_token = _fetch_access_token(token_url, client_id, client_secret, timeout)
+        access_token = _fetch_access_token(
+            token_url, client_id, client_secret, timeout, max_retries
+        )
         self._client = httpx2.Client(
             headers={
                 "Content-Type": "application/json",

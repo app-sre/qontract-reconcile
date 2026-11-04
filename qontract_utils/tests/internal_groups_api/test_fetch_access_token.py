@@ -40,19 +40,27 @@ def test_fetch_access_token_propagates_auth_error(httpserver: HTTPServer) -> Non
         )
 
 
-def test_fetch_access_token_respects_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
-    captured: dict[str, float] = {}
+def test_fetch_access_token_respects_timeout(
+    httpserver: HTTPServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    recorded: list[tuple[float, httpx2.HTTPTransport]] = []
 
-    def _post(url: str, **kwargs: object) -> httpx2.Response:
-        captured["timeout"] = kwargs["timeout"]  # type: ignore[assignment]
-        request = httpx2.Request("POST", url)
-        return httpx2.Response(200, json={"access_token": "t"}, request=request)
+    class _RecordingClient(httpx2.Client):
+        def __init__(self, *, timeout: float, transport: httpx2.HTTPTransport) -> None:
+            recorded.append((timeout, transport))
+            super().__init__(timeout=timeout, transport=transport)
 
-    monkeypatch.setattr(httpx2, "post", _post)
+    monkeypatch.setattr(httpx2, "Client", _RecordingClient)
+    httpserver.expect_request("/token", method="POST").respond_with_json(
+        {"access_token": "t"}
+    )
     _fetch_access_token(
-        token_url="https://issuer.example.com/token",
+        token_url=httpserver.url_for("/token"),
         client_id="cid",
         client_secret="sec",
         timeout=12.5,
+        max_retries=2,
     )
-    assert captured["timeout"] == 12.5
+    timeout, transport = recorded[0]
+    assert timeout == 12.5
+    assert isinstance(transport, httpx2.HTTPTransport)
