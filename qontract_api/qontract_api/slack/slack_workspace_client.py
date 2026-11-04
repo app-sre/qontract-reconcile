@@ -676,8 +676,8 @@ class SlackWorkspaceClient:
         rest of this class, so this doesn't cost extra Slack API calls.
 
         Mention resolution is best-effort: if looking up usergroups/users fails
-        (e.g. missing Slack scope), the original text is posted unchanged
-        rather than failing the whole send.
+        (e.g. missing Slack scope, or a network/transport error), the original
+        text is posted unchanged rather than failing the whole send.
         """
 
         def replace(match: re.Match[str]) -> str:
@@ -696,7 +696,7 @@ class SlackWorkspaceClient:
 
         try:
             return _MENTION_PATTERN.sub(replace, text)
-        except SlackApiError:
+        except SlackApiError, OSError:
             logger.warning(
                 "Could not resolve mentions (Slack lookup failed), "
                 "posting text unchanged",
