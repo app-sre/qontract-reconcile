@@ -19,7 +19,6 @@ from prometheus_client import (
 )
 from prometheus_client.exposition import basic_auth_handler
 
-from reconcile.status import ExitCodes
 from reconcile.utils.metrics import (
     execution_counter,
     pushgateway_registry,
@@ -32,6 +31,7 @@ from reconcile.utils.runtime.environment import (
     LOG_DATEFMT,
     log_fmt,
 )
+from reconcile.utils.status import ExitCodes
 
 if TYPE_CHECKING:
     from collections.abc import Callable

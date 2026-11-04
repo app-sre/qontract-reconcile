@@ -5,7 +5,29 @@ Following ADR-012 (Fully Typed Pydantic Models Over Nested Dicts):
 - Only fields consumed by integrations are declared
 """
 
+from enum import StrEnum
+
+from gitlab.const import AccessLevel as _GitlabConstAccessLevel
 from pydantic import BaseModel, Field
+
+
+class GitlabAccessLevel(StrEnum):
+    """GitLab group access level, as declared in App-Interface permissions.
+
+    Member names match `gitlab.const.AccessLevel` so `to_access_level()` can
+    translate the human-readable value into GitLab's numeric access level
+    without duplicating the mapping.
+    """
+
+    GUEST = "guest"
+    REPORTER = "reporter"
+    DEVELOPER = "developer"
+    MAINTAINER = "maintainer"
+    OWNER = "owner"
+
+    def to_access_level(self) -> int:
+        """Return the GitLab API numeric access level for this value."""
+        return int(_GitlabConstAccessLevel[self.name])
 
 
 class GitlabGroup(BaseModel, frozen=True):
@@ -39,3 +61,33 @@ class GitlabProject(BaseModel, frozen=True):
     name: str = Field(..., description="Project name")
     path_with_namespace: str = Field(..., description="Full path including namespace")
     web_url: str = Field(..., description="Web URL of the project")
+
+
+class GitlabUser(BaseModel, frozen=True):
+    """A GitLab user.
+
+    Attributes:
+        id: GitLab user ID
+        username: GitLab username
+        name: User's display name
+    """
+
+    id: int = Field(..., description="GitLab user ID")
+    username: str = Field(..., description="GitLab username")
+    name: str = Field(..., description="User's display name")
+
+
+class GitlabGroupMember(BaseModel, frozen=True):
+    """A member of a GitLab group.
+
+    Attributes:
+        id: GitLab user ID of the member
+        username: GitLab username
+        name: User's display name
+        access_level: Access level granted in the group (see gitlab.const.AccessLevel)
+    """
+
+    id: int = Field(..., description="GitLab user ID of the member")
+    username: str = Field(..., description="GitLab username")
+    name: str = Field(..., description="User's display name")
+    access_level: int = Field(..., description="Access level granted in the group")

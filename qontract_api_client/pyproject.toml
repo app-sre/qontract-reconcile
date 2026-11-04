@@ -11,6 +11,7 @@ dependencies = ["clientele[core]==2.3.0"]
 dev = [
     "clientele[cli]==2.3.0",
     # development and testing tools
+    "import-linter==2.15",
     "mypy==2.3.1",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
@@ -60,3 +61,17 @@ disallow_incomplete_defs = true
 [tool.coverage.run]
 branch = true
 omit = ["*/tests/*"]
+
+[tool.importlinter]
+# Only qontract_api_client itself is present in this package's build context (see
+# qontract_api_client/Dockerfile) - include_external_packages lets forbidden_modules
+# reference the siblings anyway, so the contract still holds if that ever changes.
+root_packages = ["qontract_api_client"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+id = "qontract-api-client-standalone"
+name = "qontract_api_client must not import sibling packages"
+type = "forbidden"
+source_modules = ["qontract_api_client"]
+forbidden_modules = ["reconcile", "qontract_api", "qontract_utils"]

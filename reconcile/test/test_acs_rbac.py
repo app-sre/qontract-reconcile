@@ -378,8 +378,12 @@ def test_run_validates_all_memberships_before_creating_clients(
         return list(supplied)
 
     mocker.patch("reconcile.acs_rbac.resolve_role_members", side_effect=resolve_members)
+    mocker.patch(
+        "reconcile.acs_rbac.acs_instances_query",
+        return_value=Mock(instances=instances),
+    )
     api = mocker.patch("reconcile.acs_rbac.AcsRbacApi")
-    api.get_acs_instances.return_value = instances
+    api.filter_acs_instances.return_value = instances
     client = api.return_value.__enter__.return_value
     client.get_rbac_resources.return_value = rbac.RbacResources(
         roles=[],
@@ -422,8 +426,12 @@ def test_run_preserves_isolation_for_instance_api_errors(
     query = mocker.patch(
         "reconcile.acs_rbac.acs_rbac_query", return_value=query_data_desired_state
     )
+    mocker.patch(
+        "reconcile.acs_rbac.acs_instances_query",
+        return_value=Mock(instances=instances),
+    )
     api = mocker.patch("reconcile.acs_rbac.AcsRbacApi")
-    api.get_acs_instances.return_value = instances
+    api.filter_acs_instances.return_value = instances
     api.return_value.__enter__.return_value.get_rbac_resources.side_effect = [
         RuntimeError("ACS API failed") if name == "broken" else Mock()
         for name in ordering

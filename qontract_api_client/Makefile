@@ -15,7 +15,6 @@ help:
 
 .PHONY: generate-client
 generate-client:
-	@rm -f $(OUTPUT_DIR)/config.py
 	clientele start-api -f $(OPENAPI) -o $(OUTPUT_DIR) --asyncio --regen
 	@rm -f $(OUTPUT_DIR)/pyproject.toml $(OUTPUT_DIR)/MANIFEST.md
 	@$(MAKE) format OUTPUT_DIR=$(OUTPUT_DIR)
@@ -25,7 +24,7 @@ test:
 	@TEMP_DIR=$$(mktemp -d); \
 	trap "rm -rf $$TEMP_DIR" EXIT; \
 	$(MAKE) generate-client OUTPUT_DIR=$$TEMP_DIR/qontract_api_client; \
-	if ! diff -r --exclude=exceptions.py --exclude=py.typed qontract_api_client $$TEMP_DIR/qontract_api_client; then \
+	if ! diff -r --exclude=exceptions.py --exclude=py.typed --exclude=config.py qontract_api_client $$TEMP_DIR/qontract_api_client; then \
 		echo "  ✗ Client differs from generated version"; \
 		echo ""; \
 		echo "Run 'make generate-client' to update."; \
@@ -35,6 +34,7 @@ test:
 	@uv run ruff check .
 	@uv run ruff format --check .
 	@uv run mypy .
+	@uv run lint-imports
 	@uv run pytest --cov=qontract_api_client --cov-report=term-missing --cov-report xml
 
 .PHONY: format

@@ -637,6 +637,16 @@
         "title": "GetFileResponse",
         "type": "object"
       },
+      "GithubAccountType": {
+        "description": "GitHub account entity type, as reported by the GitHub API.\n\nKnown values the GitHub users API returns for `GET /users/{username}`.\nAny other value (GitHub could introduce new account types) is treated as\nunsupported and skipped rather than raised - see validate_users in router.py.",
+        "enum": [
+          "User",
+          "Organization",
+          "Bot"
+        ],
+        "title": "GithubAccountType",
+        "type": "string"
+      },
       "GithubOrgDesiredState": {
         "description": "Desired owner state for a single GitHub organization.\n\nAttributes:\n    org_name: GitHub organization name\n    token: Vault secret reference for the org's GitHub API token\n    base_url: GitHub API base URL (override for GitHub Enterprise)\n    owners: Desired set of lowercase GitHub usernames that should be org admins",
         "properties": {
@@ -834,6 +844,90 @@
         "title": "GithubOwnersTaskResult",
         "type": "object"
       },
+      "GithubUserInfo": {
+        "description": "A validated GitHub account.",
+        "properties": {
+          "login": {
+            "description": "Canonical login, as returned by GitHub",
+            "title": "Login",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/GithubAccountType",
+            "description": "Account entity type"
+          }
+        },
+        "required": [
+          "login",
+          "type"
+        ],
+        "title": "GithubUserInfo",
+        "type": "object"
+      },
+      "GithubUsersValidateRequest": {
+        "description": "Request to validate GitHub usernames against the GitHub API.",
+        "properties": {
+          "account_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GithubAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "If set, only accounts of this type are returned; accounts of another type are treated as not found. If unset, all existing accounts are returned regardless of type."
+          },
+          "secret": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Vault secret reference for the GitHub API token"
+          },
+          "usernames": {
+            "description": "GitHub usernames to validate",
+            "items": {
+              "type": "string"
+            },
+            "title": "Usernames",
+            "type": "array"
+          }
+        },
+        "required": [
+          "secret",
+          "usernames"
+        ],
+        "title": "GithubUsersValidateRequest",
+        "type": "object"
+      },
+      "GithubUsersValidateResponse": {
+        "description": "Response with validated GitHub accounts.\n\nUsernames that do not exist, or do not match the requested account_type,\nare omitted from the response - callers must treat a missing username as\nunresolved, not as an error.",
+        "properties": {
+          "users": {
+            "description": "Validated GitHub accounts",
+            "items": {
+              "$ref": "#/components/schemas/GithubUserInfo"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "users"
+        ],
+        "title": "GithubUsersValidateResponse",
+        "type": "object"
+      },
+      "GitlabAccessLevel": {
+        "description": "GitLab group access level, as declared in App-Interface permissions.\n\nMember names match `gitlab.const.AccessLevel` so `to_access_level()` can\ntranslate the human-readable value into GitLab's numeric access level\nwithout duplicating the mapping.",
+        "enum": [
+          "guest",
+          "reporter",
+          "developer",
+          "maintainer",
+          "owner"
+        ],
+        "title": "GitlabAccessLevel",
+        "type": "string"
+      },
       "GitlabGroupConfig": {
         "description": "Configuration for a single GitLab group and its desired projects.",
         "properties": {
@@ -895,6 +989,332 @@
           "token"
         ],
         "title": "GitlabInstanceConfig",
+        "type": "object"
+      },
+      "GitlabMemberActionAdd": {
+        "description": "Action: Add a user to a group.",
+        "properties": {
+          "access_level": {
+            "$ref": "#/components/schemas/GitlabAccessLevel"
+          },
+          "action_type": {
+            "const": "add_member",
+            "default": "add_member",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "group",
+          "username",
+          "user_id",
+          "access_level"
+        ],
+        "title": "GitlabMemberActionAdd",
+        "type": "object"
+      },
+      "GitlabMemberActionChangeAccess": {
+        "description": "Action: Change a member's access level.",
+        "properties": {
+          "access_level": {
+            "$ref": "#/components/schemas/GitlabAccessLevel"
+          },
+          "action_type": {
+            "const": "change_access",
+            "default": "change_access",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "member_id": {
+            "title": "Member Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "group",
+          "username",
+          "member_id",
+          "access_level"
+        ],
+        "title": "GitlabMemberActionChangeAccess",
+        "type": "object"
+      },
+      "GitlabMemberActionRemove": {
+        "description": "Action: Remove a user from a group.",
+        "properties": {
+          "action_type": {
+            "const": "remove_member",
+            "default": "remove_member",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "member_id": {
+            "title": "Member Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "group",
+          "username",
+          "member_id"
+        ],
+        "title": "GitlabMemberActionRemove",
+        "type": "object"
+      },
+      "GitlabMemberConfig": {
+        "description": "Desired membership for a single GitLab user in a group.",
+        "properties": {
+          "access_level": {
+            "$ref": "#/components/schemas/GitlabAccessLevel",
+            "description": "Desired access level"
+          },
+          "username": {
+            "description": "GitLab username",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "access_level"
+        ],
+        "title": "GitlabMemberConfig",
+        "type": "object"
+      },
+      "GitlabMembersGroupConfig": {
+        "description": "Configuration for a single GitLab group and its desired members.",
+        "properties": {
+          "group": {
+            "description": "GitLab group full path",
+            "title": "Group",
+            "type": "string"
+          },
+          "members": {
+            "description": "Desired members and their access levels",
+            "items": {
+              "$ref": "#/components/schemas/GitlabMemberConfig"
+            },
+            "title": "Members",
+            "type": "array"
+          }
+        },
+        "required": [
+          "group"
+        ],
+        "title": "GitlabMembersGroupConfig",
+        "type": "object"
+      },
+      "GitlabMembersInstanceConfig": {
+        "description": "Configuration for a single GitLab instance to reconcile.",
+        "properties": {
+          "groups": {
+            "description": "Desired group membership state",
+            "items": {
+              "$ref": "#/components/schemas/GitlabMembersGroupConfig"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "name": {
+            "description": "GitLab instance name",
+            "title": "Name",
+            "type": "string"
+          },
+          "ssl_verify": {
+            "default": true,
+            "description": "Whether to verify SSL certificates",
+            "title": "Ssl Verify",
+            "type": "boolean"
+          },
+          "token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Secret reference for the instance token"
+          },
+          "url": {
+            "description": "GitLab instance URL",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "token"
+        ],
+        "title": "GitlabMembersInstanceConfig",
+        "type": "object"
+      },
+      "GitlabMembersReconcileRequest": {
+        "description": "Request model for GitLab members reconciliation.",
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "instances": {
+            "description": "List of GitLab instances to reconcile",
+            "items": {
+              "$ref": "#/components/schemas/GitlabMembersInstanceConfig"
+            },
+            "title": "Instances",
+            "type": "array"
+          }
+        },
+        "required": [
+          "instances"
+        ],
+        "title": "GitlabMembersReconcileRequest",
+        "type": "object"
+      },
+      "GitlabMembersTaskResponse": {
+        "description": "Immediate response returned when the reconciliation task is queued.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending"
+          },
+          "status_url": {
+            "description": "URL to poll for task result",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "GitlabMembersTaskResponse",
+        "type": "object"
+      },
+      "GitlabMembersTaskResult": {
+        "description": "Result of a completed reconciliation task.",
+        "properties": {
+          "actions": {
+            "description": "All actions calculated (desired - current), including any that failed to apply.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_member": "#/components/schemas/GitlabMemberActionAdd",
+                  "change_access": "#/components/schemas/GitlabMemberActionChangeAccess",
+                  "remove_member": "#/components/schemas/GitlabMemberActionRemove"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/GitlabMemberActionAdd"
+                },
+                {
+                  "$ref": "#/components/schemas/GitlabMemberActionRemove"
+                },
+                {
+                  "$ref": "#/components/schemas/GitlabMemberActionChangeAccess"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "description": "Actions successfully applied (non-dry-run only).",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_member": "#/components/schemas/GitlabMemberActionAdd",
+                  "change_access": "#/components/schemas/GitlabMemberActionChangeAccess",
+                  "remove_member": "#/components/schemas/GitlabMemberActionRemove"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/GitlabMemberActionAdd"
+                },
+                {
+                  "$ref": "#/components/schemas/GitlabMemberActionRemove"
+                },
+                {
+                  "$ref": "#/components/schemas/GitlabMemberActionChangeAccess"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "GitlabMembersTaskResult",
         "type": "object"
       },
       "GitlabProjectActionCreate": {
@@ -5736,7 +6156,7 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/v1/external/github-org/members": {
+    "/api/v1/external/github/org-members": {
       "get": {
         "description": "Get all members of a GitHub organization.\n\nLists every member of the organization (any role) using the GitHub API\ntoken resolved from Vault. Results are cached for performance (TTL\nconfigured in settings).",
         "operationId": "github-org-members",
@@ -5829,6 +6249,43 @@
           }
         ],
         "summary": "Get Org Members",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/github/users/validate": {
+      "post": {
+        "description": "Validate GitHub usernames against the GitHub API.\n\nLooks up each requested username via the GitHub API, using the token\nresolved from Vault. Results are cached per-username (including negative\ncaching of non-existent accounts) for performance.\n\nUsernames that do not exist, or do not match the requested account_type,\nare omitted from the response - callers must treat a missing username as\nunresolved, not as an error. This endpoint does not know the caller's\nintent (e.g. LDAP-sourced usernames, manual input); it only validates\nexistence and canonical casing, so it is reusable across any future\nGitHub username validation need.",
+        "operationId": "github-users-validate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GithubUsersValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubUsersValidateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Validate Users",
         "tags": [
           "external"
         ]
@@ -6734,6 +7191,101 @@
           }
         ],
         "summary": "Github Owners Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/gitlab-members/reconcile": {
+      "post": {
+        "description": "Queue GitLab members reconciliation task.\n\nAlways queues a background task and returns immediately with a task_id.\nUse GET /reconcile/{task_id} to retrieve the result.",
+        "operationId": "gitlab-members",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitlabMembersReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabMembersTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Gitlab Members",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/gitlab-members/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation result (blocking or non-blocking).\n\nArgs:\n    task_id: Task ID from POST /reconcile response\n    timeout: Maximum seconds to wait (default: non-blocking)\n\nReturns:\n    GitlabMembersTaskResult with lists of calculated and applied actions.\n\nRaises:\n    HTTPException:\n        - 404 Not Found: Task ID not found\n        - 408 Request Timeout: Task still pending after timeout (blocking mode only)",
+        "operationId": "gitlab-members-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabMembersTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Gitlab Members Task Status",
         "tags": [
           "integrations"
         ]

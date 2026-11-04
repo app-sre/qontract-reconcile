@@ -46,7 +46,6 @@ from sretoolbox.utils import (
     threaded,
 )
 
-from reconcile.status import RunningState
 from reconcile.utils.json import json_dumps
 from reconcile.utils.metrics import oc_get_items_duration, reconcile_time
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
@@ -55,6 +54,7 @@ from reconcile.utils.secret_reader import (
     SecretNotFoundError,
     SecretReader,
 )
+from reconcile.utils.status import RunningState
 from reconcile.utils.unleash import get_feature_toggle_state
 
 if TYPE_CHECKING:
@@ -1075,6 +1075,12 @@ class OCCli:
         Get resources (Secrets or ConfigMaps) used in a Pod spec.
         Returns a dictionary where keys are resource names and values are sets of keys used from that resource.
 
+        Supported references are direct and projected volumes, in-tree volume
+        plugin Secret references, container and init container ``env``/``envFrom``
+        entries, and Pod ``imagePullSecrets`` for Secrets. Optional references are
+        omitted when ``include_optional`` is false. CSI ``nodePublishSecretRef``
+        references are intentionally not inspected.
+
         Args:
             spec: Pod spec
             kind: "Secret" or "ConfigMap"
@@ -1114,8 +1120,51 @@ class OCCli:
                 resource_name = volume_ref[volume_kind_ref]
                 resources.setdefault(resource_name, set())
             except KeyError, TypeError:
-                continue
-        for c in spec["containers"] + (spec.get("initContainers") or []):
+                pass
+
+            if kind == "Secret":
+                in_tree_secret_refs = {
+                    "azureFile": ("secretName",),
+                    "cephfs": ("secretRef", "name"),
+                    "cinder": ("secretRef", "name"),
+                    "flexVolume": ("secretRef", "name"),
+                    "iscsi": ("secretRef", "name"),
+                    "rbd": ("secretRef", "name"),
+                    "scaleIO": ("secretRef", "name"),
+                    "storageos": ("secretRef", "name"),
+                }
+                for plugin, ref_path in in_tree_secret_refs.items():
+                    try:
+                        resource_ref = v[plugin]
+                        for path_component in ref_path:
+                            resource_ref = resource_ref[path_component]
+                        resources.setdefault(resource_ref, set())
+                    except KeyError, TypeError:
+                        continue
+
+            for source in (v.get("projected") or {}).get("sources") or []:
+                try:
+                    resource_ref = source[volume_kind]
+                    if resource_ref.get(optional) and not include_optional:
+                        continue
+                    resource_name = resource_ref["name"]
+                    resources.setdefault(resource_name, set()).update(
+                        item["key"] for item in resource_ref.get("items") or []
+                    )
+                except KeyError, TypeError:
+                    continue
+
+        if kind == "Secret":
+            for image_pull_secret in spec.get("imagePullSecrets") or []:
+                try:
+                    resources.setdefault(image_pull_secret["name"], set())
+                except KeyError, TypeError:
+                    continue
+        for c in (
+            spec["containers"]
+            + (spec.get("initContainers") or [])
+            + (spec.get("ephemeralContainers") or [])
+        ):
             for e in c.get("envFrom") or []:
                 try:
                     resource_ref = e[env_from_kind]

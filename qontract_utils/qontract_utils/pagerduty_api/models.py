@@ -8,6 +8,11 @@ Following ADR-012 (Fully Typed Pydantic Models Over Nested Dicts):
 
 from pydantic import BaseModel, Field
 
+# PagerDuty's "no one is on-call" placeholder user has a "nobody..." email
+# local part. It is never a real person and never has a matching account on
+# any downstream system, so callers filter it via `is_nobody_placeholder`.
+_NOBODY_PLACEHOLDER_MARKER = "nobody"
+
 
 class PagerDutyUser(BaseModel, frozen=True):
     """PagerDuty user data.
@@ -28,9 +33,15 @@ class PagerDutyUser(BaseModel, frozen=True):
 
     @property
     def username(self) -> str:
-        """Extract username from email.
+        """Extract username from email, with plus-addressing stripped.
 
         Returns:
-            Username part of email (e.g., "jsmith" from "jsmith@example.com")
+            Username part of email, before any "+" suffix (e.g. "jsmith"
+            from both "jsmith@example.com" and "jsmith+pd@example.com")
         """
-        return self.email.split("@", maxsplit=1)[0]
+        return self.email.split("@", maxsplit=1)[0].split("+", 1)[0]
+
+    @property
+    def is_nobody_placeholder(self) -> bool:
+        """Whether this is PagerDuty's "no one is on-call" placeholder user."""
+        return _NOBODY_PLACEHOLDER_MARKER in self.username

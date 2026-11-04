@@ -161,6 +161,7 @@ celery_app = Celery(
         "qontract_api.integrations.quay_robot_accounts.tasks",
         "qontract_api.integrations.managed_sso_client.tasks",
         "qontract_api.integrations.gitlab_projects.tasks",
+        "qontract_api.integrations.gitlab_members.tasks",
     ],
 )
 

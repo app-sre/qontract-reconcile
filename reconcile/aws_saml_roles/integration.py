@@ -24,7 +24,6 @@ from reconcile.gql_definitions.aws_saml_roles.aws_accounts import (
 from reconcile.gql_definitions.aws_saml_roles.roles import (
     query as roles_query,
 )
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
@@ -42,6 +41,7 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.status import ExitCodes
 from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript_aws_client import TerrascriptClient
 from reconcile.utils.unleash.client import get_feature_toggle_state

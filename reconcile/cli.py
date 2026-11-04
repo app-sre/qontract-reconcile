@@ -15,10 +15,6 @@ import sentry_sdk
 from qontract_utils.managed_sso_client import DEFAULT_OUTPUT_VAULT_PATH_PREFIX
 from sentry_sdk.integrations.logging import LoggingIntegration
 
-from reconcile.status import (
-    ExitCodes,
-    RunningState,
-)
 from reconcile.utils import gql
 from reconcile.utils.aggregated_list import RunnerError
 from reconcile.utils.amtool import AMTOOL_VERSION, AMTOOL_VERSION_REGEX
@@ -26,7 +22,7 @@ from reconcile.utils.binary import (
     binary,
     binary_version,
 )
-from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE, REQUEST_TIMEOUT
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gql import GqlApiSingleton
@@ -45,21 +41,24 @@ from reconcile.utils.runtime.runner import (
     IntegrationRunConfiguration,
     run_integration_cfg,
 )
+from reconcile.utils.status import (
+    ExitCodes,
+    RunningState,
+)
 from reconcile.utils.unleash import get_feature_toggle_state
+from reconcile.utils.versions import (
+    HELM_VERSION_REGEX,
+    HELM_VERSIONS,
+    OC_VERSION_REGEX,
+    OC_VERSIONS,
+    TERRAFORM_VERSION,
+    TERRAFORM_VERSION_REGEX,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
     from io import TextIOWrapper
     from types import ModuleType
-
-TERRAFORM_VERSION = ["1.6.6"]
-TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
-
-OC_VERSIONS = ["4.19.0", "4.18.0"]
-OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)"
-
-HELM_VERSIONS = ["3.19.4"]
-HELM_VERSION_REGEX = r"^version.BuildInfo{Version:\"v([\d]+\.[\d]+\.[\d]+)\".*$"
 
 
 def before_breadcrumb(crumb: dict, _: Any) -> dict:
@@ -693,6 +692,13 @@ def terraform_aws_route53(
     required=True,
     default="https://auth.redhat.com/auth/realms/EmployeeIDP/protocol/saml/descriptor",
 )
+@click.option(
+    "--request-timeout",
+    help="SAML metadata request timeout in seconds",
+    required=False,
+    default=REQUEST_TIMEOUT,
+    show_default=True,
+)
 @enable_extended_early_exit
 @extended_early_exit_cache_ttl_seconds
 @log_cached_log_output
@@ -705,6 +711,7 @@ def aws_saml_idp(
     account_name: str | None,
     saml_idp_name: str,
     saml_metadata_url: str,
+    request_timeout: int,
     enable_extended_early_exit: bool,
     extended_early_exit_cache_ttl_seconds: int,
     log_cached_log_output: bool,
@@ -722,6 +729,7 @@ def aws_saml_idp(
                 enable_deletion=enable_deletion,
                 saml_idp_name=saml_idp_name,
                 saml_metadata_url=saml_metadata_url,
+                request_timeout=request_timeout,
                 account_name=account_name,
                 enable_extended_early_exit=enable_extended_early_exit,
                 extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
@@ -2700,6 +2708,20 @@ def gitlab_projects(
                 project_names=frozenset(project_name) if project_name else None,
             )
         ),
+        ctx=ctx,
+    )
+
+
+@integration.command(short_help="Manage GitLab group members via qontract-api.")
+@click.pass_context
+def gitlab_members_api(ctx: click.Context) -> None:
+    from reconcile.gitlab_members_api import (
+        GitlabMembersIntegration,
+        GitlabMembersIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=GitlabMembersIntegration(GitlabMembersIntegrationParams()),
         ctx=ctx,
     )
 

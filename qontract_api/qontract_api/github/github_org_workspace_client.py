@@ -1,6 +1,6 @@
 """GithubOrgWorkspaceClient: Caching + compute layer for GitHub org member data.
 
-This layer sits between the stateless GithubOrgApi and business logic, providing:
+This layer sits between the stateless GithubApi and business logic, providing:
 - Two-tier caching (memory + Redis) for org member lists
 - Distributed locking for thread-safe cache updates
 - Write-through cache invalidation after mutations
@@ -12,12 +12,12 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
-from qontract_utils.github_org import GithubRateLimitExceededError
+from qontract_utils.github_api import GithubRateLimitExceededError
 
 from qontract_api.logger import get_logger
 
 if TYPE_CHECKING:
-    from qontract_utils.github_org.api import GithubOrgApi
+    from qontract_utils.github_api.api import GithubApi
 
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
@@ -52,18 +52,18 @@ class GithubOrgWorkspaceClient:
 
     def __init__(
         self,
-        github_org_api: GithubOrgApi,
+        github_api: GithubApi,
         cache: CacheBackend,
         settings: Settings,
     ) -> None:
         """Initialize GithubOrgWorkspaceClient.
 
         Args:
-            github_org_api: Stateless GitHub Org API client (Layer 1)
+            github_api: Stateless GitHub API client (Layer 1)
             cache: Cache backend with two-tier caching (memory + Redis)
             settings: Application settings with GitHub org config
         """
-        self._api = github_org_api
+        self._api = github_api
         self._cache = cache
         self._settings = settings
 

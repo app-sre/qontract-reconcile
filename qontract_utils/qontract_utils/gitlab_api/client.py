@@ -7,6 +7,7 @@ qontract_utils.vcs.providers.gitlab_client.GitLabRepoApi.
 """
 
 import contextvars
+import re
 import time
 from dataclasses import dataclass
 from typing import Self
@@ -15,12 +16,25 @@ import gitlab
 import structlog
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.gitlab_api.models import GitlabGroup, GitlabProject
+from qontract_utils.gitlab_api.models import (
+    GitlabAccessLevel,
+    GitlabGroup,
+    GitlabGroupMember,
+    GitlabProject,
+    GitlabUser,
+)
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.user_agent import DEFAULT_USER_AGENT
 
 logger = structlog.get_logger(__name__)
+
+# Internal GitLab bot users created for group access tokens follow the naming
+# convention `group_{group_id}_bot_{random_string}`, group_id always being numeric:
+# https://docs.gitlab.com/administration/internal_users/
+# Anchored and requiring a numeric group ID so a regular username (e.g.
+# "group_sales_bot_admin") is never mistaken for a generated bot account.
+_GROUP_BOT_USERNAME_RE = re.compile(r"^group_\d+_bot_[a-zA-Z0-9]+$")
 
 gitlab_projects_request = Counter(
     "qontract_reconcile_external_api_gitlab_projects_requests_total",
@@ -38,6 +52,10 @@ gitlab_projects_request_duration = Histogram(
 _latency_tracker: contextvars.ContextVar[tuple[float, ...]] = contextvars.ContextVar(
     f"{__name__}.latency_tracker", default=()
 )
+
+
+class GitlabUserNotFoundError(Exception):
+    pass
 
 
 @dataclass(frozen=True)
@@ -146,6 +164,95 @@ class GitlabApi:
             name=project.name,
             path_with_namespace=project.path_with_namespace,
             web_url=project.web_url,
+        )
+
+    @invoke_with_hooks(
+        lambda self: GitlabApiCallContext(method="get_group_members", url=self.url)
+    )
+    def get_group_members(self, group_path: str) -> list[GitlabGroupMember]:
+        """List a group's members, excluding internal group-access-token bot users."""
+        group = self._gitlab.groups.get(group_path)
+        return [
+            GitlabGroupMember(
+                id=member.id,
+                username=member.username,
+                name=member.name,
+                access_level=member.access_level,
+            )
+            for member in group.members.list(iterator=True)
+            if not _GROUP_BOT_USERNAME_RE.match(member.username)
+        ]
+
+    @invoke_with_hooks(
+        lambda self: GitlabApiCallContext(method="get_user_by_username", url=self.url)
+    )
+    def get_user_by_username(self, username: str) -> GitlabUser:
+        """Resolve a username to its GitLab user ID.
+
+        Raises:
+            GitlabUserNotFoundError: if no user with this username exists.
+        """
+        if not (users := self._gitlab.users.list(username=username)):
+            raise GitlabUserNotFoundError(username)
+        user = users[0]
+        return GitlabUser(id=user.id, username=user.username, name=user.name)
+
+    @invoke_with_hooks(
+        lambda self: GitlabApiCallContext(method="add_group_member", url=self.url)
+    )
+    def add_group_member(
+        self, group_path: str, user_id: int, access_level: GitlabAccessLevel
+    ) -> GitlabGroupMember:
+        """Add a user to a group with the given access level.
+
+        If the user is already a member - e.g. added outside of our cached
+        view of current members - updates their access level instead of
+        failing.
+        """
+        group = self._gitlab.groups.get(group_path)
+        try:
+            member = group.members.create(
+                {
+                    "user_id": user_id,
+                    "access_level": access_level.to_access_level(),
+                }
+            )
+        except gitlab.GitlabCreateError:
+            member = group.members.get(user_id)
+            member.access_level = access_level.to_access_level()
+            member.save()
+        return GitlabGroupMember(
+            id=member.id,
+            username=member.username,
+            name=member.name,
+            access_level=member.access_level,
+        )
+
+    @invoke_with_hooks(
+        lambda self: GitlabApiCallContext(method="remove_group_member", url=self.url)
+    )
+    def remove_group_member(self, group_path: str, member_id: int) -> None:
+        """Remove a member from a group."""
+        self._gitlab.groups.get(group_path).members.delete(member_id)
+
+    @invoke_with_hooks(
+        lambda self: GitlabApiCallContext(
+            method="update_group_member_access", url=self.url
+        )
+    )
+    def update_group_member_access(
+        self, group_path: str, member_id: int, access_level: GitlabAccessLevel
+    ) -> GitlabGroupMember:
+        """Change a group member's access level."""
+        group = self._gitlab.groups.get(group_path)
+        member = group.members.get(member_id)
+        member.access_level = access_level.to_access_level()
+        member.save()
+        return GitlabGroupMember(
+            id=member.id,
+            username=member.username,
+            name=member.name,
+            access_level=member.access_level,
         )
 
     def close(self) -> None:

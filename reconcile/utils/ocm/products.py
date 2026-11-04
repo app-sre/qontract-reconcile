@@ -8,7 +8,9 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from reconcile.ocm.types import (
+from reconcile.utils.exceptions import ParameterError
+from reconcile.utils.ocm.clusters import get_provisioning_shard_id
+from reconcile.utils.ocm.types import (
     ClusterMachinePool,
     OCMClusterNetwork,
     OCMClusterSpec,
@@ -19,8 +21,6 @@ from reconcile.ocm.types import (
     ROSAOcmAwsAttrs,
     ROSAOcmAwsStsAttrs,
 )
-from reconcile.utils.exceptions import ParameterError
-from reconcile.utils.ocm.clusters import get_provisioning_shard_id
 from reconcile.utils.rosa.rosa_cli import RosaCliError
 
 if TYPE_CHECKING:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
@@ -11,11 +12,61 @@ from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
+
+    from reconcile.openshift_base import ClusterMap
 
 QONTRACT_INTEGRATION = "openshift-vault-secrets"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)
 PROVIDERS = ["vault-secret"]
+TERMINAL_POD_PHASES = frozenset({"Failed", "Succeeded"})
+
+
+class SecretInUseDeletionGate:
+    """Protect managed Secrets referenced by non-terminal Pods.
+
+    Supported references are limited to those recognized by
+    ``OCCli.get_resources_used_in_pod_spec``. CSI ``nodePublishSecretRef``
+    references are intentionally not inspected.
+    """
+
+    def __init__(self, oc_map: ClusterMap) -> None:
+        self._oc_map = oc_map
+
+    def is_delete_allowed(
+        self,
+        *,
+        cluster: str,
+        namespace: str,
+        resource_type: str,
+        resource_name: str,
+    ) -> bool:
+        if resource_type != "Secret":
+            return True
+
+        oc = self._oc_map.get_cluster(cluster)
+        consumers: list[Mapping[str, Any]] = [
+            pod
+            for pod in oc.get_items("Pod", namespace=namespace)
+            if (pod.get("status") or {}).get("phase") not in TERMINAL_POD_PHASES
+            if oc.is_resource_used_in_pod(resource_name, "Secret", pod)
+        ]
+        if not consumers:
+            return True
+
+        consumer_names = ", ".join(
+            f"Pod/{pod['metadata']['name']}" for pod in consumers
+        )
+        logging.error(
+            "[%s/%s] Deletion blocked: Secret %s is referenced by %s. "
+            "Remove the reference, complete the workload rollout, wait for old "
+            "Pods to terminate, and retry.",
+            cluster,
+            namespace,
+            resource_name,
+            consumer_names,
+        )
+        return False
 
 
 def run(
@@ -36,6 +87,7 @@ def run(
         providers=PROVIDERS,
         cluster_name=cluster_name,
         namespace_name=namespace_name,
+        deletion_gate_factory=SecretInUseDeletionGate,
     )
 
 

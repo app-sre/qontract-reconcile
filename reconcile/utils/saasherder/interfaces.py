@@ -14,8 +14,8 @@ from reconcile.utils import oc_connection_parameters
 if TYPE_CHECKING:
     from pydantic.main import IncEx
 
-    from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
     from reconcile.utils.secret_reader import HasSecret
+    from reconcile.utils.slo_document_manager import SLODocument
 
 
 @runtime_checkable
@@ -332,7 +332,7 @@ class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
     def images(self) -> Sequence[SaasResourceTemplateTargetImage] | None: ...
 
     @property
-    def slos(self) -> list[SLODocument] | None: ...
+    def slos(self) -> Sequence[SLODocument] | None: ...
 
     def uid(
         self, parent_saas_file_name: str, parent_resource_template_name: str

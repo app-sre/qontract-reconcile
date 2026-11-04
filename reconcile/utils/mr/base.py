@@ -5,7 +5,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 from uuid import uuid4
 
 from gitlab.exceptions import GitlabError
@@ -20,7 +20,13 @@ from reconcile.utils.sqs_gateway import SQSGateway
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from reconcile.gql_definitions.fragments.user import User
+
+class _UserWithGithubUsername(Protocol):
+    """Structural subset of the generated `User` fragment used by `infer_author`."""
+
+    org_username: str
+    github_username: str
+
 
 EMAIL_TEMPLATE = PROJ_ROOT / "templates" / "email.yml.j2"
 
@@ -114,7 +120,9 @@ class MergeRequestBase(ABC):
         }
 
     def infer_author(
-        self, github_user_id: str | None, all_users: Iterable[User] | None = None
+        self,
+        github_user_id: str | None,
+        all_users: Iterable[_UserWithGithubUsername] | None = None,
     ) -> str | None:
         if not github_user_id:
             return None
