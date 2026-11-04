@@ -333,20 +333,22 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
         status_url: str,
         result_type: type[T],
         *,
-        timeout: int = 300,
+        timeout: int | None = 300,
     ) -> T:
         """Follow a status_url to poll task completion.
 
         Uses the status_url returned by POST endpoints to retrieve task results
         without requiring the caller to know about task IDs or URL construction.
         """
+        request_kwargs: dict[str, Any] = {
+            "method": "get",
+            "path": urlparse(status_url).path,
+            "response_map": {200: result_type},
+        }
+        if timeout is not None:
+            request_kwargs["query"] = {"timeout": timeout}
         with self.log_api_exceptions():
-            return await qontract_api_client.arequest(
-                method="get",
-                path=urlparse(status_url).path,
-                response_map={200: result_type},
-                query={"timeout": timeout},
-            )
+            return await qontract_api_client.arequest(**request_kwargs)
 
     @abstractmethod
     async def async_run(self, dry_run: bool) -> None:

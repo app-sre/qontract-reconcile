@@ -751,9 +751,9 @@ async def test_recover_pending_task_retains_reference_on_status_timeout_when_rec
     response.status_code = 408
 
     async def poll_side_effect(
-        *_args: object, timeout: int = 300, **_kwargs: object
+        *_args: object, timeout: int | None = 300, **_kwargs: object
     ) -> LdapGroupsTaskResult:
-        if timeout == 0:
+        if timeout is None:
             return _task_result(status=TaskStatus.PENDING)
         raise APIException(response, "timeout")
 
@@ -791,13 +791,13 @@ async def test_recover_pending_task_nonblocking_probe_skips_blocking_poll_when_d
     integration = make_integration()
     state_data: dict[str, Any] = {"pending_task": _recent_pending_task()}
     mock = _mock_state(state_data)
-    calls: list[int] = []
+    calls: list[int | None] = []
 
     async def poll_side_effect(
-        *_args: object, timeout: int = 300, **_kwargs: object
+        *_args: object, timeout: int | None = 300, **_kwargs: object
     ) -> LdapGroupsTaskResult:
         calls.append(timeout)
-        if timeout == 0:
+        if timeout is None:
             return _task_result(updated_managed_groups=["recovered"])
         raise AssertionError("blocking poll should not run when task already finished")
 
@@ -808,7 +808,7 @@ async def test_recover_pending_task_nonblocking_probe_skips_blocking_poll_when_d
     ):
         await integration._recover_pending_task(mock, dry_run=False)
 
-    assert calls == [0]
+    assert calls == [None]
     assert state_data["managed_groups"] == ["recovered"]
     assert "pending_task" not in state_data
 

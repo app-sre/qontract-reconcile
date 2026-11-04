@@ -137,8 +137,6 @@ class LdapGroupsApiIntegration(
             if code in {"NoSuchKey", "404"}:
                 return []
             raise
-        except json.JSONDecodeError:
-            raise
 
     @staticmethod
     def _clear_pending_task(state_obj: State) -> None:
@@ -190,7 +188,7 @@ class LdapGroupsApiIntegration(
         quick = await self.poll_task_status(
             status_url=pending["status_url"],
             result_type=LdapGroupsTaskResult,
-            timeout=0,
+            timeout=None,
         )
         if quick.status != TaskStatus.PENDING:
             return quick
