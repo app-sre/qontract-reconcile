@@ -83,6 +83,9 @@ def send_slack_chat_message_task(self: Any, request: ChatRequest) -> ChatTaskRes
         return ChatTaskResult(
             status=TaskStatus.FAILED, errors=[f"Slack API error: {e}"]
         )
+    except Exception as e:
+        logger.exception(f"Task {request_id} failed with error")
+        return ChatTaskResult(status=TaskStatus.FAILED, errors=[f"Unexpected {e=}"])
 
     target = request.user or request.channel
     logger.info(
