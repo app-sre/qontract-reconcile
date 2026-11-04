@@ -85,7 +85,10 @@ class ChatTaskResult(TaskResult, frozen=True):
 
     actions: list[str] = Field(
         default=[],
-        description="Unused for this task — present only to satisfy the shared task-result protocol.",
+        description=(
+            "Unused for this task — present only to satisfy the shared "
+            "task-result protocol."
+        ),
     )
     ts: str | None = Field(
         default=None, description="Message timestamp (set on success)"
