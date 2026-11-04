@@ -88,8 +88,9 @@ def _query_permissions(query_func: Callable) -> list[PermissionGitlabGroupMember
 
 def _pagerduty_name(user: User) -> str:
     """The PagerDuty-equivalent name for an app-interface user: an explicit
-    override, else the org_username itself."""
-    return user.pagerduty_username or user.org_username
+    override, else the org_username itself, with any plus tag removed to
+    match the normalization already applied to PagerDutyUser.username."""
+    return (user.pagerduty_username or user.org_username).split("+", 1)[0]
 
 
 def _add_or_update_member(

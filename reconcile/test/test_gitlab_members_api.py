@@ -414,6 +414,29 @@ async def test_compile_users_from_pagerduty_matches_by_org_username_fallback() -
 
 
 @pytest.mark.asyncio
+async def test_compile_users_from_pagerduty_strips_plus_tag_from_override() -> None:
+    """A pagerduty_username override containing a plus tag must still match the
+    PagerDuty response, which is already plus-tag-normalized."""
+    integration = make_integration()
+    pagerduties = [make_pagerduty_target(schedule_id="SCHED1")]
+    users = [make_user("alice", pagerduty_username="alice-pd+oncall")]
+
+    with patch(
+        "reconcile.gitlab_members_api.pagerduty_schedule_users",
+        new=AsyncMock(
+            return_value=ScheduleUsersResponse(
+                users=[PagerDutyUserResponse(username="alice-pd")]
+            )
+        ),
+    ):
+        result = await integration.compile_users_from_pagerduty(
+            pagerduties, users, "team"
+        )
+
+    assert result == ["alice"]
+
+
+@pytest.mark.asyncio
 async def test_compile_users_from_pagerduty_drops_unknown_username_with_warning(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
