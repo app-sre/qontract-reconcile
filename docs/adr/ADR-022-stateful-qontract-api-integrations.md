@@ -26,12 +26,54 @@ Reviewers proposed moving durable state to qontract-api with a **generic** patte
 
 Adopt a **server-owned integration state** model for qontract-api integrations that need durable bookmarks:
 
-1. **Client contract:** Reconcile `-api` integrations send **desired state** and `dry_run` only; integration bookmarks live on the server.
-2. **StateRef:** Each integration registers a fixed server-side reference mapped to a stable persistence key (typically an S3 object path). Reuse pre-migration keys when cutover or rollback depends on them (e.g. `ldap-groups.managed_groups` → `state/ldap-groups/managed_groups` for ldap-groups).
+1. **Client contract:** Reconcile `-api` integrations send **`state_ref`**, **desired state**, and **`dry_run`** only; integration bookmarks live on the server (no client bookmark I/O).
+2. **StateRef:** Each integration registers a fixed server-side reference mapped to a stable persistence key (typically an S3 object path). **Default for greenfield integrations:** `state/<integration>-api/...`. Map StateRef to a **legacy S3 key** only when cutover or rollback requires that object (e.g. `ldap-groups.managed_groups` → `state/ldap-groups/managed_groups` for ldap-groups).
 3. **StateStore:** qontract-api provides load/save with a **per-StateRef lock** so only one worker mutates a bookmark at a time. Locks use a bounded lease; **save** runs only while the holder still owns the lock (renewal, stale-holder recovery, and fencing are defined in StateStore implementation).
 4. **Worker flow:** On task execution: acquire lock → load bookmark → reconcile external API using the loaded bookmark as the current managed set → **reduce** only **applied** actions into a new bookmark → save (skip save on dry-run) → release lock. When `dry_run` is true, skip external mutations; **applied actions** are empty and the bookmark is unchanged.
 5. **Reducer:** Each integration defines a pure function `(old_bookmark, applied_actions) → new_bookmark`. **Applied actions** are those that succeeded against the external API in that run when `dry_run` is false. Transitions depend on that integration's action model and bookmark schema (see **Implementation Guidelines**).
 6. **Crash safety:** Use two-phase bookmark updates when a crash mid-task could confuse the next run. **Creates:** update the bookmark **before** the external create (next run re-checks before creating again). **Deletes:** update the bookmark **after** the external delete succeeds. **Updates:** no special bookmark ordering unless the integration doc says otherwise. Document crash recovery in the integration doc (see **Implementation Guidelines**).
+
+### End-to-end reconcile flow
+
+Illustrates Decision items 1–4: one stateful reconcile POST from the `-api` client through router enqueue, worker lock, bookmark load/save, and external reconcile.
+
+```mermaid
+sequenceDiagram
+    participant C as reconcile -api client
+    participant R as qontract-api router
+    participant A as OPA
+    participant S as State settings
+    participant W as Celery worker
+    participant L as State lock
+    participant B as S3 state backend
+    participant E as External API
+    C->>R: POST reconcile
+    Note right of C: state_ref, desired_state, dry_run
+    R->>A: authorize
+    A-->>R: allow
+    R->>S: resolve state definition
+    S-->>R: backend, key template, lock TTL
+    R->>R: resolve StateRef from registration and payload
+    R->>W: enqueue task
+    W->>L: acquire lock
+    W->>B: load bookmark
+    alt dry_run
+        W->>E: read-only reconcile
+        W-->>C: actions, no bookmark write
+    else apply
+        W->>E: apply actions
+        W->>W: reducer(bookmark, applied_actions)
+        W->>B: save bookmark
+        W-->>C: result
+    end
+    W->>L: release lock
+```
+
+**Boundaries** (read against the sequence):
+
+- **Client:** `state_ref`, desired state, and `dry_run` only; not backend credentials or server-resolved persistence keys.
+- **qontract-api (router):** resolves the registered state definition from `state_ref` and payload, authorizes (OPA when enabled), resolves credentials, enqueues a task with a concrete StateRef.
+- **Worker:** per-StateRef lock spans load → reconcile → reduce → save.
 
 ### Key Points
 
@@ -70,7 +112,7 @@ Reconcile derives current managed resources from the external API on every run w
 
 ### Alternative 3: Server-owned StateStore and reducer (Selected)
 
-qontract-api owns bookmarks: StateRef registration, StateStore load/save, per-StateRef locking, and an integration reducer over **applied** actions. Reconcile `-api` clients send desired state and `dry_run` only.
+qontract-api owns bookmarks: StateRef registration, StateStore load/save, per-StateRef locking, and an integration reducer over **applied** actions. Reconcile `-api` clients send `state_ref`, desired state, and `dry_run` only.
 
 **Pros:**
 
@@ -89,7 +131,7 @@ qontract-api owns bookmarks: StateRef registration, StateStore load/save, per-St
 
 ### Positive
 
-- **Simpler clients:** Reconcile `-api` jobs send desired state and `dry_run` only.
+- **Simpler clients:** Reconcile `-api` jobs send `state_ref`, desired state, and `dry_run` only.
 - **One platform pattern:** Later stateful migrations reuse StateStore.
 - **One place to look:** Bookmarks live in qontract-api; cutover docs name the StateRef and S3 key.
 - **Crash rules with the worker:** Bookmark update ordering runs in the Celery task that calls the external API.
@@ -121,7 +163,7 @@ qontract-api owns bookmarks: StateRef registration, StateStore load/save, per-St
 - [ ] Add or change routes/models, then regenerate OpenAPI and `qontract_api_client` (do not hand-edit generated files).
 - [ ] Add OPA policies for new `operation_id`s (ADR-021).
 - [ ] Tests cover reducer logic and dry-run.
-- [ ] **reconcile `-api` client (ADR-008):** `reconcile/<integration>_api.py`, GraphQL desired state (ADR-002), POST desired payload and `dry_run`, poll task status (ADR-003).
+- [ ] **reconcile `-api` client (ADR-008):** `reconcile/<integration>_api.py`, GraphQL desired state (ADR-002), POST `state_ref`, desired payload, and `dry_run`, poll task status (ADR-003).
 - [ ] **Integration doc:** when this pattern applies, StateRef → key, rollback, cutover (legacy job off before shared key), crash recovery and two-phase rules (Decision item 6).
 - [ ] **StateStore implementation:** lock lease, stale-holder rejection on save, tests for concurrent workers and expired lock holders.
 
