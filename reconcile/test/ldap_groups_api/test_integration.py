@@ -775,13 +775,30 @@ async def test_recover_pending_task_clears_when_older_than_max_age() -> None:
     integration = make_integration()
     state_data: dict[str, Any] = {"pending_task": _stale_pending_task()}
     mock = _mock_state(state_data)
-    poll = AsyncMock()
+    poll = AsyncMock(return_value=_task_result(status=TaskStatus.PENDING))
 
     with patch.object(integration, "poll_task_status", new=poll):
         await integration._recover_pending_task(mock, dry_run=False)
 
     assert "pending_task" not in state_data
-    poll.assert_not_awaited()
+    poll.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_recover_pending_task_stale_probe_recovers_when_task_finished() -> None:
+    integration = make_integration()
+    state_data: dict[str, Any] = {"pending_task": _stale_pending_task()}
+    mock = _mock_state(state_data)
+    poll = AsyncMock(
+        return_value=_task_result(updated_managed_groups=["recovered-from-stale"])
+    )
+
+    with patch.object(integration, "poll_task_status", new=poll):
+        await integration._recover_pending_task(mock, dry_run=False)
+
+    poll.assert_awaited_once()
+    assert state_data["managed_groups"] == ["recovered-from-stale"]
+    assert "pending_task" not in state_data
 
 
 @pytest.mark.asyncio
@@ -820,13 +837,13 @@ async def test_recover_pending_task_clears_legacy_pending_without_submitted_at()
         "pending_task": {"id": "task-1", "status_url": "/status/1"},
     }
     mock = _mock_state(state_data)
-    poll = AsyncMock()
+    poll = AsyncMock(return_value=_task_result(status=TaskStatus.PENDING))
 
     with patch.object(integration, "poll_task_status", new=poll):
         await integration._recover_pending_task(mock, dry_run=False)
 
     assert "pending_task" not in state_data
-    poll.assert_not_awaited()
+    poll.assert_awaited_once()
 
 
 @pytest.mark.asyncio

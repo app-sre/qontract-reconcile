@@ -85,4 +85,3 @@ def test_utils_disabled_integrations_integration_is_enabled(
     )
     assert not integration_is_enabled("int1", None)
     assert integration_is_enabled("int2", None)
-

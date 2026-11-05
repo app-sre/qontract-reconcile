@@ -221,19 +221,25 @@ class LdapGroupsApiIntegration(
 
         stale_reason = self._pending_task_stale_reason(pending)
         if stale_reason:
-            if stale_reason == "missing_submitted_at":
-                logging.warning(
-                    "pending_task %s has no submitted_at; treating as lost",
-                    pending["id"],
-                )
-            self._clear_lost_pending_task(state_obj, pending, stale_reason)
-            return
-
-        logging.info(
-            "Recovering pending ldap-groups-api task %s from prior run",
-            pending["id"],
-        )
-        task_result = await self._poll_recovery_task_result(pending)
+            task_result = await self.poll_task_status(
+                status_url=pending["status_url"],
+                result_type=LdapGroupsTaskResult,
+                timeout=None,
+            )
+            if task_result.status == TaskStatus.PENDING:
+                if stale_reason == "missing_submitted_at":
+                    logging.warning(
+                        "pending_task %s has no submitted_at; treating as lost",
+                        pending["id"],
+                    )
+                self._clear_lost_pending_task(state_obj, pending, stale_reason)
+                return
+        else:
+            logging.info(
+                "Recovering pending ldap-groups-api task %s from prior run",
+                pending["id"],
+            )
+            task_result = await self._poll_recovery_task_result(pending)
         if task_result.status == TaskStatus.PENDING:
             raise IntegrationError(
                 "ldap-groups-api: previous reconciliation task "
