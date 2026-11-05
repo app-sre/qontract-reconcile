@@ -104,22 +104,71 @@ def hash_list(input: Iterable) -> str:
     return m.hexdigest()
 
 
+class _LegacyIndex(jsonpath_ng.Index):
+    """
+    Like `jsonpath_ng.Index`, but also indexes into a scalar string the way
+    Python does. jsonpath_ng (>=1.12) restricts integer indices to arrays
+    (RFC 9535: a JSON string isn't an array); Jinja2 templates may rely on
+    the previous, more permissive behavior, e.g. "a"[0] == "a".
+    """
+
+    def find(self, datum: Any) -> list[jsonpath_ng.DatumInContext]:
+        wrapped = jsonpath_ng.DatumInContext.wrap(datum)
+        if isinstance(wrapped.value, str):
+            return [
+                jsonpath_ng.DatumInContext(
+                    wrapped.value[i], path=jsonpath_ng.Index(i), context=wrapped
+                )
+                for i in self.indices
+                if -len(wrapped.value) <= i < len(wrapped.value)
+            ]
+        return super().find(datum)
+
+
+class _LegacyWildcard(jsonpath_ng.Slice):
+    """
+    Like `jsonpath_ng.Slice`, but a bare wildcard (`[*]`) applied to a dict
+    matches the dict as a whole, as if it were a single-element array.
+    jsonpath_ng (>=~1.9) instead matches the dict's values individually;
+    Jinja2 templates may rely on the previous behavior, e.g.
+    extract_jsonpath({"a": "A"}, "[*].a") == ["A"].
+    """
+
+    def find(self, datum: Any) -> list[jsonpath_ng.DatumInContext]:
+        wrapped = jsonpath_ng.DatumInContext.wrap(datum)
+        is_wildcard = self.start is None and self.end is None and self.step is None
+        if is_wildcard and isinstance(wrapped.value, dict):
+            return [
+                jsonpath_ng.DatumInContext(
+                    wrapped.value, path=jsonpath_ng.Index(0), context=wrapped
+                )
+            ]
+        return super().find(datum)
+
+
+def _with_legacy_semantics(node: jsonpath_ng.JSONPath) -> jsonpath_ng.JSONPath:
+    """
+    Rebuild `node`, substituting every Index/wildcard-Slice leaf for a
+    variant that preserves jsonpath_ng's previous behavior on scalar
+    strings/dicts (see _LegacyIndex/_LegacyWildcard above). `Child.find()`
+    composes purely through its left/right nodes, so substituting leaves is
+    enough to take effect at any nesting depth, e.g. both "[0]" and
+    "name[0]" / "$[0]".
+    """
+    if isinstance(node, jsonpath_ng.Child):
+        return jsonpath_ng.Child(
+            _with_legacy_semantics(node.left), _with_legacy_semantics(node.right)
+        )
+    if isinstance(node, jsonpath_ng.Index) and not isinstance(node, _LegacyIndex):
+        return _LegacyIndex(*node.indices)
+    if isinstance(node, jsonpath_ng.Slice) and not isinstance(node, _LegacyWildcard):
+        return _LegacyWildcard(node.start, node.end, node.step)
+    return node
+
+
 def _find_jsonpath(input: Any, jsonpath: str | None) -> Any:
     assert jsonpath is not None and len(jsonpath) > 0
-    parsed = parse_jsonpath(jsonpath)
-    if isinstance(input, str) and isinstance(parsed, jsonpath_ng.Index):
-        # jsonpath_ng (>=1.12) treats integer indices as applying only to
-        # arrays (RFC 9535: a JSON string isn't an array), so indexing a
-        # scalar string no longer matches. Preserve the previous behavior
-        # for a direct, single-segment index path on a scalar string, e.g.
-        # extract_jsonpath("a", "[0]") == ["a"], since Jinja2 templates may
-        # rely on it.
-        return [
-            jsonpath_ng.DatumInContext.wrap(input[index])
-            for index in parsed.indices
-            if -len(input) <= index < len(input)
-        ]
-    return parsed.find(input)
+    return _with_legacy_semantics(parse_jsonpath(jsonpath)).find(input)
 
 
 def extract_jsonpath(input: Any, jsonpath: str) -> Any:

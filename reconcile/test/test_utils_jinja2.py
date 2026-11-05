@@ -77,7 +77,21 @@ def test_extract_jsonpath_list() -> None:
 
 def test_extract_jsonpath_str() -> None:
     assert extract_jsonpath("a", "[0]") == ["a"]
+    assert extract_jsonpath("a", "$[0]") == ["a"]
+    assert extract_jsonpath({"name": "a"}, "name[0]") == ["a"]
     assert extract_jsonpath("a", "something") == []
+
+
+def test_extract_jsonpath_wildcard_on_dict() -> None:
+    assert extract_jsonpath({"items": {"name": "a"}}, "items[*].name") == ["a"]
+    assert extract_jsonpath({"items": {"name": "a"}}, "items[*]") == [{"name": "a"}]
+    # a list is unaffected: the wildcard still matches every element
+    assert extract_jsonpath(
+        {"items": [{"name": "a"}, {"name": "b"}]}, "items[*].name"
+    ) == [
+        "a",
+        "b",
+    ]
 
 
 def test_extract_jsonpath_none() -> None:
