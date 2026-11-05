@@ -5,6 +5,7 @@ from typing import Any
 from unittest.mock import Mock
 
 import pytest
+import redis.exceptions
 from pydantic import BaseModel
 
 from qontract_api.cache.redis import RedisCacheBackend
@@ -143,6 +144,30 @@ def test_ping_returns_false_on_connection_error(
 ) -> None:
     """Test ping() returns False on connection error."""
     mock_redis_client.ping.side_effect = OSError("Connection error")
+
+    result = cache.ping()
+
+    assert result is False
+
+
+def test_ping_returns_false_on_redis_connection_error(
+    cache: RedisCacheBackend, mock_redis_client: Mock
+) -> None:
+    """Test ping() returns False on redis.exceptions.ConnectionError."""
+    mock_redis_client.ping.side_effect = redis.exceptions.ConnectionError(
+        "Connection refused"
+    )
+
+    result = cache.ping()
+
+    assert result is False
+
+
+def test_ping_returns_false_on_redis_timeout_error(
+    cache: RedisCacheBackend, mock_redis_client: Mock
+) -> None:
+    """Test ping() returns False on redis.exceptions.TimeoutError."""
+    mock_redis_client.ping.side_effect = redis.exceptions.TimeoutError("Timed out")
 
     result = cache.ping()
 

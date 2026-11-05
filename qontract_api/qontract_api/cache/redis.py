@@ -5,6 +5,8 @@ from __future__ import annotations
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
+import redis.exceptions
+
 from qontract_api.cache.base import CacheBackend
 
 if TYPE_CHECKING:
@@ -101,7 +103,7 @@ class RedisCacheBackend(CacheBackend):
         try:
             self.client.ping()
             return True
-        except OSError:
+        except OSError, redis.exceptions.RedisError:
             # Network/connection errors
             return False
 
