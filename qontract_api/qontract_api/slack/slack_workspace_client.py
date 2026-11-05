@@ -22,6 +22,7 @@ from qontract_utils.slack_api import (
 from qontract_utils.slack_api import SlackChannel as SlackChannelAPI
 from qontract_utils.slack_api import SlackUser as SlackUserAPI
 from qontract_utils.slack_api import SlackUsergroup as SlackUsergroupAPI
+from redis.exceptions import RedisError
 
 from qontract_api.logger import get_logger
 
@@ -682,8 +683,15 @@ class SlackWorkspaceClient:
         rest of this class, so this doesn't cost extra Slack API calls.
 
         Mention resolution is best-effort: if looking up usergroups/users fails
-        (e.g. missing Slack scope, or a network/transport error), the original
-        text is posted unchanged rather than failing the whole send.
+        (e.g. missing Slack scope, a network/transport error, or the cache
+        backend being unavailable), the original text is posted unchanged
+        rather than failing the whole send.
+
+        Limitation: `_MENTION_PATTERN` only excludes a preceding word
+        character, so "@handle" occurring right after other punctuation —
+        e.g. in a URL path (`https://example.com/@handle`) or inside a
+        backtick code span — is still treated as a mention. Don't opt into
+        resolve_mentions for text that may contain such patterns.
         """
 
         def replace(match: re.Match[str]) -> str:
@@ -702,7 +710,7 @@ class SlackWorkspaceClient:
 
         try:
             return _MENTION_PATTERN.sub(replace, text)
-        except SlackApiError, OSError:
+        except SlackApiError, OSError, RedisError:
             logger.warning(
                 "Could not resolve mentions (Slack lookup failed), "
                 "posting text unchanged",

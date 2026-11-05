@@ -16,6 +16,7 @@ from qontract_utils.slack_api import (
     SlackUsergroupPrefs,
     SlackUserProfile,
 )
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from qontract_api.slack.slack_workspace_client import (
     AllUsersUnresolvableError,
@@ -1009,6 +1010,17 @@ def test_resolve_mentions_falls_back_to_original_text_on_transport_error(
 ) -> None:
     """A raw network/transport error (not wrapped in SlackApiError) also falls back."""
     mock_slack_api.usergroups_list.side_effect = TimeoutError("timed out")
+
+    result = client._resolve_mentions("Heads up @oncall-team!")
+
+    assert result == "Heads up @oncall-team!"
+
+
+def test_resolve_mentions_falls_back_to_original_text_on_redis_error(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """A Redis outage during the cache lookup also falls back — redis-py's exceptions aren't OSError subclasses."""
+    mock_cache.get_obj.side_effect = RedisConnectionError("Redis unavailable")
 
     result = client._resolve_mentions("Heads up @oncall-team!")
 
