@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import time
+import importlib
 from collections.abc import (
     Callable,
     Generator,
@@ -9,6 +9,7 @@ from collections.abc import (
     MutableMapping,
 )
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, create_autospec
 
@@ -79,7 +80,27 @@ def ldap_endpoint(mocker: MockerFixture) -> AsyncMock:
 
 @pytest.fixture
 def patch_sleep(mocker: MockerFixture) -> Generator[MagicMock]:
-    yield mocker.patch.object(time, "sleep")
+    """
+    Stub out the sleep() calls made by the retry implementations exercised
+    by tests using this fixture: sretoolbox's `@retry` decorator (used by
+    e.g. `reconcile.utils.vault`, `reconcile.utils.gitlab_api`,
+    `reconcile.utils.oc`) and slack_sdk's HTTP retry handlers. Each
+    implementation's own `time` binding is replaced rather than the shared
+    `time` module, so unrelated code isn't affected.
+    """
+    mock_sleep = MagicMock()
+    fake_time = SimpleNamespace(sleep=mock_sleep)
+    for module_name in (
+        # `sretoolbox.utils.retry` is also the name of a function re-exported
+        # by `sretoolbox.utils.__init__`, which shadows the submodule on the
+        # `sretoolbox.utils` package object, so the module must be looked up
+        # by name instead of via attribute access.
+        "sretoolbox.utils.retry",
+        "slack_sdk.http_retry.handler",
+        "slack_sdk.http_retry.builtin_handlers",
+    ):
+        mocker.patch.object(importlib.import_module(module_name), "time", fake_time)
+    yield mock_sleep
 
 
 @pytest.fixture

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import base64
+import importlib
 from dataclasses import dataclass
 from subprocess import CalledProcessError
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 from urllib.error import URLError
@@ -228,10 +230,8 @@ def test_oc(mocker: MockerFixture) -> None:
         ocb.oc(*args)
 
 
-def test_retrieve_token(mocker: MockerFixture) -> None:
+def test_retrieve_token(mocker: MockerFixture, patch_sleep: MagicMock) -> None:
     oc_mock = mocker.patch("reconcile.openshift_cluster_bots.oc", autospec=True)
-    # avoid waiting during retries
-    mocker.patch("sretoolbox.utils.retry.time.sleep")
 
     oc_mock.return_value = {}
     with pytest.raises(ocb.TokenNotReadyError):
@@ -312,7 +312,10 @@ def test_filter_clusters_legacy_vs_list(
 
 
 def test_process_entry_create_new(
-    mocker: MockerFixture, config: ocb.Config, cluster: Callable
+    mocker: MockerFixture,
+    patch_sleep: MagicMock,
+    config: ocb.Config,
+    cluster: Callable,
 ) -> None:
     c = cluster(automation_tokens=[automation_token_entry(name="tok", namespace="ns")])
     assert c.automation_tokens
@@ -333,7 +336,6 @@ def test_process_entry_create_new(
     vault_mock = mocker.patch(
         "reconcile.openshift_cluster_bots.VaultClient.get_instance"
     )
-    mocker.patch("sretoolbox.utils.retry.time.sleep")
 
     result = ocb.process_entry("kubeconfig", c, config, entry, cluster_admin=False)
 
@@ -523,8 +525,12 @@ def _setup_mocks(
         "reconcile.openshift_cluster_bots.filter_clusters", autospec=True
     )
     filter_clusters.return_value = (legacy_clusters or [], list_clusters or [])
-    # avoid waiting during retries
-    mocker.patch("sretoolbox.utils.retry.time.sleep")
+    # avoid waiting during retries, without touching the shared time module
+    mocker.patch.object(
+        importlib.import_module("sretoolbox.utils.retry"),
+        "time",
+        SimpleNamespace(sleep=MagicMock()),
+    )
     ocm_map = mocker.patch("reconcile.openshift_cluster_bots.OCMMap", autospec=True)
     get_ocm_map = mocker.patch(
         "reconcile.openshift_cluster_bots.get_ocm_map", autospec=True

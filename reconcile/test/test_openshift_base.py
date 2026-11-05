@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
-from kubernetes.dynamic import Resource
 from pydantic import BaseModel
 from qontract_utils.differ import (
     DiffPair,
@@ -726,16 +725,14 @@ def test_namespaces_managed_resources_cluster_scoped_resource_validation_disable
 
 
 @pytest.fixture
-def api_resources() -> dict[str, list[Resource]]:
-    r1 = Resource(
-        prefix="",
+def api_resources() -> dict[str, list[oc.OCCliApiResource]]:
+    r1 = oc.OCCliApiResource(
         kind="Kind",
         group="fully.qualified",
         api_version="v1",
         namespaced=True,
     )
-    r2 = Resource(
-        prefix="",
+    r2 = oc.OCCliApiResource(
         kind="Kind",
         group="another.group",
         api_version="v1",
@@ -745,7 +742,7 @@ def api_resources() -> dict[str, list[Resource]]:
 
 
 def test_populate_current_state(
-    api_resources: dict[str, list[Resource]],
+    api_resources: dict[str, list[oc.OCCliApiResource]],
     resource_inventory: resource.ResourceInventory,
     oc_cs1: oc.OCNative,
 ) -> None:

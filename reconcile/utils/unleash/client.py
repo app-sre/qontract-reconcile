@@ -3,10 +3,8 @@ import os
 import threading
 from typing import Any
 
-from UnleashClient import (
-    BaseCache,
-    UnleashClient,
-)
+from UnleashClient import UnleashClient
+from UnleashClient.cache import BaseCache
 
 client: UnleashClient | None = None
 client_lock = threading.Lock()
