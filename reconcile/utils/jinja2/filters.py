@@ -7,6 +7,7 @@ from urllib import parse
 
 import jinja2
 import jsonpath_ng
+import jsonpath_ng.ext.filter
 import yaml
 
 from reconcile.utils.jsonpath import jsonpath_parts, parse_jsonpath
@@ -157,6 +158,11 @@ _BINARY_NODE_TYPES = (
     jsonpath_ng.WhereNot,
 )
 
+_LOGICAL_NODE_TYPES = (
+    jsonpath_ng.ext.filter.And,
+    jsonpath_ng.ext.filter.Or,
+)
+
 
 def _with_legacy_semantics(node: jsonpath_ng.JSONPath) -> jsonpath_ng.JSONPath:
     """
@@ -168,9 +174,12 @@ def _with_legacy_semantics(node: jsonpath_ng.JSONPath) -> jsonpath_ng.JSONPath:
     right)` shape), so recursing generically through any of them - rather
     than special-casing each one's own find() logic - is enough to take
     effect at any nesting depth and through any combinator, e.g. "[0]",
-    "name[0]", "$[0]", and "items..[0]". Leaf/filter nodes (Fields, Root,
-    jsonpath_ng.ext.filter.Filter, ...) aren't in this tuple and pass
-    through unchanged.
+    "name[0]", "$[0]", and "items..[0]". A filter expression, e.g.
+    "items[?@.name[0]=='a']", is not part of that binary tree: its Index
+    nodes live inside Filter.expressions/Expression.target/Expression.value
+    and And/Or.operands instead, so those are rebuilt the same way. Leaf
+    nodes (Fields, Root, ...) aren't handled by any branch and pass through
+    unchanged.
     """
     if isinstance(node, jsonpath_ng.Index) and not isinstance(node, _LegacyIndex):
         return _LegacyIndex(*node.indices)
@@ -180,6 +189,21 @@ def _with_legacy_semantics(node: jsonpath_ng.JSONPath) -> jsonpath_ng.JSONPath:
         return type(node)(
             _with_legacy_semantics(node.left), _with_legacy_semantics(node.right)
         )
+    if isinstance(node, jsonpath_ng.ext.filter.Filter):
+        return jsonpath_ng.ext.filter.Filter([
+            _with_legacy_semantics(expression) for expression in node.expressions
+        ])
+    if isinstance(node, jsonpath_ng.ext.filter.Expression):
+        value = (
+            _with_legacy_semantics(node.value)
+            if isinstance(node.value, jsonpath_ng.JSONPath)
+            else node.value
+        )
+        return jsonpath_ng.ext.filter.Expression(
+            _with_legacy_semantics(node.target), node.op, value
+        )
+    if isinstance(node, _LOGICAL_NODE_TYPES):
+        return type(node)(_with_legacy_semantics(operand) for operand in node.operands)
     return node
 
 

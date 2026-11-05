@@ -106,6 +106,18 @@ def test_extract_jsonpath_legacy_index_through_descendants() -> None:
     assert extract_jsonpath({"items": [{"name": "abc"}]}, "items..name[0]") == ["a"]
 
 
+def test_extract_jsonpath_legacy_index_through_filter_expression() -> None:
+    input = {"items": [{"name": "abc"}, {"name": "xyz"}]}
+    assert extract_jsonpath(input, "items[?@.name[0]=='a']") == [{"name": "abc"}]
+    assert extract_jsonpath(input, "items[?@.name[0]=='a' || @.name[0]=='x']") == [
+        {"name": "abc"},
+        {"name": "xyz"},
+    ]
+    assert extract_jsonpath(input, "items[?@.name[0]=='a' && @.name[1]=='b']") == [
+        {"name": "abc"}
+    ]
+
+
 def test_extract_jsonpath_none() -> None:
     assert extract_jsonpath(None, "a") == []
 
