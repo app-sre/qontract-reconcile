@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock
 
 import pytest
 from qontract_api_client import schemas as qontract_api_schemas
+from qontract_api_client.exceptions import HTTPStatusError
 
 from reconcile.slack_base import (
     SlackApi,
@@ -12,8 +14,6 @@ from reconcile.slack_base import (
 )
 
 if TYPE_CHECKING:
-    from unittest.mock import MagicMock
-
     from pytest_mock import MockerFixture
 
 
@@ -188,7 +188,11 @@ def test_chat_post_message_wait_true_succeeds(
 
     slack_api.chat_post_message("hello", wait=True)
 
-    mock_status.assert_called_once_with(task_id="task-123", timeout=300)
+    mock_status.assert_called_once()
+    assert mock_status.call_args.kwargs["task_id"] == "task-123"
+    # each poll's server-side wait must stay under the sync client's own
+    # HTTP timeout, or the client times out before the server can respond
+    assert mock_status.call_args.kwargs["timeout"] < 30
 
 
 def test_chat_post_message_wait_true_raises_on_failure(
@@ -204,4 +208,67 @@ def test_chat_post_message_wait_true_raises_on_failure(
     slack_api = SlackApi("coreos", token={"path": "p", "field": "f"}, channel="test")
 
     with pytest.raises(RuntimeError, match="channel_not_found"):
+        slack_api.chat_post_message("hello", wait=True)
+
+
+def test_chat_post_message_wait_true_polls_through_408s(
+    mocker: MockerFixture, mock_config: MagicMock, mock_setup_client: MagicMock
+) -> None:
+    """A still-pending task (server 408) is retried, not treated as failure."""
+    mock_send = mocker.patch("reconcile.slack_base.slack_chat_post_message")
+    mock_send.return_value.id = "task-123"
+    pending_response = MagicMock()
+    pending_response.status_code = 408
+    success_result = MagicMock()
+    success_result.status = qontract_api_schemas.TaskStatus.SUCCESS
+    mock_status = mocker.patch(
+        "reconcile.slack_base.slack_chat_post_message_task_status",
+        side_effect=[
+            HTTPStatusError(response=pending_response, reason="still pending"),
+            HTTPStatusError(response=pending_response, reason="still pending"),
+            success_result,
+        ],
+    )
+    slack_api = SlackApi("coreos", token={"path": "p", "field": "f"}, channel="test")
+
+    slack_api.chat_post_message("hello", wait=True)
+
+    assert mock_status.call_count == 3
+
+
+def test_chat_post_message_wait_true_propagates_non_408_errors(
+    mocker: MockerFixture, mock_config: MagicMock, mock_setup_client: MagicMock
+) -> None:
+    mock_send = mocker.patch("reconcile.slack_base.slack_chat_post_message")
+    mock_send.return_value.id = "task-123"
+    error_response = MagicMock()
+    error_response.status_code = 500
+    mocker.patch(
+        "reconcile.slack_base.slack_chat_post_message_task_status",
+        side_effect=HTTPStatusError(response=error_response, reason="server error"),
+    )
+    slack_api = SlackApi("coreos", token={"path": "p", "field": "f"}, channel="test")
+
+    with pytest.raises(HTTPStatusError):
+        slack_api.chat_post_message("hello", wait=True)
+
+
+def test_chat_post_message_wait_true_raises_after_overall_deadline(
+    mocker: MockerFixture, mock_config: MagicMock, mock_setup_client: MagicMock
+) -> None:
+    mock_send = mocker.patch("reconcile.slack_base.slack_chat_post_message")
+    mock_send.return_value.id = "task-123"
+    pending_response = MagicMock()
+    pending_response.status_code = 408
+    mocker.patch(
+        "reconcile.slack_base.slack_chat_post_message_task_status",
+        side_effect=HTTPStatusError(response=pending_response, reason="still pending"),
+    )
+    # one poll happens within the deadline (still pending), then the clock
+    # advances past the overall wait deadline before the next check
+    times = iter([0, 50, 301])
+    mocker.patch("reconcile.slack_base.time.monotonic", side_effect=lambda: next(times))
+    slack_api = SlackApi("coreos", token={"path": "p", "field": "f"}, channel="test")
+
+    with pytest.raises(RuntimeError, match="did not complete within"):
         slack_api.chat_post_message("hello", wait=True)
