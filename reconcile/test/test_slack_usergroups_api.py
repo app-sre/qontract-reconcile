@@ -1134,7 +1134,7 @@ def test_notification_discriminator_survives_clientele_wire_serialization() -> N
     upgrade regardless of how it's implemented there.
 
     See the filed clientele issue for the upstream fix/configurability request:
-    https://github.com/phalt/clientele/issues/<TBD>
+    https://github.com/phalt/clientele/issues/276
     """
     from qontract_api_client.client import client as api_client
     from qontract_api_client.schemas import NotificationAddUser
