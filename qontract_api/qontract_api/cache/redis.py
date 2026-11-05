@@ -130,6 +130,11 @@ class RedisCacheBackend(CacheBackend):
         - Thread-safe by design
         - Non-blocking mode support
 
+        Does not catch redis.exceptions.RedisError from lock.acquire(): unlike
+        get_obj()/set_obj(), distributed locking has no meaningful memory-only
+        fallback, so a Redis outage propagates to the caller instead of being
+        silently swallowed.
+
         Args:
             key: Lock key
             timeout: Lock timeout in seconds
@@ -139,6 +144,7 @@ class RedisCacheBackend(CacheBackend):
 
         Raises:
             RuntimeError: If lock could not be acquired
+            redis.exceptions.RedisError: If Redis is unreachable
         """
         lock_key = f"{key}:lock"
         lock = self.client.lock(lock_key, timeout=timeout, blocking=True)

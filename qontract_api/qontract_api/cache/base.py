@@ -315,6 +315,20 @@ class CacheBackend(ABC):
                 f"Cache backend unavailable, memory-only mode: {e}",
                 cache_key=key,
             )
+            # Redis may still hold an older value for this key. Delete it (best
+            # effort) so other processes get a cache miss instead of silently
+            # serving stale data until this process's memory_ttl expires.
+            try:
+                self._delete_from_backend(key)
+            except (
+                ConnectionError,
+                TimeoutError,
+                redis.exceptions.RedisError,
+            ) as delete_e:
+                logger.warning(
+                    f"Failed to invalidate stale cache value: {delete_e}",
+                    cache_key=key,
+                )
 
     @abstractmethod
     @contextmanager
@@ -330,6 +344,12 @@ class CacheBackend(ABC):
         appends a ``:lock`` internally to avoid collisions between
         data keys and lock keys. Do NOT add a ``:lock`` suffix yourself.
 
+        Distributed locking has no meaningful memory-only equivalent, so unlike
+        get_obj()/set_obj() this does not degrade gracefully when the backing
+        store is unreachable: a connectivity error (e.g. redis.exceptions.RedisError)
+        propagates uncaught instead of being swallowed. Callers that need a
+        store-outage fallback must handle that themselves.
+
         Args:
             key: Cache key to lock (same key used for get/set)
             timeout: Lock timeout in seconds
@@ -339,6 +359,8 @@ class CacheBackend(ABC):
 
         Raises:
             RuntimeError: If lock could not be acquired
+            Exception: Backend-specific connectivity error if the backing store
+                is unreachable (e.g. redis.exceptions.RedisError for Redis/Valkey)
 
         Example:
             with cache.lock("my-resource", timeout=60):

@@ -309,6 +309,28 @@ def test_set_obj_does_not_raise_on_redis_connection_error(
     assert cache._memory_cache["test_key"] == model
 
 
+def test_set_obj_deletes_stale_redis_value_on_failed_write(
+    cache: ConcreteCacheBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test set_obj() deletes the stale Redis value when the write fails."""
+    cache.set("test_key", json.dumps({"name": "stale", "value": 1, "tags": []}))
+
+    def raise_redis_error(key: str, value: str, ttl: int | None = None) -> None:
+        msg = "Connection refused"
+        raise redis.exceptions.ConnectionError(msg)
+
+    monkeypatch.setattr(cache, "set", raise_redis_error)
+    model = SampleModel(name="fresh", value=2)
+
+    cache.set_obj("test_key", model)
+
+    # Other processes must see a cache miss, not the stale value.
+    assert cache.get("test_key") is None
+    # This process still serves the fresh value from the memory tier.
+    assert cache._memory_cache is not None
+    assert cache._memory_cache["test_key"] == model
+
+
 def test_custom_serializer_deserializer() -> None:
     """Test CacheBackend with custom serializer/deserializer."""
 
