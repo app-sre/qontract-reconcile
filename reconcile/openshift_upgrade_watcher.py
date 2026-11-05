@@ -64,7 +64,11 @@ def handle_slack_notification(
         return
     # wait=True: only record the notification as sent once delivery is
     # confirmed, so a failed send (Slack error, Vault error, etc.) is retried
-    # on the next run instead of being silently lost.
+    # on the next run instead of being silently lost. A RuntimeError here
+    # propagates and aborts the remaining clusters in this run too, same as
+    # a failure fetching upgrade info above — deliberate, matching this
+    # function's existing fail-fast-and-let-the-next-scheduled-run-retry
+    # behavior rather than isolating failures per cluster.
     slack.chat_post_message(msg, resolve_mentions=True, wait=True)
     state.add(state_key, state_value, force=True)
 
