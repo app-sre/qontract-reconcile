@@ -325,11 +325,24 @@ class OcmMachinePoolsService:
         add_states: dict[_DiffKey, _DesiredPoolState],
         *,
         dry_run: bool,
-    ) -> tuple[list[OcmMachinePoolsAction], list[OcmMachinePoolsAction], list[str]]:
-        """Process create actions (pools that should exist but don't)."""
+    ) -> tuple[
+        list[OcmMachinePoolsAction],
+        list[OcmMachinePoolsAction],
+        list[str],
+        set[str],
+    ]:
+        """Process create actions (pools that should exist but don't).
+
+        Returns (actions, applied, errors, failed_clusters). failed_clusters
+        names clusters where a create failed - the caller must skip those
+        clusters' deletes, so a failed pool replacement can never leave a
+        cluster with zero pools (the legacy integration ordered creates
+        before deletes for the same reason).
+        """
         actions: list[OcmMachinePoolsAction] = []
         applied: list[OcmMachinePoolsAction] = []
         errors: list[str] = []
+        failed_clusters: set[str] = set()
 
         for state in add_states.values():
             if isinstance(state.pool, DesiredNodePool):
@@ -359,8 +372,9 @@ class OcmMachinePoolsService:
                 )
                 logger.exception(error_msg)
                 errors.append(error_msg)
+                failed_clusters.add(state.cluster)
 
-        return actions, applied, errors
+        return actions, applied, errors, failed_clusters
 
     @staticmethod
     def _process_changes(
@@ -405,6 +419,15 @@ class OcmMachinePoolsService:
                 )
                 continue
 
+            # Legacy parity: the warning fires whenever labels/taints differ,
+            # even when an immutable-field diff turns the update into an error.
+            if _labels_or_taints_changed(current.pool, desired.pool):
+                logger.warning(
+                    f"updating labels or taints for pool {desired.pool.id} "
+                    f"on cluster {cluster_name} will only be applied to "
+                    f"new Nodes"
+                )
+
             if invalid_diff:
                 errors.append(
                     f"can not update {invalid_diff} for existing pool on "
@@ -413,13 +436,6 @@ class OcmMachinePoolsService:
                     f"{desired.pool.model_dump_json()}"
                 )
                 continue
-
-            if _labels_or_taints_changed(current.pool, desired.pool):
-                logger.warning(
-                    f"updating labels or taints for pool {desired.pool.id} "
-                    f"on cluster {cluster_name} will only be applied to "
-                    f"new Nodes"
-                )
 
             actions.append(action)
             if dry_run:
@@ -446,11 +462,15 @@ class OcmMachinePoolsService:
         desired_state: dict[_DiffKey, _DesiredPoolState],
         *,
         dry_run: bool,
+        blocked_clusters: set[str],
     ) -> tuple[list[OcmMachinePoolsAction], list[OcmMachinePoolsAction], list[str]]:
         """Process delete actions (pools that exist but shouldn't).
 
         Preserves the legacy delete guards: a cluster must keep at least one
         pool, and OSD clusters cannot delete their default worker pool.
+        Deletes for clusters in blocked_clusters (a pool create failed there
+        this run) are skipped, so a failed replacement can never leave a
+        cluster with zero pools.
         """
         actions: list[OcmMachinePoolsAction] = []
         applied: list[OcmMachinePoolsAction] = []
@@ -459,6 +479,13 @@ class OcmMachinePoolsService:
         desired_clusters = {state.cluster for state in desired_state.values()}
 
         for (cluster_name, _), state in delete_states.items():
+            if cluster_name in blocked_clusters:
+                errors.append(
+                    f"skipping deletion of pool {state.pool.id} on cluster "
+                    f"{cluster_name}: a pool creation failed on this cluster "
+                    f"this run, refusing to leave the cluster without pools"
+                )
+                continue
             if cluster_name not in desired_clusters:
                 errors.append(
                     f"can not delete all machine pools for cluster {cluster_name}"
@@ -557,23 +584,31 @@ class OcmMachinePoolsService:
                 equal=_states_equal,
             )
 
+            # Legacy ordering: creates are processed BEFORE deletes, and a
+            # cluster whose create failed has its deletes skipped - a failed
+            # pool replacement (delete old + create new) must never leave a
+            # cluster with zero pools.
+            add_result = self._process_adds(
+                workspace_client,
+                diff_result.add,
+                dry_run=dry_run,
+            )
+            change_result = self._process_changes(
+                workspace_client,
+                diff_result.change,
+                dry_run=dry_run,
+            )
+            delete_result = self._process_deletes(
+                workspace_client,
+                diff_result.delete,
+                desired_state,
+                dry_run=dry_run,
+                blocked_clusters=add_result[3],
+            )
             for category_actions, category_applied, category_errors in (
-                self._process_deletes(
-                    workspace_client,
-                    diff_result.delete,
-                    desired_state,
-                    dry_run=dry_run,
-                ),
-                self._process_adds(
-                    workspace_client,
-                    diff_result.add,
-                    dry_run=dry_run,
-                ),
-                self._process_changes(
-                    workspace_client,
-                    diff_result.change,
-                    dry_run=dry_run,
-                ),
+                add_result[:3],
+                change_result,
+                delete_result,
             ):
                 actions.extend(category_actions)
                 applied_actions.extend(category_applied)

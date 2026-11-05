@@ -134,6 +134,22 @@ class DesiredClusterMachinePools(BaseModel, frozen=True):
                 )
         return self
 
+    @model_validator(mode="after")
+    def validate_unique_pool_ids(self) -> Self:
+        """Reject duplicate pool ids within a cluster.
+
+        The service builds its desired state keyed by (cluster name, pool
+        id) - two pools with the same id on one cluster would silently
+        overwrite each other before the diff.
+        """
+        ids = [pool.id for pool in self.pools]
+        duplicates = {pool_id for pool_id in ids if ids.count(pool_id) > 1}
+        if duplicates:
+            raise ValueError(
+                f"cluster {self.name} declares duplicate pool ids: {sorted(duplicates)}"
+            )
+        return self
+
 
 __all__ = [
     "ClusterType",

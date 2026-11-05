@@ -396,21 +396,24 @@ def test_removed_machine_pool_yields_delete(
     )
 
 
-def test_removed_node_pool_deletable(
+def test_cannot_delete_all_node_pools_for_cluster(
     service: OcmMachinePoolsService,
     mock_workspace_client: MagicMock,
 ) -> None:
-    """Node pools (even the default 'worker') are always deletable."""
+    """The delete-all guard applies to node pool clusters too.
+
+    A cluster with no desired pools must not have its live node pools
+    deleted - unlike the OSD-only default-worker guard, this guard is
+    pool-type independent.
+    """
     mock_workspace_client.get_node_pools.return_value = [
         _live_node_pool(pool_id="extra")
     ]
 
-    result = _reconcile(service, [_hcp_cluster([])], dry_run=False)
+    result = _reconcile(service, [_hcp_cluster([])])
 
-    # hcp cluster has no desired pools but one live 'extra' pool: the
-    # delete-all guard does NOT trigger because 'worker' remains? No -
-    # desired is empty, so the delete-all guard fires.
     assert result.status == TaskStatus.FAILED
+    assert any("can not delete all machine pools" in error for error in result.errors)
     mock_workspace_client.delete_node_pool.assert_not_called()
 
 
@@ -592,3 +595,89 @@ def test_labels_change_warns_new_nodes_only(
         )
 
     assert any("only be applied to new Nodes" in message for message in caplog.messages)
+
+
+def test_failed_replacement_skips_that_clusters_deletes(
+    service: OcmMachinePoolsService,
+    mock_workspace_client: MagicMock,
+) -> None:
+    """A failed create must block its cluster's deletes (failed rename).
+
+    Live pool 'old' is replaced by desired pool 'new' (rename). If the
+    create of 'new' fails, deleting 'old' anyway would leave the cluster
+    with zero pools - the delete must be skipped and the run FAILED.
+    """
+    mock_workspace_client.get_machine_pools.return_value = [
+        _live_machine_pool(pool_id="old")
+    ]
+    mock_workspace_client.create_machine_pool.side_effect = RuntimeError("boom")
+
+    result = _reconcile(
+        service, [_osd_cluster([_desired_machine_pool(pool_id="new")])], dry_run=False
+    )
+
+    assert result.status == TaskStatus.FAILED
+    assert any("failed to create pool new" in error for error in result.errors)
+    assert any(
+        "refusing to leave the cluster without pools" in error
+        for error in result.errors
+    )
+    mock_workspace_client.create_machine_pool.assert_called_once()
+    mock_workspace_client.delete_machine_pool.assert_not_called()
+
+
+def test_successful_replacement_creates_before_delete(
+    service: OcmMachinePoolsService,
+    mock_workspace_client: MagicMock,
+) -> None:
+    """A successful rename creates the new pool before deleting the old one."""
+    mock_workspace_client.get_machine_pools.return_value = [
+        _live_machine_pool(pool_id="old")
+    ]
+    calls: list[str] = []
+    mock_workspace_client.create_machine_pool.side_effect = lambda *_args: calls.append(
+        "create"
+    )
+    mock_workspace_client.delete_machine_pool.side_effect = lambda *_args: calls.append(
+        "delete"
+    )
+
+    result = _reconcile(
+        service, [_osd_cluster([_desired_machine_pool(pool_id="new")])], dry_run=False
+    )
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.applied_count == 2
+    assert calls == ["create", "delete"]
+
+
+def test_labels_warning_fires_even_with_invalid_diff(
+    service: OcmMachinePoolsService,
+    mock_workspace_client: MagicMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Legacy parity: the warning fires even for rejected updates.
+
+    The new-Nodes warning must fire even when the update is rejected as
+    an immutable-field error.
+    """
+    mock_workspace_client.get_machine_pools.return_value = [
+        _live_machine_pool(labels={"tier": "frontend"})
+    ]
+
+    with caplog.at_level("WARNING"):
+        result = _reconcile(
+            service,
+            [
+                _osd_cluster([
+                    DesiredMachinePool(
+                        id="worker",
+                        instance_type="m5.2xlarge",
+                        labels={"tier": "backend"},
+                    )
+                ])
+            ],
+        )
+
+    assert any("only be applied to new Nodes" in m for m in caplog.messages)
+    assert any("can not update instance_type" in e for e in result.errors)
