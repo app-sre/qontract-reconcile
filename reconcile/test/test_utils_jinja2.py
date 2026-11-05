@@ -144,6 +144,13 @@ def test_json_pointers_escapes_rfc6901_special_characters() -> None:
     assert json_pointers(input, "'a~b'") == ["/a~0b"]
 
 
+def test_json_pointers_legacy_string_index() -> None:
+    # the legacy-compatibility Index match must carry a real path, not just
+    # the matched value, so full_path-based pointer conversion still works
+    assert json_pointers("abc", "[0]") == ["/0"]
+    assert json_pointers({"name": "abc"}, "name[0]") == ["/name/0"]
+
+
 def test_str_format() -> None:
     value = "path/to/object"
     format = "s3://%s"
