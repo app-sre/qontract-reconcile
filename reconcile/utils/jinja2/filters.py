@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 from typing import TYPE_CHECKING, Any
@@ -105,101 +104,9 @@ def hash_list(input: Iterable) -> str:
     return m.hexdigest()
 
 
-class _LegacyIndex(jsonpath_ng.Index):
-    """
-    Like `jsonpath_ng.Index`, but also indexes into a scalar string the way
-    Python does. jsonpath_ng (>=1.12) restricts integer indices to arrays
-    (RFC 9535: a JSON string isn't an array); Jinja2 templates may rely on
-    the previous, more permissive behavior, e.g. "a"[0] == "a".
-    """
-
-    def find(self, datum: Any) -> list[jsonpath_ng.DatumInContext]:
-        wrapped = jsonpath_ng.DatumInContext.wrap(datum)
-        if isinstance(wrapped.value, str):
-            return [
-                jsonpath_ng.DatumInContext(
-                    wrapped.value[i], path=jsonpath_ng.Index(i), context=wrapped
-                )
-                for i in self.indices
-                if -len(wrapped.value) <= i < len(wrapped.value)
-            ]
-        return super().find(datum)
-
-
-class _LegacyWildcard(jsonpath_ng.Slice):
-    """
-    Like `jsonpath_ng.Slice`, but a dict or any other non-array scalar
-    (str/int/float/bool) matches a slice/wildcard as if it were a
-    single-element array, exactly as jsonpath_ng 1.8.0's `Slice.find` did
-    (`if isinstance(value, dict) or isinstance(value, (int, float, str,
-    bool)): return self.find(DatumInContext([value], path=.., context=..))`).
-    jsonpath_ng (>=~1.9) instead restricts slices/wildcards to actual arrays
-    (RFC 9535); Jinja2 templates may rely on the previous behavior, e.g.
-    extract_jsonpath("abc", "[*]") == ["abc"].
-    """
-
-    _SCALAR_TYPES = (dict, int, float, str, bool)
-
-    def find(self, datum: Any) -> list[jsonpath_ng.DatumInContext]:
-        wrapped = jsonpath_ng.DatumInContext.wrap(datum)
-        if isinstance(wrapped.value, self._SCALAR_TYPES):
-            return self.find(
-                jsonpath_ng.DatumInContext(
-                    [wrapped.value], path=wrapped.path, context=wrapped.context
-                )
-            )
-        return super().find(datum)
-
-
-def _with_legacy_semantics(node: jsonpath_ng.JSONPath) -> jsonpath_ng.JSONPath:
-    """
-    Rebuild `node`, substituting every Index/wildcard-Slice leaf for a
-    variant that preserves jsonpath_ng's previous behavior on scalar values
-    (see _LegacyIndex/_LegacyWildcard above). `node`'s nested JSONPath
-    operands can live under any attribute name and shape depending on the
-    node type - Child/Descendants/Where/WhereNot carry `left`/`right`,
-    Filter carries a list in `expressions`, Expression carries `target` and
-    an optional `value`, And/Or carry a list in `operands`, an arithmetic
-    Operation carries `left`/`right` that may or may not be JSONPath, etc.
-    Rather than special-casing each node type's own attribute shape (an
-    endless source of new gaps as jsonpath_ng adds combinators), walk every
-    attribute generically: recurse into any value that is itself a
-    JSONPath, or a list/tuple containing one, and copy the node only if
-    something underneath actually changed. Leaf nodes with no nested
-    JSONPath attributes (Fields, Root, This, ...) are left untouched.
-    """
-    if isinstance(node, jsonpath_ng.Index) and not isinstance(node, _LegacyIndex):
-        return _LegacyIndex(*node.indices)
-    if isinstance(node, jsonpath_ng.Slice) and not isinstance(node, _LegacyWildcard):
-        return _LegacyWildcard(node.start, node.end, node.step)
-
-    rebuilt: jsonpath_ng.JSONPath | None = None
-    for name, value in vars(node).items():
-        new_value: Any
-        if isinstance(value, jsonpath_ng.JSONPath):
-            new_value = _with_legacy_semantics(value)
-            changed = new_value is not value
-        elif isinstance(value, list | tuple) and any(
-            isinstance(item, jsonpath_ng.JSONPath) for item in value
-        ):
-            new_value = type(value)(
-                _with_legacy_semantics(item)
-                if isinstance(item, jsonpath_ng.JSONPath)
-                else item
-                for item in value
-            )
-            changed = any(a is not b for a, b in zip(new_value, value, strict=True))
-        else:
-            continue
-        if changed:
-            rebuilt = rebuilt if rebuilt is not None else copy.copy(node)
-            setattr(rebuilt, name, new_value)
-    return rebuilt if rebuilt is not None else node
-
-
 def _find_jsonpath(input: Any, jsonpath: str | None) -> Any:
     assert jsonpath is not None and len(jsonpath) > 0
-    return _with_legacy_semantics(parse_jsonpath(jsonpath)).find(input)
+    return parse_jsonpath(jsonpath).find(input)
 
 
 def extract_jsonpath(input: Any, jsonpath: str) -> Any:

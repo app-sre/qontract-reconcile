@@ -77,52 +77,7 @@ def test_extract_jsonpath_list() -> None:
 
 def test_extract_jsonpath_str() -> None:
     assert extract_jsonpath("a", "[0]") == ["a"]
-    assert extract_jsonpath("a", "$[0]") == ["a"]
-    assert extract_jsonpath({"name": "a"}, "name[0]") == ["a"]
     assert extract_jsonpath("a", "something") == []
-
-
-def test_extract_jsonpath_wildcard_on_dict() -> None:
-    assert extract_jsonpath({"items": {"name": "a"}}, "items[*].name") == ["a"]
-    assert extract_jsonpath({"items": {"name": "a"}}, "items[*]") == [{"name": "a"}]
-    # a list is unaffected: the wildcard still matches every element
-    assert extract_jsonpath(
-        {"items": [{"name": "a"}, {"name": "b"}]}, "items[*].name"
-    ) == [
-        "a",
-        "b",
-    ]
-
-
-def test_extract_jsonpath_wildcard_on_non_array_scalar() -> None:
-    assert extract_jsonpath("abc", "[*]") == ["abc"]
-    assert extract_jsonpath(42, "[*]") == [42]
-    # a bounded (non-wildcard) slice on a dict is coerced the same way
-    assert extract_jsonpath({"a": "A", "b": "B"}, "[0:1]") == [{"a": "A", "b": "B"}]
-
-
-def test_extract_jsonpath_legacy_index_through_descendants() -> None:
-    assert extract_jsonpath({"items": "xy"}, "items..[0]") == ["x"]
-    assert extract_jsonpath({"items": [{"name": "abc"}]}, "items..name[0]") == ["a"]
-
-
-def test_extract_jsonpath_legacy_index_through_filter_expression() -> None:
-    input = {"items": [{"name": "abc"}, {"name": "xyz"}]}
-    assert extract_jsonpath(input, "items[?@.name[0]=='a']") == [{"name": "abc"}]
-    assert extract_jsonpath(input, "items[?@.name[0]=='a' || @.name[0]=='x']") == [
-        {"name": "abc"},
-        {"name": "xyz"},
-    ]
-    assert extract_jsonpath(input, "items[?@.name[0]=='a' && @.name[1]=='b']") == [
-        {"name": "abc"}
-    ]
-
-
-def test_extract_jsonpath_legacy_index_through_arithmetic_operation() -> None:
-    input = {"items": [{"name": "abc"}, {"name": "xyz"}]}
-    assert extract_jsonpath(input, "items[?@.name[0] + 'b' == 'ab']") == [
-        {"name": "abc"}
-    ]
 
 
 def test_extract_jsonpath_none() -> None:
@@ -173,13 +128,6 @@ def test_json_pointers_escapes_rfc6901_special_characters() -> None:
     input = {"a/b": "slash", "a~b": "tilde"}
     assert json_pointers(input, "'a/b'") == ["/a~1b"]
     assert json_pointers(input, "'a~b'") == ["/a~0b"]
-
-
-def test_json_pointers_legacy_string_index() -> None:
-    # the legacy-compatibility Index match must carry a real path, not just
-    # the matched value, so full_path-based pointer conversion still works
-    assert json_pointers("abc", "[0]") == ["/0"]
-    assert json_pointers({"name": "abc"}, "name[0]") == ["/name/0"]
 
 
 def test_str_format() -> None:
