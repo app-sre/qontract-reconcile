@@ -160,6 +160,42 @@ def test_cluster_accepts_matching_pool_shapes() -> None:
     assert hcp.pools[0].id == "worker"
 
 
+def test_cluster_rejects_duplicate_machine_pool_ids() -> None:
+    """Reject duplicate pool ids within a cluster.
+
+    Duplicate ids would silently overwrite each other in the service's
+    (cluster, pool id) keyed desired state.
+    """
+    with pytest.raises(ValidationError, match="duplicate pool ids"):
+        DesiredClusterMachinePools(
+            name="osd-cluster",
+            cluster_id="cid-1",
+            cluster_type=ClusterType.OSD,
+            pools=[
+                DesiredMachinePool(id="worker", instance_type="m5.xlarge"),
+                DesiredMachinePool(id="worker", instance_type="m5.2xlarge"),
+            ],
+        )
+
+
+def test_cluster_rejects_duplicate_node_pool_ids() -> None:
+    """Duplicate pool ids are rejected on node pool clusters too."""
+    with pytest.raises(ValidationError, match="duplicate pool ids"):
+        DesiredClusterMachinePools(
+            name="hcp-cluster",
+            cluster_id="cid-1",
+            cluster_type=ClusterType.ROSA_HCP,
+            pools=[
+                DesiredNodePool(
+                    id="worker", aws_node_pool=OcmNodePoolAws(instance_type="m5.xlarge")
+                ),
+                DesiredNodePool(
+                    id="worker", aws_node_pool=OcmNodePoolAws(instance_type="m5.xlarge")
+                ),
+            ],
+        )
+
+
 def test_models_are_frozen() -> None:
     """Domain models are immutable."""
     pool = DesiredMachinePool(id="worker", instance_type="m5.xlarge")
