@@ -5,8 +5,8 @@ import logging
 import re
 from typing import TYPE_CHECKING, Any
 
-import jsonpatch  # type: ignore
-from jsonpointer import resolve_pointer  # type: ignore
+import jsonpatch
+from jsonpointer import resolve_pointer
 
 from reconcile.utils.openshift_resource import QONTRACT_ANNOTATIONS
 from reconcile.utils.openshift_resource import OpenshiftResource as OR

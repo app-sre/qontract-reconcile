@@ -15,11 +15,11 @@ classifiers = [
 dependencies = [
     "anymarkup==0.8.1",
     # keep in sync with boto3-stubs in dependency-groups.type
-    "boto3==1.43.123",
-    "botocore==1.43.123",
+    "boto3==1.43.124",
+    "botocore==1.43.124",
     "Click>=7.0,<9.0",
     "croniter==6.2.4",
-    "dateparser==1.4.3",
+    "dateparser==1.5.0",
     "deepdiff==9.1.0",
     "dnspython~=2.1",
     "dt==1.1.73",
@@ -31,7 +31,7 @@ dependencies = [
     "jira==3.10.5",
     "jsonpatch~=1.33",
     "jsonpath-ng==1.8.0",
-    "jsonpointer==3.6",
+    "jsonpointer==3.8",
     "kubernetes==37.0.1",
     "ldap3>=2.9.1,<2.10.0",
     "networkx~=3.6",
@@ -68,13 +68,13 @@ dependencies = [
 debugger = ["debugpy ~=1.8.17"]
 dev = [
     # keep in sync project.dependencies.boto3
-    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,ec2,ecr,elb,iam,logs,opensearch,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.43.123",
+    "boto3-stubs[accessanalyzer,account,cloudformation,dynamodb,ec2,ecr,elb,iam,logs,opensearch,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.43.124",
     "import-linter==2.15",
     "moto[ec2,iam,logs,s3,route53]==5.2.5",
     "mypy==2.4.1",
-    "pyfakefs==6.2.0",
+    "pyfakefs==6.3.2",
     "pytest==9.2.0",
-    "pytest-asyncio==1.4.1",
+    "pytest-asyncio==1.4.1.post1",
     "pytest-cov==7.1.0",
     "pytest-httpserver==1.2.0",
     "pytest-mock==3.17.0",

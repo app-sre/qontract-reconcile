@@ -15,7 +15,7 @@ dependencies = [
     "prometheus-client==0.26.0",
     "prometheus-fastapi-instrumentator==8.1.0",
     "pydantic-settings==2.16.2",
-    "pydantic==2.14.2",
+    "pydantic==2.14.3",
     "python-jose[cryptography]==3.5.0",
     "qontract-api-client",
     "qontract-utils",
@@ -31,14 +31,14 @@ dev = [
     # development and testing tools
     "import-linter==2.15",
     "mypy==2.4.1",
-    "pytest-asyncio==1.4.1",
+    "pytest-asyncio==1.4.1.post1",
     "pytest-cov==7.1.0",
     "pytest-mock==3.17.0",
     "pytest==9.2.0",
     "rich==15.0.0",
     "ruff==0.17.3",
     "types-cachetools==7.0.0.20260713",
-    "types-hvac==2.4.0.20260731",
+    "types-hvac==2.4.0.20261102",
     "types-python-jose==3.5.0.20260408",
 ]
 
