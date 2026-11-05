@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import os
+import time
 from typing import TYPE_CHECKING, Any
 
 from qontract_api_client import schemas as qontract_api_schemas
+from qontract_api_client.exceptions import HTTPStatusError
 from qontract_api_client.sync_client import (
     slack_chat_post_message,
     slack_chat_post_message_task_status,
@@ -11,6 +13,7 @@ from qontract_api_client.sync_client import (
 
 from reconcile import queries
 from reconcile.utils.config import get_config
+from reconcile.utils.constants import REQUEST_TIMEOUT
 from reconcile.utils.runtime.integration import setup_qontract_api_client
 
 if TYPE_CHECKING:
@@ -20,6 +23,14 @@ if TYPE_CHECKING:
 # qontract-api blocking-GET route itself caps at settings.api_task_max_timeout
 # (300s), so this is the longest a caller can usefully wait anyway.
 _CHAT_WAIT_TIMEOUT = 300
+
+# Each poll's server-side wait must stay comfortably under the sync client's
+# own HTTP timeout (REQUEST_TIMEOUT, see setup_qontract_api_client), or the
+# client gives up before the server can respond — leaving us unable to tell
+# whether delivery actually succeeded, which could cause a duplicate send on
+# the next run. Poll in chunks instead of one request for the full
+# _CHAT_WAIT_TIMEOUT.
+_CHAT_WAIT_POLL_INTERVAL = REQUEST_TIMEOUT - 5
 
 
 def is_gov_slack_workspace() -> bool:
@@ -122,13 +133,44 @@ class SlackApi:
         if not wait:
             return
 
-        result = slack_chat_post_message_task_status(
-            task_id=response.id, timeout=_CHAT_WAIT_TIMEOUT
-        )
+        result = self._poll_delivery_status(response.id)
         if result.status == qontract_api_schemas.TaskStatus.FAILED:
             raise RuntimeError(
                 f"Slack message delivery failed: {'; '.join(result.errors)}"
             )
+
+    def _poll_delivery_status(
+        self, task_id: str
+    ) -> qontract_api_schemas.ChatTaskResult:
+        """Block until the chat-post-message task completes, polling in chunks.
+
+        Each poll asks the server to block for at most
+        `_CHAT_WAIT_POLL_INTERVAL` seconds — short enough that the sync
+        client's own HTTP timeout never fires first — and retries on the
+        server's 408 (still pending) until `_CHAT_WAIT_TIMEOUT` total has
+        elapsed.
+
+        :raises RuntimeError: if the task is still pending after
+        _CHAT_WAIT_TIMEOUT seconds
+        """
+        deadline = time.monotonic() + _CHAT_WAIT_TIMEOUT
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RuntimeError(
+                    "Slack message delivery did not complete within "
+                    f"{_CHAT_WAIT_TIMEOUT}s"
+                )
+            try:
+                return slack_chat_post_message_task_status(
+                    task_id=task_id,
+                    # The endpoint requires timeout >= 1; round up so a
+                    # sub-second remainder still issues a valid final poll.
+                    timeout=max(1, min(_CHAT_WAIT_POLL_INTERVAL, int(remaining) + 1)),
+                )
+            except HTTPStatusError as e:
+                if e.response.status_code != 408:
+                    raise
 
 
 def slackapi_from_queries(
