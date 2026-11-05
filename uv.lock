@@ -455,6 +455,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/cf/c9/6eccdda96e098f7ae843162db2d3c149c6931a24fda69fe4ab84d0027eb5/celery-5.6.3-py3-none-any.whl", hash = "sha256:0808f42f80909c4d5833202360ffafb2a4f83f4d8e23e1285d926610e9a7afa6", size = 451235, upload-time = "2026-03-26T12:14:49.491Z" },
 ]
 
+[package.optional-dependencies]
+redis = [
+    { name = "kombu", extra = ["redis"] },
+]
+
 [[package]]
 name = "certifi"
 version = "2026.10.23"
@@ -1388,6 +1393,12 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/57/31/3e632ebce43c684dcc6eead4660b33307e6153be87e33c14e1ed9875deff/kombu-5.7.0.tar.gz", hash = "sha256:31e62fdfd2381caa3422f8e02b84a491d9a2180ddda74507b57f4cb1e1c2c2c9", size = 627051, upload-time = "2026-11-03T05:58:33.446Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/84/20/f73d8e0bff9708b0f2337220be1b5d7ebd738bc3a89b63cf44d257157014/kombu-5.7.0-py3-none-any.whl", hash = "sha256:dede73bff4c89175be382c4203d2f167cf7017c384396ec75c36a1b5678f1587", size = 266635, upload-time = "2026-11-03T05:58:31.475Z" },
+]
+
+[package.optional-dependencies]
+redis = [
+    { name = "packaging" },
+    { name = "redis" },
 ]
 
 [[package]]
@@ -2577,7 +2588,7 @@ version = "0.1.0"
 source = { editable = "qontract_api" }
 dependencies = [
     { name = "cachetools" },
-    { name = "celery" },
+    { name = "celery", extra = ["redis"] },
     { name = "fastapi" },
     { name = "faststream", extra = ["cli", "prometheus", "redis"] },
     { name = "httpx2" },
@@ -2612,7 +2623,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "cachetools", specifier = "==7.2.8" },
-    { name = "celery", specifier = "==5.6.3" },
+    { name = "celery", extras = ["redis"], specifier = "==5.6.3" },
     { name = "fastapi", specifier = "==0.162.0" },
     { name = "faststream", extras = ["cli", "redis", "prometheus"], specifier = "==0.7.8" },
     { name = "httpx2", specifier = "==2.16.0" },
