@@ -21,6 +21,7 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
+import redis.exceptions
 from cachetools import TTLCache
 from pydantic import BaseModel
 from qontract_utils.json_utils import json_dumps, json_loads
@@ -273,7 +274,7 @@ class CacheBackend(ABC):
             value = self.get(key)
             if value is None:
                 return None
-        except (ConnectionError, TimeoutError) as e:
+        except (ConnectionError, TimeoutError, redis.exceptions.RedisError) as e:
             logger.warning(
                 f"Cache backend unavailable, memory-only mode: {e}",
                 cache_key=key,
@@ -309,7 +310,7 @@ class CacheBackend(ABC):
         try:
             serialized = self.serializer(value)
             self.set(key, serialized, ttl)
-        except (ConnectionError, TimeoutError) as e:
+        except (ConnectionError, TimeoutError, redis.exceptions.RedisError) as e:
             logger.warning(
                 f"Cache backend unavailable, memory-only mode: {e}",
                 cache_key=key,
