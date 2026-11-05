@@ -304,7 +304,6 @@ module = [
     "kubernetes.*",
     "networkx.*",
     "pygments.*",
-    "pypd.*",
     "sendgrid.*",
     "terrascript.*",
     "yamllint.*",
