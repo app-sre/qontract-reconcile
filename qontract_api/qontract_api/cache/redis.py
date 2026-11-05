@@ -132,8 +132,9 @@ class RedisCacheBackend(CacheBackend):
 
         Does not catch redis.exceptions.RedisError from lock.acquire(): unlike
         get_obj()/set_obj(), distributed locking has no meaningful memory-only
-        fallback, so a Redis outage propagates to the caller instead of being
-        silently swallowed.
+        fallback, so a Redis outage during acquisition propagates to the caller
+        instead of being silently swallowed. A RedisError during lock.release()
+        is suppressed instead (the lock may have already expired).
 
         Args:
             key: Lock key
@@ -144,7 +145,8 @@ class RedisCacheBackend(CacheBackend):
 
         Raises:
             RuntimeError: If lock could not be acquired
-            redis.exceptions.RedisError: If Redis is unreachable
+            redis.exceptions.RedisError: If Redis is unreachable during
+                acquisition. Errors during release are suppressed, not raised.
         """
         lock_key = f"{key}:lock"
         lock = self.client.lock(lock_key, timeout=timeout, blocking=True)

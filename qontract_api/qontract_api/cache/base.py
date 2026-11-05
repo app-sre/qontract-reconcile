@@ -347,8 +347,10 @@ class CacheBackend(ABC):
         Distributed locking has no meaningful memory-only equivalent, so unlike
         get_obj()/set_obj() this does not degrade gracefully when the backing
         store is unreachable: a connectivity error (e.g. redis.exceptions.RedisError)
-        propagates uncaught instead of being swallowed. Callers that need a
-        store-outage fallback must handle that themselves.
+        during lock acquisition propagates uncaught instead of being swallowed.
+        Callers that need a store-outage fallback must handle that themselves.
+        A connectivity error during release, by contrast, is suppressed (the
+        lock may have already expired) and does not propagate.
 
         Args:
             key: Cache key to lock (same key used for get/set)
@@ -359,8 +361,9 @@ class CacheBackend(ABC):
 
         Raises:
             RuntimeError: If lock could not be acquired
-            Exception: Backend-specific connectivity error if the backing store
-                is unreachable (e.g. redis.exceptions.RedisError for Redis/Valkey)
+            Exception: Backend-specific connectivity error during acquisition if
+                the backing store is unreachable (e.g. redis.exceptions.RedisError
+                for Redis/Valkey). Errors during release are suppressed, not raised.
 
         Example:
             with cache.lock("my-resource", timeout=60):
