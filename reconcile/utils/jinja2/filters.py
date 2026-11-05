@@ -127,42 +127,59 @@ class _LegacyIndex(jsonpath_ng.Index):
 
 class _LegacyWildcard(jsonpath_ng.Slice):
     """
-    Like `jsonpath_ng.Slice`, but a bare wildcard (`[*]`) applied to a dict
-    matches the dict as a whole, as if it were a single-element array.
-    jsonpath_ng (>=~1.9) instead matches the dict's values individually;
-    Jinja2 templates may rely on the previous behavior, e.g.
-    extract_jsonpath({"a": "A"}, "[*].a") == ["A"].
+    Like `jsonpath_ng.Slice`, but a dict or any other non-array scalar
+    (str/int/float/bool) matches a slice/wildcard as if it were a
+    single-element array, exactly as jsonpath_ng 1.8.0's `Slice.find` did
+    (`if isinstance(value, dict) or isinstance(value, (int, float, str,
+    bool)): return self.find(DatumInContext([value], path=.., context=..))`).
+    jsonpath_ng (>=~1.9) instead restricts slices/wildcards to actual arrays
+    (RFC 9535); Jinja2 templates may rely on the previous behavior, e.g.
+    extract_jsonpath("abc", "[*]") == ["abc"].
     """
+
+    _SCALAR_TYPES = (dict, int, float, str, bool)
 
     def find(self, datum: Any) -> list[jsonpath_ng.DatumInContext]:
         wrapped = jsonpath_ng.DatumInContext.wrap(datum)
-        is_wildcard = self.start is None and self.end is None and self.step is None
-        if is_wildcard and isinstance(wrapped.value, dict):
-            return [
+        if isinstance(wrapped.value, self._SCALAR_TYPES):
+            return self.find(
                 jsonpath_ng.DatumInContext(
-                    wrapped.value, path=jsonpath_ng.Index(0), context=wrapped
+                    [wrapped.value], path=wrapped.path, context=wrapped.context
                 )
-            ]
+            )
         return super().find(datum)
+
+
+_BINARY_NODE_TYPES = (
+    jsonpath_ng.Child,
+    jsonpath_ng.Descendants,
+    jsonpath_ng.Where,
+    jsonpath_ng.WhereNot,
+)
 
 
 def _with_legacy_semantics(node: jsonpath_ng.JSONPath) -> jsonpath_ng.JSONPath:
     """
     Rebuild `node`, substituting every Index/wildcard-Slice leaf for a
-    variant that preserves jsonpath_ng's previous behavior on scalar
-    strings/dicts (see _LegacyIndex/_LegacyWildcard above). `Child.find()`
-    composes purely through its left/right nodes, so substituting leaves is
-    enough to take effect at any nesting depth, e.g. both "[0]" and
-    "name[0]" / "$[0]".
+    variant that preserves jsonpath_ng's previous behavior on scalar values
+    (see _LegacyIndex/_LegacyWildcard above). Every jsonpath_ng binary node
+    in `_BINARY_NODE_TYPES` composes find() purely through its own
+    `left`/`right` operands (all share the same `__init__(self, left,
+    right)` shape), so recursing generically through any of them - rather
+    than special-casing each one's own find() logic - is enough to take
+    effect at any nesting depth and through any combinator, e.g. "[0]",
+    "name[0]", "$[0]", and "items..[0]". Leaf/filter nodes (Fields, Root,
+    jsonpath_ng.ext.filter.Filter, ...) aren't in this tuple and pass
+    through unchanged.
     """
-    if isinstance(node, jsonpath_ng.Child):
-        return jsonpath_ng.Child(
-            _with_legacy_semantics(node.left), _with_legacy_semantics(node.right)
-        )
     if isinstance(node, jsonpath_ng.Index) and not isinstance(node, _LegacyIndex):
         return _LegacyIndex(*node.indices)
     if isinstance(node, jsonpath_ng.Slice) and not isinstance(node, _LegacyWildcard):
         return _LegacyWildcard(node.start, node.end, node.step)
+    if isinstance(node, _BINARY_NODE_TYPES):
+        return type(node)(
+            _with_legacy_semantics(node.left), _with_legacy_semantics(node.right)
+        )
     return node
 
 

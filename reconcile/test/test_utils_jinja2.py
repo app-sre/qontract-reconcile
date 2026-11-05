@@ -94,6 +94,18 @@ def test_extract_jsonpath_wildcard_on_dict() -> None:
     ]
 
 
+def test_extract_jsonpath_wildcard_on_non_array_scalar() -> None:
+    assert extract_jsonpath("abc", "[*]") == ["abc"]
+    assert extract_jsonpath(42, "[*]") == [42]
+    # a bounded (non-wildcard) slice on a dict is coerced the same way
+    assert extract_jsonpath({"a": "A", "b": "B"}, "[0:1]") == [{"a": "A", "b": "B"}]
+
+
+def test_extract_jsonpath_legacy_index_through_descendants() -> None:
+    assert extract_jsonpath({"items": "xy"}, "items..[0]") == ["x"]
+    assert extract_jsonpath({"items": [{"name": "abc"}]}, "items..name[0]") == ["a"]
+
+
 def test_extract_jsonpath_none() -> None:
     assert extract_jsonpath(None, "a") == []
 
