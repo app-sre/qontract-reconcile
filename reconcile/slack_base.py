@@ -109,9 +109,10 @@ class SlackApi:
         stay fire-and-forget.
         :raises ValueError: when Slack channel wasn't provided
         :raises qontract_api_client.exceptions.HTTPStatusError: if unsuccessful
-        response from qontract-api, or (wait=True) if the message didn't
-        finish sending within the timeout
-        :raises RuntimeError: (wait=True only) if the message failed to send
+        response from qontract-api (a pending-task 408 is retried internally
+        when wait=True)
+        :raises RuntimeError: (wait=True only) if the message failed to send,
+        or didn't finish sending within the overall wait timeout
         """
         if not self.channel:
             raise ValueError(
