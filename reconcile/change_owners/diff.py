@@ -32,10 +32,11 @@ class _DottedChild(jsonpath_ng.Child):
     `jsonpath_ng.Child.__str__` is an internal implementation detail that
     has changed across versions (e.g. 1.8.0 wrapped every `Child` in
     parentheses, like `(((a.b).c).d)`, to disambiguate operator precedence
-    for re-parsing; later versions dropped that). `Diff.path` is only ever
-    rendered for display (MR check output, logs, error messages), never
-    re-parsed, so we pin our own display format instead of depending on
-    the library's.
+    for re-parsing; later versions dropped that). `Diff.path` is never
+    re-parsed: it's rendered for display (MR check output, logs, error
+    messages) and used as a plain string key (e.g.
+    `BundleFileChange._diff_coverage`), so we pin our own display format
+    instead of depending on the library's.
     """
 
     def __str__(self) -> str:
