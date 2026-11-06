@@ -1,4 +1,10 @@
-# Replace jsonpath-ng with python-jsonpath
+# Decouple JSONPath evaluation behind a shared abstraction
+
+## Date of Proposal
+
+November 2026
+
+Tracked in [APPSRE-15715](https://redhat.atlassian.net/browse/APPSRE-15715).
 
 ## Problem
 
@@ -17,17 +23,32 @@ This is recurring upgrade work, not a hypothetical compatibility concern:
   nested paths, filters, Boolean expressions, and arithmetic expressions.
 - Testing **1.16.0** then broke the compatibility layer again because wildcard
   representation changed, producing **10 failing tests**. The upgrade was
-  abandoned for that dependency update: commit `0e0b22d7` restored **1.8.0** and
-  removed the compatibility patches. The merged update (`3285ad1e`) retained
-  that pin; these failures were caught before shipping the new version.
+  abandoned for that dependency update: the compatibility patches were
+  reverted and `jsonpath-ng` held at **1.8.0**. The merged update
+  (`3285ad1e`, #5902) retained that pin; these failures were caught before
+  shipping the new version.
 
 `jsonpath-ng` is maintained, but our code also depends on its parser nodes for
 paths and change coverage. Routine upgrades therefore combine query migration
-with repairs to library-specific code. The proposal addresses both problems:
-adapt queries deliberately and remove that coupling. The replacement still has
-additional syntax differences; the two engines are not interchangeable.
+with repairs to library-specific code - that coupling, not `jsonpath-ng`
+specifically, is the root problem: every parser-node or RFC 9535 alignment
+change in the library propagates directly into our authorization, rendering,
+and sharding code. This proposal's primary deliverable is removing that
+coupling behind a shared abstraction; which engine sits behind it is a
+decision the abstraction makes possible, not a goal pre-committed by this
+proposal - "Why python-jsonpath" below explains why it is nonetheless the
+leading candidate.
 
 ## Why python-jsonpath
+
+`python-jsonpath` is the leading candidate engine behind the shared
+abstraction, not a foregone conclusion. The repeated cost documented above -
+a dedicated compatibility fix in August 2026, five follow-up commits chasing
+1.15.0's RFC 9535 alignment, then a second break on 1.16.0 that forced
+abandoning that attempt entirely - shows that staying on `jsonpath-ng` means
+re-paying this cost on every future release, for as long as our code stays
+coupled to its parser nodes. `python-jsonpath` already implements RFC 9535
+today:
 
 - **Maintained:** verified repository commits in October 2026.
 - **Documented API:** typed query results expose values, concrete locations, and
@@ -41,19 +62,72 @@ roughly twice as slow in representative microbenchmarks, adding about 1–5 ms p
 1,000-record query. Temporary dual-engine comparison adds further overhead, which
 must be measured in integration-level checks.
 
+M3 gates the final engine decision on measured evidence from M1/M2 (the
+inventory and comparison data), not on this proposal pre-committing to it: if
+`jsonpath-ng`'s own RFC 9535 migration stabilizes once the abstraction removes
+our parser-node coupling, keeping `jsonpath-ng` behind the abstraction remains
+a valid M3 outcome. Given the cost history above, switching to
+`python-jsonpath` is the expected result, but M3 is a decision point, not a
+formality.
+
+## API and exception contract
+
+Before M1, the shared package defines:
+
+- **Match fields.** What a `Match` exposes to consumers. The SaaS selector
+  (`reconcile/typed_queries/saas_files.py`) reads
+  `match.value["cluster"]["name"]` and `match.value["name"]`; the contract
+  preserves this shape.
+- **Exception mapping.** The SaaS selector translates `JsonPathParserError` to
+  `ParameterError`; `status-board` (`reconcile/typed_queries/status_board.py`)
+  currently evaluates `jsonpath-ng` directly with no translation. The package
+  defines one exception mapping both consumers go through, so migration
+  doesn't leak raw engine exceptions to either, and doesn't change the
+  existing `ParameterError` contract the SaaS selector's callers rely on.
+- **Empty-result behavior.** What an empty match set returns, consistently
+  across both engines.
+- **Update/removal semantics.** How the package applies mutations at a
+  matched location, consistently across both engines.
+
 ## Proposed qontract_utils package
 
 Introduce a shared `qontract_utils.jsonpath` package for queries, match locations,
 and updates. It owns both engines during migration and presents one consistent
-interface to integrations. Consumers no longer depend on either library's parser
-nodes. Engine selection stays inside the utility; reconcile gains no new setting.
-Existing Jinja filter names remain unchanged.
+interface to integrations, implementing the contract above. Consumers no
+longer depend on either library's parser nodes. Engine selection stays inside
+the utility; reconcile gains no new setting. Existing Jinja filter names
+remain unchanged.
 
 The package must detect **both syntax failures and silent result differences**.
 During migration it compares match values, types, locations, order, and duplicates
-on isolated input copies, without replaying mutations. Differences are logged to
-CloudWatch, not Slack. M1 always keeps `jsonpath-ng` results; M2 uses `jsonpath-ng` for unapproved
-differences before updates are applied.
+on isolated input copies, without replaying mutations.
+
+**Comparison is normalized, not literal.** `jsonpath-ng` exposes structured
+`Fields`/`Index` path nodes; `python-jsonpath` exposes JSON Pointers. Both are
+normalized to canonical JSON Pointers (with correct escaping) before
+comparison, so equivalent matches aren't flagged as differences. Duplicate
+matches are preserved; match order is compared only where the consumer
+contract requires an ordering guarantee.
+
+**Comparison is scoped to the dialect intersection.** Some existing queries
+must be rewritten to `&&`/`search()` syntax for `python-jsonpath` (see
+"Existing query incompatibilities" below) - syntax `jsonpath-ng` 1.8.0's
+parser cannot evaluate at all. Comparison therefore only runs on expressions
+valid in both dialects; a query that only parses under the rewritten syntax
+is logged as a syntax-only incompatibility, not a comparison failure. A query
+is not migrated to the rewritten syntax until `jsonpath-ng` fallback is no
+longer required for it.
+
+**Diagnostics never carry secrets.** Several affected consumers evaluate
+expressions against configured secret and cloud-init templates (see
+"Affected integrations" below). A diagnostic contains only non-sensitive
+metadata - query hash, engine and version, match counts and types, and
+redacted canonical locations - never raw match values or input documents. M1
+includes a test enforcing this.
+
+Differences are logged to CloudWatch, not Slack. M1 always keeps `jsonpath-ng`
+results; M2 uses `jsonpath-ng` for unapproved differences before updates are
+applied.
 
 ## Affected integrations
 
@@ -72,7 +146,9 @@ templates processed by OpenShift or Helm do not receive our custom Jinja filters
 ## Existing query incompatibilities
 
 The local audit found **385 distinct expressions; 79 fail target parsing**,
-including templates, fixtures, and documentation. There are two kinds of problem:
+including templates, fixtures, and documentation; it is tracked separately in
+`docs/design/app-interface-jsonpath-inventory.md`. There are two kinds of
+problem:
 
 **Syntax changes:** some existing queries must be rewritten before Python can
 evaluate them. These examples preserve results on representative inputs:
@@ -85,7 +161,9 @@ evaluate them. These examples preserve results on representative inputs:
 
 **Silent behavior changes:** a query may parse successfully but select different
 data. Results below were verified with `jsonpath-ng==1.8.0` and
-`python-jsonpath==2.2.2`:
+`python-jsonpath==2.2.2`, using `python-jsonpath`'s default
+`JSONPathEnvironment()` via `.query()` (non-strict, no additional function
+extensions registered):
 
 | Query and input                                                     | `jsonpath-ng` 1.8.0 result | python-jsonpath result                                               |
 | ------------------------------------------------------------------- | -------------------------- | -------------------------------------------------------------------- |
@@ -130,19 +208,31 @@ unchanged authorization, deployment selection, sharding, and rendered output.
 
 - After several weeks or months, use the logs to update queries in app-interface
   and reconcile, including generators and fixtures, in small tested batches.
-- Change the package default to `python-jsonpath`. Keep `jsonpath-ng` as a logged fallback
-  for incompatible queries and unapproved result differences. Reconcile continues
-  using the same package interface, without engine-specific settings.
+- Change the package default to `python-jsonpath`. Keep `jsonpath-ng` as a
+  logged fallback for queries not yet migrated to the rewritten syntax and
+  for unapproved result differences; once a query is migrated, `jsonpath-ng`
+  no longer evaluates it (see "Comparison is scoped to the dialect
+  intersection" above). Reconcile continues using the same package interface,
+  without engine-specific settings.
 - Continue fixing observed incompatibilities and checking rarely used queries.
 
 **Complete when:** representative workloads no longer require fallback and all
 remaining inventory entries and behavior differences have been reviewed.
 
-### M3 — Remove the legacy engine
+### M3 — Resolve the engine decision
 
-- Remove `jsonpath-ng`, its fallback, and temporary dual-engine comparison from the utility
-  package and dependencies. Keep the shared interface and regression tests.
-- Verify reconcile works with `python-jsonpath` alone before releasing cleanup.
+- Evaluate `jsonpath-ng`'s own RFC 9535 progress and the M1/M2 inventory and
+  comparison data against the compliance bar the abstraction requires. Given
+  the cost history in "Problem" above, the expected outcome is completing the
+  `python-jsonpath` switch - but this milestone is the actual decision point,
+  not a formality.
+- If `python-jsonpath` is confirmed: remove `jsonpath-ng`, its fallback, and
+  temporary dual-engine comparison from the utility package and dependencies.
+  Keep the shared interface and regression tests. Verify reconcile works with
+  `python-jsonpath` alone before releasing cleanup.
+- If `jsonpath-ng` is retained instead: remove the dual-engine comparison
+  machinery and the `python-jsonpath` dependency, keeping the shared
+  interface and regression tests unchanged for consumers.
 
 ## Risks and safeguards
 
@@ -157,7 +247,8 @@ remaining inventory entries and behavior differences have been reviewed.
 ## Scope
 
 **In scope:** the shared package, its consumers, affected app-interface queries
-and generators, compatibility diagnostics, tests, and staged removal of `jsonpath-ng`.
+and generators, compatibility diagnostics, tests, and the staged engine
+decision (see M3).
 
 **Out of scope:** unrelated integration refactoring, migration to qontract-api,
 intentional permission changes, Kubernetes CLI JSONPath, tenant Helm/OpenShift
