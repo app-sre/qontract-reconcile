@@ -2,7 +2,7 @@
 # STAGE 1 - build-image
 ###############################################################################
 FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:2.2.1-1@sha256:d639784b263c73fa312b46b548093c596799c5ca39f13100438335537e805f2d AS build-image
-COPY --from=ghcr.io/astral-sh/uv:0.12.24@sha256:3af4716e991d6956a41e573eab705d0ee08500cd829ed30293eb8472f372c65a /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 /uv /bin/uv
 
 WORKDIR /work
 
@@ -29,7 +29,7 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev
 # STAGE 2 - dev-image
 ###############################################################################
 FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:2.2.1-1@sha256:80eea44e24eec0e772d16c492e3b8d9ec0030e8271536214921278cf66cfd4ff AS dev-image
-COPY --from=ghcr.io/astral-sh/uv:0.12.24@sha256:3af4716e991d6956a41e573eab705d0ee08500cd829ed30293eb8472f372c65a /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 /uv /bin/uv
 
 ENV \
     # use venv from ubi image
@@ -85,7 +85,7 @@ CMD ["run-integration"]
 # STAGE 4 - unittest image
 ###############################################################################
 FROM prod-image-pre-test AS test-image
-COPY --from=ghcr.io/astral-sh/uv:0.12.24@sha256:3af4716e991d6956a41e573eab705d0ee08500cd829ed30293eb8472f372c65a /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 /uv /bin/uv
 
 ENV \
     # use venv from ubi image
@@ -124,7 +124,7 @@ FROM prod-image-pre-test AS fips-prod-image
 # FedRAMP runs on FIPS-enabled clusters. Source oc/kubectl from the official RHEL9 client
 # image (FIPS-capable and regularly rebuilt for CVEs) pinned to the 4.18 stream to match the
 # in-boundary cluster fleet. Commercial (prod-image) gets its newer oc from the base image.
-COPY --from=registry.redhat.io/openshift4/ose-cli-rhel9:v4.18@sha256:5c8b2fc3d2aacddda5cceba99288e863cadf747528514d35440a30c3aaab7694 \
+COPY --from=registry.redhat.io/openshift4/ose-cli-rhel9:v4.18@sha256:1c54f0195d6be3e186f77e4e6a9b874fcf0384b2c0b41665fbe0dbc02bd85f77 \
     /usr/bin/oc /usr/bin/kubectl /usr/local/bin/
 
 # Lets make sure we run tests when targeting fips-prod-image

@@ -1,7 +1,7 @@
 import importlib
 import logging
 import os
-import time
+from types import SimpleNamespace
 from unittest.mock import (
     MagicMock,
     patch,
@@ -49,14 +49,13 @@ class TestVaultUtils:
         assert vault.VAULT_AUTO_REFRESH_INTERVAL == 600
 
     @staticmethod
-    @patch.object(time, "sleep")
-    def test_sleep_is_called(sleep: MagicMock) -> None:
-        sleep.side_effect = SleepCalledError
+    def test_sleep_is_called() -> None:
+        sleep = MagicMock(side_effect=SleepCalledError)
+        with patch.object(vault, "time", SimpleNamespace(sleep=sleep)):
+            client = VaultClientTest()
 
-        client = VaultClientTest()
-
-        with pytest.raises(SleepCalledError):
-            client._auto_refresh_client_auth()
+            with pytest.raises(SleepCalledError):
+                client._auto_refresh_client_auth()
 
     @staticmethod
     def test_read_all_with_version_kvv2_default_to_latest_version() -> None:

@@ -6,10 +6,17 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from qontract_utils.gitlab_api import GitlabGroup, GitlabProject
+from qontract_utils.gitlab_api import (
+    GitlabAccessLevel,
+    GitlabGroup,
+    GitlabGroupMember,
+    GitlabProject,
+    GitlabUser,
+)
 
 from qontract_api.gitlab.gitlab_workspace_client import (
     CachedGroup,
+    CachedGroupMembers,
     GitlabWorkspaceClient,
 )
 
@@ -50,6 +57,23 @@ def _project(
     return GitlabProject(
         id=project_id, name=name, path_with_namespace=path, web_url=web_url
     )
+
+
+def _member(
+    member_id: int = 1,
+    username: str = "jsmith",
+    name: str = "Jane Smith",
+    access_level: int = 30,
+) -> GitlabGroupMember:
+    return GitlabGroupMember(
+        id=member_id, username=username, name=name, access_level=access_level
+    )
+
+
+def _user(
+    user_id: int = 1, username: str = "jsmith", name: str = "Jane Smith"
+) -> GitlabUser:
+    return GitlabUser(id=user_id, username=username, name=name)
 
 
 # ---------------------------------------------------------------------------
@@ -179,6 +203,94 @@ def test_get_group_double_check_inside_lock(
 
 
 # ---------------------------------------------------------------------------
+# get_group_members
+# ---------------------------------------------------------------------------
+
+
+def test_get_group_members_cache_hit(
+    client: GitlabWorkspaceClient, mock_gitlab_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    mock_cache.get_obj.return_value = CachedGroupMembers(members=[_member()])
+
+    members = client.get_group_members("team")
+
+    assert members == [_member()]
+    mock_gitlab_api.get_group_members.assert_not_called()
+
+
+def test_get_group_members_cache_miss_calls_api_and_stores(
+    client: GitlabWorkspaceClient,
+    mock_gitlab_api: MagicMock,
+    mock_cache: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    mock_cache.get_obj.return_value = None
+    mock_gitlab_api.get_group_members.return_value = [_member(member_id=7)]
+
+    members = client.get_group_members("team")
+
+    assert members == [_member(member_id=7)]
+    mock_gitlab_api.get_group_members.assert_called_once_with("team")
+    mock_cache.set_obj.assert_called_once_with(
+        "gitlab:https://gitlab.example.com:group:team:members",
+        CachedGroupMembers(members=[_member(member_id=7)]),
+        mock_settings.gitlab_projects.group_members_cache_ttl,
+    )
+
+
+def test_get_group_members_double_check_inside_lock(
+    client: GitlabWorkspaceClient,
+    mock_gitlab_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    cached = CachedGroupMembers(members=[_member(username="cached-inside-lock")])
+    mock_cache.get_obj.side_effect = [None, cached]
+
+    members = client.get_group_members("team")
+
+    assert members[0].username == "cached-inside-lock"
+    mock_gitlab_api.get_group_members.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# get_user_by_username
+# ---------------------------------------------------------------------------
+
+
+def test_get_user_by_username_cache_hit(
+    client: GitlabWorkspaceClient, mock_gitlab_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    mock_cache.get_obj.return_value = _user(username="jsmith")
+
+    user = client.get_user_by_username("jsmith")
+
+    assert user.username == "jsmith"
+    mock_gitlab_api.get_user_by_username.assert_not_called()
+
+
+def test_get_user_by_username_cache_miss_calls_api_and_stores(
+    client: GitlabWorkspaceClient,
+    mock_gitlab_api: MagicMock,
+    mock_cache: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    mock_cache.get_obj.return_value = None
+    mock_gitlab_api.get_user_by_username.return_value = _user(
+        user_id=7, username="jsmith"
+    )
+
+    user = client.get_user_by_username("jsmith")
+
+    assert user.id == 7
+    mock_gitlab_api.get_user_by_username.assert_called_once_with("jsmith")
+    mock_cache.set_obj.assert_called_once_with(
+        "gitlab:https://gitlab.example.com:user:jsmith",
+        _user(user_id=7, username="jsmith"),
+        mock_settings.gitlab_projects.group_members_cache_ttl,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Mutations — delegate + invalidate
 # ---------------------------------------------------------------------------
 
@@ -234,6 +346,80 @@ def test_lock_failure_prevents_create_project(
 
     mock_gitlab_api.create_project.assert_not_called()
     mock_cache.delete.assert_not_called()
+
+
+def test_add_group_member_delegates_and_invalidates(
+    client: GitlabWorkspaceClient,
+    mock_gitlab_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    mock_gitlab_api.add_group_member.return_value = _member(
+        member_id=7, access_level=30
+    )
+
+    member = client.add_group_member(
+        "team", user_id=7, access_level=GitlabAccessLevel.DEVELOPER
+    )
+
+    assert member.id == 7
+    mock_gitlab_api.add_group_member.assert_called_once_with(
+        "team", 7, GitlabAccessLevel.DEVELOPER
+    )
+    mock_cache.delete.assert_called_once_with(
+        "gitlab:https://gitlab.example.com:group:team:members"
+    )
+
+
+def test_add_group_member_invalidates_even_on_error(
+    client: GitlabWorkspaceClient,
+    mock_gitlab_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    mock_gitlab_api.add_group_member.side_effect = RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        client.add_group_member(
+            "team", user_id=7, access_level=GitlabAccessLevel.DEVELOPER
+        )
+
+    mock_cache.delete.assert_called_once_with(
+        "gitlab:https://gitlab.example.com:group:team:members"
+    )
+
+
+def test_remove_group_member_delegates_and_invalidates(
+    client: GitlabWorkspaceClient,
+    mock_gitlab_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    client.remove_group_member("team", member_id=7)
+
+    mock_gitlab_api.remove_group_member.assert_called_once_with("team", 7)
+    mock_cache.delete.assert_called_once_with(
+        "gitlab:https://gitlab.example.com:group:team:members"
+    )
+
+
+def test_update_group_member_access_delegates_and_invalidates(
+    client: GitlabWorkspaceClient,
+    mock_gitlab_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    mock_gitlab_api.update_group_member_access.return_value = _member(
+        member_id=7, access_level=40
+    )
+
+    member = client.update_group_member_access(
+        "team", member_id=7, access_level=GitlabAccessLevel.MAINTAINER
+    )
+
+    assert member.access_level == 40
+    mock_gitlab_api.update_group_member_access.assert_called_once_with(
+        "team", 7, GitlabAccessLevel.MAINTAINER
+    )
+    mock_cache.delete.assert_called_once_with(
+        "gitlab:https://gitlab.example.com:group:team:members"
+    )
 
 
 # ---------------------------------------------------------------------------

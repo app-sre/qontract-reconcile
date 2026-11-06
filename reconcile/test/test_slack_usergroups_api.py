@@ -1118,6 +1118,34 @@ async def test_process_permission_builds_usergroup_with_notifications(
     ]
 
 
+def test_notification_discriminator_survives_clientele_wire_serialization() -> None:
+    """Regression test for a clientele behavior change (2.3.0 -> 2.3.1) that made
+    APIClient._prepare_data_payload serialize request bodies with
+    model_dump(mode="json", exclude_unset=True). That silently drops fields that
+    were never explicitly passed to a model's constructor - such as the 'action'
+    discriminator on NotificationAddUser/NotificationRemoveUser, which is only
+    ever populated from its Literal default (reconcile/slack_usergroups_api.py
+    relies on that default by design, rather than repeating the literal at every
+    call site). A missing discriminator breaks the server's discriminated-union
+    validation (union_tag_not_found).
+
+    This exercises the actual installed clientele client, not a hardcoded
+    assumption, so it catches the behavior reappearing in a future clientele
+    upgrade regardless of how it's implemented there.
+
+    See the filed clientele issue for the upstream fix/configurability request:
+    https://github.com/phalt/clientele/issues/276
+    """
+    from qontract_api_client.client import client as api_client
+    from qontract_api_client.schemas import NotificationAddUser
+
+    notification = NotificationAddUser(message="welcome")
+    payload = api_client._prepare_data_payload(notification)
+
+    assert payload is not None
+    assert "action" in payload, f"discriminator dropped from wire payload: {payload}"
+
+
 @pytest.mark.asyncio
 async def test_process_permission_unknown_notification_raises(
     integration: SlackUsergroupsIntegration,
