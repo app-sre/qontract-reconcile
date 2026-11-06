@@ -1,10 +1,11 @@
-from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
 import jsonpath_ng
 import jsonpath_ng.ext
 import pytest
 import yaml
 
+from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.bundle import (
     BundleFileType,
     FileRef,
@@ -19,7 +20,17 @@ from reconcile.change_owners.change_types import (
     PathExpression,
 )
 from reconcile.change_owners.changes import parse_resource_file_content
+from reconcile.test.change_owners.fixtures import (
+    StubFile,
+    change_type_to_processor,
+)
 from reconcile.utils.mr.labels import SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE
+
+if TYPE_CHECKING:
+    from reconcile.change_owners.changes import BundleFileChange
+    from reconcile.gql_definitions.change_owners.queries.change_types import (
+        ChangeTypeV1,
+    )
 
 #
 # label management tests
@@ -103,40 +114,59 @@ def test_rebuild_change_owner_labels_preserves_show_self_serviceable_in_review_q
     ) == {SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE}
 
 
-def test_resolve_change_owner_labels_withholds_review_queue_label_when_pending() -> (
-    None
-):
-    changes = [
-        SimpleNamespace(change_owner_labels={SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE})
-    ]
+def _saas_file_change_covered_with_labels(
+    saas_file_changetype: ChangeTypeV1,
+    saas_file: StubFile,
+    change_owner_labels: set[str],
+) -> BundleFileChange:
+    change = saas_file.create_bundle_change({
+        "resourceTemplates[0].targets[0].ref": "new-ref"
+    })
+    ctx = ChangeTypeContext(
+        change_type_processor=change_type_to_processor(saas_file_changetype),
+        context="RoleV1 - some-role",
+        origin="",
+        approvers=[Approver(org_username="user")],
+        context_file=saas_file.file_ref(),
+        change_owner_labels=change_owner_labels,
+    )
+    change.cover_changes(ctx)
+    return change
+
+
+def test_resolve_change_owner_labels_withholds_review_queue_label_when_pending(
+    saas_file_changetype: ChangeTypeV1, saas_file: StubFile
+) -> None:
+    change = _saas_file_change_covered_with_labels(
+        saas_file_changetype, saas_file, {SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE}
+    )
     assert (
-        resolve_change_owner_labels(changes, self_service_portion_approved=False)
+        resolve_change_owner_labels([change], self_service_portion_approved=False)
         == set()
     )
 
 
-def test_resolve_change_owner_labels_includes_review_queue_label_once_approved() -> (
-    None
-):
-    changes = [
-        SimpleNamespace(change_owner_labels={SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE})
-    ]
-    assert resolve_change_owner_labels(changes, self_service_portion_approved=True) == {
-        SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE
-    }
-
-
-def test_resolve_change_owner_labels_preserves_other_labels_when_pending() -> None:
-    changes = [
-        SimpleNamespace(
-            change_owner_labels={
-                SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
-                "some-other-label",
-            }
-        )
-    ]
+def test_resolve_change_owner_labels_includes_review_queue_label_once_approved(
+    saas_file_changetype: ChangeTypeV1, saas_file: StubFile
+) -> None:
+    change = _saas_file_change_covered_with_labels(
+        saas_file_changetype, saas_file, {SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE}
+    )
     assert resolve_change_owner_labels(
-        changes, self_service_portion_approved=False
+        [change], self_service_portion_approved=True
+    ) == {SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE}
+
+
+def test_resolve_change_owner_labels_preserves_other_labels_when_pending(
+    saas_file_changetype: ChangeTypeV1, saas_file: StubFile
+) -> None:
+    change = _saas_file_change_covered_with_labels(
+        saas_file_changetype,
+        saas_file,
+        {SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE, "some-other-label"},
+    )
+    assert resolve_change_owner_labels(
+        [change], self_service_portion_approved=False
     ) == {"some-other-label"}
 
 
