@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import sys
 import traceback
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from reconcile import queries
 from reconcile.change_owners.approver import GqlApproverResolver
@@ -151,8 +151,13 @@ def rebuild_change_owner_labels(
     return labels
 
 
+class _HasChangeOwnerLabels(Protocol):
+    @property
+    def change_owner_labels(self) -> AbstractSet[str]: ...
+
+
 def resolve_change_owner_labels(
-    changes: Iterable[BundleFileChange],
+    changes: Iterable[_HasChangeOwnerLabels],
     self_service_portion_approved: bool,
 ) -> set[str]:
     """
