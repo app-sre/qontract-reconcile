@@ -80,14 +80,6 @@ class ValidationErrorJobFailedError(Exception):
     pass
 
 
-class ResourceDeletionBlockedError(Exception):
-    """Raised when an integration-owned gate rejects an internal deletion."""
-
-
-class ResourceDeletionGateCheckError(Exception):
-    """Raised when an integration-owned deletion gate cannot complete its check."""
-
-
 @dataclass
 class BaseStateSpec:
     oc: OCClient = field(compare=False, repr=False)
@@ -128,50 +120,6 @@ class ClusterMap(Protocol):
     def clusters(
         self, include_errors: bool = False, privileged: bool = False
     ) -> list[str]: ...
-
-
-class ResourceDeletionGate(Protocol):
-    """Integration-owned validation immediately before a resource deletion."""
-
-    def is_delete_allowed(
-        self,
-        *,
-        cluster: str,
-        namespace: str,
-        resource_type: str,
-        resource_name: str,
-    ) -> bool: ...
-
-
-def is_delete_allowed(
-    deletion_gate: ResourceDeletionGate | None,
-    *,
-    cluster: str,
-    namespace: str,
-    resource_type: str,
-    resource_name: str,
-) -> bool:
-    """Evaluate a deletion gate and fail closed without leaking error details."""
-    if not deletion_gate:
-        return True
-
-    try:
-        return deletion_gate.is_delete_allowed(
-            cluster=cluster,
-            namespace=namespace,
-            resource_type=resource_type,
-            resource_name=resource_name,
-        )
-    except Exception as e:
-        logging.error(
-            "[%s/%s] Deletion blocked: unable to validate %s/%s deletion (%s)",
-            cluster,
-            namespace,
-            resource_type,
-            resource_name,
-            type(e).__name__,
-        )
-        raise ResourceDeletionGateCheckError from None
 
 
 def validate_managed_resource_types(
@@ -481,7 +429,6 @@ def apply(
     wait_for_namespace: bool,
     recycle_pods: bool = True,
     privileged: bool = False,
-    deletion_gate: ResourceDeletionGate | None = None,
 ) -> None:
     logging.info([
         "apply",
@@ -532,14 +479,6 @@ def apply(
             # sure they're safe.
             if resource_type not in {"Route", "Service", "Secret", "Job"}:
                 raise
-            if not is_delete_allowed(
-                deletion_gate,
-                cluster=cluster,
-                namespace=namespace,
-                resource_type=resource_type,
-                resource_name=resource.name,
-            ):
-                raise ResourceDeletionBlockedError from None
             oc.delete(namespace=namespace, kind=resource_type, name=resource.name)
             oc.apply(namespace=namespace, resource=annotated)
         except DeploymentFieldIsImmutableError:
@@ -717,7 +656,6 @@ class ApplyOptions:
     all_callers: Sequence[str] | None
     privileged: bool | None
     enable_deletion: bool | None
-    deletion_gate: ResourceDeletionGate | None = None
 
 
 def should_apply(
@@ -999,20 +937,6 @@ def handle_deleted_resources(
             resource_type=resource_type,
             options=options,
         ):
-            try:
-                delete_allowed = is_delete_allowed(
-                    options.deletion_gate,
-                    cluster=cluster,
-                    namespace=namespace,
-                    resource_type=resource_type,
-                    resource_name=name,
-                )
-            except ResourceDeletionGateCheckError:
-                ri.register_error(cluster=cluster)
-                return actions
-            if not delete_allowed:
-                ri.register_error(cluster=cluster)
-                continue
             options.privileged = data["use_admin_token"].get(name, False)
             action = {
                 "action": ACTION_DELETED,
@@ -1056,11 +980,8 @@ def apply_action(
             wait_for_namespace=options.wait_for_namespace,
             recycle_pods=options.recycle_pods,
             privileged=bool(options.privileged),
-            deletion_gate=options.deletion_gate,
         )
 
-    except ResourceDeletionBlockedError:
-        ri.register_error(cluster=cluster)
     except StatusCodeError as e:
         ri.register_error()
         err = (
@@ -1110,7 +1031,6 @@ def _realize_resource_data(
     no_dry_run_skip_compare: bool,
     override_enable_deletion: bool,
     recycle_pods: bool,
-    deletion_gate: ResourceDeletionGate | None,
 ) -> list[dict[str, Any]]:
     options = ApplyOptions(
         dry_run=dry_run,
@@ -1123,15 +1043,10 @@ def _realize_resource_data(
         recycle_pods=recycle_pods,
         privileged=False,
         enable_deletion=False,
-        deletion_gate=deletion_gate,
     )
-    try:
-        return _realize_resource_data_3way_diff(
-            ri_item=ri_item, oc_map=oc_map, ri=ri, options=options
-        )
-    except ResourceDeletionGateCheckError:
-        ri.register_error(cluster=ri_item[0])
-        return []
+    return _realize_resource_data_3way_diff(
+        ri_item=ri_item, oc_map=oc_map, ri=ri, options=options
+    )
 
 
 def _realize_resource_data_3way_diff(
@@ -1234,7 +1149,6 @@ def realize_data(
     no_dry_run_skip_compare: bool = False,
     override_enable_deletion: bool | None = None,
     recycle_pods: bool = True,
-    deletion_gate: ResourceDeletionGate | None = None,
 ) -> list[dict[str, Any]]:
     """
     Realize the current state to the desired state.
@@ -1253,7 +1167,6 @@ def realize_data(
     :param no_dry_run_skip_compare: when running without dry-run, skip compare
     :param override_enable_deletion: override calculated enable_deletion value
     :param recycle_pods: should pods be recycled if a dependency changed
-    :param deletion_gate: optional integration-owned just-in-time deletion check
     """
     args = locals()
     del args["thread_pool_size"]
