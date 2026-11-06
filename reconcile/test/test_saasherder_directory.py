@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import io
+import tarfile
 from typing import TYPE_CHECKING
 
 import pytest
@@ -124,7 +126,6 @@ def test_directory_loads_only_yaml_and_json(
             mocker.ANY,
             ref="commit-sha",
             path="manifests",
-            recursive=False,
         )
 
 
@@ -168,6 +169,43 @@ def test_github_directory_rejects_subdirectories(
         )
 
     raw_file.assert_not_called()
+
+
+def test_gitlab_directory_preserves_recursive_archive_loading(
+    saasherder: SaasHerder,
+    github: MagicMock,
+    mocker: MockerFixture,
+) -> None:
+    contents = {
+        "manifests/nested/config.yaml": b"kind: ConfigMap\n",
+        "manifests/nested/deeper/service.json": b'{"kind": "Service"}',
+        "manifests/nested/README.md": b"invalid: [",
+    }
+    archive = io.BytesIO()
+    with tarfile.open(fileobj=archive, mode="w:gz") as tar:
+        for path, content in contents.items():
+            member = tarfile.TarInfo(f"prefix/{path}")
+            member.size = len(content)
+            tar.addfile(member, io.BytesIO(content))
+    project = mocker.Mock()
+    project.repository_archive.return_value = archive.getvalue()
+    assert saasherder.gitlab is not None
+    mocker.patch.object(saasherder.gitlab, "get_project", return_value=project)
+    mocker.patch.object(
+        saasherder.gitlab,
+        "get_directory_contents",
+        side_effect=GitLabApi.get_directory_contents,
+    )
+
+    resources, commit_sha = saasherder._get_directory_contents(
+        "https://gitlab.com/app-sre/test", "manifests", "main", github
+    )
+
+    assert resources == [{"kind": "ConfigMap"}, {"kind": "Service"}]
+    assert commit_sha == "commit-sha"
+    project.repository_archive.assert_called_once_with(
+        format="tar.gz", sha="commit-sha", path="manifests"
+    )
 
 
 @pytest.mark.parametrize(

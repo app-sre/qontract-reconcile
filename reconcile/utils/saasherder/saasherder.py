@@ -787,7 +787,7 @@ class SaasHerder:
     def _get_directory_contents(
         self, url: str, path: str, ref: str, github: Github
     ) -> tuple[list[Any], str]:
-        """Load YAML and JSON manifests from a directory without subdirectories."""
+        """Load YAML/JSON manifests, preserving each provider's traversal behavior."""
         commit_sha = self._get_commit_sha(url, ref, github)
         resources: list[Any] = []
         repo_info = VCS.parse_repo_url(url)
@@ -823,7 +823,6 @@ class SaasHerder:
                     project,
                     ref=commit_sha,
                     path=path,
-                    recursive=False,
                 )
                 for file_path, content in dir_contents.items():
                     if not file_path.endswith(DIRECTORY_MANIFEST_EXTENSIONS):

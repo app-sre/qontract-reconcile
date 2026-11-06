@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
 from operator import attrgetter
-from pathlib import PurePosixPath
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -822,8 +821,6 @@ class GitLabApi:
         project: Project,
         ref: str | None = None,
         path: str | None = None,
-        *,
-        recursive: bool = True,
     ) -> dict[str, bytes]:
         """
         Get the contents of a directory in a project.
@@ -831,28 +828,16 @@ class GitLabApi:
         :param project: The project to get the contents from.
         :param ref: The commit SHA to download. A tag, branch reference, or SHA can be used. If not specified, defaults to the tip of the default branch.
         :param path: The subpath of the repository to download. If an empty string, defaults to the whole repository.
-        :param recursive: Whether to allow nested directories in the archive.
         :return: A dictionary with the file path as keys and the file content bytes as values.
         """
         archive = project.repository_archive(format="tar.gz", sha=ref, path=path)
         tar_bytes = io.BytesIO(archive)
         with tarfile.open(fileobj=tar_bytes, mode="r:gz") as tar:
-            contents = {}
-            root = PurePosixPath((path or "").strip("/"))
-            for member in tar.getmembers():
-                # Skip the archive's generated leading prefix xxx/.
-                _, _, file_path = member.name.partition("/")
-                if not file_path:
-                    continue
-                if not recursive:
-                    relative_path = PurePosixPath(file_path)
-                    if relative_path.is_relative_to(root):
-                        parts = relative_path.relative_to(root).parts
-                        if len(parts) > 1 or (member.isdir() and parts):
-                            nested = root / parts[0]
-                            raise ValueError(
-                                f"Nested directory '{nested}' is not supported"
-                            )
-                if member.isfile() and (file := tar.extractfile(member)):
-                    contents[file_path] = file.read()
-            return contents
+            return {
+                file_path: file.read()
+                for member in tar.getmembers()
+                if member.isfile()
+                # skip leading prefix xxx/
+                and (file_path := member.name.split("/", 1)[-1])
+                and (file := tar.extractfile(member))
+            }
