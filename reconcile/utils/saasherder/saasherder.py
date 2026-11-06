@@ -787,7 +787,7 @@ class SaasHerder:
     def _get_directory_contents(
         self, url: str, path: str, ref: str, github: Github
     ) -> tuple[list[Any], str]:
-        """Load YAML and JSON manifests, ignoring other directory entries."""
+        """Load YAML and JSON manifests from a directory without subdirectories."""
         commit_sha = self._get_commit_sha(url, ref, github)
         resources: list[Any] = []
         repo_info = VCS.parse_repo_url(url)
@@ -798,6 +798,10 @@ class SaasHerder:
                 if isinstance(directory, ContentFile):
                     raise TypeError(f"Path {path} and sha {commit_sha} is a file!")
                 for f in directory:
+                    if f.type == "dir":
+                        raise ValueError(
+                            f"Nested directory '{os.path.join(path, f.name)}' is not supported"
+                        )
                     if f.type != "file" or not f.name.endswith(
                         DIRECTORY_MANIFEST_EXTENSIONS
                     ):
@@ -819,6 +823,7 @@ class SaasHerder:
                     project,
                     ref=commit_sha,
                     path=path,
+                    recursive=False,
                 )
                 for file_path, content in dir_contents.items():
                     if not file_path.endswith(DIRECTORY_MANIFEST_EXTENSIONS):
@@ -1005,10 +1010,7 @@ class SaasHerder:
                     url=url, path=path, ref=ref, github=github
                 )
             except Exception as e:
-                logging.error(
-                    f"{error_prefix} error fetching directory: {e!s} "
-                    + "(We do not support nested directories. Do you by chance have subdirectories?)"
-                )
+                logging.error(f"{error_prefix} error loading directory: {e!s}")
                 raise
 
         elif provider == "helm":

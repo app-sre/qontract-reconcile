@@ -54,32 +54,27 @@ def mock_directory_contents(
     saasherder: SaasHerder,
     github: MagicMock,
     contents: dict[str, bytes],
-) -> MagicMock:
+) -> tuple[MagicMock, MagicMock]:
     entries = []
     for name in contents:
         entry = mocker.Mock(spec=ContentFile)
         entry.name = name
         entry.type = "file"
         entries.append(entry)
-    # A directory must not be fetched as a file, even with a manifest suffix.
-    directory = mocker.Mock(spec=ContentFile)
-    directory.name = "nested.yaml"
-    directory.type = "dir"
-    entries.append(directory)
     github.get_repo.return_value.get_contents.return_value = entries
     raw_file = mocker.patch(
         "reconcile.utils.saasherder.saasherder.GithubRepositoryApi.get_raw_file",
         side_effect=lambda repo, path, ref: contents[path.removeprefix("manifests/")],
     )
     assert saasherder.gitlab is not None
-    mocker.patch.object(
+    gitlab_directory = mocker.patch.object(
         saasherder.gitlab,
         "get_directory_contents",
         return_value={
             f"manifests/{name}": content for name, content in contents.items()
         },
     )
-    return raw_file
+    return raw_file, gitlab_directory
 
 
 @pytest.mark.parametrize("provider", ["github", "gitlab"])
@@ -102,7 +97,9 @@ def test_directory_loads_only_yaml_and_json(
         "extensionless": b"invalid: [",
         "backup.yaml.bak": b"invalid: [",
     }
-    raw_file = mock_directory_contents(mocker, saasherder, github, contents)
+    raw_file, gitlab_directory = mock_directory_contents(
+        mocker, saasherder, github, contents
+    )
 
     resources, commit_sha = saasherder._get_directory_contents(
         f"https://{provider}.com/app-sre/test", "manifests", "main", github
@@ -123,6 +120,12 @@ def test_directory_loads_only_yaml_and_json(
         ]
     else:
         raw_file.assert_not_called()
+        gitlab_directory.assert_called_once_with(
+            mocker.ANY,
+            ref="commit-sha",
+            path="manifests",
+            recursive=False,
+        )
 
 
 @pytest.mark.usefixtures("patch_sleep")
@@ -143,3 +146,48 @@ def test_directory_rejects_invalid_manifest(
         saasherder._get_directory_contents(
             f"https://{provider}.com/app-sre/test", "manifests", "main", github
         )
+
+
+@pytest.mark.usefixtures("patch_sleep")
+@pytest.mark.parametrize("name", ["nested", "nested.yaml", "nested.md"])
+def test_github_directory_rejects_subdirectories(
+    name: str,
+    saasherder: SaasHerder,
+    github: MagicMock,
+    mocker: MockerFixture,
+) -> None:
+    raw_file, _ = mock_directory_contents(mocker, saasherder, github, {})
+    directory = mocker.Mock(spec=ContentFile)
+    directory.name = name
+    directory.type = "dir"
+    github.get_repo.return_value.get_contents.return_value = [directory]
+
+    with pytest.raises(ValueError, match=f"Nested directory 'manifests/{name}'"):
+        saasherder._get_directory_contents(
+            "https://github.com/app-sre/test", "manifests", "main", github
+        )
+
+    raw_file.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        yaml.YAMLError("invalid YAML"),
+        RuntimeError("GitHub unavailable"),
+        ValueError("Nested directory 'manifests/nested' is not supported"),
+    ],
+)
+def test_directory_logs_actual_error(
+    error: Exception,
+    saasherder: SaasHerder,
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    mocker.patch.object(saasherder, "_get_directory_contents", side_effect=error)
+    spec = mocker.Mock(provider="directory", error_prefix="[test]")
+
+    with pytest.raises(type(error)):
+        saasherder._process_template(spec)
+
+    assert caplog.messages == [f"[test] error loading directory: {error}"]
