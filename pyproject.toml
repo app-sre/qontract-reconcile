@@ -53,7 +53,6 @@ dependencies = [
     # See https://setuptools.pypa.io/en/latest/history.html#v82-0-0 for more information about the removal of pkg_resources
     # jjb bug report: https://storyboard.openstack.org/#!/story/2011757
     "setuptools<82.0.0",
-    "slack_sdk>=3.10,<4.0",
     "sretoolbox==4.0.1",
     "tabulate==0.10.0",
     "terrascript==0.9.0",

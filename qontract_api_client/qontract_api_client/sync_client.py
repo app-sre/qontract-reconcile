@@ -1,0 +1,846 @@
+from __future__ import annotations
+
+from clientele import api as clientele_api
+
+from . import config, schemas
+
+client = clientele_api.APIClient(config=config.Config())
+
+
+@client.get("/api/v1/external/github/org-members")
+def github_org_members(
+    result: schemas.GithubOrgMembersResponse,
+    secret_manager_url: str,
+    path: str,
+    org_name: str,
+    field: str | None = None,
+    version: int | None = None,
+) -> schemas.GithubOrgMembersResponse:
+    """Get Org Members
+
+        Get all members of a GitHub organization.
+
+    Lists every member of the organization (any role) using the GitHub API
+    token resolved from Vault. Results are cached for performance (TTL
+    configured in settings).
+    """
+    return result
+
+
+@client.post("/api/v1/external/github/users/validate")
+def github_users_validate(
+    result: schemas.GithubUsersValidateResponse,
+    data: schemas.GithubUsersValidateRequest,
+) -> schemas.GithubUsersValidateResponse:
+    """Validate Users
+
+        Validate GitHub usernames against the GitHub API.
+
+    Looks up each requested username via the GitHub API, using the token
+    resolved from Vault. Results are cached per-username (including negative
+    caching of non-existent accounts) for performance.
+
+    Usernames that do not exist, or do not match the requested account_type,
+    are omitted from the response - callers must treat a missing username as
+    unresolved, not as an error. This endpoint does not know the caller's
+    intent (e.g. LDAP-sourced usernames, manual input); it only validates
+    existence and canonical casing, so it is reusable across any future
+    GitHub username validation need.
+    """
+    return result
+
+
+@client.post("/api/v1/external/ldap/github-usernames")
+def ldap_github_usernames(
+    result: schemas.LdapGithubUsernamesResponse,
+    data: schemas.LdapGithubUsernamesRequest,
+) -> schemas.LdapGithubUsernamesResponse:
+    """Resolve Github Usernames
+
+        Resolve GitHub usernames to LDAP uids via the rhatSocialURL attribute.
+
+    Maps each requested GitHub username to the app-interface org_username (LDAP
+    uid) of the user whose rhatSocialURL points at that GitHub account. The
+    full map is cached for performance; unresolved logins are omitted from the
+    response.
+
+    Args:
+        request: GitHub usernames to resolve and the Vault secret reference
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapGithubUsernamesResponse with resolved username -> org_username pairs
+    """
+    return result
+
+
+@client.post("/api/v1/external/ldap/groups/members")
+def ldap_group_members(
+    result: schemas.LdapGroupMembersResponse, data: schemas.LdapGroupMembersRequest
+) -> schemas.LdapGroupMembersResponse:
+    """Group Members
+
+        Resolve members of one or more LDAP groups (cached, FreeIPA-authenticated).
+
+    Groups are referenced by short CN (e.g. "my-ldap-group"); the full DN is
+    constructed server-side from the configured base DN. Only groups confirmed
+    to exist in LDAP are present in the response - a requested group that does
+    not exist is omitted, distinct from a confirmed-empty group (present with
+    an empty member list). Callers must treat a missing group as unresolved,
+    not as empty, and must not delete existing members based on it.
+
+    Args:
+        request: Group CNs to resolve, the Vault secret reference, and
+            whether to enrich members with their GitHub username
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapGroupMembersResponse with resolved membership per existing group
+
+    Raises:
+        ValidationError (422): If any resolved group exceeds the configured
+            max_group_size
+    """
+    return result
+
+
+@client.post("/api/v1/external/ldap/org-github-usernames")
+def ldap_org_github_usernames(
+    result: schemas.LdapOrgGithubUsernamesResponse,
+    data: schemas.LdapOrgGithubUsernamesRequest,
+) -> schemas.LdapOrgGithubUsernamesResponse:
+    """Resolve Org Github Usernames
+
+        Resolve every internal user's linked GitHub account via the rhatSocialURL attribute.
+
+    Maps each LDAP uid (app-interface org_username) to the GitHub account that
+    associate has linked in their Rover profile. The full map is cached for
+    performance; uids with no linked account, or an ambiguous one, are omitted.
+
+    Args:
+        request: Vault secret reference for LDAP credentials
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapOrgGithubUsernamesResponse with resolved org_username -> github_username pairs
+    """
+    return result
+
+
+@client.post("/api/v1/external/ldap/users/check")
+def ldap_users_check(
+    result: schemas.LdapUsersCheckResponse, data: schemas.LdapUsersCheckRequest
+) -> schemas.LdapUsersCheckResponse:
+    """Check Users Exist
+
+        Check which usernames exist in LDAP (cached, FreeIPA-authenticated).
+
+    Queries LDAP directly using FreeIPA service account credentials
+    resolved from Vault. Results are cached for performance.
+
+    Args:
+        request: Request with usernames to check and Vault secret reference
+        cache: Cache dependency
+        secret_manager: Secret manager dependency
+
+    Returns:
+        LdapUsersCheckResponse with existence status per username
+    """
+    return result
+
+
+@client.get("/api/v1/external/ocm/clusters")
+def ocm_clusters(
+    result: schemas.OcmClustersResponse,
+    secret_manager_url: str,
+    path: str,
+    ocm_url: str,
+    access_token_url: str,
+    access_token_client_id: str,
+    label_key_prefix: str,
+    field: str | None = None,
+    version: int | None = None,
+    org_ids: list[str] | None = None,
+) -> schemas.OcmClustersResponse:
+    """Get Clusters
+
+        Discover OCM clusters with subscription/organization labels matching a prefix.
+
+    Returns raw cluster info plus a flat dict of matching labels, merged with
+    subscription-level labels winning over organization-level labels on key
+    collisions. Label *interpretation* is left entirely to the caller. Results
+    are cached (TTL configured in settings).
+    """
+    return result
+
+
+@client.get("/api/v1/external/pagerduty/escalation-policies/{policy_id}/users")
+def pagerduty_escalation_policy_users(
+    result: schemas.EscalationPolicyUsersResponse,
+    policy_id: str,
+    secret_manager_url: str,
+    path: str,
+    field: str | None = None,
+    version: int | None = None,
+) -> schemas.EscalationPolicyUsersResponse:
+    """Get Escalation Policy Users
+
+        Get users in a PagerDuty escalation policy.
+
+    Fetches all users across all escalation rules in the policy.
+    Results are cached for performance (TTL configured in settings).
+
+    Args:
+        policy_id: PagerDuty escalation policy ID
+        instance: PagerDuty instance name
+
+    Returns:
+        EscalationPolicyUsersResponse with list of users
+
+    Raises:
+        HTTPException:
+            - 500 Internal Server Error: If PagerDuty API call fails
+
+    Example:
+        GET /api/v1/external/pagerduty/escalation-policies/XYZ789/users?instance=app-sre
+        Response:
+        {
+            "users": [
+                {"username": "jsmith"},
+                {"username": "mdoe"}
+            ]
+        }
+    """
+    return result
+
+
+@client.get("/api/v1/external/pagerduty/schedules/{schedule_id}/users")
+def pagerduty_schedule_users(
+    result: schemas.ScheduleUsersResponse,
+    schedule_id: str,
+    secret_manager_url: str,
+    path: str,
+    field: str | None = None,
+    version: int | None = None,
+) -> schemas.ScheduleUsersResponse:
+    """Get Schedule Users
+
+        Get users currently on-call in a PagerDuty schedule.
+
+    Fetches users from the specified schedule using a time window of now + 60 seconds.
+    Results are cached for performance (TTL configured in settings).
+
+    Args:
+        schedule_id: PagerDuty schedule ID
+        instance: PagerDuty instance name
+
+    Returns:
+        ScheduleUsersResponse with list of users
+
+    Raises:
+        HTTPException:
+            - 500 Internal Server Error: If PagerDuty API call fails
+
+    Example:
+        GET /api/v1/external/pagerduty/schedules/ABC123/users?instance=app-sre
+        Response:
+        {
+            "users": [
+                {"username": "jsmith"},
+                {"username": "mdoe"}
+            ]
+        }
+    """
+    return result
+
+
+@client.post("/api/v1/external/slack/chat")
+def slack_chat_post_message(
+    result: schemas.ChatTaskResponse, data: schemas.ChatRequest
+) -> schemas.ChatTaskResponse:
+    """Post Chat
+
+        Queue a Slack chat message or DM to be sent by a background worker.
+
+    Exactly one of `channel` or `user` must be set in the request:
+    - `channel`: post to a Slack channel by name
+    - `user`: send a DM to a user by org_username
+
+    This endpoint always queues a background task and returns immediately
+    with a task_id. Use GET /chat/{task_id} to retrieve the result.
+
+    Args:
+        request: Chat request with channel/user, text, and credentials
+
+    Returns:
+        ChatTaskResponse with task_id and status_url
+    """
+    return result
+
+
+@client.get("/api/v1/external/slack/chat/{task_id}")
+def slack_chat_post_message_task_status(
+    result: schemas.ChatTaskResult, task_id: str, timeout: int | None = None
+) -> schemas.ChatTaskResult:
+    """Get Chat Task Status
+
+        Retrieve the chat-post-message result (blocking or non-blocking).
+
+    **Non-blocking mode (default):** Returns immediate status (pending/success/failed)
+    **Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending
+
+    Args:
+        task_id: Task ID from POST /chat response
+        timeout: Maximum seconds to wait (default: None = non-blocking)
+
+    Returns:
+        ChatTaskResult with status and, on success, ts/channel/thread_ts
+
+    Raises:
+        HTTPException:
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
+@client.post("/api/v1/external/vcs/file-sync")
+def vcs_file_sync(
+    result: schemas.FileSyncResponse, data: schemas.FileSyncRequest
+) -> schemas.FileSyncResponse:
+    """File Sync
+
+        Reconcile file states in a VCS repository.
+
+    Creates a merge request with the given file operations,
+    deduplicating by MR title. Does not read current file state —
+    relies on GitLab/GitHub for validation.
+    """
+    return result
+
+
+@client.get("/api/v1/external/vcs/repos/file")
+def vcs_get_file(
+    result: schemas.GetFileResponse,
+    secret_manager_url: str,
+    path: str,
+    repo_url: str,
+    file_path: str,
+    ref: str,
+    field: str | None = None,
+    version: int | None = None,
+) -> schemas.GetFileResponse:
+    """Get File
+
+    Read a file from a VCS repository.
+    """
+    return result
+
+
+@client.get("/api/v1/external/vcs/repos/owners")
+def vcs_repo_owners(
+    result: schemas.RepoOwnersResponse,
+    secret_manager_url: str,
+    path: str,
+    repo_url: str,
+    ref: str,
+    field: str | None = None,
+    version: int | None = None,
+    owners_file: str | None = None,
+) -> schemas.RepoOwnersResponse:
+    """Get Repo Owners
+
+        Get OWNERS file data from a Git repository.
+
+    Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
+    Results are cached for performance (TTL configured in settings).
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/github-owners/reconcile")
+def github_owners(
+    result: schemas.GithubOwnersTaskResponse, data: schemas.GithubOwnersReconcileRequest
+) -> schemas.GithubOwnersTaskResponse:
+    """Github Owners
+
+        Queue a GitHub owners reconciliation task.
+
+    This endpoint always queues a background task and returns immediately
+    with a task_id. Use GET /reconcile/{task_id} to retrieve the result.
+
+    Args:
+        reconcile_request: Reconciliation request with desired owner state
+        current_user: Authenticated user (from JWT token)
+        request: FastAPI Request object (used to generate status_url)
+
+    Returns:
+        GithubOwnersTaskResponse with task_id and status_url
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/github-owners/reconcile/{task_id}")
+def github_owners_task_status(
+    result: schemas.GithubOwnersTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.GithubOwnersTaskResult:
+    """Github Owners Task Status
+
+        Retrieve the reconciliation result (blocking or non-blocking).
+
+    **Non-blocking mode (default):** Returns immediate status (pending/success/failed)
+    **Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        current_user: Authenticated user (from JWT token)
+        timeout: Maximum seconds to wait (default: None = non-blocking)
+
+    Returns:
+        GithubOwnersTaskResult with status, actions, applied_count, and errors
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Task ID not found
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/gitlab-members/reconcile")
+def gitlab_members(
+    result: schemas.GitlabMembersTaskResponse,
+    data: schemas.GitlabMembersReconcileRequest,
+) -> schemas.GitlabMembersTaskResponse:
+    """Gitlab Members
+
+        Queue GitLab members reconciliation task.
+
+    Always queues a background task and returns immediately with a task_id.
+    Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/gitlab-members/reconcile/{task_id}")
+def gitlab_members_task_status(
+    result: schemas.GitlabMembersTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.GitlabMembersTaskResult:
+    """Gitlab Members Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        timeout: Maximum seconds to wait (default: non-blocking)
+
+    Returns:
+        GitlabMembersTaskResult with lists of calculated and applied actions.
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Task ID not found
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/gitlab-projects/reconcile")
+def gitlab_projects(
+    result: schemas.GitlabProjectsTaskResponse,
+    data: schemas.GitlabProjectsReconcileRequest,
+) -> schemas.GitlabProjectsTaskResponse:
+    """Gitlab Projects
+
+        Queue GitLab projects reconciliation task.
+
+    Always queues a background task and returns immediately with a task_id.
+    Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/gitlab-projects/reconcile/{task_id}")
+def gitlab_projects_task_status(
+    result: schemas.GitlabProjectsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.GitlabProjectsTaskResult:
+    """Gitlab Projects Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        timeout: Maximum seconds to wait (default: non-blocking)
+
+    Returns:
+        GitlabProjectsTaskResult with lists of calculated and applied actions.
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Task ID not found
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/glitchtip-project-alerts/reconcile")
+def glitchtip_project_alerts(
+    result: schemas.GlitchtipProjectAlertsTaskResponse,
+    data: schemas.GlitchtipProjectAlertsReconcileRequest,
+) -> schemas.GlitchtipProjectAlertsTaskResponse:
+    """Glitchtip Project Alerts
+
+        Queue Glitchtip project alerts reconciliation task.
+
+    This endpoint always queues a background task and returns immediately
+    with a task_id. Use GET /reconcile/{task_id} to retrieve the result.
+
+    Args:
+        reconcile_request: Reconciliation request with desired state
+        current_user: Authenticated user (from JWT token)
+        request: FastAPI Request object (used to generate status_url)
+
+    Returns:
+        GlitchtipProjectAlertsTaskResponse with task_id and status_url
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/glitchtip-project-alerts/reconcile/{task_id}")
+def glitchtip_project_alerts_task_status(
+    result: schemas.GlitchtipProjectAlertsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.GlitchtipProjectAlertsTaskResult:
+    """Glitchtip Project Alerts Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    **Non-blocking mode (default):** Returns immediate status (pending/success/failed)
+    **Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        current_user: Authenticated user (from JWT token)
+        timeout: Maximum seconds to wait (default: None = non-blocking)
+
+    Returns:
+        GlitchtipProjectAlertsTaskResult with status, actions, applied_count, and errors
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Task ID not found
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/glitchtip/reconcile")
+def glitchtip(
+    result: schemas.GlitchtipTaskResponse, data: schemas.GlitchtipReconcileRequest
+) -> schemas.GlitchtipTaskResponse:
+    """Glitchtip Reconcile
+
+        Queue Glitchtip reconciliation task.
+
+    This endpoint always queues a background task and returns immediately
+    with a task_id. Use GET /reconcile/{task_id} to retrieve the result.
+
+    Args:
+        reconcile_request: Reconciliation request with desired state
+        current_user: Authenticated user (from JWT token)
+        request: FastAPI Request object (used to generate status_url)
+
+    Returns:
+        GlitchtipTaskResponse with task_id and status_url
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/glitchtip/reconcile/{task_id}")
+def glitchtip_task_status(
+    result: schemas.GlitchtipTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.GlitchtipTaskResult:
+    """Glitchtip Reconcile Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    **Non-blocking mode (default):** Returns immediate status
+    **Blocking mode (with timeout):** Waits up to timeout seconds
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        current_user: Authenticated user (from JWT token)
+        timeout: Maximum seconds to wait (default: None = non-blocking)
+
+    Returns:
+        GlitchtipTaskResult with status, actions, applied_count, and errors
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/managed-sso-client/reconcile")
+def managed_sso_client(
+    result: schemas.ManagedSsoClientTaskResponse,
+    data: schemas.ManagedSsoClientReconcileRequest,
+) -> schemas.ManagedSsoClientTaskResponse:
+    """Managed Sso Client
+
+    Queue a managed-sso-client reconciliation task.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/managed-sso-client/reconcile/{task_id}")
+def managed_sso_client_task_status(
+    result: schemas.ManagedSsoClientTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.ManagedSsoClientTaskResult:
+    """Managed Sso Client Task Status
+
+    Retrieve the reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/ocm-groups/reconcile")
+def ocm_groups(
+    result: schemas.OcmGroupsTaskResponse, data: schemas.OcmGroupsReconcileRequest
+) -> schemas.OcmGroupsTaskResponse:
+    """Ocm Groups
+
+        Queue OCM groups reconciliation task.
+
+    This endpoint always queues a background task and returns immediately with a
+    task_id. Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/ocm-groups/reconcile/{task_id}")
+def ocm_groups_task_status(
+    result: schemas.OcmGroupsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.OcmGroupsTaskResult:
+    """Ocm Groups Task Status
+
+    Retrieve reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/ocm-oidc-idp/reconcile")
+def ocm_oidc_idp(
+    result: schemas.OcmOidcIdpTaskResponse, data: schemas.OcmOidcIdpReconcileRequest
+) -> schemas.OcmOidcIdpTaskResponse:
+    """Ocm Oidc Idp
+
+        Queue OCM OIDC identity provider reconciliation task.
+
+    This endpoint always queues a background task and returns immediately with a
+    task_id. Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/ocm-oidc-idp/reconcile/{task_id}")
+def ocm_oidc_idp_task_status(
+    result: schemas.OcmOidcIdpTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.OcmOidcIdpTaskResult:
+    """Ocm Oidc Idp Task Status
+
+    Retrieve reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/openshift-namespaces/reconcile")
+def openshift_namespaces(
+    result: schemas.OpenShiftNamespacesTaskResponse,
+    data: schemas.OpenShiftNamespacesReconcileRequest,
+) -> schemas.OpenShiftNamespacesTaskResponse:
+    """Openshift Namespaces Reconcile
+
+    Queue openshift-namespaces reconciliation task.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/openshift-namespaces/reconcile/{task_id}")
+def openshift_namespaces_task_status(
+    result: schemas.OpenShiftNamespacesTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.OpenShiftNamespacesTaskResult:
+    """Openshift Namespaces Reconcile Task Status
+
+    Retrieve reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/quay-repos/reconcile")
+def quay_repos(
+    result: schemas.QuayReposTaskResponse, data: schemas.QuayReposReconcileRequest
+) -> schemas.QuayReposTaskResponse:
+    """Quay Repos
+
+        Queue Quay repos reconciliation task.
+
+    Always queues a background task and returns immediately with a task_id.
+    Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/quay-repos/reconcile/{task_id}")
+def quay_repos_task_status(
+    result: schemas.QuayReposTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.QuayReposTaskResult:
+    """Quay Repos Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        timeout: Maximum seconds to wait (default: non-blocking)
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/quay-robot-accounts/reconcile")
+def quay_robot_accounts(
+    result: schemas.QuayRobotAccountsTaskResponse,
+    data: schemas.QuayRobotAccountsReconcileRequest,
+) -> schemas.QuayRobotAccountsTaskResponse:
+    """Quay Robot Accounts
+
+    Queue a quay-robot-accounts reconciliation task.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/quay-robot-accounts/reconcile/{task_id}")
+def quay_robot_accounts_task_status(
+    result: schemas.QuayRobotAccountsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.QuayRobotAccountsTaskResult:
+    """Quay Robot Accounts Task Status
+
+    Retrieve the reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/slack-usergroups/reconcile")
+def slack_usergroups(
+    result: schemas.SlackUsergroupsTaskResponse,
+    data: schemas.SlackUsergroupsReconcileRequest,
+) -> schemas.SlackUsergroupsTaskResponse:
+    """Slack Usergroups
+
+        Queue Slack usergroups reconciliation task.
+
+    This endpoint always queues a background task and returns immediately
+    with a task_id. Use GET /reconcile/{task_id} to retrieve the result.
+
+    Args:
+        reconcile_request: Reconciliation request with desired state
+        current_user: Authenticated user (from JWT token)
+        request: FastAPI Request object (used to generate status_url)
+
+    Returns:
+        SlackUsergroupsTaskResponse with task_id and status_url
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/slack-usergroups/reconcile/{task_id}")
+def slack_usergroups_task_status(
+    result: schemas.SlackUsergroupsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.SlackUsergroupsTaskResult:
+    """Slack Usergroups Task Status
+
+        Retrieve reconciliation result (blocking or non-blocking).
+
+    **Non-blocking mode (default):** Returns immediate status (pending/success/failed)
+    **Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending
+
+    Args:
+        task_id: Task ID from POST /reconcile response
+        current_user: Authenticated user (from JWT token)
+        timeout: Maximum seconds to wait (default: None = non-blocking)
+
+    Returns:
+        SlackUsergroupsTaskResult with status, actions, applied_count, and errors
+
+    Raises:
+        HTTPException:
+            - 404 Not Found: Task ID not found
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/sso-client/reconcile")
+def sso_client(
+    result: schemas.SsoClientTaskResponse, data: schemas.SsoClientReconcileRequest
+) -> schemas.SsoClientTaskResponse:
+    """Sso Client
+
+        Queue RHIDP SSO client reconciliation task.
+
+    This endpoint always queues a background task and returns immediately with a
+    task_id. Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/sso-client/reconcile/{task_id}")
+def sso_client_task_status(
+    result: schemas.SsoClientTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.SsoClientTaskResult:
+    """Sso Client Task Status
+
+    Retrieve reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
+@client.get("/health/live")
+def liveness(result: schemas.ResponseLiveness) -> schemas.ResponseLiveness:
+    """Liveness
+
+    Liveness probe - returns 200 if service is running.
+    """
+    return result
+
+
+@client.get("/health/ready")
+def readiness(result: schemas.HealthResponse) -> schemas.HealthResponse:
+    """Readiness
+
+    Readiness probe - returns 200 if service is ready to accept requests.
+    """
+    return result

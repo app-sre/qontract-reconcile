@@ -121,7 +121,6 @@ from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.external_resources import get_settings as get_er_settings
 from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.typed_queries.slo_documents import get_slo_documents
-from reconcile.typed_queries.smtp import settings as get_smtp_settings
 from reconcile.typed_queries.status_board import get_status_board
 from reconcile.typed_queries.tekton_pipeline_providers import (
     get_tekton_pipeline_providers,
@@ -2459,9 +2458,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
     if text:
         # Slack notification is best effort; the queue output remains authoritative.
         try:
-            slack = slackapi_from_queries(
-                "app-interface-review-queue", init_usergroups=False
-            )
+            slack = slackapi_from_queries("app-interface-review-queue")
             slack.chat_post_message("```\n" + text + "\n```")
         except Exception as error:
             logging.warning(
@@ -3302,37 +3299,6 @@ def change_log_tracking(ctx: click.Context) -> None:
     ctx.obj["options"]["sort"] = False
     columns = ["commit", "merged_at", "apps", "changes"]
     print_output(ctx.obj["options"], data, columns)
-
-
-@root.group(name="set")
-@output
-@click.pass_context
-def set_command(ctx: click.Context, output: str) -> None:
-    ctx.obj["output"] = output
-
-
-@set_command.command()
-@click.argument("workspace")
-@click.argument("usergroup")
-@click.argument("username")
-@click.pass_context
-def slack_usergroup(
-    ctx: click.Context, workspace: str, usergroup: str, username: str
-) -> None:
-    """Update users in a slack usergroup.
-    Use an org_username as the username.
-    To empty a slack usergroup, pass '' (empty string) as the username.
-    """
-    slack = slackapi_from_queries("qontract-cli")
-    ugid = slack.get_usergroup_id(usergroup)
-    if not ugid:
-        raise click.ClickException(f"Usergroup {usergroup} not found.")
-    if username:
-        mail_address = get_smtp_settings().mail_address
-        users = [slack.get_user_id_by_name(username, mail_address)]
-    else:
-        users = [slack.get_random_deleted_user()]
-    slack.update_usergroup_users(ugid, users)
 
 
 @root.group()
