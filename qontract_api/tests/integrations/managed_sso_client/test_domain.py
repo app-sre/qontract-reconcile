@@ -12,6 +12,7 @@ from qontract_api.integrations.managed_sso_client.domain import (
     ManagedSsoClientDesiredState,
     ManagedSsoClientManagementSecret,
     OidcDesiredState,
+    ProtocolMapperDesiredState,
 )
 from qontract_api.models import Secret
 
@@ -362,7 +363,9 @@ def test_matches_declared_protocol_mapper_and_attributes() -> None:
         },
     )
     desired = _desired(
-        protocol_mappers=[mapper],
+        protocol_mappers=[
+            ProtocolMapperDesiredState.model_validate(mapper.model_dump())
+        ],
         attributes={"pkce.code.challenge.method": "S256"},
     )
     base = desired.to_managed_keycloak_client()
@@ -427,6 +430,7 @@ def test_matches_declared_protocol_mapper_and_attributes() -> None:
             True,
         ),
         ({}, {"included.custom.audience": "retained-audience"}, True),
+        (None, {"included.custom.audience": "retained-audience"}, True),
         ({}, {}, True),
         (
             {"included.custom.audience": "new-api"},
@@ -447,18 +451,21 @@ def test_matches_declared_protocol_mapper_and_attributes() -> None:
     ],
 )
 def test_only_declared_mapper_config_keys_are_managed(
-    config: dict[str, str],
+    config: dict[str, str] | None,
     live_config: dict[str, str],
     matches: bool,
 ) -> None:
-    mapper = ManagedKeycloakProtocolMapper(
-        name="audience", protocol_mapper="oidc-audience-mapper", config=config
-    )
-    desired = _desired(protocol_mappers=[mapper])
+    declaration = ProtocolMapperDesiredState.model_validate({
+        "name": "audience",
+        "protocol_mapper": "oidc-audience-mapper",
+        **({"config": config} if config is not None else {}),
+    })
+    mapper = declaration.to_managed_keycloak_mapper()
+    desired = _desired(protocol_mappers=[declaration])
     payload = desired.to_managed_keycloak_client()
     assert payload.protocol_mappers is not None
-    assert payload.protocol_mappers[0].config == config
-    assert mapper.config == config
+    assert payload.protocol_mappers[0].config == (config if config is not None else {})
+    assert mapper.config == (config if config is not None else {})
     current = payload.model_copy(
         update={"protocol_mappers": [mapper.model_copy(update={"config": live_config})]}
     )
@@ -493,7 +500,12 @@ def test_rejects_duplicate_mapper_names_and_attribute_with_dedicated_field() -> 
         config={"included.custom.audience": "my-api"},
     )
     with pytest.raises(ValueError, match="protocol mapper names must be unique"):
-        _desired(protocol_mappers=[mapper, mapper])
+        _desired(
+            protocol_mappers=[
+                ProtocolMapperDesiredState.model_validate(mapper.model_dump())
+            ]
+            * 2
+        )
     with pytest.raises(ValueError, match="use post_logout_redirect_uris"):
         _desired(attributes={"post.logout.redirect.uris": "https://example.com"})
 
@@ -651,3 +663,101 @@ def test_management_secret_with_tenant_secret_path_returns_new_instance() -> Non
         management.tenant_secret_path
         == "app-sre/managed-sso-client/output/my-app-ci-bot"
     )
+
+
+@pytest.mark.parametrize("deleted", [False, True])
+@pytest.mark.parametrize("missing", ["name", "protocol_mapper"])
+def test_mapper_requires_name_and_provider(*, deleted: bool, missing: str) -> None:
+    declaration = {
+        "name": "audience",
+        "protocol_mapper": "oidc-audience-mapper",
+        "config": {"included.custom.audience": "old-api"},
+        "deleted": deleted,
+    }
+    del declaration[missing]
+    with pytest.raises(ValueError, match="Field required"):
+        ProtocolMapperDesiredState.model_validate(declaration)
+
+
+def test_mapper_deletion_is_not_a_keycloak_representation() -> None:
+    deletion = ProtocolMapperDesiredState(
+        name="audience",
+        deleted=True,
+        protocol_mapper="oidc-audience-mapper",
+        config={"included.custom.audience": "old-api"},
+    )
+    with pytest.raises(ValueError, match="deletion instruction"):
+        deletion.to_managed_keycloak_mapper()
+
+
+@pytest.mark.parametrize("mappers", [None, []])
+def test_empty_declarations_preserve_live_mappers(
+    mappers: list[ProtocolMapperDesiredState] | None,
+) -> None:
+    desired = _desired(protocol_mappers=mappers)
+    current = desired.to_managed_keycloak_client().with_protocol_mappers([
+        ManagedKeycloakProtocolMapper(
+            name="external", protocol_mapper="oidc-full-name-mapper", config={}
+        )
+    ])
+    assert desired.matches(current)
+    assert desired.to_managed_keycloak_client().protocol_mappers is None
+
+
+@pytest.mark.parametrize("target_exists", [True, False])
+def test_mapper_deletion_matches_only_when_target_absent(
+    *, target_exists: bool
+) -> None:
+    desired = _desired(
+        protocol_mappers=[
+            ProtocolMapperDesiredState(
+                name="audience",
+                deleted=True,
+                protocol_mapper="oidc-audience-mapper",
+                config={"included.custom.audience": "old-api"},
+            )
+        ]
+    )
+    external = ManagedKeycloakProtocolMapper(
+        name="external", protocol_mapper="oidc-full-name-mapper", config={}
+    )
+    target = ManagedKeycloakProtocolMapper(
+        name="audience", protocol_mapper="oidc-audience-mapper", config={}
+    )
+    current = desired.to_managed_keycloak_client().with_protocol_mappers(
+        [external, target] if target_exists else [external]
+    )
+    assert desired.matches(current) is not target_exists
+    # Deletion instructions are also excluded from registration payloads.
+    assert desired.to_managed_keycloak_client().protocol_mappers is None
+
+
+def test_mapper_create_and_delete_name_conflict_rejected() -> None:
+    with pytest.raises(ValueError, match="protocol mapper names must be unique"):
+        _desired(
+            protocol_mappers=[
+                ProtocolMapperDesiredState(
+                    name="audience", protocol_mapper="oidc-audience-mapper", config={}
+                ),
+                ProtocolMapperDesiredState(
+                    name="audience",
+                    deleted=True,
+                    protocol_mapper="oidc-audience-mapper",
+                    config={"included.custom.audience": "old-api"},
+                ),
+            ]
+        )
+
+
+def test_matching_declaration_ignores_external_mapper() -> None:
+    declaration = ProtocolMapperDesiredState(
+        name="audience", protocol_mapper="oidc-audience-mapper", config={}
+    )
+    desired = _desired(protocol_mappers=[declaration])
+    current = desired.to_managed_keycloak_client().with_protocol_mappers([
+        declaration.to_managed_keycloak_mapper(),
+        ManagedKeycloakProtocolMapper(
+            name="external", protocol_mapper="oidc-full-name-mapper", config={}
+        ),
+    ])
+    assert desired.matches(current)

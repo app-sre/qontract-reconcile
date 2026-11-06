@@ -33,6 +33,31 @@ class KeycloakInstanceRef(BaseModel, frozen=True):
     )
 
 
+class ProtocolMapperDesiredState(BaseModel, frozen=True):
+    """An instruction to create/update or explicitly delete a client mapper."""
+
+    name: str
+    deleted: bool = False
+    protocol_mapper: str
+    config: dict[str, str] = Field(
+        default_factory=dict,
+        description="Defaults to an empty mapping; only declared config keys are managed.",
+    )
+    protocol: str = "openid-connect"
+
+    def to_managed_keycloak_mapper(self) -> ManagedKeycloakProtocolMapper:
+        """Build an active mapper; deletion instructions never go to Keycloak."""
+        if self.deleted:
+            msg = "cannot build a Keycloak mapper from a deletion instruction"
+            raise ValueError(msg)
+        return ManagedKeycloakProtocolMapper(
+            name=self.name,
+            protocol=self.protocol,
+            protocol_mapper=self.protocol_mapper,
+            config=self.config,
+        )
+
+
 class OidcDesiredState(BaseModel, frozen=True):
     """Desired OIDC configuration for a single managed SSO client.
 
@@ -46,6 +71,9 @@ class OidcDesiredState(BaseModel, frozen=True):
     (see their validators below), since Keycloak's own create-time defaults
     for these two - public access type, and enabled direct access grants -
     are insecure (verified against a live instance).
+
+    Protocol mappers are individually managed: unset or an empty list leaves
+    live mappers untouched. Only an explicit deleted=True removes a mapper.
 
     Caution for every other optional field: setting a value and later
     removing it from the desired state does NOT revert it - it only stops
@@ -130,9 +158,11 @@ class OidcDesiredState(BaseModel, frozen=True):
         "parameter but that aren't included by default. Unmanaged if unset "
         "(see class docstring).",
     )
-    protocol_mappers: list[ManagedKeycloakProtocolMapper] | None = Field(
+    protocol_mappers: list[ProtocolMapperDesiredState] | None = Field(
         default=None,
-        description="Client-level OIDC protocol mappers. Unmanaged if unset.",
+        description="Client-level OIDC protocol mapper declarations. Only entries "
+        "with deleted=true are removed. Undeclared mappers and config keys are "
+        "preserved; unset or an empty list leaves all mappers unmanaged.",
     )
     attributes: dict[str, str] | None = Field(
         default=None,
@@ -143,8 +173,9 @@ class OidcDesiredState(BaseModel, frozen=True):
     @field_validator("protocol_mappers")
     @classmethod
     def _unique_protocol_mappers(
-        cls, mappers: list[ManagedKeycloakProtocolMapper] | None
-    ) -> list[ManagedKeycloakProtocolMapper] | None:
+        cls, mappers: list[ProtocolMapperDesiredState] | None
+    ) -> list[ProtocolMapperDesiredState] | None:
+        """Reject duplicate mapper identities, including create/delete conflicts."""
         if mappers is not None:
             names = {(mapper.protocol, mapper.name) for mapper in mappers}
             if len(names) != len(mappers):
@@ -157,6 +188,7 @@ class OidcDesiredState(BaseModel, frozen=True):
     def _reject_dedicated_attributes(
         cls, attributes: dict[str, str] | None
     ) -> dict[str, str] | None:
+        """Reject dedicated-field overrides and blank values that cannot converge."""
         if attributes and "post.logout.redirect.uris" in attributes:
             msg = "use post_logout_redirect_uris instead of the matching attribute"
             raise ValueError(msg)
@@ -168,6 +200,7 @@ class OidcDesiredState(BaseModel, frozen=True):
     def to_managed_keycloak_client(
         self, *, client_id: str, enabled: bool
     ) -> ManagedKeycloakClient:
+        """Compile managed OIDC fields, excluding mapper deletion instructions."""
         return ManagedKeycloakClient(
             client_id=client_id,
             enabled=enabled,
@@ -182,7 +215,12 @@ class OidcDesiredState(BaseModel, frozen=True):
             full_scope_allowed=self.full_scope_allowed,
             default_client_scopes=self.default_client_scopes,
             optional_client_scopes=self.optional_client_scopes,
-            protocol_mappers=self.protocol_mappers,
+            protocol_mappers=[
+                mapper.to_managed_keycloak_mapper()
+                for mapper in self.protocol_mappers or []
+                if not mapper.deleted
+            ]
+            or None,
             extra_attributes=self.attributes or {},
         )
 
@@ -268,9 +306,8 @@ class ManagedSsoClientDesiredState(BaseModel, frozen=True):
         here is never sent and never managed - comparing it against whatever
         Keycloak happens to have would be permanent, spurious drift. List
         fields are compared order-insensitively (see _field_values_match).
-        The mapper list is authoritative, but only declared mapper config
-        keys are managed. The workspace client preserves undeclared config
-        keys on PUT for mappers whose protocol, name and type still match.
+        Only declared mappers and config keys are compared. Deletion entries
+        match when their mapper is absent; undeclared live mappers are ignored.
         """
         desired_client = self.to_managed_keycloak_client()
         desired_state = desired_client.model_dump(
@@ -287,20 +324,22 @@ class ManagedSsoClientDesiredState(BaseModel, frozen=True):
             for key, value in desired_client.extra_attributes.items()
         ):
             return False
-        if desired_client.protocol_mappers is not None:
+        if self.oidc and self.oidc.protocol_mappers:
             current_mappers = {
                 (m.protocol, m.name): m for m in current.protocol_mappers or []
             }
-            if set(current_mappers) != {
-                (mapper.protocol, mapper.name)
-                for mapper in desired_client.protocol_mappers
-            }:
-                return False
-            for mapper in desired_client.protocol_mappers:
-                live = current_mappers[mapper.protocol, mapper.name]
-                if live.protocol_mapper != mapper.protocol_mapper or not all(
+            for mapper in self.oidc.protocol_mappers:
+                live = current_mappers.get((mapper.protocol, mapper.name))
+                if mapper.deleted:
+                    if live is not None:
+                        return False
+                    continue
+                if live is None or live.protocol_mapper != mapper.protocol_mapper:
+                    return False
+                declared = mapper.to_managed_keycloak_mapper()
+                if not all(
                     live.config.get(key) == value
-                    for key, value in mapper.config.items()
+                    for key, value in declared.config.items()
                 ):
                     return False
         return True

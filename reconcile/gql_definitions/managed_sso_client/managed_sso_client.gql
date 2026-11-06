@@ -29,6 +29,7 @@ query ManagedSsoClient {
         optionalClientScopes
         protocolMappers {
           name
+          deleted
           protocolMapper
           config
         }

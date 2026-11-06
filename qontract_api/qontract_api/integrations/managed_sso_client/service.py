@@ -257,13 +257,14 @@ class ManagedSsoClientService:
         performs the PUT unconditionally - the caller (_execute_action) is
         responsible for only calling this for a ManagedSsoClientActionUpdate,
         which _diff_client only ever emits when Keycloak-side drift was
-        already confirmed. The workspace client refreshes mapper config to
-        preserve undeclared keys, without repeating the drift check.
+        already confirmed. The workspace client refreshes live mappers to
+        preserve undeclared entries and apply explicit deletion instructions.
         """
         updated = keycloak.update_client(
             client_id=desired.client_id,
             registration_access_token=management.registration_access_token,
             data=desired.to_managed_keycloak_client(),
+            mapper_declarations=desired.oidc.protocol_mappers if desired.oidc else None,
         )
         new_token = (
             updated.registration_access_token or management.registration_access_token

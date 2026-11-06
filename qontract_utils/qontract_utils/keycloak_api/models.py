@@ -38,7 +38,12 @@ class ManagedKeycloakProtocolMapper(BaseModel, frozen=True):
     config: dict[str, str]
     protocol: str = "openid-connect"
 
+    def with_config(self, config: dict[str, str]) -> Self:
+        """Return a validated copy with the supplied mapper configuration."""
+        return self.model_validate({**self.model_dump(), "config": config})
+
     def to_raw(self) -> RawProtocolMapperRepresentation:
+        """Serialize a mapper without sending a server-generated ID."""
         return RawProtocolMapperRepresentation(
             name=self.name,
             protocol=self.protocol,
@@ -48,6 +53,7 @@ class ManagedKeycloakProtocolMapper(BaseModel, frozen=True):
 
     @classmethod
     def from_raw(cls, raw: RawProtocolMapperRepresentation) -> Self:
+        """Read mapper settings while discarding the server-generated ID."""
         return cls(
             name=raw.name,
             protocol=raw.protocol,
@@ -104,6 +110,17 @@ class ManagedKeycloakClient(BaseModel, frozen=True):
     # update" mechanism - PUT merges by field, so this only ever carries what
     # this caller actually wants written.
     extra_attributes: dict[str, str] = Field(default_factory=dict)
+
+    def with_protocol_mappers(
+        self, mappers: list[ManagedKeycloakProtocolMapper] | None
+    ) -> Self:
+        """Return a validated copy; None omits mappers and an empty list clears them."""
+        return self.model_validate(
+            {
+                **self.model_dump(),
+                "protocol_mappers": mappers,
+            }
+        )
 
     def to_raw(self) -> RawClientRepresentation:
         """Fold this typed view into Keycloak's wire-level ClientRepresentation."""

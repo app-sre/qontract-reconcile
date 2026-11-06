@@ -10,6 +10,9 @@ from qontract_utils.keycloak_api import (
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import Settings
+from qontract_api.integrations.managed_sso_client.domain import (
+    ProtocolMapperDesiredState,
+)
 from qontract_api.integrations.managed_sso_client.keycloak_workspace_client import (
     KeycloakWorkspaceClient,
 )
@@ -194,7 +197,14 @@ def test_update_preserves_fresh_mapper_config_and_overrides_declared_keys(
     )
     data = _client_repr().model_copy(update={"protocol_mappers": [desired_mapper]})
 
-    client.update_client("my-app-ci-bot", "reg-token", data)
+    client.update_client(
+        "my-app-ci-bot",
+        "reg-token",
+        data,
+        mapper_declarations=[
+            ProtocolMapperDesiredState.model_validate(desired_mapper.model_dump())
+        ],
+    )
 
     mock_api.get_client.assert_called_once_with(
         client_id="my-app-ci-bot", registration_access_token="reg-token"
@@ -242,25 +252,38 @@ def test_update_does_not_inherit_config_from_other_mappers(
     )
     data = _client_repr().model_copy(update={"protocol_mappers": [desired_mapper]})
 
-    client.update_client("my-app-ci-bot", "reg-token", data)
+    client.update_client(
+        "my-app-ci-bot",
+        "reg-token",
+        data,
+        mapper_declarations=[
+            ProtocolMapperDesiredState.model_validate(desired_mapper.model_dump())
+        ],
+    )
 
-    assert mock_api.update_client.call_args.kwargs["data"].protocol_mappers == [
-        desired_mapper
-    ]
+    expected = (
+        [desired_mapper]
+        if "protocol_mapper" in changes
+        else [live_mapper, desired_mapper]
+    )
+    assert mock_api.update_client.call_args.kwargs["data"].protocol_mappers == expected
 
 
 @pytest.mark.parametrize("mappers", [None, []])
 def test_update_preserves_unmanaged_or_empty_mapper_list_without_fetching(
     client: KeycloakWorkspaceClient,
     mock_api: MagicMock,
-    mappers: list[ManagedKeycloakProtocolMapper] | None,
+    mappers: list[ProtocolMapperDesiredState] | None,
 ) -> None:
-    data = _client_repr().model_copy(update={"protocol_mappers": mappers})
+    data = _client_repr()
 
-    client.update_client("my-app-ci-bot", "reg-token", data)
+    client.update_client(
+        "my-app-ci-bot", "reg-token", data, mapper_declarations=mappers
+    )
 
     mock_api.get_client.assert_not_called()
-    assert mock_api.update_client.call_args.kwargs["data"].protocol_mappers == mappers
+    sent = mock_api.update_client.call_args.kwargs["data"]
+    assert "protocolMappers" not in sent.to_raw().model_dump(exclude_none=True)
 
 
 def test_update_does_not_write_if_fetching_mapper_config_fails(
@@ -273,7 +296,14 @@ def test_update_does_not_write_if_fetching_mapper_config_fails(
     mock_api.get_client.side_effect = RuntimeError("keycloak unreachable")
 
     with pytest.raises(RuntimeError, match="keycloak unreachable"):
-        client.update_client("my-app-ci-bot", "reg-token", data)
+        client.update_client(
+            "my-app-ci-bot",
+            "reg-token",
+            data,
+            mapper_declarations=[
+                ProtocolMapperDesiredState.model_validate(mapper.model_dump())
+            ],
+        )
 
     mock_api.update_client.assert_not_called()
     mock_cache.delete.assert_called_once_with(CACHE_KEY)
@@ -406,3 +436,89 @@ def test_close_closes_underlying_api(
 ) -> None:
     client.close()
     mock_api.close.assert_called_once()
+
+
+@pytest.mark.parametrize("target_exists", [True, False])
+def test_update_merges_creates_updates_and_explicit_deletions(
+    client: KeycloakWorkspaceClient,
+    mock_api: MagicMock,
+    *,
+    target_exists: bool,
+) -> None:
+    external = ManagedKeycloakProtocolMapper(
+        name="external", protocol_mapper="oidc-full-name-mapper", config={"keep": "yes"}
+    )
+    target = ManagedKeycloakProtocolMapper(
+        name="obsolete", protocol_mapper="oidc-audience-mapper", config={}
+    )
+    live_audience = ManagedKeycloakProtocolMapper(
+        name="audience",
+        protocol_mapper="oidc-audience-mapper",
+        config={"included.custom.audience": "old-api", "server-added": "preserved"},
+    )
+    live = (
+        [external, live_audience, target]
+        if target_exists
+        else [external, live_audience]
+    )
+    mock_api.get_client.return_value = _client_repr().with_protocol_mappers(live)
+    declarations = [
+        ProtocolMapperDesiredState(
+            name="obsolete",
+            deleted=True,
+            protocol_mapper="oidc-audience-mapper",
+            config={"included.custom.audience": "old-api"},
+        ),
+        ProtocolMapperDesiredState(
+            name="audience",
+            protocol_mapper="oidc-audience-mapper",
+            config={"included.custom.audience": "new-api"},
+        ),
+        ProtocolMapperDesiredState(
+            name="new", protocol_mapper="oidc-address-mapper", config={}
+        ),
+    ]
+
+    client.update_client(
+        "my-app-ci-bot", "reg-token", _client_repr(), mapper_declarations=declarations
+    )
+
+    sent = mock_api.update_client.call_args.kwargs["data"]
+    assert sent.protocol_mappers == [
+        external,
+        live_audience.with_config({
+            "included.custom.audience": "new-api",
+            "server-added": "preserved",
+        }),
+        declarations[2].to_managed_keycloak_mapper(),
+    ]
+    assert all(
+        "deleted" not in m for m in sent.to_raw().model_dump()["protocolMappers"]
+    )
+    assert live_audience.config["included.custom.audience"] == "old-api"
+
+
+def test_deleting_last_mapper_sends_explicit_empty_list(
+    client: KeycloakWorkspaceClient,
+    mock_api: MagicMock,
+) -> None:
+    mock_api.get_client.return_value = _client_repr().with_protocol_mappers([
+        ManagedKeycloakProtocolMapper(
+            name="audience", protocol_mapper="oidc-audience-mapper", config={}
+        )
+    ])
+    client.update_client(
+        "my-app-ci-bot",
+        "reg-token",
+        _client_repr(),
+        mapper_declarations=[
+            ProtocolMapperDesiredState(
+                name="audience",
+                deleted=True,
+                protocol_mapper="oidc-audience-mapper",
+                config={"included.custom.audience": "old-api"},
+            )
+        ],
+    )
+    sent = mock_api.update_client.call_args.kwargs["data"]
+    assert sent.to_raw().model_dump(exclude_none=True)["protocolMappers"] == []

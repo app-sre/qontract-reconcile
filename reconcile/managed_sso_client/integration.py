@@ -15,7 +15,6 @@ from qontract_api_client.client import (
 )
 from qontract_api_client.schemas import (
     KeycloakInstanceRef,
-    ManagedKeycloakProtocolMapper,
     ManagedSsoClientActionCreate,
     ManagedSsoClientActionDelete,
     ManagedSsoClientActionMoveTenantSecret,
@@ -25,6 +24,7 @@ from qontract_api_client.schemas import (
     ManagedSsoClientTaskResponse,
     ManagedSsoClientTaskResult,
     OidcDesiredState,
+    ProtocolMapperDesiredState,
     Secret,
     TaskStatus,
 )
@@ -100,10 +100,11 @@ class ManagedSsoClientIntegration(
             optional_client_scopes=oidc.optional_client_scopes,
             protocol_mappers=(
                 [
-                    ManagedKeycloakProtocolMapper(
+                    ProtocolMapperDesiredState(
                         name=mapper.name,
+                        deleted=mapper.deleted if mapper.deleted is not None else False,
                         protocol_mapper=mapper.protocol_mapper,
-                        config=mapper.config,
+                        config=mapper.config if mapper.config is not None else {},
                     )
                     for mapper in oidc.protocol_mappers
                 ]

@@ -607,13 +607,6 @@ class LdapUsersCheckResponse(pydantic.BaseModel):
     users: list[LdapUserStatus]
 
 
-class ManagedKeycloakProtocolMapper(pydantic.BaseModel):
-    config: dict[str, typing.Any]
-    name: str
-    protocol: str = "openid-connect"
-    protocol_mapper: str
-
-
 class ManagedSsoClientActionCreate(pydantic.BaseModel):
     action_type: typing.Literal["create"] = "create"
     client_id: str
@@ -844,7 +837,7 @@ class OidcDesiredState(pydantic.BaseModel):
     full_scope_allowed: bool | None = None
     optional_client_scopes: list[str] | None = None
     post_logout_redirect_uris: list[str] | None = None
-    protocol_mappers: list[ManagedKeycloakProtocolMapper] | None = None
+    protocol_mappers: list[ProtocolMapperDesiredState] | None = None
     redirect_uris: list[str]
     service_accounts_enabled: bool | None = None
     web_origins: list[str] | None = None
@@ -881,6 +874,14 @@ class OpenShiftNamespacesTaskResult(pydantic.BaseModel):
 
 class PagerDutyUser(pydantic.BaseModel):
     username: str
+
+
+class ProtocolMapperDesiredState(pydantic.BaseModel):
+    config: dict[str, typing.Any] | None = None
+    deleted: bool = False
+    name: str
+    protocol: str = "openid-connect"
+    protocol_mapper: str
 
 
 class QuayOrgConfig(pydantic.BaseModel):
