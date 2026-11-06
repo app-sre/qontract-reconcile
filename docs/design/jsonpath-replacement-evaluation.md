@@ -9,7 +9,7 @@ Status: Research and proposed migration path; implementation not approved.
 **Decision update:** The user selected `python-jsonpath`, accepting the measured
 millisecond-scale overhead in exchange for its dependency-free API. The proposed
 approach in [jsonpath-migration-proposal.md](jsonpath-migration-proposal.md) and
-the [complete app-interface inventory](app-interface-jsonpath-inventory.md)
+the [app-interface inventory snapshot](app-interface-jsonpath-inventory.md)
 supersede the initial recommendation below. A standalone, more detailed
 milestone plan is still in progress and not yet published. Subsequent
 code-path tracing also narrowed the tenant-exposure concern: ordinary tenant
