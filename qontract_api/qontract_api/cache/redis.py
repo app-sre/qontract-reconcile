@@ -5,6 +5,8 @@ from __future__ import annotations
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
+import redis.exceptions
+
 from qontract_api.cache.base import CacheBackend
 
 if TYPE_CHECKING:
@@ -101,7 +103,7 @@ class RedisCacheBackend(CacheBackend):
         try:
             self.client.ping()
             return True
-        except OSError:
+        except OSError, redis.exceptions.RedisError:
             # Network/connection errors
             return False
 
@@ -128,6 +130,12 @@ class RedisCacheBackend(CacheBackend):
         - Thread-safe by design
         - Non-blocking mode support
 
+        Does not catch redis.exceptions.RedisError from lock.acquire(): unlike
+        get_obj()/set_obj(), distributed locking has no meaningful memory-only
+        fallback, so a Redis outage during acquisition propagates to the caller
+        instead of being silently swallowed. A RedisError during lock.release()
+        is suppressed instead (the lock may have already expired).
+
         Args:
             key: Lock key
             timeout: Lock timeout in seconds
@@ -137,6 +145,8 @@ class RedisCacheBackend(CacheBackend):
 
         Raises:
             RuntimeError: If lock could not be acquired
+            redis.exceptions.RedisError: If Redis is unreachable during
+                acquisition. Errors during release are suppressed, not raised.
         """
         lock_key = f"{key}:lock"
         lock = self.client.lock(lock_key, timeout=timeout, blocking=True)

@@ -22,7 +22,7 @@ from reconcile.utils.binary import (
     binary,
     binary_version,
 )
-from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE, REQUEST_TIMEOUT
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gql import GqlApiSingleton
@@ -692,6 +692,13 @@ def terraform_aws_route53(
     required=True,
     default="https://auth.redhat.com/auth/realms/EmployeeIDP/protocol/saml/descriptor",
 )
+@click.option(
+    "--request-timeout",
+    help="SAML metadata request timeout in seconds",
+    required=False,
+    default=REQUEST_TIMEOUT,
+    show_default=True,
+)
 @enable_extended_early_exit
 @extended_early_exit_cache_ttl_seconds
 @log_cached_log_output
@@ -704,6 +711,7 @@ def aws_saml_idp(
     account_name: str | None,
     saml_idp_name: str,
     saml_metadata_url: str,
+    request_timeout: int,
     enable_extended_early_exit: bool,
     extended_early_exit_cache_ttl_seconds: int,
     log_cached_log_output: bool,
@@ -721,6 +729,7 @@ def aws_saml_idp(
                 enable_deletion=enable_deletion,
                 saml_idp_name=saml_idp_name,
                 saml_metadata_url=saml_metadata_url,
+                request_timeout=request_timeout,
                 account_name=account_name,
                 enable_extended_early_exit=enable_extended_early_exit,
                 extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
@@ -2699,6 +2708,20 @@ def gitlab_projects(
                 project_names=frozenset(project_name) if project_name else None,
             )
         ),
+        ctx=ctx,
+    )
+
+
+@integration.command(short_help="Manage GitLab group members via qontract-api.")
+@click.pass_context
+def gitlab_members_api(ctx: click.Context) -> None:
+    from reconcile.gitlab_members_api import (
+        GitlabMembersIntegration,
+        GitlabMembersIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=GitlabMembersIntegration(GitlabMembersIntegrationParams()),
         ctx=ctx,
     )
 

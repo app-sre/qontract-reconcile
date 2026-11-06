@@ -17,7 +17,7 @@ from reconcile.dashdotdb_dora import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
     import pytest
     from pytest_mock import MockerFixture
@@ -272,7 +272,7 @@ def test_post_deployments_skips_when_token_acquisition_fails(
     d.scope = "dora"
 
     @contextmanager
-    def _failing_token() -> Iterator[None]:
+    def _failing_token() -> Generator[None]:
         raise DashdotdbTokenError("simulated failure")
         yield
 

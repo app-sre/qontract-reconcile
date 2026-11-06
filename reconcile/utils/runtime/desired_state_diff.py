@@ -172,6 +172,18 @@ def extract_diffs_with_timeout(
     raise DiffDetectionFailureError("unknown error during fine grained diff detection")
 
 
+def _has_matching_types(a: Any, b: Any) -> bool:
+    """Assuming a == b, verify recursive type identity (e.g., 1 vs 1.0 vs True)."""
+    ta = type(a)
+    if ta is not type(b):
+        return False
+    if ta is dict or isinstance(a, Mapping):
+        return all(_has_matching_types(v, b[k]) for k, v in a.items())
+    if ta is list or ta is tuple:
+        return all(map(_has_matching_types, a, b, strict=False))
+    return True
+
+
 def build_desired_state_diff(
     sharding_config: DesiredStateShardConfig | None,
     previous_desired_state: Mapping[str, Any],
@@ -183,11 +195,20 @@ def build_desired_state_diff(
     shards introduced by the change between the two desired states.
     """
     # is there even a difference?
-    previous_hash = DeepHash(previous_desired_state)
-    current_hash = DeepHash(current_desired_state)
-    desired_state_diff_found = previous_hash.get(
-        previous_desired_state
-    ) != current_hash.get(current_desired_state)
+    # Fast-path: when both states are identical in value, list ordering, and
+    # scalar types, native equality + type check avoids recursively hashing
+    # the entire structure. If == or type check returns False (e.g., list
+    # ordering differs or a value/type changed), fall back to DeepHash.
+    if previous_desired_state == current_desired_state and _has_matching_types(
+        previous_desired_state, current_desired_state
+    ):
+        desired_state_diff_found = False
+    else:
+        previous_hash = DeepHash(previous_desired_state)
+        current_hash = DeepHash(current_desired_state)
+        desired_state_diff_found = previous_hash.get(
+            previous_desired_state
+        ) != current_hash.get(current_desired_state)
 
     shards = set()
     exract_diff_timeout_seconds = 10

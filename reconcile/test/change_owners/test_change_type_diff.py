@@ -92,7 +92,10 @@ def test_diff_path_from_jsonpath_find_traversal_renders_without_parens() -> None
     (e.g. when a change-type's self-service path containing a wildcard gets
     resolved against actual file content while splitting a diff for partial
     coverage). Diff must normalize such externally-constructed paths too,
-    not just the ones it builds itself via deepdiff_path_to_jsonpath.
+    not just the ones it builds itself via deepdiff_path_to_jsonpath. This
+    holds regardless of how jsonpath_ng itself renders `Child` chains (see
+    `_DottedChild`'s docstring), so there is no sanity check tying this test
+    to a specific library version's `__str__` format.
     """
     content = {"openshiftResources": [{"a": 1}, {"variables": {"var2": "x"}}]}
     resolved_path = (
@@ -101,8 +104,6 @@ def test_diff_path_from_jsonpath_find_traversal_renders_without_parens() -> None
         .find(content)[0]
         .full_path
     )
-    # sanity check: the raw, library-constructed path does have parens
-    assert "(" in str(resolved_path)
 
     diff = Diff(
         path=resolved_path,

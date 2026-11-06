@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+import redis.exceptions
 from pydantic import BaseModel
 
 from qontract_api.cache.base import CacheBackend
@@ -256,6 +257,78 @@ def test_get_obj_with_nested_model(cache: ConcreteCacheBackend) -> None:
     assert result.users == ["user1", "user2"]
     assert result.channels == ["chan1", "chan2"]
     assert result.description == "A description"
+
+
+def test_get_obj_returns_none_on_redis_connection_error(
+    cache: ConcreteCacheBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test get_obj() falls back to memory-only mode on redis.exceptions.ConnectionError."""
+
+    def raise_redis_error(key: str) -> str | None:
+        msg = "Connection refused"
+        raise redis.exceptions.ConnectionError(msg)
+
+    monkeypatch.setattr(cache, "get", raise_redis_error)
+
+    result = cache.get_obj("test_key", cls=SampleModel)
+
+    assert result is None
+
+
+def test_get_obj_returns_none_on_redis_timeout_error(
+    cache: ConcreteCacheBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test get_obj() falls back to memory-only mode on redis.exceptions.TimeoutError."""
+
+    def raise_redis_error(key: str) -> str | None:
+        msg = "Timed out"
+        raise redis.exceptions.TimeoutError(msg)
+
+    monkeypatch.setattr(cache, "get", raise_redis_error)
+
+    result = cache.get_obj("test_key", cls=SampleModel)
+
+    assert result is None
+
+
+def test_set_obj_does_not_raise_on_redis_connection_error(
+    cache: ConcreteCacheBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test set_obj() falls back to memory-only mode on redis.exceptions.ConnectionError."""
+
+    def raise_redis_error(key: str, value: str, ttl: int | None = None) -> None:
+        msg = "Connection refused"
+        raise redis.exceptions.ConnectionError(msg)
+
+    monkeypatch.setattr(cache, "set", raise_redis_error)
+    model = SampleModel(name="test", value=42)
+
+    cache.set_obj("test_key", model)
+
+    assert cache._memory_cache is not None
+    assert cache._memory_cache["test_key"] == model
+
+
+def test_set_obj_deletes_stale_redis_value_on_failed_write(
+    cache: ConcreteCacheBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test set_obj() deletes the stale Redis value when the write fails."""
+    cache.set("test_key", json.dumps({"name": "stale", "value": 1, "tags": []}))
+
+    def raise_redis_error(key: str, value: str, ttl: int | None = None) -> None:
+        msg = "Connection refused"
+        raise redis.exceptions.ConnectionError(msg)
+
+    monkeypatch.setattr(cache, "set", raise_redis_error)
+    model = SampleModel(name="fresh", value=2)
+
+    cache.set_obj("test_key", model)
+
+    # Other processes must see a cache miss, not the stale value.
+    assert cache.get("test_key") is None
+    # This process still serves the fresh value from the memory tier.
+    assert cache._memory_cache is not None
+    assert cache._memory_cache["test_key"] == model
 
 
 def test_custom_serializer_deserializer() -> None:

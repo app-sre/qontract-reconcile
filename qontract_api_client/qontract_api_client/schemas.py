@@ -205,6 +205,14 @@ class GithubUsersValidateResponse(pydantic.BaseModel):
     users: list[GithubUserInfo]
 
 
+class GitlabAccessLevel(str, enum.Enum):
+    GUEST = "guest"
+    REPORTER = "reporter"
+    DEVELOPER = "developer"
+    MAINTAINER = "maintainer"
+    OWNER = "owner"
+
+
 class GitlabGroupConfig(pydantic.BaseModel):
     group: str
     projects: list[str] | None = None
@@ -216,6 +224,89 @@ class GitlabInstanceConfig(pydantic.BaseModel):
     ssl_verify: bool = True
     token: Secret
     url: str
+
+
+class GitlabMemberActionAdd(pydantic.BaseModel):
+    access_level: GitlabAccessLevel
+    action_type: typing.Literal["add_member"] = "add_member"
+    group: str
+    instance: str
+    user_id: int
+    username: str
+
+
+class GitlabMemberActionChangeAccess(pydantic.BaseModel):
+    access_level: GitlabAccessLevel
+    action_type: typing.Literal["change_access"] = "change_access"
+    group: str
+    instance: str
+    member_id: int
+    username: str
+
+
+class GitlabMemberActionRemove(pydantic.BaseModel):
+    action_type: typing.Literal["remove_member"] = "remove_member"
+    group: str
+    instance: str
+    member_id: int
+    username: str
+
+
+class GitlabMemberConfig(pydantic.BaseModel):
+    access_level: GitlabAccessLevel
+    username: str
+
+
+class GitlabMembersGroupConfig(pydantic.BaseModel):
+    group: str
+    members: list[GitlabMemberConfig] | None = None
+
+
+class GitlabMembersInstanceConfig(pydantic.BaseModel):
+    groups: list[GitlabMembersGroupConfig] | None = None
+    name: str
+    ssl_verify: bool = True
+    token: Secret
+    url: str
+
+
+class GitlabMembersReconcileRequest(pydantic.BaseModel):
+    dry_run: bool = True
+    instances: list[GitlabMembersInstanceConfig]
+
+
+class GitlabMembersTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus | None = None
+    status_url: str
+
+
+class GitlabMembersTaskResult(pydantic.BaseModel):
+    actions: (
+        list[
+            typing.Annotated[
+                GitlabMemberActionAdd
+                | GitlabMemberActionRemove
+                | GitlabMemberActionChangeAccess,
+                pydantic.Field(discriminator="action_type"),
+            ]
+        ]
+        | None
+    ) = None
+    applied_actions: (
+        list[
+            typing.Annotated[
+                GitlabMemberActionAdd
+                | GitlabMemberActionRemove
+                | GitlabMemberActionChangeAccess,
+                pydantic.Field(discriminator="action_type"),
+            ]
+        ]
+        | None
+    ) = None
+    applied_count: int = 0
+    errors: list[str] = []
+    status: TaskStatus
 
 
 class GitlabProjectActionCreate(pydantic.BaseModel):

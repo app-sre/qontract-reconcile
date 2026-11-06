@@ -37,8 +37,8 @@ from reconcile.utils.datetime_util import ensure_utc, utc_now
 
 if TYPE_CHECKING:
     from collections.abc import (
+        Generator,
         Iterable,
-        Iterator,
         Mapping,
     )
 
@@ -159,7 +159,7 @@ class TerraformClient:
     @contextmanager
     def _terraform_log_file(
         self, working_dir: str
-    ) -> Iterator[tuple[IO[bytes], dict[str, str]]]:
+    ) -> Generator[tuple[IO[bytes], dict[str, str]]]:
         with tempfile.NamedTemporaryFile(dir=working_dir) as f:
             env = {
                 "TF_LOG": TERRAFORM_LOG_LEVEL,

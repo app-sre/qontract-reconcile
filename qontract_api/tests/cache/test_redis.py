@@ -5,6 +5,7 @@ from typing import Any
 from unittest.mock import Mock
 
 import pytest
+import redis.exceptions
 from pydantic import BaseModel
 
 from qontract_api.cache.redis import RedisCacheBackend
@@ -143,6 +144,30 @@ def test_ping_returns_false_on_connection_error(
 ) -> None:
     """Test ping() returns False on connection error."""
     mock_redis_client.ping.side_effect = OSError("Connection error")
+
+    result = cache.ping()
+
+    assert result is False
+
+
+def test_ping_returns_false_on_redis_connection_error(
+    cache: RedisCacheBackend, mock_redis_client: Mock
+) -> None:
+    """Test ping() returns False on redis.exceptions.ConnectionError."""
+    mock_redis_client.ping.side_effect = redis.exceptions.ConnectionError(
+        "Connection refused"
+    )
+
+    result = cache.ping()
+
+    assert result is False
+
+
+def test_ping_returns_false_on_redis_timeout_error(
+    cache: RedisCacheBackend, mock_redis_client: Mock
+) -> None:
+    """Test ping() returns False on redis.exceptions.TimeoutError."""
+    mock_redis_client.ping.side_effect = redis.exceptions.TimeoutError("Timed out")
 
     result = cache.ping()
 
@@ -299,6 +324,58 @@ def test_get_obj_set_obj_roundtrip(
 
     assert result == original
     assert isinstance(result, NestedModel)
+
+
+def test_set_obj_deletes_stale_value_on_redis_error(
+    cache: RedisCacheBackend, mock_redis_client: Mock
+) -> None:
+    """Test set_obj() deletes the stale Redis value when the write fails."""
+    mock_redis_client.set.side_effect = redis.exceptions.ConnectionError(
+        "Connection refused"
+    )
+    model = SampleModel(name="test", value=42)
+
+    cache.set_obj("test_key", model)
+
+    mock_redis_client.delete.assert_called_once_with("test_key")
+
+
+def test_set_obj_swallows_error_when_stale_value_deletion_fails(
+    cache: RedisCacheBackend, mock_redis_client: Mock
+) -> None:
+    """Test set_obj() does not raise if the best-effort stale-value delete also fails."""
+    mock_redis_client.set.side_effect = redis.exceptions.ConnectionError(
+        "Connection refused"
+    )
+    mock_redis_client.delete.side_effect = redis.exceptions.ConnectionError(
+        "Connection refused"
+    )
+    model = SampleModel(name="test", value=42)
+
+    cache.set_obj("test_key", model)  # Should not raise
+
+    assert cache._memory_cache is not None
+    assert cache._memory_cache["test_key"] == model
+
+
+def test_lock_propagates_redis_error_when_redis_unreachable(
+    cache: RedisCacheBackend, mock_redis_client: Mock
+) -> None:
+    """Test lock() propagates RedisError when Redis is unreachable.
+
+    Distributed locking has no meaningful memory-only fallback, so callers
+    relying on cache.lock() (e.g. for read-miss stampede prevention) are
+    expected to fail during a Redis outage rather than silently bypass the
+    lock.
+    """
+    mock_lock = Mock()
+    mock_lock.acquire.side_effect = redis.exceptions.ConnectionError(
+        "Connection refused"
+    )
+    mock_redis_client.lock.return_value = mock_lock
+
+    with pytest.raises(redis.exceptions.ConnectionError), cache.lock("test_key"):
+        pass
 
 
 def test_custom_serializer_deserializer() -> None:

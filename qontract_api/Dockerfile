@@ -23,7 +23,7 @@ ENV \
     SSL_CERT_FILE=/etc/pki/tls/cert.pem \
     TESTFLAG=/tmp/.tests_passed
 
-COPY --from=quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master@sha256:889c023a24b52ab735f030202fefc70191417082c3e9f8108ab66db8581ca2dd /etc/pki/ /etc/pki/
+COPY --from=quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master@sha256:628f2ee219eb986c991babd9a453bb6164d30deafd0a7d8490a2098039c7e186 /etc/pki/ /etc/pki/
 
 # Install base dependencies
 RUN microdnf install -y python3.14 make && microdnf clean all
@@ -35,8 +35,8 @@ WORKDIR ${APP_ROOT}/src
 #
 # Builder image
 #
-FROM registry.access.redhat.com/ubi10/python-314-minimal:10.2-1787002610@sha256:b6cc4d6c56a139b763af6cb9cd6b838d0f8ed5a67caadfa3418e68dec6ab755f AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.12.24@sha256:3af4716e991d6956a41e573eab705d0ee08500cd829ed30293eb8472f372c65a /uv /bin/uv
+FROM registry.access.redhat.com/ubi10/python-314-minimal:10.2-1792864274@sha256:b852370b7c31f60097668edd96be27522c63715eefe5770890c796c4251c25de AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 /uv /bin/uv
 
 ENV APP_ROOT=/opt/app-root
 ENV \
@@ -100,7 +100,7 @@ COPY --from=test $TESTFLAG $TESTFLAG
 # Dev image with debugpy
 #
 FROM prod AS debug
-COPY --from=ghcr.io/astral-sh/uv:0.12.24@sha256:3af4716e991d6956a41e573eab705d0ee08500cd829ed30293eb8472f372c65a /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 /uv /bin/uv
 
 EXPOSE 5678
 RUN uv pip install debugpy watchdog

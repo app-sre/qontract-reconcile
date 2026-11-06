@@ -31,9 +31,10 @@ class _DottedChild(jsonpath_ng.Child):
 
     jsonpath_ng 1.8.0 wraps every `Child` in parentheses when stringified
     (e.g. `(((a.b).c).d)`) to disambiguate operator precedence for
-    re-parsing. `Diff.path` is only ever rendered for display (MR check
-    output, logs, error messages), never re-parsed, so the parens just
-    hurt readability.
+    re-parsing. `Diff.path` is never re-parsed: it's rendered for display
+    (MR check output, logs, error messages) and used as a plain string key
+    (e.g. `BundleFileChange._diff_coverage`), so the parens just hurt
+    readability.
     """
 
     def __str__(self) -> str:

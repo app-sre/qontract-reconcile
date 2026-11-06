@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -17,7 +18,6 @@ from reconcile.utils.quay_mirror import sync_tag
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from unittest.mock import Mock
 
     from pytest_mock import MockerFixture
 
@@ -74,8 +74,11 @@ class TestDeepSyncTimerIntegration:
                 tmp_dir_name, CONTROL_FILE_NAME
             )
 
-    @patch("time.time", return_value=NOW)
-    def test_timer_elapsed(self, _mock_time: Mock) -> None:
+    @patch(
+        "reconcile.container_registry_mirror.deep_sync_timer.time",
+        SimpleNamespace(time=lambda: NOW),
+    )
+    def test_timer_elapsed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             with open(
                 os.path.join(tmp_dir, CONTROL_FILE_NAME), "w", encoding="locale"
@@ -89,8 +92,11 @@ class TestDeepSyncTimerIntegration:
             )
             assert timer.should_run is True
 
-    @patch("time.time", return_value=NOW)
-    def test_timer_not_elapsed(self, _mock_time: Mock) -> None:
+    @patch(
+        "reconcile.container_registry_mirror.deep_sync_timer.time",
+        SimpleNamespace(time=lambda: NOW),
+    )
+    def test_timer_not_elapsed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             with open(
                 os.path.join(tmp_dir, CONTROL_FILE_NAME), "w", encoding="locale"

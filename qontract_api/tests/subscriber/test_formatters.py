@@ -88,6 +88,36 @@ def test_generic_formatter_delete_event() -> None:
     assert output.startswith("🗑️")
 
 
+def test_generic_formatter_remove_event() -> None:
+    """Test GenericEventFormatter with remove event type."""
+    formatter = GenericEventFormatter()
+    event = Event(
+        source="gitlab-members",
+        type="qontract-api.gitlab-members.remove_member",
+        data={"username": "jsmith"},
+    )
+
+    output = formatter.format(event)
+
+    # Should start with remove emoji (same as delete)
+    assert output.startswith("🗑️")
+
+
+def test_generic_formatter_change_event() -> None:
+    """Test GenericEventFormatter with change event type."""
+    formatter = GenericEventFormatter()
+    event = Event(
+        source="gitlab-members",
+        type="qontract-api.gitlab-members.change_access",
+        data={"username": "jsmith", "access_level": "maintainer"},
+    )
+
+    output = formatter.format(event)
+
+    # Should start with change emoji (same as update)
+    assert output.startswith("🔄")
+
+
 def test_generic_formatter_unknown_event() -> None:
     """Test GenericEventFormatter with unknown event type."""
     formatter = GenericEventFormatter()

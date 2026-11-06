@@ -167,6 +167,7 @@ from reconcile.utils.mr.labels import (
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
     SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
+    change_owner_label,
 )
 from reconcile.utils.oc import (
     OC_Map,
@@ -2383,6 +2384,13 @@ def app_interface_review_queue(ctx: click.Context) -> None:
             if (
                 SELF_SERVICEABLE in labels
                 and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE not in labels
+                # SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE sourced from a role's
+                # change-owners-labels config is bundle-derived, so change-owners
+                # correctly wraps it with the "change-owner/" prefix (see
+                # rebuild_change_owner_labels()) - unlike the unprefixed form set
+                # directly by github-username-sync/ldap-users-api.
+                and change_owner_label(SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE)
+                not in labels
                 and AVS not in labels
                 and not has_error_label
             ):
