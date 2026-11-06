@@ -74,20 +74,35 @@ formality.
 
 Before M1, the shared package defines:
 
+- **A project-owned `Path`/location model.** `change-owners` and promotion
+  rely on path operations - `parent`, `parts`, `is_prefix_of`,
+  `remove_prefix`, selector narrowing, and index-aware sorting - that neither
+  engine's high-level match/pointer API provides directly. This model, not a
+  raw JSON Pointer string, is the canonical location contract: both engines'
+  native path representations are normalized into it (see "Comparison is
+  normalized, not literal" below), and it owns location comparison
+  independently of either engine's representation.
 - **Match fields.** What a `Match` exposes to consumers. The SaaS selector
   (`reconcile/typed_queries/saas_files.py`) reads
   `match.value["cluster"]["name"]` and `match.value["name"]`; the contract
   preserves this shape.
-- **Exception mapping.** The SaaS selector translates `JsonPathParserError` to
-  `ParameterError`; `status-board` (`reconcile/typed_queries/status_board.py`)
-  currently evaluates `jsonpath-ng` directly with no translation. The package
-  defines one exception mapping both consumers go through, so migration
-  doesn't leak raw engine exceptions to either, and doesn't change the
-  existing `ParameterError` contract the SaaS selector's callers rely on.
+- **Exception mapping stays at the `reconcile` boundary.**
+  `qontract_utils.jsonpath` exposes its own engine-agnostic parse/evaluation
+  exceptions; it does not produce `ParameterError` itself, since
+  `qontract_utils` has no knowledge of `reconcile`-specific concepts. The SaaS
+  selector (`reconcile/typed_queries/saas_files.py`) translates the package's
+  exception to the `ParameterError` it already raises today;
+  `status-board` (`reconcile/typed_queries/status_board.py`), which currently
+  evaluates `jsonpath-ng` directly with no translation, can adopt the
+  engine-agnostic exception without needing a `ParameterError` mapping of its
+  own.
 - **Empty-result behavior.** What an empty match set returns, consistently
   across both engines.
-- **Update/removal semantics.** How the package applies mutations at a
-  matched location, consistently across both engines.
+- **Update/removal semantics are package-owned, not inherited.**
+  `python-jsonpath`'s pointer/patch primitives are not a drop-in replacement
+  for the current AST-based mutation path. The package defines how it applies
+  mutations at a matched location - including duplicate matches, parent
+  cleanup, and ordering - consistently across both engines.
 
 ## Proposed qontract_utils package
 
@@ -104,12 +119,15 @@ on isolated input copies, without replaying mutations.
 
 **Comparison is normalized, not literal.** `jsonpath-ng` exposes structured
 `Fields`/`Index` path nodes; `python-jsonpath` exposes JSON Pointers. Both are
-normalized to canonical JSON Pointers (with correct escaping) before
-comparison, so equivalent matches aren't flagged as differences. Duplicate
-matches are preserved; match order is compared only where the consumer
-contract requires an ordering guarantee. Some matches have no valid JSON
-Pointer location at all - for example `$.name[0]` on `{"name":"api"}` selects
-a character inside a string, which a JSON Pointer cannot address. A
+normalized into the package's own `Path`/location model (see "API and
+exception contract" above) before comparison, so equivalent matches aren't
+flagged as differences regardless of which engine's native representation
+produced them; a JSON Pointer with correct escaping is one supported
+serialization of that model, not the contract itself. Duplicate matches are
+preserved; match order is compared only where the consumer contract requires
+an ordering guarantee. Some matches have no valid location at all - for
+example `$.name[0]` on `{"name":"api"}` selects a character inside a string,
+which neither a JSON Pointer nor the `Path` model can address. A
 non-addressable location makes the comparison **unavailable**, not equal:
 value/type agreement alone does not establish the two engines selected the
 same place (`$.a[*].x[0]` on `{"a":{"x":"q","other":{"x":["q"]}}}` selects a
@@ -129,8 +147,10 @@ is not migrated to the rewritten syntax until `jsonpath-ng` fallback is no
 longer required for it.
 
 **Migrating a query to the rewritten syntax is a one-way door unless reverted
-explicitly.** No supported `jsonpath-ng` version parses `&&` or `search()`.
-Rolling reconcile code back to an earlier milestone does not revert an
+explicitly.** The pinned `jsonpath-ng==1.8.0` parses neither `&&` nor
+`search()` (`&&` support was added in 1.13.0, but `search()` is not
+implemented by any `jsonpath-ng` release through 1.16.0). Rolling reconcile
+code back to an earlier milestone does not revert an
 already-migrated app-interface query, so a query rollback is only safe if the
 query itself is reverted to `jsonpath-ng`-compatible syntax in the same
 change. If M3 retains `jsonpath-ng` instead of completing the
