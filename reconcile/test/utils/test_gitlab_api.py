@@ -775,6 +775,56 @@ def test_get_directory_contents() -> None:
     )
 
 
+@pytest.mark.parametrize("path", ["dir1", "/dir1/", "dir1/dir2", "", "/"])
+@pytest.mark.parametrize(
+    "nested_path,member_type",
+    [
+        ("nested", tarfile.DIRTYPE),
+        ("nested.yaml", tarfile.DIRTYPE),
+        ("nested/config.yaml", tarfile.REGTYPE),
+        ("nested/README.md", tarfile.REGTYPE),
+    ],
+)
+def test_get_directory_contents_rejects_nested_directories(
+    path: str, nested_path: str, member_type: bytes
+) -> None:
+    project = create_autospec(Project)
+    archive_root = f"prefix/{path.strip('/')}".rstrip("/")
+    tar_bytes = io.BytesIO()
+    with tarfile.open(fileobj=tar_bytes, mode="w:gz") as tar:
+        root = tarfile.TarInfo(archive_root)
+        root.type = tarfile.DIRTYPE
+        tar.addfile(root)
+        member = tarfile.TarInfo(f"{archive_root}/{nested_path}")
+        member.type = member_type
+        tar.addfile(member)
+    project.repository_archive.return_value = tar_bytes.getvalue()
+
+    with pytest.raises(ValueError, match="Nested directory.*is not supported"):
+        GitLabApi.get_directory_contents(
+            project, ref="main", path=path, recursive=False
+        )
+
+
+@pytest.mark.parametrize("path", ["dir1", "/dir1/", "", "/"])
+def test_get_directory_contents_without_recursion(path: str) -> None:
+    project = create_autospec(Project)
+    archive_root = f"prefix/{path.strip('/')}".rstrip("/")
+    tar_bytes = io.BytesIO()
+    with tarfile.open(fileobj=tar_bytes, mode="w:gz") as tar:
+        root = tarfile.TarInfo(archive_root)
+        root.type = tarfile.DIRTYPE
+        tar.addfile(root)
+        member = tarfile.TarInfo(f"{archive_root}/config.yaml")
+        member.size = len(b"kind: ConfigMap")
+        tar.addfile(member, io.BytesIO(b"kind: ConfigMap"))
+    project.repository_archive.return_value = tar_bytes.getvalue()
+
+    assert GitLabApi.get_directory_contents(
+        project, ref="main", path=path, recursive=False
+    ) == {f"{path.strip('/')}/config.yaml".lstrip("/"): b"kind: ConfigMap"}
+
+
 def test_get_file_as_git_cli_interface(
     mocked_gitlab_api: GitLabApi,
     mocked_gl: Mock,
