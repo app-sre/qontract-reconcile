@@ -4,7 +4,7 @@ Date: 2026-11-05
 
 Ticket: <https://redhat.atlassian.net/browse/APPSRE-15715>
 
-Migration plan: [python-jsonpath migration plan](python-jsonpath-migration-plan.md).
+Migration plan: see [jsonpath-migration-proposal.md](jsonpath-migration-proposal.md) (the detailed milestone plan is still in progress, not yet published).
 
 ## Snapshot and scope
 
