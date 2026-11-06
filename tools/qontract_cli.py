@@ -163,12 +163,11 @@ from reconcile.utils.membershipsources.resolver import resolve_role_members
 from reconcile.utils.mr.labels import (
     AVS,
     HOLD,
-    PENDING_SELF_SERVICE_APPROVAL,
+    NOT_SELF_SERVICEABLE,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
     SHOW_IN_REVIEW_QUEUE,
     SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
-    change_owner_label,
 )
 from reconcile.utils.oc import (
     OC_Map,
@@ -2381,27 +2380,29 @@ def app_interface_review_queue(ctx: click.Context) -> None:
             if HOLD in labels:
                 continue
             # SHOW_IN_REVIEW_QUEUE is change-owners' own single verdict on
-            # whether this MR is ready for AppSRE - a fast path that replaces
-            # reasoning about PENDING_SELF_SERVICE_APPROVAL (not-self-serviceable
+            # whether this MR is ready for AppSRE, replacing having to
+            # reason about PENDING_SELF_SERVICE_APPROVAL (not-self-serviceable
             # case) and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE (self-serviceable
-            # case) as two separate mechanisms. The old checks stay underneath,
-            # unchanged, as a transition safety net - change-owners still emits
-            # both old labels alongside the new one - and because repos where
-            # change-owners doesn't run at all never get SHOW_IN_REVIEW_QUEUE,
-            # so they must keep falling through to the old (pre-existing)
-            # behavior rather than being excluded by its absence.
-            if SHOW_IN_REVIEW_QUEUE not in labels:
-                if PENDING_SELF_SERVICE_APPROVAL in labels and not has_error_label:
-                    continue
-                if (
-                    SELF_SERVICEABLE in labels
-                    and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE not in labels
-                    and change_owner_label(SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE)
-                    not in labels
-                    and AVS not in labels
-                    and not has_error_label
-                ):
-                    continue
+            # case) as two separate mechanisms. These two checks stay keyed on
+            # NOT_SELF_SERVICEABLE/SELF_SERVICEABLE (rather than merged into
+            # one) so MRs from repos where change-owners doesn't run at all
+            # (neither label present) keep falling through unaffected.
+            if (
+                NOT_SELF_SERVICEABLE in labels
+                and SHOW_IN_REVIEW_QUEUE not in labels
+                and not has_error_label
+            ):
+                continue
+            if (
+                SELF_SERVICEABLE in labels
+                and SHOW_IN_REVIEW_QUEUE not in labels
+                # bare form, set directly by github-username-sync/ldap-users-api -
+                # a producer unrelated to change-owners' own SHOW_IN_REVIEW_QUEUE.
+                and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE not in labels
+                and AVS not in labels
+                and not has_error_label
+            ):
+                continue
 
             pipelines = gl.get_merge_request_pipelines(mr)
             pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]
