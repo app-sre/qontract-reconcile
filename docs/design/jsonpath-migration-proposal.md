@@ -109,9 +109,15 @@ comparison, so equivalent matches aren't flagged as differences. Duplicate
 matches are preserved; match order is compared only where the consumer
 contract requires an ordering guarantee. Some matches have no valid JSON
 Pointer location at all - for example `$.name[0]` on `{"name":"api"}` selects
-a character inside a string, which a JSON Pointer cannot address. These are
-compared by value and type only, without a location comparison, and M1
-preserves the `jsonpath-ng` result for them like any other match.
+a character inside a string, which a JSON Pointer cannot address. A
+non-addressable location makes the comparison **unavailable**, not equal:
+value/type agreement alone does not establish the two engines selected the
+same place (`$.a[*].x[0]` on `{"a":{"x":"q","other":{"x":["q"]}}}` selects a
+character inside `a.x` under `jsonpath-ng` but `a.other.x[0]` under
+`python-jsonpath` - both are `"q"`, but they are different matches). An
+unavailable comparison is logged as such, never auto-approved as a
+non-difference, and M1 preserves the `jsonpath-ng` result for it like any
+other match.
 
 **Comparison is scoped to the dialect intersection.** Some existing queries
 must be rewritten to `&&`/`search()` syntax for `python-jsonpath` (see
