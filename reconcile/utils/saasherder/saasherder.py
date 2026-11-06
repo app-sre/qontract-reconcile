@@ -101,6 +101,7 @@ TARGET_CONFIG_HASH = "target_config_hash"
 TEMPLATE_API_VERSION = "template.openshift.io/v1"
 UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 56
 REQUEST_TIMEOUT = 60
+DIRECTORY_MANIFEST_EXTENSIONS = (".yaml", ".yml", ".json")
 
 
 def is_commit_sha(ref: str) -> bool:
@@ -786,6 +787,7 @@ class SaasHerder:
     def _get_directory_contents(
         self, url: str, path: str, ref: str, github: Github
     ) -> tuple[list[Any], str]:
+        """Load YAML and JSON manifests, ignoring other directory entries."""
         commit_sha = self._get_commit_sha(url, ref, github)
         resources: list[Any] = []
         repo_info = VCS.parse_repo_url(url)
@@ -796,6 +798,10 @@ class SaasHerder:
                 if isinstance(directory, ContentFile):
                     raise TypeError(f"Path {path} and sha {commit_sha} is a file!")
                 for f in directory:
+                    if f.type != "file" or not f.name.endswith(
+                        DIRECTORY_MANIFEST_EXTENSIONS
+                    ):
+                        continue
                     file_path = os.path.join(path, f.name)
                     raw_file = GithubRepositoryApi.get_raw_file(
                         repo=repo,
@@ -814,7 +820,9 @@ class SaasHerder:
                     ref=commit_sha,
                     path=path,
                 )
-                for content in dir_contents.values():
+                for file_path, content in dir_contents.items():
+                    if not file_path.endswith(DIRECTORY_MANIFEST_EXTENSIONS):
+                        continue
                     result_resources = yaml.safe_load_all(content)
                     resources.extend(result_resources)
             case _:
