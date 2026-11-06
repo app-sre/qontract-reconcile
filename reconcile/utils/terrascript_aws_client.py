@@ -484,8 +484,6 @@ class TerrascriptClient:
             self.secret_reader = SecretReader(settings=settings)
         self.configs: dict[str, dict] = {}
         self.default_tags = default_tags or {"app": "app-sre-infra"}
-        # Deduplicates EBS limit skip messages within one populate run.
-        self._reported_elasticsearch_ebs_limit_skips: set[tuple[str, ...]] = set()
         self.populate_configs(filtered_accounts)
         self.versions: dict[str, str] = {
             a["name"]: a["providerVersion"] for a in filtered_accounts
@@ -1662,7 +1660,6 @@ class TerrascriptClient:
         :param ocm_map:
         :param aws_api: shared AWS client used for best-effort lookups
         """
-        self._reported_elasticsearch_ebs_limit_skips.clear()
         for specs in self.account_resource_specs.values():
             for spec in specs:
                 self.populate_tf_resources(spec, ocm_map=ocm_map, aws_api=aws_api)
@@ -1731,13 +1728,6 @@ class TerrascriptClient:
             spec.provisioner_name, region, engine_version, instance_type
         )
 
-    def _report_opensearch_ebs_skip(self, key: tuple[str, ...]) -> bool:
-        """Return True the first time a skip reason is seen in this run."""
-        if key in self._reported_elasticsearch_ebs_limit_skips:
-            return False
-        self._reported_elasticsearch_ebs_limit_skips.add(key)
-        return True
-
     def _warn_elasticsearch_ebs_limit(
         self,
         spec: ExternalResourceSpec,
@@ -1763,19 +1753,11 @@ class TerrascriptClient:
             return
 
         if not engine_version:
-            engine_skip_key = (
-                "missing-engine-version",
-                spec.provisioner_name,
-                region,
-                str(instance_type),
-                str(ebs_values.get("volume_type", "gp2")),
+            logging.debug(
+                "Skipping OpenSearch EBS limit check for %s: engine version is not "
+                "configured",
+                spec.identifier,
             )
-            if self._report_opensearch_ebs_skip(engine_skip_key):
-                logging.info(
-                    "Skipping OpenSearch EBS limit check for %s: engine version is "
-                    "not configured",
-                    spec.identifier,
-                )
             return
 
         if not isinstance(instance_type, str):
@@ -1800,22 +1782,13 @@ class TerrascriptClient:
         volume_type = ebs_values.get("volume_type", "gp2")
         maximum_volume_size = self._get_opensearch_ebs_volume_limit(limits, volume_type)
         if maximum_volume_size is None:
-            limit_skip_key = (
-                "missing-limit",
-                spec.provisioner_name,
-                region,
-                engine_version,
+            logging.debug(
+                "Skipping OpenSearch EBS limit check for %s: AWS did not return a "
+                "maximum for volume type %s on instance %s",
+                spec.identifier,
+                volume_type,
                 api_instance_type,
-                str(volume_type),
             )
-            if self._report_opensearch_ebs_skip(limit_skip_key):
-                logging.info(
-                    "Skipping OpenSearch EBS limit check for %s: AWS did not return "
-                    "a maximum for volume type %s on instance %s",
-                    spec.identifier,
-                    volume_type,
-                    api_instance_type,
-                )
             return
 
         requested_volume_size = self._to_finite_float(volume_size)

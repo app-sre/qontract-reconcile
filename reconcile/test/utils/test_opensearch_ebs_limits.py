@@ -13,10 +13,10 @@ if TYPE_CHECKING:
     from pytest_mock import MockerFixture
 
 
-def build_spec(identifier: str = "test-domain") -> ExternalResourceSpec:
+def build_spec() -> ExternalResourceSpec:
     provisioner = {"name": "some-account"}
     resource: dict[str, Any] = {
-        "identifier": identifier,
+        "identifier": "test-domain",
         "provider": "elasticsearch",
     }
     namespace = {
@@ -273,7 +273,7 @@ def test_skips_missing_limit_and_logs(
     mocker: MockerFixture,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    caplog.set_level("INFO")
+    caplog.set_level("DEBUG")
     spec = build_spec()
     mocker.patch.object(terrascript_client, "init_values", return_value=build_values())
     aws_api = mocker.create_autospec(AWSApi, instance=True)
@@ -321,7 +321,7 @@ def test_skips_unknown_volume_type(
     mocker: MockerFixture,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    caplog.set_level("INFO")
+    caplog.set_level("DEBUG")
     spec = build_spec()
     mocker.patch.object(
         terrascript_client,
@@ -343,7 +343,7 @@ def test_skips_missing_engine_version(
     mocker: MockerFixture,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    caplog.set_level("INFO")
+    caplog.set_level("DEBUG")
     spec = build_spec()
     values = build_values()
     values["elasticsearch_version"] = None
@@ -388,65 +388,3 @@ def test_does_not_change_generated_resource(
     assert any(
         resource is populate_mocks.es_resource for resource in generated_resources
     )
-
-
-def test_dedups_skip_message_for_shared_key(
-    terrascript_client: TerrascriptClient,
-    populate_mocks: PopulateMocks,
-    mocker: MockerFixture,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    caplog.set_level("INFO")
-    mocker.patch.object(terrascript_client, "init_values", return_value=build_values())
-    aws_api = mocker.create_autospec(AWSApi, instance=True)
-    aws_api.get_opensearch_instance_type_limits.return_value = {}
-
-    terrascript_client.populate_tf_resource_elasticsearch(
-        build_spec("test-domain"), aws_api=aws_api
-    )
-    terrascript_client.populate_tf_resource_elasticsearch(
-        build_spec("test-domain-2"), aws_api=aws_api
-    )
-
-    assert caplog.text.count("AWS did not return a maximum") == 1
-
-
-def test_logs_skip_message_for_distinct_keys(
-    terrascript_client: TerrascriptClient,
-    populate_mocks: PopulateMocks,
-    mocker: MockerFixture,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    caplog.set_level("INFO")
-    other_region_values = build_values()
-    other_region_values["region"] = "us-west-2"
-    mocker.patch.object(
-        terrascript_client,
-        "init_values",
-        side_effect=[build_values(), other_region_values],
-    )
-    aws_api = mocker.create_autospec(AWSApi, instance=True)
-    aws_api.get_opensearch_instance_type_limits.return_value = {}
-
-    terrascript_client.populate_tf_resource_elasticsearch(
-        build_spec("test-domain"), aws_api=aws_api
-    )
-    terrascript_client.populate_tf_resource_elasticsearch(
-        build_spec("test-domain-2"), aws_api=aws_api
-    )
-
-    assert caplog.text.count("AWS did not return a maximum") == 2
-
-
-def test_populate_resources_resets_reported_skips(
-    terrascript_client: TerrascriptClient,
-    mocker: MockerFixture,
-) -> None:
-    terrascript_client.account_resource_specs = {}
-    terrascript_client._reported_elasticsearch_ebs_limit_skips.add(("stale",))
-    mocker.patch.object(terrascript_client, "populate_tf_resources")
-    aws_api = mocker.create_autospec(AWSApi, instance=True)
-
-    terrascript_client.populate_resources(aws_api=aws_api)
-
-    assert terrascript_client._reported_elasticsearch_ebs_limit_skips == set()
