@@ -7,17 +7,21 @@ Ticket: <https://redhat.atlassian.net/browse/APPSRE-15715>
 Status: Research and proposed migration path; implementation not approved.
 
 **Decision update:** The user selected `python-jsonpath`, accepting the measured
-millisecond-scale overhead in exchange for its dependency-free API. The
-[migration plan](python-jsonpath-migration-plan.md) and
-[complete app-interface inventory](app-interface-jsonpath-inventory.md) supersede
-the initial recommendation below. Subsequent code-path tracing also narrowed the
-tenant-exposure concern: ordinary tenant SaaS templates do not receive our Jinja
-filters. Audit the shared app-interface rendering surfaces rather than assuming
-an unknown external Jinja ecosystem requires indefinite legacy filters. The
-remaining sections preserve the original research history. The current rollout
-is explicitly **M1: `jsonpath-ng` default plus Python syntax and result-comparison diagnostics (CloudWatch only),
-M2: Python default with `jsonpath-ng` fallback after an observation period, M3: remove `jsonpath-ng`**.
-The milestone plan supersedes the original paired-cutover/deprecation sequence.
+millisecond-scale overhead in exchange for its dependency-free API. The proposed
+approach in [jsonpath-migration-proposal.md](jsonpath-migration-proposal.md) and
+the [complete app-interface inventory](app-interface-jsonpath-inventory.md)
+supersede the initial recommendation below. A standalone, more detailed
+milestone plan is still in progress and not yet published. Subsequent
+code-path tracing also narrowed the tenant-exposure concern: ordinary tenant
+SaaS templates do not receive our Jinja filters. Audit the shared
+app-interface rendering surfaces rather than assuming an unknown external
+Jinja ecosystem requires indefinite legacy filters. The remaining sections
+preserve the original research history. The current rollout is explicitly
+**M1: `jsonpath-ng` default plus Python syntax and result-comparison
+diagnostics (CloudWatch only), M2: Python default with `jsonpath-ng` fallback
+after an observation period, M3: resolve the engine decision** (see
+`jsonpath-migration-proposal.md`). The milestone plan supersedes the original
+paired-cutover/deprecation sequence.
 
 ## Summary
 
