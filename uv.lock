@@ -2361,16 +2361,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pypd"
-version = "1.1.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-    { name = "six" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/39/7c/dc2e5678d4d85f08b5343a21eb4aaa0ec1826ca631c8a92344f1a0463e47/pypd-1.1.0.tar.gz", hash = "sha256:e955f7bd2adb059e576308ef11e437bdd8d1ddca14b599a9250f6f78a6c70694", size = 21741, upload-time = "2018-03-26T23:12:27.607Z" }
-
-[[package]]
 name = "pytest"
 version = "9.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2717,7 +2707,6 @@ dependencies = [
     { name = "pygithub" },
     { name = "pyjwt" },
     { name = "pyopenssl" },
-    { name = "pypd" },
     { name = "python-gitlab" },
     { name = "qontract-api-client" },
     { name = "qontract-utils" },
@@ -2803,7 +2792,6 @@ requires-dist = [
     { name = "pygithub", specifier = "==1.59.1" },
     { name = "pyjwt", specifier = "~=2.7" },
     { name = "pyopenssl", specifier = "~=26.2" },
-    { name = "pypd", specifier = ">=1.1.0,<1.2.0" },
     { name = "python-gitlab", specifier = "==6.5.0" },
     { name = "qontract-api-client", editable = "qontract_api_client" },
     { name = "qontract-utils", editable = "qontract_utils" },

@@ -197,7 +197,7 @@ so changes to source groups/providers participate in the comparison. Existing
 snapshots that reuse `fetch_desired_state()` with cached LDAP responses, such as
 `github-org`, remain valid. Wet runs execute without the comparison-bundle gate.
 
-Supported consumers are `gitlab-members`, `acs-rbac`, `openshift-groups`,
+Supported consumers are `gitlab-members-api`, `acs-rbac`, `openshift-groups`,
 `ocm-groups-api`, `github-org`, `github-owners-api`, and `change_owners`, in
 addition to `openshift-rolebindings`, `openshift-clusterrolebindings`,
 `openshift-users`, `sendgrid-teammates`, `automated-actions-config`,
