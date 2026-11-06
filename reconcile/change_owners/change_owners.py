@@ -46,9 +46,10 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import (
     HOLD,
     NOT_SELF_SERVICEABLE,
-    PENDING_SELF_SERVICE_APPROVAL,
     RESTRICTED,
     SELF_SERVICEABLE,
+    SHOW_IN_REVIEW_QUEUE,
+    SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
     change_owner_label,
     prioritized_approval_label,
 )
@@ -482,6 +483,32 @@ def is_self_service_portion_approved(
     )
 
 
+def should_show_in_review_queue(
+    self_serviceable: bool,
+    self_service_portion_approved: bool,
+    role_wants_review_queue_visibility: bool,
+) -> bool:
+    """
+    True if this MR should be visible in AppSRE's review queue right now -
+    a single answer to "is this MR ready for AppSRE?", replacing having to
+    reason about PENDING_SELF_SERVICE_APPROVAL (a negative gate, for the
+    not-self-serviceable case) and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE (a
+    positive override, for the self-serviceable case) as two separate
+    mechanisms.
+
+    Requires the self-service-approvable part of the MR to have landed
+    (self_service_portion_approved), and either there's still a part only
+    AppSRE can approve (not self_serviceable), or a role explicitly flagged
+    AppSRE as a potential approver on it despite it being fully
+    self-serviceable (role_wants_review_queue_visibility - sourced from
+    SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE in a covering role's
+    change-owners-labels config, e.g. data/teams/app-sre/roles/app-sre.yml).
+    """
+    return self_service_portion_approved and (
+        not self_serviceable or role_wants_review_queue_visibility
+    )
+
+
 def is_coverage_admitted(
     coverage: ChangeTypeContext, mr_author: str, ok_to_test_approvers: set[str]
 ) -> bool:
@@ -661,14 +688,23 @@ def run(
             #
 
             # base labels
+            role_change_owner_labels = {
+                label for bc in changes for label in bc.change_owner_labels
+            }
+            role_wants_review_queue_visibility = (
+                SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE in role_change_owner_labels
+            )
+            show_in_review_queue = should_show_in_review_queue(
+                self_serviceable,
+                self_service_portion_approved,
+                role_wants_review_queue_visibility,
+            )
             conditional_labels = {
                 SELF_SERVICEABLE: self_serviceable,
                 NOT_SELF_SERVICEABLE: not self_serviceable,
                 HOLD: hold,
                 RESTRICTED: not change_admitted,
-                PENDING_SELF_SERVICE_APPROVAL: (
-                    not self_serviceable and not self_service_portion_approved
-                ),
+                SHOW_IN_REVIEW_QUEUE: show_in_review_queue,
             }
 
             # priority labels
@@ -685,10 +721,14 @@ def run(
                 dry_run=False,
             )
 
-            # change-owner labels
+            # change-owner labels - SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE is
+            # excluded here: it's now fully superseded by the direct
+            # SHOW_IN_REVIEW_QUEUE label above, and leaving it out lets
+            # rebuild_change_owner_labels()'s strip-and-rebuild step clean up
+            # the stale change-owner/-prefixed form on each MR's next run.
             labels = rebuild_change_owner_labels(
                 labels,
-                (label for bc in changes for label in bc.change_owner_labels),
+                role_change_owner_labels - {SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE},
             )
 
             if mr_management_enabled:
@@ -699,7 +739,7 @@ def run(
                 # their condition is no longer true, because other
                 # integrations react to them, e.g. gitlab-housekeeping
                 # rejects direct lgtm labels on self-serviceable MRs, and
-                # the review queue skips MRs with PENDING_SELF_SERVICE_APPROVAL.
+                # the review queue skips MRs without SHOW_IN_REVIEW_QUEUE.
                 # Check the condition directly against the MR's actual
                 # current labels, not the locally computed `labels` set -
                 # that set already reflects the desired (post-removal)
@@ -709,9 +749,10 @@ def run(
                 if not self_serviceable and SELF_SERVICEABLE in merge_request.labels:
                     gl.remove_label(merge_request, SELF_SERVICEABLE)
                 if (
-                    self_serviceable or self_service_portion_approved
-                ) and PENDING_SELF_SERVICE_APPROVAL in merge_request.labels:
-                    gl.remove_label(merge_request, PENDING_SELF_SERVICE_APPROVAL)
+                    not show_in_review_queue
+                    and SHOW_IN_REVIEW_QUEUE in merge_request.labels
+                ):
+                    gl.remove_label(merge_request, SHOW_IN_REVIEW_QUEUE)
 
             if not change_admitted:
                 raise NotAdmittedError("Change not admitted")

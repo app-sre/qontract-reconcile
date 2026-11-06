@@ -12,12 +12,12 @@ from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheSta
 from reconcile.utils.mr.labels import (
     HOLD,
     LGTM,
-    PENDING_SELF_SERVICE_APPROVAL,
+    NOT_SELF_SERVICEABLE,
     PIPELINE_ERROR,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
+    SHOW_IN_REVIEW_QUEUE,
     SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
-    change_owner_label,
 )
 from tools import qontract_cli
 
@@ -627,25 +627,15 @@ def test_review_queue_includes_self_serviceable_mr_with_pipeline_error(
     assert "MR 4" in result.output
 
 
-def test_review_queue_includes_self_serviceable_mr_with_change_owner_prefixed_show_label(
+def test_review_queue_includes_self_serviceable_mr_with_show_self_serviceable_bare_label(
     mock_review_queue_gl: Mock,
 ) -> None:
-    # Regression test for APPSRE-15716: when SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE is
-    # sourced from a role's change-owners-labels config (e.g.
-    # data/teams/app-sre/roles/app-sre.yml), change-owners correctly wraps it with the
-    # "change-owner/" prefix via rebuild_change_owner_labels(), since it's derived from
-    # the current bundle state and must stay subject to change-owners' strip-and-rebuild
-    # cycle. The review queue must recognize that prefixed form too, not just the
-    # unprefixed one set directly by github-username-sync/ldap-users-api.
+    # SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE here is the bare form, set
+    # directly by github-username-sync/ldap-users-api - a producer unrelated
+    # to change-owners' own SHOW_IN_REVIEW_QUEUE, still recognized on its own.
     mock_review_queue_gl.is_last_action_by_team.return_value = False
     mock_review_queue_gl.get_merge_requests.return_value = [
-        _mock_mr(
-            7,
-            [
-                SELF_SERVICEABLE,
-                change_owner_label(SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE),
-            ],
-        )
+        _mock_mr(7, [SELF_SERVICEABLE, SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE])
     ]
     mock_review_queue_gl.get_merge_request_pipelines.return_value = [
         Mock(status=PipelineStatus.SUCCESS)
@@ -659,6 +649,68 @@ def test_review_queue_includes_self_serviceable_mr_with_change_owner_prefixed_sh
     )
     assert result.exit_code == 0
     assert "MR 7" in result.output
+
+
+def test_review_queue_includes_self_serviceable_mr_with_show_in_review_queue_label(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mock_review_queue_gl.is_last_action_by_team.return_value = False
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(9, [SELF_SERVICEABLE, SHOW_IN_REVIEW_QUEUE])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.SUCCESS)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 9" in result.output
+
+
+def test_review_queue_includes_not_self_serviceable_mr_with_show_in_review_queue_label(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mock_review_queue_gl.is_last_action_by_team.return_value = False
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(10, [NOT_SELF_SERVICEABLE, SHOW_IN_REVIEW_QUEUE])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.SUCCESS)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 10" in result.output
+
+
+def test_review_queue_excludes_self_serviceable_mr_without_show_in_review_queue_label(
+    mock_review_queue_gl: Mock,
+) -> None:
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(11, [SELF_SERVICEABLE])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.SUCCESS)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 11" not in result.output
 
 
 def test_review_queue_includes_saas_file_update_mr_with_pipeline_error(
@@ -708,7 +760,7 @@ def test_review_queue_includes_mr_when_skipped_pipeline_precedes_success(
     but has a successful CI pipeline behind it must still appear in the
     review queue — the skipped pipeline is not a real CI result."""
     mock_review_queue_gl.get_merge_requests.return_value = [
-        _mock_mr(8, ["not-self-serviceable"])
+        _mock_mr(8, [NOT_SELF_SERVICEABLE, SHOW_IN_REVIEW_QUEUE])
     ]
     mock_review_queue_gl.get_merge_request_pipelines.return_value = [
         Mock(status=PipelineStatus.SKIPPED),
@@ -749,11 +801,11 @@ def test_review_queue_includes_bot_authored_self_serviceable_mr_with_pipeline_er
     assert "MR 7" in result.output
 
 
-def test_review_queue_excludes_pending_self_service_approval_mr_without_error(
+def test_review_queue_excludes_not_self_serviceable_mr_without_show_in_review_queue(
     mock_review_queue_gl: Mock,
 ) -> None:
     mock_review_queue_gl.get_merge_requests.return_value = [
-        _mock_mr(14, [PENDING_SELF_SERVICE_APPROVAL])
+        _mock_mr(14, [NOT_SELF_SERVICEABLE])
     ]
 
     runner = CliRunner()
@@ -766,11 +818,11 @@ def test_review_queue_excludes_pending_self_service_approval_mr_without_error(
     assert "MR 14" not in result.output
 
 
-def test_review_queue_includes_pending_self_service_approval_mr_with_pipeline_error(
+def test_review_queue_includes_not_self_serviceable_mr_with_pipeline_error(
     mock_review_queue_gl: Mock,
 ) -> None:
     mock_review_queue_gl.get_merge_requests.return_value = [
-        _mock_mr(15, [LGTM, PIPELINE_ERROR, PENDING_SELF_SERVICE_APPROVAL])
+        _mock_mr(15, [LGTM, PIPELINE_ERROR, NOT_SELF_SERVICEABLE])
     ]
     mock_review_queue_gl.get_merge_request_pipelines.return_value = [
         Mock(status=PipelineStatus.FAILED)

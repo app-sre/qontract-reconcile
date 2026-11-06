@@ -16,14 +16,15 @@ SELF_SERVICEABLE = "self-serviceable"
 RESTRICTED = "restricted"
 NOT_SELF_SERVICEABLE = "not-self-serviceable"
 ONBOARDING = "onboarding"
-# Applied to a not-self-serviceable MR whose self-serviceable changes have not
-# all been approved yet. Keeps it out of the AppSRE review queue until the
-# tenant's own approvals land, so AppSRE only sees MRs that are actually ready
-# for their review. Deliberately NOT a change_owner_label(): change-owners'
-# labeling step strips every "change-owner/"-prefixed label and only re-adds
-# the ones sourced from bc.change_owner_labels, which would silently drop
-# this one before it's ever saved to the MR.
-PENDING_SELF_SERVICE_APPROVAL = "pending-self-service-approval"
+# Set directly by change-owners whenever this MR should be visible in AppSRE's
+# review queue - a single answer to "is this MR ready for AppSRE to see?",
+# for both the not-self-serviceable case (visible once its self-service
+# portion is approved) and the self-serviceable case (visible once approved
+# and a role flagged it via SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE below). A
+# direct conditional label like SELF_SERVICEABLE/HOLD/RESTRICTED, not a
+# change_owner_label(), so it has one lifecycle and isn't subject to the
+# change-owner/ prefix strip-and-rebuild dance that label has to work around.
+SHOW_IN_REVIEW_QUEUE = "show-in-review-queue"
 
 
 def prioritized_approval_label(priority: str) -> str:
@@ -35,11 +36,12 @@ def change_owner_label(label: str) -> str:
 
 
 # Applied by github-username-sync / ldap-users-api to keep an MR visible in
-# AppSRE's review queue when auto-merge is suppressed. Deliberately NOT a
-# change_owner_label(), for the same reason as PENDING_SELF_SERVICE_APPROVAL
-# above: change-owners' labeling step strips every "change-owner/"-prefixed
-# label and only re-adds the ones sourced from bc.change_owner_labels, which
-# would silently drop this one on its very next run.
+# AppSRE's review queue when auto-merge is suppressed - unrelated to
+# change-owners' own SHOW_IN_REVIEW_QUEUE above. Deliberately NOT a
+# change_owner_label(): change-owners' labeling step strips every
+# "change-owner/"-prefixed label and only re-adds the ones sourced from
+# bc.change_owner_labels, which would silently drop this one on its very
+# next run.
 SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE = "show-self-serviceable-in-review-queue"
 # Optimistic Multi-Merge group labels — must be pre-created in the GitLab
 # project with appropriate color/description before enabling the feature.

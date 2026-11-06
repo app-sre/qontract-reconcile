@@ -163,11 +163,11 @@ from reconcile.utils.membershipsources.resolver import resolve_role_members
 from reconcile.utils.mr.labels import (
     AVS,
     HOLD,
-    PENDING_SELF_SERVICE_APPROVAL,
+    NOT_SELF_SERVICEABLE,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
+    SHOW_IN_REVIEW_QUEUE,
     SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
-    change_owner_label,
 )
 from reconcile.utils.oc import (
     OC_Map,
@@ -2379,18 +2379,26 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 continue
             if HOLD in labels:
                 continue
-            if PENDING_SELF_SERVICE_APPROVAL in labels and not has_error_label:
+            # SHOW_IN_REVIEW_QUEUE is change-owners' own single verdict on
+            # whether this MR is ready for AppSRE, replacing having to
+            # reason about PENDING_SELF_SERVICE_APPROVAL (not-self-serviceable
+            # case) and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE (self-serviceable
+            # case) as two separate mechanisms. These two checks stay keyed on
+            # NOT_SELF_SERVICEABLE/SELF_SERVICEABLE (rather than merged into
+            # one) so MRs from repos where change-owners doesn't run at all
+            # (neither label present) keep falling through unaffected.
+            if (
+                NOT_SELF_SERVICEABLE in labels
+                and SHOW_IN_REVIEW_QUEUE not in labels
+                and not has_error_label
+            ):
                 continue
             if (
                 SELF_SERVICEABLE in labels
+                and SHOW_IN_REVIEW_QUEUE not in labels
+                # bare form, set directly by github-username-sync/ldap-users-api -
+                # a producer unrelated to change-owners' own SHOW_IN_REVIEW_QUEUE.
                 and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE not in labels
-                # SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE sourced from a role's
-                # change-owners-labels config is bundle-derived, so change-owners
-                # correctly wraps it with the "change-owner/" prefix (see
-                # rebuild_change_owner_labels()) - unlike the unprefixed form set
-                # directly by github-username-sync/ldap-users-api.
-                and change_owner_label(SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE)
-                not in labels
                 and AVS not in labels
                 and not has_error_label
             ):
