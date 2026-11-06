@@ -166,6 +166,7 @@ from reconcile.utils.mr.labels import (
     PENDING_SELF_SERVICE_APPROVAL,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
+    SHOW_IN_REVIEW_QUEUE,
     SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
     change_owner_label,
 )
@@ -2379,22 +2380,28 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 continue
             if HOLD in labels:
                 continue
-            if PENDING_SELF_SERVICE_APPROVAL in labels and not has_error_label:
-                continue
-            if (
-                SELF_SERVICEABLE in labels
-                and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE not in labels
-                # SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE sourced from a role's
-                # change-owners-labels config is bundle-derived, so change-owners
-                # correctly wraps it with the "change-owner/" prefix (see
-                # rebuild_change_owner_labels()) - unlike the unprefixed form set
-                # directly by github-username-sync/ldap-users-api.
-                and change_owner_label(SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE)
-                not in labels
-                and AVS not in labels
-                and not has_error_label
-            ):
-                continue
+            # SHOW_IN_REVIEW_QUEUE is change-owners' own single verdict on
+            # whether this MR is ready for AppSRE - a fast path that replaces
+            # reasoning about PENDING_SELF_SERVICE_APPROVAL (not-self-serviceable
+            # case) and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE (self-serviceable
+            # case) as two separate mechanisms. The old checks stay underneath,
+            # unchanged, as a transition safety net - change-owners still emits
+            # both old labels alongside the new one - and because repos where
+            # change-owners doesn't run at all never get SHOW_IN_REVIEW_QUEUE,
+            # so they must keep falling through to the old (pre-existing)
+            # behavior rather than being excluded by its absence.
+            if SHOW_IN_REVIEW_QUEUE not in labels:
+                if PENDING_SELF_SERVICE_APPROVAL in labels and not has_error_label:
+                    continue
+                if (
+                    SELF_SERVICEABLE in labels
+                    and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE not in labels
+                    and change_owner_label(SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE)
+                    not in labels
+                    and AVS not in labels
+                    and not has_error_label
+                ):
+                    continue
 
             pipelines = gl.get_merge_request_pipelines(mr)
             pipelines = [p for p in pipelines if p.status != PipelineStatus.SKIPPED]

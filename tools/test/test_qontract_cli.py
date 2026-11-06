@@ -12,10 +12,12 @@ from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheSta
 from reconcile.utils.mr.labels import (
     HOLD,
     LGTM,
+    NOT_SELF_SERVICEABLE,
     PENDING_SELF_SERVICE_APPROVAL,
     PIPELINE_ERROR,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
+    SHOW_IN_REVIEW_QUEUE,
     SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
     change_owner_label,
 )
@@ -659,6 +661,76 @@ def test_review_queue_includes_self_serviceable_mr_with_change_owner_prefixed_sh
     )
     assert result.exit_code == 0
     assert "MR 7" in result.output
+
+
+def test_review_queue_includes_self_serviceable_mr_with_show_in_review_queue_label(
+    mock_review_queue_gl: Mock,
+) -> None:
+    # SHOW_IN_REVIEW_QUEUE is change-owners' unified verdict - it alone must
+    # be enough, without either of the old SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE
+    # forms also being present.
+    mock_review_queue_gl.is_last_action_by_team.return_value = False
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(9, [SELF_SERVICEABLE, SHOW_IN_REVIEW_QUEUE])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.SUCCESS)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 9" in result.output
+
+
+def test_review_queue_includes_not_self_serviceable_mr_with_show_in_review_queue_label(
+    mock_review_queue_gl: Mock,
+) -> None:
+    # SHOW_IN_REVIEW_QUEUE short-circuits the old PENDING_SELF_SERVICE_APPROVAL
+    # check too, for the not-self-serviceable case.
+    mock_review_queue_gl.is_last_action_by_team.return_value = False
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(10, [NOT_SELF_SERVICEABLE, SHOW_IN_REVIEW_QUEUE])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.SUCCESS)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 10" in result.output
+
+
+def test_review_queue_excludes_self_serviceable_mr_without_show_in_review_queue_label(
+    mock_review_queue_gl: Mock,
+) -> None:
+    # absence of SHOW_IN_REVIEW_QUEUE falls back to the old checks, which
+    # still exclude a self-serviceable MR with none of the old show labels -
+    # the transition safety net, not a behavior change.
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(11, [SELF_SERVICEABLE])
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.SUCCESS)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 11" not in result.output
 
 
 def test_review_queue_includes_saas_file_update_mr_with_pipeline_error(

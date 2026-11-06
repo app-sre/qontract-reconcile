@@ -10,6 +10,7 @@ from reconcile.change_owners.bundle import (
 from reconcile.change_owners.change_owners import (
     manage_conditional_label,
     rebuild_change_owner_labels,
+    should_show_in_review_queue,
 )
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
@@ -98,6 +99,53 @@ def test_rebuild_change_owner_labels_preserves_show_self_serviceable_in_review_q
         current_labels={SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE, "change-owner/stale"},
         change_owner_labels=[],
     ) == {SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE}
+
+
+#
+# should_show_in_review_queue tests
+#
+
+
+def test_should_show_in_review_queue_not_self_serviceable_requires_approval() -> None:
+    # not-self-serviceable: visible only once the self-service portion lands,
+    # same as PENDING_SELF_SERVICE_APPROVAL's absence today.
+    assert not should_show_in_review_queue(
+        self_serviceable=False,
+        self_service_portion_approved=False,
+        role_wants_review_queue_visibility=False,
+    )
+    assert should_show_in_review_queue(
+        self_serviceable=False,
+        self_service_portion_approved=True,
+        role_wants_review_queue_visibility=False,
+    )
+
+
+def test_should_show_in_review_queue_self_serviceable_requires_role_flag() -> None:
+    # self-serviceable: visible only when a role flagged it, same as
+    # SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE today.
+    assert not should_show_in_review_queue(
+        self_serviceable=True,
+        self_service_portion_approved=True,
+        role_wants_review_queue_visibility=False,
+    )
+    assert should_show_in_review_queue(
+        self_serviceable=True,
+        self_service_portion_approved=True,
+        role_wants_review_queue_visibility=True,
+    )
+
+
+def test_should_show_in_review_queue_self_serviceable_role_flag_still_waits_for_approval() -> (
+    None
+):
+    # even when a role flagged it, AppSRE shouldn't see it before the
+    # tenant-approvable parts have landed.
+    assert not should_show_in_review_queue(
+        self_serviceable=True,
+        self_service_portion_approved=False,
+        role_wants_review_queue_visibility=True,
+    )
 
 
 #

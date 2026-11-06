@@ -24,6 +24,16 @@ ONBOARDING = "onboarding"
 # the ones sourced from bc.change_owner_labels, which would silently drop
 # this one before it's ever saved to the MR.
 PENDING_SELF_SERVICE_APPROVAL = "pending-self-service-approval"
+# Set directly by change-owners whenever this MR should be visible in AppSRE's
+# review queue - a single answer to "is this MR ready for AppSRE to see?",
+# replacing having to reason about PENDING_SELF_SERVICE_APPROVAL (a negative
+# gate, for the not-self-serviceable case) and
+# SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE (a positive override, for the
+# self-serviceable case) as two separate mechanisms. A direct conditional
+# label like SELF_SERVICEABLE/HOLD/RESTRICTED, not a change_owner_label(), so
+# it has one lifecycle and isn't subject to the change-owner/ prefix
+# strip-and-rebuild dance those other two labels have to work around.
+SHOW_IN_REVIEW_QUEUE = "show-in-review-queue"
 
 
 def prioritized_approval_label(priority: str) -> str:
