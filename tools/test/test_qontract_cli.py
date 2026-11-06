@@ -16,6 +16,8 @@ from reconcile.utils.mr.labels import (
     PIPELINE_ERROR,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
+    SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
+    change_owner_label,
 )
 from tools import qontract_cli
 
@@ -623,6 +625,40 @@ def test_review_queue_includes_self_serviceable_mr_with_pipeline_error(
     )
     assert result.exit_code == 0
     assert "MR 4" in result.output
+
+
+def test_review_queue_includes_self_serviceable_mr_with_change_owner_prefixed_show_label(
+    mock_review_queue_gl: Mock,
+) -> None:
+    # Regression test for APPSRE-15716: when SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE is
+    # sourced from a role's change-owners-labels config (e.g.
+    # data/teams/app-sre/roles/app-sre.yml), change-owners correctly wraps it with the
+    # "change-owner/" prefix via rebuild_change_owner_labels(), since it's derived from
+    # the current bundle state and must stay subject to change-owners' strip-and-rebuild
+    # cycle. The review queue must recognize that prefixed form too, not just the
+    # unprefixed one set directly by github-username-sync/ldap-users-api.
+    mock_review_queue_gl.is_last_action_by_team.return_value = False
+    mock_review_queue_gl.get_merge_requests.return_value = [
+        _mock_mr(
+            7,
+            [
+                SELF_SERVICEABLE,
+                change_owner_label(SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE),
+            ],
+        )
+    ]
+    mock_review_queue_gl.get_merge_request_pipelines.return_value = [
+        Mock(status=PipelineStatus.SUCCESS)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["app-interface-review-queue"],
+        obj={"options": {"output": "table", "sort": True}},
+    )
+    assert result.exit_code == 0
+    assert "MR 7" in result.output
 
 
 def test_review_queue_includes_saas_file_update_mr_with_pipeline_error(
