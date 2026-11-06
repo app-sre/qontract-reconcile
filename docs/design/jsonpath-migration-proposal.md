@@ -250,11 +250,15 @@ unchanged authorization, deployment selection, sharding, and rendered output.
 - After several weeks or months, use the logs to update queries in app-interface
   and reconcile, including generators and fixtures, in small tested batches.
 - Change the package default to `python-jsonpath`. Keep `jsonpath-ng` as a
-  logged fallback for queries not yet migrated to the rewritten syntax and
-  for unapproved result differences; once a query is migrated, `jsonpath-ng`
-  no longer evaluates it (see "Comparison is scoped to the dialect
-  intersection" above). Reconcile continues using the same package interface,
-  without engine-specific settings.
+  logged fallback for queries not yet migrated to the rewritten syntax, for
+  unapproved result differences, and for unavailable comparisons (see
+  "Comparison is normalized, not literal" above) - an unavailable comparison
+  is treated like an unapproved difference, not a silent pass, so
+  `jsonpath-ng`'s result is retained until the behavior is reviewed and
+  approved. Once a query is migrated, `jsonpath-ng` no longer evaluates it
+  (see "Comparison is scoped to the dialect intersection" above). Reconcile
+  continues using the same package interface, without engine-specific
+  settings.
 - Continue fixing observed incompatibilities and checking rarely used queries.
 
 **Complete when:** representative workloads no longer require fallback and all
