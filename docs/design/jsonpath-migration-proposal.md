@@ -107,7 +107,11 @@ on isolated input copies, without replaying mutations.
 normalized to canonical JSON Pointers (with correct escaping) before
 comparison, so equivalent matches aren't flagged as differences. Duplicate
 matches are preserved; match order is compared only where the consumer
-contract requires an ordering guarantee.
+contract requires an ordering guarantee. Some matches have no valid JSON
+Pointer location at all - for example `$.name[0]` on `{"name":"api"}` selects
+a character inside a string, which a JSON Pointer cannot address. These are
+compared by value and type only, without a location comparison, and M1
+preserves the `jsonpath-ng` result for them like any other match.
 
 **Comparison is scoped to the dialect intersection.** Some existing queries
 must be rewritten to `&&`/`search()` syntax for `python-jsonpath` (see
@@ -117,6 +121,17 @@ valid in both dialects; a query that only parses under the rewritten syntax
 is logged as a syntax-only incompatibility, not a comparison failure. A query
 is not migrated to the rewritten syntax until `jsonpath-ng` fallback is no
 longer required for it.
+
+**Migrating a query to the rewritten syntax is a one-way door unless reverted
+explicitly.** No supported `jsonpath-ng` version parses `&&` or `search()`.
+Rolling reconcile code back to an earlier milestone does not revert an
+already-migrated app-interface query, so a query rollback is only safe if the
+query itself is reverted to `jsonpath-ng`-compatible syntax in the same
+change. If M3 retains `jsonpath-ng` instead of completing the
+`python-jsonpath` switch, every query migrated during M2 is reverted to
+`jsonpath-ng`-compatible syntax (or verified against the finally-selected
+`jsonpath-ng` version) before the dual-engine comparison machinery is
+removed.
 
 **Diagnostics never carry secrets.** Several affected consumers evaluate
 expressions against configured secret and cloud-init templates (see
@@ -230,9 +245,12 @@ remaining inventory entries and behavior differences have been reviewed.
   temporary dual-engine comparison from the utility package and dependencies.
   Keep the shared interface and regression tests. Verify reconcile works with
   `python-jsonpath` alone before releasing cleanup.
-- If `jsonpath-ng` is retained instead: remove the dual-engine comparison
-  machinery and the `python-jsonpath` dependency, keeping the shared
-  interface and regression tests unchanged for consumers.
+- If `jsonpath-ng` is retained instead: first revert or verify every query
+  migrated during M2 against the finally-selected `jsonpath-ng` version (see
+  "Migrating a query to the rewritten syntax is a one-way door" above), then
+  remove the dual-engine comparison machinery and the `python-jsonpath`
+  dependency, keeping the shared interface and regression tests unchanged for
+  consumers.
 
 ## Risks and safeguards
 
@@ -242,7 +260,10 @@ remaining inventory entries and behavior differences have been reviewed.
   an empty/nonempty difference needs review. Never replay mutations.
 - Quiet logs do not prove unused configurations are safe. Include rare jobs,
   generated queries, unavailable comparisons, and static inventory before removing `jsonpath-ng`.
-- Keep each milestone independently deployable and retain a compatible rollback.
+- Keep each milestone independently deployable and retain a compatible
+  rollback: per "Migrating a query to the rewritten syntax is a one-way door"
+  above, a reconcile rollback to an earlier milestone must pair with
+  reverting any already-migrated query to `jsonpath-ng`-compatible syntax.
 
 ## Scope
 
