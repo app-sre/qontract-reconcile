@@ -10,7 +10,10 @@ from typing import Self
 
 from pydantic import BaseModel, Field
 
-from qontract_utils.keycloak_api._raw_client import RawClientRepresentation
+from qontract_utils.keycloak_api._raw_client import (
+    RawClientRepresentation,
+    RawProtocolMapperRepresentation,
+)
 
 
 class KeycloakSsoClient(BaseModel, frozen=True):
@@ -25,6 +28,38 @@ class KeycloakSsoClient(BaseModel, frozen=True):
 # key rather than as a top-level JSON array - the one OIDC field ManagedKeycloakClient
 # folds into/out of the wire-level `attributes` map instead of exposing via a plain alias.
 _POST_LOGOUT_REDIRECT_URIS_ATTRIBUTE_KEY = "post.logout.redirect.uris"
+
+
+class ManagedKeycloakProtocolMapper(BaseModel, frozen=True):
+    """Client-owned protocol mapper without Keycloak's generated ID."""
+
+    name: str
+    protocol_mapper: str
+    config: dict[str, str]
+    protocol: str = "openid-connect"
+
+    def with_config(self, config: dict[str, str]) -> Self:
+        """Return a validated copy with the supplied mapper configuration."""
+        return self.model_validate({**self.model_dump(), "config": config})
+
+    def to_raw(self) -> RawProtocolMapperRepresentation:
+        """Serialize a mapper without sending a server-generated ID."""
+        return RawProtocolMapperRepresentation(
+            name=self.name,
+            protocol=self.protocol,
+            protocol_mapper=self.protocol_mapper,
+            config=self.config,
+        )
+
+    @classmethod
+    def from_raw(cls, raw: RawProtocolMapperRepresentation) -> Self:
+        """Read mapper settings while discarding the server-generated ID."""
+        return cls(
+            name=raw.name,
+            protocol=raw.protocol,
+            protocol_mapper=raw.protocol_mapper,
+            config=raw.config,
+        )
 
 
 class ManagedKeycloakClient(BaseModel, frozen=True):
@@ -68,12 +103,24 @@ class ManagedKeycloakClient(BaseModel, frozen=True):
     full_scope_allowed: bool | None = None
     default_client_scopes: list[str] | None = None
     optional_client_scopes: list[str] | None = None
+    protocol_mappers: list[ManagedKeycloakProtocolMapper] | None = None
 
     # Attributes a caller wants to set that aren't one of the named OIDC fields
     # above (e.g. rhidp sso_client's group-filter-regex). Not a "preserve on
     # update" mechanism - PUT merges by field, so this only ever carries what
     # this caller actually wants written.
     extra_attributes: dict[str, str] = Field(default_factory=dict)
+
+    def with_protocol_mappers(
+        self, mappers: list[ManagedKeycloakProtocolMapper] | None
+    ) -> Self:
+        """Return a validated copy; None omits mappers and an empty list clears them."""
+        return self.model_validate(
+            {
+                **self.model_dump(),
+                "protocol_mappers": mappers,
+            }
+        )
 
     def to_raw(self) -> RawClientRepresentation:
         """Fold this typed view into Keycloak's wire-level ClientRepresentation."""
@@ -102,6 +149,11 @@ class ManagedKeycloakClient(BaseModel, frozen=True):
             full_scope_allowed=self.full_scope_allowed,
             default_client_scopes=self.default_client_scopes,
             optional_client_scopes=self.optional_client_scopes,
+            protocol_mappers=(
+                [mapper.to_raw() for mapper in self.protocol_mappers]
+                if self.protocol_mappers is not None
+                else None
+            ),
             attributes=attributes or None,
         )
 
@@ -133,5 +185,13 @@ class ManagedKeycloakClient(BaseModel, frozen=True):
             full_scope_allowed=raw.full_scope_allowed,
             default_client_scopes=raw.default_client_scopes,
             optional_client_scopes=raw.optional_client_scopes,
+            protocol_mappers=(
+                [
+                    ManagedKeycloakProtocolMapper.from_raw(m)
+                    for m in raw.protocol_mappers
+                ]
+                if raw.protocol_mappers is not None
+                else None
+            ),
             extra_attributes=raw_attributes,
         )

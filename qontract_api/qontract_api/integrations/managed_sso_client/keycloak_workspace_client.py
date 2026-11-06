@@ -17,6 +17,9 @@ from qontract_api.logger import get_logger
 if TYPE_CHECKING:
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
+    from qontract_api.integrations.managed_sso_client.domain import (
+        ProtocolMapperDesiredState,
+    )
 
 logger = get_logger(__name__)
 
@@ -68,6 +71,7 @@ class KeycloakWorkspaceClient:
         client_id: str,
         registration_access_token: str,
         data: ManagedKeycloakClient,
+        mapper_declarations: list[ProtocolMapperDesiredState] | None = None,
     ) -> ManagedKeycloakClient:
         """Update a managed SSO client in place, locked per instance+client id.
 
@@ -76,10 +80,37 @@ class KeycloakWorkspaceClient:
         Invalidates even when the update call raises, so a lost response for
         a PUT Keycloak actually applied cannot leave a stale cached value
         behind until the cache TTL expires.
+
+        Keycloak replaces the mapper list and each submitted mapper's config.
+        Start with fresh live state, remove only explicit deletion targets,
+        and merge declared settings. Undeclared mappers and config keys survive.
         """
         cache_key = self._client_key(client_id)
         with self.cache.lock(cache_key):
             try:
+                if mapper_declarations:
+                    current = self.keycloak_api.get_client(
+                        client_id=client_id,
+                        registration_access_token=registration_access_token,
+                    )
+                    live_mappers = {
+                        (m.protocol, m.name): m for m in current.protocol_mappers or []
+                    }
+                    for declaration in mapper_declarations:
+                        key = (declaration.protocol, declaration.name)
+                        if declaration.deleted:
+                            live_mappers.pop(key, None)
+                            continue
+                        mapper = declaration.to_managed_keycloak_mapper()
+                        live = live_mappers.get(key)
+                        if live and live.protocol_mapper == mapper.protocol_mapper:
+                            mapper = mapper.with_config(live.config | mapper.config)
+                        live_mappers[key] = mapper
+                    data = data.with_protocol_mappers(list(live_mappers.values()))
+                else:
+                    # [] is no management instruction, never a request to clear
+                    # every mapper during an unrelated client update.
+                    data = data.with_protocol_mappers(None)
                 updated = self.keycloak_api.update_client(
                     client_id=client_id,
                     registration_access_token=registration_access_token,
