@@ -49,6 +49,7 @@ from reconcile.utils.mr.labels import (
     PENDING_SELF_SERVICE_APPROVAL,
     RESTRICTED,
     SELF_SERVICEABLE,
+    SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
     change_owner_label,
     prioritized_approval_label,
 )
@@ -147,6 +148,27 @@ def rebuild_change_owner_labels(
         if not co_label.startswith("change-owner/")
     }
     labels.update(change_owner_label(label) for label in change_owner_labels)
+    return labels
+
+
+def resolve_change_owner_labels(
+    changes: Iterable[BundleFileChange],
+    self_service_portion_approved: bool,
+) -> set[str]:
+    """
+    Collects the change-owner labels contributed by every BundleFileChange's
+    covering change-types (e.g. SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE, set on
+    a role via its `change-owners-labels` field), but withholds
+    SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE until every part of the MR
+    approvable by someone other than AppSRE has actually landed - see
+    is_self_service_portion_approved() for what counts as such. AppSRE
+    should only see a self-serviceable MR in its review queue once it's
+    down to needing AppSRE's own call, not merely because AppSRE happens to
+    be one of several eligible approvers on one part of it.
+    """
+    labels = {label for bc in changes for label in bc.change_owner_labels}
+    if not self_service_portion_approved:
+        labels.discard(SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE)
     return labels
 
 
@@ -688,7 +710,7 @@ def run(
             # change-owner labels
             labels = rebuild_change_owner_labels(
                 labels,
-                (label for bc in changes for label in bc.change_owner_labels),
+                resolve_change_owner_labels(changes, self_service_portion_approved),
             )
 
             if mr_management_enabled:
@@ -712,6 +734,14 @@ def run(
                     self_serviceable or self_service_portion_approved
                 ) and PENDING_SELF_SERVICE_APPROVAL in merge_request.labels:
                     gl.remove_label(merge_request, PENDING_SELF_SERVICE_APPROVAL)
+                show_in_review_queue_label = change_owner_label(
+                    SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE
+                )
+                if (
+                    not self_service_portion_approved
+                    and show_in_review_queue_label in merge_request.labels
+                ):
+                    gl.remove_label(merge_request, show_in_review_queue_label)
 
             if not change_admitted:
                 raise NotAdmittedError("Change not admitted")

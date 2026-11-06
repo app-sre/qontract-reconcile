@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import jsonpath_ng
 import jsonpath_ng.ext
 import pytest
@@ -10,6 +12,7 @@ from reconcile.change_owners.bundle import (
 from reconcile.change_owners.change_owners import (
     manage_conditional_label,
     rebuild_change_owner_labels,
+    resolve_change_owner_labels,
 )
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
@@ -98,6 +101,43 @@ def test_rebuild_change_owner_labels_preserves_show_self_serviceable_in_review_q
         current_labels={SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE, "change-owner/stale"},
         change_owner_labels=[],
     ) == {SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE}
+
+
+def test_resolve_change_owner_labels_withholds_review_queue_label_when_pending() -> (
+    None
+):
+    changes = [
+        SimpleNamespace(change_owner_labels={SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE})
+    ]
+    assert (
+        resolve_change_owner_labels(changes, self_service_portion_approved=False)
+        == set()
+    )
+
+
+def test_resolve_change_owner_labels_includes_review_queue_label_once_approved() -> (
+    None
+):
+    changes = [
+        SimpleNamespace(change_owner_labels={SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE})
+    ]
+    assert resolve_change_owner_labels(changes, self_service_portion_approved=True) == {
+        SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE
+    }
+
+
+def test_resolve_change_owner_labels_preserves_other_labels_when_pending() -> None:
+    changes = [
+        SimpleNamespace(
+            change_owner_labels={
+                SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
+                "some-other-label",
+            }
+        )
+    ]
+    assert resolve_change_owner_labels(
+        changes, self_service_portion_approved=False
+    ) == {"some-other-label"}
 
 
 #
