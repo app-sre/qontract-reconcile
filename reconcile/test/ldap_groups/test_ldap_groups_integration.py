@@ -228,6 +228,35 @@ def test_ldap_groups_integration_get_roles_duplicates(
         intg.get_roles(q)
 
 
+def test_ldap_groups_integration_get_roles_filters_expired(
+    intg: LdapGroupsIntegration, data_factory: Callable
+) -> None:
+    def q(*args: Any, **kwargs: Any) -> dict:
+        return {
+            "roles": [
+                data_factory(
+                    RoleV1,
+                    {
+                        "name": name,
+                        "expirationDate": expiration_date,
+                        "ldapGroup": {"name": f"group-{name}"},
+                        "users": [{"org_username": "pike"}],
+                    },
+                )
+                for name, expiration_date in [
+                    ("expired", "2020-01-01"),
+                    ("not-expired", "2999-12-31"),
+                    ("no-expiration", None),
+                ]
+            ]
+        }
+
+    assert [role.name for role in intg.get_roles(q)] == [
+        "not-expired",
+        "no-expiration",
+    ]
+
+
 def test_ldap_groups_integration_get_desired_groups_for_roles(
     intg: LdapGroupsIntegration,
     roles: Iterable[RoleV1],
@@ -346,6 +375,7 @@ def test_ldap_groups_integration_get_desired_groups_for_aws_roles(
 def _role_with_member_source(*, name: str, group: str) -> RoleV1:
     return RoleV1(
         name=name,
+        expirationDate=None,
         ldapGroup=None,
         users=[],
         memberSources=[
