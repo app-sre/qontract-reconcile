@@ -33,6 +33,7 @@ fragment AWSAccountSSO on AWSAccount_v1 {
 query AwsSamlRolesQuery {
   roles: roles_v1 {
     name
+    expirationDate
     user_policies {
       name
       policy
@@ -70,6 +71,7 @@ class AWSGroupV1(ConfiguredBaseModel):
 
 class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    expiration_date: Optional[str] = Field(..., alias="expirationDate")
     user_policies: Optional[list[AWSUserPolicyV1]] = Field(..., alias="user_policies")
     aws_groups: Optional[list[AWSGroupV1]] = Field(..., alias="aws_groups")
 

@@ -11,7 +11,7 @@ from reconcile.gql_definitions.ldap_groups.roles import RoleV1
 from reconcile.gql_definitions.ldap_groups.roles import query as roles_query
 from reconcile.gql_definitions.ldap_groups.settings import LdapGroupsSettingsV1
 from reconcile.gql_definitions.ldap_groups.settings import query as settings_query
-from reconcile.utils import gql
+from reconcile.utils import expiration, gql
 from reconcile.utils.aws_helper import unique_sso_aws_accounts
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import (
@@ -152,9 +152,9 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         return data.settings[0].ldap_groups
 
     def get_roles(self, query_func: Callable) -> list[RoleV1]:
-        """Return the roles with ldap_group set."""
+        """Return the non-expired roles."""
         data = roles_query(query_func, variables={})
-        roles = list(data.roles or [])
+        roles = expiration.filter(data.roles or [])
         if duplicates := find_duplicates(
             role.ldap_group.name for role in roles if role.ldap_group
         ):
