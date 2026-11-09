@@ -212,13 +212,13 @@ def test_directory_rejects_invalid_manifest(
         )
 
 
-@pytest.mark.usefixtures("patch_sleep")
 @pytest.mark.parametrize("name", ["nested", "nested.yaml", "nested.md"])
 def test_github_directory_rejects_subdirectories(
     name: str,
     saasherder: SaasHerder,
     github: MagicMock,
     mocker: MockerFixture,
+    patch_sleep: MagicMock,
 ) -> None:
     raw_file, _ = mock_directory_contents(mocker, saasherder, github, {})
     directory = mocker.Mock(spec=ContentFile)
@@ -232,6 +232,42 @@ def test_github_directory_rejects_subdirectories(
         )
 
     raw_file.assert_not_called()
+    github.get_repo.return_value.get_contents.assert_called_once_with(
+        "manifests", "commit-sha"
+    )
+    patch_sleep.assert_not_called()
+
+
+@pytest.mark.parametrize("provider", ["github", "gitlab"])
+@pytest.mark.parametrize(
+    "error", [RuntimeError("unavailable"), ValueError("bad response")]
+)
+def test_directory_retries_transient_fetch_errors(
+    provider: str,
+    error: Exception,
+    saasherder: SaasHerder,
+    github: MagicMock,
+    mocker: MockerFixture,
+    patch_sleep: MagicMock,
+) -> None:
+    _, gitlab_directory = mock_directory_contents(
+        mocker, saasherder, github, {"config.yaml": b"kind: ConfigMap\n"}
+    )
+    fetch = (
+        github.get_repo.return_value.get_contents
+        if provider == "github"
+        else gitlab_directory
+    )
+    fetch.side_effect = [error, fetch.return_value]
+
+    resources, commit_sha = saasherder._get_directory_contents(
+        f"https://{provider}.com/app-sre/test", "manifests", "main", github
+    )
+
+    assert resources == [{"kind": "ConfigMap"}]
+    assert commit_sha == "commit-sha"
+    assert fetch.call_count == 2
+    patch_sleep.assert_called_once_with(1)
 
 
 def test_gitlab_directory_preserves_recursive_archive_loading(

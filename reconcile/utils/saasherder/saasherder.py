@@ -104,6 +104,10 @@ REQUEST_TIMEOUT = 60
 DIRECTORY_MANIFEST_EXTENSIONS = (".yaml", ".yml", ".json")
 
 
+class NestedDirectoryError(ValueError):
+    """The GitHub directory provider does not support nested directories."""
+
+
 def is_commit_sha(ref: str) -> bool:
     """Check if the given ref is a commit sha."""
     return bool(re.search(r"^[0-9a-f]{40}$", ref))
@@ -783,7 +787,7 @@ class SaasHerder:
 
         return yaml.safe_load(content), commit_sha
 
-    @retry()
+    @retry(no_retry_exceptions=(NestedDirectoryError,))
     def _get_directory_contents(
         self, url: str, path: str, ref: str, github: Github
     ) -> tuple[list[Any], str]:
@@ -800,7 +804,7 @@ class SaasHerder:
                 for f in directory:
                     file_path = os.path.join(path, f.name)
                     if f.type == "dir":
-                        raise ValueError(
+                        raise NestedDirectoryError(
                             f"Nested directory '{file_path}' is not supported"
                         )
                     if f.type != "file":
