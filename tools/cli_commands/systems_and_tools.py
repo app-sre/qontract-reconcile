@@ -52,10 +52,10 @@ from reconcile.gql_definitions.fragments.aus_organization import (
     OpenShiftClusterManagerUpgradePolicyClusterV1,
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.gql_definitions.gitlab_members.gitlab_instances import (
+from reconcile.gql_definitions.gitlab_members_api.gitlab_instances import (
     DEFINITION as GITLAB_INSTANCES_DEFINITION,
 )
-from reconcile.gql_definitions.gitlab_members.gitlab_instances import (
+from reconcile.gql_definitions.gitlab_members_api.gitlab_instances import (
     GitlabInstanceV1,
 )
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (

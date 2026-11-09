@@ -21,7 +21,6 @@ from reconcile import (
     acs_rbac,
     email_sender,
     github_org,
-    gitlab_members,
     ocm_groups,
     ocm_groups_api,
     openshift_groups,
@@ -49,12 +48,6 @@ from reconcile.gql_definitions.email_sender.emails import (
 )
 from reconcile.gql_definitions.email_sender.emails import RoleV1 as EmailRole
 from reconcile.gql_definitions.github_owners_api.roles import RoleV1 as GithubOwnersRole
-from reconcile.gql_definitions.gitlab_members.permissions import (
-    PermissionGitlabGroupMembershipV1,
-)
-from reconcile.gql_definitions.gitlab_members.permissions import (
-    RoleV1 as GitlabRole,
-)
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     GlitchtipProjectV1,
     GlitchtipTeamV1,
@@ -80,7 +73,6 @@ from reconcile.test.change_owners.fixtures import build_role as build_self_servi
 from reconcile.test.utils.membershipsources.fixtures import MockGithubUser as GithubUser
 from reconcile.test.utils.membershipsources.fixtures import build_ldap_membership_source
 from reconcile.utils.aggregated_list import AggregatedList
-from reconcile.utils.runtime.desired_state_diff import build_desired_state_diff
 from tools import (
     app_sre_tekton_access_reporter,
     glitchtip_access_reporter,
@@ -100,37 +92,6 @@ def _source_data() -> list[dict]:
             by_alias=True
         )
     ]
-
-
-def test_gitlab_members_resolves_source_members(
-    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
-) -> None:
-    role = gql_class_factory(
-        GitlabRole,
-        {"name": "role", "users": [], "bots": []},
-    )
-    role.member_sources = [
-        build_ldap_membership_source(name="ldap", group="source-team")
-    ]
-    permission = gql_class_factory(
-        PermissionGitlabGroupMembershipV1,
-        {
-            "name": "gitlab",
-            "group": "team",
-            "access": "maintainer",
-            "roles": [],
-        },
-    )
-    permission.roles = [role]
-    permissions = gitlab_members.get_permissions(
-        query_func=mocker.Mock(
-            return_value={"permissions": [permission.model_dump(by_alias=True)]}
-        )
-    )
-    desired = gitlab_members.build_desired_state_spec(
-        "team", permissions, mocker.Mock(), []
-    )
-    assert desired.members["alice"].access_level == 40
 
 
 def test_acs_rbac_includes_ldap_only_role(
@@ -357,36 +318,6 @@ async def test_github_owners_resolves_source_and_keeps_github_only_bot(
         ])
 
 
-def test_gitlab_members_early_exit_keeps_membership_source_configuration(
-    mocker: MockerFixture, gql_class_factory: Callable
-) -> None:
-    role = gql_class_factory(GitlabRole, {"name": "role", "users": [], "bots": []})
-    role.member_sources = [
-        build_ldap_membership_source(name="ldap", group="source-team")
-    ]
-    permission = gql_class_factory(PermissionGitlabGroupMembershipV1, {"roles": []})
-    permission.roles = [role]
-    mocker.patch("reconcile.gitlab_members.gql.get_api")
-    mocker.patch(
-        "reconcile.gitlab_members._query_permissions", return_value=[permission]
-    )
-    mocker.patch(
-        "reconcile.gitlab_members.get_gitlab_instance"
-    ).return_value.model_dump.return_value = {"name": "instance"}
-    resolver = mocker.patch("reconcile.gitlab_members.resolve_role_members")
-    before = gitlab_members.early_exit_desired_state()
-    assert before == {
-        "instance": {"name": "instance"},
-        "permissions": [permission.model_dump()],
-    }
-    assert build_desired_state_diff(None, before, before).can_exit_early()
-    role.member_sources[0].group = "another-team"
-    after = gitlab_members.early_exit_desired_state()
-    assert after is not None
-    assert not build_desired_state_diff(None, before, after).can_exit_early()
-    resolver.assert_not_called()
-
-
 class MembershipCase(BaseModel, frozen=True):
     explicit_users: tuple[GithubUser, ...] = ()
     source_members: tuple[LdapGroupMember, ...] = ()
@@ -457,7 +388,7 @@ def membership_case(
 
 @pytest.mark.parametrize(
     "consumer",
-    ["gitlab-members", "acs-rbac", "openshift-groups", "github-org"],
+    ["acs-rbac", "openshift-groups", "github-org"],
 )
 def test_membership_modes(
     consumer: str,
@@ -473,38 +404,6 @@ def test_membership_modes(
         else None
     )
     match consumer:
-        case "gitlab-members":
-            role = gql_class_factory(
-                GitlabRole,
-                {
-                    "name": "role",
-                    "users": [
-                        {"org_username": user.org_username}
-                        for user in case.explicit_users
-                    ],
-                    "bots": [],
-                },
-            )
-            role.member_sources = sources
-            permission = gql_class_factory(
-                PermissionGitlabGroupMembershipV1,
-                {
-                    "name": "gitlab",
-                    "group": "team",
-                    "access": "maintainer",
-                    "roles": [],
-                },
-            )
-            permission.roles = [role]
-            permissions = gitlab_members.get_permissions(
-                query_func=mocker.Mock(
-                    return_value={"permissions": [permission.model_dump(by_alias=True)]}
-                )
-            )
-            gitlab_desired = gitlab_members.build_desired_state_spec(
-                "team", permissions, mocker.Mock(), []
-            )
-            assert tuple(gitlab_desired.members) == case.expected_org
         case "acs-rbac":
             role = gql_class_factory(
                 AcsRole,
@@ -997,48 +896,6 @@ def test_missing_github_username_is_skipped_silently(
     desired = github_org.fetch_desired_state(infer_clusters=False).dump()
     assert all(not group["items"] for group in desired)
     assert not caplog.records
-
-
-@pytest.mark.parametrize("dry_run", [True, False])
-def test_gitlab_resolution_failure_cannot_remove_members(
-    dry_run: bool,
-    ldap_endpoint: AsyncMock,
-    gql_class_factory: Callable,
-    mocker: MockerFixture,
-) -> None:
-    from reconcile.gql_definitions.gitlab_members.gitlab_instances import (
-        GitlabInstanceV1,
-    )
-
-    ldap_endpoint.return_value = LdapGroupMembersResponse(groups=[])
-    role = gql_class_factory(GitlabRole, {"name": "role", "users": [], "bots": []})
-    role.member_sources = [
-        build_ldap_membership_source(name="ldap", group="source-team")
-    ]
-    permission = gql_class_factory(
-        PermissionGitlabGroupMembershipV1,
-        {"name": "gitlab", "group": "team", "access": "maintainer", "roles": []},
-    )
-    permission.roles = [role]
-    instance = gql_class_factory(
-        GitlabInstanceV1, {"managedGroups": ["team"], "token": {"path": "gitlab/token"}}
-    )
-    mocker.patch(
-        "reconcile.gitlab_members._query_permissions", return_value=[permission]
-    )
-    mocker.patch("reconcile.gitlab_members.get_gitlab_instance", return_value=instance)
-    mocker.patch("reconcile.gitlab_members.users_query")
-    mocker.patch("reconcile.gitlab_members.pagerduty_instances_query")
-    mocker.patch("reconcile.gitlab_members.get_pagerduty_map")
-    mocker.patch("reconcile.gitlab_members.get_app_interface_vault_settings")
-    mocker.patch("reconcile.gitlab_members.create_secret_reader")
-    mocker.patch("reconcile.gitlab_members.GitLabApi")
-    mocker.patch("reconcile.gitlab_members.get_managed_groups_map")
-    mocker.patch("reconcile.gitlab_members.get_current_state")
-    reconcile = mocker.patch("reconcile.gitlab_members.reconcile_gitlab_members")
-    with pytest.raises(RuntimeError, match="could not be resolved"):
-        gitlab_members.run(dry_run=dry_run)
-    reconcile.assert_not_called()
 
 
 def _email_audience(
