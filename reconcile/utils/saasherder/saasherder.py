@@ -798,15 +798,23 @@ class SaasHerder:
                 if isinstance(directory, ContentFile):
                     raise TypeError(f"Path {path} and sha {commit_sha} is a file!")
                 for f in directory:
+                    file_path = os.path.join(path, f.name)
                     if f.type == "dir":
                         raise ValueError(
-                            f"Nested directory '{os.path.join(path, f.name)}' is not supported"
+                            f"Nested directory '{file_path}' is not supported"
                         )
-                    if f.type != "file" or not f.name.endswith(
-                        DIRECTORY_MANIFEST_EXTENSIONS
-                    ):
+                    if f.type != "file":
+                        logging.debug(
+                            "Skipping directory entry %s with type %s",
+                            file_path,
+                            f.type,
+                        )
                         continue
-                    file_path = os.path.join(path, f.name)
+                    if not f.name.lower().endswith(DIRECTORY_MANIFEST_EXTENSIONS):
+                        logging.debug(
+                            "Skipping non-manifest directory entry %s", file_path
+                        )
+                        continue
                     raw_file = GithubRepositoryApi.get_raw_file(
                         repo=repo,
                         path=file_path,
@@ -825,7 +833,10 @@ class SaasHerder:
                     path=path,
                 )
                 for file_path, content in dir_contents.items():
-                    if not file_path.endswith(DIRECTORY_MANIFEST_EXTENSIONS):
+                    if not file_path.lower().endswith(DIRECTORY_MANIFEST_EXTENSIONS):
+                        logging.debug(
+                            "Skipping non-manifest directory entry %s", file_path
+                        )
                         continue
                     result_resources = yaml.safe_load_all(content)
                     resources.extend(result_resources)

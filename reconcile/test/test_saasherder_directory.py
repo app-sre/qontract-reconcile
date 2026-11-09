@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import tarfile
 from typing import TYPE_CHECKING
 
@@ -85,7 +86,9 @@ def test_directory_loads_only_yaml_and_json(
     saasherder: SaasHerder,
     github: MagicMock,
     mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level(logging.DEBUG)
     contents = {
         "first.yaml": b"kind: ConfigMap\n---\nkind: Service\n",
         "second.yml": b"kind: Deployment\n",
@@ -114,6 +117,12 @@ def test_directory_loads_only_yaml_and_json(
         {"kind": "Secret", "data": None},
     ]
     assert commit_sha == "commit-sha"
+    assert [
+        message for message in caplog.messages if message.startswith("Skipping")
+    ] == [
+        f"Skipping non-manifest directory entry manifests/{name}"
+        for name in ("README.md", "notes.txt", "extensionless", "backup.yaml.bak")
+    ]
     if provider == "github":
         assert [call.kwargs["path"] for call in raw_file.call_args_list] == [
             "manifests/first.yaml",
@@ -129,9 +138,63 @@ def test_directory_loads_only_yaml_and_json(
         )
 
 
+@pytest.mark.parametrize("provider", ["github", "gitlab"])
+@pytest.mark.parametrize("filename", ["MANIFEST.YAML", "Manifest.YmL", "Foo.JSON"])
+def test_directory_loads_case_insensitive_extensions(
+    provider: str,
+    filename: str,
+    saasherder: SaasHerder,
+    github: MagicMock,
+    mocker: MockerFixture,
+) -> None:
+    raw_file, _ = mock_directory_contents(
+        mocker, saasherder, github, {filename: b'{"kind": "ConfigMap"}'}
+    )
+
+    resources, commit_sha = saasherder._get_directory_contents(
+        f"https://{provider}.com/app-sre/test", "manifests", "main", github
+    )
+
+    assert resources == [{"kind": "ConfigMap"}]
+    assert commit_sha == "commit-sha"
+    if provider == "github":
+        raw_file.assert_called_once_with(
+            repo=github.get_repo.return_value,
+            path=f"manifests/{filename}",
+            ref="commit-sha",
+        )
+
+
+@pytest.mark.parametrize("entry_type", ["symlink", "submodule"])
+def test_github_directory_logs_skipped_entry_types(
+    entry_type: str,
+    saasherder: SaasHerder,
+    github: MagicMock,
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    raw_file, _ = mock_directory_contents(mocker, saasherder, github, {})
+    entry = mocker.Mock(spec=ContentFile, name="entry")
+    entry.name = "link.yaml"
+    entry.type = entry_type
+    github.get_repo.return_value.get_contents.return_value = [entry]
+
+    resources, _ = saasherder._get_directory_contents(
+        "https://github.com/app-sre/test", "manifests", "main", github
+    )
+
+    assert resources == []
+    raw_file.assert_not_called()
+    assert (
+        f"Skipping directory entry manifests/link.yaml with type {entry_type}"
+        in caplog.messages
+    )
+
+
 @pytest.mark.usefixtures("patch_sleep")
 @pytest.mark.parametrize("provider", ["github", "gitlab"])
-@pytest.mark.parametrize("extension", ["yaml", "yml", "json"])
+@pytest.mark.parametrize("extension", ["yaml", "yml", "json", "YAML", "YmL", "JSON"])
 def test_directory_rejects_invalid_manifest(
     provider: str,
     extension: str,
