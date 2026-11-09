@@ -210,7 +210,7 @@ def test_role_protocol_validation_parameter_matches_pydantic() -> None:
 def test_original_gql_role_type_and_bots_are_preserved(
     gql_class_factory: Callable,
 ) -> None:
-    from reconcile.gql_definitions.gitlab_members.permissions import RoleV1, UserV1
+    from reconcile.gql_definitions.gitlab_members_api.permissions import RoleV1, UserV1
 
     role = gql_class_factory(
         RoleV1,
@@ -237,7 +237,7 @@ def test_original_gql_role_type_and_bots_are_preserved(
 async def test_public_resolvers_return_original_gql_roles(
     gql_class_factory: Callable,
 ) -> None:
-    from reconcile.gql_definitions.gitlab_members.permissions import RoleV1, UserV1
+    from reconcile.gql_definitions.gitlab_members_api.permissions import RoleV1, UserV1
     from reconcile.utils.membershipsources import async_resolver, resolver
 
     role = gql_class_factory(

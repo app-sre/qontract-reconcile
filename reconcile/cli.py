@@ -2672,14 +2672,6 @@ def github_repo_permissions_validator(ctx: click.Context, instance_name: str) ->
     run_integration(reconcile.github_repo_permissions_validator, ctx, instance_name)
 
 
-@integration.command(short_help="Manage GitLab group members.")
-@click.pass_context
-def gitlab_members(ctx: click.Context) -> None:
-    import reconcile.gitlab_members
-
-    run_integration(reconcile.gitlab_members, ctx)
-
-
 @integration.command(short_help="Create GitLab projects via qontract-api.")
 @click.option(
     "--instance-name", help="Reconcile just this GitLab instance.", default=None

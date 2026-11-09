@@ -5,12 +5,11 @@ directly managing GitLab group membership.
 
 See ADR-002 (Client-Side GraphQL) and ADR-008 (Integration Naming).
 
-Key differences from reconcile/gitlab_members.py:
 - Suffix '_api' indicates API-based integration
 - GraphQL queries for desired state happen client-side here
 - Actual reconciliation (GitLab API calls) happens server-side (qontract-api)
-- PagerDuty on-call lookups happen via qontract-api external endpoints
-  instead of the pypd-based reconcile/utils/pagerduty_api.py
+- PagerDuty on-call lookups happen via qontract-api's shared PagerDuty
+  endpoints
 """
 
 from __future__ import annotations

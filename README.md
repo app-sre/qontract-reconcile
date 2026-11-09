@@ -100,7 +100,8 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   projects.
   gitlab-labeler                  Guesses and adds labels to merge requests
                                   according to changed paths.
-  gitlab-members                  Manage GitLab group members.
+  gitlab-members-api              Manage GitLab group members via
+                                  qontract-api.
   gitlab-mr-sqs-consumer          Listen to SQS and creates MRs out of the
                                   messages.
   gitlab-owners                   Manages labels on gitlab merge requests
