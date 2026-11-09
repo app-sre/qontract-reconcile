@@ -290,11 +290,10 @@ def setup(
         account_names,
         provider_exclusions,
     )
-    ts.warn_elasticsearch_ebs_limits(aws_api)
     tf.populate_terraform_output_secrets(
         resource_specs=ts.resource_spec_inventory, init_rds_replica_source=True
     )
-    ts.populate_resources(ocm_map=ocm_map)
+    ts.populate_resources(ocm_map=ocm_map, aws_api=aws_api)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
     return tf, ts, secret_reader
