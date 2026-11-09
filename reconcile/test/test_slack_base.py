@@ -267,7 +267,7 @@ def test_chat_post_message_wait_true_raises_after_overall_deadline(
     # one poll happens within the deadline (still pending), then the clock
     # advances past the overall wait deadline before the next check
     times = iter([0, 50, 301])
-    mocker.patch("reconcile.slack_base.time.monotonic", side_effect=lambda: next(times))
+    mocker.patch("reconcile.slack_base._monotonic", side_effect=lambda: next(times))
     slack_api = SlackApi("coreos", token={"path": "p", "field": "f"}, channel="test")
 
     with pytest.raises(RuntimeError, match="did not complete within"):

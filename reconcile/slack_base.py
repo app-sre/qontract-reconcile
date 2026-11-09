@@ -32,6 +32,10 @@ _CHAT_WAIT_TIMEOUT = 300
 # _CHAT_WAIT_TIMEOUT.
 _CHAT_WAIT_POLL_INTERVAL = REQUEST_TIMEOUT - 5
 
+# Private binding so tests can mock this module's clock without patching the
+# process-wide time.monotonic, which would also affect unrelated threads/tasks.
+_monotonic = time.monotonic
+
 
 def is_gov_slack_workspace() -> bool:
     """
@@ -154,9 +158,9 @@ class SlackApi:
         :raises RuntimeError: if the task is still pending after
         _CHAT_WAIT_TIMEOUT seconds
         """
-        deadline = time.monotonic() + _CHAT_WAIT_TIMEOUT
+        deadline = _monotonic() + _CHAT_WAIT_TIMEOUT
         while True:
-            remaining = deadline - time.monotonic()
+            remaining = deadline - _monotonic()
             if remaining <= 0:
                 raise RuntimeError(
                     "Slack message delivery did not complete within "
