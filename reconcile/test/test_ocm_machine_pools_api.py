@@ -90,18 +90,20 @@ def make_cluster(
     with_pools: bool = True,
     with_ocm: bool = True,
     ocm_env_name: str = "ocm-production",
+    ocm_name: str | None = None,
     with_spec: bool = True,
 ) -> ClusterV1:
     """Build a typed ClusterV1 matching the GQL schema.
 
     with_pools=False builds a cluster whose machinePools are absent
     (None) - distinct from an empty pool list, which the compatibility
-    filter treats as present.
+    filter treats as present. ocm_name overrides the OCM instance name
+    (defaults to the environment name).
     """
     ocm = None
     if with_ocm:
         ocm = OpenShiftClusterManagerV1(
-            name=ocm_env_name,
+            name=ocm_name or ocm_env_name,
             environment=OCMEnvironment(
                 name=ocm_env_name,
                 description=f"{ocm_env_name} env",
@@ -406,8 +408,10 @@ async def test_non_dry_run_propagates_to_request() -> None:
 
 
 @pytest.mark.asyncio
-async def test_one_request_per_ocm_environment() -> None:
-    """Clusters are grouped by OCM environment, one request each."""
+async def test_one_request_per_ocm_instance() -> None:
+    """Clusters are grouped by OCM instance (legacy OCMMap parity), one
+    request each - clusters with different OCM credentials never share a
+    connection, even within one environment."""
     integration = make_integration()
 
     with (
@@ -416,6 +420,12 @@ async def test_one_request_per_ocm_environment() -> None:
             return_value=[
                 make_cluster(name="prod-1", ocm_env_name="ocm-production"),
                 make_cluster(name="prod-2", ocm_env_name="ocm-production"),
+                # same environment, different OCM instance (own credentials)
+                make_cluster(
+                    name="prod-other-org",
+                    ocm_env_name="ocm-production",
+                    ocm_name="ocm-production-other-org",
+                ),
                 make_cluster(name="stage-1", ocm_env_name="ocm-stage"),
             ],
         ),
@@ -432,17 +442,18 @@ async def test_one_request_per_ocm_environment() -> None:
     ):
         await integration.async_run(dry_run=True)
 
-        assert mock_reconcile.call_count == 2
-        environments = {
-            call.args[0].ocm_environment for call in mock_reconcile.call_args_list
-        }
-        assert environments == {"ocm-production", "ocm-stage"}
-        for call in mock_reconcile.call_args_list:
-            names = {c.name for c in call.args[0].clusters}
-            if call.args[0].ocm_environment == "ocm-production":
-                assert names == {"prod-1", "prod-2"}
-            else:
-                assert names == {"stage-1"}
+        # three requests: two OCM instances in production, one in stage
+        assert mock_reconcile.call_count == 3
+        request_groups = [
+            (call.args[0].ocm_environment, {c.name for c in call.args[0].clusters})
+            for call in mock_reconcile.call_args_list
+        ]
+        assert (
+            "ocm-production",
+            {"prod-1", "prod-2"},
+        ) in request_groups
+        assert ("ocm-production", {"prod-other-org"}) in request_groups
+        assert ("ocm-stage", {"stage-1"}) in request_groups
 
 
 @pytest.mark.asyncio
@@ -465,6 +476,34 @@ async def test_task_errors_raise() -> None:
             ),
         ),
         pytest.raises(IntegrationError, match="1 error"),
+    ):
+        await integration.async_run(dry_run=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [TaskStatus.FAILED, TaskStatus.SKIPPED])
+async def test_task_non_success_status_raises(status: TaskStatus) -> None:
+    """Only SUCCESS counts as success.
+
+    A task that ends FAILED or SKIPPED (e.g. dedup-skipped while another
+    reconcile holds the lock) with no errors must not be treated as a
+    successful no-op.
+    """
+    integration = make_integration()
+
+    with (
+        patch(f"{_MOD}._get_clusters", return_value=[make_cluster()]),
+        patch(f"{_MOD}.integration_is_enabled", return_value=True),
+        patch(
+            f"{_MOD}.reconcile_ocm_machine_pools",
+            new=AsyncMock(return_value=make_task_response()),
+        ),
+        patch.object(
+            integration,
+            "poll_task_status",
+            new=AsyncMock(return_value=make_task_result(status=status, errors=[])),
+        ),
+        pytest.raises(IntegrationError, match=f"ended with status {status.value}"),
     ):
         await integration.async_run(dry_run=True)
 

@@ -169,16 +169,21 @@ def _build_api_clusters(
     return api_clusters
 
 
-def _group_clusters_by_ocm_env(clusters: list[ClusterV1]) -> dict[str, list[ClusterV1]]:
-    """Group clusters by their OCM environment name.
+def _group_clusters_by_ocm(
+    clusters: list[ClusterV1],
+) -> dict[tuple[str, str], list[ClusterV1]]:
+    """Group clusters by (OCM environment name, OCM instance name).
 
-    Clusters without OCM config are silently skipped.
+    Legacy parity: OCMMap keyed one OCM client per instance name, so
+    clusters whose OCM config overrides differ (different instances in the
+    same environment) reconcile with their own connection instead of
+    borrowing the first cluster's credentials.
     """
-    env_clusters: dict[str, list[ClusterV1]] = defaultdict(list)
+    groups: dict[tuple[str, str], list[ClusterV1]] = defaultdict(list)
     for cluster in clusters:
         if (ocm := cluster.ocm) is not None and ocm.environment is not None:
-            env_clusters[ocm.environment.name].append(cluster)
-    return env_clusters
+            groups[ocm.environment.name, ocm.name].append(cluster)
+    return groups
 
 
 def _build_ocm_connection(
@@ -278,13 +283,16 @@ class OcmMachinePoolsIntegration(
             )
             return
 
-        for env_name, env_cluster_list in _group_clusters_by_ocm_env(clusters).items():
+        for (env_name, _ocm_name), env_cluster_list in _group_clusters_by_ocm(
+            clusters
+        ).items():
             api_clusters = _build_api_clusters(env_cluster_list)
             if not api_clusters:
                 continue
 
-            # Build OCM connection from the first cluster's OCM config
-            # (all clusters in an environment share its credentials).
+            # Build the OCM connection from the first cluster's OCM config
+            # (all clusters in a group share the same OCM instance and
+            # therefore its credentials).
             ocm_connection = _build_ocm_connection(
                 env_cluster_list[0], self.secret_manager_url
             )
@@ -312,8 +320,10 @@ class OcmMachinePoolsIntegration(
                     f"{action.action_type=} {action.cluster=} {action.pool_id=}"
                 )
 
-            if errors_summary := "; ".join(task_result.errors or []):
+            errors = task_result.errors or []
+            if errors or task_result.status != TaskStatus.SUCCESS:
                 raise IntegrationError(
-                    f"ocm-machine-pools-api: {len(task_result.errors)} error(s) "
-                    f"in env {env_name}: {errors_summary}"
+                    f"ocm-machine-pools-api: task for env {env_name} ended "
+                    f"with status {task_result.status.value}; {len(errors)} "
+                    f"error(s): {'; '.join(errors)}"
                 )
