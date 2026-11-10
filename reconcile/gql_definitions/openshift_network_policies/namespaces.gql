@@ -1,0 +1,39 @@
+# qenerate: plugin=pydantic_v2
+
+query OpenshiftNetworkPoliciesNamespaces {
+  namespaces: namespaces_v1 {
+    name
+    delete
+    clusterAdmin
+    cluster {
+      ...OcConnectionCluster
+    }
+    networkPoliciesAllow {
+      entry_schema: schema
+      name
+      ... on NetworkPolicyNamespacePeer_v1 {
+        cluster {
+          name
+        }
+      }
+      ... on NetworkPolicyAllowRule_v1 {
+        namespace {
+          name
+          cluster {
+            name
+          }
+        }
+        podSelector {
+          matchLabels
+        }
+        sourcePodSelector {
+          matchLabels
+        }
+        ports {
+          port
+          protocol
+        }
+      }
+    }
+  }
+}
