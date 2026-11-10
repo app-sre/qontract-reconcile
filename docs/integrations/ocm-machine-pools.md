@@ -150,7 +150,7 @@ Authorization: Bearer <JWT_TOKEN>
 | `name`         | `str`                       | Cluster name (unique within a request)             |
 | `cluster_id`   | `str`                       | OCM cluster ID (from App-Interface `spec.id`)      |
 | `cluster_type` | `ClusterType`               | `osd`, `rosa`, or `hypershift`                     |
-| `pools`        | `list[DesiredMachinePool | DesiredNodePool]` | Desired pools, shape must match the type |
+| `pools`        | `list[DesiredMachinePool \| DesiredNodePool]` | Desired pools, shape must match the type |
 
 **Action Types:** `create_machine_pool`, `update_machine_pool`, `delete_machine_pool`, `create_node_pool`, `update_node_pool`, `delete_node_pool` — each carrying `cluster` and `pool_id`.
 
@@ -172,9 +172,19 @@ Authorization: Bearer <JWT_TOKEN>
 
 **Feature Flag:**
 
-- Deploy as `ocm-machine-pools-api` alongside the original `ocm-machine-pools` integration
-- Enable per cluster in App-Interface (`disable.integrations` lists); both integrations can run side by side
-- Instant rollback by re-enabling the legacy integration
+- Deploy as `ocm-machine-pools-api` alongside the original `ocm-machine-pools`
+  integration
+- **Exactly one writer per cluster:** both integrations mutate OCM, so a
+  cluster must never have both enabled at the same time. To switch a cluster
+  over, make a single App-Interface change that adds `ocm-machine-pools` to
+  the cluster's `disable.integrations` (disabling the legacy writer) and
+  removes `ocm-machine-pools-api` from it (enabling the new writer)
+- **Rollback is the reverse:** in one change, remove `ocm-machine-pools`
+  from the disable list (re-enable the legacy writer) and add
+  `ocm-machine-pools-api` to it (disable the new writer)
+- Never run both integrations enabled against the same cluster: duplicate
+  mutations can result, and the legacy integration does not invalidate the
+  new integration's pool cache, so the new writer can act on stale state
 
 ## Client Integration
 

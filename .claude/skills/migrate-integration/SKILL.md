@@ -577,5 +577,8 @@ Phases have dependencies. Document these in the migration plan so phases can be 
   clusters and require identical action sets. See verify_pr5919_e2e.py's approach.
 - **`mode="before"` validators receive raw request values** (strings, mixed types)
   and already-constructed model instances on union re-validation. Prefer
-  `mode="after"` validators on coerced values; guard any before-validators with
-  `isinstance(data, dict)`.
+  `mode="after"` validators on coerced values. For `mode="before"` **model**
+  validators that expect a mapping input, guard with
+  `isinstance(data, dict)` so instances arriving via union re-validation pass
+  through untouched — but do NOT apply this guard to field validators, which
+  must still normalize and validate scalar inputs on every call.
