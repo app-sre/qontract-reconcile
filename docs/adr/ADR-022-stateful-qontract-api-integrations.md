@@ -45,7 +45,7 @@ Adopt a **server-owned integration state** model for qontract-api integrations t
 
 ### End-to-end reconcile flow
 
-Illustrates Decision items 1–4: one stateful reconcile POST from the `-api` client through router enqueue, worker lock, bookmark load/save, and external reconcile.
+Illustrates Decision items 1–4 and registration and ownership: one stateful reconcile POST from the `-api` client through router enqueue, worker lock, state load/save, and external reconcile. Client result retrieval follows ADR-003 (POST returns a task id; client polls GET for completion).
 
 ```mermaid
 sequenceDiagram
@@ -65,24 +65,26 @@ sequenceDiagram
     S-->>R: backend, key template, lock TTL
     R->>R: resolve StateRef from registration and payload
     R->>W: enqueue task
+    R-->>C: 202 Accepted + task_id
+    Note over C,W: Client polls while worker runs
+    C->>R: GET task status
     W->>L: acquire lock
-    W->>B: load bookmark
+    W->>B: load state
     alt dry_run
         W->>E: read-only reconcile
-        W-->>C: actions, no bookmark write
     else apply
         W->>E: apply actions
-        W->>W: reducer(bookmark, applied_actions)
-        W->>B: save bookmark
-        W-->>C: result
+        W->>W: reducer(state, applied_actions)
+        W->>B: save state
     end
     W->>L: release lock
+    R-->>C: result when complete
 ```
 
 **Boundaries** (read against the sequence):
 
 - **Client:** `state_ref`, desired state, and `dry_run` only; not backend credentials or server-resolved persistence keys.
-- **qontract-api (router):** resolves the registered state definition from `state_ref` and payload, authorizes (OPA when enabled), resolves credentials, enqueues a task with a concrete StateRef.
+- **qontract-api (router):** resolves the registered state definition from `state_ref` and payload, rejects `state_ref` not registered for this integration, authorizes (OPA when enabled), resolves credentials, enqueues a task with a concrete StateRef.
 - **Worker:** per-StateRef lock spans load → reconcile → reduce → save.
 
 ### Key Points
