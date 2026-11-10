@@ -87,11 +87,17 @@ def make_cluster(
     product: str = "osd",
     hypershift: bool | None = False,
     pools: list[ClusterMachinePoolV1] | None = None,
+    with_pools: bool = True,
     with_ocm: bool = True,
     ocm_env_name: str = "ocm-production",
     with_spec: bool = True,
 ) -> ClusterV1:
-    """Build a typed ClusterV1 matching the GQL schema."""
+    """Build a typed ClusterV1 matching the GQL schema.
+
+    with_pools=False builds a cluster whose machinePools are absent
+    (None) - distinct from an empty pool list, which the compatibility
+    filter treats as present.
+    """
     ocm = None
     if with_ocm:
         ocm = OpenShiftClusterManagerV1(
@@ -122,7 +128,9 @@ def make_cluster(
             if with_spec
             else None
         ),
-        machinePools=pools if pools is not None else [make_pool()],
+        machinePools=(
+            (pools if pools is not None else [make_pool()]) if with_pools else None
+        ),
         ocm=ocm,
         disable=None,
     )
@@ -333,7 +341,12 @@ async def test_missing_spec_raises() -> None:
 
 @pytest.mark.asyncio
 async def test_filters_disabled_and_incompatible_clusters() -> None:
-    """Clusters need enablement, OCM config, and machine pool definitions."""
+    """Each filter rejects its own cluster, independently of the others.
+
+    All clusters except "disabled" are enabled, so "no-ocm" and
+    "no-pools" can only be rejected by their compatibility predicates -
+    and "no-pools" has machinePools absent (None), not an empty list.
+    """
     integration = make_integration()
 
     with (
@@ -342,13 +355,13 @@ async def test_filters_disabled_and_incompatible_clusters() -> None:
             return_value=[
                 make_cluster(name="disabled"),
                 make_cluster(name="no-ocm", with_ocm=False),
-                make_cluster(name="no-pools", pools=[]),
+                make_cluster(name="no-pools", with_pools=False),
                 make_cluster(name="enabled"),
             ],
         ),
         patch(
             f"{_MOD}.integration_is_enabled",
-            side_effect=lambda integration, cluster: cluster.name == "enabled",
+            side_effect=lambda integration, cluster: cluster.name != "disabled",
         ),
         patch(
             f"{_MOD}.reconcile_ocm_machine_pools",
@@ -364,6 +377,32 @@ async def test_filters_disabled_and_incompatible_clusters() -> None:
 
         request = mock_reconcile.call_args.args[0]
         assert [c.name for c in request.clusters] == ["enabled"]
+
+
+@pytest.mark.asyncio
+async def test_non_dry_run_propagates_to_request() -> None:
+    """dry_run=False must reach the request payload - a regression that
+    hard-codes dry runs would otherwise turn every production run into
+    a no-op."""
+    integration = make_integration()
+
+    with (
+        patch(f"{_MOD}._get_clusters", return_value=[make_cluster()]),
+        patch(f"{_MOD}.integration_is_enabled", return_value=True),
+        patch(
+            f"{_MOD}.reconcile_ocm_machine_pools",
+            new=AsyncMock(return_value=make_task_response()),
+        ) as mock_reconcile,
+        patch.object(
+            integration,
+            "poll_task_status",
+            new=AsyncMock(return_value=make_task_result()),
+        ),
+    ):
+        await integration.async_run(dry_run=False)
+
+        request = mock_reconcile.call_args.args[0]
+        assert request.dry_run is False
 
 
 @pytest.mark.asyncio
