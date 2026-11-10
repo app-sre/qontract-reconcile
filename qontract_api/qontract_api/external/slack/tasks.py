@@ -3,6 +3,11 @@
 Runs in a Celery worker rather than the FastAPI request-handling thread, so a
 slow or rate-limited Slack response doesn't block the API server (see PR
 review discussion on app-sre/qontract-reconcile#5692).
+
+Routed to its own QUEUE_EXTERNAL_SLACK queue/worker pool, separate from
+QUEUE_PROD: a burst of these tasks (e.g. a large usergroup DM fan-out) gets
+rate-limited by Slack, and each retry blocks its worker via a sleep, so it
+must not be able to starve unrelated reconciliation tasks sharing a queue.
 """
 
 from __future__ import annotations
@@ -18,12 +23,17 @@ from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.secret_manager._factory import get_secret_manager
 from qontract_api.slack import create_slack_workspace_client
-from qontract_api.tasks import celery_app
+from qontract_api.tasks import QUEUE_EXTERNAL_SLACK, celery_app
 
 logger = get_logger(__name__)
 
 
-@celery_app.task(bind=True, name="external-slack.chat-post-message", acks_late=True)
+@celery_app.task(
+    bind=True,
+    name="external-slack.chat-post-message",
+    acks_late=True,
+    queue=QUEUE_EXTERNAL_SLACK,
+)
 def send_slack_chat_message_task(self: Any, request: ChatRequest) -> ChatTaskResult:
     """Post a Slack message or DM (background task).
 
