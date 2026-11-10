@@ -374,6 +374,19 @@ class OcmSettings(BaseModel):
         default=60 * 10,
         description="OCM cluster group list cache TTL in seconds (10 minutes)",
     )
+    machine_pools_cache_ttl: int = Field(
+        default=60 * 10,
+        description=("OCM machine/node pool list cache TTL in seconds (10 minutes)"),
+    )
+    machine_pools_fetch_concurrency: int = Field(
+        default=10,
+        ge=1,
+        description=(
+            "Max concurrent OCM machine/node pool fetches during a reconcile - "
+            "each cluster's fetch is an independent HTTP round-trip, so fetching "
+            "serially makes wall-clock time scale linearly with cluster count"
+        ),
+    )
     groups_fetch_concurrency: int = Field(
         default=10,
         description=(
