@@ -641,6 +641,34 @@ def ocm_groups_task_status(
     return result
 
 
+@client.post("/api/v1/integrations/ocm-machine-pools/reconcile")
+def ocm_machine_pools(
+    result: schemas.OcmMachinePoolsTaskResponse,
+    data: schemas.OcmMachinePoolsReconcileRequest,
+) -> schemas.OcmMachinePoolsTaskResponse:
+    """Ocm Machine Pools
+
+        Queue OCM machine pool reconciliation task.
+
+    This endpoint always queues a background task and returns immediately with a
+    task_id. Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/ocm-machine-pools/reconcile/{task_id}")
+def ocm_machine_pools_task_status(
+    result: schemas.OcmMachinePoolsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.OcmMachinePoolsTaskResult:
+    """Ocm Machine Pools Task Status
+
+    Retrieve reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
 @client.post("/api/v1/integrations/ocm-oidc-idp/reconcile")
 def ocm_oidc_idp(
     result: schemas.OcmOidcIdpTaskResponse, data: schemas.OcmOidcIdpReconcileRequest
