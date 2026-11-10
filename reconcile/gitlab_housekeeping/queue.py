@@ -7,9 +7,8 @@ from typing import TYPE_CHECKING, Any
 from gitlab.const import PipelineStatus
 
 from reconcile.gitlab_housekeeping.labels import (
-    ERROR_LABELS,
     MERGE_LABELS_PRIORITY,
-    is_good_to_merge,
+    compute_mr_label_status,
 )
 from reconcile.utils.gitlab_api import MRState, MRStatus
 from reconcile.utils.mr.labels import (
@@ -201,14 +200,10 @@ def preprocess_merge_requests(
             gl.remove_labels(mr, bad_labels)
 
         labels = set(mr.labels)
-        if not is_good_to_merge(labels):
+        status = compute_mr_label_status(labels)
+        if status.merge_priority is None or status.is_held:
             continue
-
-        label_priority = min(
-            MERGE_LABELS_PRIORITY.index(merge_label)
-            for merge_label in MERGE_LABELS_PRIORITY
-            if merge_label in labels
-        )
+        label_priority = status.merge_priority
 
         item = {
             "mr": mr,
@@ -216,7 +211,7 @@ def preprocess_merge_requests(
             "priority": f"{label_priority} - {MERGE_LABELS_PRIORITY[label_priority]}",
             "approved_at": approved_at,
             "approved_by": approved_by,
-            "error": any(label in ERROR_LABELS for label in labels),
+            "error": status.has_error,
         }
         results.append(item)
 
