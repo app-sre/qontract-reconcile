@@ -32,6 +32,19 @@ Successful migrations serve as reference implementations:
   endpoints. Robot tokens are not written to Vault. Unmanaged robots are never
   auto-deleted — only `delete: true`. Closest skeleton: github_owners; closest
   diff/apply: glitchtip_project_alerts.)
+- `ocm_machine_pools` -> `ocm_machine_pools_api` (Pattern 1: full server-side.
+  Extended the existing `ocm_api` Layer 1 client and `OcmWorkspaceClient` Layer 2
+  with machine pool + node pool CRUD instead of creating new clients (per-cluster
+  nested resources like IDPs — parameterized by `cluster_id`). No Phase 3 external
+  endpoints: desired state is pure app-interface GraphQL, compiled client-side.
+  Notable for: dual pool shapes (OSD/ROSA classic machine pools with plural
+  autoscaling fields vs ROSA HCP node pools with singular fields + subnet), every
+  legacy guard preserved (immutable instance_type/subnet diffs, delete-all
+  protection, OSD default-worker protection, creates-before-deletes with failed-
+  create blocking its cluster's deletes), a production-data plan-parity E2E (new
+  integration's dry-run plan must equal the legacy plan on the same clusters),
+  and the cluster_id coming from GQL `spec.id` (Cluster_v1 has no top-level id).
+  Closest client-side skeleton: ocm_groups_api.)
 
 ## Input
 
@@ -160,7 +173,7 @@ Following ADR-007 (no reconcile/ imports in qontract-api) and ADR-014 (three-lay
      - `qontract_utils/qontract_utils/glitchtip_api/` - Glitchtip API
      - `qontract_utils/qontract_utils/pagerduty_api/` - PagerDuty API
      - `qontract_utils/qontract_utils/ldap_api/` - LDAP (FreeIPA) API
-     - `qontract_utils/qontract_utils/ocm_api/` - OCM (OpenShift Cluster Manager) API - labels, subscriptions, clusters, identity providers (get/create/update/delete, parameterized by `cluster_id`/`idp_id` rather than the `Filter` DSL used for the collection-search methods, since IDPs are a per-cluster nested resource)
+     - `qontract_utils/qontract_utils/ocm_api/` - OCM (OpenShift Cluster Manager) API - labels, subscriptions, clusters, identity providers (get/create/update/delete, parameterized by `cluster_id`/`idp_id` rather than the `Filter` DSL used for the collection-search methods, since IDPs are a per-cluster nested resource), cluster groups, and machine/node pools (same `cluster_id` parameterization; node pools are HyperShift-only and use singular autoscaling fields)
      - `qontract_utils/qontract_utils/keycloak_api/` - Keycloak dynamic client registration API
      - `qontract_utils/qontract_utils/quay_api/` - Quay API (robot CRUD, team membership for robots, repository permissions for robots; extend rather than duplicating when migrating quay-membership/permissions/repos)
      - If a client exists, check if it covers all needed methods. Only extend, never duplicate.
@@ -546,3 +559,23 @@ Phases have dependencies. Document these in the migration plan so phases can be 
   field**, as long as each member is a genuinely lossless match for a given payload
   (pydantic won't pick a model that would silently drop fields). Verify empirically
   with a quick script before relying on it instead of an explicit discriminator.
+- **Any PR that changes `openapi.json` MUST regenerate the API client in the same
+  PR.** The `qontract-api-client` Konflux pipeline diffs the checked-in client
+  against a fresh generation and fails the build otherwise - do not defer the
+  client regen to a later phase.
+- **Verify wire contracts against the published external API spec, not AI review
+  comments.** During the ocm-machine-pools migration, one reviewer said a list
+  endpoint accepted an `order` param and another said it didn't - both were
+  half-right because machine_pools and node_pools differ. The authoritative
+  source was the vendor's published OpenAPI spec.
+- **Pydantic v2 does not cross-validate instances of a foreign BaseModel class.**
+  When testing a server-side service in-process with client-side request models,
+  round-trip through dicts (`ServerModel.model_validate(client.model_dump())`) -
+  exactly what the HTTP/JSON boundary does in production.
+- **A plan-parity E2E is the strongest migration proof available:** run the legacy
+  integration's diff code and the new stack's dry-run reconcile over the same real
+  clusters and require identical action sets. See verify_pr5919_e2e.py's approach.
+- **`mode="before"` validators receive raw request values** (strings, mixed types)
+  and already-constructed model instances on union re-validation. Prefer
+  `mode="after"` validators on coerced values; guard any before-validators with
+  `isinstance(data, dict)`.

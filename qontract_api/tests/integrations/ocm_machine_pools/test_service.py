@@ -681,3 +681,86 @@ def test_labels_warning_fires_even_with_invalid_diff(
 
     assert any("only be applied to new Nodes" in m for m in caplog.messages)
     assert any("can not update instance_type" in e for e in result.errors)
+
+
+def test_rosa_classic_can_delete_default_worker_pool(
+    service: OcmMachinePoolsService,
+    mock_workspace_client: MagicMock,
+) -> None:
+    """The default-worker delete guard is OSD-only.
+
+    A ROSA classic cluster may delete its 'worker' machine pool (legacy
+    parity: only OSD non-CCS clusters protect the default worker pool).
+    """
+    from qontract_api.integrations.ocm_machine_pools.domain import (
+        DesiredClusterMachinePools,
+    )
+
+    mock_workspace_client.get_machine_pools.return_value = [
+        _live_machine_pool(pool_id="worker"),
+        _live_machine_pool(pool_id="extra"),
+    ]
+
+    result = _reconcile(
+        service,
+        [
+            DesiredClusterMachinePools(
+                name="rosa-cluster",
+                cluster_id="cid-rosa",
+                cluster_type=ClusterType.ROSA_CLASSIC,
+                pools=[_desired_machine_pool(pool_id="extra")],
+            )
+        ],
+        dry_run=False,
+    )
+
+    assert result.status == TaskStatus.SUCCESS
+    mock_workspace_client.delete_machine_pool.assert_called_once_with(
+        "cid-rosa", "worker"
+    )
+
+
+def test_hcp_can_delete_default_worker_node_pool(
+    service: OcmMachinePoolsService,
+    mock_workspace_client: MagicMock,
+) -> None:
+    """Node pools (even the default 'worker') are always deletable."""
+    mock_workspace_client.get_node_pools.return_value = [
+        _live_node_pool(pool_id="worker"),
+        _live_node_pool(pool_id="extra"),
+    ]
+
+    result = _reconcile(
+        service, [_hcp_cluster([_desired_node_pool(pool_id="extra")])], dry_run=False
+    )
+
+    assert result.status == TaskStatus.SUCCESS
+    mock_workspace_client.delete_node_pool.assert_called_once_with("cid-hcp", "worker")
+
+
+def test_cannot_update_node_pool_instance_type(
+    service: OcmMachinePoolsService,
+    mock_workspace_client: MagicMock,
+) -> None:
+    """instance_type is immutable on node pools too: error, not mutation."""
+    mock_workspace_client.get_node_pools.return_value = [
+        _live_node_pool(pool_id="worker")
+    ]
+
+    result = _reconcile(
+        service,
+        [
+            _hcp_cluster([
+                DesiredNodePool(
+                    id="worker",
+                    aws_node_pool=OcmNodePoolAws(instance_type="m5.2xlarge"),
+                    replicas=3,
+                )
+            ])
+        ],
+        dry_run=False,
+    )
+
+    assert result.status == TaskStatus.FAILED
+    assert any("can not update instance_type" in error for error in result.errors)
+    mock_workspace_client.update_node_pool.assert_not_called()
