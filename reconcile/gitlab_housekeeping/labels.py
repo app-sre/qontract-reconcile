@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from reconcile.change_owners.change_types import ChangeTypePriority
@@ -17,6 +18,7 @@ from reconcile.utils.mr.labels import (
     NEEDS_REBASE,
     PIPELINE_ERROR,
     REBASE_ERROR,
+    SELF_SERVICEABLE,
     prioritized_approval_label,
 )
 
@@ -81,3 +83,44 @@ def has_overlapping_labels(mr_labels: set[str], merged_labels: set[str]) -> bool
     in the current group.
     """
     return bool(mr_labels & merged_labels)
+
+
+@dataclass(frozen=True)
+class MrLabelStatus:
+    """Semantic facts derived purely from an MR's current label set.
+
+    This is a read-only interpretation layer: it answers "what do these
+    labels mean" without re-deriving the same answer independently in
+    every consumer (merge queue, review queue, OMM, gitlab-owners). It
+    intentionally only looks at labels - no pipelines, comments, or label
+    event history - so it stays free to compute and safe for any consumer
+    to call regardless of how much else that consumer needs.
+    """
+
+    merge_priority: int | None
+    is_held: bool
+    has_error: bool
+    is_self_serviceable: bool
+    tenant_labels: frozenset[str]
+
+    @property
+    def is_good_to_merge(self) -> bool:
+        return self.merge_priority is not None and not self.is_held
+
+
+def compute_mr_label_status(labels: Iterable[str]) -> MrLabelStatus:
+    label_set = frozenset(labels)
+    merge_priorities = [
+        MERGE_LABELS_PRIORITY.index(label)
+        for label in MERGE_LABELS_PRIORITY
+        if label in label_set
+    ]
+    return MrLabelStatus(
+        merge_priority=min(merge_priorities) if merge_priorities else None,
+        is_held=any(label in label_set for label in HOLD_LABELS),
+        has_error=any(label in label_set for label in ERROR_LABELS),
+        is_self_serviceable=SELF_SERVICEABLE in label_set,
+        tenant_labels=frozenset(
+            label for label in label_set if label.startswith(TENANT_LABEL_PREFIX)
+        ),
+    )

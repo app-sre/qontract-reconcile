@@ -47,6 +47,7 @@ from reconcile.gitlab_housekeeping.helpers import (
 )
 from reconcile.gitlab_housekeeping.labels import (
     ERROR_LABELS,
+    compute_mr_label_status,
     get_tenant_labels,
     has_overlapping_labels,
     is_eligible_for_optimistic_merge,
@@ -2371,6 +2372,89 @@ def test_has_overlapping_labels(
     mr_labels: set[str], merged_labels: set[str], expected: bool
 ) -> None:
     assert has_overlapping_labels(mr_labels, merged_labels) is expected
+
+
+@pytest.mark.parametrize(
+    (
+        "labels",
+        "expected_priority",
+        "expected_held",
+        "expected_error",
+        "expected_self_serviceable",
+        "expected_tenant_labels",
+    ),
+    [
+        ([], None, False, False, False, frozenset()),
+        (["lgtm"], 8, False, False, False, frozenset()),
+        (["bot/approved"], 6, False, False, False, frozenset()),
+        (["bot/automerge"], 7, False, False, False, frozenset()),
+        (["bot/approved: critical"], 0, False, False, False, frozenset()),
+        (["bot/approved: low"], 5, False, False, False, frozenset()),
+        (["lgtm", "bot/automerge"], 7, False, False, False, frozenset()),
+        (["lgtm", "bot/hold"], 8, True, False, False, frozenset()),
+        (["lgtm", "merge-error"], 8, False, True, False, frozenset()),
+        (
+            ["lgtm", "pipeline-error", "rebase-error"],
+            8,
+            False,
+            True,
+            False,
+            frozenset(),
+        ),
+        (["self-serviceable"], None, False, False, True, frozenset()),
+        (
+            ["lgtm", "tenant-foo", "tenant-bar"],
+            8,
+            False,
+            False,
+            False,
+            frozenset({"tenant-foo", "tenant-bar"}),
+        ),
+        (
+            ["lgtm", "bot/hold", "merge-error", "self-serviceable", "tenant-x"],
+            8,
+            True,
+            True,
+            True,
+            frozenset({"tenant-x"}),
+        ),
+    ],
+)
+def test_compute_mr_label_status(
+    labels: list[str],
+    expected_priority: int | None,
+    expected_held: bool,
+    expected_error: bool,
+    expected_self_serviceable: bool,
+    expected_tenant_labels: frozenset[str],
+) -> None:
+    status = compute_mr_label_status(labels)
+    assert status.merge_priority == expected_priority
+    assert status.is_held is expected_held
+    assert status.has_error is expected_error
+    assert status.is_self_serviceable is expected_self_serviceable
+    assert status.tenant_labels == expected_tenant_labels
+
+
+@pytest.mark.parametrize(
+    "labels",
+    [
+        [],
+        ["lgtm"],
+        ["bot/approved"],
+        ["bot/automerge"],
+        ["lgtm", "bot/hold"],
+        ["lgtm", "awaiting-approval"],
+        ["bot/approved: critical", "needs-rebase"],
+    ],
+)
+def test_compute_mr_label_status_is_good_to_merge_matches_is_good_to_merge(
+    labels: list[str],
+) -> None:
+    """is_good_to_merge() stays the authoritative definition for now; this
+    pins MrLabelStatus.is_good_to_merge to agree with it so the two don't
+    silently drift while both exist."""
+    assert compute_mr_label_status(labels).is_good_to_merge == is_good_to_merge(labels)
 
 
 # --- multi-merge integration tests ---
