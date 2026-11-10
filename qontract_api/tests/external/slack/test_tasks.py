@@ -11,6 +11,7 @@ from qontract_utils.slack_api import (
 from qontract_api.external.slack.schemas import ChatRequest, ChatTaskResult
 from qontract_api.external.slack.tasks import send_slack_chat_message_task
 from qontract_api.models import Secret, TaskStatus
+from qontract_api.tasks import QUEUE_EXTERNAL_SLACK, QUEUE_PROD
 
 
 def _chat_request(**overrides: object) -> ChatRequest:
@@ -30,6 +31,19 @@ def _chat_request(**overrides: object) -> ChatRequest:
 def _run_task(request: ChatRequest) -> ChatTaskResult:
     """Execute the Celery task eagerly (in-process, no broker) and return its result."""
     return send_slack_chat_message_task.apply(kwargs={"request": request}).get()
+
+
+def test_task_is_routed_to_its_own_queue() -> None:
+    """The task must run on its own queue, not share QUEUE_PROD.
+
+    A burst of chat-post-message tasks (e.g. a large usergroup DM fan-out)
+    gets rate-limited by Slack, and each retry blocks its worker via a sleep.
+    If this task shared QUEUE_PROD, that burst would starve unrelated
+    reconciliation tasks on the same queue/worker pool (see incident
+    app-sre/qontract-reconcile#5692 follow-up).
+    """
+    assert send_slack_chat_message_task.queue == QUEUE_EXTERNAL_SLACK
+    assert send_slack_chat_message_task.queue != QUEUE_PROD
 
 
 @patch("qontract_api.external.slack.tasks.get_cache")
