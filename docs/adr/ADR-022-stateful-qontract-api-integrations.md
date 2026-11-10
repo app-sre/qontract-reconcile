@@ -20,7 +20,11 @@ Reviewers proposed moving durable state to qontract-api with a **generic** patte
 - Integration layout stays ADR-014 (L1 utils, L2 workspace client, L3 router/service/tasks).
 - New HTTP `operation_id`s require OPA when policies are enabled (ADR-021).
 - Legacy rollback for ldap-groups depends on `state/ldap-groups/managed_groups` remaining authoritative during cutover.
-- **Cutover:** While server-owned bookmarks are active for a StateRef, the legacy integration (ADR-007 / ADR-008 feature flag) must not write the same S3 object. Cutover docs disable legacy jobs before `-api` owns the bookmark; only the StateStore path writes under the per-StateRef lock.
+- **Cutover:** While server-owned integration state is active for a StateRef, the legacy integration (ADR-007 / ADR-008 feature flag) must not write the same S3 object. Cutover docs disable legacy jobs before `-api` owns the state; only the StateStore path writes under the per-StateRef lock.
+- **Rollback:** Re-enable legacy only after the `-api` integration is disabled and in-flight qontract-api tasks for that StateRef have finished; integration doc documents drain steps.
+- **Reconcile sharding:** Multiple reconcile `-api` deployments may run in parallel (app-interface `sharding`). StateStore behavior is chosen per integration (below).
+    - **Global state (default for flat managed sets):** One integration-wide StateRef maps to one S3 object holding the full managed set. Each task loads the full state under the StateRef lock, applies this run’s slice, reduces **applied actions** into the full set, and saves. Parallel POSTs serialize on the lock.
+    - **Partitioned state (when the integration doc selects it):** Registration includes a partition field name (`shard_by` in `state_ref`; client does not send partition values). qontract-api derives values from desired state, resolves one StateRef and S3 key per value, and locks per ref. Use a stable field in the payload (not static reconcile shard id). Reject or fan out mixed partition values in one request (e.g. ldap-groups may partition by group id prefix or `namespace/name`-style keys when the integration doc enables partitioned mode).
 
 ## Decision
 
