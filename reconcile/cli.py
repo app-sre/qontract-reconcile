@@ -2886,6 +2886,20 @@ def ocm_machine_pools(ctx: click.Context) -> None:
     run_integration(reconcile.ocm_machine_pools, ctx)
 
 
+@integration.command(short_help="Manage Machine Pools in OCM (via qontract-api).")
+@click.pass_context
+def ocm_machine_pools_api(ctx: click.Context) -> None:
+    from reconcile.ocm_machine_pools_api import (
+        OcmMachinePoolsIntegration,
+        OcmMachinePoolsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=OcmMachinePoolsIntegration(OcmMachinePoolsIntegrationParams()),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Manage Upgrade Policy schedules in OCM organizations.")
 @org_id_multiple
 @exclude_org_id
