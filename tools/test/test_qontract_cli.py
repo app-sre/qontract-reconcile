@@ -5,8 +5,9 @@ from unittest.mock import Mock
 
 import pytest
 from click.testing import CliRunner
+from clientele.http.response import Response
 from gitlab.const import PipelineStatus
-from slack_sdk.errors import SlackApiError, SlackRequestError
+from qontract_api_client.exceptions import HTTPStatusError
 
 from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheStatus
 from reconcile.utils.mr.labels import (
@@ -476,12 +477,14 @@ def test_review_queue_includes_approved_mr_with_pipeline_error(
     assert "MR 1" in result.output
 
 
-@pytest.mark.parametrize("slack_error", ["token_revoked", "channel_not_found"])
+@pytest.mark.parametrize("reason", ["token_revoked", "channel_not_found"])
 def test_review_queue_succeeds_when_slack_api_fails(
     mock_review_queue_gl: Mock,
     mock_slackapi_from_queries: Mock,
-    slack_error: str,
+    reason: str,
 ) -> None:
+    """chat_post_message no longer talks to Slack directly — it can only fail
+    with an HTTP error from qontract-api's queueing endpoint."""
     mock_review_queue_gl.get_merge_requests.return_value = [
         _mock_mr(9, [LGTM, PIPELINE_ERROR])
     ]
@@ -489,7 +492,12 @@ def test_review_queue_succeeds_when_slack_api_fails(
         Mock(status=PipelineStatus.FAILED)
     ]
     mock_slackapi_from_queries.return_value.chat_post_message.side_effect = (
-        SlackApiError(slack_error, response={"error": slack_error})
+        HTTPStatusError(
+            response=Response(
+                status_code=502, headers={}, content=b"", request_method="POST"
+            ),
+            reason=reason,
+        )
     )
 
     runner = CliRunner()
@@ -501,14 +509,14 @@ def test_review_queue_succeeds_when_slack_api_fails(
 
     assert result.exit_code == 0
     assert "MR 9" in result.output
-    mock_slackapi_from_queries.assert_called_once_with(
-        "app-interface-review-queue", init_usergroups=False
-    )
+    mock_slackapi_from_queries.assert_called_once_with("app-interface-review-queue")
 
 
 def test_review_queue_succeeds_when_slack_request_fails(
     mock_review_queue_gl: Mock, mock_slackapi_from_queries: Mock
 ) -> None:
+    """A connection-level failure reaching qontract-api (not an HTTP error
+    response) should also leave the review queue output authoritative."""
     mock_review_queue_gl.get_merge_requests.return_value = [
         _mock_mr(10, [LGTM, PIPELINE_ERROR])
     ]
@@ -516,7 +524,7 @@ def test_review_queue_succeeds_when_slack_request_fails(
         Mock(status=PipelineStatus.FAILED)
     ]
     mock_slackapi_from_queries.return_value.chat_post_message.side_effect = (
-        SlackRequestError("Slack connection failed")
+        ConnectionError("Could not connect to qontract-api")
     )
 
     runner = CliRunner()
