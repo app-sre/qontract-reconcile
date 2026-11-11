@@ -302,7 +302,7 @@ class OCMCluster(BaseModel):
     def channel_type(self) -> str:
         return self.channel.rsplit("-", 1)[0]
 
-    def target_y_stream_channel(self, available_channels: set[str]) -> str | None:
+    def next_available_channel(self, available_channels: set[str]) -> str | None:
         """Choose the next minor channel, or the next major's .0 channel."""
         if not self.is_y_stream_channel():
             return None

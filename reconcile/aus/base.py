@@ -1196,7 +1196,7 @@ def _get_available_channels(
     return channels
 
 
-def check_y_stream_channel_switch_needed(
+def check_channel_switch_needed(
     spec: ClusterUpgradeSpec,
     available_channels: set[str],
 ) -> ChannelSwitchAction | None:
@@ -1204,7 +1204,7 @@ def check_y_stream_channel_switch_needed(
     if not cluster.is_y_stream_channel():
         return None
 
-    target_channel = cluster.target_y_stream_channel(available_channels)
+    target_channel = cluster.next_available_channel(available_channels)
     if not target_channel:
         return None
 
@@ -1235,7 +1235,7 @@ def _try_channel_switch(
     ) or _get_available_channels(
         ocm_api, spec.cluster.id, spec.cluster.version.id, available_channels_cache
     )
-    channel_switch = check_y_stream_channel_switch_needed(spec, available_channels)
+    channel_switch = check_channel_switch_needed(spec, available_channels)
     if channel_switch:
         channel_switches.append(channel_switch)
 

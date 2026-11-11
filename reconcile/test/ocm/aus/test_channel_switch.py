@@ -9,7 +9,7 @@ from reconcile.aus import base as aus_base
 from reconcile.aus.base import (
     ChannelSwitchAction,
     act_channel_switches,
-    check_y_stream_channel_switch_needed,
+    check_channel_switch_needed,
 )
 from reconcile.aus.cluster_version_data import VersionData
 from reconcile.aus.models import OrganizationUpgradeSpec
@@ -78,21 +78,21 @@ def test_channel_type(channel: str, expected: str) -> None:
         ("4.20.10", "stable", {"stable-4.21"}, None),
     ],
 )
-def test_target_y_stream_channel(
+def test_next_available_channel(
     version: str,
     channel: str,
     available_channels: set[str],
     expected: str | None,
 ) -> None:
     cluster = build_ocm_cluster(name="c1", version=version, channel=channel)
-    assert cluster.target_y_stream_channel(available_channels) == expected
+    assert cluster.next_available_channel(available_channels) == expected
 
 
 def test_check_legacy_channel_no_switch() -> None:
     spec = build_cluster_upgrade_spec(
         name="c1", current_version="4.20.10", channel="stable"
     )
-    assert check_y_stream_channel_switch_needed(spec, set()) is None
+    assert check_channel_switch_needed(spec, set()) is None
 
 
 def test_check_target_channel_not_in_available_channels() -> None:
@@ -102,9 +102,7 @@ def test_check_target_channel_not_in_available_channels() -> None:
         channel="stable-4.21",
     )
     assert (
-        check_y_stream_channel_switch_needed(
-            spec, {"stable-4.21", "fast-4.21", "fast-4.22"}
-        )
+        check_channel_switch_needed(spec, {"stable-4.21", "fast-4.21", "fast-4.22"})
         is None
     )
 
@@ -115,7 +113,7 @@ def test_check_no_available_channels() -> None:
         current_version="4.20.10",
         channel="stable-4.20",
     )
-    assert check_y_stream_channel_switch_needed(spec, set()) is None
+    assert check_channel_switch_needed(spec, set()) is None
 
 
 def test_check_already_on_target_channel() -> None:
@@ -124,17 +122,14 @@ def test_check_already_on_target_channel() -> None:
         current_version="4.21.10",
         channel="stable-4.21",
     )
-    assert (
-        check_y_stream_channel_switch_needed(spec, {"stable-4.21", "stable-4.22"})
-        is not None
-    )
+    assert check_channel_switch_needed(spec, {"stable-4.21", "stable-4.22"}) is not None
     spec_same = build_cluster_upgrade_spec(
         name="c1",
         current_version="4.22.5",
         channel="stable-4.22",
     )
     assert (
-        check_y_stream_channel_switch_needed(spec_same, {"stable-4.22", "stable-4.23"})
+        check_channel_switch_needed(spec_same, {"stable-4.22", "stable-4.23"})
         is not None
     )
 
@@ -164,7 +159,7 @@ def test_check_switch_needed(
         channel=channel,
         available_channels=available_channels,
     )
-    result = check_y_stream_channel_switch_needed(spec, set(available_channels))
+    result = check_channel_switch_needed(spec, set(available_channels))
     assert result is not None
     assert result.from_channel == expected_from
     assert result.to_channel == expected_to
@@ -178,7 +173,7 @@ def test_check_y1_blocked_still_switches() -> None:
         available_channels=["stable-4.20", "stable-4.21"],
         blocked_versions=[r"^4\.21\..*$"],
     )
-    result = check_y_stream_channel_switch_needed(spec, {"stable-4.20", "stable-4.21"})
+    result = check_channel_switch_needed(spec, {"stable-4.20", "stable-4.21"})
     assert result is not None
     assert result.to_channel == "stable-4.21"
 
