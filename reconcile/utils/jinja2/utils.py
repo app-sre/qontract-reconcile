@@ -133,8 +133,16 @@ class Jinja2TemplateCache:
     S3 = "s3"
     S3_LS = "s3_ls"
     VAULT = "vault"
+    DYNAMIC_QUERY = "dynamic_query"
 
-    _NAMESPACES = (GITHUB, QUERY, S3, S3_LS, VAULT)
+    _NAMESPACES = (
+        GITHUB,
+        QUERY,
+        S3,
+        S3_LS,
+        VAULT,
+        DYNAMIC_QUERY,
+    )
 
     def __init__(self) -> None:
         self._stores: dict[str, dict[Any, Any]] = {ns: {} for ns in self._NAMESPACES}

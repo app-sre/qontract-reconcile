@@ -27,7 +27,7 @@ from reconcile.templating.renderer import (
     unpack_dynamic_variables,
     unpack_static_variables,
 )
-from reconcile.utils.jinja2.utils import Jinja2TemplateError
+from reconcile.utils.jinja2.utils import Jinja2TemplateCache, Jinja2TemplateError
 from reconcile.utils.vcs import VCS
 
 if TYPE_CHECKING:
@@ -211,6 +211,23 @@ def test_unpack_dynamic_variables(
     assert unpack_dynamic_variables(collection_variables, {}, gql) == {
         "foo": {"foo": [{"bar": "baz"}]}
     }
+
+
+def test_dynamic_queries_are_cached_per_run_and_copied(
+    mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
+) -> None:
+    api = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
+    api.query.return_value = {"items": ["original"]}
+    cache = Jinja2TemplateCache()
+
+    first = unpack_dynamic_variables(collection_variables, {}, api, cache=cache)
+    first["foo"]["items"].append("changed")
+    second = unpack_dynamic_variables(collection_variables, {}, api, cache=cache)
+
+    assert second == {"foo": {"items": ["original"]}}
+    api.query.assert_called_once()
+    unpack_dynamic_variables(collection_variables, {}, api, cache=Jinja2TemplateCache())
+    assert api.query.call_count == 2
 
 
 def test_unpack_dynamic_variables_multiple_result(

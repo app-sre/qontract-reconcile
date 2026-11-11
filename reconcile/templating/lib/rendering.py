@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from qontract_utils.ruamel import create_ruamel_instance
 
 from reconcile.utils.jinja2.utils import (
+    Jinja2TemplateCache,
     Jinja2TemplateError,
     TemplateRenderOptions,
     process_jinja2_template,
@@ -54,12 +55,14 @@ class Renderer(ABC):
         data: TemplateData,
         secret_reader: SecretReaderBase | None = None,
         template_render_options: TemplateRenderOptions | None = None,
+        cache: Jinja2TemplateCache | None = None,
     ):
         self.template = template
         self.data = data
         self.secret_reader = secret_reader
         self.ruamel_instance = create_ruamel_instance(explicit_start=True)
         self.template_render_options = template_render_options
+        self.cache = cache or Jinja2TemplateCache()
 
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
         return {**self.data.variables, "current": self.data.current}
@@ -71,6 +74,7 @@ class Renderer(ABC):
                 vars=self._jinja2_render_kwargs(),
                 secret_reader=self.secret_reader,
                 template_render_options=self.template_render_options,
+                cache=self.cache,
             )
         except Jinja2TemplateError:
             logging.exception(f"Error rendering template {self.template.name}")
@@ -198,6 +202,7 @@ def create_renderer(
     data: TemplateData,
     secret_reader: SecretReaderBase | None = None,
     template_render_options: TemplateRenderOptions | None = None,
+    cache: Jinja2TemplateCache | None = None,
 ) -> Renderer:
     if template.patch:
         return PatchRenderer(
@@ -205,10 +210,12 @@ def create_renderer(
             data=data,
             secret_reader=secret_reader,
             template_render_options=template_render_options,
+            cache=cache,
         )
     return FullRenderer(
         template=template,
         data=data,
         secret_reader=secret_reader,
         template_render_options=template_render_options,
+        cache=cache,
     )
