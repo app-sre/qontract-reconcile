@@ -574,7 +574,9 @@ Phases have dependencies. Document these in the migration plan so phases can be 
   exactly what the HTTP/JSON boundary does in production.
 - **A plan-parity E2E is the strongest migration proof available:** run the legacy
   integration's diff code and the new stack's dry-run reconcile over the same real
-  clusters and require identical action sets. See verify_pr5919_e2e.py's approach.
+  clusters and require identical action sets. See
+  tools/e2e/verify_ocm_machine_pools_api.py for the reference implementation of
+  the methodology (all environment specifics are CLI arguments).
 - **`mode="before"` validators receive raw request values** (strings, mixed types)
   and already-constructed model instances on union re-validation. Prefer
   `mode="after"` validators on coerced values. For `mode="before"` **model**
