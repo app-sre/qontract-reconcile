@@ -15,6 +15,7 @@ from qontract_api.integrations.managed_sso_client.domain import (
 )
 from qontract_api.integrations.managed_sso_client.keycloak_workspace_client import (
     KeycloakWorkspaceClient,
+    _apply_mapper_declarations,
 )
 
 INSTANCE_URL = "https://sso.example.com/auth/realms/redhat-external"
@@ -239,16 +240,16 @@ def test_update_preserves_fresh_mapper_config_and_overrides_declared_keys(
 def test_update_does_not_inherit_config_from_other_mappers(
     client: KeycloakWorkspaceClient, mock_api: MagicMock, changes: dict[str, str]
 ) -> None:
-    live_mapper = ManagedKeycloakProtocolMapper(
+    desired_mapper = ManagedKeycloakProtocolMapper(
         name="audience",
         protocol_mapper="oidc-audience-mapper",
-        config={"live-only": "value"},
+        config={"declared": "value"},
+    )
+    live_mapper = desired_mapper.model_copy(
+        update={**changes, "config": {"live-only": "value"}}
     )
     mock_api.get_client.return_value = _client_repr().model_copy(
         update={"protocol_mappers": [live_mapper]}
-    )
-    desired_mapper = live_mapper.model_copy(
-        update={**changes, "config": {"declared": "value"}}
     )
     data = _client_repr().model_copy(update={"protocol_mappers": [desired_mapper]})
 
@@ -484,7 +485,7 @@ def test_update_merges_creates_updates_and_explicit_deletions(
     )
 
     sent = mock_api.update_client.call_args.kwargs["data"]
-    assert sent.protocol_mappers == [
+    expected = [
         external,
         live_audience.with_config({
             "included.custom.audience": "new-api",
@@ -492,6 +493,8 @@ def test_update_merges_creates_updates_and_explicit_deletions(
         }),
         declarations[2].to_managed_keycloak_mapper(),
     ]
+    assert sent.protocol_mappers == expected
+    assert _apply_mapper_declarations(live, declarations) == expected
     assert all(
         "deleted" not in m for m in sent.to_raw().model_dump()["protocolMappers"]
     )

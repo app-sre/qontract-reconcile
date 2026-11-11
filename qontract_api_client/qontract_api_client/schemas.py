@@ -971,7 +971,7 @@ class ProtocolMapperDesiredState(pydantic.BaseModel):
     config: dict[str, typing.Any] | None = None
     deleted: bool = False
     name: str
-    protocol: str = "openid-connect"
+    protocol: typing.Literal["openid-connect"] = "openid-connect"
     protocol_mapper: str
 
 

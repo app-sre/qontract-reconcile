@@ -100,6 +100,11 @@ to `"false"`. To reset a mapper completely,
 set `deleted: true`, let reconciliation finish, then redeclare it without that
 flag and with the desired config. This preserves the client and its client secret.
 
+Empty string config values (`""`) are rejected because Keycloak removes those
+entries, causing persistent drift. Omit an unset key instead. Whitespace-only
+values are preserved as supplied: Keycloak's mapper config conversion does not
+trim them, unlike client attributes. An empty mapping (`config: {}`) remains valid.
+
 The workspace client reads fresh state under its update lock, preserves undeclared
 mappers, removes explicit deletion targets, and merges config for matching
 protocol, name and mapper type. New mappers and changed mapper types use only

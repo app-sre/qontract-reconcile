@@ -13,6 +13,7 @@ from qontract_api.integrations.managed_sso_client.domain import (
     ManagedSsoClientManagementSecret,
     OidcDesiredState,
     ProtocolMapperDesiredState,
+    _declared_mappers_match,
 )
 from qontract_api.models import Secret
 
@@ -471,6 +472,7 @@ def test_only_declared_mapper_config_keys_are_managed(
     )
 
     assert desired.matches(current) is matches
+    assert _declared_mappers_match([declaration], current.protocol_mappers) is matches
 
 
 def test_unset_mappers_and_attributes_leave_live_values_unmanaged() -> None:
@@ -690,6 +692,31 @@ def test_mapper_deletion_is_not_a_keycloak_representation() -> None:
         deletion.to_managed_keycloak_mapper()
 
 
+@pytest.mark.parametrize("deleted", [False, True])
+def test_mapper_rejects_empty_config_values(*, deleted: bool) -> None:
+    with pytest.raises(
+        ValueError, match="mapper config values must not be empty strings"
+    ):
+        ProtocolMapperDesiredState(
+            name="audience",
+            protocol_mapper="oidc-audience-mapper",
+            deleted=deleted,
+            config={"included.custom.audience": "", "access.token.claim": "true"},
+        )
+
+
+@pytest.mark.parametrize("value", [" ", "\t\n", "\u00a0", " api ", "false"])
+def test_mapper_preserves_nonempty_config_values(value: str) -> None:
+    mapper = ProtocolMapperDesiredState(
+        name="audience",
+        protocol_mapper="oidc-audience-mapper",
+        config={"included.custom.audience": value},
+    )
+    assert mapper.to_managed_keycloak_mapper().to_raw().config == {
+        "included.custom.audience": value
+    }
+
+
 @pytest.mark.parametrize("mappers", [None, []])
 def test_empty_declarations_preserve_live_mappers(
     mappers: list[ProtocolMapperDesiredState] | None,
@@ -701,6 +728,7 @@ def test_empty_declarations_preserve_live_mappers(
         )
     ])
     assert desired.matches(current)
+    assert _declared_mappers_match(mappers, current.protocol_mappers)
     assert desired.to_managed_keycloak_client().protocol_mappers is None
 
 
@@ -728,6 +756,11 @@ def test_mapper_deletion_matches_only_when_target_absent(
         [external, target] if target_exists else [external]
     )
     assert desired.matches(current) is not target_exists
+    assert desired.oidc is not None
+    assert (
+        _declared_mappers_match(desired.oidc.protocol_mappers, current.protocol_mappers)
+        is not target_exists
+    )
     # Deletion instructions are also excluded from registration payloads.
     assert desired.to_managed_keycloak_client().protocol_mappers is None
 
