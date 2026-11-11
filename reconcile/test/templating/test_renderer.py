@@ -624,8 +624,10 @@ def test_reconcile_variables(
     reconcile_mocks: tuple,
     template_collection: TemplateCollectionV1,
     template_collection_variable: TemplateCollectionVariablesV1,
+    secret_reader: SecretReader,
 ) -> None:
     t, p, r, pt = reconcile_mocks
+    t._secret_reader = secret_reader
 
     gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
     template_collection.variables = template_collection_variable
@@ -646,6 +648,30 @@ def test_reconcile_variables(
         ANY,
         r,
     )
+
+
+def test_reconcile_variables_use_renderer_secret_reader(
+    mocker: MockerFixture,
+    reconcile_mocks: tuple,
+    template_collection: TemplateCollectionV1,
+    template_collection_variable: TemplateCollectionVariablesV1,
+    secret_reader: SecretReader,
+) -> None:
+    t, p, r, _pt = reconcile_mocks
+    t._secret_reader = secret_reader
+
+    gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
+    template_collection.variables = template_collection_variable
+    gtc.return_value = [template_collection]
+    udv = mocker.patch("reconcile.templating.renderer.unpack_dynamic_variables")
+    udv.return_value = {}
+    usv = mocker.patch("reconcile.templating.renderer.unpack_static_variables")
+    usv.return_value = {}
+
+    t.reconcile(p, r)
+
+    assert udv.call_args.kwargs["secret_reader"] is secret_reader
+    assert usv.call_args.kwargs["secret_reader"] is secret_reader
 
 
 def test__calc_result_hash(template_result: TemplateResult) -> None:
