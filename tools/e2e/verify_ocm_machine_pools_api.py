@@ -28,9 +28,11 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 import subprocess
 import sys
 import threading
+import uuid
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
@@ -69,7 +71,11 @@ from reconcile.utils.secret_reader import SecretReaderBase
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-THROWAWAY_PREFIX = "e2e-ocm-mp-api-"
+# generic prefix shared by all runs of this tool (startup janitorial only);
+# each invocation appends a unique suffix so reconciliation can never act on
+# another run's pools
+THROWAWAY_BASE_PREFIX = "e2e-ocm-mp-api-"
+RUN_SUFFIX = uuid.uuid4().hex[:6]
 OCM_ENVIRONMENT = "e2e"
 
 _failures: list[str] = []
@@ -254,6 +260,15 @@ def compiled_clusters(
             if name not in by_name:
                 raise RuntimeError(f"cluster {name} not found in App-Interface")
         selected = [by_name[machine_pool_cluster], by_name[node_pool_cluster]]
+        # both integrations require OCM config and machine pool definitions;
+        # an ineligible selection would compare an empty compilation against
+        # a legacy KeyError instead of testing parity
+        for cluster in selected:
+            if cluster.ocm is None or cluster.machine_pools is None:
+                raise RuntimeError(
+                    f"cluster {cluster.name} lacks ocm config or machinePools - "
+                    "not eligible for either integration"
+                )
         api_clusters = client_integration._build_api_clusters(selected)
         groups = client_integration._group_clusters_by_ocm(selected)
     return api_clusters, groups
@@ -317,10 +332,12 @@ def scenario_grouping_and_connection(groups: dict[tuple[str, str], list[Any]]) -
         sum(len(v) for v in groups.values()) == 2,
         str({k: [c.name for c in v] for k, v in groups.items()}),
     )
+    connections = {}
     for (env_name, _ocm_name), cluster_list in groups.items():
         connection = client_integration._build_ocm_connection(
             cluster_list[0], "https://vault.example.com"
         )
+        connections[env_name] = connection
         check(
             f"connection for {env_name} has an OCM url",
             bool(connection.ocm_url),
@@ -330,6 +347,23 @@ def scenario_grouping_and_connection(groups: dict[tuple[str, str], list[Any]]) -
             f"connection for {env_name} has a client id",
             bool(connection.access_token_client_id),
         )
+    # this verifier drives ONE OCM connection (the CLI credential set); if
+    # the selected clusters resolve to different effective connections the
+    # parity comparison would run against the wrong current state
+    identities = {
+        (
+            c.ocm_url,
+            c.access_token_url,
+            c.access_token_client_id,
+            c.path,
+        )
+        for c in connections.values()
+    }
+    check(
+        "all groups share one effective OCM connection",
+        len(identities) == 1,
+        str(identities),
+    )
 
 
 def new_dry_run_plan(
@@ -413,6 +447,32 @@ def legacy_dry_run_plan(
     return plan, error_messages
 
 
+_ERROR_CATEGORY_PATTERNS: tuple[tuple[str, str], ...] = (
+    ("update instance_type", "can not update instance_type"),
+    ("update subnet", "can not update subnet"),
+    ("delete all pools", "can not delete all"),
+    ("delete protected pool", "can not delete machine pool"),
+    ("fetch failure", "Failed to fetch"),
+)
+
+
+def _normalize_error(error: str) -> tuple[str, str]:
+    """Reduce an error message to (category, cluster) for parity comparison.
+
+    The two stacks word their errors differently, so exact strings cannot be
+    compared - but the reconciliation DECISION (which guard fired, on which
+    cluster) must match.
+    """
+    category = "other"
+    lowered = error.lower()
+    for name, needle in _ERROR_CATEGORY_PATTERNS:
+        if needle.lower() in lowered:
+            category = name
+            break
+    cluster_match = re.search(r"cluster ([\w-]+)", error)
+    return (category, cluster_match.group(1) if cluster_match else "-")
+
+
 def scenario_parity(
     new_plan: set[tuple[str, str, str]],
     legacy_plan: set[tuple[str, str, str]],
@@ -428,10 +488,13 @@ def scenario_parity(
     )
     dump("new plan", sorted(new_plan) or "no actions")
     dump("legacy plan", sorted(legacy_plan) or "no actions")
+    new_error_ids = sorted(_normalize_error(e) for e in new_errors)
+    legacy_error_ids = sorted(_normalize_error(e) for e in legacy_errors)
     check(
-        "error counts match",
-        len(new_errors) == len(legacy_errors),
-        f"new={len(new_errors)} legacy={len(legacy_errors)}",
+        "error decisions identical (category + cluster)",
+        new_error_ids == legacy_error_ids,
+        f"only-new={sorted(set(new_error_ids) - set(legacy_error_ids))} "
+        f"only-legacy={sorted(set(legacy_error_ids) - set(new_error_ids))}",
     )
 
 
@@ -509,36 +572,71 @@ def mutation_checks(
 ) -> None:
     """Throwaway-pool lifecycle through the client request-building path,
     against the in-process service with live-snapshot desired state (real
-    App-Interface desired state is never applied)."""
-    print("== mutate: cleanup leftovers from aborted runs")
+    App-Interface desired state is never applied).
+
+    Safety rules enforced here:
+    - pool ids are invocation-unique (base prefix + run suffix), so
+      reconciliation can never act on another run's leftovers
+    - the dry run must show EXACTLY the two expected creates before any
+      live reconciliation runs; anything else (drift on real pools, other
+      actions) aborts the mutation pass
+    - this run's throwaway pools are deleted in a finally block even when
+      a later step raises
+    """
+    mp_pool_id = f"{THROWAWAY_BASE_PREFIX}{RUN_SUFFIX}-mp"
+    np_pool_id = f"{THROWAWAY_BASE_PREFIX}{RUN_SUFFIX}-np"
+    this_run_ids = {mp_pool_id, np_pool_id}
+
+    print(f"== mutate: run id {RUN_SUFFIX}")
+    print("== mutate: janitorial cleanup of any earlier-run leftovers")
     api = harness.bootstrap_api()
+    created = False
     try:
         mp_id = resolve_cluster_id(api, machine_pool_cluster)
         np_id = resolve_cluster_id(api, node_pool_cluster)
-        for delete, cluster_id, pool_id in (
-            (api.delete_machine_pool, mp_id, THROWAWAY_PREFIX + "mp"),
-            (api.delete_node_pool, np_id, THROWAWAY_PREFIX + "np"),
+        # direct-API janitorial for leftovers of ABORTED earlier runs
+        # (deliberately broader than this run's ids; the clusters used for
+        # verification are dedicated test clusters)
+        for list_pools, delete_pool, cluster_id in (
+            (api.get_machine_pools, api.delete_machine_pool, mp_id),
+            (api.get_node_pools, api.delete_node_pool, np_id),
         ):
-            try:
-                delete(cluster_id, pool_id)
-                print(f"  deleted leftover {pool_id}")
-            except Exception:
-                logging.debug("no leftover %s", pool_id, exc_info=True)
+            for pool in list_pools(cluster_id):
+                if pool.id.startswith(THROWAWAY_BASE_PREFIX):
+                    try:
+                        delete_pool(cluster_id, pool.id)
+                        print(f"  deleted leftover {pool.id}")
+                    except Exception:
+                        logging.warning(
+                            "could not delete leftover %s", pool.id, exc_info=True
+                        )
         # the cleanup bypassed the workspace client, so its cache
         # invalidation never ran - drop the stale entries
         harness.cache.clear()
 
-        print("== mutate: dry-run shows the creates")
+        print("== mutate: dry-run shows exactly the two creates")
         clusters = _snapshot_with_throwaway(
-            api, machine_pool_cluster, node_pool_cluster, mp_id, np_id
+            api,
+            machine_pool_cluster,
+            node_pool_cluster,
+            mp_id,
+            np_id,
+            mp_pool_id,
+            np_pool_id,
         )
         result = harness.reconcile(clusters, dry_run=True)
         action_types = sorted(a.action_type for a in result.actions)
+        gate_ok = action_types == ["create_machine_pool", "create_node_pool"]
         check(
-            "dry-run reports both creates",
-            action_types == ["create_machine_pool", "create_node_pool"],
+            "dry-run reports exactly the two expected creates",
+            gate_ok,
             str(action_types),
         )
+        if not gate_ok:
+            # a non-throwaway pool changed after the snapshot: applying
+            # this plan could mutate real pools - refuse to go live
+            print("  REFUSING live reconciliation: unexpected dry-run actions")
+            return
 
         print("== mutate: create")
         result = harness.reconcile(clusters, dry_run=False)
@@ -552,12 +650,9 @@ def mutation_checks(
             result.applied_count == 2,
             f"applied={result.applied_count}",
         )
-        live_mp = [
-            p for p in api.get_machine_pools(mp_id) if p.id.startswith(THROWAWAY_PREFIX)
-        ]
-        live_np = [
-            p for p in api.get_node_pools(np_id) if p.id.startswith(THROWAWAY_PREFIX)
-        ]
+        created = True
+        live_mp = [p for p in api.get_machine_pools(mp_id) if p.id in this_run_ids]
+        live_np = [p for p in api.get_node_pools(np_id) if p.id in this_run_ids]
         check("machine pool live", len(live_mp) == 1)
         check("node pool live", len(live_np) == 1)
 
@@ -574,9 +669,7 @@ def mutation_checks(
             out = []
             for c in (by_name[machine_pool_cluster], by_name[node_pool_cluster]):
                 pools = [
-                    p.model_copy(update=pool_update)
-                    if p.id == THROWAWAY_PREFIX + "mp"
-                    else p
+                    p.model_copy(update=pool_update) if p.id == mp_pool_id else p
                     for p in c.pools
                 ]
                 out.append(c.model_copy(update={"pools": pools}))
@@ -596,9 +689,7 @@ def mutation_checks(
             result.status == TaskStatus.SUCCESS,
             str(result.errors),
         )
-        live_mp = [
-            p for p in api.get_machine_pools(mp_id) if p.id == THROWAWAY_PREFIX + "mp"
-        ]
+        live_mp = [p for p in api.get_machine_pools(mp_id) if p.id == mp_pool_id]
         check(
             "autoscaling active",
             bool(live_mp) and live_mp[0].autoscaling is not None,
@@ -612,9 +703,7 @@ def mutation_checks(
             result.status == TaskStatus.SUCCESS,
             str(result.errors),
         )
-        live_mp = [
-            p for p in api.get_machine_pools(mp_id) if p.id == THROWAWAY_PREFIX + "mp"
-        ]
+        live_mp = [p for p in api.get_machine_pools(mp_id) if p.id == mp_pool_id]
         check(
             "fixed active",
             bool(live_mp)
@@ -622,14 +711,10 @@ def mutation_checks(
             and live_mp[0].replicas == 1,
         )
 
-        print("== mutate: delete throwaway pools")
+        print("== mutate: delete this run's throwaway pools")
         clean = [
             c.model_copy(
-                update={
-                    "pools": [
-                        p for p in c.pools if not p.id.startswith(THROWAWAY_PREFIX)
-                    ]
-                }
+                update={"pools": [p for p in c.pools if p.id not in this_run_ids]}
             )
             for c in _snapshot_clusters(
                 api, machine_pool_cluster, node_pool_cluster, mp_id, np_id
@@ -641,17 +726,19 @@ def mutation_checks(
             result.status == TaskStatus.SUCCESS,
             str(result.errors),
         )
-        leftovers_mp = [
-            p.id
-            for p in api.get_machine_pools(mp_id)
-            if p.id.startswith(THROWAWAY_PREFIX)
-        ]
-        leftovers_np = [
-            p.id for p in api.get_node_pools(np_id) if p.id.startswith(THROWAWAY_PREFIX)
-        ]
-        check("no throwaway machine pools left", leftovers_mp == [], str(leftovers_mp))
-        check("no throwaway node pools left", leftovers_np == [], str(leftovers_np))
+        created = False
     finally:
+        if created:
+            # a step raised after creation - best-effort direct cleanup of
+            # THIS run's pools, reported separately from the failure
+            print("== mutate: cleaning up this run's throwaway pools after error")
+            try:
+                mp_id_after = resolve_cluster_id(api, machine_pool_cluster)
+                api.delete_machine_pool(mp_id_after, mp_pool_id)
+                np_id_after = resolve_cluster_id(api, node_pool_cluster)
+                api.delete_node_pool(np_id_after, np_pool_id)
+            except Exception:
+                logging.exception("cleanup of throwaway pools %s failed", this_run_ids)
         api.close()
 
 
@@ -661,8 +748,14 @@ def _snapshot_with_throwaway(
     node_pool_cluster: str,
     mp_id: str,
     np_id: str,
+    mp_pool_id: str,
+    np_pool_id: str,
 ) -> list[DesiredClusterMachinePools]:
-    """Live snapshot with throwaway pools added."""
+    """Live snapshot with this run's throwaway pools added.
+
+    The desired state only ever excludes/contains THIS invocation's pool
+    ids, so reconciliation can never delete another run's leftovers.
+    """
     clusters = _snapshot_clusters(
         api, machine_pool_cluster, node_pool_cluster, mp_id, np_id
     )
@@ -671,7 +764,7 @@ def _snapshot_with_throwaway(
         if c.name == machine_pool_cluster:
             pools: list[Any] = [
                 DesiredMachinePool(
-                    id=THROWAWAY_PREFIX + "mp",
+                    id=mp_pool_id,
                     instance_type="m5.xlarge",
                     replicas=0,
                 ),
@@ -680,7 +773,7 @@ def _snapshot_with_throwaway(
         else:
             pools = [
                 DesiredNodePool(
-                    id=THROWAWAY_PREFIX + "np",
+                    id=np_pool_id,
                     aws_node_pool=OcmNodePoolAws(instance_type="m5.xlarge"),
                     replicas=0,
                 ),

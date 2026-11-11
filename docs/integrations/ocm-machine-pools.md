@@ -185,6 +185,16 @@ Authorization: Bearer <JWT_TOKEN>
 - Never run both integrations enabled against the same cluster: duplicate
   mutations can result, and the legacy integration does not invalidate the
   new integration's pool cache, so the new writer can act on stale state
+- **Drain before switching:** a configuration change does not stop a
+  legacy run that already selected the cluster — that run can still
+  mutate pools after the new writer is enabled. Stop the legacy
+  integration's scheduling and let any in-flight runs complete before
+  applying the switch (the same applies in reverse during rollback)
+- **Let the cache expire before enabling the new writer:** a dry run may
+  have cached a pool list that the legacy writer then changed (the legacy
+  integration does not invalidate the new integration's cache). Wait out
+  the configured cache TTL (default: 10 minutes) after the legacy
+  writer's last run before enabling the new writer
 
 ## Client Integration
 
