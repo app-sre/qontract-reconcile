@@ -302,15 +302,20 @@ class OCMCluster(BaseModel):
     def channel_type(self) -> str:
         return self.channel.rsplit("-", 1)[0]
 
-    def target_y_stream_channel(self) -> str | None:
+    def next_available_channel(self, available_channels: set[str]) -> str | None:
+        """Choose the next minor channel, or the next major's .0 channel."""
         if not self.is_y_stream_channel():
             return None
         channel_prefix, version_part = self.channel.rsplit("-", 1)
-        major, minor = version_part.split(".")
-        next_minor = int(minor) + 1
+        major, minor = (int(part) for part in version_part.split("."))
+        next_minor = minor + 1
         if channel_prefix == "eus" and next_minor % 2 == 1:
             next_minor += 1
-        return f"{channel_prefix}-{major}.{next_minor}"
+        next_minor_channel = f"{channel_prefix}-{major}.{next_minor}"
+        if next_minor_channel in available_channels:
+            return next_minor_channel
+        next_major_channel = f"{channel_prefix}-{major + 1}.0"
+        return next_major_channel if next_major_channel in available_channels else None
 
     def is_osd(self) -> bool:
         return self.product.id == PRODUCT_ID_OSD
