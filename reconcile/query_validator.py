@@ -3,12 +3,15 @@ import sys
 from textwrap import indent
 from typing import Any
 
-from reconcile import queries
 from reconcile.openshift_resources_base import (
     OPENSHIFT_RESOURCE,
     fetch_openshift_resource,
 )
+from reconcile.typed_queries.openshift_resources import (
+    get_openshift_resources_settings,
+)
 from reconcile.utils import gql
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.status import ExitCodes
 
@@ -37,7 +40,8 @@ def run(dry_run: bool) -> None:
     if not data:
         return
     query_validations: list[dict[str, Any]] = data.get("validations") or []
-    settings = queries.get_secret_reader_settings()
+    settings = get_openshift_resources_settings()
+    secret_reader = create_secret_reader(use_vault=settings.vault)
     error = False
     for qv in query_validations:
         qv_name = qv["name"]
@@ -49,7 +53,13 @@ def run(dry_run: bool) -> None:
                 logging.error(f"query validation error in {qv_name}: {e!s}")
         for r in qv.get("resources") or []:
             try:
-                fetch_openshift_resource(r, qv, settings=settings, skip_validation=True)
+                fetch_openshift_resource(
+                    r,
+                    qv,
+                    skip_validation=True,
+                    secret_reader=secret_reader,
+                    repo_url=settings.repo_url,
+                )
             except Exception as e:
                 error = True
                 logging.error(f"query validation error in {qv_name}: {e!s}")
