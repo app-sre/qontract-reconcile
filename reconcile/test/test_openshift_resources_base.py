@@ -28,6 +28,7 @@ from reconcile.openshift_resources_base import (
 )
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
+from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 
@@ -236,6 +237,21 @@ def test_early_exit_templates_do_not_read_secrets(secret_reader: MagicMock) -> N
 
     assert result["cluster"] == "cluster"
     secret_reader.read_all.assert_not_called()
+
+
+def test_early_exit_desired_state_empty_namespaces_skips_settings(
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch.object(orb, "get_namespaces", return_value=([], None))
+    settings = mocker.patch.object(
+        orb,
+        "get_openshift_resources_settings",
+        side_effect=AppInterfaceSettingsError("settings not found"),
+    )
+
+    assert orb.early_exit_desired_state(["provider"]) == {"state": {}}
+
+    settings.assert_not_called()
 
 
 def test_desired_state_uses_supplied_reader(

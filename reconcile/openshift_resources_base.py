@@ -1215,11 +1215,14 @@ def _get_namespace_cluster_scoped_resources(
 def early_exit_desired_state(
     providers: list[str], resource_schema_filter: str | None = None
 ) -> dict[str, Any]:
-    settings = get_openshift_resources_settings()
-    secret_reader = create_secret_reader(use_vault=settings.vault)
     namespaces, _ = get_namespaces(
         providers, resource_schema_filter=resource_schema_filter
     )
+    if not namespaces:
+        return {"state": {}}
+
+    settings = get_openshift_resources_settings()
+    secret_reader = create_secret_reader(use_vault=settings.vault)
     fetch_specs = [
         (r, ns_info) for ns_info in namespaces for r in ns_info["openshiftResources"]
     ]
