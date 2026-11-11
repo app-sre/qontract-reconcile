@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 import threading
+from copy import deepcopy
 from functools import cache
 from typing import TYPE_CHECKING, Any, Self
 
@@ -236,7 +237,7 @@ def lookup_graphql_query_results(
         rendered_resource = jinja2.Template(resource).render(**kwargs)
         return next(iter(gqlapi.query(rendered_resource).values()))
 
-    return cache.get_or_set(Jinja2TemplateCache.QUERY, cache_key, _fetch)
+    return deepcopy(cache.get_or_set(Jinja2TemplateCache.QUERY, cache_key, _fetch))
 
 
 def lookup_s3_object(
