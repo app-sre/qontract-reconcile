@@ -325,45 +325,58 @@ def scenario_compile_desired_state(
         )
 
 
-def scenario_grouping_and_connection(groups: dict[tuple[str, str], list[Any]]) -> None:
+def scenario_grouping_and_connection(
+    groups: dict[tuple[str, str], list[Any]],
+    cli_ocm_url: str,
+    cli_sso_url: str,
+    cli_client_id: str,
+    cli_vault_path: str,
+) -> bool:
+    """Validate request grouping and the effective connections.
+
+    Returns True when every group resolves to the CLI-provided connection
+    - this verifier drives ONE credential set, so a mismatch means the
+    parity comparison would run against the wrong current state and must
+    abort before any dry run or mutation.
+    """
     print("== read-only: request grouping + connection (client path)")
     check(
         "clusters grouped",
         sum(len(v) for v in groups.values()) == 2,
         str({k: [c.name for c in v] for k, v in groups.items()}),
     )
-    connections = {}
-    for (env_name, _ocm_name), cluster_list in groups.items():
+    all_match = True
+    for group_key, cluster_list in groups.items():
         connection = client_integration._build_ocm_connection(
             cluster_list[0], "https://vault.example.com"
         )
-        connections[env_name] = connection
+        group_label = f"{group_key[0]}/{group_key[1]}"
         check(
-            f"connection for {env_name} has an OCM url",
+            f"connection for {group_label} has an OCM url",
             bool(connection.ocm_url),
             str(connection.ocm_url),
         )
         check(
-            f"connection for {env_name} has a client id",
+            f"connection for {group_label} has a client id",
             bool(connection.access_token_client_id),
         )
-    # this verifier drives ONE OCM connection (the CLI credential set); if
-    # the selected clusters resolve to different effective connections the
-    # parity comparison would run against the wrong current state
-    identities = {
-        (
-            c.ocm_url,
-            c.access_token_url,
-            c.access_token_client_id,
-            c.path,
+        # the effective connection must be the one this verifier drives
+        matches = (
+            connection.ocm_url == cli_ocm_url
+            and connection.access_token_url == cli_sso_url
+            and connection.access_token_client_id == cli_client_id
+            and connection.path == cli_vault_path
+            and connection.field == "client_secret"
         )
-        for c in connections.values()
-    }
-    check(
-        "all groups share one effective OCM connection",
-        len(identities) == 1,
-        str(identities),
-    )
+        check(
+            f"connection for {group_label} matches the CLI credential set",
+            matches,
+            f"gql=({connection.ocm_url}, {connection.access_token_url}, "
+            f"{connection.access_token_client_id}, {connection.path}, "
+            f"{connection.field})",
+        )
+        all_match = all_match and matches
+    return all_match
 
 
 def new_dry_run_plan(
@@ -456,12 +469,12 @@ _ERROR_CATEGORY_PATTERNS: tuple[tuple[str, str], ...] = (
 )
 
 
-def _normalize_error(error: str) -> tuple[str, str]:
-    """Reduce an error message to (category, cluster) for parity comparison.
+def _normalize_error(error: str) -> tuple[str, str, str]:
+    """Reduce an error message to (category, cluster, pool id) for parity.
 
-    The two stacks word their errors differently, so exact strings cannot be
-    compared - but the reconciliation DECISION (which guard fired, on which
-    cluster) must match.
+    The two stacks word their errors differently, so exact strings cannot
+    be compared - but the reconciliation DECISION (which guard fired, on
+    which cluster and pool) must match.
     """
     category = "other"
     lowered = error.lower()
@@ -470,7 +483,18 @@ def _normalize_error(error: str) -> tuple[str, str]:
             category = name
             break
     cluster_match = re.search(r"cluster ([\w-]+)", error)
-    return (category, cluster_match.group(1) if cluster_match else "-")
+    cluster = cluster_match.group(1) if cluster_match else "-"
+    pool_id = "-"
+    # update errors embed the pool as JSON (CURRENT/DESIRED dumps)
+    pool_match = re.search(r'"id":\s*"([^"]+)"', error)
+    if pool_match:
+        pool_id = pool_match.group(1)
+    else:
+        # delete-guard errors name the pool directly
+        pool_match = re.search(r"machine pool ([\w-]+) for cluster", error)
+        if pool_match:
+            pool_id = pool_match.group(1)
+    return (category, cluster, pool_id)
 
 
 def scenario_parity(
@@ -491,7 +515,7 @@ def scenario_parity(
     new_error_ids = sorted(_normalize_error(e) for e in new_errors)
     legacy_error_ids = sorted(_normalize_error(e) for e in legacy_errors)
     check(
-        "error decisions identical (category + cluster)",
+        "error decisions identical (category + cluster + pool)",
         new_error_ids == legacy_error_ids,
         f"only-new={sorted(set(new_error_ids) - set(legacy_error_ids))} "
         f"only-legacy={sorted(set(legacy_error_ids) - set(new_error_ids))}",
@@ -565,10 +589,62 @@ def _snapshot_clusters(
     ]
 
 
+def _sweep_leftovers(
+    api: OcmApi, machine_pool_cluster: str, node_pool_cluster: str
+) -> None:
+    """Opt-in janitorial: delete pools with the generic tool prefix.
+
+    Only safe when no other mutating run of this tool can be active on
+    the selected clusters - it cannot distinguish abandoned pools from
+    another run's live ones. This run's own pools are always cleaned by
+    the finally block, never by this sweep.
+    """
+    for cluster_name, list_pools, delete_pool in (
+        (machine_pool_cluster, api.get_machine_pools, api.delete_machine_pool),
+        (node_pool_cluster, api.get_node_pools, api.delete_node_pool),
+    ):
+        cluster_id = resolve_cluster_id(api, cluster_name)
+        for pool in list_pools(cluster_id):
+            if pool.id.startswith(THROWAWAY_BASE_PREFIX):
+                try:
+                    delete_pool(cluster_id, pool.id)
+                    print(f"  deleted leftover {pool.id}")
+                except Exception:
+                    logging.warning(
+                        "could not delete leftover %s", pool.id, exc_info=True
+                    )
+
+
+def _gated_reconcile(
+    harness: ServiceHarness,
+    clusters: list[DesiredClusterMachinePools],
+    owned_ids: set[str],
+    label: str,
+) -> Any:
+    """Live reconcile guarded by a pre-flight dry run.
+
+    The dry run must show actions ONLY on this run's throwaway pool ids;
+    anything else (drift on real pools since the snapshot) aborts before
+    any live mutation.
+    """
+    dry = harness.reconcile(clusters, dry_run=True)
+    safe = all(a.pool_id in owned_ids for a in dry.actions)
+    check(
+        f"{label}: dry-run actions confined to this run's pools",
+        safe,
+        str([(a.cluster, a.pool_id, a.action_type) for a in dry.actions]),
+    )
+    if not safe:
+        print(f"  REFUSING live reconciliation at '{label}': unowned actions")
+        return dry
+    return harness.reconcile(clusters, dry_run=False)
+
+
 def mutation_checks(
     harness: ServiceHarness,
     machine_pool_cluster: str,
     node_pool_cluster: str,
+    sweep_leftovers: bool,
 ) -> None:
     """Throwaway-pool lifecycle through the client request-building path,
     against the in-process service with live-snapshot desired state (real
@@ -588,28 +664,11 @@ def mutation_checks(
     this_run_ids = {mp_pool_id, np_pool_id}
 
     print(f"== mutate: run id {RUN_SUFFIX}")
-    print("== mutate: janitorial cleanup of any earlier-run leftovers")
     api = harness.bootstrap_api()
     created = False
     try:
         mp_id = resolve_cluster_id(api, machine_pool_cluster)
         np_id = resolve_cluster_id(api, node_pool_cluster)
-        # direct-API janitorial for leftovers of ABORTED earlier runs
-        # (deliberately broader than this run's ids; the clusters used for
-        # verification are dedicated test clusters)
-        for list_pools, delete_pool, cluster_id in (
-            (api.get_machine_pools, api.delete_machine_pool, mp_id),
-            (api.get_node_pools, api.delete_node_pool, np_id),
-        ):
-            for pool in list_pools(cluster_id):
-                if pool.id.startswith(THROWAWAY_BASE_PREFIX):
-                    try:
-                        delete_pool(cluster_id, pool.id)
-                        print(f"  deleted leftover {pool.id}")
-                    except Exception:
-                        logging.warning(
-                            "could not delete leftover %s", pool.id, exc_info=True
-                        )
         # the cleanup bypassed the workspace client, so its cache
         # invalidation never ran - drop the stale entries
         harness.cache.clear()
@@ -625,12 +684,16 @@ def mutation_checks(
             np_pool_id,
         )
         result = harness.reconcile(clusters, dry_run=True)
-        action_types = sorted(a.action_type for a in result.actions)
-        gate_ok = action_types == ["create_machine_pool", "create_node_pool"]
+        expected = {
+            (machine_pool_cluster, mp_pool_id, "create_machine_pool"),
+            (node_pool_cluster, np_pool_id, "create_node_pool"),
+        }
+        actual = {(a.cluster, a.pool_id, a.action_type) for a in result.actions}
+        gate_ok = actual == expected
         check(
             "dry-run reports exactly the two expected creates",
             gate_ok,
-            str(action_types),
+            str(sorted(actual)),
         )
         if not gate_ok:
             # a non-throwaway pool changed after the snapshot: applying
@@ -639,7 +702,7 @@ def mutation_checks(
             return
 
         print("== mutate: create")
-        result = harness.reconcile(clusters, dry_run=False)
+        result = _gated_reconcile(harness, clusters, this_run_ids, "create")
         check(
             "create run SUCCESS",
             result.status == TaskStatus.SUCCESS,
@@ -695,8 +758,11 @@ def mutation_checks(
             bool(live_mp) and live_mp[0].autoscaling is not None,
         )
 
-        result = harness.reconcile(
-            with_mp({"replicas": 1, "autoscaling": None}), dry_run=False
+        result = _gated_reconcile(
+            harness,
+            with_mp({"replicas": 1, "autoscaling": None}),
+            this_run_ids,
+            "autoscaling->fixed",
         )
         check(
             "autoscaling->fixed SUCCESS",
@@ -720,7 +786,7 @@ def mutation_checks(
                 api, machine_pool_cluster, node_pool_cluster, mp_id, np_id
             )
         ]
-        result = harness.reconcile(clean, dry_run=False)
+        result = _gated_reconcile(harness, clean, this_run_ids, "delete")
         check(
             "delete run SUCCESS",
             result.status == TaskStatus.SUCCESS,
@@ -808,6 +874,15 @@ def main() -> int:
     )
     parser.add_argument("--ocm-client-id", required=True)
     parser.add_argument("--mutate", action="store_true")
+    parser.add_argument(
+        "--sweep-leftovers",
+        action="store_true",
+        help=(
+            "janitorial: delete pools with the tool's generic prefix left"
+            " by ABORTED earlier runs. Only safe when no other mutating run"
+            " of this tool is active on the selected clusters."
+        ),
+    )
     args = parser.parse_args()
 
     print(f"ocm-machine-pools-api E2E verification (mutate={args.mutate})")
@@ -824,7 +899,21 @@ def main() -> int:
     scenario_compile_desired_state(
         api_clusters, args.machine_pool_cluster, args.node_pool_cluster
     )
-    scenario_grouping_and_connection(groups)
+    connections_ok = scenario_grouping_and_connection(
+        groups,
+        args.ocm_url,
+        args.sso_url,
+        args.ocm_client_id,
+        args.vault_secret_path,
+    )
+    if not connections_ok:
+        # a group resolves to a connection this verifier does not drive:
+        # the parity comparison would use the wrong current state
+        print(
+            "\nABORTING: a group's effective OCM connection does not"
+            " match the CLI credential set"
+        )
+        return 1
 
     new_plan, new_errors = new_dry_run_plan(harness, groups)
     legacy_plan, legacy_errors = legacy_dry_run_plan(
@@ -833,7 +922,12 @@ def main() -> int:
     scenario_parity(new_plan, legacy_plan, new_errors, legacy_errors)
 
     if args.mutate:
-        mutation_checks(harness, args.machine_pool_cluster, args.node_pool_cluster)
+        mutation_checks(
+            harness,
+            args.machine_pool_cluster,
+            args.node_pool_cluster,
+            args.sweep_leftovers,
+        )
     else:
         print("(read-only; re-run with --mutate for throwaway-pool mutations)")
 
