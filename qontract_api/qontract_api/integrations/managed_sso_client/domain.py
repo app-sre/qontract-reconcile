@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal, Self
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from qontract_utils.keycloak_api import (
     ManagedKeycloakClient,
     ManagedKeycloakProtocolMapper,
@@ -47,6 +47,14 @@ class ProtocolMapperDesiredState(BaseModel, frozen=True, extra="forbid"):
         "Empty string values are rejected because Keycloak removes them.",
     )
     protocol: Literal["openid-connect"] = "openid-connect"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _discard_legacy_deleted_false(cls, value: object) -> object:
+        """Accept the old client's default during rollout without restoring the field."""
+        if isinstance(value, dict) and value.get("deleted") is False:
+            return {key: item for key, item in value.items() if key != "deleted"}
+        return value
 
     @field_validator("config")
     @classmethod

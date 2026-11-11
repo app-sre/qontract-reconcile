@@ -86,8 +86,11 @@ Undeclared live mappers and config keys are ignored. Removing a mapper or config
 key from YAML stops checking it; it does not delete or reset its live value.
 Leaving `protocolMappers` unset or setting it to `[]` leaves all mappers unmanaged.
 The mapper-level `deleted` field is no longer queried from App-Interface or
-accepted by the API. Individual mapper deletion is unsupported. Deleting the
-entire OIDC client is still supported.
+exposed in the API schema. The previous reconcile client sends `deleted: false`
+for ordinary mappers, so the API accepts and discards exactly that value during
+rollout. `deleted: true` remains rejected; individual mapper deletion is
+unsupported. New clients do not send the field. Deleting the entire OIDC client
+is still supported.
 
 Deploy this version of the integration before removing the mapper-level
 `deleted` field from the App-Interface JSON and GraphQL schemas. The query
