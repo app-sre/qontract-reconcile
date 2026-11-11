@@ -5156,6 +5156,7 @@
             "additionalProperties": {
               "type": "string"
             },
+            "default": {},
             "description": "Defaults to an empty mapping; only declared config keys are managed. Empty string values are rejected because Keycloak removes them.",
             "title": "Config",
             "type": "object"

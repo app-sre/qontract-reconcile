@@ -41,6 +41,8 @@ class ProtocolMapperDesiredState(BaseModel, frozen=True):
     protocol_mapper: str
     config: dict[str, str] = Field(
         default_factory=dict,
+        # Expose the factory default so generated clients do not send null.
+        json_schema_extra={"default": {}},
         description="Defaults to an empty mapping; only declared config keys are managed. "
         "Empty string values are rejected because Keycloak removes them.",
     )
