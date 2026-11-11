@@ -33,6 +33,7 @@ import subprocess
 import sys
 import threading
 import uuid
+from collections import Counter
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
@@ -360,13 +361,16 @@ def scenario_grouping_and_connection(
             f"connection for {group_label} has a client id",
             bool(connection.access_token_client_id),
         )
-        # the effective connection must be the one this verifier drives
+        # the effective connection must be the one this verifier drives;
+        # a pinned secret version is rejected because this verifier always
+        # reads the latest version
         matches = (
             connection.ocm_url == cli_ocm_url
             and connection.access_token_url == cli_sso_url
             and connection.access_token_client_id == cli_client_id
             and connection.path == cli_vault_path
             and connection.field == "client_secret"
+            and connection.version is None
         )
         check(
             f"connection for {group_label} matches the CLI credential set",
@@ -512,13 +516,14 @@ def scenario_parity(
     )
     dump("new plan", sorted(new_plan) or "no actions")
     dump("legacy plan", sorted(legacy_plan) or "no actions")
-    new_error_ids = sorted(_normalize_error(e) for e in new_errors)
-    legacy_error_ids = sorted(_normalize_error(e) for e in legacy_errors)
+    new_error_ids = Counter(_normalize_error(e) for e in new_errors)
+    legacy_error_ids = Counter(_normalize_error(e) for e in legacy_errors)
+    only_new = new_error_ids - legacy_error_ids
+    only_legacy = legacy_error_ids - new_error_ids
     check(
-        "error decisions identical (category + cluster + pool)",
-        new_error_ids == legacy_error_ids,
-        f"only-new={sorted(set(new_error_ids) - set(legacy_error_ids))} "
-        f"only-legacy={sorted(set(legacy_error_ids) - set(new_error_ids))}",
+        "error decisions identical (category + cluster + pool, counted)",
+        not only_new and not only_legacy,
+        f"only-new={dict(only_new)} only-legacy={dict(only_legacy)}",
     )
 
 
@@ -615,6 +620,10 @@ def _sweep_leftovers(
                     )
 
 
+class MutationGateRefusedError(Exception):
+    """A pre-flight dry run showed actions outside this run's pools."""
+
+
 def _gated_reconcile(
     harness: ServiceHarness,
     clusters: list[DesiredClusterMachinePools],
@@ -624,8 +633,9 @@ def _gated_reconcile(
     """Live reconcile guarded by a pre-flight dry run.
 
     The dry run must show actions ONLY on this run's throwaway pool ids;
-    anything else (drift on real pools since the snapshot) aborts before
-    any live mutation.
+    anything else (drift on real pools since the snapshot) raises
+    MutationGateRefusedError, which aborts the whole mutation pass - later
+    steps never run on top of unexpected state.
     """
     dry = harness.reconcile(clusters, dry_run=True)
     safe = all(a.pool_id in owned_ids for a in dry.actions)
@@ -635,8 +645,9 @@ def _gated_reconcile(
         str([(a.cluster, a.pool_id, a.action_type) for a in dry.actions]),
     )
     if not safe:
-        print(f"  REFUSING live reconciliation at '{label}': unowned actions")
-        return dry
+        raise MutationGateRefusedError(
+            f"{label}: dry-run actions outside this run's throwaway pools"
+        )
     return harness.reconcile(clusters, dry_run=False)
 
 
@@ -669,7 +680,16 @@ def mutation_checks(
     try:
         mp_id = resolve_cluster_id(api, machine_pool_cluster)
         np_id = resolve_cluster_id(api, node_pool_cluster)
-        # the cleanup bypassed the workspace client, so its cache
+        if sweep_leftovers:
+            print("== mutate: janitorial sweep of earlier-run leftovers")
+            _sweep_leftovers(api, machine_pool_cluster, node_pool_cluster)
+        else:
+            print(
+                "== mutate: janitorial sweep skipped (pass --sweep-leftovers"
+                " to clean abandoned pools; this run never touches pools"
+                " it does not own)"
+            )
+        # cleanup and snapshots bypassed the workspace client, so its cache
         # invalidation never ran - drop the stale entries
         harness.cache.clear()
 
@@ -738,14 +758,16 @@ def mutation_checks(
                 out.append(c.model_copy(update={"pools": pools}))
             return out
 
-        result = harness.reconcile(
+        result = _gated_reconcile(
+            harness,
             with_mp({
                 "replicas": None,
                 "autoscaling": DesiredMachinePoolAutoscaling(
                     min_replicas=0, max_replicas=2
                 ),
             }),
-            dry_run=False,
+            this_run_ids,
+            "fixed->autoscaling",
         )
         check(
             "fixed->autoscaling SUCCESS",
@@ -793,6 +815,8 @@ def mutation_checks(
             str(result.errors),
         )
         created = False
+    except MutationGateRefusedError as e:
+        print(f"== mutate: ABORTED - {e}")
     finally:
         if created:
             # a step raised after creation - best-effort direct cleanup of
