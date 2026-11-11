@@ -101,6 +101,11 @@ TARGET_CONFIG_HASH = "target_config_hash"
 TEMPLATE_API_VERSION = "template.openshift.io/v1"
 UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 56
 REQUEST_TIMEOUT = 60
+DIRECTORY_MANIFEST_EXTENSIONS = (".yaml", ".yml", ".json")
+
+
+class NestedDirectoryError(ValueError):
+    """The GitHub directory provider does not support nested directories."""
 
 
 def is_commit_sha(ref: str) -> bool:
@@ -782,10 +787,11 @@ class SaasHerder:
 
         return yaml.safe_load(content), commit_sha
 
-    @retry()
+    @retry(no_retry_exceptions=(NestedDirectoryError,))
     def _get_directory_contents(
         self, url: str, path: str, ref: str, github: Github
     ) -> tuple[list[Any], str]:
+        """Load YAML/JSON manifests, preserving each provider's traversal behavior."""
         commit_sha = self._get_commit_sha(url, ref, github)
         resources: list[Any] = []
         repo_info = VCS.parse_repo_url(url)
@@ -797,6 +803,22 @@ class SaasHerder:
                     raise TypeError(f"Path {path} and sha {commit_sha} is a file!")
                 for f in directory:
                     file_path = os.path.join(path, f.name)
+                    if f.type == "dir":
+                        raise NestedDirectoryError(
+                            f"Nested directory '{file_path}' is not supported"
+                        )
+                    if f.type != "file":
+                        logging.debug(
+                            "Skipping directory entry %s with type %s",
+                            file_path,
+                            f.type,
+                        )
+                        continue
+                    if not f.name.lower().endswith(DIRECTORY_MANIFEST_EXTENSIONS):
+                        logging.debug(
+                            "Skipping non-manifest directory entry %s", file_path
+                        )
+                        continue
                     raw_file = GithubRepositoryApi.get_raw_file(
                         repo=repo,
                         path=file_path,
@@ -814,7 +836,12 @@ class SaasHerder:
                     ref=commit_sha,
                     path=path,
                 )
-                for content in dir_contents.values():
+                for file_path, content in dir_contents.items():
+                    if not file_path.lower().endswith(DIRECTORY_MANIFEST_EXTENSIONS):
+                        logging.debug(
+                            "Skipping non-manifest directory entry %s", file_path
+                        )
+                        continue
                     result_resources = yaml.safe_load_all(content)
                     resources.extend(result_resources)
             case _:
@@ -997,10 +1024,7 @@ class SaasHerder:
                     url=url, path=path, ref=ref, github=github
                 )
             except Exception as e:
-                logging.error(
-                    f"{error_prefix} error fetching directory: {e!s} "
-                    + "(We do not support nested directories. Do you by chance have subdirectories?)"
-                )
+                logging.error(f"{error_prefix} error loading directory: {e!s}")
                 raise
 
         elif provider == "helm":

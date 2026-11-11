@@ -52,10 +52,10 @@ from reconcile.gql_definitions.fragments.aus_organization import (
     OpenShiftClusterManagerUpgradePolicyClusterV1,
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.gql_definitions.gitlab_members.gitlab_instances import (
+from reconcile.gql_definitions.gitlab_members_api.gitlab_instances import (
     DEFINITION as GITLAB_INSTANCES_DEFINITION,
 )
-from reconcile.gql_definitions.gitlab_members.gitlab_instances import (
+from reconcile.gql_definitions.gitlab_members_api.gitlab_instances import (
     GitlabInstanceV1,
 )
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
@@ -94,6 +94,7 @@ from reconcile.gql_definitions.vault_instances.vault_instances import (
 from reconcile.gql_definitions.vault_instances.vault_instances import (
     VaultInstanceV1,
 )
+from reconcile.slack_base import is_gov_slack_workspace
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.dynatrace import get_dynatrace_environments
 from reconcile.typed_queries.gitlab_instances import (
@@ -115,7 +116,6 @@ from reconcile.typed_queries.vault import get_vault_instances
 from reconcile.utils import (
     gql,
 )
-from reconcile.utils.slack_api import is_gov_slack_workspace
 
 
 class SystemTool(BaseModel):

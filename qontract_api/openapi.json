@@ -50,6 +50,12 @@
             "description": "URL to an image to use as the message icon",
             "title": "Icon Url"
           },
+          "resolve_mentions": {
+            "default": false,
+            "description": "If true, resolve '@handle' tokens in `text` to real Slack mentions (usergroup or user). Leave false for free text that should be posted literally \u2014 only set true when the caller intentionally constructs a handle to ping.",
+            "title": "Resolve Mentions",
+            "type": "boolean"
+          },
           "secret": {
             "$ref": "#/components/schemas/Secret",
             "description": "Secret reference for Slack bot token"
@@ -109,13 +115,74 @@
         "title": "ChatRequest",
         "type": "object"
       },
-      "ChatResponse": {
-        "description": "Response model for a posted Slack message.\n\nImmutable model returning the Slack API response fields.\n\nAttributes:\n    ts: Message timestamp\n    channel: Channel ID where the message was posted\n    thread_ts: Thread timestamp if this was a threaded reply",
+      "ChatTaskResponse": {
+        "description": "Response model for POST /chat.\n\nReturned immediately when the send is queued. Contains task_id and\nstatus_url for retrieving the result via GET request (see ADR-003).",
         "properties": {
-          "channel": {
-            "description": "Channel ID where the message was posted",
-            "title": "Channel",
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
             "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "ChatTaskResponse",
+        "type": "object"
+      },
+      "ChatTaskResult": {
+        "description": "Result model for the chat-post-message background task.\n\nReturned by GET /chat/{task_id}.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "Unused for this task \u2014 present only to satisfy the shared task-result protocol.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Channel ID where the message was posted (set on success)",
+            "title": "Channel"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
           },
           "thread_ts": {
             "anyOf": [
@@ -126,20 +193,26 @@
                 "type": "null"
               }
             ],
-            "description": "Thread timestamp if this was a threaded reply",
+            "description": "Thread timestamp if this was a threaded reply (set on success)",
             "title": "Thread Ts"
           },
           "ts": {
-            "description": "Message timestamp",
-            "title": "Ts",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Message timestamp (set on success)",
+            "title": "Ts"
           }
         },
         "required": [
-          "ts",
-          "channel"
+          "status"
         ],
-        "title": "ChatResponse",
+        "title": "ChatTaskResult",
         "type": "object"
       },
       "ClusterNamespaces": {
@@ -181,6 +254,16 @@
         ],
         "title": "ClusterNamespaces",
         "type": "object"
+      },
+      "ClusterType": {
+        "description": "The OCM cluster product, deciding the pool shape it reconciles with.",
+        "enum": [
+          "osd",
+          "rosa",
+          "hypershift"
+        ],
+        "title": "ClusterType",
+        "type": "string"
       },
       "CreateNamespaceAction": {
         "description": "Action: Create a namespace on a cluster.",
@@ -236,6 +319,132 @@
         "title": "DeleteNamespaceAction",
         "type": "object"
       },
+      "DesiredClusterMachinePools": {
+        "description": "A cluster with its desired pools, sent by the client.\n\nThe pool shape must match the cluster type: ROSA HCP clusters reconcile\nnode pools, everything else machine pools.",
+        "properties": {
+          "cluster_id": {
+            "description": "OCM cluster ID",
+            "title": "Cluster Id",
+            "type": "string"
+          },
+          "cluster_type": {
+            "$ref": "#/components/schemas/ClusterType"
+          },
+          "name": {
+            "description": "Cluster name",
+            "title": "Name",
+            "type": "string"
+          },
+          "pools": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DesiredMachinePool"
+                },
+                {
+                  "$ref": "#/components/schemas/DesiredNodePool"
+                }
+              ]
+            },
+            "title": "Pools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "cluster_id",
+          "cluster_type"
+        ],
+        "title": "DesiredClusterMachinePools",
+        "type": "object"
+      },
+      "DesiredMachinePool": {
+        "description": "A desired machine pool on an OSD or ROSA classic cluster.",
+        "properties": {
+          "autoscaling": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DesiredMachinePoolAutoscaling"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "instance_type": {
+            "title": "Instance Type",
+            "type": "string"
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labels"
+          },
+          "replicas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replicas"
+          },
+          "taints": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OcmTaint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taints"
+          }
+        },
+        "required": [
+          "id",
+          "instance_type"
+        ],
+        "title": "DesiredMachinePool",
+        "type": "object"
+      },
+      "DesiredMachinePoolAutoscaling": {
+        "description": "Machine pool autoscaling (OSD / ROSA classic) - plural field names.",
+        "properties": {
+          "max_replicas": {
+            "title": "Max Replicas",
+            "type": "integer"
+          },
+          "min_replicas": {
+            "title": "Min Replicas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "min_replicas",
+          "max_replicas"
+        ],
+        "title": "DesiredMachinePoolAutoscaling",
+        "type": "object"
+      },
       "DesiredNamespace": {
         "description": "A namespace that should exist or be deleted on a cluster.",
         "properties": {
@@ -255,6 +464,103 @@
           "name"
         ],
         "title": "DesiredNamespace",
+        "type": "object"
+      },
+      "DesiredNodePool": {
+        "description": "A desired node pool on a ROSA HCP (HyperShift) cluster.",
+        "properties": {
+          "autoscaling": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DesiredNodePoolAutoscaling"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "aws_node_pool": {
+            "$ref": "#/components/schemas/OcmNodePoolAws"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labels"
+          },
+          "replicas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replicas"
+          },
+          "subnet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subnet"
+          },
+          "taints": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OcmTaint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taints"
+          }
+        },
+        "required": [
+          "id",
+          "aws_node_pool"
+        ],
+        "title": "DesiredNodePool",
+        "type": "object"
+      },
+      "DesiredNodePoolAutoscaling": {
+        "description": "Node pool autoscaling (ROSA HCP) - singular field names.",
+        "properties": {
+          "max_replica": {
+            "title": "Max Replica",
+            "type": "integer"
+          },
+          "min_replica": {
+            "title": "Min Replica",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "min_replica",
+          "max_replica"
+        ],
+        "title": "DesiredNodePoolAutoscaling",
         "type": "object"
       },
       "EscalationPolicyUsersResponse": {
@@ -3855,6 +4161,350 @@
         "title": "OcmGroupsTaskResult",
         "type": "object"
       },
+      "OcmMachinePoolsActionCreateMachinePool": {
+        "description": "Action: create a machine pool (OSD / ROSA classic cluster).",
+        "properties": {
+          "action_type": {
+            "const": "create_machine_pool",
+            "default": "create_machine_pool",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "pool_id": {
+            "description": "Machine pool id",
+            "title": "Pool Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster",
+          "pool_id"
+        ],
+        "title": "OcmMachinePoolsActionCreateMachinePool",
+        "type": "object"
+      },
+      "OcmMachinePoolsActionCreateNodePool": {
+        "description": "Action: create a node pool (ROSA HCP cluster).",
+        "properties": {
+          "action_type": {
+            "const": "create_node_pool",
+            "default": "create_node_pool",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "pool_id": {
+            "description": "Node pool id",
+            "title": "Pool Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster",
+          "pool_id"
+        ],
+        "title": "OcmMachinePoolsActionCreateNodePool",
+        "type": "object"
+      },
+      "OcmMachinePoolsActionDeleteMachinePool": {
+        "description": "Action: delete a machine pool (OSD / ROSA classic cluster).",
+        "properties": {
+          "action_type": {
+            "const": "delete_machine_pool",
+            "default": "delete_machine_pool",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "pool_id": {
+            "description": "Machine pool id",
+            "title": "Pool Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster",
+          "pool_id"
+        ],
+        "title": "OcmMachinePoolsActionDeleteMachinePool",
+        "type": "object"
+      },
+      "OcmMachinePoolsActionDeleteNodePool": {
+        "description": "Action: delete a node pool (ROSA HCP cluster).",
+        "properties": {
+          "action_type": {
+            "const": "delete_node_pool",
+            "default": "delete_node_pool",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "pool_id": {
+            "description": "Node pool id",
+            "title": "Pool Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster",
+          "pool_id"
+        ],
+        "title": "OcmMachinePoolsActionDeleteNodePool",
+        "type": "object"
+      },
+      "OcmMachinePoolsActionUpdateMachinePool": {
+        "description": "Action: update a machine pool (OSD / ROSA classic cluster).",
+        "properties": {
+          "action_type": {
+            "const": "update_machine_pool",
+            "default": "update_machine_pool",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "pool_id": {
+            "description": "Machine pool id",
+            "title": "Pool Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster",
+          "pool_id"
+        ],
+        "title": "OcmMachinePoolsActionUpdateMachinePool",
+        "type": "object"
+      },
+      "OcmMachinePoolsActionUpdateNodePool": {
+        "description": "Action: update a node pool (ROSA HCP cluster).",
+        "properties": {
+          "action_type": {
+            "const": "update_node_pool",
+            "default": "update_node_pool",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "pool_id": {
+            "description": "Node pool id",
+            "title": "Pool Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster",
+          "pool_id"
+        ],
+        "title": "OcmMachinePoolsActionUpdateNodePool",
+        "type": "object"
+      },
+      "OcmMachinePoolsReconcileRequest": {
+        "description": "Request model for OCM machine pool reconciliation.\n\nPOST requests always queue a background task (async execution).",
+        "properties": {
+          "clusters": {
+            "description": "Clusters with their desired machine/node pools",
+            "items": {
+              "$ref": "#/components/schemas/DesiredClusterMachinePools"
+            },
+            "title": "Clusters",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "ocm_connection": {
+            "$ref": "#/components/schemas/OcmConnectionParams",
+            "description": "OCM connection details for machine/node pool CRUD"
+          },
+          "ocm_environment": {
+            "description": "OCM environment name (metric label only)",
+            "title": "Ocm Environment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ocm_environment",
+          "ocm_connection",
+          "clusters"
+        ],
+        "title": "OcmMachinePoolsReconcileRequest",
+        "type": "object"
+      },
+      "OcmMachinePoolsTaskResponse": {
+        "description": "Response model for POST /reconcile endpoint.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "OcmMachinePoolsTaskResponse",
+        "type": "object"
+      },
+      "OcmMachinePoolsTaskResult": {
+        "description": "Result model for a completed OCM machine pool reconciliation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "All actions calculated (desired - current), including any that failed to apply.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create_machine_pool": "#/components/schemas/OcmMachinePoolsActionCreateMachinePool",
+                  "create_node_pool": "#/components/schemas/OcmMachinePoolsActionCreateNodePool",
+                  "delete_machine_pool": "#/components/schemas/OcmMachinePoolsActionDeleteMachinePool",
+                  "delete_node_pool": "#/components/schemas/OcmMachinePoolsActionDeleteNodePool",
+                  "update_machine_pool": "#/components/schemas/OcmMachinePoolsActionUpdateMachinePool",
+                  "update_node_pool": "#/components/schemas/OcmMachinePoolsActionUpdateNodePool"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/OcmMachinePoolsActionCreateMachinePool"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmMachinePoolsActionUpdateMachinePool"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmMachinePoolsActionDeleteMachinePool"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmMachinePoolsActionCreateNodePool"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmMachinePoolsActionUpdateNodePool"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmMachinePoolsActionDeleteNodePool"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (non-dry-run only).",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "create_machine_pool": "#/components/schemas/OcmMachinePoolsActionCreateMachinePool",
+                  "create_node_pool": "#/components/schemas/OcmMachinePoolsActionCreateNodePool",
+                  "delete_machine_pool": "#/components/schemas/OcmMachinePoolsActionDeleteMachinePool",
+                  "delete_node_pool": "#/components/schemas/OcmMachinePoolsActionDeleteNodePool",
+                  "update_machine_pool": "#/components/schemas/OcmMachinePoolsActionUpdateMachinePool",
+                  "update_node_pool": "#/components/schemas/OcmMachinePoolsActionUpdateNodePool"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/OcmMachinePoolsActionCreateMachinePool"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmMachinePoolsActionUpdateMachinePool"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmMachinePoolsActionDeleteMachinePool"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmMachinePoolsActionCreateNodePool"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmMachinePoolsActionUpdateNodePool"
+                },
+                {
+                  "$ref": "#/components/schemas/OcmMachinePoolsActionDeleteNodePool"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "OcmMachinePoolsTaskResult",
+        "type": "object"
+      },
+      "OcmNodePoolAws": {
+        "description": "AWS-specific node pool settings (HyperShift / ROSA HCP).",
+        "properties": {
+          "instance_type": {
+            "title": "Instance Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_type"
+        ],
+        "title": "OcmNodePoolAws",
+        "type": "object"
+      },
       "OcmOidcIdpActionCreate": {
         "description": "Action: create a new OIDC identity provider on a cluster.",
         "properties": {
@@ -4160,6 +4810,36 @@
           "status"
         ],
         "title": "OcmOidcIdpTaskResult",
+        "type": "object"
+      },
+      "OcmTaint": {
+        "description": "A taint applied to the nodes of a machine pool or node pool.\n\nMatches OCM's Taint schema (and Kubernetes taints): key and effect are\nrequired, value is optional.",
+        "properties": {
+          "effect": {
+            "title": "Effect",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "effect"
+        ],
+        "title": "OcmTaint",
         "type": "object"
       },
       "OidcDesiredState": {
@@ -6853,7 +7533,7 @@
     },
     "/api/v1/external/slack/chat": {
       "post": {
-        "description": "Post a message to a Slack channel or send a DM to a user.\n\nExactly one of `channel` or `user` must be set in the request:\n- `channel`: post to a Slack channel by name\n- `user`: send a DM to a user by org_username\n\nArgs:\n    request: Chat request with channel/user, text, and credentials\n\nReturns:\n    ChatResponse with ts, channel, and optional thread_ts\n\nRaises:\n    HTTPException:\n        - 404 Not Found: Channel or user not found\n        - 502 Bad Gateway: If Slack API call fails",
+        "description": "Queue a Slack chat message or DM to be sent by a background worker.\n\nExactly one of `channel` or `user` must be set in the request:\n- `channel`: post to a Slack channel by name\n- `user`: send a DM to a user by org_username\n\nThis endpoint always queues a background task and returns immediately\nwith a task_id. Use GET /chat/{task_id} to retrieve the result.\n\nArgs:\n    request: Chat request with channel/user, text, and credentials\n\nReturns:\n    ChatTaskResponse with task_id and status_url",
         "operationId": "slack-chat-post-message",
         "requestBody": {
           "content": {
@@ -6866,11 +7546,11 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChatResponse"
+                  "$ref": "#/components/schemas/ChatTaskResponse"
                 }
               }
             },
@@ -6883,6 +7563,67 @@
           }
         ],
         "summary": "Post Chat",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/slack/chat/{task_id}": {
+      "get": {
+        "description": "Retrieve the chat-post-message result (blocking or non-blocking).\n\n**Non-blocking mode (default):** Returns immediate status (pending/success/failed)\n**Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending\n\nArgs:\n    task_id: Task ID from POST /chat response\n    timeout: Maximum seconds to wait (default: None = non-blocking)\n\nReturns:\n    ChatTaskResult with status and, on success, ts/channel/thread_ts\n\nRaises:\n    HTTPException:\n        - 408 Request Timeout: Task still pending after timeout (blocking mode only)",
+        "operationId": "slack-chat-post-message-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "408": {
+            "description": "Task still pending after timeout"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Chat Task Status",
         "tags": [
           "external"
         ]
@@ -7829,6 +8570,101 @@
           }
         ],
         "summary": "Ocm Groups Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/ocm-machine-pools/reconcile": {
+      "post": {
+        "description": "Queue OCM machine pool reconciliation task.\n\nThis endpoint always queues a background task and returns immediately with a\ntask_id. Use GET /reconcile/{task_id} to retrieve the result.",
+        "operationId": "ocm-machine-pools",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OcmMachinePoolsReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OcmMachinePoolsTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ocm Machine Pools",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/ocm-machine-pools/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation result (blocking or non-blocking).",
+        "operationId": "ocm-machine-pools-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OcmMachinePoolsTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ocm Machine Pools Task Status",
         "tags": [
           "integrations"
         ]

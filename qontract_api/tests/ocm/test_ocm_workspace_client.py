@@ -11,6 +11,9 @@ from qontract_utils.ocm_api.models import (
     OcmIdentityProvider,
     OcmIdentityProviderOidc,
     OcmIdentityProviderOidcOpenId,
+    OcmMachinePool,
+    OcmNodePool,
+    OcmNodePoolAws,
     OcmOrganizationLabel,
     OcmSubscription,
     OcmSubscriptionLabel,
@@ -21,6 +24,8 @@ from qontract_api.config import OcmSettings, Settings
 from qontract_api.ocm.ocm_workspace_client import (
     CachedOcmClusters,
     CachedOcmIdentityProviders,
+    CachedOcmMachinePools,
+    CachedOcmNodePools,
     OcmClusterRecord,
     OcmWorkspaceClient,
 )
@@ -660,5 +665,255 @@ def test_create_identity_provider_closes_ocm_api_even_on_error(
 
     with pytest.raises(RuntimeError, match="boom"):
         client.create_identity_provider("cluster-1", _oidc_idp())
+
+    mock_cache.delete.assert_not_called()
+
+
+#
+# machine pools / node pools
+#
+
+
+def _machine_pool(pool_id: str = "worker") -> OcmMachinePool:
+    """Create a test machine pool."""
+    return OcmMachinePool(
+        id=pool_id,
+        instance_type="m5.xlarge",
+        replicas=3,
+        labels={"tier": "frontend"},
+    )
+
+
+def _node_pool(pool_id: str = "worker") -> OcmNodePool:
+    """Create a test node pool."""
+    return OcmNodePool(
+        id=pool_id,
+        aws_node_pool=OcmNodePoolAws(instance_type="m5.xlarge"),
+        replicas=3,
+        subnet="subnet-1234",
+    )
+
+
+def test_get_machine_pools_cache_hit_returns_without_calling_factory(
+    client: OcmWorkspaceClient,
+    mock_cache: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+) -> None:
+    """A cached machine pool list is returned without building OcmApi."""
+    pool = _machine_pool()
+    mock_cache.get_obj.return_value = CachedOcmMachinePools(items=[pool])
+
+    result = client.get_machine_pools("cluster-1")
+
+    assert result == [pool]
+    mock_ocm_api_factory.assert_not_called()
+
+
+def test_get_machine_pools_cache_hit_empty_list_is_respected(
+    client: OcmWorkspaceClient,
+    mock_cache: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+) -> None:
+    """A genuinely empty cached result (no pools yet) must be a hit."""
+    mock_cache.get_obj.return_value = CachedOcmMachinePools(items=[])
+
+    result = client.get_machine_pools("cluster-1")
+
+    assert result == []
+    mock_ocm_api_factory.assert_not_called()
+    mock_cache.lock.assert_not_called()
+
+
+def test_get_machine_pools_cache_miss_fetches_and_caches(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+    settings: Settings,
+) -> None:
+    """A cache miss fetches from OCM and caches under the machine pools key."""
+    pool = _machine_pool()
+    mock_ocm_api.get_machine_pools.return_value = [pool]
+
+    result = client.get_machine_pools("cluster-1")
+
+    assert result == [pool]
+    mock_ocm_api.get_machine_pools.assert_called_once_with("cluster-1")
+    mock_cache.set_obj.assert_called_once_with(
+        "ocm:machine-pools:env-abc123:cluster-1",
+        CachedOcmMachinePools(items=[pool]),
+        settings.ocm.machine_pools_cache_ttl,
+    )
+
+
+def test_get_machine_pools_double_check_after_lock(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """A second cache read inside the lock prevents a redundant OCM fetch."""
+    pool = _machine_pool()
+    mock_cache.get_obj.side_effect = [None, CachedOcmMachinePools(items=[pool])]
+
+    result = client.get_machine_pools("cluster-1")
+
+    assert result == [pool]
+    mock_ocm_api_factory.assert_not_called()
+    mock_ocm_api.get_machine_pools.assert_not_called()
+
+
+def test_create_machine_pool_invalidates_cache(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """A successful create drops the machine pools cache entry."""
+    client.create_machine_pool("cluster-1", _machine_pool())
+
+    mock_ocm_api.create_machine_pool.assert_called_once_with(
+        "cluster-1", _machine_pool()
+    )
+    mock_cache.lock.assert_called_once_with("ocm:machine-pools:env-abc123:cluster-1")
+    mock_cache.delete.assert_called_once_with("ocm:machine-pools:env-abc123:cluster-1")
+
+
+def test_update_machine_pool_invalidates_cache(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """A successful update drops the machine pools cache entry."""
+    client.update_machine_pool("cluster-1", _machine_pool())
+
+    mock_ocm_api.update_machine_pool.assert_called_once_with(
+        "cluster-1", _machine_pool()
+    )
+    mock_cache.delete.assert_called_once_with("ocm:machine-pools:env-abc123:cluster-1")
+
+
+def test_delete_machine_pool_invalidates_cache(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """A successful delete drops the machine pools cache entry."""
+    client.delete_machine_pool("cluster-1", "worker")
+
+    mock_ocm_api.delete_machine_pool.assert_called_once_with("cluster-1", "worker")
+    mock_cache.delete.assert_called_once_with("ocm:machine-pools:env-abc123:cluster-1")
+
+
+def test_machine_pool_mutation_error_keeps_cache(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Cache must not be invalidated if the OCM API call itself failed."""
+    mock_ocm_api.delete_machine_pool.side_effect = RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        client.delete_machine_pool("cluster-1", "worker")
+
+    mock_cache.delete.assert_not_called()
+
+
+def test_get_node_pools_cache_hit_returns_without_calling_factory(
+    client: OcmWorkspaceClient,
+    mock_cache: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+) -> None:
+    """A cached node pool list is returned without building OcmApi."""
+    pool = _node_pool()
+    mock_cache.get_obj.return_value = CachedOcmNodePools(items=[pool])
+
+    result = client.get_node_pools("cluster-1")
+
+    assert result == [pool]
+    mock_ocm_api_factory.assert_not_called()
+
+
+def test_get_node_pools_cache_hit_empty_list_is_respected(
+    client: OcmWorkspaceClient,
+    mock_cache: MagicMock,
+    mock_ocm_api_factory: MagicMock,
+) -> None:
+    """A genuinely empty cached result (no pools yet) must be a hit."""
+    mock_cache.get_obj.return_value = CachedOcmNodePools(items=[])
+
+    result = client.get_node_pools("cluster-1")
+
+    assert result == []
+    mock_ocm_api_factory.assert_not_called()
+    mock_cache.lock.assert_not_called()
+
+
+def test_get_node_pools_cache_miss_fetches_and_caches(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+    settings: Settings,
+) -> None:
+    """A cache miss fetches from OCM and caches under the node pools key."""
+    pool = _node_pool()
+    mock_ocm_api.get_node_pools.return_value = [pool]
+
+    result = client.get_node_pools("cluster-1")
+
+    assert result == [pool]
+    mock_ocm_api.get_node_pools.assert_called_once_with("cluster-1")
+    mock_cache.set_obj.assert_called_once_with(
+        "ocm:node-pools:env-abc123:cluster-1",
+        CachedOcmNodePools(items=[pool]),
+        settings.ocm.machine_pools_cache_ttl,
+    )
+
+
+def test_create_node_pool_invalidates_cache(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """A successful create drops the node pools cache entry."""
+    client.create_node_pool("cluster-1", _node_pool())
+
+    mock_ocm_api.create_node_pool.assert_called_once_with("cluster-1", _node_pool())
+    mock_cache.lock.assert_called_once_with("ocm:node-pools:env-abc123:cluster-1")
+    mock_cache.delete.assert_called_once_with("ocm:node-pools:env-abc123:cluster-1")
+
+
+def test_update_node_pool_invalidates_cache(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """A successful update drops the node pools cache entry."""
+    client.update_node_pool("cluster-1", _node_pool())
+
+    mock_ocm_api.update_node_pool.assert_called_once_with("cluster-1", _node_pool())
+    mock_cache.delete.assert_called_once_with("ocm:node-pools:env-abc123:cluster-1")
+
+
+def test_delete_node_pool_invalidates_cache(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """A successful delete drops the node pools cache entry."""
+    client.delete_node_pool("cluster-1", "worker")
+
+    mock_ocm_api.delete_node_pool.assert_called_once_with("cluster-1", "worker")
+    mock_cache.delete.assert_called_once_with("ocm:node-pools:env-abc123:cluster-1")
+
+
+def test_node_pool_mutation_error_keeps_cache(
+    client: OcmWorkspaceClient,
+    mock_ocm_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Cache must not be invalidated if the OCM API call itself failed."""
+    mock_ocm_api.create_node_pool.side_effect = RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        client.create_node_pool("cluster-1", _node_pool())
 
     mock_cache.delete.assert_not_called()

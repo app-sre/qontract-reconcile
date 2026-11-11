@@ -42,7 +42,7 @@ from reconcile.utils.unleash import get_feature_toggle_state
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from reconcile.utils.slack_api import SlackApi
+    from reconcile.slack_base import SlackApi
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -198,9 +198,7 @@ def run(
                 )
             slack = slackapi_from_slack_workspace(
                 saas_file.slack.model_dump(by_alias=True),
-                secret_reader,
                 QONTRACT_INTEGRATION,
-                init_usergroups=False,
             )
             ri = ResourceInventory()
             pipeline_name = _saas_file_tekton_pipeline_name(saas_file)
