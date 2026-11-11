@@ -6,8 +6,11 @@ import yaml
 
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
-from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
+from reconcile.typed_queries.openshift_resources import (
+    get_openshift_resources_settings,
+)
 from reconcile.utils import gql
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.status import ExitCodes
 
@@ -33,7 +36,8 @@ def load_resource(path: str) -> dict:
 def run(dry_run: bool) -> None:
     gqlapi = gql.get_api()
     template_tests = gqlapi.query(TEMPLATE_TESTS_QUERY)["tests"]
-    settings = get_app_interface_settings().model_dump(by_alias=True)
+    settings = get_openshift_resources_settings()
+    secret_reader = create_secret_reader(use_vault=settings.vault)
     error = False
     for tt in template_tests:
         found = False
@@ -50,7 +54,12 @@ def run(dry_run: bool) -> None:
                     continue
 
                 found = True
-                openshift_resource = orb.fetch_openshift_resource(r, n, settings)
+                openshift_resource = orb.fetch_openshift_resource(
+                    r,
+                    n,
+                    repo_url=settings.repo_url,
+                    secret_reader=secret_reader,
+                )
                 if openshift_resource.body != expected_result:
                     diff = difflib.unified_diff(
                         yaml.safe_dump(expected_result).splitlines(keepends=True),

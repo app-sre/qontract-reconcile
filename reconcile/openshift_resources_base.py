@@ -33,10 +33,11 @@ from sretoolbox.utils import (
 
 import reconcile.openshift_base as ob
 import reconcile.utils.jinja2.utils as jinja2_utils
-from reconcile import queries
 from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.external_resources.meta import SECRET_UPDATED_AT
-from reconcile.typed_queries.app_interface_settings import get_app_interface_settings
+from reconcile.typed_queries.openshift_resources import (
+    get_openshift_resources_settings,
+)
 from reconcile.utils import (
     amtool,
     gql,
@@ -66,7 +67,7 @@ from reconcile.utils.openshift_resource import (
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
-from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
+from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.vault import (
@@ -336,12 +337,13 @@ def fetch_provider_resource(
     alertmanager_config_key: str = "alertmanager.yaml",
     add_path_to_prom_rules: bool = True,
     skip_validation: bool = False,
-    settings: Mapping[str, Any] | None = None,
+    *,
+    repo_url: str,
 ) -> OR:
     path = resource["path"]
     content = resource["content"]
     if tfunc:
-        content = tfunc(body=content, vars=tvars, settings=settings)
+        content = tfunc(body=content, vars=tvars)
 
     if skip_validation:
         return OR(
@@ -388,9 +390,6 @@ def fetch_provider_resource(
 
     if add_path_to_prom_rules:
         if body["kind"] == "PrometheusRule":
-            app_int_base_url = "https://gitlab.cee.redhat.com/service/app-interface"
-            if settings and "repoUrl" in settings:
-                app_int_base_url = settings["repoUrl"]
             try:
                 groups = body["spec"]["groups"]
                 for group in groups:
@@ -400,7 +399,7 @@ def fetch_provider_resource(
                         if not annotations:
                             continue
                         rule["annotations"]["html_url"] = (
-                            f"{app_int_base_url}/blob/master/resources{path}"
+                            f"{repo_url}/blob/master/resources{path}"
                         )
             except Exception:
                 logging.warning(
@@ -426,17 +425,9 @@ def fetch_provider_vault_secret(
     integration_version: str,
     validate_alertmanager_config: bool = False,
     alertmanager_config_key: str = "alertmanager.yaml",
-    settings: Mapping[str, Any] | None = None,
-    secret_reader: SecretReaderBase | None = None,
+    *,
+    secret_reader: SecretReaderBase,
 ) -> OR:
-    if not secret_reader and not settings:
-        raise Exception(
-            "Parameter settings or secret_reader must be provided to run fetch_provider_vault_secret."
-        )
-
-    if not secret_reader:
-        # get the fields from vault
-        secret_reader = SecretReader(settings)
     raw_data = {
         k: v
         for k, v in secret_reader.read_all({"path": path, "version": version}).items()
@@ -490,10 +481,11 @@ def fetch_provider_route(
     resource: Mapping,
     tls_path: str | None,
     tls_version: str | None,
-    settings: Mapping | None = None,
+    secret_reader: SecretReaderBase,
+    repo_url: str,
 ) -> OR:
     path = resource["path"]
-    openshift_resource = fetch_provider_resource(resource)
+    openshift_resource = fetch_provider_resource(resource, repo_url=repo_url)
 
     if tls_path is None or tls_version is None:
         return openshift_resource
@@ -502,7 +494,6 @@ def fetch_provider_route(
     openshift_resource.body["spec"].setdefault("tls", {})
     tls = openshift_resource.body["spec"]["tls"]
     # get tls fields from vault
-    secret_reader = SecretReader(settings)
     raw_data = secret_reader.read_all({"path": tls_path, "version": tls_version})
     valid_keys = [
         "termination",
@@ -534,7 +525,9 @@ def fetch_provider_route(
 def fetch_openshift_resource(
     resource: Mapping,
     parent: Mapping[str, Any],
-    settings: Mapping | None = None,
+    *,
+    repo_url: str,
+    secret_reader: SecretReaderBase,
     skip_validation: bool = False,
     cache: Jinja2TemplateCache | None = None,
 ) -> OR:
@@ -557,7 +550,7 @@ def fetch_openshift_resource(
             alertmanager_config_key=alertmanager_config_key,
             add_path_to_prom_rules=add_path_to_prom_rules,
             skip_validation=skip_validation,
-            settings=settings,
+            repo_url=repo_url,
         )
     elif provider == "resource-template":
         path = resource["resource"]["path"]
@@ -577,9 +570,15 @@ def fetch_openshift_resource(
         tt = resource["type"]
         tt = "jinja2" if tt is None else tt
         if tt == "jinja2":
-            tfunc = functools.partial(process_jinja2_template, cache=cache)
+            tfunc = functools.partial(
+                process_jinja2_template, secret_reader=secret_reader, cache=cache
+            )
         elif tt == "extracurlyjinja2":
-            tfunc = functools.partial(process_extracurlyjinja2_template, cache=cache)
+            tfunc = functools.partial(
+                process_extracurlyjinja2_template,
+                secret_reader=secret_reader,
+                cache=cache,
+            )
         else:
             raise UnknownTemplateTypeError(tt)
         try:
@@ -591,7 +590,7 @@ def fetch_openshift_resource(
                 alertmanager_config_key=alertmanager_config_key,
                 add_path_to_prom_rules=add_path_to_prom_rules,
                 skip_validation=skip_validation,
-                settings=settings,
+                repo_url=repo_url,
             )
         except Exception as e:
             msg = f"could not render template at path {path}\n{e}"
@@ -626,7 +625,7 @@ def fetch_openshift_resource(
                 integration_version=QONTRACT_INTEGRATION_VERSION,
                 validate_alertmanager_config=validate_alertmanager_config,
                 alertmanager_config_key=alertmanager_config_key,
-                settings=settings,
+                secret_reader=secret_reader,
             )
         except (SecretVersionNotFoundError, SecretVersionIsNoneError) as e:
             raise FetchSecretError(e) from None
@@ -636,7 +635,11 @@ def fetch_openshift_resource(
         tls_path = resource["vault_tls_secret_path"]
         tls_version = resource["vault_tls_secret_version"]
         openshift_resource = fetch_provider_route(
-            resource["resource"], tls_path, tls_version, settings
+            resource["resource"],
+            tls_path,
+            tls_version,
+            secret_reader=secret_reader,
+            repo_url=repo_url,
         )
     elif provider == "prometheus-rule":
         path = resource["resource"]["path"]
@@ -653,9 +656,15 @@ def fetch_openshift_resource(
             tfunc = None
             tv = None
         elif tt == "resource-template-jinja2":
-            tfunc = functools.partial(process_jinja2_template, cache=cache)
+            tfunc = functools.partial(
+                process_jinja2_template, secret_reader=secret_reader, cache=cache
+            )
         elif tt == "resource-template-extracurlyjinja2":
-            tfunc = functools.partial(process_extracurlyjinja2_template, cache=cache)
+            tfunc = functools.partial(
+                process_extracurlyjinja2_template,
+                secret_reader=secret_reader,
+                cache=cache,
+            )
         else:
             raise UnknownTemplateTypeError(tt)
         try:
@@ -665,7 +674,7 @@ def fetch_openshift_resource(
                 tvars=tv,
                 add_path_to_prom_rules=add_path_to_prom_rules,
                 skip_validation=skip_validation,
-                settings=settings,
+                repo_url=repo_url,
             )
         except Exception as e:
             msg = f"could not render template at path {path}\n{e}"
@@ -730,11 +739,16 @@ def fetch_desired_state(
     parent: Mapping[str, Any],
     privileged: bool,
     cache: Jinja2TemplateCache,
-    settings: Mapping[str, Any] | None = None,
+    secret_reader: SecretReaderBase,
+    repo_url: str,
 ) -> None:
     try:
         openshift_resource = fetch_openshift_resource(
-            resource, parent, settings, cache=cache
+            resource,
+            parent,
+            repo_url=repo_url,
+            cache=cache,
+            secret_reader=secret_reader,
         )
     except (
         FetchResourceError,
@@ -784,7 +798,8 @@ def fetch_states(
     spec: ob.StateSpec,
     ri: ResourceInventory,
     cache: Jinja2TemplateCache,
-    settings: Mapping[str, Any] | None = None,
+    secret_reader: SecretReaderBase,
+    repo_url: str,
 ) -> None:
     try:
         if isinstance(spec, ob.CurrentStateSpec):
@@ -806,7 +821,8 @@ def fetch_states(
                 spec.parent,
                 spec.privileged,
                 cache=cache,
-                settings=settings,
+                secret_reader=secret_reader,
+                repo_url=repo_url,
             )
 
     except StatusCodeError as e:
@@ -819,16 +835,17 @@ def fetch_data(
     thread_pool_size: int,
     internal: bool | None,
     cache: Jinja2TemplateCache,
+    repo_url: str,
+    secret_reader: SecretReaderBase,
     init_api_resources: bool = False,
     overrides: Iterable[str] | None = None,
 ) -> tuple[OC_Map, ResourceInventory]:
     ri = ResourceInventory()
-    settings = get_app_interface_settings().model_dump(by_alias=True)
     logging.debug(f"Overriding keys {overrides}")
     oc_map = OC_Map(
         namespaces=namespaces,
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
         internal=internal,
         thread_pool_size=thread_pool_size,
         init_api_resources=init_api_resources,
@@ -845,7 +862,8 @@ def fetch_data(
         state_specs,
         thread_pool_size,
         ri=ri,
-        settings=settings,
+        repo_url=repo_url,
+        secret_reader=secret_reader,
         cache=cache,
     )
 
@@ -980,6 +998,7 @@ def run(
             "Exiting."
         )
         return None
+    settings = get_openshift_resources_settings()
     oc_map, ri = fetch_data(
         namespaces,
         thread_pool_size,
@@ -987,6 +1006,8 @@ def run(
         init_api_resources=init_api_resources,
         overrides=overrides,
         cache=Jinja2TemplateCache(),
+        repo_url=settings.repo_url,
+        secret_reader=create_secret_reader(use_vault=settings.vault),
     )
     if defer:
         defer(oc_map.cleanup)
@@ -1194,7 +1215,8 @@ def _get_namespace_cluster_scoped_resources(
 def early_exit_desired_state(
     providers: list[str], resource_schema_filter: str | None = None
 ) -> dict[str, Any]:
-    settings = queries.get_secret_reader_settings()
+    settings = get_openshift_resources_settings()
+    secret_reader = create_secret_reader(use_vault=settings.vault)
     namespaces, _ = get_namespaces(
         providers, resource_schema_filter=resource_schema_filter
     )
@@ -1211,7 +1233,8 @@ def early_exit_desired_state(
             _early_exit_fetch_resource,
             fetch_specs,
             thread_pool_size=10,
-            settings=settings,
+            secret_reader=secret_reader,
+            repo_url=settings.repo_url,
         )
 
     def post_process_ns(ns: MutableMapping) -> MutableMapping:
@@ -1235,7 +1258,9 @@ def early_exit_desired_state(
     }
 
 
-def _early_exit_fetch_resource(spec: Sequence, settings: Mapping) -> dict[str, str]:
+def _early_exit_fetch_resource(
+    spec: Sequence, secret_reader: SecretReaderBase, repo_url: str
+) -> dict[str, str]:
     resource = spec[0]
     ns_info = spec[1]
     cluster_name = ns_info["cluster"]["name"]
@@ -1246,7 +1271,11 @@ def _early_exit_fetch_resource(spec: Sequence, settings: Mapping) -> dict[str, s
         # functionality. this is crucial in such situations because the result of
         # the template processing depends heavily on other data in app-interface
         c = fetch_openshift_resource(
-            resource, ns_info, skip_validation=True, settings=settings
+            resource,
+            ns_info,
+            skip_validation=True,
+            secret_reader=secret_reader,
+            repo_url=repo_url,
         ).body
     else:
         # for regular resources, the plain content is sufficient enough to

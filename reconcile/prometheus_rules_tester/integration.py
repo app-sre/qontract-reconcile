@@ -13,8 +13,8 @@ from sretoolbox.utils import threaded
 
 import reconcile.openshift_resources_base as orb
 from reconcile.typed_queries.alerting_services_settings import get_alerting_services
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
+from reconcile.typed_queries.openshift_resources import (
+    get_openshift_resources_settings,
 )
 from reconcile.utils import (
     gql,
@@ -22,6 +22,7 @@ from reconcile.utils import (
 )
 from reconcile.utils.jinja2.utils import process_extracurlyjinja2_template
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.status import ExitCodes
 from reconcile.utils.structs import CommandExecutionResult
@@ -32,9 +33,10 @@ if TYPE_CHECKING:
         Mapping,
     )
 
-    from reconcile.gql_definitions.common.app_interface_vault_settings import (
+    from reconcile.gql_definitions.openshift_resources.settings import (
         AppInterfaceSettingsV1,
     )
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 # This comes from prometheus-operator. It is the largest configmap that they will
 # create. It is also the largest PrometheusRule yaml file they will process to add it
@@ -76,7 +78,7 @@ class RuleToFetch(BaseModel):
 
 
 def fetch_rule_and_tests(
-    rule: RuleToFetch, vault_settings: AppInterfaceSettingsV1
+    rule: RuleToFetch, secret_reader: SecretReaderBase, repo_url: str
 ) -> Test:
     """Fetches associated data from a rule and builds a Test object"""
     if "add_path_to_prom_rules" not in rule.resource:
@@ -85,7 +87,8 @@ def fetch_rule_and_tests(
     openshift_resource = orb.fetch_openshift_resource(
         resource=rule.resource,
         parent=rule.namespace,
-        settings=vault_settings.model_dump(by_alias=True),
+        secret_reader=secret_reader,
+        repo_url=repo_url,
     )
 
     rule_body = openshift_resource.body
@@ -105,7 +108,7 @@ def fetch_rule_and_tests(
             test_raw_yaml = process_extracurlyjinja2_template(
                 body=test_raw_yaml,
                 vars=variables,
-                settings=vault_settings.model_dump(by_alias=True),
+                secret_reader=secret_reader,
             )
 
         test_yaml_spec = yaml.safe_load(test_raw_yaml)
@@ -135,7 +138,7 @@ def fetch_rule_and_tests(
 
 
 def get_rules_and_tests(
-    vault_settings: AppInterfaceSettingsV1,
+    settings: AppInterfaceSettingsV1,
     thread_pool_size: int,
     cluster_names: Iterable[str] | None = None,
 ) -> list[Test]:
@@ -165,7 +168,8 @@ def get_rules_and_tests(
         func=fetch_rule_and_tests,
         iterable=iterable,
         thread_pool_size=thread_pool_size,
-        vault_settings=vault_settings,
+        secret_reader=create_secret_reader(use_vault=settings.vault),
+        repo_url=settings.repo_url,
     )
 
 
@@ -243,7 +247,7 @@ def run_test(test: Test, alerting_services: Iterable[str]) -> None:
 
 
 def check_rules_and_tests(
-    vault_settings: AppInterfaceSettingsV1,
+    settings: AppInterfaceSettingsV1,
     alerting_services: Iterable[str],
     thread_pool_size: int,
     cluster_names: Iterable[str] | None = None,
@@ -251,7 +255,7 @@ def check_rules_and_tests(
     """Fetch rules and associated tests, run checks on rules and tests if they exist
     and return a list of failed checks/tests"""
     tests = get_rules_and_tests(
-        vault_settings=vault_settings,
+        settings=settings,
         thread_pool_size=thread_pool_size,
         cluster_names=cluster_names,
     )
@@ -287,7 +291,7 @@ def run(
 
     failed_tests = check_rules_and_tests(
         cluster_names=cluster_names,
-        vault_settings=get_app_interface_vault_settings(),
+        settings=get_openshift_resources_settings(),
         alerting_services=get_alerting_services(),
         thread_pool_size=thread_pool_size,
     )
@@ -306,7 +310,7 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     with orb.early_exit_monkey_patch():
         state_for_clusters = defaultdict(list)
         tests = get_rules_and_tests(
-            vault_settings=get_app_interface_vault_settings(),
+            settings=get_openshift_resources_settings(),
             thread_pool_size=10,
         )
         for t in tests:
