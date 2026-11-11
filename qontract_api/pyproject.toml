@@ -7,7 +7,7 @@ license = { text = "Apache 2.0" }
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "cachetools==7.2.8",
+    "cachetools==8.0.0",
     "celery[redis]==5.6.3",
     "fastapi==0.162.0",
     "faststream[cli,redis,prometheus]==0.7.8",
