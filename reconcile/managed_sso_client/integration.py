@@ -102,7 +102,6 @@ class ManagedSsoClientIntegration(
                 [
                     ProtocolMapperDesiredState(
                         name=mapper.name,
-                        deleted=mapper.deleted if mapper.deleted is not None else False,
                         protocol_mapper=mapper.protocol_mapper,
                         config=mapper.config if mapper.config is not None else {},
                     )

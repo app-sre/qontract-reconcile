@@ -33,17 +33,17 @@ class KeycloakInstanceRef(BaseModel, frozen=True):
     )
 
 
-class ProtocolMapperDesiredState(BaseModel, frozen=True):
-    """An instruction to create/update or explicitly delete a client mapper."""
+class ProtocolMapperDesiredState(BaseModel, frozen=True, extra="forbid"):
+    """A mapper configured only when its OIDC client is created."""
 
     name: str
-    deleted: bool = False
     protocol_mapper: str
     config: dict[str, str] = Field(
         default_factory=dict,
         # Expose the factory default so generated clients do not send null.
         json_schema_extra={"default": {}},
-        description="Defaults to an empty mapping; only declared config keys are managed. "
+        description="Defaults to an empty mapping; only declared config keys are checked for drift. "
+        "Mapper configuration is applied only during client creation. "
         "Empty string values are rejected because Keycloak removes them.",
     )
     protocol: Literal["openid-connect"] = "openid-connect"
@@ -62,10 +62,7 @@ class ProtocolMapperDesiredState(BaseModel, frozen=True):
         return config
 
     def to_managed_keycloak_mapper(self) -> ManagedKeycloakProtocolMapper:
-        """Build an active mapper; deletion instructions never go to Keycloak."""
-        if self.deleted:
-            msg = "cannot build a Keycloak mapper from a deletion instruction"
-            raise ValueError(msg)
+        """Build a mapper for a new client's registration payload."""
         return ManagedKeycloakProtocolMapper(
             name=self.name,
             protocol=self.protocol,
@@ -80,18 +77,14 @@ def _declared_mappers_match(
 ) -> bool:
     """Compare declared identities and config keys while ignoring undeclared state.
 
-    Deletion declarations match only when their mapper is absent. Unset or empty
-    declarations leave every live mapper unmanaged.
+    Unset or empty declarations leave every live mapper unmanaged. Differences
+    require a new client; existing mappers are never updated or deleted.
     """
     if not declarations:
         return True
     current_mappers = {(m.protocol, m.name): m for m in live_mappers or []}
     for mapper in declarations:
         live = current_mappers.get((mapper.protocol, mapper.name))
-        if mapper.deleted:
-            if live is not None:
-                return False
-            continue
         if live is None or live.protocol_mapper != mapper.protocol_mapper:
             return False
         if not all(
@@ -110,7 +103,8 @@ class OidcDesiredState(BaseModel, frozen=True):
     on create, and an existing client's value is left untouched on update.
     Only an explicitly-set value (including an explicit empty list) is
     applied and compared, except for protocol_mappers: None and [] both leave
-    live mappers unmanaged; only deleted=True removes a declared mapper.
+    live mappers unmanaged. Mappers are applied only during client creation;
+    declared mapper drift on an existing client requires a new client.
     `access_type` and `direct_access_grants_enabled`
     are the documented exceptions: both always resolve to a concrete value
     (see their validators below), since Keycloak's own create-time defaults
@@ -202,9 +196,12 @@ class OidcDesiredState(BaseModel, frozen=True):
     )
     protocol_mappers: list[ProtocolMapperDesiredState] | None = Field(
         default=None,
-        description="Client-level OIDC protocol mapper declarations. Only entries "
-        "with deleted=true are removed. Undeclared mappers and config keys are "
-        "preserved; unset or an empty list leaves all mappers unmanaged.",
+        description="Client-level OIDC protocol mappers, applied only during client "
+        "creation. Declared mapper drift on an existing client fails dry-runs "
+        "and only logs a warning during normal execution; applying mapper "
+        "changes requires a new client. Undeclared mappers and config keys are ignored; "
+        "unset or an empty list leaves all mappers unmanaged. Client updates "
+        "always omit protocolMappers, preserving all live mappers.",
     )
     attributes: dict[str, str] | None = Field(
         default=None,
@@ -217,7 +214,7 @@ class OidcDesiredState(BaseModel, frozen=True):
     def _unique_protocol_mappers(
         cls, mappers: list[ProtocolMapperDesiredState] | None
     ) -> list[ProtocolMapperDesiredState] | None:
-        """Reject duplicate mapper identities, including create/delete conflicts."""
+        """Reject duplicate mapper identities."""
         if mappers is not None:
             names = {(mapper.protocol, mapper.name) for mapper in mappers}
             if len(names) != len(mappers):
@@ -242,7 +239,7 @@ class OidcDesiredState(BaseModel, frozen=True):
     def to_managed_keycloak_client(
         self, *, client_id: str, enabled: bool
     ) -> ManagedKeycloakClient:
-        """Compile managed OIDC fields, excluding mapper deletion instructions."""
+        """Compile managed OIDC fields, including mappers for client creation."""
         return ManagedKeycloakClient(
             client_id=client_id,
             enabled=enabled,
@@ -260,7 +257,6 @@ class OidcDesiredState(BaseModel, frozen=True):
             protocol_mappers=[
                 mapper.to_managed_keycloak_mapper()
                 for mapper in self.protocol_mappers or []
-                if not mapper.deleted
             ]
             or None,
             extra_attributes=self.attributes or {},
@@ -340,7 +336,9 @@ class ManagedSsoClientDesiredState(BaseModel, frozen=True):
             client_id=self.client_id, enabled=self.enabled
         )
 
-    def matches(self, current: ManagedKeycloakClient) -> bool:
+    def matches(
+        self, current: ManagedKeycloakClient, *, include_protocol_mappers: bool = True
+    ) -> bool:
         """Whether a client's live Keycloak representation already matches this.
 
         Only compares fields this desired state actually specifies (non-None).
@@ -348,14 +346,20 @@ class ManagedSsoClientDesiredState(BaseModel, frozen=True):
         here is never sent and never managed - comparing it against whatever
         Keycloak happens to have would be permanent, spurious drift. List
         fields are compared order-insensitively (see _field_values_match).
-        Only declared mappers and config keys are compared. Deletion entries
-        match when their mapper is absent; undeclared live mappers are ignored.
+        Only declared mappers and config keys are compared; undeclared live
+        mappers are ignored. Callers checking for an update can exclude mappers,
+        whose drift is reported separately by immutable_field_drift.
         """
         desired_client = self.to_managed_keycloak_client()
         desired_state = desired_client.model_dump(
             exclude=_DRIFT_COMPARISON_EXCLUDED_FIELDS, exclude_none=True
         )
         current_state = current.model_dump(exclude=_DRIFT_COMPARISON_EXCLUDED_FIELDS)
+        # Keycloak omits post.logout.redirect.uris when the list is empty.
+        # Unset desired values remain unmanaged via exclude_none above.
+        current_state["post_logout_redirect_uris"] = (
+            current.post_logout_redirect_uris or []
+        )
         if not all(
             _field_values_match(value, current_state.get(field))
             for field, value in desired_state.items()
@@ -366,7 +370,7 @@ class ManagedSsoClientDesiredState(BaseModel, frozen=True):
             for key, value in desired_client.extra_attributes.items()
         ):
             return False
-        return _declared_mappers_match(
+        return not include_protocol_mappers or _declared_mappers_match(
             self.oidc.protocol_mappers if self.oidc else None,
             current.protocol_mappers,
         )
@@ -383,12 +387,18 @@ class ManagedSsoClientDesiredState(BaseModel, frozen=True):
             exclude=_DRIFT_COMPARISON_EXCLUDED_FIELDS, exclude_none=True
         )
         current_state = current.model_dump(exclude=_DRIFT_COMPARISON_EXCLUDED_FIELDS)
-        return sorted(
+        drift = {
             field
             for field in _IMMUTABLE_OIDC_FIELDS
             if field in desired_state
             and not _field_values_match(desired_state[field], current_state.get(field))
-        )
+        }
+        if not _declared_mappers_match(
+            self.oidc.protocol_mappers if self.oidc else None,
+            current.protocol_mappers,
+        ):
+            drift.add("protocol_mappers")
+        return sorted(drift)
 
 
 class ManagedSsoClientManagementSecret(BaseModel, frozen=True):

@@ -1109,7 +1109,6 @@ class PagerDutyUser(pydantic.BaseModel):
 
 class ProtocolMapperDesiredState(pydantic.BaseModel):
     config: dict[str, typing.Any] = {}
-    deleted: bool = False
     name: str
     protocol: typing.Literal["openid-connect"] = "openid-connect"
     protocol_mapper: str

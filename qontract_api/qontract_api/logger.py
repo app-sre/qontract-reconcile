@@ -63,12 +63,16 @@ def setup_logging(
         processors.extend(extra_processors)
     if settings.log_format_json:
         processors += [
-            structlog.processors.dict_tracebacks,
+            structlog.processors.ExceptionRenderer(
+                structlog.tracebacks.ExceptionDictTransformer(show_locals=False)
+            ),
             structlog.processors.JSONRenderer(sort_keys=True),
         ]
     else:
         processors += [
-            structlog.dev.ConsoleRenderer(),
+            structlog.dev.ConsoleRenderer(
+                exception_formatter=structlog.dev.plain_traceback
+            ),
         ]
 
     formatter = structlog.stdlib.ProcessorFormatter(
@@ -117,6 +121,8 @@ def setup_logging(
             # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
             # Sensitive headers are automatically filtered by Sentry.
             send_default_pii=True,
+            # Stack frame locals can contain Vault and client-registration tokens.
+            include_local_variables=False,
             # Don't send logs to Sentry
             enable_logs=False,
             ignore_errors=[ConnectionError],

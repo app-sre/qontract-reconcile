@@ -257,14 +257,13 @@ class ManagedSsoClientService:
         performs the PUT unconditionally - the caller (_execute_action) is
         responsible for only calling this for a ManagedSsoClientActionUpdate,
         which _diff_client only ever emits when Keycloak-side drift was
-        already confirmed. The workspace client refreshes live mappers to
-        preserve undeclared entries and apply explicit deletion instructions.
+        already confirmed. The workspace client always omits protocol mappers;
+        they are only configured during client creation.
         """
         updated = keycloak.update_client(
             client_id=desired.client_id,
             registration_access_token=management.registration_access_token,
             data=desired.to_managed_keycloak_client(),
-            mapper_declarations=desired.oidc.protocol_mappers if desired.oidc else None,
         )
         new_token = (
             updated.registration_access_token or management.registration_access_token
@@ -411,11 +410,13 @@ class ManagedSsoClientService:
         desired: ManagedSsoClientDesiredState,
         keycloak_instances: dict[str, KeycloakWorkspaceClient],
         vault_target: Secret,
-    ) -> tuple[ManagedSsoClientAction | None, ManagedSsoClientManagementSecret]:
+    ) -> tuple[ManagedSsoClientAction | None, ManagedSsoClientManagementSecret, bool]:
         """Diff a client's live Keycloak configuration against its desired state.
 
         Keycloak-only - a drifted tenant secret output path is an
         independent concern, checked separately by _diff_tenant_secret.
+        Return mapper drift separately: it never requires an update, and its
+        severity is decided after planning based on the execution mode.
         """
         management = self._read_management_secret(vault_target, desired.client_id)
         if management is None:
@@ -437,7 +438,11 @@ class ManagedSsoClientService:
         current = keycloak.get_client(
             desired.client_id, management.registration_access_token
         )
-        if immutable_drift := desired.immutable_field_drift(current):
+        immutable_drift = desired.immutable_field_drift(current)
+        mapper_drift = "protocol_mappers" in immutable_drift
+        if mapper_drift:
+            immutable_drift.remove("protocol_mappers")
+        if immutable_drift:
             fields = ", ".join(immutable_drift)
             msg = (
                 f"{fields} cannot be updated in place - Keycloak's registration "
@@ -445,9 +450,13 @@ class ManagedSsoClientService:
                 "Delete and recreate the client with the new scope configuration."
             )
             raise ValueError(msg)
-        if desired.matches(current):
-            return None, management
-        return ManagedSsoClientActionUpdate(client_id=desired.client_id), management
+        if desired.matches(current, include_protocol_mappers=False):
+            return None, management, mapper_drift
+        return (
+            ManagedSsoClientActionUpdate(client_id=desired.client_id),
+            management,
+            mapper_drift,
+        )
 
     def _diff_tenant_secret(
         self,
@@ -494,7 +503,7 @@ class ManagedSsoClientService:
         desired: ManagedSsoClientDesiredState,
         keycloak_instances: dict[str, KeycloakWorkspaceClient],
         vault_target: Secret,
-    ) -> tuple[list[ManagedSsoClientAction], ManagedSsoClientManagementSecret]:
+    ) -> tuple[list[ManagedSsoClientAction], ManagedSsoClientManagementSecret, bool]:
         """Diff a single already-tracked client - two independent checks.
 
         Raises with client_id always prefixed, regardless of which step
@@ -505,7 +514,7 @@ class ManagedSsoClientService:
         persisting an update's rotated registration_access_token.
         """
         try:
-            keycloak_action, management = self._diff_client(
+            keycloak_action, management, mapper_drift = self._diff_client(
                 desired, keycloak_instances, vault_target
             )
             tenant_secret_action = self._diff_tenant_secret(
@@ -516,7 +525,7 @@ class ManagedSsoClientService:
         actions = [
             action for action in (tenant_secret_action, keycloak_action) if action
         ]
-        return actions, management
+        return actions, management, mapper_drift
 
     def _calculate_actions(
         self,
@@ -526,6 +535,7 @@ class ManagedSsoClientService:
     ) -> tuple[
         list[ManagedSsoClientAction],
         dict[str, ManagedSsoClientManagementSecret],
+        list[str],
         list[str],
     ]:
         """Diff desired client_ids against Vault-tracked existing client_ids.
@@ -550,6 +560,7 @@ class ManagedSsoClientService:
         ]
 
         errors: list[str] = []
+        clients_with_mapper_drift: list[str] = []
         management_by_id: dict[str, ManagedSsoClientManagementSecret] = {}
 
         for client_id in to_add:
@@ -568,7 +579,7 @@ class ManagedSsoClientService:
 
         for client_id in to_check:
             try:
-                client_actions, management = self._check_for_update(
+                client_actions, management, mapper_drift = self._check_for_update(
                     desired_by_id[client_id], keycloak_instances, vault_target
                 )
             except Exception as e:
@@ -579,8 +590,10 @@ class ManagedSsoClientService:
                 continue
             actions.extend(client_actions)
             management_by_id[client_id] = management
+            if mapper_drift:
+                clients_with_mapper_drift.append(client_id)
 
-        return actions, management_by_id, errors
+        return actions, management_by_id, errors, clients_with_mapper_drift
 
     def reconcile(
         self,
@@ -608,9 +621,20 @@ class ManagedSsoClientService:
         )
 
         try:
-            actions, management_by_id, errors = self._calculate_actions(
-                desired_by_id, keycloak_instances, vault_target
+            actions, management_by_id, errors, clients_with_mapper_drift = (
+                self._calculate_actions(desired_by_id, keycloak_instances, vault_target)
             )
+
+            for client_id in clients_with_mapper_drift:
+                message = (
+                    f"{client_id}: protocol_mappers cannot be updated in place - "
+                    "protocol mappers are only supported during client creation. "
+                    "Existing mappers are left unchanged. Create a new OIDC client "
+                    "with the required mapper configuration."
+                )
+                logger.warning(message)
+                if dry_run:
+                    errors.append(message)
 
             applied_actions: list[ManagedSsoClientAction] = []
             if not dry_run:

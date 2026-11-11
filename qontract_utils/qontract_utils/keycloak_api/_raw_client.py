@@ -17,7 +17,33 @@ qontract_utils.keycloak_api.client.KeycloakApi, which owns that client's lifecyc
 from __future__ import annotations
 
 import httpx2
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+
+class _KeycloakErrorResponse(BaseModel):
+    """Only the diagnostic fields of a Keycloak error, excluding credentials."""
+
+    error: str | None = None
+    error_description: str | None = None
+
+
+def _raise_for_status(response: httpx2.Response) -> None:
+    """Include Keycloak's error fields while preserving HTTP status handling."""
+    try:
+        response.raise_for_status()
+    except httpx2.HTTPStatusError as error:
+        try:
+            details = _KeycloakErrorResponse.model_validate_json(response.content)
+        except ValidationError:
+            raise error from None
+        if not (details.error or details.error_description):
+            raise
+        msg = (
+            f"{error}\nKeycloak response: {details.model_dump_json(exclude_none=True)}"
+        )
+        raise httpx2.HTTPStatusError(
+            msg, request=error.request, response=error.response
+        ) from error
 
 
 class RawProtocolMapperRepresentation(BaseModel):
@@ -130,7 +156,7 @@ class RawKeycloakClient:
             "/clients-registrations/default",
             json=data.model_dump(mode="json", exclude_none=True),
         )
-        response.raise_for_status()
+        _raise_for_status(response)
         return RawClientRepresentation.model_validate(response.json())
 
     def get_client(
@@ -145,7 +171,7 @@ class RawKeycloakClient:
             f"/clients-registrations/default/{client_id}",
             headers={"Authorization": f"Bearer {registration_access_token}"},
         )
-        response.raise_for_status()
+        _raise_for_status(response)
         return RawClientRepresentation.model_validate(response.json())
 
     def update_client(
@@ -166,7 +192,7 @@ class RawKeycloakClient:
             json=data.model_dump(mode="json", exclude_none=True),
             headers={"Authorization": f"Bearer {registration_access_token}"},
         )
-        response.raise_for_status()
+        _raise_for_status(response)
         return RawClientRepresentation.model_validate(response.json())
 
     def delete_client(self, *, client_id: str, registration_access_token: str) -> None:
@@ -174,4 +200,4 @@ class RawKeycloakClient:
             f"/clients-registrations/default/{client_id}",
             headers={"Authorization": f"Bearer {registration_access_token}"},
         )
-        response.raise_for_status()
+        _raise_for_status(response)

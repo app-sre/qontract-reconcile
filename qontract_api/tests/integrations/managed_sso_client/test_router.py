@@ -57,6 +57,36 @@ def sample_reconcile_request(
 @patch(
     "qontract_api.integrations.managed_sso_client.router.reconcile_managed_sso_client_task"
 )
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_post_reconcile_rejects_mapper_deletion(
+    mock_task: MagicMock,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    sample_reconcile_request: ManagedSsoClientReconcileRequest,
+    *,
+    dry_run: bool,
+) -> None:
+    payload = sample_reconcile_request.model_dump(mode="json")
+    payload["dry_run"] = dry_run
+    payload["desired_clients"][0]["oidc"]["protocol_mappers"] = [
+        {"name": "audience", "protocol_mapper": "oidc-audience-mapper", "deleted": True}
+    ]
+
+    response = client.post(
+        "/api/v1/integrations/managed-sso-client/reconcile",
+        json=payload,
+        headers=auth_headers,
+    )
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert "extra_forbidden" in response.text
+    assert "'protocol_mappers', 0, 'deleted'" in response.text
+    mock_task.apply_async.assert_not_called()
+
+
+@patch(
+    "qontract_api.integrations.managed_sso_client.router.reconcile_managed_sso_client_task"
+)
 def test_post_reconcile_queues_task(
     mock_task: MagicMock,
     client: TestClient,
@@ -118,7 +148,6 @@ def test_post_reconcile_requires_auth(
 
 
 @pytest.mark.parametrize("protocol", ["saml", "", None])
-@pytest.mark.parametrize("deleted", [False, True])
 @patch(
     "qontract_api.integrations.managed_sso_client.router.reconcile_managed_sso_client_task"
 )
@@ -128,8 +157,6 @@ def test_post_reconcile_rejects_non_oidc_mapper_protocol(
     auth_headers: dict[str, str],
     sample_reconcile_request: ManagedSsoClientReconcileRequest,
     protocol: str | None,
-    *,
-    deleted: bool,
 ) -> None:
     payload = sample_reconcile_request.model_dump(mode="json")
     payload["desired_clients"][0]["oidc"]["protocol_mappers"] = [
@@ -138,7 +165,6 @@ def test_post_reconcile_rejects_non_oidc_mapper_protocol(
             "name": "audience",
             "protocol_mapper": "oidc-audience-mapper",
             "protocol": protocol,
-            "deleted": deleted,
         },
     ]
     response = client.post(

@@ -1,6 +1,13 @@
-"""Tests for qontract_utils.keycloak_api._raw_client's wire representation."""
+"""Tests for qontract_utils.keycloak_api._raw_client."""
 
-from qontract_utils.keycloak_api._raw_client import RawClientRepresentation
+import json
+
+import httpx2
+import pytest
+from qontract_utils.keycloak_api._raw_client import (
+    RawClientRepresentation,
+    RawKeycloakClient,
+)
 
 
 def test_uses_camel_case_aliases_for_wire_serialization() -> None:
@@ -74,3 +81,90 @@ def test_parses_camel_case_wire_json() -> None:
     assert parsed.registration_access_token == "reg-token"
     assert parsed.redirect_uris == ["https://example.com/callback"]
     assert parsed.attributes == {"pkce.code.challenge.method": "S256"}
+
+
+@pytest.mark.parametrize("method", ["POST", "GET", "PUT", "DELETE"])
+@pytest.mark.parametrize(
+    ("status_code", "body", "expected_details"),
+    [
+        (
+            403,
+            (
+                '{"error":"insufficient_scope","error_description":'
+                "\"Policy 'Allowed Protocol Mapper Types' rejected request to "
+                'client-registration service. Details: ProtocolMapper type not allowed"}'
+            ),
+            True,
+        ),
+        (401, '{"error":"invalid_token"}', True),
+        (404, "", False),
+        (500, "Keycloak unavailable", False),
+        (
+            403,
+            json.dumps(
+                {
+                    "error": "insufficient_scope",
+                    "error_description": "ProtocolMapper type not allowed",
+                    "registrationAccessToken": "fake-registration-token",
+                    "access_token": "fake-access-token",
+                    "secret": "fake-client-secret",
+                }
+            ),
+            True,
+        ),
+        (403, '{"registrationAccessToken":"fake-registration-token"}', False),
+        (500, "fake-unstructured-token", False),
+        (403, '[{"error":"fake-token"}]', False),
+        (403, '{"error_description":{"token":"fake-nested-token"}}', False),
+    ],
+)
+def test_http_errors_include_only_error_fields_and_preserve_context(
+    method: str, status_code: int, body: str, *, expected_details: bool
+) -> None:
+    response = httpx2.Response(status_code, text=body)
+
+    def handle_request(_request: httpx2.Request) -> httpx2.Response:
+        return response
+
+    with httpx2.Client(
+        base_url="https://sso.example.com",
+        transport=httpx2.MockTransport(handle_request),
+    ) as http:
+        raw = RawKeycloakClient(http)
+        data = RawClientRepresentation(client_id="my-client")
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
+            match method:
+                case "POST":
+                    raw.register_client(data)
+                case "GET":
+                    raw.get_client(
+                        client_id=data.client_id, registration_access_token="reg-token"
+                    )
+                case "PUT":
+                    raw.update_client(
+                        client_id=data.client_id,
+                        registration_access_token="reg-token",
+                        data=data,
+                    )
+                case "DELETE":
+                    raw.delete_client(
+                        client_id=data.client_id, registration_access_token="reg-token"
+                    )
+
+    error = exc_info.value
+    assert error.response is response
+    assert error.response.status_code == status_code
+    assert error.request is response.request
+    assert error.request.method == method
+    assert str(status_code) in str(error)
+    if expected_details:
+        detail = str(error).split("Keycloak response: ", 1)[1]
+        expected = {
+            key: value
+            for key, value in json.loads(body).items()
+            if key in {"error", "error_description"}
+        }
+        assert json.loads(detail) == expected
+    else:
+        assert "Keycloak response:" not in str(error)
+    assert "fake-" not in str(error)

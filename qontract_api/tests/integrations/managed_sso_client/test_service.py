@@ -8,6 +8,7 @@ from qontract_utils.keycloak_api import (
     ManagedKeycloakProtocolMapper,
 )
 from qontract_utils.secret_reader import SecretNotFoundError
+from structlog.testing import capture_logs
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import Settings
@@ -323,6 +324,32 @@ def test_reconcile_no_changes_produces_no_actions(
     assert result.status == TaskStatus.SUCCESS
 
 
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_reconcile_empty_logout_uris_with_omitted_live_attribute(
+    service: ManagedSsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak: MagicMock,
+    dry_run: bool,
+) -> None:
+    desired = _desired(post_logout_redirect_uris=[])
+    mock_secret_manager.list.return_value = [desired.client_id]
+    mock_secret_manager.read_all.return_value = _management().model_dump()
+    # Keycloak removes the empty attribute sent by to_raw().
+    raw = desired.to_managed_keycloak_client().to_raw()
+    mock_keycloak.get_client.return_value = ManagedKeycloakClient.from_raw(
+        raw.model_copy(update={"attributes": {}})
+    )
+
+    result = service.reconcile([desired], dry_run=dry_run)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.errors == []
+    assert result.actions == []
+    assert result.applied_count == 0
+    mock_keycloak.update_client.assert_not_called()
+    mock_secret_manager.write.assert_not_called()
+
+
 def test_reconcile_detects_drift_and_updates(
     service: ManagedSsoClientService,
     mock_secret_manager: MagicMock,
@@ -359,12 +386,14 @@ def test_reconcile_detects_drift_and_updates(
 
 @pytest.mark.parametrize("dry_run", [True, False])
 @pytest.mark.parametrize("other_field_changed", [True, False])
-def test_unrelated_update_preserves_undeclared_mapper_config(
+@pytest.mark.parametrize("mapper_drift", [True, False])
+def test_unrelated_update_omits_all_mappers(
     mock_secret_manager: MagicMock,
     mock_cache: MagicMock,
     mock_settings: Settings,
     dry_run: bool,
     other_field_changed: bool,
+    mapper_drift: bool,
 ) -> None:
     mapper = ManagedKeycloakProtocolMapper(
         name="audience",
@@ -378,11 +407,24 @@ def test_unrelated_update_preserves_undeclared_mapper_config(
         ],
     )
     live_mapper = mapper.model_copy(
-        update={"config": {**mapper.config, "included.custom.audience": "retained-api"}}
+        update={
+            "config": {
+                **mapper.config,
+                "included.custom.audience": "retained-api",
+                "access.token.claim": "false" if mapper_drift else "true",
+            }
+        }
     )
     current = desired.to_managed_keycloak_client().model_copy(
         update={
-            "protocol_mappers": [live_mapper],
+            "protocol_mappers": [
+                live_mapper,
+                ManagedKeycloakProtocolMapper(
+                    name="Client ID",
+                    protocol_mapper="oidc-usersessionmodel-note-mapper",
+                    config={"user.session.note": "clientId", "claim.name": "clientId"},
+                ),
+            ],
             "web_origins": []
             if other_field_changed
             else ["https://new-origin.example.com"],
@@ -391,15 +433,9 @@ def test_unrelated_update_preserves_undeclared_mapper_config(
     mock_cache.get_obj.return_value = current
     api = MagicMock()
     api.url = desired.keycloak_instance.url
-    fresh_mapper = live_mapper.model_copy(
-        update={"config": {**live_mapper.config, "server-added": "value"}}
-    )
-    api.get_client.return_value = current.model_copy(
-        update={"protocol_mappers": [fresh_mapper]}
-    )
-    api.update_client.return_value = desired.to_managed_keycloak_client().model_copy(
+    api.update_client.return_value = current.model_copy(
         update={
-            "protocol_mappers": [fresh_mapper],
+            "web_origins": ["https://new-origin.example.com"],
             "registration_access_token": "new-reg-token",
         }
     )
@@ -415,7 +451,10 @@ def test_unrelated_update_preserves_undeclared_mapper_config(
 
     result = service.reconcile([desired], dry_run=dry_run)
 
-    assert result.status == TaskStatus.SUCCESS
+    assert result.status == (
+        TaskStatus.FAILED if dry_run and mapper_drift else TaskStatus.SUCCESS
+    )
+    assert len(result.errors) == (1 if dry_run and mapper_drift else 0)
     assert result.actions == (
         [ManagedSsoClientActionUpdate(client_id=desired.client_id)]
         if other_field_changed
@@ -429,13 +468,8 @@ def test_unrelated_update_preserves_undeclared_mapper_config(
         assert result.applied_count == 1
         sent = api.update_client.call_args.kwargs["data"]
         assert sent.web_origins == ["https://new-origin.example.com"]
-        assert sent.protocol_mappers[0].config == {
-            "access.token.claim": "true",
-            "id.token.claim": "false",
-            "included.custom.audience": "retained-api",
-            "server-added": "value",
-        }
-        assert desired.matches(sent)
+        assert "protocolMappers" not in sent.to_raw().model_dump(exclude_none=True)
+        api.get_client.assert_not_called()
         written_data = mock_secret_manager.write.call_args.args[1]
         assert written_data["registration_access_token"] == "new-reg-token"
         assert written_data["client_secret"] == "s3cr3t"
@@ -514,10 +548,14 @@ def test_reconcile_detects_order_only_list_drift_as_no_change(
     mock_keycloak.update_client.assert_not_called()
 
 
+@pytest.mark.parametrize("dry_run", [True, False])
+@pytest.mark.parametrize("mapper_drift", [True, False])
 def test_reconcile_reports_error_when_optional_client_scopes_change(
     service: ManagedSsoClientService,
     mock_secret_manager: MagicMock,
     mock_keycloak: MagicMock,
+    dry_run: bool,
+    mapper_drift: bool,
 ) -> None:
     """Scope changes on an existing client must fail loudly, not loop forever.
 
@@ -525,7 +563,16 @@ def test_reconcile_reports_error_when_optional_client_scopes_change(
     ordinary update action would never actually apply and would re-trigger
     every reconcile.
     """
-    desired = _desired(optional_client_scopes=["groups"])
+    desired = _desired(
+        optional_client_scopes=["groups"],
+        protocol_mappers=[
+            ProtocolMapperDesiredState(
+                name="audience", protocol_mapper="oidc-audience-mapper"
+            )
+        ]
+        if mapper_drift
+        else None,
+    )
     mock_secret_manager.list.return_value = [desired.client_id]
     mock_secret_manager.read_all.return_value = _management(
         desired.client_id
@@ -536,7 +583,7 @@ def test_reconcile_reports_error_when_optional_client_scopes_change(
         optional_client_scopes=["offline_access"],
     )
 
-    result = service.reconcile([desired], dry_run=True)
+    result = service.reconcile([desired], dry_run=dry_run)
 
     assert result.status == TaskStatus.FAILED
     assert result.actions == []
@@ -578,8 +625,7 @@ def test_reconcile_allows_mutable_field_drift_alongside_unchanged_scopes(
 ) -> None:
     """A mutable field change must still produce an ordinary update action.
 
-    Only immutable scope fields are blocked - everything else reconciles
-    normally.
+    Scope drift blocks updates; mutable settings reconcile normally.
     """
     desired = _desired(
         web_origins=["https://new-origin.example.com"],
@@ -1336,91 +1382,129 @@ def test_reconcile_exposes_managed_clients_gauge(
 
 
 @pytest.mark.parametrize("dry_run", [True, False])
-@pytest.mark.parametrize("target_exists", [True, False])
-def test_explicit_mapper_deletion_preserves_external_mapper_and_converges(
+@pytest.mark.parametrize(
+    "change", ["missing", "added", "renamed", "provider", "config"]
+)
+def test_mapper_drift_fails_only_dry_run_without_writes(
+    service: ManagedSsoClientService,
     mock_secret_manager: MagicMock,
-    mock_cache: MagicMock,
-    mock_settings: Settings,
+    mock_keycloak: MagicMock,
     *,
     dry_run: bool,
-    target_exists: bool,
+    change: str,
+) -> None:
+    from qontract_api.integrations.managed_sso_client.metrics import (
+        INTEGRATION_NAME,
+        managed_sso_client_reconcile_errors,
+    )
+
+    mapper = ProtocolMapperDesiredState(
+        name="audience",
+        protocol_mapper="oidc-audience-mapper",
+        config={"included.custom.audience": "my-api", "access.token.claim": "true"},
+    )
+    current = _desired(protocol_mappers=[mapper]).to_managed_keycloak_client()
+    match change:
+        case "missing":
+            current = current.with_protocol_mappers(None)
+            declarations = [mapper]
+        case "added":
+            declarations = [
+                mapper,
+                mapper.model_copy(update={"name": "second-audience"}),
+            ]
+        case "renamed":
+            declarations = [mapper.model_copy(update={"name": "renamed-audience"})]
+        case "provider":
+            declarations = [
+                mapper.model_copy(update={"protocol_mapper": "oidc-full-name-mapper"})
+            ]
+        case _:
+            declarations = [
+                mapper.model_copy(
+                    update={"config": {"included.custom.audience": "new-api"}}
+                )
+            ]
+    desired = _desired(protocol_mappers=declarations)
+    mock_secret_manager.list.return_value = [desired.client_id]
+    mock_secret_manager.read_all.return_value = _management().model_dump()
+    mock_keycloak.get_client.return_value = current
+
+    error_counter = managed_sso_client_reconcile_errors.labels(INTEGRATION_NAME)
+    previous_errors = error_counter._value.get()
+    with capture_logs() as logs:
+        result = service.reconcile([desired], dry_run=dry_run)
+
+    assert result.status == (TaskStatus.FAILED if dry_run else TaskStatus.SUCCESS)
+    assert result.actions == []
+    assert result.applied_count == 0
+    warnings = [entry["event"] for entry in logs if entry["log_level"] == "warning"]
+    assert len(warnings) == 1
+    assert (
+        f"{desired.client_id}: protocol_mappers cannot be updated in place"
+        in warnings[0]
+    )
+    assert "Existing mappers are left unchanged" in warnings[0]
+    assert "Create a new OIDC client" in warnings[0]
+    assert result.errors == (warnings if dry_run else [])
+    assert error_counter._value.get() == previous_errors + (1 if dry_run else 0)
+    mock_keycloak.register_client.assert_not_called()
+    mock_keycloak.update_client.assert_not_called()
+    mock_keycloak.delete_client.assert_not_called()
+    mock_secret_manager.write.assert_not_called()
+    mock_secret_manager.delete.assert_not_called()
+
+
+@pytest.mark.parametrize("failure", ["keycloak", "vault"])
+def test_mapper_warning_does_not_hide_update_failures(
+    service: ManagedSsoClientService,
+    mock_secret_manager: MagicMock,
+    mock_keycloak: MagicMock,
+    failure: str,
 ) -> None:
     desired = _desired(
         protocol_mappers=[
             ProtocolMapperDesiredState(
-                name="audience",
-                deleted=True,
-                protocol_mapper="oidc-audience-mapper",
-                config={"included.custom.audience": "old-api"},
+                name="audience", protocol_mapper="oidc-audience-mapper"
             )
-        ]
-    )
-    external = ManagedKeycloakProtocolMapper(
-        name="email",
-        protocol_mapper="oidc-usermodel-property-mapper",
-        config={"user.attribute": "email", "claim.name": "email"},
-    )
-    target = ManagedKeycloakProtocolMapper(
-        name="audience", protocol_mapper="oidc-audience-mapper", config={}
-    )
-    current = desired.to_managed_keycloak_client().with_protocol_mappers(
-        [external, target] if target_exists else [external]
-    )
-    mock_cache.get_obj.return_value = current
-    api = MagicMock()
-    api.url = desired.keycloak_instance.url
-    api.get_client.return_value = current
-    api.update_client.return_value = current.with_protocol_mappers([
-        external
-    ]).model_copy(update={"registration_access_token": "rotated-token"})
-    workspace = KeycloakWorkspaceClient(api, mock_cache, mock_settings)
-    service = ManagedSsoClientService(
-        secret_manager=mock_secret_manager,
-        cache=mock_cache,
-        settings=mock_settings,
-        workspace_client_factory=MagicMock(return_value={api.url: workspace}),
+        ],
+        web_origins=["https://changed.example.com"],
     )
     mock_secret_manager.list.return_value = [desired.client_id]
     mock_secret_manager.read_all.return_value = _management().model_dump()
-
-    result = service.reconcile([desired], dry_run=dry_run)
-
-    assert result.status == TaskStatus.SUCCESS
-    assert result.actions == (
-        [ManagedSsoClientActionUpdate(client_id=desired.client_id)]
-        if target_exists
-        else []
-    )
-    if dry_run or not target_exists:
-        api.update_client.assert_not_called()
-        mock_secret_manager.write.assert_not_called()
-        assert result.applied_count == 0
+    mock_keycloak.get_client.return_value = _desired().to_managed_keycloak_client()
+    mock_keycloak.update_client.return_value = desired.to_managed_keycloak_client()
+    if failure == "keycloak":
+        mock_keycloak.update_client.side_effect = RuntimeError("Keycloak unavailable")
     else:
-        assert result.applied_count == 1
-        sent = api.update_client.call_args.kwargs["data"]
-        assert sent.protocol_mappers == [external]
-        written = mock_secret_manager.write.call_args.args[1]
-        assert written["registration_access_token"] == "rotated-token"
-        mock_cache.get_obj.return_value = api.update_client.return_value
-        mock_secret_manager.read_all.return_value = written
-        assert service.reconcile([desired], dry_run=False).actions == []
-        api.update_client.assert_called_once()
+        mock_secret_manager.write.side_effect = RuntimeError("Vault unavailable")
+
+    with capture_logs() as logs:
+        result = service.reconcile([desired], dry_run=False)
+
+    assert result.status == TaskStatus.FAILED
+    assert result.applied_count == 0
+    assert len(result.errors) == 1
+    assert "unavailable" in result.errors[0]
+    assert "protocol_mappers" not in result.errors[0]
+    assert any(
+        entry["log_level"] == "warning" and "protocol_mappers" in entry["event"]
+        for entry in logs
+    )
 
 
-def test_create_sends_only_active_mapper_declarations(
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_create_sends_mapper_configuration(
     service: ManagedSsoClientService,
     mock_keycloak: MagicMock,
+    *,
+    dry_run: bool,
 ) -> None:
+    config = {"included.custom.audience": "my-api", "access.token.claim": "true"}
     desired = _desired(
         protocol_mappers=[
             ProtocolMapperDesiredState(
-                name="obsolete",
-                deleted=True,
-                protocol_mapper="oidc-audience-mapper",
-                config={"included.custom.audience": "old-api"},
-            ),
-            ProtocolMapperDesiredState(
-                name="audience", protocol_mapper="oidc-audience-mapper"
+                name="audience", protocol_mapper="oidc-audience-mapper", config=config
             ),
         ]
     )
@@ -1429,19 +1513,26 @@ def test_create_sends_only_active_mapper_declarations(
         secret="client-secret",
         registration_access_token="reg-token",
     )
-    result = service.reconcile([desired], dry_run=False)
+    result = service.reconcile([desired], dry_run=dry_run)
     assert result.status == TaskStatus.SUCCESS
-    sent = (
-        mock_keycloak.register_client.call_args
-        .args[0]
-        .to_raw()
-        .model_dump(exclude_none=True)
-    )
-    assert sent["protocolMappers"] == [
-        {
-            "name": "audience",
-            "protocol": "openid-connect",
-            "protocolMapper": "oidc-audience-mapper",
-            "config": {},
-        }
-    ]
+    assert len(result.actions) == 1
+    assert isinstance(result.actions[0], ManagedSsoClientActionCreate)
+    if dry_run:
+        mock_keycloak.register_client.assert_not_called()
+        assert result.applied_count == 0
+    else:
+        assert result.applied_count == 1
+        sent = (
+            mock_keycloak.register_client.call_args
+            .args[0]
+            .to_raw()
+            .model_dump(exclude_none=True)
+        )
+        assert sent["protocolMappers"] == [
+            {
+                "name": "audience",
+                "protocol": "openid-connect",
+                "protocolMapper": "oidc-audience-mapper",
+                "config": config,
+            }
+        ]
