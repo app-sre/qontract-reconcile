@@ -117,6 +117,44 @@ def test_post_reconcile_requires_auth(
     assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
+@pytest.mark.parametrize("protocol", ["saml", "", None])
+@pytest.mark.parametrize("deleted", [False, True])
+@patch(
+    "qontract_api.integrations.managed_sso_client.router.reconcile_managed_sso_client_task"
+)
+def test_post_reconcile_rejects_non_oidc_mapper_protocol(
+    mock_task: MagicMock,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    sample_reconcile_request: ManagedSsoClientReconcileRequest,
+    protocol: str | None,
+    *,
+    deleted: bool,
+) -> None:
+    payload = sample_reconcile_request.model_dump(mode="json")
+    payload["desired_clients"][0]["oidc"]["protocol_mappers"] = [
+        {"name": "audience", "protocol_mapper": "oidc-audience-mapper"},
+        {
+            "name": "audience",
+            "protocol_mapper": "oidc-audience-mapper",
+            "protocol": protocol,
+            "deleted": deleted,
+        },
+    ]
+    response = client.post(
+        "/api/v1/integrations/managed-sso-client/reconcile",
+        json=payload,
+        headers=auth_headers,
+    )
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    error = response.json()
+    assert error["type"] == "RequestValidationError"
+    assert "literal_error" in error["message"]
+    assert "'protocol_mappers', 1, 'protocol'" in error["message"]
+    mock_task.apply_async.assert_not_called()
+
+
 @patch("qontract_api.integrations.managed_sso_client.router.wait_for_task_completion")
 def test_get_task_status(
     mock_wait: MagicMock,

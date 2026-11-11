@@ -1061,12 +1061,14 @@ class OcmTaint(pydantic.BaseModel):
 
 class OidcDesiredState(pydantic.BaseModel):
     access_type: AccessType | None | None = None
+    attributes: dict[str, typing.Any] | None = None
     consent_required: bool | None = None
     default_client_scopes: list[str] | None = None
     direct_access_grants_enabled: bool | None = None
     full_scope_allowed: bool | None = None
     optional_client_scopes: list[str] | None = None
     post_logout_redirect_uris: list[str] | None = None
+    protocol_mappers: list[ProtocolMapperDesiredState] | None = None
     redirect_uris: list[str]
     service_accounts_enabled: bool | None = None
     web_origins: list[str] | None = None
@@ -1103,6 +1105,14 @@ class OpenShiftNamespacesTaskResult(pydantic.BaseModel):
 
 class PagerDutyUser(pydantic.BaseModel):
     username: str
+
+
+class ProtocolMapperDesiredState(pydantic.BaseModel):
+    config: dict[str, typing.Any] = {}
+    deleted: bool = False
+    name: str
+    protocol: typing.Literal["openid-connect"] = "openid-connect"
+    protocol_mapper: str
 
 
 class QuayOrgConfig(pydantic.BaseModel):

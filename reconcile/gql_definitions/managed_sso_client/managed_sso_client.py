@@ -56,6 +56,13 @@ query ManagedSsoClient {
         fullScopeAllowed
         defaultClientScopes
         optionalClientScopes
+        protocolMappers {
+          name
+          deleted
+          protocolMapper
+          config
+        }
+        attributes
       }
     }
   }
@@ -87,6 +94,13 @@ class ManagedSsoClientV1(ConfiguredBaseModel):
     output: Optional[str] = Field(..., alias="output")
 
 
+class ManagedSsoClientProtocolMapperV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    deleted: Optional[bool] = Field(..., alias="deleted")
+    protocol_mapper: str = Field(..., alias="protocolMapper")
+    config: Optional[Json] = Field(..., alias="config")
+
+
 class ManagedSsoClientOidcV1(ConfiguredBaseModel):
     access_type: Optional[str] = Field(..., alias="accessType")
     direct_access_grants_enabled: Optional[bool] = Field(..., alias="directAccessGrantsEnabled")
@@ -98,6 +112,8 @@ class ManagedSsoClientOidcV1(ConfiguredBaseModel):
     full_scope_allowed: Optional[bool] = Field(..., alias="fullScopeAllowed")
     default_client_scopes: Optional[list[str]] = Field(..., alias="defaultClientScopes")
     optional_client_scopes: Optional[list[str]] = Field(..., alias="optionalClientScopes")
+    protocol_mappers: Optional[list[ManagedSsoClientProtocolMapperV1]] = Field(..., alias="protocolMappers")
+    attributes: Optional[Json] = Field(..., alias="attributes")
 
 
 class ManagedSsoClientOpenidConnectV1(ManagedSsoClientV1):

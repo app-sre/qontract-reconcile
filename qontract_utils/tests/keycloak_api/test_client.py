@@ -8,7 +8,10 @@ from pytest_httpserver import HTTPServer
 from qontract_utils.hooks import Hooks
 from qontract_utils.keycloak_api import KeycloakApi
 from qontract_utils.keycloak_api.client import KeycloakBadRequestError
-from qontract_utils.keycloak_api.models import ManagedKeycloakClient
+from qontract_utils.keycloak_api.models import (
+    ManagedKeycloakClient,
+    ManagedKeycloakProtocolMapper,
+)
 
 REGISTER_PATH = "/clients-registrations/default"
 
@@ -58,6 +61,40 @@ def test_register_client_sends_correct_body_and_auth(httpserver: HTTPServer) -> 
     body = request.get_json()
     assert body["clientId"] == "my-client"
     assert body["redirectUris"] == ["https://example.com/callback"]
+
+
+def test_register_client_sends_audience_mapper_and_attributes(
+    httpserver: HTTPServer,
+) -> None:
+    api = _make_api(httpserver, initial_access_token="initial-token")
+    httpserver.expect_request(REGISTER_PATH, method="POST").respond_with_json(
+        {"clientId": "my-client", "secret": "s3cr3t", "registrationAccessToken": "reg"}
+    )
+    api.register_client(
+        _managed_client(
+            client_id="my-client",
+            protocol_mappers=[
+                ManagedKeycloakProtocolMapper(
+                    name="my-api-audience",
+                    protocol_mapper="oidc-audience-mapper",
+                    config={
+                        "included.custom.audience": "my-api",
+                        "access.token.claim": "true",
+                        "id.token.claim": "false",
+                    },
+                )
+            ],
+            extra_attributes={"pkce.code.challenge.method": "S256"},
+        )
+    )
+
+    request = next(req for req, _ in httpserver.log if req.path == REGISTER_PATH)
+    body = request.get_json()
+    assert body["protocolMappers"][0]["protocolMapper"] == "oidc-audience-mapper"
+    assert body["protocolMappers"][0]["config"]["included.custom.audience"] == (
+        "my-api"
+    )
+    assert body["attributes"] == {"pkce.code.challenge.method": "S256"}
 
 
 def test_default_user_agent_identifies_qontract_utils(httpserver: HTTPServer) -> None:

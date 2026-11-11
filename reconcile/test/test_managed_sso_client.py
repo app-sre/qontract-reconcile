@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -18,6 +19,7 @@ from reconcile.gql_definitions.managed_sso_client.managed_sso_client import (
     KeycloakInstanceV1,
     ManagedSsoClientOidcV1,
     ManagedSsoClientOpenidConnectV1,
+    ManagedSsoClientProtocolMapperV1,
     ManagedSsoClientV1,
 )
 from reconcile.managed_sso_client.integration import (
@@ -50,6 +52,8 @@ def _make_oidc(**overrides: object) -> ManagedSsoClientOidcV1:
         "fullScopeAllowed": None,
         "defaultClientScopes": None,
         "optionalClientScopes": None,
+        "protocolMappers": None,
+        "attributes": None,
     }
     return ManagedSsoClientOidcV1(**{**defaults, **overrides})
 
@@ -127,6 +131,37 @@ def test_compile_desired_state_maps_basic_fields() -> None:
     )
     assert desired.oidc is not None
     assert desired.oidc.redirect_uris == ["https://example.com/callback"]
+
+
+def test_compile_desired_state_maps_protocol_mappers_and_attributes() -> None:
+    integration = _make_integration()
+    mapper = ManagedSsoClientProtocolMapperV1(
+        name="my-api-audience",
+        deleted=None,
+        protocolMapper="oidc-audience-mapper",
+        config=json.dumps({
+            "included.custom.audience": "my-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+        }),
+    )
+    client = _make_client(
+        protocolMappers=[mapper],
+        attributes=json.dumps({"pkce.code.challenge.method": "S256"}),
+    )
+
+    desired = integration.compile_desired_state([client])[0]
+
+    assert desired.oidc is not None
+    assert desired.oidc.protocol_mappers is not None
+    assert desired.oidc.protocol_mappers[0].protocol == "openid-connect"
+    assert desired.oidc.protocol_mappers[0].protocol_mapper == "oidc-audience-mapper"
+    assert desired.oidc.protocol_mappers[0].deleted is False
+    assert desired.oidc.protocol_mappers[0].config is not None
+    assert desired.oidc.protocol_mappers[0].config["included.custom.audience"] == (
+        "my-api"
+    )
+    assert desired.oidc.attributes == {"pkce.code.challenge.method": "S256"}
 
 
 def test_compile_desired_state_defaults_enabled_to_true_when_unset() -> None:
@@ -353,3 +388,26 @@ async def test_async_run_non_dry_run_does_not_poll() -> None:
         await integration.async_run(dry_run=False)
 
     mock_poll.assert_not_called()
+
+
+@pytest.mark.parametrize("deleted", [True, False])
+@pytest.mark.parametrize("config", [None, {}, {"included.custom.audience": "my-api"}])
+def test_compile_mapper_declaration(
+    deleted: bool, config: dict[str, str] | None
+) -> None:
+    mapper = ManagedSsoClientProtocolMapperV1(
+        name="audience",
+        deleted=deleted,
+        protocolMapper="oidc-audience-mapper",
+        config=json.dumps(config) if config is not None else None,
+    )
+    desired = _make_integration().compile_desired_state([
+        _make_client(protocolMappers=[mapper])
+    ])[0]
+    assert desired.oidc is not None
+    assert desired.oidc.protocol_mappers is not None
+    declaration = desired.oidc.protocol_mappers[0]
+    assert declaration.name == "audience"
+    assert declaration.deleted is deleted
+    assert declaration.config == (config if config is not None else {})
+    assert declaration.protocol_mapper == "oidc-audience-mapper"

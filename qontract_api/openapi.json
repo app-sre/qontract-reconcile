@@ -4843,7 +4843,7 @@
         "type": "object"
       },
       "OidcDesiredState": {
-        "description": "Desired OIDC configuration for a single managed SSO client.\n\nEvery optional field here is \"unmanaged\" when None, not \"empty\"/\"false\" -\nKeycloak's client-registration PUT merges by field, so an unmanaged field\nis never sent and never diffed for drift - Keycloak's own default applies\non create, and an existing client's value is left untouched on update.\nOnly an explicitly-set value (including an explicit empty list) is\napplied and compared. `access_type` and `direct_access_grants_enabled`\nare the documented exceptions: both always resolve to a concrete value\n(see their validators below), since Keycloak's own create-time defaults\nfor these two - public access type, and enabled direct access grants -\nare insecure (verified against a live instance).\n\nCaution for every other optional field: setting a value and later\nremoving it from the desired state does NOT revert it - it only stops\nmanaging it, freezing Keycloak at whatever was last pushed. To actually\nundo a change, push back the field's previous explicit value (or its\nKeycloak default) rather than deleting the key.",
+        "description": "Desired OIDC configuration for a single managed SSO client.\n\nEvery optional field here is \"unmanaged\" when None, not \"empty\"/\"false\" -\nKeycloak's client-registration PUT merges by field, so an unmanaged field\nis never sent and never diffed for drift - Keycloak's own default applies\non create, and an existing client's value is left untouched on update.\nOnly an explicitly-set value (including an explicit empty list) is\napplied and compared, except for protocol_mappers: None and [] both leave\nlive mappers unmanaged; only deleted=True removes a declared mapper.\n`access_type` and `direct_access_grants_enabled`\nare the documented exceptions: both always resolve to a concrete value\n(see their validators below), since Keycloak's own create-time defaults\nfor these two - public access type, and enabled direct access grants -\nare insecure (verified against a live instance).\n\nCaution for every other optional field: setting a value and later\nremoving it from the desired state does NOT revert it - it only stops\nmanaging it, freezing Keycloak at whatever was last pushed. To actually\nundo a change, push back the field's previous explicit value (or its\nKeycloak default) rather than deleting the key.",
         "properties": {
           "access_type": {
             "anyOf": [
@@ -4855,6 +4855,21 @@
               }
             ],
             "description": "Keycloak client type/authentication requirement (confidential/public/bearer-only). Defaults to confidential when unset - Keycloak's own create-time default for an omitted access type is public, not confidential."
+          },
+          "attributes": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Additional Keycloak OIDC client attributes. Only keys declared here are checked for drift. Unmanaged if unset.",
+            "title": "Attributes"
           },
           "consent_required": {
             "anyOf": [
@@ -4936,6 +4951,21 @@
             ],
             "description": "Allowed URIs Keycloak may redirect back to after an RP-initiated logout. Unmanaged if unset (see class docstring).",
             "title": "Post Logout Redirect Uris"
+          },
+          "protocol_mappers": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProtocolMapperDesiredState"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Client-level OIDC protocol mapper declarations. Only entries with deleted=true are removed. Undeclared mappers and config keys are preserved; unset or an empty list leaves all mappers unmanaged.",
+            "title": "Protocol Mappers"
           },
           "redirect_uris": {
             "description": "Allowed redirect URIs for the standard login flow. Required by Keycloak - a client without at least one cannot log in.",
@@ -5117,6 +5147,45 @@
           "username"
         ],
         "title": "PagerDutyUser",
+        "type": "object"
+      },
+      "ProtocolMapperDesiredState": {
+        "description": "An instruction to create/update or explicitly delete a client mapper.",
+        "properties": {
+          "config": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "description": "Defaults to an empty mapping; only declared config keys are managed. Empty string values are rejected because Keycloak removes them.",
+            "title": "Config",
+            "type": "object"
+          },
+          "deleted": {
+            "default": false,
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "protocol": {
+            "const": "openid-connect",
+            "default": "openid-connect",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "protocol_mapper": {
+            "title": "Protocol Mapper",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "protocol_mapper"
+        ],
+        "title": "ProtocolMapperDesiredState",
         "type": "object"
       },
       "QuayOrgConfig": {

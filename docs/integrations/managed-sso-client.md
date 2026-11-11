@@ -45,7 +45,80 @@ oidc:
   redirectUris:
   - https://my-app.example.com/callback
   serviceAccountsEnabled: true
+  protocolMappers:
+  - name: my-api-audience
+    protocolMapper: oidc-audience-mapper
+    config:
+      included.custom.audience: my-api
+      access.token.claim: "true"
+      id.token.claim: "false"
+  attributes:
+    pkce.code.challenge.method: S256
 ```
+
+`protocolMappers` accepts client-level Keycloak mapper representations. The mapper
+protocol is always `openid-connect`, inferred from the enclosing `oidc` section.
+The example adds `my-api` to access tokens' `aud` claim, leaving ID tokens unchanged.
+Use `included.client.audience` instead of `included.custom.audience` when the
+audience is another Keycloak client ID. Only declared mappers are managed;
+client-level mappers absent from the list are preserved. Leaving `protocolMappers`
+unset or setting it to `[]` leaves all live mappers untouched, including during
+unrelated client updates.
+
+To delete a mapper, add `deleted: true` to its existing declaration and keep the
+complete entry until reconciliation succeeds:
+
+```yaml
+protocolMappers:
+- name: obsolete-audience
+  deleted: true
+  protocolMapper: oidc-audience-mapper
+  config:
+    included.custom.audience: my-api
+    access.token.claim: "true"
+    id.token.claim: "false"
+```
+
+Deletion targets the mapper by protocol (`openid-connect`) and name, regardless
+of who created it. An already absent target needs no update. After successful
+reconciliation, the deletion entry can be removed from YAML. Removing an ordinary
+entry without first setting `deleted: true` does not delete the live mapper.
+`name` and `protocolMapper` remain required for every entry, including deletion
+entries. `config` is optional and defaults to an empty mapping. The provider and
+config are ignored when executing deletion. Duplicate names, including
+conflicting active/deletion entries, are rejected. Deletion
+entries are excluded from new-client registration payloads.
+
+Within each active mapper's `config`, only declared keys are managed. Declared
+values override live values, while undeclared live keys are preserved. Removing
+an individual YAML key stops managing it; it does not delete its live value.
+Omitting `config` or setting it to `{}` leaves the existing mapper's config
+unmanaged. New mappers use an empty config when it is omitted; mapper-specific
+settings must still be supplied for the intended behavior, such as an audience
+value for `oidc-audience-mapper`. To disable a boolean setting, explicitly set it
+to `"false"`. To reset a mapper completely,
+set `deleted: true`, let reconciliation finish, then redeclare it without that
+flag and with the desired config. This preserves the client and its client secret.
+
+Empty string config values (`""`) are rejected because Keycloak removes those
+entries, causing persistent drift. Omit an unset key instead. Whitespace-only
+values are preserved as supplied: Keycloak's mapper config conversion does not
+trim them, unlike client attributes. An empty mapping (`config: {}`) remains valid.
+
+The workspace client reads fresh state under its update lock, preserves undeclared
+mappers, removes explicit deletion targets, and merges config for matching
+protocol, name and mapper type. New mappers and changed mapper types use only
+their declared config. The final client PUT contains the complete resulting
+mapper list, never the `deleted` flag. This merge is necessary because RH-SSO
+7.6.12 replaces the submitted mapper list and each mapper's config, as verified
+in Red Hat's
+[`18.0.19.redhat-00002` source](https://maven.repository.redhat.com/ga/org/keycloak/keycloak-model-jpa/18.0.19.redhat-00002/keycloak-model-jpa-18.0.19.redhat-00002-sources.jar)
+(`RepresentationToModel.updateClientProtocolMappers` removes absent mappers;
+`ClientAdapter.updateProtocolMapper` replaces the config).
+
+`attributes` is a string-valued escape hatch for OIDC client attributes;
+only declared keys are checked for drift, and omitting it leaves existing
+attributes alone.
 
 Renaming a client (changing `name`) changes its derived `clientId`, which the reconciler treats as a delete of the old client plus a create of a new one — not an in-place rename — issuing new credentials.
 

@@ -25,7 +25,11 @@ from qontract_utils.keycloak_api.client import (
     KeycloakApiCallContext,
     KeycloakBadRequestError,
 )
-from qontract_utils.keycloak_api.models import KeycloakSsoClient, ManagedKeycloakClient
+from qontract_utils.keycloak_api.models import (
+    KeycloakSsoClient,
+    ManagedKeycloakClient,
+    ManagedKeycloakProtocolMapper,
+)
 
 __all__ = [
     "TIMEOUT",
@@ -34,4 +38,5 @@ __all__ = [
     "KeycloakBadRequestError",
     "KeycloakSsoClient",
     "ManagedKeycloakClient",
+    "ManagedKeycloakProtocolMapper",
 ]

@@ -24,6 +24,7 @@ from qontract_api_client.schemas import (
     ManagedSsoClientTaskResponse,
     ManagedSsoClientTaskResult,
     OidcDesiredState,
+    ProtocolMapperDesiredState,
     Secret,
     TaskStatus,
 )
@@ -97,6 +98,20 @@ class ManagedSsoClientIntegration(
             full_scope_allowed=oidc.full_scope_allowed,
             default_client_scopes=oidc.default_client_scopes,
             optional_client_scopes=oidc.optional_client_scopes,
+            protocol_mappers=(
+                [
+                    ProtocolMapperDesiredState(
+                        name=mapper.name,
+                        deleted=mapper.deleted if mapper.deleted is not None else False,
+                        protocol_mapper=mapper.protocol_mapper,
+                        config=mapper.config if mapper.config is not None else {},
+                    )
+                    for mapper in oidc.protocol_mappers
+                ]
+                if oidc.protocol_mappers is not None
+                else None
+            ),
+            attributes=oidc.attributes,
         )
 
     def compile_desired_state(
