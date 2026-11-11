@@ -11,6 +11,8 @@ from reconcile.aus.base import (
     act_channel_switches,
     check_y_stream_channel_switch_needed,
 )
+from reconcile.aus.cluster_version_data import VersionData
+from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.test.ocm.aus.fixtures import (
     build_cluster_upgrade_spec,
 )
@@ -46,20 +48,44 @@ def test_channel_type(channel: str, expected: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "version, channel, expected",
+    "version, channel, available_channels, expected",
     [
-        ("4.20.10", "stable-4.20", "stable-4.21"),
-        ("4.20.10", "eus-4.20", "eus-4.22"),
-        ("4.22.5", "eus-4.22", "eus-4.24"),
-        ("4.21.5", "fast-4.21", "fast-4.22"),
-        ("4.20.10", "stable", None),
+        ("4.20.10", "stable-4.20", {"stable-4.21"}, "stable-4.21"),
+        ("4.20.10", "eus-4.20", {"eus-4.21", "eus-4.22"}, "eus-4.22"),
+        ("4.22.5", "eus-4.22", {"eus-4.24"}, "eus-4.24"),
+        ("4.21.5", "fast-4.21", {"fast-4.22"}, "fast-4.22"),
+        (
+            "4.22.21",
+            "candidate-4.22",
+            {"candidate-4.22", "candidate-5.0", "fast-5.0"},
+            "candidate-5.0",
+        ),
+        (
+            "4.22.21",
+            "candidate-4.22",
+            {"candidate-4.23", "candidate-5.0"},
+            "candidate-4.23",
+        ),
+        ("4.22.21", "candidate-4.22", {"candidate-6.0"}, None),
+        (
+            "5.0.1",
+            "candidate-5.0",
+            {"candidate-5.1", "candidate-6.0"},
+            "candidate-5.1",
+        ),
+        ("5.0.1", "candidate-5.0", {"candidate-6.0"}, "candidate-6.0"),
+        ("4.22.21", "candidate-4.22", {"candidate-4.22", "fast-5.0"}, None),
+        ("4.20.10", "stable", {"stable-4.21"}, None),
     ],
 )
 def test_target_y_stream_channel(
-    version: str, channel: str, expected: str | None
+    version: str,
+    channel: str,
+    available_channels: set[str],
+    expected: str | None,
 ) -> None:
     cluster = build_ocm_cluster(name="c1", version=version, channel=channel)
-    assert cluster.target_y_stream_channel() == expected
+    assert cluster.target_y_stream_channel(available_channels) == expected
 
 
 def test_check_legacy_channel_no_switch() -> None:
@@ -118,6 +144,12 @@ def test_check_already_on_target_channel() -> None:
     [
         ("stable-4.20", ["stable-4.20", "stable-4.21"], "stable-4.20", "stable-4.21"),
         ("eus-4.20", ["eus-4.20", "eus-4.22"], "eus-4.20", "eus-4.22"),
+        (
+            "candidate-4.22",
+            ["candidate-4.22", "candidate-5.0", "fast-5.0"],
+            "candidate-4.22",
+            "candidate-5.0",
+        ),
     ],
 )
 def test_check_switch_needed(
@@ -149,6 +181,37 @@ def test_check_y1_blocked_still_switches() -> None:
     result = check_y_stream_channel_switch_needed(spec, {"stable-4.20", "stable-4.21"})
     assert result is not None
     assert result.to_channel == "stable-4.21"
+
+
+@patch("reconcile.aus.base.get_version_gates", return_value=[])
+def test_calculate_diff_switches_from_4_22_to_5_0(
+    _get_version_gates: MagicMock,
+) -> None:
+    spec = build_cluster_upgrade_spec(
+        name="c1",
+        current_version="4.22.22",
+        channel="candidate-4.22",
+        available_channels=[
+            "candidate-4.22",
+            "candidate-5.0",
+            "eus-4.22",
+            "fast-4.22",
+            "fast-5.0",
+            "stable-4.22",
+        ],
+    )
+
+    result = aus_base.calculate_diff(
+        current_state=[],
+        desired_state=OrganizationUpgradeSpec(org=spec.org, specs=[spec]),
+        ocm_api=MagicMock(),
+        version_data=VersionData(),
+    )
+
+    assert result.upgrade_policies == []
+    assert len(result.channel_switches) == 1
+    assert result.channel_switches[0].from_channel == "candidate-4.22"
+    assert result.channel_switches[0].to_channel == "candidate-5.0"
 
 
 # --- _get_available_channels tests ---

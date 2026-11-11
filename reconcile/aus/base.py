@@ -1204,14 +1204,8 @@ def check_y_stream_channel_switch_needed(
     if not cluster.is_y_stream_channel():
         return None
 
-    target_channel = cluster.target_y_stream_channel()
+    target_channel = cluster.target_y_stream_channel(available_channels)
     if not target_channel:
-        return None
-
-    if cluster.channel == target_channel:
-        return None
-
-    if target_channel not in available_channels:
         return None
 
     return ChannelSwitchAction(
