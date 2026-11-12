@@ -291,7 +291,7 @@ def list_s3_objects(
                 region_name=region_name,
             )
 
-    return cache.get_or_set(Jinja2TemplateCache.S3_LS, cache_key, _fetch)
+    return list(cache.get_or_set(Jinja2TemplateCache.S3_LS, cache_key, _fetch))
 
 
 @retry()
