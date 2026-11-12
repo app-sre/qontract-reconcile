@@ -275,13 +275,15 @@ class OidcDesiredState(BaseModel, frozen=True):
 # plus extra_attributes since a live client's attributes map always carries
 # Keycloak-managed entries (e.g. client.secret.creation.time) this schema never
 # declares a desired value for - comparing them would cause permanent, spurious
-# drift on every reconcile.
+# drift on every reconcile. Protocol mappers and post-logout redirect URIs
+# have dedicated comparison rules.
 _DRIFT_COMPARISON_EXCLUDED_FIELDS = {
     "id",
     "secret",
     "registration_access_token",
     "extra_attributes",
     "protocol_mappers",
+    "post_logout_redirect_uris",
 }
 
 # Keycloak's client-registration PUT silently ignores changes to these fields
@@ -363,14 +365,19 @@ class ManagedSsoClientDesiredState(BaseModel, frozen=True):
             exclude=_DRIFT_COMPARISON_EXCLUDED_FIELDS, exclude_none=True
         )
         current_state = current.model_dump(exclude=_DRIFT_COMPARISON_EXCLUDED_FIELDS)
-        # Keycloak omits post.logout.redirect.uris when the list is empty.
-        # Unset desired values remain unmanaged via exclude_none above.
-        current_state["post_logout_redirect_uris"] = (
-            current.post_logout_redirect_uris or []
-        )
         if not all(
             _field_values_match(value, current_state.get(field))
             for field, value in desired_state.items()
+        ):
+            return False
+        # Keycloak omits post.logout.redirect.uris when the list is empty.
+        # An unset desired value remains unmanaged.
+        if (
+            desired_client.post_logout_redirect_uris is not None
+            and not _field_values_match(
+                desired_client.post_logout_redirect_uris,
+                current.post_logout_redirect_uris or [],
+            )
         ):
             return False
         if not all(
