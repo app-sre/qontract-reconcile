@@ -97,6 +97,8 @@ class _FakeAction:
 @dataclass
 class _FakeResult:
     actions: list[_FakeAction] = field(default_factory=list)
+    status: object = None
+    errors: list[str] = field(default_factory=list)
 
 
 @dataclass

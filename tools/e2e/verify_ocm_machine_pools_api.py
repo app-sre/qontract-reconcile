@@ -46,6 +46,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Protocol
 from unittest.mock import patch
 
+import httpx2
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import OcmSettings, Settings
 from qontract_api.integrations.ocm_machine_pools.domain import (
@@ -682,12 +683,20 @@ def _gated_reconcile(
 ) -> Any:
     """Live reconcile guarded by a pre-flight dry run.
 
-    The dry run must show actions ONLY on this run's throwaway pool ids;
-    anything else (drift on real pools since the snapshot) raises
-    MutationGateRefusedError, which aborts the whole mutation pass - later
-    steps never run on top of unexpected state.
+    The dry run must complete successfully AND show actions ONLY on this
+    run's throwaway pool ids. A failed dry run (e.g. an OCM fetch error
+    dropping a cluster from the diff) yields an empty or partial action
+    list, which must NOT pass the gate - the live reconcile could then
+    act on drift the failed fetch hid. Anything unsatisfactory raises
+    MutationGateRefusedError, which aborts the whole mutation pass.
     """
     dry = harness.reconcile(clusters, dry_run=True)
+    dry_ok = dry.status == TaskStatus.SUCCESS
+    check(f"{label}: dry-run completed successfully", dry_ok, str(dry.status))
+    if not dry_ok:
+        raise MutationGateRefusedError(
+            f"{label}: pre-flight dry run failed: {dry.errors}"
+        )
     safe = all(a.pool_id in owned_ids for a in dry.actions)
     check(
         f"{label}: dry-run actions confined to this run's pools",
@@ -824,6 +833,19 @@ def mutation_checks(
             result.status == TaskStatus.SUCCESS,
             str(result.errors),
         )
+        # the transition must actually have been applied by THIS run -
+        # another writer having already made the change would leave the
+        # live state matching without any update having been exercised
+        check(
+            "fixed->autoscaling applied an update",
+            sum(
+                1
+                for a in result.applied_actions
+                if a.pool_id == mp_pool_id and a.action_type == "update_machine_pool"
+            )
+            == 1,
+            str([(a.pool_id, a.action_type) for a in result.applied_actions]),
+        )
         live_mp = [p for p in api.get_machine_pools(mp_id) if p.id == mp_pool_id]
         check(
             "autoscaling active",
@@ -840,6 +862,16 @@ def mutation_checks(
             "autoscaling->fixed SUCCESS",
             result.status == TaskStatus.SUCCESS,
             str(result.errors),
+        )
+        check(
+            "autoscaling->fixed applied an update",
+            sum(
+                1
+                for a in result.applied_actions
+                if a.pool_id == mp_pool_id and a.action_type == "update_machine_pool"
+            )
+            == 1,
+            str([(a.pool_id, a.action_type) for a in result.applied_actions]),
         )
         live_mp = [p for p in api.get_machine_pools(mp_id) if p.id == mp_pool_id]
         check(
@@ -889,6 +921,14 @@ def mutation_checks(
                 try:
                     cluster_id_after = resolve_cluster_id(api, cluster_name)
                     delete_pool(cluster_id_after, pool_id)
+                except httpx2.HTTPStatusError as e:
+                    if e.response.status_code == 404:
+                        # already absent - counts as cleaned
+                        print(f"  {pool_id} already absent (404)")
+                    else:
+                        logging.exception(
+                            "cleanup of throwaway pool %s failed", pool_id
+                        )
                 except Exception:
                     logging.exception("cleanup of throwaway pool %s failed", pool_id)
         api.close()
