@@ -38,10 +38,6 @@ class ManagedKeycloakProtocolMapper(BaseModel, frozen=True):
     config: dict[str, str]
     protocol: str = "openid-connect"
 
-    def with_config(self, config: dict[str, str]) -> Self:
-        """Return a validated copy with the supplied mapper configuration."""
-        return self.model_validate({**self.model_dump(), "config": config})
-
     def to_raw(self) -> RawProtocolMapperRepresentation:
         """Serialize a mapper without sending a server-generated ID."""
         return RawProtocolMapperRepresentation(

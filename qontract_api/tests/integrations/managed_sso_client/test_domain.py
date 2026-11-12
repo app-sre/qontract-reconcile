@@ -353,6 +353,34 @@ def test_matches_detects_drift_in_explicitly_set_empty_list() -> None:
     assert desired.matches(current) is False
 
 
+@pytest.mark.parametrize(
+    ("desired_uris", "current_uris", "matches"),
+    [
+        ([], None, True),
+        ([], [], True),
+        ([], ["+"], False),
+        (["+"], None, False),
+        (["+"], [], False),
+        (["+"], ["+"], True),
+        (None, None, True),
+        (None, [], True),
+        (None, ["+"], True),
+    ],
+)
+def test_matches_post_logout_redirect_uris(
+    desired_uris: list[str] | None,
+    current_uris: list[str] | None,
+    matches: bool,
+) -> None:
+    desired = _desired(post_logout_redirect_uris=desired_uris)
+    current = desired.to_managed_keycloak_client().model_copy(
+        update={"post_logout_redirect_uris": current_uris}
+    )
+
+    assert desired.matches(current) is matches
+    assert desired.immutable_field_drift(current) == []
+
+
 def test_matches_declared_protocol_mapper_and_attributes() -> None:
     mapper = ManagedKeycloakProtocolMapper(
         name="service-audience",
@@ -396,6 +424,13 @@ def test_matches_declared_protocol_mapper_and_attributes() -> None:
         is False
     )
     assert desired.matches(live.model_copy(update={"protocol_mappers": []})) is False
+    assert desired.matches(
+        live.model_copy(update={"protocol_mappers": []}), include_protocol_mappers=False
+    )
+    assert not desired.matches(
+        live.model_copy(update={"protocol_mappers": [], "extra_attributes": {}}),
+        include_protocol_mappers=False,
+    )
     changed_audience = mapper.model_copy(
         update={
             "config": {
@@ -451,7 +486,7 @@ def test_matches_declared_protocol_mapper_and_attributes() -> None:
         ),
     ],
 )
-def test_only_declared_mapper_config_keys_are_managed(
+def test_only_declared_mapper_config_keys_are_checked_for_drift(
     config: dict[str, str] | None,
     live_config: dict[str, str],
     matches: bool,
@@ -472,6 +507,9 @@ def test_only_declared_mapper_config_keys_are_managed(
     )
 
     assert desired.matches(current) is matches
+    assert desired.immutable_field_drift(current) == (
+        [] if matches else ["protocol_mappers"]
+    )
     assert _declared_mappers_match([declaration], current.protocol_mappers) is matches
 
 
@@ -493,6 +531,7 @@ def test_unset_mappers_and_attributes_leave_live_values_unmanaged() -> None:
         )
     )
     assert _desired().matches(live) is True
+    assert _desired().immutable_field_drift(live) == []
 
 
 def test_rejects_duplicate_mapper_names_and_attribute_with_dedicated_field() -> None:
@@ -667,40 +706,66 @@ def test_management_secret_with_tenant_secret_path_returns_new_instance() -> Non
     )
 
 
-@pytest.mark.parametrize("deleted", [False, True])
 @pytest.mark.parametrize("missing", ["name", "protocol_mapper"])
-def test_mapper_requires_name_and_provider(*, deleted: bool, missing: str) -> None:
+def test_mapper_requires_name_and_provider(missing: str) -> None:
     declaration = {
         "name": "audience",
         "protocol_mapper": "oidc-audience-mapper",
         "config": {"included.custom.audience": "old-api"},
-        "deleted": deleted,
     }
     del declaration[missing]
     with pytest.raises(ValueError, match="Field required"):
         ProtocolMapperDesiredState.model_validate(declaration)
 
 
-def test_mapper_deletion_is_not_a_keycloak_representation() -> None:
-    deletion = ProtocolMapperDesiredState(
-        name="audience",
-        deleted=True,
-        protocol_mapper="oidc-audience-mapper",
-        config={"included.custom.audience": "old-api"},
-    )
-    with pytest.raises(ValueError, match="deletion instruction"):
-        deletion.to_managed_keycloak_mapper()
+def test_mapper_accepts_and_discards_legacy_deleted_false() -> None:
+    declaration = {
+        "name": "audience",
+        "deleted": False,
+        "protocol_mapper": "oidc-audience-mapper",
+        "config": {"included.custom.audience": "my-api"},
+    }
+
+    mapper = ProtocolMapperDesiredState.model_validate(declaration)
+
+    assert mapper.model_dump() == {
+        "name": "audience",
+        "protocol_mapper": "oidc-audience-mapper",
+        "config": {"included.custom.audience": "my-api"},
+        "protocol": "openid-connect",
+    }
+    assert declaration["deleted"] is False
+    assert "deleted" not in ProtocolMapperDesiredState.model_json_schema()["properties"]
 
 
-@pytest.mark.parametrize("deleted", [False, True])
-def test_mapper_rejects_empty_config_values(*, deleted: bool) -> None:
+@pytest.mark.parametrize("deleted", [True, None, 0, "false"])
+def test_mapper_rejects_unsupported_deletion_values(deleted: object) -> None:
+    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+        ProtocolMapperDesiredState.model_validate({
+            "name": "audience",
+            "deleted": deleted,
+            "protocol_mapper": "oidc-audience-mapper",
+            "config": {"included.custom.audience": "old-api"},
+        })
+
+
+def test_legacy_deleted_false_does_not_allow_other_unknown_fields() -> None:
+    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+        ProtocolMapperDesiredState.model_validate({
+            "name": "audience",
+            "protocol_mapper": "oidc-audience-mapper",
+            "deleted": False,
+            "unknown": "value",
+        })
+
+
+def test_mapper_rejects_empty_config_values() -> None:
     with pytest.raises(
         ValueError, match="mapper config values must not be empty strings"
     ):
         ProtocolMapperDesiredState(
             name="audience",
             protocol_mapper="oidc-audience-mapper",
-            deleted=deleted,
             config={"included.custom.audience": "", "access.token.claim": "true"},
         )
 
@@ -728,58 +793,9 @@ def test_empty_declarations_preserve_live_mappers(
         )
     ])
     assert desired.matches(current)
+    assert desired.immutable_field_drift(current) == []
     assert _declared_mappers_match(mappers, current.protocol_mappers)
     assert desired.to_managed_keycloak_client().protocol_mappers is None
-
-
-@pytest.mark.parametrize("target_exists", [True, False])
-def test_mapper_deletion_matches_only_when_target_absent(
-    *, target_exists: bool
-) -> None:
-    desired = _desired(
-        protocol_mappers=[
-            ProtocolMapperDesiredState(
-                name="audience",
-                deleted=True,
-                protocol_mapper="oidc-audience-mapper",
-                config={"included.custom.audience": "old-api"},
-            )
-        ]
-    )
-    external = ManagedKeycloakProtocolMapper(
-        name="external", protocol_mapper="oidc-full-name-mapper", config={}
-    )
-    target = ManagedKeycloakProtocolMapper(
-        name="audience", protocol_mapper="oidc-audience-mapper", config={}
-    )
-    current = desired.to_managed_keycloak_client().with_protocol_mappers(
-        [external, target] if target_exists else [external]
-    )
-    assert desired.matches(current) is not target_exists
-    assert desired.oidc is not None
-    assert (
-        _declared_mappers_match(desired.oidc.protocol_mappers, current.protocol_mappers)
-        is not target_exists
-    )
-    # Deletion instructions are also excluded from registration payloads.
-    assert desired.to_managed_keycloak_client().protocol_mappers is None
-
-
-def test_mapper_create_and_delete_name_conflict_rejected() -> None:
-    with pytest.raises(ValueError, match="protocol mapper names must be unique"):
-        _desired(
-            protocol_mappers=[
-                ProtocolMapperDesiredState(
-                    name="audience", protocol_mapper="oidc-audience-mapper", config={}
-                ),
-                ProtocolMapperDesiredState(
-                    name="audience",
-                    deleted=True,
-                    protocol_mapper="oidc-audience-mapper",
-                    config={"included.custom.audience": "old-api"},
-                ),
-            ]
-        )
 
 
 def test_matching_declaration_ignores_external_mapper() -> None:
@@ -794,3 +810,4 @@ def test_matching_declaration_ignores_external_mapper() -> None:
         ),
     ])
     assert desired.matches(current)
+    assert desired.immutable_field_drift(current) == []

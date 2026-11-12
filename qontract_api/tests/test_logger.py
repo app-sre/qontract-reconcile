@@ -84,6 +84,36 @@ def test_setup_logging_with_standard_format() -> None:
         assert len(root_logger.handlers) >= 1
 
 
+@pytest.mark.parametrize("json_format", [True, False])
+def test_exception_logging_excludes_local_secrets(json_format: bool) -> None:
+    registration_access_token = "fake-sensitive-registration-token"
+    with patch("qontract_api.logger.settings") as mock_settings:
+        mock_settings.log_level = "INFO"
+        mock_settings.log_format_json = json_format
+        mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = ""
+        root_logger = logging.getLogger()
+        with patch.object(root_logger, "handlers", []):
+            logger = setup_logging()
+            stream = StringIO()
+            handler = root_logger.handlers[0]
+            assert isinstance(handler, logging.StreamHandler)
+            handler.setStream(stream)
+            try:
+                raise ValueError("Keycloak request failed")  # ruff: ignore[raise-within-try]
+            except ValueError:
+                logger.exception("Failed to update client")
+
+            output = stream.getvalue()
+            assert "Keycloak request failed" in output
+            assert "ValueError" in output
+            assert registration_access_token not in output
+            if json_format:
+                frames = json.loads(output)["exception"][0]["frames"]
+                assert frames
+                assert all(not frame.get("locals") for frame in frames)
+
+
 def test_logger_with_json_output() -> None:
     """Test that logger produces valid JSON output when configured."""
     with patch("qontract_api.logger.settings") as mock_settings:
@@ -361,6 +391,7 @@ def test_sentry_init_called_when_dsn_provided() -> None:
 
         assert call_args.kwargs["dsn"] == "https://example@sentry.io/123"
         assert call_args.kwargs["send_default_pii"] is True
+        assert call_args.kwargs["include_local_variables"] is False
         assert call_args.kwargs["enable_logs"] is False
         assert call_args.kwargs["ignore_errors"] == [ConnectionError]
 

@@ -50,7 +50,6 @@ def test_managed_sso_client_serializes_mapper_config(
                 "name": "full-name",
                 "protocol_mapper": "oidc-full-name-mapper",
                 "config": config if config is not None else {},
-                "deleted": False,
                 "protocol": "openid-connect",
             }
         ]

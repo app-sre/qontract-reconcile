@@ -193,6 +193,8 @@ def test_register_client_400_raises_bad_request_error_with_client_id_hint(
         {
             "error": "invalid_client_metadata",
             "error_description": "Client Already Exists",
+            "registrationAccessToken": "fake-registration-token",
+            "secret": "fake-client-secret",
         },
         status=400,
     )
@@ -204,6 +206,8 @@ def test_register_client_400_raises_bad_request_error_with_client_id_hint(
     assert "my-client" in message
     assert "already registered" in message
     assert "Client Already Exists" in message
+    assert "fake-registration-token" not in message
+    assert "fake-client-secret" not in message
 
 
 def test_register_client_non_400_error_passes_through_unchanged(
@@ -427,6 +431,8 @@ def test_update_client_400_raises_bad_request_error_with_response_body(
         {
             "error": "invalid_client_metadata",
             "error_description": "Invalid redirect uri",
+            "registrationAccessToken": "fake-registration-token",
+            "secret": "fake-client-secret",
         },
         status=400,
     )
@@ -441,6 +447,8 @@ def test_update_client_400_raises_bad_request_error_with_response_body(
     message = str(exc_info.value)
     assert "my-client" in message
     assert "Invalid redirect uri" in message
+    assert "fake-registration-token" not in message
+    assert "fake-client-secret" not in message
 
 
 def test_update_client_non_400_error_passes_through_unchanged(

@@ -58,7 +58,6 @@ query ManagedSsoClient {
         optionalClientScopes
         protocolMappers {
           name
-          deleted
           protocolMapper
           config
         }
@@ -96,7 +95,6 @@ class ManagedSsoClientV1(ConfiguredBaseModel):
 
 class ManagedSsoClientProtocolMapperV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    deleted: Optional[bool] = Field(..., alias="deleted")
     protocol_mapper: str = Field(..., alias="protocolMapper")
     config: Optional[Json] = Field(..., alias="config")
 

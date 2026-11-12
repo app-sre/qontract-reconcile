@@ -137,7 +137,6 @@ def test_compile_desired_state_maps_protocol_mappers_and_attributes() -> None:
     integration = _make_integration()
     mapper = ManagedSsoClientProtocolMapperV1(
         name="my-api-audience",
-        deleted=None,
         protocolMapper="oidc-audience-mapper",
         config=json.dumps({
             "included.custom.audience": "my-api",
@@ -156,7 +155,6 @@ def test_compile_desired_state_maps_protocol_mappers_and_attributes() -> None:
     assert desired.oidc.protocol_mappers is not None
     assert desired.oidc.protocol_mappers[0].protocol == "openid-connect"
     assert desired.oidc.protocol_mappers[0].protocol_mapper == "oidc-audience-mapper"
-    assert desired.oidc.protocol_mappers[0].deleted is False
     assert desired.oidc.protocol_mappers[0].config is not None
     assert desired.oidc.protocol_mappers[0].config["included.custom.audience"] == (
         "my-api"
@@ -390,14 +388,10 @@ async def test_async_run_non_dry_run_does_not_poll() -> None:
     mock_poll.assert_not_called()
 
 
-@pytest.mark.parametrize("deleted", [True, False])
 @pytest.mark.parametrize("config", [None, {}, {"included.custom.audience": "my-api"}])
-def test_compile_mapper_declaration(
-    deleted: bool, config: dict[str, str] | None
-) -> None:
+def test_compile_mapper_declaration(config: dict[str, str] | None) -> None:
     mapper = ManagedSsoClientProtocolMapperV1(
         name="audience",
-        deleted=deleted,
         protocolMapper="oidc-audience-mapper",
         config=json.dumps(config) if config is not None else None,
     )
@@ -408,6 +402,5 @@ def test_compile_mapper_declaration(
     assert desired.oidc.protocol_mappers is not None
     declaration = desired.oidc.protocol_mappers[0]
     assert declaration.name == "audience"
-    assert declaration.deleted is deleted
     assert declaration.config == (config if config is not None else {})
     assert declaration.protocol_mapper == "oidc-audience-mapper"
