@@ -584,8 +584,14 @@ Phases have dependencies. Document these in the migration plan so phases can be 
   ordering (e.g. creates before deletes) and failure isolation (e.g. a failed
   create blocking its cluster's deletes) need separate assertions, either as
   unit tests or as explicit checks in the mutation E2E. See
-  tools/e2e/verify_ocm_machine_pools_api.py for the reference implementation of
-  the methodology (all environment specifics are CLI arguments; throwaway pool
+  tools/e2e/verify_ocm_machine_pools_api.py for the methodology's record —
+  but NOT as a template: it drives the client's internal compilation
+  functions (a workaround for the absence of deployed endpoints at the
+  time). Future migrations should compare through integration
+  entrypoints against a deployed qontract-api instead (erv2-itest
+  style; follow-up tracked in APPSRE-13586). The methodology itself —
+  identical action identities and error decisions over the same real
+  clusters — is the transferable part (all environment specifics are CLI arguments; throwaway pool
   ids are invocation-unique; the initial live gate checks the exact expected
   (cluster, pool id, action) triples, while later gates check pool-id
   ownership only; every live call is preceded by a pre-flight dry run).

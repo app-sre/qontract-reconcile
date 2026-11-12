@@ -692,10 +692,6 @@ def test_rosa_classic_can_delete_default_worker_pool(
     A ROSA classic cluster may delete its 'worker' machine pool (legacy
     parity: only OSD non-CCS clusters protect the default worker pool).
     """
-    from qontract_api.integrations.ocm_machine_pools.domain import (
-        DesiredClusterMachinePools,
-    )
-
     mock_workspace_client.get_machine_pools.return_value = [
         _live_machine_pool(pool_id="worker"),
         _live_machine_pool(pool_id="extra"),

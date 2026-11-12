@@ -80,8 +80,7 @@ def test_gated_reconcile_refusal_aborts_and_never_goes_live() -> None:
     mutation pass aborts."""
     harness = _RefusingHarness()
     try:
-        # duck-typed stand-in for ServiceHarness (no real OCM in unit tests)
-        _gated_reconcile(harness, [], {"my-pool"}, "test-step")  # type: ignore[arg-type]
+        _gated_reconcile(harness, [], {"my-pool"}, "test-step")
         raise AssertionError("expected MutationGateRefusedError")
     except MutationGateRefusedError:
         pass

@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """E2E + plan-parity verification for the ocm-machine-pools-api integration.
 
+NOTE - not a standard reference for future migrations: this tool drives
+the client integration's INTERNAL compilation functions in-process
+because no deployed qontract-api existed when it was written. The
+target pattern is an entrypoint-driven comparison (real GQL ->
+async_run() -> deployed qontract-api -> real OCM, legacy as baseline)
+in the style of app-sre/erv2-itest; see the follow-up tracked in
+APPSRE-13586. Do not copy this approach for new integrations.
+
 Runs the client-side integration's own compilation code against a real
 App-Interface GraphQL server, reconciles the compiled desired state
 through the server-side service against real OCM, and - the core check -
@@ -35,7 +43,7 @@ import threading
 import uuid
 from collections import Counter
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 from unittest.mock import patch
 
 from qontract_api.cache.base import CacheBackend
@@ -50,7 +58,9 @@ from qontract_api.integrations.ocm_machine_pools.domain import (
 )
 from qontract_api.integrations.ocm_machine_pools.service import OcmMachinePoolsService
 from qontract_api.models import TaskStatus
+from qontract_api.ocm.domain import OcmConnectionParams
 from qontract_api.ocm.ocm_workspace_client import OcmWorkspaceClient
+from qontract_api.secret_manager import SecretManager
 from qontract_utils.ocm_api import OcmApi, OcmNodePoolAws
 
 # imported as a module alias: the verification tool deliberately exercises
@@ -147,6 +157,24 @@ class InMemoryCacheBackend(CacheBackend):
             yield
 
 
+class _UnusedSecretManager(SecretManager):
+    """Minimal SecretManager stand-in.
+
+    Never used at runtime (the workspace-client factory is patched to
+    build its own OcmApi), but satisfies the service's constructor type
+    without the type: ignore this repo disallows.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(cache=InMemoryCacheBackend(), secret_backends=[])
+
+    def read(self, secret: object) -> str:
+        raise NotImplementedError("the e2e harness never reads secrets")
+
+    def read_all(self, secret: object) -> dict[str, Any]:
+        raise NotImplementedError("the e2e harness never reads secrets")
+
+
 class ServiceHarness:
     """Runs the server-side service against real OCM, in-process."""
 
@@ -155,6 +183,15 @@ class ServiceHarness:
         self.cache = InMemoryCacheBackend()
         self.settings = Settings(ocm=OcmSettings())
         self.ocm_api_builds = 0
+        # a real connection object (unused at runtime - the factory is
+        # patched below - but typed correctly instead of None)
+        self.ocm_connection = OcmConnectionParams(
+            secret_manager_url="https://vault.example.com",
+            path="e2e/unused",
+            ocm_url=ocm_url,
+            access_token_url=sso_url,
+            access_token_client_id=client_id,
+        )
 
         def factory() -> OcmApi:
             self.ocm_api_builds += 1
@@ -168,7 +205,7 @@ class ServiceHarness:
         self._factory = factory
         self.service = OcmMachinePoolsService(
             cache=self.cache,
-            secret_manager=None,  # type: ignore[arg-type]
+            secret_manager=_UnusedSecretManager(),
             settings=self.settings,
         )
 
@@ -200,7 +237,7 @@ class ServiceHarness:
         ):
             return self.service.reconcile(
                 ocm_environment=OCM_ENVIRONMENT,
-                ocm_connection=None,  # type: ignore[arg-type]
+                ocm_connection=self.ocm_connection,
                 clusters=clusters,
                 dry_run=dry_run,
             )
@@ -629,8 +666,16 @@ class MutationGateRefusedError(Exception):
     """A pre-flight dry run showed actions outside this run's pools."""
 
 
+class _ReconcilingHarness(Protocol):
+    """The subset of ServiceHarness that _gated_reconcile depends on."""
+
+    def reconcile(
+        self, clusters: list[DesiredClusterMachinePools], *, dry_run: bool
+    ) -> Any: ...
+
+
 def _gated_reconcile(
-    harness: ServiceHarness,
+    harness: _ReconcilingHarness,
     clusters: list[DesiredClusterMachinePools],
     owned_ids: set[str],
     label: str,
@@ -832,16 +877,20 @@ def mutation_checks(
         print(f"== mutate: ABORTED - {e}")
     finally:
         if created:
-            # a step raised after creation - best-effort direct cleanup of
-            # THIS run's pools, reported separately from the failure
+            # a step raised (or a delete reconcile partially failed) after
+            # creation - best-effort direct cleanup of THIS run's pools,
+            # each attempted independently so one failure cannot skip the
+            # other; an already-absent pool counts as cleaned
             print("== mutate: cleaning up this run's throwaway pools after error")
-            try:
-                mp_id_after = resolve_cluster_id(api, machine_pool_cluster)
-                api.delete_machine_pool(mp_id_after, mp_pool_id)
-                np_id_after = resolve_cluster_id(api, node_pool_cluster)
-                api.delete_node_pool(np_id_after, np_pool_id)
-            except Exception:
-                logging.exception("cleanup of throwaway pools %s failed", this_run_ids)
+            for cluster_name, delete_pool, pool_id in (
+                (machine_pool_cluster, api.delete_machine_pool, mp_pool_id),
+                (node_pool_cluster, api.delete_node_pool, np_pool_id),
+            ):
+                try:
+                    cluster_id_after = resolve_cluster_id(api, cluster_name)
+                    delete_pool(cluster_id_after, pool_id)
+                except Exception:
+                    logging.exception("cleanup of throwaway pool %s failed", pool_id)
         api.close()
 
 
