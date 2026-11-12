@@ -7,6 +7,7 @@ from qontract_utils.ruamel import create_ruamel_instance, yaml
 
 from reconcile.gql_definitions.templating.templates import TemplateV1
 from reconcile.test.fixtures import Fixtures
+from reconcile.utils.jinja2.utils import Jinja2TemplateCache
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -19,6 +20,11 @@ if TYPE_CHECKING:
 @pytest.fixture
 def fxt() -> Fixtures:
     return Fixtures("templating")
+
+
+@pytest.fixture
+def cache() -> Jinja2TemplateCache:
+    return Jinja2TemplateCache()
 
 
 @pytest.fixture

@@ -9,16 +9,22 @@ from reconcile.templating.lib.rendering import FullRenderer, TemplateData
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from reconcile.utils.jinja2.utils import Jinja2TemplateCache
     from reconcile.utils.secret_reader import SecretReader
 
 
-def test_full_rendering(get_fixture: Callable, secret_reader: SecretReader) -> None:
+def test_full_rendering(
+    get_fixture: Callable,
+    secret_reader: SecretReader,
+    cache: Jinja2TemplateCache,
+) -> None:
     template, _, expected = get_fixture("full.yaml").values()
 
     r = FullRenderer(
         template,
         TemplateData(variables={"bar": "bar"}, current=None),
         secret_reader=secret_reader,
+        cache=cache,
     )
 
     assert r.render_condition()
@@ -37,6 +43,7 @@ def test_full_not_rendering(
     get_fixture: Callable,
     fixture_file: str,
     secret_reader: SecretReader,
+    cache: Jinja2TemplateCache,
 ) -> None:
     template, current, _ = get_fixture(fixture_file).values()
 
@@ -44,5 +51,6 @@ def test_full_not_rendering(
         template,
         TemplateData(variables={"bar": "bar"}, current=current),
         secret_reader=secret_reader,
+        cache=cache,
     )
     assert not r.render_condition()

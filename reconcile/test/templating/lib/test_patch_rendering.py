@@ -9,6 +9,7 @@ from reconcile.templating.lib.rendering import PatchRenderer, TemplateData
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from reconcile.utils.jinja2.utils import Jinja2TemplateCache
     from reconcile.utils.secret_reader import SecretReader
 
 
@@ -32,6 +33,7 @@ def test_patch_ref_update(
     get_fixture: Callable,
     fixture_file: str,
     secret_reader: SecretReader,
+    cache: Jinja2TemplateCache,
 ) -> None:
     template, current, expected = get_fixture(fixture_file).values()
 
@@ -39,6 +41,7 @@ def test_patch_ref_update(
         template,
         TemplateData(variables={"bar": "bar", "foo": "foo"}, current=current),
         secret_reader=secret_reader,
+        cache=cache,
     )
 
     assert r.render_condition()
@@ -56,6 +59,7 @@ def test_patch_not_rendering(
     get_fixture: Callable,
     fixture_file: str,
     secret_reader: SecretReader,
+    cache: Jinja2TemplateCache,
 ) -> None:
     template, current, _ = get_fixture(fixture_file).values()
 
@@ -63,6 +67,7 @@ def test_patch_not_rendering(
         template,
         TemplateData(variables={"bar": "bar", "foo": "foo"}, current=current),
         secret_reader=secret_reader,
+        cache=cache,
     )
     assert not r.render_condition()
 
@@ -78,6 +83,7 @@ def test_patch_raises(
     get_fixture: Callable,
     fixture_file: str,
     secret_reader: SecretReader,
+    cache: Jinja2TemplateCache,
 ) -> None:
     template, _, _ = get_fixture(fixture_file).values()
 
@@ -86,5 +92,6 @@ def test_patch_raises(
             template,
             TemplateData(variables={"bar": "bar", "foo": "foo"}),
             secret_reader=secret_reader,
+            cache=cache,
         )
         r.render_output()
