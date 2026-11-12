@@ -190,6 +190,11 @@ Authorization: Bearer <JWT_TOKEN>
   mutate pools after the new writer is enabled. Stop the legacy
   integration's scheduling and let any in-flight runs complete before
   applying the switch (the same applies in reverse during rollback)
+- **Drain queued API tasks before rollback:** a client-side polling
+  timeout ends the client run but does NOT cancel its server-side Celery
+  task — that task can still apply mutations after the legacy writer is
+  re-enabled. Before rolling back, wait for queued and running API
+  reconciliation tasks to finish, including any whose client timed out
 - **Let the cache expire before enabling the new writer:** a dry run may
   have cached a pool list that the legacy writer then changed (the legacy
   integration does not invalidate the new integration's cache). Wait out

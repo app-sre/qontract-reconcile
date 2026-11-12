@@ -574,16 +574,21 @@ Phases have dependencies. Document these in the migration plan so phases can be 
   exactly what the HTTP/JSON boundary does in production.
 - **A plan-parity E2E is the strongest migration proof available:** run the legacy
   integration's diff code and the new stack's dry-run reconcile over the same real
-  clusters and require identical action sets — and identical error DECISIONS
-  (which guard fired, on which cluster), not just equal error counts. Note the
+  clusters and require identical action identities (type, cluster, pool id) —
+  and identical error DECISIONS (which guard fired, on which cluster and pool,
+  counted), not just equal error counts. Note the limit: identity equality does
+  not establish payload parity (two updates with the same identity but different
+  replica counts or labels compare equal) — compare payloads separately where
+  those differences matter. Note the
   scope: action-set parity proves decision parity, not execution semantics —
   ordering (e.g. creates before deletes) and failure isolation (e.g. a failed
   create blocking its cluster's deletes) need separate assertions, either as
   unit tests or as explicit checks in the mutation E2E. See
   tools/e2e/verify_ocm_machine_pools_api.py for the reference implementation of
   the methodology (all environment specifics are CLI arguments; throwaway pool
-  ids are invocation-unique; live reconciliation is gated on the dry run
-  showing exactly the expected actions).
+  ids are invocation-unique; the initial live gate checks the exact expected
+  (cluster, pool id, action) triples, while later gates check pool-id
+  ownership only; every live call is preceded by a pre-flight dry run).
 - **`mode="before"` validators receive raw request values** (strings, mixed types)
   and already-constructed model instances on union re-validation. Prefer
   `mode="after"` validators on coerced values. For `mode="before"` **model**

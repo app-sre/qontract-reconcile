@@ -618,6 +618,11 @@ def _sweep_leftovers(
                     logging.warning(
                         "could not delete leftover %s", pool.id, exc_info=True
                     )
+                    check(
+                        f"leftover {pool.id} deleted",
+                        False,
+                        "requested sweep failed to delete this leftover",
+                    )
 
 
 class MutationGateRefusedError(Exception):
@@ -814,7 +819,15 @@ def mutation_checks(
             result.status == TaskStatus.SUCCESS,
             str(result.errors),
         )
-        created = False
+        # only clear the cleanup flag once BOTH run-owned pools are
+        # confirmed absent - a partially-failed delete reconcile must
+        # still trigger the finally-block direct cleanup
+        live_after = [
+            p.id
+            for p in api.get_machine_pools(mp_id) + api.get_node_pools(np_id)
+            if p.id in this_run_ids
+        ]
+        created = bool(live_after)
     except MutationGateRefusedError as e:
         print(f"== mutate: ABORTED - {e}")
     finally:
