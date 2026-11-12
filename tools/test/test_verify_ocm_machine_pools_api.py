@@ -10,6 +10,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
+from qontract_api.models import TaskStatus
+
 from tools.e2e.verify_ocm_machine_pools_api import (
     MutationGateRefusedError,
     _gated_reconcile,
@@ -97,7 +99,7 @@ class _FakeAction:
 @dataclass
 class _FakeResult:
     actions: list[_FakeAction] = field(default_factory=list)
-    status: object = None
+    status: TaskStatus = TaskStatus.SUCCESS
     errors: list[str] = field(default_factory=list)
 
 
@@ -113,3 +115,27 @@ class _RefusingHarness:
         return _FakeResult([
             _FakeAction("c1", "someone-elses-pool", "delete_machine_pool")
         ])
+
+
+def test_gated_reconcile_fails_closed_on_failed_dry_run() -> None:
+    """A failed pre-flight dry run with an EMPTY action list must refuse
+    the live call - the empty list must not pass the ownership check."""
+    harness = _FailedDryRunHarness()
+    try:
+        _gated_reconcile(harness, [], {"my-pool"}, "test-step")
+        raise AssertionError("expected MutationGateRefusedError")
+    except MutationGateRefusedError:
+        pass
+    assert harness.live_calls == 0
+
+
+@dataclass
+class _FailedDryRunHarness:
+    """Duck-typed ServiceHarness whose dry run FAILS with no actions."""
+
+    live_calls: int = 0
+
+    def reconcile(self, clusters: Any, dry_run: bool) -> _FakeResult:
+        if not dry_run:
+            self.live_calls += 1
+        return _FakeResult(actions=[], status=TaskStatus.FAILED, errors=["boom"])
