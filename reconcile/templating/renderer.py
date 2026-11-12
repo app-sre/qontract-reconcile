@@ -224,8 +224,9 @@ class ClonedRepoGitlabPersistence(FilePersistence):
 def unpack_static_variables(
     collection_variables: TemplateCollectionVariablesV1,
     each: dict[str, Any],
+    *,
+    cache: Jinja2TemplateCache,
     secret_reader: SecretReaderBase | None = None,
-    cache: Jinja2TemplateCache | None = None,
 ) -> dict:
     return {
         k: json.loads(
@@ -244,11 +245,11 @@ def unpack_dynamic_variables(
     collection_variables: TemplateCollectionVariablesV1,
     each: dict[str, Any],
     gql: gql.GqlApi,
+    *,
+    cache: Jinja2TemplateCache,
     secret_reader: SecretReaderBase | None = None,
-    cache: Jinja2TemplateCache | None = None,
 ) -> dict[str, dict[str, Any]]:
     static = collection_variables.static or {}
-    cache = cache or Jinja2TemplateCache()
     dynamic: dict[str, dict[str, Any]] = {}
     for dv in collection_variables.dynamic or []:
         query = process_jinja2_template(
@@ -289,8 +290,9 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
     def _create_renderer(
         template: TemplateV1,
         variables: dict,
+        *,
+        cache: Jinja2TemplateCache,
         secret_reader: SecretReaderBase | None = None,
-        cache: Jinja2TemplateCache | None = None,
     ) -> Renderer:
         return create_renderer(
             template,

@@ -9,6 +9,7 @@ from yamllint.config import YamlLintConfig
 
 from reconcile.gql_definitions.templating.templates import TemplateV1
 from reconcile.templating.validator import TemplateDiff, TemplateValidatorIntegration
+from reconcile.utils.jinja2.utils import Jinja2TemplateCache
 from reconcile.utils.models import data_default_none
 
 
@@ -74,16 +75,17 @@ def main(templates: tuple[str]) -> None:
         # templates_to_validate = {}
         for test in template.template_test:
             ruaml_instance = create_ruamel_instance(explicit_start=True)
+            cache = Jinja2TemplateCache()
             diffs: list[TemplateDiff] = []
             print("Running tests:", test.name)
             diffs.extend(
                 TemplateValidatorIntegration.validate_template(
-                    template, test, ruaml_instance=ruaml_instance
+                    template, test, ruaml_instance=ruaml_instance, cache=cache
                 )
             )
 
             renderer = TemplateValidatorIntegration._create_renderer(
-                template, test, ruaml_instance=ruaml_instance
+                template, test, ruaml_instance=ruaml_instance, cache=cache
             )
             if renderer.render_condition():
                 output = renderer.render_output()
