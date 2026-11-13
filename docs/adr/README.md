@@ -29,6 +29,7 @@ An Architecture Decision Record (ADR) documents an important architecture decisi
 | [ADR-017](ADR-017-factory-pattern.md)                            | Factory Pattern                                        | Accepted |
 | [ADR-018](ADR-018-event-driven-communication.md)                 | Event-Driven Communication Pattern                     | Accepted |
 | [ADR-019](ADR-019-merge-queue-acceleration.md)                   | Merge Queue Acceleration via Optimistic Multi-Merge    | Proposed |
+| [ADR-022](ADR-022-stateful-qontract-api-integrations.md)       | Stateful qontract-api Integrations                     | Proposed |
 
 ## ADR Categories
 
@@ -54,6 +55,7 @@ An Architecture Decision Record (ADR) documents an important architecture decisi
 
 - [ADR-011](ADR-011-dependency-injection-pattern.md) - Dependency injection for external resources
 - [ADR-014](ADR-014-three-layer-architecture-for-external-apis.md) - Three-layer architecture for external APIs
+- [ADR-022](ADR-022-stateful-qontract-api-integrations.md) - Durable integration state on qontract-api (StateStore / reducer)
 - [ADR-015](ADR-015-cache-update-strategy.md) - Cache update strategy (update vs invalidation)
 - [ADR-016](ADR-016-two-tier-cache.md) - Two-tier cache (memory + Redis) for performance
 - [ADR-017](ADR-017-factory-pattern.md) - Factory pattern for extensibility
