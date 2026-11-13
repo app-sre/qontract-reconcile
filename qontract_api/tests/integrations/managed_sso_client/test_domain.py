@@ -1,6 +1,7 @@
 """Unit tests for managed_sso_client domain models."""
 
 import pytest
+from pydantic import ValidationError
 from qontract_utils.keycloak_api import (
     ManagedKeycloakClient,
     ManagedKeycloakProtocolMapper,
@@ -716,6 +717,16 @@ def test_mapper_requires_name_and_provider(missing: str) -> None:
     del declaration[missing]
     with pytest.raises(ValueError, match="Field required"):
         ProtocolMapperDesiredState.model_validate(declaration)
+
+
+def test_mapper_rejects_unknown_fields() -> None:
+    with pytest.raises(ValidationError, match="extra_forbidden"):
+        ProtocolMapperDesiredState.model_validate({
+            "name": "audience",
+            "protocol_mapper": "oidc-audience-mapper",
+            "config": {"included.custom.audience": "my-api"},
+            "unexpected_field": True,
+        })
 
 
 def test_mapper_rejects_empty_config_values() -> None:
