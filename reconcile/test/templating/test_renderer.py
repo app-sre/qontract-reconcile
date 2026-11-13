@@ -27,7 +27,7 @@ from reconcile.templating.renderer import (
     unpack_dynamic_variables,
     unpack_static_variables,
 )
-from reconcile.utils.jinja2.utils import Jinja2TemplateError
+from reconcile.utils.jinja2.utils import Jinja2TemplateCache, Jinja2TemplateError
 from reconcile.utils.vcs import VCS
 
 if TYPE_CHECKING:
@@ -175,59 +175,91 @@ def mr_manager(mocker: MockerFixture) -> MagicMock:
 
 def test_unpack_static_variables(
     collection_variables: TemplateCollectionVariablesV1,
+    cache: Jinja2TemplateCache,
 ) -> None:
-    assert unpack_static_variables(collection_variables, {}) == {"foo": "bar"}
+    assert unpack_static_variables(collection_variables, {}, cache=cache) == {
+        "foo": "bar"
+    }
 
 
 def test_unpack_static_variables_foreach(
     collection_variables_foreach: TemplateCollectionVariablesV1,
     each: dict[str, Any],
+    cache: Jinja2TemplateCache,
 ) -> None:
-    assert unpack_static_variables(collection_variables_foreach, each) == {
+    assert unpack_static_variables(collection_variables_foreach, each, cache=cache) == {
         "foo": "item-0"
     }
 
 
 def test_unpack_static_variables_foreach_error(
     collection_variables_foreach: TemplateCollectionVariablesV1,
+    cache: Jinja2TemplateCache,
 ) -> None:
     with pytest.raises(Jinja2TemplateError):
-        unpack_static_variables(collection_variables_foreach, {})
+        unpack_static_variables(collection_variables_foreach, {}, cache=cache)
 
 
 def test_unpack_dynamic_variables_empty(
-    mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
+    mocker: MockerFixture,
+    collection_variables: TemplateCollectionVariablesV1,
+    cache: Jinja2TemplateCache,
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
     gql.query.return_value = {}
-    assert unpack_dynamic_variables(collection_variables, {}, gql) == {"foo": {}}
+    assert unpack_dynamic_variables(collection_variables, {}, gql, cache=cache) == {
+        "foo": {}
+    }
 
 
 def test_unpack_dynamic_variables(
-    mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
+    mocker: MockerFixture,
+    collection_variables: TemplateCollectionVariablesV1,
+    cache: Jinja2TemplateCache,
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
     gql.query.return_value = {"foo": [{"bar": "baz"}]}
-    assert unpack_dynamic_variables(collection_variables, {}, gql) == {
+    assert unpack_dynamic_variables(collection_variables, {}, gql, cache=cache) == {
         "foo": {"foo": [{"bar": "baz"}]}
     }
 
 
-def test_unpack_dynamic_variables_multiple_result(
+def test_dynamic_queries_are_cached_per_run_and_copied(
     mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
+) -> None:
+    api = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
+    api.query.return_value = {"items": ["original"]}
+    cache = Jinja2TemplateCache()
+
+    first = unpack_dynamic_variables(collection_variables, {}, api, cache=cache)
+    first["foo"]["items"].append("changed")
+    second = unpack_dynamic_variables(collection_variables, {}, api, cache=cache)
+
+    assert second == {"foo": {"items": ["original"]}}
+    api.query.assert_called_once()
+    unpack_dynamic_variables(collection_variables, {}, api, cache=Jinja2TemplateCache())
+    assert api.query.call_count == 2
+
+
+def test_unpack_dynamic_variables_multiple_result(
+    mocker: MockerFixture,
+    collection_variables: TemplateCollectionVariablesV1,
+    cache: Jinja2TemplateCache,
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
     gql.query.return_value = {
         "baz": [{"baz": "zab"}],
         "foo": [{"bar": "baz"}, {"faa": "baz"}],
     }
-    assert unpack_dynamic_variables(collection_variables, {}, gql) == {
+    assert unpack_dynamic_variables(collection_variables, {}, gql, cache=cache) == {
         "foo": {"baz": [{"baz": "zab"}], "foo": [{"bar": "baz"}, {"faa": "baz"}]}
     }
 
 
 def test_unpack_dynamic_variables_templated_query(
-    mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
+    mocker: MockerFixture,
+    collection_variables: TemplateCollectionVariablesV1,
+    cache: Jinja2TemplateCache,
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
     collection_variables.dynamic = [
@@ -235,12 +267,14 @@ def test_unpack_dynamic_variables_templated_query(
             name="baz", query="templated query {{ static.foo }}"
         )
     ]
-    unpack_dynamic_variables(collection_variables, {}, gql)
+    unpack_dynamic_variables(collection_variables, {}, gql, cache=cache)
     gql.query.assert_called_once_with("templated query bar")
 
 
 def test_unpack_dynamic_variables_templated_query_jinja_error(
-    mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
+    mocker: MockerFixture,
+    collection_variables: TemplateCollectionVariablesV1,
+    cache: Jinja2TemplateCache,
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
     collection_variables.dynamic = [
@@ -249,26 +283,28 @@ def test_unpack_dynamic_variables_templated_query_jinja_error(
         )
     ]
     with pytest.raises(Jinja2TemplateError):
-        unpack_dynamic_variables(collection_variables, {}, gql)
+        unpack_dynamic_variables(collection_variables, {}, gql, cache=cache)
 
 
 def test_unpack_dynamic_variables_foreach(
     mocker: MockerFixture,
     collection_variables_foreach: TemplateCollectionVariablesV1,
     each: dict[str, Any],
+    cache: Jinja2TemplateCache,
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
-    unpack_dynamic_variables(collection_variables_foreach, each, gql)
+    unpack_dynamic_variables(collection_variables_foreach, each, gql, cache=cache)
     gql.query.assert_called_once_with("query item-0")
 
 
 def test_unpack_dynamic_variables_foreach_error(
     mocker: MockerFixture,
     collection_variables_foreach: TemplateCollectionVariablesV1,
+    cache: Jinja2TemplateCache,
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
     with pytest.raises(Jinja2TemplateError):
-        unpack_dynamic_variables(collection_variables_foreach, {}, gql)
+        unpack_dynamic_variables(collection_variables_foreach, {}, gql, cache=cache)
 
 
 def test_join_path() -> None:
@@ -607,8 +643,10 @@ def test_reconcile_variables(
     reconcile_mocks: tuple,
     template_collection: TemplateCollectionV1,
     template_collection_variable: TemplateCollectionVariablesV1,
+    secret_reader: SecretReader,
 ) -> None:
     t, p, r, pt = reconcile_mocks
+    t._secret_reader = secret_reader
 
     gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
     template_collection.variables = template_collection_variable
@@ -629,6 +667,30 @@ def test_reconcile_variables(
         ANY,
         r,
     )
+
+
+def test_reconcile_variables_use_renderer_secret_reader(
+    mocker: MockerFixture,
+    reconcile_mocks: tuple,
+    template_collection: TemplateCollectionV1,
+    template_collection_variable: TemplateCollectionVariablesV1,
+    secret_reader: SecretReader,
+) -> None:
+    t, p, r, _pt = reconcile_mocks
+    t._secret_reader = secret_reader
+
+    gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
+    template_collection.variables = template_collection_variable
+    gtc.return_value = [template_collection]
+    udv = mocker.patch("reconcile.templating.renderer.unpack_dynamic_variables")
+    udv.return_value = {}
+    usv = mocker.patch("reconcile.templating.renderer.unpack_static_variables")
+    usv.return_value = {}
+
+    t.reconcile(p, r)
+
+    assert udv.call_args.kwargs["secret_reader"] is secret_reader
+    assert usv.call_args.kwargs["secret_reader"] is secret_reader
 
 
 def test__calc_result_hash(template_result: TemplateResult) -> None:

@@ -5,6 +5,8 @@ import logging
 import os
 import tempfile
 from abc import ABC, abstractmethod
+from copy import deepcopy
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
@@ -32,7 +34,11 @@ from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
 from reconcile.utils.git import checkout, clone
-from reconcile.utils.jinja2.utils import TemplateRenderOptions, process_jinja2_template
+from reconcile.utils.jinja2.utils import (
+    Jinja2TemplateCache,
+    TemplateRenderOptions,
+    process_jinja2_template,
+)
 from reconcile.utils.json import json_dumps
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
@@ -218,9 +224,19 @@ class ClonedRepoGitlabPersistence(FilePersistence):
 def unpack_static_variables(
     collection_variables: TemplateCollectionVariablesV1,
     each: dict[str, Any],
+    *,
+    cache: Jinja2TemplateCache,
+    secret_reader: SecretReaderBase | None = None,
 ) -> dict:
     return {
-        k: json.loads(process_jinja2_template(body=json_dumps(v), vars={"each": each}))
+        k: json.loads(
+            process_jinja2_template(
+                body=json_dumps(v),
+                vars={"each": each},
+                secret_reader=secret_reader,
+                cache=cache,
+            )
+        )
         for k, v in (collection_variables.static or {}).items()
     }
 
@@ -229,6 +245,9 @@ def unpack_dynamic_variables(
     collection_variables: TemplateCollectionVariablesV1,
     each: dict[str, Any],
     gql: gql.GqlApi,
+    *,
+    cache: Jinja2TemplateCache,
+    secret_reader: SecretReaderBase | None = None,
 ) -> dict[str, dict[str, Any]]:
     static = collection_variables.static or {}
     dynamic: dict[str, dict[str, Any]] = {}
@@ -236,8 +255,19 @@ def unpack_dynamic_variables(
         query = process_jinja2_template(
             body=dv.query,
             vars={"static": static, "dynamic": dynamic, "each": each},
+            secret_reader=secret_reader,
+            cache=cache,
         )
-        dynamic[dv.name] = gql.query(query) or {}
+        dynamic[dv.name] = (
+            deepcopy(
+                cache.get_or_set(
+                    Jinja2TemplateCache.DYNAMIC_QUERY,
+                    (gql, query),
+                    partial(gql.query, query),
+                )
+            )
+            or {}
+        )
     return dynamic
 
 
@@ -254,11 +284,14 @@ def join_path(base: str, sub: str) -> str:
 class TemplateRendererIntegration(QontractReconcileIntegration):
     def __init__(self, params: TemplateRendererIntegrationParams) -> None:
         super().__init__(params)
+        self._cache = Jinja2TemplateCache()
 
     @staticmethod
     def _create_renderer(
         template: TemplateV1,
         variables: dict,
+        *,
+        cache: Jinja2TemplateCache,
         secret_reader: SecretReaderBase | None = None,
     ) -> Renderer:
         return create_renderer(
@@ -267,6 +300,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 variables=variables,
             ),
             secret_reader=secret_reader,
+            cache=cache,
             template_render_options=TemplateRenderOptions.create(
                 trim_blocks=template.template_render_options.trim_blocks
                 if template.template_render_options
@@ -288,7 +322,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         ruaml_instance: yaml.YAML,
     ) -> TemplateOutput | None:
         r = TemplateRendererIntegration._create_renderer(
-            template, variables, secret_reader=self.secret_reader
+            template, variables, secret_reader=self.secret_reader, cache=self._cache
         )
         target_path = r.render_target_path()
         current_file = persistence.read(target_path)
@@ -325,9 +359,18 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         if collection.variables:
             variables = {
                 "dynamic": unpack_dynamic_variables(
-                    collection.variables, each, gql_api
+                    collection.variables,
+                    each,
+                    gql_api,
+                    secret_reader=self.secret_reader,
+                    cache=self._cache,
                 ),
-                "static": unpack_static_variables(collection.variables, each),
+                "static": unpack_static_variables(
+                    collection.variables,
+                    each,
+                    secret_reader=self.secret_reader,
+                    cache=self._cache,
+                ),
             }
         with PersistenceTransaction(persistence) as persistence_transaction:
             for template in collection.templates:
@@ -339,6 +382,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
     def reconcile(
         self, persistence: FilePersistence, ruamel_instance: yaml.YAML
     ) -> None:
+        self._cache = Jinja2TemplateCache()
         for collection in get_template_collections(
             name=self.params.template_collection_name
         ):

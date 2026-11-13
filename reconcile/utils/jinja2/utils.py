@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 import threading
+from copy import deepcopy
 from functools import cache
 from typing import TYPE_CHECKING, Any, Self
 
@@ -133,8 +134,16 @@ class Jinja2TemplateCache:
     S3 = "s3"
     S3_LS = "s3_ls"
     VAULT = "vault"
+    DYNAMIC_QUERY = "dynamic_query"
 
-    _NAMESPACES = (GITHUB, QUERY, S3, S3_LS, VAULT)
+    _NAMESPACES = (
+        GITHUB,
+        QUERY,
+        S3,
+        S3_LS,
+        VAULT,
+        DYNAMIC_QUERY,
+    )
 
     def __init__(self) -> None:
         self._stores: dict[str, dict[Any, Any]] = {ns: {} for ns in self._NAMESPACES}
@@ -228,7 +237,7 @@ def lookup_graphql_query_results(
         rendered_resource = jinja2.Template(resource).render(**kwargs)
         return next(iter(gqlapi.query(rendered_resource).values()))
 
-    return cache.get_or_set(Jinja2TemplateCache.QUERY, cache_key, _fetch)
+    return deepcopy(cache.get_or_set(Jinja2TemplateCache.QUERY, cache_key, _fetch))
 
 
 def lookup_s3_object(
@@ -282,7 +291,7 @@ def list_s3_objects(
                 region_name=region_name,
             )
 
-    return cache.get_or_set(Jinja2TemplateCache.S3_LS, cache_key, _fetch)
+    return list(cache.get_or_set(Jinja2TemplateCache.S3_LS, cache_key, _fetch))
 
 
 @retry()

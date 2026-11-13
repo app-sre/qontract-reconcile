@@ -1,0 +1,8 @@
+# qenerate: plugin=pydantic_v2
+
+query OpenshiftResourcesSettings {
+  settings: app_interface_settings_v1 {
+    repoUrl
+    vault
+  }
+}

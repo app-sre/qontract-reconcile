@@ -12,6 +12,8 @@ if TYPE_CHECKING:
 
     from qontract_utils.ruamel import yaml
 
+    from reconcile.utils.jinja2.utils import Jinja2TemplateCache
+
 
 @pytest.fixture
 def simple_template(gql_class_factory: Callable) -> TemplateV1:
@@ -45,12 +47,14 @@ def test_validate_template(
     simple_template: TemplateV1,
     simple_template_test: TemplateTestV1,
     ruaml_instance: yaml.YAML,
+    cache: Jinja2TemplateCache,
 ) -> None:
     assert (
         TemplateValidatorIntegration.validate_template(
             simple_template,
             simple_template_test,
             ruaml_instance,
+            cache=cache,
         )
         == []
     )
@@ -60,12 +64,14 @@ def test_validate_template_diff(
     simple_template: TemplateV1,
     simple_template_test: TemplateTestV1,
     ruaml_instance: yaml.YAML,
+    cache: Jinja2TemplateCache,
 ) -> None:
     simple_template_test.expected_output = "baz"
     diff = TemplateValidatorIntegration.validate_template(
         simple_template,
         simple_template_test,
         ruaml_instance,
+        cache=cache,
     )
     assert diff
     assert (
@@ -78,12 +84,14 @@ def test_validate_output_template(
     simple_template: TemplateV1,
     simple_template_test: TemplateTestV1,
     ruaml_instance: yaml.YAML,
+    cache: Jinja2TemplateCache,
 ) -> None:
     assert (
         TemplateValidatorIntegration.validate_template(
             simple_template,
             simple_template_test,
             ruaml_instance,
+            cache=cache,
         )
         == []
     )
@@ -93,12 +101,14 @@ def test_validate_output_condition_diff(
     simple_template: TemplateV1,
     simple_template_test: TemplateTestV1,
     ruaml_instance: yaml.YAML,
+    cache: Jinja2TemplateCache,
 ) -> None:
     simple_template.condition = "{{1 == 2}}"
     diff = TemplateValidatorIntegration.validate_template(
         simple_template,
         simple_template_test,
         ruaml_instance,
+        cache=cache,
     )
     assert diff
     assert (
@@ -111,6 +121,7 @@ def test_validate_output_condition_diff_expected_to_render_default_true(
     simple_template: TemplateV1,
     simple_template_test: TemplateTestV1,
     ruaml_instance: yaml.YAML,
+    cache: Jinja2TemplateCache,
 ) -> None:
     simple_template_test.expected_to_render = None
     simple_template.condition = "{{1 == 2}}"
@@ -118,6 +129,7 @@ def test_validate_output_condition_diff_expected_to_render_default_true(
         simple_template,
         simple_template_test,
         ruaml_instance,
+        cache=cache,
     )
     assert diff
     assert (
@@ -130,12 +142,14 @@ def test_validate_target_path_diff(
     simple_template: TemplateV1,
     simple_template_test: TemplateTestV1,
     ruaml_instance: yaml.YAML,
+    cache: Jinja2TemplateCache,
 ) -> None:
     simple_template.target_path = "/{{foo}}/bar.yml"
     diff = TemplateValidatorIntegration.validate_template(
         simple_template,
         simple_template_test,
         ruaml_instance,
+        cache=cache,
     )
     assert diff
     assert (
