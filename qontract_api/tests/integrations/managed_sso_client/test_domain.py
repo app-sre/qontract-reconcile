@@ -1,6 +1,7 @@
 """Unit tests for managed_sso_client domain models."""
 
 import pytest
+from pydantic import ValidationError
 from qontract_utils.keycloak_api import (
     ManagedKeycloakClient,
     ManagedKeycloakProtocolMapper,
@@ -718,44 +719,13 @@ def test_mapper_requires_name_and_provider(missing: str) -> None:
         ProtocolMapperDesiredState.model_validate(declaration)
 
 
-def test_mapper_accepts_and_discards_legacy_deleted_false() -> None:
-    declaration = {
-        "name": "audience",
-        "deleted": False,
-        "protocol_mapper": "oidc-audience-mapper",
-        "config": {"included.custom.audience": "my-api"},
-    }
-
-    mapper = ProtocolMapperDesiredState.model_validate(declaration)
-
-    assert mapper.model_dump() == {
-        "name": "audience",
-        "protocol_mapper": "oidc-audience-mapper",
-        "config": {"included.custom.audience": "my-api"},
-        "protocol": "openid-connect",
-    }
-    assert declaration["deleted"] is False
-    assert "deleted" not in ProtocolMapperDesiredState.model_json_schema()["properties"]
-
-
-@pytest.mark.parametrize("deleted", [True, None, 0, "false"])
-def test_mapper_rejects_unsupported_deletion_values(deleted: object) -> None:
-    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
-        ProtocolMapperDesiredState.model_validate({
-            "name": "audience",
-            "deleted": deleted,
-            "protocol_mapper": "oidc-audience-mapper",
-            "config": {"included.custom.audience": "old-api"},
-        })
-
-
-def test_legacy_deleted_false_does_not_allow_other_unknown_fields() -> None:
-    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+def test_mapper_rejects_unknown_fields() -> None:
+    with pytest.raises(ValidationError, match="extra_forbidden"):
         ProtocolMapperDesiredState.model_validate({
             "name": "audience",
             "protocol_mapper": "oidc-audience-mapper",
-            "deleted": False,
-            "unknown": "value",
+            "config": {"included.custom.audience": "my-api"},
+            "unexpected_field": True,
         })
 
 

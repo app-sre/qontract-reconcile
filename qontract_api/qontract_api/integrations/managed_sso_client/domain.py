@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal, Self
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 from qontract_utils.keycloak_api import (
     ManagedKeycloakClient,
     ManagedKeycloakProtocolMapper,
@@ -48,14 +48,6 @@ class ProtocolMapperDesiredState(BaseModel, frozen=True, extra="forbid"):
     )
     protocol: Literal["openid-connect"] = "openid-connect"
 
-    @model_validator(mode="before")
-    @classmethod
-    def _discard_legacy_deleted_false(cls, value: object) -> object:
-        """Accept the old client's default during rollout without restoring the field."""
-        if isinstance(value, dict) and value.get("deleted") is False:
-            return {key: item for key, item in value.items() if key != "deleted"}
-        return value
-
     @field_validator("config")
     @classmethod
     def _reject_empty_config_values(cls, config: dict[str, str]) -> dict[str, str]:
@@ -86,7 +78,7 @@ def _declared_mappers_match(
     """Compare declared identities and config keys while ignoring undeclared state.
 
     Unset or empty declarations leave every live mapper unmanaged. Differences
-    require a new client; existing mappers are never updated or deleted.
+    require a new client; existing mappers are left unchanged.
     """
     if not declarations:
         return True
