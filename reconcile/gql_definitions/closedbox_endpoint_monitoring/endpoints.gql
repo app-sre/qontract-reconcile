@@ -1,0 +1,48 @@
+# qenerate: plugin=pydantic_v2
+
+query ClosedboxEndpointMonitoring {
+  apps: apps_v1 {
+    endPoints {
+      name
+      description
+      url
+      monitoring {
+        provider {
+          name
+          description
+          provider
+          metricLabels
+          timeout
+          checkInterval
+          ... on EndpointMonitoringProviderBlackboxExporter_v1 {
+            blackboxExporter {
+              module
+              namespace {
+                ...EndpointMonitoringNamespace
+              }
+              exporterUrl
+            }
+          }
+          ... on EndpointMonitoringProviderPrometheusMetricsImporter_v1 {
+            prometheusMetricsImporter {
+              exporterUrl
+              targetFilterLabel
+              namespace {
+                ...EndpointMonitoringNamespace
+              }
+            }
+          }
+          ... on EndpointMonitoringProviderSignalFx_v1 {
+            signalFx {
+              exporterUrl
+              targetFilterLabel
+              namespace {
+                ...EndpointMonitoringNamespace
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
