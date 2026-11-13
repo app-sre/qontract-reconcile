@@ -3,6 +3,7 @@
 query LdapGroupsRolesQuery {
   roles: roles_v1 {
     name
+    expirationDate
     ldapGroup {
       name
       notes

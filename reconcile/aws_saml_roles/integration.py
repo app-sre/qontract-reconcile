@@ -25,7 +25,7 @@ from reconcile.gql_definitions.aws_saml_roles.roles import (
     query as roles_query,
 )
 from reconcile.typed_queries.external_resources import get_settings
-from reconcile.utils import gql
+from reconcile.utils import expiration, gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.aws_helper import unique_sso_aws_accounts
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
@@ -192,7 +192,7 @@ class AwsSamlRolesIntegration(
     ) -> list[AwsRole]:
         """Return all roles with AWS account relations."""
         aws_roles = []
-        for role in roles_query(query_func).roles or []:
+        for role in expiration.filter(roles_query(query_func).roles):
             if not role.aws_groups and not role.user_policies:
                 continue
 
