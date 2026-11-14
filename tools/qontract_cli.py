@@ -194,6 +194,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+from tools import rotate_erv2_cloudwatch_keys as cloudwatch_rotation
 from tools.app_sre_tekton_access_reporter import TektonRole, TektonUser
 from tools.cli_commands.cost_report.aws import AwsCostReportCommand
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
@@ -4356,6 +4357,40 @@ def request_reconciliation(ctx: click.Context) -> None:
         secret_reader=ctx.obj["secret_reader"],
     )
     erv2cli.reconcile()
+
+
+@external_resources.command(name="rotate-access-key")
+@click.option("--dry-run/--no-dry-run", default=True, show_default=True)
+@click.option(
+    "--expected-key-id",
+    help="Old access-key ID reported by inspection; required for execution/verification.",
+)
+@click.option(
+    "--verify", is_flag=True, help="Read-only check that this old key was replaced."
+)
+@click.pass_context
+def rotate_access_key(
+    ctx: click.Context, dry_run: bool, expected_key_id: str | None, verify: bool
+) -> None:
+    """Rotate one ERv2 CloudWatch IAM access key; inspect by default."""
+    if ctx.obj["provision_provider"] != "aws" or ctx.obj["provider"] != "cloudwatch":
+        raise click.ClickException(
+            "This command supports only AWS CloudWatch resources"
+        )
+    try:
+        result = cloudwatch_rotation.run_single(
+            provisioner=ctx.obj["provisioner"],
+            identifier=ctx.obj["identifier"],
+            secret_reader=ctx.obj["secret_reader"],
+            dry_run=dry_run,
+            expected_key_id=expected_key_id,
+            verify=verify,
+        )
+    except Exception as error:
+        raise click.ClickException(cloudwatch_rotation.error_message(error)) from None
+    print(result.model_dump_json(exclude_none=True))
+    if result.exit_code:
+        ctx.exit(result.exit_code)
 
 
 @external_resources.command()
