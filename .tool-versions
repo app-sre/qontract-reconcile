@@ -4,4 +4,4 @@ terraform 1.6.6
 oc 4.19.0
 helm 3.22.1
 sloth 0.12.0
-uv 0.13.7
+uv 0.13.8
