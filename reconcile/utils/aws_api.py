@@ -573,7 +573,10 @@ class AWSApi:
         # 'terraform-resources' integration, we remove
         # the key from terraform state and let it create
         # a new one on its own
-        if managed_by_integration_tag[0] == "terraform_resources":
+        if (
+            managed_by_integration_tag[0] == "external_resources"
+            or managed_by_integration_tag[0] == "terraform_resources"
+        ):
             return "service_account"
 
         huh = (
