@@ -4,7 +4,8 @@
 The command inspects by default. Execution requires the inspected old key ID,
 taints only aws_iam_access_key.this, and requests ERv2 reconciliation. Verification
 checks the replacement key and ERv2 output-sync status; check consumer health
-separately. The caller owns batching and progress records.
+separately. Results identify additional active IAM keys for separate review.
+The caller owns batching and progress records.
 """
 
 # The same file runs inside the provider image without qontract-reconcile.
@@ -113,6 +114,7 @@ class Result(Selector):
     expected_key_id: str | None
     resource_status: str
     tainted: bool
+    additional_active_key_ids: list[str] = Field(default_factory=list)
 
     @property
     def exit_code(self) -> int:
@@ -469,6 +471,11 @@ def rotate(request: Request, target: Target, runtime: RotationRuntime) -> Result
             expected_key_id=request.expected_key_id,
             resource_status=status,
             tainted=state.tainted,
+            additional_active_key_ids=sorted(
+                key.access_key_id
+                for key in keys
+                if key.status == "Active" and key.access_key_id != state.key_id
+            ),
         )
 
     active = any(k.access_key_id == state.key_id and k.status == "Active" for k in keys)
