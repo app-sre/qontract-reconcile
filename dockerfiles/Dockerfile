@@ -124,7 +124,7 @@ FROM prod-image-pre-test AS fips-prod-image
 # FedRAMP runs on FIPS-enabled clusters. Source oc/kubectl from the official RHEL9 client
 # image (FIPS-capable and regularly rebuilt for CVEs) pinned to the 4.18 stream to match the
 # in-boundary cluster fleet. Commercial (prod-image) gets its newer oc from the base image.
-COPY --from=registry.redhat.io/openshift4/ose-cli-rhel9:v4.18@sha256:1c54f0195d6be3e186f77e4e6a9b874fcf0384b2c0b41665fbe0dbc02bd85f77 \
+COPY --from=registry.redhat.io/openshift4/ose-cli-rhel9:v4.18@sha256:20e09fdbcfb38550cbdd9823e59527a743ebbf0a2316dd80263fd203b25d6be7 \
     /usr/bin/oc /usr/bin/kubectl /usr/local/bin/
 
 # Lets make sure we run tests when targeting fips-prod-image
