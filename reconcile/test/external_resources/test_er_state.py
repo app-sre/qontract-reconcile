@@ -1,16 +1,71 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+from unittest.mock import Mock
 
 from pytest import fixture
+from qontract_utils.aws_api_typed.api import AWSApi
 
 from reconcile.external_resources.state import (
     DynamoDBStateAdapter,
+    ExternalResourcesStateDynamoDB,
     ExternalResourceState,
+    ResourceStatus,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from reconcile.external_resources.model import ExternalResourceKey
+
+
+def test_single_resource_state_reads_without_scanning(
+    key: ExternalResourceKey, dynamodb_serialized_values: Mapping
+) -> None:
+    api = Mock(spec=AWSApi)
+    client = api.dynamodb.boto3_client
+    client.get_item.return_value = {"Item": dynamodb_serialized_values}
+    state = ExternalResourcesStateDynamoDB(
+        api, "test-state", load_partial_resources=False
+    )
+
+    assert state.get_external_resource_state(key).key == key
+    client.get_item.assert_called_once_with(
+        TableName="test-state",
+        ConsistentRead=True,
+        Key={DynamoDBStateAdapter.ER_KEY_HASH: {"S": key.state_path}},
+    )
+    client.get_paginator.assert_not_called()
+
+
+def test_single_resource_status_update_does_not_scan(key: ExternalResourceKey) -> None:
+    api = Mock(spec=AWSApi)
+    state = ExternalResourcesStateDynamoDB(
+        api, "test-state", load_partial_resources=False
+    )
+    state.update_resource_status(key, ResourceStatus.RECONCILIATION_REQUESTED)
+
+    api.dynamodb.boto3_client.update_item.assert_called_once_with(
+        TableName="test-state",
+        Key={DynamoDBStateAdapter.ER_KEY_HASH: {"S": key.state_path}},
+        UpdateExpression="set resource_status=:new_value",
+        ExpressionAttributeValues={":new_value": {"S": "RECONCILIATION_REQUESTED"}},
+        ReturnValues="UPDATED_NEW",
+    )
+    api.dynamodb.boto3_client.get_paginator.assert_not_called()
+
+
+def test_state_inventory_is_still_loaded_by_default(
+    key: ExternalResourceKey, dynamodb_serialized_values: Mapping
+) -> None:
+    api = Mock(spec=AWSApi)
+    paginator = api.dynamodb.boto3_client.get_paginator.return_value
+    paginator.paginate.return_value = [{"Items": [dynamodb_serialized_values]}]
+
+    state = ExternalResourcesStateDynamoDB(api, "test-state")
+
+    assert state.get_all_resource_keys() == {key}
+    api.dynamodb.boto3_client.get_paginator.assert_called_once_with("scan")
 
 
 @fixture

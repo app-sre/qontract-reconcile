@@ -1,6 +1,42 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
-from tools.cli_commands.erv2 import TfResource, TfResourceList
+from tools.cli_commands.erv2 import Erv2Cli, TfResource, TfResourceList
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+
+
+def test_erv2_reconcile_does_not_scan_state_table(mocker: MockerFixture) -> None:
+    mocker.patch("tools.cli_commands.erv2.gql.get_api")
+    api = mocker.patch(
+        "tools.cli_commands.erv2.get_aws_api"
+    ).return_value.__enter__.return_value
+    client = api.dynamodb.boto3_client
+    client.get_item.return_value = {}
+    client.get_paginator.side_effect = AssertionError("A point update must not scan")
+    cli = Erv2Cli.__new__(Erv2Cli)
+    cli._provision_provider = "aws"
+    cli._provisioner = "test-account"
+    cli._provider = "cloudwatch"
+    cli._identifier = "test-cw"
+    cli._secret_reader = mocker.Mock()
+    cli._er_settings = mocker.Mock(state_dynamodb_table="test-state")
+
+    cli.reconcile()
+
+    client.get_item.assert_called_once_with(
+        TableName="test-state",
+        ConsistentRead=True,
+        Key={
+            "external_resource_key_hash": {"S": "aws/test-account/cloudwatch/test-cw"}
+        },
+    )
+    client.get_paginator.assert_not_called()
+    client.update_item.assert_not_called()
 
 
 def test_erv2_model_tfresource_list() -> None:

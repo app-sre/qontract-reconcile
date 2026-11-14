@@ -159,6 +159,7 @@ class Erv2Cli:
             state_manager = ExternalResourcesStateDynamoDB(
                 aws_api=aws_api,
                 table_name=self._er_settings.state_dynamodb_table,
+                load_partial_resources=False,
             )
             key = ExternalResourceKey(
                 provision_provider=self._provision_provider,
