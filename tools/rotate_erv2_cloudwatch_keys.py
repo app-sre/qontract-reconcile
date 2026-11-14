@@ -4,7 +4,8 @@
 The command inspects by default. Execution requires the inspected old key ID,
 taints only aws_iam_access_key.this, and requests ERv2 reconciliation. Verification
 checks the replacement key and ERv2 output-sync status; check consumer health
-separately. Results identify additional active IAM keys for separate review.
+separately. Shared selectors are rejected because ERv2 selects one namespace.
+Results identify additional active IAM keys for separate review.
 The caller owns batching and progress records.
 """
 
@@ -547,6 +548,11 @@ def run_single(
         identifier=identifier,
         secret_reader=secret_reader,
     )
+    if client.resource_bindings_count != 1:
+        raise RotationError(
+            "CloudWatch rotation requires exactly one namespace binding; "
+            "shared selectors need explicit consumer synchronization"
+        )
     data = ExternalResource.model_validate_json(client.input_data)
     cloudwatch = CloudwatchInput.model_validate(data.data)
     settings = get_settings()

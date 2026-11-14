@@ -423,6 +423,7 @@ def test_single_resource_resolves_accounts_and_closes_runtime(
 ) -> None:
     reader = mocker.Mock()
     client = mocker.patch("tools.cli_commands.erv2.Erv2Cli").return_value
+    client.resource_bindings_count = 1
     client.input_data = json.dumps({
         "data": {"identifier": "test-cw", "region": "us-east-1"},
         "provision": {
@@ -478,6 +479,30 @@ def test_single_resource_resolves_accounts_and_closes_runtime(
         client,
     )
     runtime.close.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    ("dry_run", "verify"), [(True, False), (False, False), (True, True)]
+)
+def test_single_resource_rejects_shared_namespace_bindings(
+    mocker: MockerFixture, dry_run: bool, verify: bool
+) -> None:
+    client = mocker.patch("tools.cli_commands.erv2.Erv2Cli").return_value
+    client.resource_bindings_count = 2
+    runtime = mocker.patch.object(rotation, "Runtime")
+
+    with pytest.raises(rotation.RotationError, match="one namespace binding"):
+        rotation.run_single(
+            "test-account",
+            "test-cw",
+            mocker.Mock(),
+            expected_key_id=OLD,
+            dry_run=dry_run,
+            verify=verify,
+        )
+
+    runtime.assert_not_called()
+    client.reconcile.assert_not_called()
 
 
 @pytest.mark.parametrize(
