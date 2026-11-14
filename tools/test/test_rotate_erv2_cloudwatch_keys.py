@@ -527,3 +527,32 @@ def test_runtime_status_reads_one_resource_without_scanning(
         },
     )
     client.get_paginator.assert_not_called()
+
+
+@pytest.mark.parametrize("verify", [False, True])
+def test_reports_other_active_keys_without_rotating_them(
+    target: rotation.Target, runtime: Mock, verify: bool
+) -> None:
+    extra = "AKIA" + "C" * 16
+    managed = NEW if verify else OLD
+    runtime.state.key_id = managed
+    runtime.keys = [
+        rotation.IamKey(AccessKeyId=managed, Status="Active"),
+        rotation.IamKey(AccessKeyId=extra, Status="Active"),
+        rotation.IamKey(AccessKeyId="AKIA" + "D" * 16, Status="Inactive"),
+    ]
+    result = rotation.rotate(
+        rotation.Request(
+            account=target.account,
+            identifier=target.identifier,
+            verify=verify,
+            expected_key_id=OLD if verify else None,
+        ),
+        target,
+        runtime,
+    )
+
+    assert result.status == ("replaced" if verify else "would_rotate")
+    assert result.additional_active_key_ids == [extra]
+    assert all(call.args[1] == "inspect" for call in runtime.operation.call_args_list)
+    runtime.request.assert_not_called()
