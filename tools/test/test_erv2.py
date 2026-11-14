@@ -4,10 +4,58 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
+    AWSAccountV1,
+    NamespaceTerraformProviderResourceAWSV1,
+    NamespaceTerraformResourceCloudWatchV1,
+    NamespaceV1,
+)
 from tools.cli_commands.erv2 import Erv2Cli, TfResource, TfResourceList
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
+
+@pytest.mark.parametrize("bindings", [1, 2])
+def test_erv2_counts_namespace_bindings_before_inventory_deduplication(
+    mocker: MockerFixture, bindings: int
+) -> None:
+    resource = mocker.Mock(
+        spec=NamespaceTerraformResourceCloudWatchV1,
+        provider="cloudwatch",
+        identifier="test-cw",
+        managed_by_erv2=True,
+    )
+    account = mocker.Mock(spec=AWSAccountV1)
+    account.name = "test-account"
+    provider = mocker.Mock(
+        spec=NamespaceTerraformProviderResourceAWSV1,
+        provider="aws",
+        provisioner=account,
+        resources=[resource],
+    )
+    namespaces = [
+        mocker.Mock(
+            spec=NamespaceV1,
+            managed_external_resources=True,
+            external_resources=[provider],
+        )
+        for _ in range(bindings)
+    ]
+    mocker.patch("tools.cli_commands.erv2.get_namespaces", return_value=namespaces)
+    for name in (
+        "ExternalResourcesInventory",
+        "get_settings",
+        "get_modules",
+        "load_module_inventory",
+        "setup_factories",
+        "ExternalResourceModuleConfiguration.resolve_configuration",
+    ):
+        mocker.patch(f"tools.cli_commands.erv2.{name}")
+
+    cli = Erv2Cli("aws", "test-account", "cloudwatch", "test-cw", mocker.Mock())
+
+    assert cli.resource_bindings_count == bindings
 
 
 def test_erv2_reconcile_does_not_scan_state_table(mocker: MockerFixture) -> None:

@@ -19,6 +19,8 @@ from reconcile.external_resources.integration import get_aws_api
 from reconcile.external_resources.manager import setup_factories
 from reconcile.external_resources.meta import FLAG_RESOURCE_MANAGED_BY_ERV2
 from reconcile.external_resources.model import (
+    SUPPORTED_RESOURCE_PROVIDERS,
+    SUPPORTED_RESOURCE_TYPES,
     ExternalResourceKey,
     ExternalResourceModuleConfiguration,
     ExternalResourcesInventory,
@@ -104,6 +106,20 @@ class Erv2Cli:
         self.progress_spinner = progress_spinner
 
         namespaces = [ns for ns in get_namespaces() if ns.external_resources]
+        self._resource_bindings_count = sum(
+            1
+            for namespace in namespaces
+            if namespace.managed_external_resources
+            for resource_provider in namespace.external_resources or []
+            if isinstance(resource_provider, SUPPORTED_RESOURCE_PROVIDERS)
+            and resource_provider.provider == provision_provider
+            and resource_provider.provisioner.name == provisioner
+            for resource in resource_provider.resources or []
+            if isinstance(resource, SUPPORTED_RESOURCE_TYPES)
+            and resource.managed_by_erv2
+            and resource.provider == provider
+            and resource.identifier == identifier
+        )
         er_inventory = ExternalResourcesInventory(namespaces)
 
         try:
@@ -134,6 +150,11 @@ class Erv2Cli:
         self.module_type = m_inventory.get_from_spec(spec).module_type
         self._resource = f.create_external_resource(spec, self._module_configuration)
         f.validate_external_resource(self._resource, self._module_configuration)
+
+    @property
+    def resource_bindings_count(self) -> int:
+        """Count declarations before inventory deduplication selects one namespace."""
+        return self._resource_bindings_count
 
     @property
     def input_data(self) -> str:
