@@ -4369,13 +4369,19 @@ def request_reconciliation(ctx: click.Context) -> None:
     help="Old access-key ID reported by inspection; required for execution/verification.",
 )
 @click.option(
-    "--verify", is_flag=True, help="Read-only check that this old key was replaced."
+    "--verify",
+    is_flag=True,
+    help="Check new-key synchronization; ready_for_cutover still needs consumer verification.",
 )
 @click.pass_context
 def rotate_access_key(
     ctx: click.Context, dry_run: bool, expected_key_id: str | None, verify: bool
 ) -> None:
-    """Rotate one ERv2 CloudWatch IAM access key; inspect by default."""
+    """Prepare a second ERv2 CloudWatch key; inspect by default.
+
+    Keeps the old AWS key active. Verify consumer adoption before separately
+    deactivating and deleting it; this command never retires IAM keys.
+    """
     if ctx.obj["provision_provider"] != "aws" or ctx.obj["provider"] != "cloudwatch":
         raise click.ClickException(
             "This command supports only AWS CloudWatch resources"

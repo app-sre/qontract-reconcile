@@ -2,10 +2,13 @@
 """Rotate one ERv2 CloudWatch access key through qontract-cli.
 
 The command inspects by default. Execution requires the inspected old key ID,
-taints only aws_iam_access_key.this, and requests ERv2 reconciliation. Verification
-checks the replacement key and ERv2 output-sync status; check consumer health
-separately. Shared selectors are rejected because ERv2 selects one namespace.
-Results identify additional active IAM keys for separate review.
+removes only aws_iam_access_key.this from Terraform state, and requests ERv2
+reconciliation. The old AWS key remains active while a second key is created.
+Verification reports ready_for_cutover after ERv2 output synchronization; this
+does not verify application adoption. Refresh consumers and verify their use of
+the new key before separately deactivating and deleting the old key. This command
+never retires IAM keys. Shared selectors are rejected because ERv2 selects one
+namespace. Results identify additional active IAM keys for separate review.
 The caller owns batching and progress records.
 """
 
@@ -62,7 +65,7 @@ class Request(Selector):
 
 
 class KeyState(BaseModel):
-    key_id: str = Field(pattern=r"^AKIA[A-Z0-9]{16}$")
+    key_id: str | None = Field(pattern=r"^AKIA[A-Z0-9]{16}$")
     user: str
     tainted: bool
 
@@ -110,9 +113,17 @@ class CloudwatchInput(BaseModel):
 
 
 class Result(Selector):
-    status: Literal["would_rotate", "requested", "pending", "replaced", "key_changed"]
-    access_key_id: str
+    status: Literal[
+        "would_rotate",
+        "requested",
+        "pending",
+        "ready_for_cutover",
+        "replaced",
+        "key_changed",
+    ]
+    access_key_id: str | None = None
     expected_key_id: str | None
+    retained_key_id: str | None = None
     resource_status: str
     tainted: bool
     additional_active_key_ids: list[str] = Field(default_factory=list)
@@ -126,7 +137,7 @@ class RotationRuntime(Protocol):
     def operation(
         self,
         target: Target,
-        action: Literal["inspect", "taint"],
+        action: Literal["inspect", "remove"],
         expected_key: str | None = None,
     ) -> KeyState: ...
     def iam_keys(self, target: Target) -> list[IamKey]: ...
@@ -149,15 +160,19 @@ def checked(
 
 
 def state_metadata(state: TerraformState, expected_user: str) -> KeyState:
-    resources = [
+    key_resources = [
         r
         for r in state.resources
-        if r.mode == "managed"
-        and r.type == "aws_iam_access_key"
-        and r.name == "this"
-        and r.module is None
+        if r.mode == "managed" and r.type == "aws_iam_access_key"
     ]
-    if len(resources) != 1 or len(resources[0].instances) != 1:
+    if not key_resources:
+        return KeyState(key_id=None, user=expected_user, tainted=False)
+    resources = [r for r in key_resources if r.name == "this" and r.module is None]
+    if (
+        len(key_resources) != 1
+        or len(resources) != 1
+        or len(resources[0].instances) != 1
+    ):
         raise RotationError(
             "Expected exactly one root aws_iam_access_key.this instance"
         )
@@ -178,7 +193,7 @@ def container_operation(
     action: str, expected_user: str, expected_key: str | None
 ) -> KeyState:
     """Runs inside the ERv2 image, with state and credentials confined to the container."""
-    if action not in {"inspect", "taint"}:
+    if action not in {"inspect", "remove"}:
         raise RotationError("Unknown container operation")
     work = Path(os.environ["TERRAFORM_MODULE_WORK_DIR"])
     shutil.copytree(os.environ.get("TERRAFORM_MODULE_SRC_DIR", "module"), work)
@@ -196,19 +211,23 @@ def container_operation(
         return state_metadata(state, expected_user)
 
     before = inspect()
-    if action == "taint":
+    if action == "remove":
+        if expected_key is None:
+            raise RotationError("State removal requires the expected old key ID")
+        if before.key_id is None:
+            return before
         if before.key_id != expected_key or before.tainted:
             raise RotationError(
                 "Remote key changed or is already tainted; no mutation attempted"
             )
         checked(
-            terraform + ["taint", "-lock-timeout=60s", "aws_iam_access_key.this"],
-            phase="Access-key taint",
+            terraform + ["state", "rm", "-lock-timeout=60s", "aws_iam_access_key.this"],
+            phase="Access-key state removal",
         )
         after = inspect()
-        if after.key_id != expected_key or not after.tainted:
+        if after.key_id is not None:
             raise RotationError(
-                "State changed during taint; inspect manually before continuing"
+                "Access-key state reappeared; inspect manually before continuing"
             )
         return after
     return before
@@ -337,7 +356,7 @@ class Runtime:
     def operation(
         self,
         target: Target,
-        action: Literal["inspect", "taint"],
+        action: Literal["inspect", "remove"],
         expected_key: str | None = None,
     ) -> KeyState:
         client, data, credentials = self.prepare(target)
@@ -461,7 +480,12 @@ def rotate(request: Request, target: Target, runtime: RotationRuntime) -> Result
 
     def result(
         value: Literal[
-            "would_rotate", "requested", "pending", "replaced", "key_changed"
+            "would_rotate",
+            "requested",
+            "pending",
+            "ready_for_cutover",
+            "replaced",
+            "key_changed",
         ],
     ) -> Result:
         return Result(
@@ -470,38 +494,79 @@ def rotate(request: Request, target: Target, runtime: RotationRuntime) -> Result
             status=value,
             access_key_id=state.key_id,
             expected_key_id=request.expected_key_id,
+            retained_key_id=next(
+                (
+                    key.access_key_id
+                    for key in keys
+                    if key.access_key_id == request.expected_key_id
+                    and key.access_key_id != state.key_id
+                    and key.status == "Active"
+                ),
+                None,
+            ),
             resource_status=status,
             tainted=state.tainted,
             additional_active_key_ids=sorted(
                 key.access_key_id
                 for key in keys
-                if key.status == "Active" and key.access_key_id != state.key_id
+                if key.status == "Active"
+                and key.access_key_id not in {state.key_id, request.expected_key_id}
             ),
         )
 
     active = any(k.access_key_id == state.key_id and k.status == "Active" for k in keys)
     if request.verify:
         old_present = any(k.access_key_id == request.expected_key_id for k in keys)
-        complete = (
-            state.key_id != request.expected_key_id
-            and not old_present
+        synchronized = (
+            state.key_id is not None
+            and state.key_id != request.expected_key_id
             and active
             and not state.tainted
             and status == "CREATED"
         )
-        return result("replaced" if complete else "pending")
-    if request.expected_key_id is not None and state.key_id != request.expected_key_id:
+        if synchronized:
+            if not old_present:
+                return result("replaced")
+            if any(
+                key.access_key_id == request.expected_key_id and key.status == "Active"
+                for key in keys
+            ):
+                return result("ready_for_cutover")
+        return result("pending")
+    if (
+        request.expected_key_id is not None
+        and state.key_id is not None
+        and state.key_id != request.expected_key_id
+    ):
         return result("key_changed")
     if status != "CREATED":
         return result("pending")
-    if not active:
-        raise RotationError("Terraform key is not active on the expected IAM user")
+    old_key = request.expected_key_id or state.key_id
+    if old_key is None:
+        raise RotationError(
+            "Access key is absent from Terraform state; supply the original "
+            "--expected-key-id to resume without retiring it"
+        )
+    if state.tainted:
+        raise RotationError(
+            "Access key is already tainted; investigate before no-downtime rotation"
+        )
+    if len(keys) != 1 or keys[0].access_key_id != old_key or keys[0].status != "Active":
+        raise RotationError(
+            "No-downtime preparation requires exactly one IAM key, the Active old "
+            "key; review existing keys without automatically deleting them"
+        )
     if request.dry_run:
         return result("would_rotate")
-    if not state.tainted:
-        runtime.operation(target, "taint", request.expected_key_id)
+    if state.key_id is not None:
+        state = runtime.operation(target, "remove", old_key)
+        if state.key_id is not None:
+            raise RotationError("Old key is still managed; no reconciliation requested")
+    if runtime.iam_keys(target) != keys:
+        raise RotationError(
+            "IAM keys changed during state removal; inspect before resuming"
+        )
     runtime.request(target)
-    state.tainted = True
     status = "RECONCILIATION_REQUESTED"
     return result("requested")
 
