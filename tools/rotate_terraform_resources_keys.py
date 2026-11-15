@@ -668,7 +668,7 @@ class Runtime:
         path = self.directory / "backend.tf.json"
         path.write_text(configuration.model_dump_json())
         path.chmod(0o600)
-        terraform("init", "-backend-only", "-get=false", "-input=false", "-no-color")
+        terraform("init", "-get=false", "-input=false", "-no-color")
         preview = terraform("state", "rm", "-dry-run", "-lock-timeout=180s", address)
         if re.findall(r"^Would remove (\S+)", preview, re.MULTILINE) != [address]:
             raise RotationError(
