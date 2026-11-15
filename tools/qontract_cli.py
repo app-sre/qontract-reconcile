@@ -4415,6 +4415,97 @@ def rotate_access_key(
         ctx.exit(result.exit_code)
 
 
+@root.group(name="terraform-resources")
+def legacy_terraform_resources() -> None:
+    """Operations on legacy, account-wide terraform-resources state."""
+
+
+@legacy_terraform_resources.command(name="rotate-access-key")
+@click.option("--account", required=True, help="App-interface AWS account name.")
+@click.option(
+    "--iam-user",
+    required=True,
+    help="Exact IAM user from a legacy resource declaration.",
+)
+@click.option(
+    "--expected-key-id",
+    help="Old key ID from inspection; required for execution/verification.",
+)
+@click.option(
+    "--expected-address",
+    help="Exact Terraform address from inspection; required for execution/verification.",
+)
+@click.option(
+    "--expected-cache-bucket",
+    help="Cache bucket from inspection; required for execution.",
+)
+@click.option(
+    "--terraform-binary",
+    default="terraform",
+    show_default=True,
+    help="Executable matching the remote state's Terraform version.",
+)
+@click.option(
+    "--integration-version",
+    default=str(tfr.QONTRACT_INTEGRATION_VERSION),
+    show_default=True,
+    help="Version used by the deployed terraform-resources integration's cache.",
+)
+@click.option(
+    "--account-quiesced",
+    is_flag=True,
+    help="Confirm account-wide Terraform applies are paused for this state operation.",
+)
+@click.option("--dry-run/--no-dry-run", default=True, show_default=True)
+@click.option(
+    "--verify",
+    is_flag=True,
+    help="Read-only verification of new-key creation and Terraform outputs.",
+)
+def rotate_legacy_access_key(
+    account: str,
+    iam_user: str,
+    expected_key_id: str | None,
+    expected_address: str | None,
+    expected_cache_bucket: str | None,
+    terraform_binary: str,
+    integration_version: str,
+    account_quiesced: bool,
+    dry_run: bool,
+    verify: bool,
+) -> None:
+    """Prepare a second IAM key without retiring the old credential.
+
+    Inspection reports the key, state address, cache bucket, and Terraform
+    version. Pause account-wide applies before execution. Then resume normal
+    reconciliation to create the key and publish Secrets. --verify checks IAM
+    and Terraform outputs; verify all source Secrets and application adoption
+    separately before retiring the old key. No IAM keys are retired here.
+    """
+    from tools import rotate_terraform_resources_keys as legacy_rotation
+
+    try:
+        request = legacy_rotation.Request(
+            account=account,
+            iam_user=iam_user,
+            expected_key_id=expected_key_id,
+            expected_address=expected_address,
+            expected_cache_bucket=expected_cache_bucket,
+            account_quiesced=account_quiesced,
+            dry_run=dry_run,
+            verify=verify,
+            integration_version=integration_version,
+        )
+        settings = get_app_interface_vault_settings()
+        reader = create_secret_reader(use_vault=settings.vault)
+        result = legacy_rotation.run_single(request, reader, terraform_binary)
+    except Exception as error:
+        raise click.ClickException(cloudwatch_rotation.error_message(error)) from None
+    print(result.model_dump_json(exclude_none=True))
+    if result.exit_code:
+        raise click.exceptions.Exit(result.exit_code)
+
+
 @external_resources.command()
 @binary(["terraform", "docker"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
