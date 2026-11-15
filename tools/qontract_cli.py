@@ -4451,11 +4451,6 @@ def legacy_terraform_resources() -> None:
     show_default=True,
     help="Version used by the deployed terraform-resources integration's cache.",
 )
-@click.option(
-    "--account-quiesced",
-    is_flag=True,
-    help="Confirm account-wide Terraform applies are paused for this state operation.",
-)
 @click.option("--dry-run/--no-dry-run", default=True, show_default=True)
 @click.option(
     "--verify",
@@ -4470,17 +4465,17 @@ def rotate_legacy_access_key(
     expected_cache_bucket: str | None,
     terraform_binary: str,
     integration_version: str,
-    account_quiesced: bool,
     dry_run: bool,
     verify: bool,
 ) -> None:
     """Prepare a second IAM key without retiring the old credential.
 
     Inspection reports the key, state address, cache bucket, and Terraform
-    version. Pause account-wide applies before execution. Then resume normal
-    reconciliation to create the key and publish Secrets. --verify checks IAM
-    and Terraform outputs; verify all source Secrets and application adoption
-    separately before retiring the old key. No IAM keys are retired here.
+    version. Follow docs/terraform-resources-key-rotation.md: disable integrations
+    that write the account state and wait for in-flight runs before execution;
+    re-enable terraform-resources afterwards to create the key and publish
+    Secrets. --verify checks IAM and Terraform outputs; verify all source Secrets
+    and application adoption separately before retiring the old key.
     """
     from tools import rotate_terraform_resources_keys as legacy_rotation
 
@@ -4491,7 +4486,6 @@ def rotate_legacy_access_key(
             expected_key_id=expected_key_id,
             expected_address=expected_address,
             expected_cache_bucket=expected_cache_bucket,
-            account_quiesced=account_quiesced,
             dry_run=dry_run,
             verify=verify,
             integration_version=integration_version,

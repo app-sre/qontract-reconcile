@@ -88,7 +88,6 @@ def execute(**options: str | bool | None) -> rotation.Request:
         expected_key_id=OLD,
         expected_address=ADDRESS,
         expected_cache_bucket="test-cache",
-        account_quiesced=True,
         **options,
     )
 
@@ -206,12 +205,6 @@ def test_resume_after_state_removal_does_not_remove_another_binding(
         {"dry_run": False},
         {"verify": True, "expected_key_id": OLD},
         {"dry_run": False, "expected_key_id": OLD, "expected_address": ADDRESS},
-        {
-            "dry_run": False,
-            "expected_key_id": OLD,
-            "expected_address": ADDRESS,
-            "expected_cache_bucket": "test-cache",
-        },
         {
             "verify": True,
             "dry_run": False,
@@ -358,7 +351,6 @@ def test_backend_discovery_matches_legacy_credential_metadata_and_explicit_overr
 @pytest.mark.parametrize(
     "change",
     [
-        "disabled-account",
         "missing-backend",
         "no-namespaces",
         "deleted",
@@ -376,10 +368,6 @@ def test_only_enabled_desired_legacy_resources_are_eligible(
     assert namespace.external_resources
     spec = namespace.external_resources[0]
     assert isinstance(spec, rotation.data.NamespaceTerraformProviderResourceAWSV1)
-    if change == "disabled-account":
-        account.disable = rotation.data.DisableClusterAutomationsV1(
-            integrations=["terraform-resources"]
-        )
     if change == "missing-backend":
         account.terraform_state = None
     if change == "no-namespaces":
@@ -606,7 +594,7 @@ def test_cache_invalidation_uses_only_exact_supplied_key(
         cache.delete.assert_not_called()
 
 
-def test_cli_forwards_quiescence_and_expected_state_guards(
+def test_cli_forwards_expected_state_guards_without_a_confirmation_flag(
     mocker: MockerFixture, runtime: Mock
 ) -> None:
     mocker.patch.object(qontract_cli, "get_app_interface_vault_settings")
@@ -623,7 +611,6 @@ def test_cli_forwards_quiescence_and_expected_state_guards(
             "--iam-user",
             "example",
             "--no-dry-run",
-            "--account-quiesced",
             "--expected-key-id",
             OLD,
             "--expected-address",
@@ -636,10 +623,51 @@ def test_cli_forwards_quiescence_and_expected_state_guards(
     )
     assert response.exit_code == 0, response.output
     forwarded = run.call_args.args[0]
-    assert not forwarded.dry_run and forwarded.account_quiesced
+    assert not forwarded.dry_run
     assert (
         forwarded.expected_key_id,
         forwarded.expected_address,
         forwarded.expected_cache_bucket,
     ) == (OLD, ADDRESS, "test-cache")
     assert run.call_args.args[2] == "/test/terraform/1.6.6"
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_preparation_allows_account_disabled_by_rotation_sop(
+    inventory: rotation.data.TerraformResourcesIAMKeyRotationQueryData,
+    runtime: Mock,
+    dry_run: bool,
+) -> None:
+    assert inventory.accounts
+    inventory.accounts[0].disable = rotation.data.DisableClusterAutomationsV1(
+        integrations=["terraform-resources", "aws-iam-keys"]
+    )
+    command = request() if dry_run else execute()
+    runtime.target, _ = rotation.resolve_target(command, inventory)
+    assert rotation.rotate(command, runtime).status == (
+        "would_prepare" if dry_run else "requested"
+    )
+
+
+def test_verification_requires_reenabled_terraform_resources(
+    inventory: rotation.data.TerraformResourcesIAMKeyRotationQueryData,
+) -> None:
+    assert inventory.accounts
+    inventory.accounts[0].disable = rotation.data.DisableClusterAutomationsV1(
+        integrations=["terraform-resources", "aws-iam-keys"]
+    )
+    command = request(verify=True, expected_key_id=OLD, expected_address=ADDRESS)
+    with pytest.raises(rotation.RotationError, match="Re-enable terraform-resources"):
+        rotation.resolve_target(command, inventory)
+    inventory.accounts[0].disable.integrations = ["aws-iam-keys"]
+    target, _ = rotation.resolve_target(command, inventory)
+    assert target.iam_user == "example"
+
+
+def test_removed_confirmation_flag_is_absent_from_cli_help() -> None:
+    response = CliRunner().invoke(
+        qontract_cli.legacy_terraform_resources, ["rotate-access-key", "--help"]
+    )
+    assert response.exit_code == 0
+    assert "--account-quiesced" not in response.output
+    assert "docs/terraform-resources-key-rotation.md" in response.output

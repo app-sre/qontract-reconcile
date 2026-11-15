@@ -6,6 +6,8 @@ reconciliation creates the new key and publishes outputs. Verification checks
 IAM and Terraform outputs only; source Secrets and application adoption require
 separate verification before the operator retires the old key. No apply, taint,
 IAM key deletion, or application refresh is performed by this tool.
+Follow docs/terraform-resources-key-rotation.md to disable state writers before
+preparation and re-enable reconciliation afterwards.
 """
 
 from __future__ import annotations
@@ -72,7 +74,6 @@ class Request(BaseModel):
     expected_key_id: str | None = Field(default=None, pattern=KEY_PATTERN)
     expected_address: str | None = Field(default=None, pattern=ADDRESS_PATTERN)
     expected_cache_bucket: str | None = None
-    account_quiesced: bool = False
     integration_version: str
 
 
@@ -184,10 +185,14 @@ def resolve_account(
     if len(accounts) != 1 or accounts[0].name != request.account:
         raise RotationError("Expected exactly one matching AWS account")
     account = accounts[0]
-    if account.disable and "terraform-resources" in (
-        account.disable.integrations or []
+    if (
+        request.verify
+        and account.disable
+        and "terraform-resources" in (account.disable.integrations or [])
     ):
-        raise RotationError("terraform-resources is disabled for this account")
+        raise RotationError(
+            "Re-enable terraform-resources for this account before verification"
+        )
     return account
 
 
@@ -339,10 +344,6 @@ def validate_request(request: Request) -> None:
     if not request.dry_run and not request.expected_cache_bucket:
         raise RotationError(
             "Execution requires the matching --expected-cache-bucket from inspection"
-        )
-    if not request.dry_run and not request.account_quiesced:
-        raise RotationError(
-            "Pause account-wide Terraform applies, then supply --account-quiesced; the legacy backend has no configured state lock"
         )
 
 
