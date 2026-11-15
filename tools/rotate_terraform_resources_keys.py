@@ -84,14 +84,14 @@ class RetirementRequest(BaseModel):
     iam_user: str = Field(pattern=r"^[\w+=,.@-]+$")
     action: Literal["deactivate", "delete"]
     old_key_id: str = Field(pattern=KEY_PATTERN)
-    replacement_key_id: str = Field(pattern=KEY_PATTERN)
-    expected_address: str = Field(pattern=ADDRESS_PATTERN)
+    replacement_key_id: str | None = Field(default=None, pattern=KEY_PATTERN)
     dry_run: bool = True
 
 
 RetirementStatus = Literal[
     "would_deactivate",
     "would_delete",
+    "would_deactivate_and_delete",
     "inactive",
     "deleted",
     "already_inactive",
@@ -383,12 +383,17 @@ def validate_retirement(request: RetirementRequest) -> None:
         raise RotationError("Old key and replacement key must be different")
 
 
-def retirement_keys(request: RetirementRequest, snapshot: Snapshot) -> dict[str, str]:
+def retirement_keys(
+    request: RetirementRequest,
+    snapshot: Snapshot,
+    replacement_key_id: str | None = None,
+) -> dict[str, str]:
     managed = snapshot.managed_key
     if (
         not managed
-        or managed.address != request.expected_address
-        or managed.key_id != request.replacement_key_id
+        or managed.key_id == request.old_key_id
+        or managed.key_id
+        != (replacement_key_id or request.replacement_key_id or managed.key_id)
     ):
         raise RotationError(
             "Expected replacement is not the current Terraform-managed key"
@@ -405,21 +410,13 @@ def retirement_keys(request: RetirementRequest, snapshot: Snapshot) -> dict[str,
                     "Refusing to retire a key still referenced by Terraform state"
                 )
     keys: dict[str, str] = {key.access_key_id: key.status for key in snapshot.keys}
-    if keys.get(request.replacement_key_id) != "Active":
+    if keys.get(managed.key_id) != "Active":
         raise RotationError(
             "Expected replacement key must be Active on the selected IAM user"
         )
-    if set(keys) - {request.old_key_id, request.replacement_key_id}:
+    if set(keys) - {request.old_key_id, managed.key_id}:
         raise RotationError(
             "Unexpected IAM keys found; inspect before retiring the old key"
-        )
-    if (
-        request.action == "delete"
-        and request.old_key_id in keys
-        and keys[request.old_key_id] != "Inactive"
-    ):
-        raise RotationError(
-            "Deactivate the old key and verify consumers before deleting it"
         )
     return keys
 
@@ -429,8 +426,11 @@ def retire(request: RetirementRequest, runtime: RetirementRuntime) -> Retirement
     target = runtime.target
     if (request.account, request.iam_user) != (target.account, target.iam_user):
         raise RotationError("Resolved target differs from the retirement request")
-    before = runtime.snapshot(request.expected_address)
+    before = runtime.snapshot(None)
     keys = retirement_keys(request, before)
+    assert before.managed_key is not None
+    address = before.managed_key.address
+    replacement_key_id = before.managed_key.key_id
 
     def result(status: RetirementStatus) -> RetirementResult:
         return RetirementResult(
@@ -440,8 +440,8 @@ def retire(request: RetirementRequest, runtime: RetirementRuntime) -> Retirement
             action=request.action,
             status=status,
             old_key_id=request.old_key_id,
-            replacement_key_id=request.replacement_key_id,
-            address=request.expected_address,
+            replacement_key_id=replacement_key_id,
+            address=address,
             available_key_slots=2 - len(keys),
         )
 
@@ -450,27 +450,30 @@ def retire(request: RetirementRequest, runtime: RetirementRuntime) -> Retirement
     if request.action == "deactivate" and keys[request.old_key_id] == "Inactive":
         return result("already_inactive")
     if request.dry_run:
+        if request.action == "delete" and keys[request.old_key_id] == "Active":
+            return result("would_deactivate_and_delete")
         return result(
             "would_deactivate" if request.action == "deactivate" else "would_delete"
         )
-    fresh = runtime.snapshot(request.expected_address)
-    if retirement_keys(request, fresh) != keys:
+    fresh = runtime.snapshot(address)
+    if retirement_keys(request, fresh, replacement_key_id) != keys:
         raise RotationError(
             "IAM keys changed during retirement preflight; inspect and retry"
         )
-    if request.action == "deactivate":
+    if keys[request.old_key_id] == "Active":
         runtime.deactivate(request.old_key_id)
-    else:
+        keys = retirement_keys(request, runtime.snapshot(address), replacement_key_id)
+        if keys != {replacement_key_id: "Active", request.old_key_id: "Inactive"}:
+            raise RotationError(
+                "IAM retirement did not reach the expected Inactive status; inspect before retrying"
+            )
+    if request.action == "delete":
         runtime.delete(request.old_key_id)
-    after = runtime.snapshot(request.expected_address)
-    keys = retirement_keys(request, after)
-    expected_keys = {request.replacement_key_id: "Active"}
-    if request.action == "deactivate":
-        expected_keys[request.old_key_id] = "Inactive"
-    if keys != expected_keys:
-        raise RotationError(
-            "IAM retirement did not reach the expected key status; inspect before retrying"
-        )
+        keys = retirement_keys(request, runtime.snapshot(address), replacement_key_id)
+        if keys != {replacement_key_id: "Active"}:
+            raise RotationError(
+                "IAM retirement did not reach the expected deleted status; inspect before retrying"
+            )
     return result("inactive" if request.action == "deactivate" else "deleted")
 
 

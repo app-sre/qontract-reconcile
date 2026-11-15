@@ -4505,8 +4505,7 @@ def _run_legacy_key_retirement(
     account: str,
     iam_user: str,
     old_key_id: str,
-    replacement_key_id: str,
-    expected_address: str,
+    replacement_key_id: str | None,
     dry_run: bool,
 ) -> None:
     from tools import rotate_terraform_resources_keys as legacy_rotation
@@ -4518,7 +4517,6 @@ def _run_legacy_key_retirement(
             action=action,
             old_key_id=old_key_id,
             replacement_key_id=replacement_key_id,
-            expected_address=expected_address,
             dry_run=dry_run,
         )
         settings = get_app_interface_vault_settings()
@@ -4539,21 +4537,14 @@ def _run_legacy_key_retirement(
 )
 @click.option(
     "--replacement-key-id",
-    required=True,
-    help="Expected Active Terraform-managed replacement.",
-)
-@click.option(
-    "--expected-address",
-    required=True,
-    help="Terraform address of the replacement key.",
+    help="Optional expected managed replacement; otherwise discovered from state.",
 )
 @click.option("--dry-run/--no-dry-run", default=True, show_default=True)
 def deactivate_legacy_access_key(
     account: str,
     iam_user: str,
     old_key_id: str,
-    replacement_key_id: str,
-    expected_address: str,
+    replacement_key_id: str | None,
     dry_run: bool,
 ) -> None:
     """Deactivate an old legacy key after separately verifying consumer adoption.
@@ -4567,7 +4558,6 @@ def deactivate_legacy_access_key(
         iam_user=iam_user,
         old_key_id=old_key_id,
         replacement_key_id=replacement_key_id,
-        expected_address=expected_address,
         dry_run=dry_run,
     )
 
@@ -4576,31 +4566,25 @@ def deactivate_legacy_access_key(
 @click.option("--account", required=True, help="App-interface AWS account name.")
 @click.option("--iam-user", required=True)
 @click.option(
-    "--old-key-id", required=True, help="Inactive untracked old key to delete."
+    "--old-key-id", required=True, help="Untracked old key to deactivate and delete."
 )
 @click.option(
     "--replacement-key-id",
-    required=True,
-    help="Expected Active Terraform-managed replacement.",
-)
-@click.option(
-    "--expected-address",
-    required=True,
-    help="Terraform address of the replacement key.",
+    help="Optional expected managed replacement; otherwise discovered from state.",
 )
 @click.option("--dry-run/--no-dry-run", default=True, show_default=True)
 def delete_legacy_access_key(
     account: str,
     iam_user: str,
     old_key_id: str,
-    replacement_key_id: str,
-    expected_address: str,
+    replacement_key_id: str | None,
     dry_run: bool,
 ) -> None:
-    """Delete an Inactive old legacy key and free its IAM key slot.
+    """Deactivate and delete an old legacy key after consumer cutover.
 
-    Observe consumers after deactivation before executing this operation.
-    Refuses the managed key and guards its Active replacement and outputs.
+    Discovers and protects the Active managed replacement. An Active old key is
+    deactivated, verified Inactive, then deleted in the same command. Verify all
+    consumers before execution; this command has no observation pause.
     """
     _run_legacy_key_retirement(
         action="delete",
@@ -4608,7 +4592,6 @@ def delete_legacy_access_key(
         iam_user=iam_user,
         old_key_id=old_key_id,
         replacement_key_id=replacement_key_id,
-        expected_address=expected_address,
         dry_run=dry_run,
     )
 
