@@ -117,10 +117,42 @@ has been verified.
 
 ## 5. Retire old keys and restore remaining integrations
 
-After consumer verification, deactivate each old key and observe the consumers.
-If adoption is incomplete, the retained key can be reactivated while cutover is
-corrected. Delete the old key after successful verification and observation.
-The preparation CLI performs neither retirement step.
+After consumer verification, preview deactivation of the original old key:
+
+```sh
+qontract-cli --config config.debug.toml terraform-resources deactivate-access-key \
+  --account ACCOUNT --iam-user IAM_USER \
+  --old-key-id OLD_KEY_ID --replacement-key-id NEW_KEY_ID \
+  --expected-address aws_iam_access_key.RESOURCE_NAME
+```
+
+The command defaults to dry run. It verifies that the replacement is the current
+Active Terraform-managed key, its Terraform outputs match, and the old key is
+absent from managed key state. It does not determine whether applications still
+use the old key. After checking the preview and completing consumer cutover, add
+`--no-dry-run` to deactivate the old key.
+
+Observe the consumers after deactivation. If adoption is incomplete, the retained
+key can be reactivated through IAM while cutover is corrected. When verification
+and observation succeed, preview deletion:
+
+```sh
+qontract-cli --config config.debug.toml terraform-resources delete-access-key \
+  --account ACCOUNT --iam-user IAM_USER \
+  --old-key-id OLD_KEY_ID --replacement-key-id NEW_KEY_ID \
+  --expected-address aws_iam_access_key.RESOURCE_NAME
+```
+
+Add `--no-dry-run` to execute deletion. The command refuses to delete an Active
+old key and repeats the replacement/state checks before mutation. Both retirement
+commands target only the explicit old key and leave Terraform state and its cache
+unchanged. Rerunning after a lost response reports an already-inactive or
+already-deleted old key without repeating the mutation.
+
+Deactivation does not free a key slot: Active and Inactive keys both occupy one.
+After successful deletion, the JSON reports `available_key_slots: 1` while the
+managed replacement remains Active. `rotate-access-key` never retires old keys
+automatically; these explicit retirement commands are separate steps.
 
 Restore the remaining integration controls changed for this rotation, including
 the standalone `aws-iam-keys` feature toggle or schedule, while preserving

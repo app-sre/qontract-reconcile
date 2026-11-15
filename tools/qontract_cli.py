@@ -18,7 +18,7 @@ from datetime import (
 from operator import itemgetter
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import boto3
 import click
@@ -4498,6 +4498,119 @@ def rotate_legacy_access_key(
     print(result.model_dump_json(exclude_none=True))
     if result.exit_code:
         raise click.exceptions.Exit(result.exit_code)
+
+
+def _run_legacy_key_retirement(
+    action: Literal["deactivate", "delete"],
+    account: str,
+    iam_user: str,
+    old_key_id: str,
+    replacement_key_id: str,
+    expected_address: str,
+    dry_run: bool,
+) -> None:
+    from tools import rotate_terraform_resources_keys as legacy_rotation
+
+    try:
+        request = legacy_rotation.RetirementRequest(
+            account=account,
+            iam_user=iam_user,
+            action=action,
+            old_key_id=old_key_id,
+            replacement_key_id=replacement_key_id,
+            expected_address=expected_address,
+            dry_run=dry_run,
+        )
+        settings = get_app_interface_vault_settings()
+        reader = create_secret_reader(use_vault=settings.vault)
+        result = legacy_rotation.run_retirement(request, reader)
+    except Exception as error:
+        raise click.ClickException(cloudwatch_rotation.error_message(error)) from None
+    print(result.model_dump_json())
+
+
+@legacy_terraform_resources.command(name="deactivate-access-key")
+@click.option("--account", required=True, help="App-interface AWS account name.")
+@click.option("--iam-user", required=True)
+@click.option(
+    "--old-key-id",
+    required=True,
+    help="Untracked old key to deactivate after consumer cutover.",
+)
+@click.option(
+    "--replacement-key-id",
+    required=True,
+    help="Expected Active Terraform-managed replacement.",
+)
+@click.option(
+    "--expected-address",
+    required=True,
+    help="Terraform address of the replacement key.",
+)
+@click.option("--dry-run/--no-dry-run", default=True, show_default=True)
+def deactivate_legacy_access_key(
+    account: str,
+    iam_user: str,
+    old_key_id: str,
+    replacement_key_id: str,
+    expected_address: str,
+    dry_run: bool,
+) -> None:
+    """Deactivate an old legacy key after separately verifying consumer adoption.
+
+    Guards the Active managed replacement and its Terraform outputs. This does
+    not prove the old key is unused. Deactivation does not free an IAM key slot.
+    """
+    _run_legacy_key_retirement(
+        action="deactivate",
+        account=account,
+        iam_user=iam_user,
+        old_key_id=old_key_id,
+        replacement_key_id=replacement_key_id,
+        expected_address=expected_address,
+        dry_run=dry_run,
+    )
+
+
+@legacy_terraform_resources.command(name="delete-access-key")
+@click.option("--account", required=True, help="App-interface AWS account name.")
+@click.option("--iam-user", required=True)
+@click.option(
+    "--old-key-id", required=True, help="Inactive untracked old key to delete."
+)
+@click.option(
+    "--replacement-key-id",
+    required=True,
+    help="Expected Active Terraform-managed replacement.",
+)
+@click.option(
+    "--expected-address",
+    required=True,
+    help="Terraform address of the replacement key.",
+)
+@click.option("--dry-run/--no-dry-run", default=True, show_default=True)
+def delete_legacy_access_key(
+    account: str,
+    iam_user: str,
+    old_key_id: str,
+    replacement_key_id: str,
+    expected_address: str,
+    dry_run: bool,
+) -> None:
+    """Delete an Inactive old legacy key and free its IAM key slot.
+
+    Observe consumers after deactivation before executing this operation.
+    Refuses the managed key and guards its Active replacement and outputs.
+    """
+    _run_legacy_key_retirement(
+        action="delete",
+        account=account,
+        iam_user=iam_user,
+        old_key_id=old_key_id,
+        replacement_key_id=replacement_key_id,
+        expected_address=expected_address,
+        dry_run=dry_run,
+    )
 
 
 @external_resources.command()
