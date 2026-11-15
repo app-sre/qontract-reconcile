@@ -38,13 +38,14 @@ def runtime(mocker: MockerFixture) -> Mock:
     runtime.keys = [rotation.IamKey(AccessKeyId=OLD, Status="Active")]
     runtime.er_status = "CREATED"
     runtime.removals = 0
+    runtime.taints = 0
     runtime.requests = 0
     runtime.fail_remove = False
     runtime.lose_request_response = False
 
     def operation(
         target: rotation.Target,
-        action: Literal["inspect", "remove"],
+        action: Literal["inspect", "remove", "taint"],
         expected_key: str | None = None,
     ) -> rotation.KeyState:
         if action == "remove":
@@ -53,6 +54,10 @@ def runtime(mocker: MockerFixture) -> Mock:
             runtime.state.key_id = None
             if runtime.fail_remove:
                 raise rotation.RotationError("simulated interrupted state removal")
+        if action == "taint":
+            assert expected_key == runtime.state.key_id
+            runtime.taints += 1
+            runtime.state.tainted = True
         return runtime.state.model_copy()
 
     def request(target: rotation.Target) -> None:
@@ -362,6 +367,7 @@ def test_native_cli_defaults_to_one_resource_inspection(
         dry_run=True,
         expected_key_id=None,
         verify=False,
+        mode="without-downtime",
     )
 
 
@@ -701,9 +707,148 @@ def test_container_removes_only_key_state_and_preserves_other_resources(
     ]
 
 
-def test_container_refuses_to_taint_as_a_rotation_operation() -> None:
+def test_container_refuses_unknown_rotation_operation() -> None:
     with pytest.raises(rotation.RotationError, match="Unknown container operation"):
-        rotation.container_operation("taint", "test-cw", OLD)
+        rotation.container_operation("destroy", "test-cw", OLD)
+
+
+def test_explicit_downtime_mode_taints_expected_key_without_removing_state(
+    target: rotation.Target, runtime: Mock
+) -> None:
+    result = rotation.rotate(
+        request(mode="with-downtime", dry_run=False, expected_key_id=OLD),
+        target,
+        runtime,
+    )
+    assert result.mode == "with-downtime" and result.status == "requested"
+    assert result.access_key_id == OLD and result.tainted
+    assert (runtime.taints, runtime.removals, runtime.requests) == (1, 0, 1)
+    runtime.operation.assert_any_call(target, "taint", OLD)
+
+
+def test_downtime_mode_inspection_has_no_mutations(
+    target: rotation.Target, runtime: Mock
+) -> None:
+    result = rotation.rotate(request(mode="with-downtime"), target, runtime)
+    assert result.mode == "with-downtime" and result.status == "would_rotate"
+    assert (runtime.taints, runtime.removals, runtime.requests) == (0, 0, 0)
+
+
+def test_downtime_mode_resumes_taint_without_repeating_it(
+    target: rotation.Target, runtime: Mock
+) -> None:
+    runtime.state.tainted = True
+    result = rotation.rotate(
+        request(mode="with-downtime", dry_run=False, expected_key_id=OLD),
+        target,
+        runtime,
+    )
+    assert result.status == "requested"
+    assert (runtime.taints, runtime.removals, runtime.requests) == (0, 0, 1)
+
+
+def test_cannot_switch_to_downtime_mode_after_state_removal(
+    target: rotation.Target, runtime: Mock
+) -> None:
+    runtime.state.key_id = None
+    with pytest.raises(rotation.RotationError, match="instead of switching"):
+        rotation.rotate(
+            request(mode="with-downtime", dry_run=False, expected_key_id=OLD),
+            target,
+            runtime,
+        )
+    assert (runtime.taints, runtime.removals, runtime.requests) == (0, 0, 0)
+
+
+@pytest.mark.parametrize("old_present", [True, False])
+def test_downtime_verification_requires_old_key_absent(
+    target: rotation.Target, runtime: Mock, old_present: bool
+) -> None:
+    runtime.state.key_id = NEW
+    runtime.keys = [rotation.IamKey(AccessKeyId=NEW, Status="Active")]
+    if old_present:
+        runtime.keys.append(rotation.IamKey(AccessKeyId=OLD, Status="Active"))
+    result = rotation.rotate(
+        request(mode="with-downtime", verify=True, expected_key_id=OLD), target, runtime
+    )
+    assert result.status == ("pending" if old_present else "replaced")
+    assert (runtime.taints, runtime.removals, runtime.requests) == (0, 0, 0)
+
+
+@pytest.mark.parametrize("mode", ["with-downtime", "without-downtime"])
+@pytest.mark.parametrize("verify", [True, False])
+def test_native_cli_forwards_rotation_mode(
+    cli_setup: Mock, mocker: MockerFixture, mode: str, verify: bool
+) -> None:
+    run = mocker.patch.object(rotation, "run_single", return_value=result("pending"))
+    response = CliRunner().invoke(
+        qontract_cli.external_resources,
+        [
+            *cli_args(),
+            "--mode",
+            mode,
+            "--verify" if verify else "--no-dry-run",
+            "--expected-key-id",
+            OLD,
+        ],
+        obj={},
+    )
+    assert response.exit_code == 2, response.output
+    assert run.call_args.kwargs["mode"] == mode
+    assert run.call_args.kwargs["verify"] == verify
+
+
+def test_native_cli_rejects_unknown_rotation_mode(
+    cli_setup: Mock, mocker: MockerFixture
+) -> None:
+    run = mocker.patch.object(rotation, "run_single")
+    response = CliRunner().invoke(
+        qontract_cli.external_resources, [*cli_args(), "--mode", "automatic"], obj={}
+    )
+    assert response.exit_code == 2
+    run.assert_not_called()
+
+
+@pytest.mark.parametrize("changed", [False, True])
+def test_container_taints_only_expected_managed_key(
+    tmp_path: Path,
+    terraform_state: rotation.TerraformState,
+    monkeypatch: pytest.MonkeyPatch,
+    mocker: MockerFixture,
+    changed: bool,
+) -> None:
+    source = tmp_path / "module"
+    source.mkdir()
+    monkeypatch.setenv("TERRAFORM_MODULE_SRC_DIR", str(source))
+    monkeypatch.setenv("TERRAFORM_MODULE_WORK_DIR", str(tmp_path / "work"))
+    before = terraform_state.model_copy(deep=True)
+    if changed:
+        before.resources[0].instances[0].attributes["id"] = NEW
+    terraform_state.resources[0].instances[0].status = "tainted"
+    commands = mocker.patch.object(
+        rotation,
+        "checked",
+        side_effect=[
+            "",
+            "",
+            before.model_dump_json(),
+            "",
+            terraform_state.model_dump_json(),
+        ],
+    )
+    if changed:
+        with pytest.raises(rotation.RotationError, match="Remote key changed"):
+            rotation.container_operation("taint", "test-cw", OLD)
+        assert not any("taint" in call.args[0] for call in commands.call_args_list)
+    else:
+        result = rotation.container_operation("taint", "test-cw", OLD)
+        assert result.key_id == OLD and result.tainted
+        assert commands.call_args_list[3].args[0][2:] == [
+            "taint",
+            "-lock-timeout=60s",
+            "aws_iam_access_key.this",
+        ]
+        assert not any("rm" in call.args[0] for call in commands.call_args_list)
 
 
 def test_requested_result_round_trips_when_no_key_is_currently_managed(

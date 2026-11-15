@@ -4362,22 +4362,34 @@ def request_reconciliation(ctx: click.Context) -> None:
 @external_resources.command(name="rotate-access-key")
 @click.option("--dry-run/--no-dry-run", default=True, show_default=True)
 @click.option(
+    "--mode",
+    type=click.Choice(["without-downtime", "with-downtime"]),
+    default="without-downtime",
+    show_default=True,
+    help="Preserve the old key for consumer cutover, or replace it with possible interruption.",
+)
+@click.option(
     "--expected-key-id",
     help="Old access-key ID reported by inspection; required for execution/verification.",
 )
 @click.option(
     "--verify",
     is_flag=True,
-    help="Check new-key synchronization; ready_for_cutover still needs consumer verification.",
+    help="Check rotation progress in the selected mode; application adoption needs separate verification.",
 )
 @click.pass_context
 def rotate_access_key(
-    ctx: click.Context, dry_run: bool, expected_key_id: str | None, verify: bool
+    ctx: click.Context,
+    dry_run: bool,
+    expected_key_id: str | None,
+    verify: bool,
+    mode: cloudwatch_rotation.RotationMode,
 ) -> None:
-    """Prepare a second ERv2 CloudWatch key; inspect by default.
+    """Rotate one ERv2 CloudWatch key; inspect by default.
 
-    Keeps the old AWS key active. Verify consumer adoption before separately
-    deactivating and deleting it; this command never retires IAM keys.
+    Without downtime: keep the old key active; verify consumer adoption before
+    separately retiring it. With downtime: reconciliation replaces the old key
+    and may interrupt consumers. Both modes require application verification.
     """
     if ctx.obj["provision_provider"] != "aws" or ctx.obj["provider"] != "cloudwatch":
         raise click.ClickException(
@@ -4391,6 +4403,7 @@ def rotate_access_key(
             dry_run=dry_run,
             expected_key_id=expected_key_id,
             verify=verify,
+            mode=mode,
         )
     except Exception as error:
         raise click.ClickException(cloudwatch_rotation.error_message(error)) from None
