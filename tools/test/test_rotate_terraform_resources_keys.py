@@ -671,3 +671,306 @@ def test_removed_confirmation_flag_is_absent_from_cli_help() -> None:
     assert response.exit_code == 0
     assert "--account-quiesced" not in response.output
     assert "docs/terraform-resources-key-rotation.md" in response.output
+
+
+def retirement_request(
+    action: str = "deactivate", **options: bool | str
+) -> rotation.RetirementRequest:
+    return rotation.RetirementRequest(
+        account="test-account",
+        iam_user="example",
+        action=action,
+        old_key_id=OLD,
+        replacement_key_id=NEW,
+        expected_address=ADDRESS,
+        **options,
+    )
+
+
+@pytest.fixture
+def retirement_runtime(mocker: MockerFixture, runtime: Mock) -> Mock:
+    r = mocker.Mock(spec=rotation.RetirementRuntime)
+    r.target = runtime.target
+    r.current = runtime.current.model_copy(deep=True)
+    r.current.managed_key.key_id = NEW
+    r.current.state.resources[0].instances[0].attributes["id"] = NEW
+    r.current.state.outputs["example-s3__aws_access_key_id"]["value"] = NEW
+    r.current.keys = [
+        rotation.IamKey(AccessKeyId=NEW, Status="Active"),
+        rotation.IamKey(AccessKeyId=OLD, Status="Active"),
+    ]
+    r.snapshot.side_effect = lambda _: r.current.model_copy(deep=True)
+
+    def deactivate(key_id: str) -> None:
+        assert key_id == OLD
+        next(k for k in r.current.keys if k.access_key_id == key_id).status = "Inactive"
+
+    def delete(key_id: str) -> None:
+        assert key_id == OLD
+        r.current.keys = [key for key in r.current.keys if key.access_key_id != key_id]
+
+    r.deactivate.side_effect = deactivate
+    r.delete.side_effect = delete
+    return r
+
+
+def test_retirement_deactivates_then_deletes_only_untracked_old_key(
+    retirement_runtime: Mock,
+) -> None:
+    r = retirement_runtime
+    preview = rotation.retire(retirement_request(), r)
+    assert preview.status == "would_deactivate" and preview.available_key_slots == 0
+    r.deactivate.assert_not_called()
+    r.delete.assert_not_called()
+    inactive = rotation.retire(retirement_request(dry_run=False), r)
+    assert inactive.status == "inactive" and inactive.available_key_slots == 0
+    r.deactivate.assert_called_once_with(OLD)
+    preview_delete = rotation.retire(retirement_request("delete"), r)
+    assert preview_delete.status == "would_delete"
+    r.delete.assert_not_called()
+    deleted = rotation.retire(retirement_request("delete", dry_run=False), r)
+    assert deleted.status == "deleted" and deleted.available_key_slots == 1
+    r.delete.assert_called_once_with(OLD)
+    assert r.current.keys == [rotation.IamKey(AccessKeyId=NEW, Status="Active")]
+    assert r.current.managed_key.key_id == NEW
+    assert (
+        deleted.consumer_verification_required
+        and not deleted.source_secret_sync_verified
+    )
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_cannot_delete_active_old_key(retirement_runtime: Mock, dry_run: bool) -> None:
+    with pytest.raises(rotation.RotationError, match="Deactivate the old key"):
+        rotation.retire(
+            retirement_request("delete", dry_run=dry_run), retirement_runtime
+        )
+    retirement_runtime.delete.assert_not_called()
+    retirement_runtime.deactivate.assert_not_called()
+
+
+@pytest.mark.parametrize("action", ["deactivate", "delete"])
+def test_cannot_retire_current_managed_key(
+    retirement_runtime: Mock, action: str
+) -> None:
+    command = retirement_request(action)
+    command.old_key_id, command.replacement_key_id = NEW, OLD
+    with pytest.raises(rotation.RotationError, match="current Terraform-managed key"):
+        rotation.retire(command, retirement_runtime)
+    retirement_runtime.delete.assert_not_called()
+    retirement_runtime.deactivate.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "problem",
+    [
+        "missing-managed",
+        "inactive-new",
+        "outputs-stale",
+        "old-still-tracked",
+        "unexpected-key",
+    ],
+)
+def test_retirement_requires_safe_replacement_and_untracked_old_key(
+    retirement_runtime: Mock, problem: str
+) -> None:
+    r = retirement_runtime
+    if problem == "missing-managed":
+        r.current.managed_key = None
+    if problem == "inactive-new":
+        r.current.keys[0].status = "Inactive"
+    if problem == "outputs-stale":
+        r.current.outputs_match = False
+    if problem == "old-still-tracked":
+        other = r.current.state.resources[0].model_copy(deep=True)
+        other.name = "other"
+        other.instances[0].attributes["id"] = OLD
+        r.current.state.resources.append(other)
+    if problem == "unexpected-key":
+        r.current.keys.append(
+            rotation.IamKey(AccessKeyId="AKIA" + "C" * 16, Status="Inactive")
+        )
+    with pytest.raises(rotation.RotationError):
+        rotation.retire(retirement_request(dry_run=False), r)
+    r.delete.assert_not_called()
+    r.deactivate.assert_not_called()
+
+
+def test_retirement_rechecks_replacement_before_mutating(
+    retirement_runtime: Mock,
+) -> None:
+    r = retirement_runtime
+    before = r.current.model_copy(deep=True)
+    changed = before.model_copy(deep=True)
+    changed.managed_key.key_id = OLD
+    r.snapshot.side_effect = [before, changed]
+    with pytest.raises(rotation.RotationError, match="current Terraform-managed key"):
+        rotation.retire(retirement_request(dry_run=False), r)
+    r.deactivate.assert_not_called()
+
+
+def test_retirement_is_idempotent_after_lost_responses(
+    retirement_runtime: Mock,
+) -> None:
+    r = retirement_runtime
+    command = retirement_request(dry_run=False)
+    rotation.retire(command, r)
+    assert rotation.retire(command, r).status == "already_inactive"
+    assert r.deactivate.call_count == 1
+    delete = retirement_request("delete", dry_run=False)
+    rotation.retire(delete, r)
+    assert rotation.retire(delete, r).status == "already_deleted"
+    assert r.delete.call_count == 1
+
+
+def test_retirement_same_key_ids_fail_before_reads(retirement_runtime: Mock) -> None:
+    command = retirement_request()
+    command.old_key_id = NEW
+    with pytest.raises(rotation.RotationError, match="must be different"):
+        rotation.retire(command, retirement_runtime)
+    retirement_runtime.snapshot.assert_not_called()
+
+
+@pytest.mark.parametrize("action", ["deactivate", "delete"])
+def test_retirement_cli_forwards_exact_key_ids_and_execution_choice(
+    mocker: MockerFixture, retirement_runtime: Mock, action: str
+) -> None:
+    mocker.patch.object(qontract_cli, "get_app_interface_vault_settings")
+    reader = mocker.patch.object(qontract_cli, "create_secret_reader")
+    if action == "delete":
+        retirement_runtime.current.keys[1].status = "Inactive"
+    output = rotation.retire(retirement_request(action), retirement_runtime)
+    run = mocker.patch.object(rotation, "run_retirement", return_value=output)
+    common = [
+        action + "-access-key",
+        "--account",
+        "test-account",
+        "--iam-user",
+        "example",
+        "--old-key-id",
+        OLD,
+        "--replacement-key-id",
+        NEW,
+        "--expected-address",
+        ADDRESS,
+    ]
+    for execute in [False, True]:
+        response = CliRunner().invoke(
+            qontract_cli.legacy_terraform_resources,
+            common + (["--no-dry-run"] if execute else []),
+        )
+        assert response.exit_code == 0, response.output
+        command = run.call_args.args[0]
+        assert command.action == action and command.dry_run != execute
+        assert (
+            command.old_key_id,
+            command.replacement_key_id,
+            command.expected_address,
+        ) == (OLD, NEW, ADDRESS)
+        assert run.call_args.args[1] is reader.return_value
+
+
+def test_runtime_retirement_sends_only_selected_user_and_old_id(
+    mocker: MockerFixture, runtime: Mock
+) -> None:
+    r = rotation.Runtime.__new__(rotation.Runtime)
+    r.target = runtime.target
+    api = mocker.Mock()
+    r.api = api
+    r.deactivate(OLD)
+    api.iam.client.update_access_key.assert_called_once_with(
+        UserName="example", AccessKeyId=OLD, Status="Inactive"
+    )
+    r.delete(OLD)
+    api.iam.client.delete_access_key.assert_called_once_with(
+        UserName="example", AccessKeyId=OLD
+    )
+
+
+def test_retirement_cli_suppresses_credential_bearing_errors(
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch.object(qontract_cli, "get_app_interface_vault_settings")
+    mocker.patch.object(qontract_cli, "create_secret_reader")
+    mocker.patch.object(
+        rotation, "run_retirement", side_effect=ValueError("test-only-secret")
+    )
+    response = CliRunner().invoke(
+        qontract_cli.legacy_terraform_resources,
+        [
+            "deactivate-access-key",
+            "--account",
+            "test-account",
+            "--iam-user",
+            "example",
+            "--old-key-id",
+            OLD,
+            "--replacement-key-id",
+            NEW,
+            "--expected-address",
+            ADDRESS,
+        ],
+    )
+    assert response.exit_code == 1 and "test-only-secret" not in response.output
+
+
+@pytest.mark.parametrize("action", ["deactivate", "delete"])
+def test_retirement_recovers_after_mutation_succeeds_but_response_is_lost(
+    retirement_runtime: Mock,
+    action: str,
+) -> None:
+    r = retirement_runtime
+    if action == "delete":
+        r.current.keys[1].status = "Inactive"
+    mutation = r.deactivate if action == "deactivate" else r.delete
+    original = mutation.side_effect
+
+    def lost_response(key_id: str) -> None:
+        original(key_id)
+        raise rotation.RotationError("simulated lost response")
+
+    mutation.side_effect = lost_response
+    command = retirement_request(action, dry_run=False)
+    with pytest.raises(rotation.RotationError, match="lost response"):
+        rotation.retire(command, r)
+    result = rotation.retire(command, r)
+    assert result.status == (
+        "already_inactive" if action == "deactivate" else "already_deleted"
+    )
+    assert mutation.call_count == 1
+
+
+@pytest.mark.parametrize("action", ["deactivate", "delete"])
+def test_retirement_verifies_the_result_instead_of_assuming_sdk_success(
+    retirement_runtime: Mock,
+    action: str,
+) -> None:
+    r = retirement_runtime
+    if action == "delete":
+        r.current.keys[1].status = "Inactive"
+    mutation = r.deactivate if action == "deactivate" else r.delete
+    mutation.side_effect = None
+    with pytest.raises(rotation.RotationError, match="did not reach the expected"):
+        rotation.retire(retirement_request(action, dry_run=False), r)
+
+
+def test_retirement_is_available_while_account_reconciliation_is_disabled(
+    inventory: rotation.data.TerraformResourcesIAMKeyRotationQueryData,
+) -> None:
+    assert inventory.accounts
+    inventory.accounts[0].disable = rotation.data.DisableClusterAutomationsV1(
+        integrations=["terraform-resources"]
+    )
+    target, _ = rotation.resolve_target(retirement_request(), inventory)
+    assert target.iam_user == "example"
+
+
+def test_retirement_request_validation_precedes_credentials_or_api_access(
+    mocker: MockerFixture,
+) -> None:
+    command = retirement_request()
+    command.old_key_id = NEW
+    query = mocker.patch.object(rotation.data, "query")
+    with pytest.raises(rotation.RotationError, match="must be different"):
+        rotation.run_retirement(command, mocker.Mock())
+    query.assert_not_called()
