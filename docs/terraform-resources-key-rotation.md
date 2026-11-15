@@ -117,42 +117,40 @@ has been verified.
 
 ## 5. Retire old keys and restore remaining integrations
 
-After consumer verification, preview deactivation of the original old key:
-
-```sh
-qontract-cli --config config.debug.toml terraform-resources deactivate-access-key \
-  --account ACCOUNT --iam-user IAM_USER \
-  --old-key-id OLD_KEY_ID --replacement-key-id NEW_KEY_ID \
-  --expected-address aws_iam_access_key.RESOURCE_NAME
-```
-
-The command defaults to dry run. It verifies that the replacement is the current
-Active Terraform-managed key, its Terraform outputs match, and the old key is
-absent from managed key state. It does not determine whether applications still
-use the old key. After checking the preview and completing consumer cutover, add
-`--no-dry-run` to deactivate the old key.
-
-Observe the consumers after deactivation. If adoption is incomplete, the retained
-key can be reactivated through IAM while cutover is corrected. When verification
-and observation succeed, preview deletion:
+After verifying every consumer has adopted the replacement, preview retirement
+of the original old key with one command:
 
 ```sh
 qontract-cli --config config.debug.toml terraform-resources delete-access-key \
-  --account ACCOUNT --iam-user IAM_USER \
-  --old-key-id OLD_KEY_ID --replacement-key-id NEW_KEY_ID \
-  --expected-address aws_iam_access_key.RESOURCE_NAME
+  --account ACCOUNT --iam-user IAM_USER --old-key-id OLD_KEY_ID
 ```
 
-Add `--no-dry-run` to execute deletion. The command refuses to delete an Active
-old key and repeats the replacement/state checks before mutation. Both retirement
-commands target only the explicit old key and leave Terraform state and its cache
-unchanged. Rerunning after a lost response reports an already-inactive or
-already-deleted old key without repeating the mutation.
+The command defaults to dry run. It discovers the current Terraform-managed
+replacement and its state address, checks that the replacement is Active and
+its Terraform outputs match, and refuses to retire a managed key. Optionally
+supply `--replacement-key-id NEW_KEY_ID` to pin the expected replacement.
 
-Deactivation does not free a key slot: Active and Inactive keys both occupy one.
-After successful deletion, the JSON reports `available_key_slots: 1` while the
-managed replacement remains Active. `rotate-access-key` never retires old keys
-automatically; these explicit retirement commands are separate steps.
+Add `--no-dry-run` to execute. If the old key is Active, the command deactivates
+it, verifies it is Inactive, and then deletes it in the same invocation. An
+already-Inactive old key is deleted directly. There is no observation pause
+between deactivation and deletion; complete application-level cutover verification
+before execution. The command cannot determine whether the old key is unused.
+
+For an observation period before deletion, optionally run the separate
+`deactivate-access-key` command with the same account, user, and old key arguments.
+It also defaults to dry run. Add `--no-dry-run` to deactivate, observe consumers,
+and then use `delete-access-key` when ready. If cutover needs correction before
+deletion, reactivate the retained key through IAM.
+
+Both retirement commands leave Terraform state and its cache unchanged. They
+recheck the discovered replacement before each phase. A retry after a lost
+response can resume from an Inactive old key or report an already-deleted key
+without repeating completed mutations.
+
+Deactivation alone does not free a key slot: Active and Inactive keys both occupy
+one. Successful deletion reports `available_key_slots: 1` while the managed
+replacement remains Active. `rotate-access-key` never retires old keys
+automatically; explicit deletion is a separate step after consumer verification.
 
 Restore the remaining integration controls changed for this rotation, including
 the standalone `aws-iam-keys` feature toggle or schedule, while preserving

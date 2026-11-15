@@ -682,7 +682,6 @@ def retirement_request(
         action=action,
         old_key_id=OLD,
         replacement_key_id=NEW,
-        expected_address=ADDRESS,
         **options,
     )
 
@@ -740,13 +739,21 @@ def test_retirement_deactivates_then_deletes_only_untracked_old_key(
 
 
 @pytest.mark.parametrize("dry_run", [True, False])
-def test_cannot_delete_active_old_key(retirement_runtime: Mock, dry_run: bool) -> None:
-    with pytest.raises(rotation.RotationError, match="Deactivate the old key"):
-        rotation.retire(
-            retirement_request("delete", dry_run=dry_run), retirement_runtime
-        )
-    retirement_runtime.delete.assert_not_called()
-    retirement_runtime.deactivate.assert_not_called()
+def test_delete_command_handles_active_old_key_in_one_operation(
+    retirement_runtime: Mock, dry_run: bool
+) -> None:
+    r = retirement_runtime
+    result = rotation.retire(retirement_request("delete", dry_run=dry_run), r)
+    if dry_run:
+        assert result.status == "would_deactivate_and_delete"
+        r.delete.assert_not_called()
+        r.deactivate.assert_not_called()
+    else:
+        assert result.status == "deleted" and result.available_key_slots == 1
+        r.deactivate.assert_called_once_with(OLD)
+        r.delete.assert_called_once_with(OLD)
+        mutations = [c[0] for c in r.method_calls if c[0] in {"deactivate", "delete"}]
+        assert mutations == ["deactivate", "delete"]
 
 
 @pytest.mark.parametrize("action", ["deactivate", "delete"])
@@ -851,8 +858,6 @@ def test_retirement_cli_forwards_exact_key_ids_and_execution_choice(
         OLD,
         "--replacement-key-id",
         NEW,
-        "--expected-address",
-        ADDRESS,
     ]
     for execute in [False, True]:
         response = CliRunner().invoke(
@@ -865,8 +870,7 @@ def test_retirement_cli_forwards_exact_key_ids_and_execution_choice(
         assert (
             command.old_key_id,
             command.replacement_key_id,
-            command.expected_address,
-        ) == (OLD, NEW, ADDRESS)
+        ) == (OLD, NEW)
         assert run.call_args.args[1] is reader.return_value
 
 
@@ -907,8 +911,6 @@ def test_retirement_cli_suppresses_credential_bearing_errors(
             OLD,
             "--replacement-key-id",
             NEW,
-            "--expected-address",
-            ADDRESS,
         ],
     )
     assert response.exit_code == 1 and "test-only-secret" not in response.output
@@ -974,3 +976,115 @@ def test_retirement_request_validation_precedes_credentials_or_api_access(
     with pytest.raises(rotation.RotationError, match="must be different"):
         rotation.run_retirement(command, mocker.Mock())
     query.assert_not_called()
+
+
+def test_retirement_discovers_address_and_replacement_internally(
+    retirement_runtime: Mock,
+) -> None:
+    r = retirement_runtime
+    command = rotation.RetirementRequest(
+        account="test-account",
+        iam_user="example",
+        action="delete",
+        old_key_id=OLD,
+        dry_run=False,
+    )
+    result = rotation.retire(command, r)
+    assert result.status == "deleted" and result.address == ADDRESS
+    assert result.replacement_key_id == NEW and result.available_key_slots == 1
+    assert r.snapshot.call_args_list[0].args == (None,)
+    assert all(call.args == (ADDRESS,) for call in r.snapshot.call_args_list[1:])
+
+
+def test_auto_discovery_never_retires_managed_key(retirement_runtime: Mock) -> None:
+    command = rotation.RetirementRequest(
+        account="test-account",
+        iam_user="example",
+        action="delete",
+        old_key_id=NEW,
+        dry_run=False,
+    )
+    with pytest.raises(rotation.RotationError, match="current Terraform-managed key"):
+        rotation.retire(command, retirement_runtime)
+    retirement_runtime.deactivate.assert_not_called()
+    retirement_runtime.delete.assert_not_called()
+
+
+def test_combined_delete_waits_for_inactive_confirmation(
+    retirement_runtime: Mock,
+) -> None:
+    retirement_runtime.deactivate.side_effect = None
+    with pytest.raises(rotation.RotationError, match="expected Inactive"):
+        rotation.retire(retirement_request("delete", dry_run=False), retirement_runtime)
+    retirement_runtime.delete.assert_not_called()
+
+
+def test_combined_delete_resumes_after_deactivation_response_is_lost(
+    retirement_runtime: Mock,
+) -> None:
+    r = retirement_runtime
+    original = r.deactivate.side_effect
+
+    def lost_response(key_id: str) -> None:
+        original(key_id)
+        raise rotation.RotationError("simulated lost response")
+
+    r.deactivate.side_effect = lost_response
+    command = retirement_request("delete", dry_run=False)
+    with pytest.raises(rotation.RotationError, match="lost response"):
+        rotation.retire(command, r)
+    assert rotation.retire(command, r).status == "deleted"
+    assert r.deactivate.call_count == 1 and r.delete.call_count == 1
+
+
+def test_minimal_delete_cli_needs_only_account_user_and_old_key(
+    mocker: MockerFixture, retirement_runtime: Mock
+) -> None:
+    mocker.patch.object(qontract_cli, "get_app_interface_vault_settings")
+    mocker.patch.object(qontract_cli, "create_secret_reader")
+    run = mocker.patch.object(
+        rotation,
+        "run_retirement",
+        return_value=rotation.retire(retirement_request("delete"), retirement_runtime),
+    )
+    response = CliRunner().invoke(
+        qontract_cli.legacy_terraform_resources,
+        [
+            "delete-access-key",
+            "--account",
+            "test-account",
+            "--iam-user",
+            "example",
+            "--old-key-id",
+            OLD,
+        ],
+    )
+    assert response.exit_code == 0, response.output
+    assert run.call_args.args[0].replacement_key_id is None
+    assert run.call_args.args[0].dry_run
+
+
+def test_discovered_replacement_change_after_deactivation_stops_deletion(
+    retirement_runtime: Mock,
+) -> None:
+    r = retirement_runtime
+    original = r.deactivate.side_effect
+
+    def change_replacement(key_id: str) -> None:
+        original(key_id)
+        other = "AKIA" + "C" * 16
+        r.current.managed_key.key_id = other
+        r.current.keys[0].access_key_id = other
+
+    r.deactivate.side_effect = change_replacement
+    command = rotation.RetirementRequest(
+        account="test-account",
+        iam_user="example",
+        action="delete",
+        old_key_id=OLD,
+        dry_run=False,
+    )
+    with pytest.raises(rotation.RotationError, match="current Terraform-managed key"):
+        rotation.retire(command, r)
+    r.deactivate.assert_called_once_with(OLD)
+    r.delete.assert_not_called()
