@@ -1,0 +1,12 @@
+# qenerate: plugin=pydantic_v2
+
+query IAMKeyRetirementAccount($filter: JSON) {
+  accounts: awsaccounts_v1(filter: $filter) {
+    name
+    uid
+    resourcesDefaultRegion
+    automationToken {
+      ...VaultSecret
+    }
+  }
+}
