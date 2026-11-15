@@ -122,13 +122,13 @@ of the original old key with one command:
 
 ```sh
 qontract-cli --config config.debug.toml terraform-resources delete-access-key \
-  --account ACCOUNT --iam-user IAM_USER --old-key-id OLD_KEY_ID
+  --account ACCOUNT --iam-user IAM_USER --key-id OLD_KEY_ID
 ```
 
-The command defaults to dry run. It discovers the current Terraform-managed
-replacement and its state address, checks that the replacement is Active and
-its Terraform outputs match, and refuses to retire a managed key. Optionally
-supply `--replacement-key-id NEW_KEY_ID` to pin the expected replacement.
+The command defaults to dry run. It accepts one selected key ID and requires
+another Active key on the same IAM user. It checks IAM directly without reading
+Terraform state, namespace declarations, or reconciliation caches. An Active key
+does not prove that applications have adopted it; verify cutover first.
 
 Add `--no-dry-run` to execute. If the old key is Active, the command deactivates
 it, verifies it is Inactive, and then deletes it in the same invocation. An
@@ -143,13 +143,15 @@ and then use `delete-access-key` when ready. If cutover needs correction before
 deletion, reactivate the retained key through IAM.
 
 Both retirement commands leave Terraform state and its cache unchanged. They
-recheck the discovered replacement before each phase. A retry after a lost
+recheck that another Active key remains before mutations and after each phase.
+They do not verify Terraform ownership: deleting a currently managed key may
+cause normal reconciliation to recreate it. A retry after a lost
 response can resume from an Inactive old key or report an already-deleted key
 without repeating completed mutations.
 
 Deactivation alone does not free a key slot: Active and Inactive keys both occupy
-one. Successful deletion reports `available_key_slots: 1` while the managed
-replacement remains Active. `rotate-access-key` never retires old keys
+one. Successful deletion reports `available_key_slots: 1` and the remaining
+Active key ID. `rotate-access-key` never retires old keys
 automatically; explicit deletion is a separate step after consumer verification.
 
 Restore the remaining integration controls changed for this rotation, including

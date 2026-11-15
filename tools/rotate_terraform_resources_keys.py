@@ -4,10 +4,9 @@ Inspection is the default. Execution forgets exactly one verified IAM key bindin
 and invalidates only the account's terraform-resources early-exit cache. Normal
 reconciliation creates the new key and publishes outputs. Verification checks
 IAM and Terraform outputs only; source Secrets and application adoption require
-separate verification before the operator retires the old key. Explicit
-deactivate/delete operations retire only an untracked old key while guarding an
-Active Terraform-managed replacement. No apply, taint, or application refresh is
-performed by this tool.
+separate verification before the operator retires the old key. Explicit IAM-only
+deactivation/deletion requires another Active key to remain. No apply, taint, or
+application refresh is performed by this tool.
 Follow docs/terraform-resources-key-rotation.md to disable state writers before
 preparation and re-enable reconciliation afterwards.
 """
@@ -29,6 +28,9 @@ from qontract_utils.aws_api_typed.api import (
     AWSTemporaryCredentials,
 )
 
+from reconcile.gql_definitions.terraform_resources import (
+    iam_key_retirement as retirement_data,
+)
 from reconcile.gql_definitions.terraform_resources import iam_key_rotation as data
 from reconcile.utils import gql
 from reconcile.utils.early_exit_cache import CacheKeyWithDigest, EarlyExitCache
@@ -83,8 +85,7 @@ class RetirementRequest(BaseModel):
     account: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
     iam_user: str = Field(pattern=r"^[\w+=,.@-]+$")
     action: Literal["deactivate", "delete"]
-    old_key_id: str = Field(pattern=KEY_PATTERN)
-    replacement_key_id: str | None = Field(default=None, pattern=KEY_PATTERN)
+    key_id: str = Field(pattern=KEY_PATTERN)
     dry_run: bool = True
 
 
@@ -105,12 +106,17 @@ class RetirementResult(BaseModel):
     iam_user: str
     action: Literal["deactivate", "delete"]
     status: RetirementStatus
-    old_key_id: str
-    replacement_key_id: str
-    address: str
+    key_id: str
+    remaining_active_key_ids: list[str]
     available_key_slots: int = Field(ge=0, le=2)
-    source_secret_sync_verified: bool = False
     consumer_verification_required: bool = True
+
+
+class RetirementTarget(BaseModel):
+    account: str
+    account_id: str = Field(pattern=r"^\d{12}$")
+    iam_user: str
+    region: str
 
 
 class Binding(BaseModel):
@@ -215,7 +221,7 @@ class CredentialMaterial(BaseModel):
 
 
 def resolve_account(
-    request: Request | RetirementRequest,
+    request: Request,
     inventory: data.TerraformResourcesIAMKeyRotationQueryData,
 ) -> data.AWSAccountV1:
     accounts = inventory.accounts or []
@@ -223,8 +229,7 @@ def resolve_account(
         raise RotationError("Expected exactly one matching AWS account")
     account = accounts[0]
     if (
-        isinstance(request, Request)
-        and request.verify
+        request.verify
         and account.disable
         and "terraform-resources" in (account.disable.integrations or [])
     ):
@@ -235,7 +240,7 @@ def resolve_account(
 
 
 def resolve_target(
-    request: Request | RetirementRequest,
+    request: Request,
     inventory: data.TerraformResourcesIAMKeyRotationQueryData,
     material: CredentialMaterial | None = None,
 ) -> tuple[Target, data.AWSAccountV1]:
@@ -371,66 +376,33 @@ class RotationRuntime(Protocol):
 
 
 class RetirementRuntime(Protocol):
-    target: Target
+    target: RetirementTarget
 
-    def snapshot(self, expected_address: str | None) -> Snapshot: ...
-    def deactivate(self, old_key_id: str) -> None: ...
-    def delete(self, old_key_id: str) -> None: ...
-
-
-def validate_retirement(request: RetirementRequest) -> None:
-    if request.old_key_id == request.replacement_key_id:
-        raise RotationError("Old key and replacement key must be different")
+    def keys(self) -> list[IamKey]: ...
+    def deactivate(self, key_id: str) -> None: ...
+    def delete(self, key_id: str) -> None: ...
 
 
 def retirement_keys(
     request: RetirementRequest,
-    snapshot: Snapshot,
-    replacement_key_id: str | None = None,
+    inventory: list[IamKey],
 ) -> dict[str, str]:
-    managed = snapshot.managed_key
-    if (
-        not managed
-        or managed.key_id == request.old_key_id
-        or managed.key_id
-        != (replacement_key_id or request.replacement_key_id or managed.key_id)
+    keys: dict[str, str] = {key.access_key_id: key.status for key in inventory}
+    if len(keys) != len(inventory) or len(keys) > 2:
+        raise RotationError("Unexpected IAM access-key inventory")
+    if not any(
+        key_id != request.key_id and status == "Active"
+        for key_id, status in keys.items()
     ):
-        raise RotationError(
-            "Expected replacement is not the current Terraform-managed key"
-        )
-    if not snapshot.outputs_match:
-        raise RotationError("Terraform outputs do not match the replacement key")
-    for resource in snapshot.state.resources:
-        if resource.mode == "managed" and resource.type == "aws_iam_access_key":
-            if any(
-                instance.attributes.get("id") == request.old_key_id
-                for instance in resource.instances
-            ):
-                raise RotationError(
-                    "Refusing to retire a key still referenced by Terraform state"
-                )
-    keys: dict[str, str] = {key.access_key_id: key.status for key in snapshot.keys}
-    if keys.get(managed.key_id) != "Active":
-        raise RotationError(
-            "Expected replacement key must be Active on the selected IAM user"
-        )
-    if set(keys) - {request.old_key_id, managed.key_id}:
-        raise RotationError(
-            "Unexpected IAM keys found; inspect before retiring the old key"
-        )
+        raise RotationError("Another Active key must remain on the selected IAM user")
     return keys
 
 
 def retire(request: RetirementRequest, runtime: RetirementRuntime) -> RetirementResult:
-    validate_retirement(request)
     target = runtime.target
     if (request.account, request.iam_user) != (target.account, target.iam_user):
         raise RotationError("Resolved target differs from the retirement request")
-    before = runtime.snapshot(None)
-    keys = retirement_keys(request, before)
-    assert before.managed_key is not None
-    address = before.managed_key.address
-    replacement_key_id = before.managed_key.key_id
+    keys = retirement_keys(request, runtime.keys())
 
     def result(status: RetirementStatus) -> RetirementResult:
         return RetirementResult(
@@ -439,38 +411,40 @@ def retire(request: RetirementRequest, runtime: RetirementRuntime) -> Retirement
             iam_user=target.iam_user,
             action=request.action,
             status=status,
-            old_key_id=request.old_key_id,
-            replacement_key_id=replacement_key_id,
-            address=address,
+            key_id=request.key_id,
+            remaining_active_key_ids=sorted(
+                key_id
+                for key_id, status in keys.items()
+                if key_id != request.key_id and status == "Active"
+            ),
             available_key_slots=2 - len(keys),
         )
 
-    if request.old_key_id not in keys:
+    if request.key_id not in keys:
         return result("already_deleted")
-    if request.action == "deactivate" and keys[request.old_key_id] == "Inactive":
+    if request.action == "deactivate" and keys[request.key_id] == "Inactive":
         return result("already_inactive")
     if request.dry_run:
-        if request.action == "delete" and keys[request.old_key_id] == "Active":
+        if request.action == "delete" and keys[request.key_id] == "Active":
             return result("would_deactivate_and_delete")
         return result(
             "would_deactivate" if request.action == "deactivate" else "would_delete"
         )
-    fresh = runtime.snapshot(address)
-    if retirement_keys(request, fresh, replacement_key_id) != keys:
+    if retirement_keys(request, runtime.keys()) != keys:
         raise RotationError(
             "IAM keys changed during retirement preflight; inspect and retry"
         )
-    if keys[request.old_key_id] == "Active":
-        runtime.deactivate(request.old_key_id)
-        keys = retirement_keys(request, runtime.snapshot(address), replacement_key_id)
-        if keys != {replacement_key_id: "Active", request.old_key_id: "Inactive"}:
+    if keys[request.key_id] == "Active":
+        runtime.deactivate(request.key_id)
+        keys = retirement_keys(request, runtime.keys())
+        if keys.get(request.key_id) != "Inactive":
             raise RotationError(
                 "IAM retirement did not reach the expected Inactive status; inspect before retrying"
             )
     if request.action == "delete":
-        runtime.delete(request.old_key_id)
-        keys = retirement_keys(request, runtime.snapshot(address), replacement_key_id)
-        if keys != {replacement_key_id: "Active"}:
+        runtime.delete(request.key_id)
+        keys = retirement_keys(request, runtime.keys())
+        if request.key_id in keys:
             raise RotationError(
                 "IAM retirement did not reach the expected deleted status; inspect before retrying"
             )
@@ -730,14 +704,42 @@ class Runtime:
         if exists:
             self.cache.delete(key)
 
-    def deactivate(self, old_key_id: str) -> None:
+
+class RetirementClient:
+    def __init__(
+        self, target: RetirementTarget, credentials: AWSStaticCredentials
+    ) -> None:
+        self.target = target
+        self.api = AWSApi(credentials)
+        try:
+            if (
+                self.api.sts.client.get_caller_identity()["Account"]
+                != target.account_id
+            ):
+                raise RotationError(
+                    "AWS caller account differs from the selected account"
+                )
+        except Exception:
+            self.close()
+            raise
+
+    def close(self) -> None:
+        self.api.close()
+
+    def keys(self) -> list[IamKey]:
+        response = self.api.iam.client.list_access_keys(UserName=self.target.iam_user)
+        if response.get("IsTruncated"):
+            raise RotationError("Unexpected IAM access-key pagination")
+        return [IamKey.model_validate(key) for key in response["AccessKeyMetadata"]]
+
+    def deactivate(self, key_id: str) -> None:
         self.api.iam.client.update_access_key(
-            UserName=self.target.iam_user, AccessKeyId=old_key_id, Status="Inactive"
+            UserName=self.target.iam_user, AccessKeyId=key_id, Status="Inactive"
         )
 
-    def delete(self, old_key_id: str) -> None:
+    def delete(self, key_id: str) -> None:
         self.api.iam.client.delete_access_key(
-            UserName=self.target.iam_user, AccessKeyId=old_key_id
+            UserName=self.target.iam_user, AccessKeyId=key_id
         )
 
 
@@ -797,26 +799,29 @@ def run_single(
 def run_retirement(
     request: RetirementRequest, reader: SecretReaderBase
 ) -> RetirementResult:
-    validate_retirement(request)
     previous = logging.root.manager.disable
     logging.disable(logging.CRITICAL)
     try:
-        inventory = data.query(
+        inventory = retirement_data.query(
             gql.get_api().query, variables={"filter": {"name": request.account}}
         )
-        account = resolve_account(request, inventory)
+        accounts = [a for a in inventory.accounts or [] if a.name == request.account]
+        if len(accounts) != 1:
+            raise RotationError("Expected exactly one matching AWS account")
+        account = accounts[0]
         material = CredentialMaterial.model_validate(
             reader.read_all_secret(account.automation_token)
         )
-        target, _ = resolve_target(request, inventory, material)
-        # Retirement reads Terraform state but never edits it or invalidates the cache.
-        runtime = Runtime(
-            target,
-            material.credentials(target.region),
-            reader,
-            "terraform",
-            verify=True,
+        target = RetirementTarget(
+            account=account.name,
+            account_id=account.uid,
+            iam_user=request.iam_user,
+            region=account.resources_default_region,
         )
+        credentials = material.credentials(target.region)
+        if credentials.access_key_id == request.key_id:
+            raise RotationError("Refusing to retire the executing credential")
+        runtime = RetirementClient(target, credentials)
         try:
             return retire(request, runtime)
         finally:

@@ -4504,8 +4504,7 @@ def _run_legacy_key_retirement(
     action: Literal["deactivate", "delete"],
     account: str,
     iam_user: str,
-    old_key_id: str,
-    replacement_key_id: str | None,
+    key_id: str,
     dry_run: bool,
 ) -> None:
     from tools import rotate_terraform_resources_keys as legacy_rotation
@@ -4515,8 +4514,7 @@ def _run_legacy_key_retirement(
             account=account,
             iam_user=iam_user,
             action=action,
-            old_key_id=old_key_id,
-            replacement_key_id=replacement_key_id,
+            key_id=key_id,
             dry_run=dry_run,
         )
         settings = get_app_interface_vault_settings()
@@ -4531,33 +4529,27 @@ def _run_legacy_key_retirement(
 @click.option("--account", required=True, help="App-interface AWS account name.")
 @click.option("--iam-user", required=True)
 @click.option(
-    "--old-key-id",
+    "--key-id",
     required=True,
-    help="Untracked old key to deactivate after consumer cutover.",
-)
-@click.option(
-    "--replacement-key-id",
-    help="Optional expected managed replacement; otherwise discovered from state.",
+    help="IAM access key to deactivate after consumer cutover.",
 )
 @click.option("--dry-run/--no-dry-run", default=True, show_default=True)
 def deactivate_legacy_access_key(
     account: str,
     iam_user: str,
-    old_key_id: str,
-    replacement_key_id: str | None,
+    key_id: str,
     dry_run: bool,
 ) -> None:
-    """Deactivate an old legacy key after separately verifying consumer adoption.
+    """Deactivate one IAM key while retaining another Active key.
 
-    Guards the Active managed replacement and its Terraform outputs. This does
-    not prove the old key is unused. Deactivation does not free an IAM key slot.
+    Verify consumer adoption separately. Deactivation does not free a key slot.
+    This command does not read Terraform state or prove the key is unused.
     """
     _run_legacy_key_retirement(
         action="deactivate",
         account=account,
         iam_user=iam_user,
-        old_key_id=old_key_id,
-        replacement_key_id=replacement_key_id,
+        key_id=key_id,
         dry_run=dry_run,
     )
 
@@ -4566,32 +4558,26 @@ def deactivate_legacy_access_key(
 @click.option("--account", required=True, help="App-interface AWS account name.")
 @click.option("--iam-user", required=True)
 @click.option(
-    "--old-key-id", required=True, help="Untracked old key to deactivate and delete."
-)
-@click.option(
-    "--replacement-key-id",
-    help="Optional expected managed replacement; otherwise discovered from state.",
+    "--key-id", required=True, help="IAM access key to deactivate and delete."
 )
 @click.option("--dry-run/--no-dry-run", default=True, show_default=True)
 def delete_legacy_access_key(
     account: str,
     iam_user: str,
-    old_key_id: str,
-    replacement_key_id: str | None,
+    key_id: str,
     dry_run: bool,
 ) -> None:
-    """Deactivate and delete an old legacy key after consumer cutover.
+    """Deactivate and delete one IAM key while retaining another Active key.
 
-    Discovers and protects the Active managed replacement. An Active old key is
-    deactivated, verified Inactive, then deleted in the same command. Verify all
-    consumers before execution; this command has no observation pause.
+    An Active selected key is deactivated, verified Inactive, then deleted in the
+    same command. Verify consumers before execution; there is no observation
+    pause or Terraform-state lookup.
     """
     _run_legacy_key_retirement(
         action="delete",
         account=account,
         iam_user=iam_user,
-        old_key_id=old_key_id,
-        replacement_key_id=replacement_key_id,
+        key_id=key_id,
         dry_run=dry_run,
     )
 
