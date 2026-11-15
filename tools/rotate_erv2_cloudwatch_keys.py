@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Rotate one ERv2 CloudWatch access key through qontract-cli.
 
-The command inspects by default. Execution requires the inspected old key ID,
-removes only aws_iam_access_key.this from Terraform state, and requests ERv2
-reconciliation. The old AWS key remains active while a second key is created.
-Verification reports ready_for_cutover after ERv2 output synchronization; this
-does not verify application adoption. Refresh consumers and verify their use of
-the new key before separately deactivating and deleting the old key. This command
-never retires IAM keys. Shared selectors are rejected because ERv2 selects one
-namespace. Results identify additional active IAM keys for separate review.
+The command inspects by default. Execution requires the inspected old key ID.
+The default without-downtime mode removes only aws_iam_access_key.this from
+Terraform state and requests ERv2 reconciliation, preserving the old AWS key.
+Verification reports ready_for_cutover after output synchronization. Refresh
+consumers and verify use of the new key before separately retiring the old key.
+Explicit with-downtime mode taints the key instead: reconciliation can revoke the
+old key before applications adopt its replacement. Its verification requires old
+key removal. Neither mode verifies application adoption. Shared selectors are
+rejected because ERv2 selects one namespace. Results identify additional active
+IAM keys for separate review.
 The caller owns batching and progress records.
 """
 
@@ -38,6 +40,9 @@ class RotationError(Exception):
     pass
 
 
+RotationMode = Literal["without-downtime", "with-downtime"]
+
+
 class Selector(BaseModel):
     account: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
     identifier: str = Field(pattern=r"^[\w+=,.@-]+$")
@@ -59,6 +64,7 @@ class Backend(BaseModel):
 
 
 class Request(Selector):
+    mode: RotationMode = "without-downtime"
     dry_run: bool = True
     verify: bool = False
     expected_key_id: str | None = Field(default=None, pattern=r"^AKIA[A-Z0-9]{16}$")
@@ -113,6 +119,7 @@ class CloudwatchInput(BaseModel):
 
 
 class Result(Selector):
+    mode: RotationMode = "without-downtime"
     status: Literal[
         "would_rotate",
         "requested",
@@ -137,7 +144,7 @@ class RotationRuntime(Protocol):
     def operation(
         self,
         target: Target,
-        action: Literal["inspect", "remove"],
+        action: Literal["inspect", "remove", "taint"],
         expected_key: str | None = None,
     ) -> KeyState: ...
     def iam_keys(self, target: Target) -> list[IamKey]: ...
@@ -193,7 +200,7 @@ def container_operation(
     action: str, expected_user: str, expected_key: str | None
 ) -> KeyState:
     """Runs inside the ERv2 image, with state and credentials confined to the container."""
-    if action not in {"inspect", "remove"}:
+    if action not in {"inspect", "remove", "taint"}:
         raise RotationError("Unknown container operation")
     work = Path(os.environ["TERRAFORM_MODULE_WORK_DIR"])
     shutil.copytree(os.environ.get("TERRAFORM_MODULE_SRC_DIR", "module"), work)
@@ -211,6 +218,23 @@ def container_operation(
         return state_metadata(state, expected_user)
 
     before = inspect()
+    if action == "taint":
+        if expected_key is None or before.key_id != expected_key:
+            raise RotationError(
+                "Remote key changed or is absent; no mutation attempted"
+            )
+        if before.tainted:
+            return before
+        checked(
+            terraform + ["taint", "-lock-timeout=60s", "aws_iam_access_key.this"],
+            phase="Access-key taint",
+        )
+        after = inspect()
+        if after.key_id != expected_key or not after.tainted:
+            raise RotationError(
+                "Unexpected state after taint; inspect before continuing"
+            )
+        return after
     if action == "remove":
         if expected_key is None:
             raise RotationError("State removal requires the expected old key ID")
@@ -356,7 +380,7 @@ class Runtime:
     def operation(
         self,
         target: Target,
-        action: Literal["inspect", "remove"],
+        action: Literal["inspect", "remove", "taint"],
         expected_key: str | None = None,
     ) -> KeyState:
         client, data, credentials = self.prepare(target)
@@ -491,6 +515,7 @@ def rotate(request: Request, target: Target, runtime: RotationRuntime) -> Result
         return Result(
             account=target.account,
             identifier=target.identifier,
+            mode=request.mode,
             status=value,
             access_key_id=state.key_id,
             expected_key_id=request.expected_key_id,
@@ -527,7 +552,7 @@ def rotate(request: Request, target: Target, runtime: RotationRuntime) -> Result
         if synchronized:
             if not old_present:
                 return result("replaced")
-            if any(
+            if request.mode == "without-downtime" and any(
                 key.access_key_id == request.expected_key_id and key.status == "Active"
                 for key in keys
             ):
@@ -547,24 +572,36 @@ def rotate(request: Request, target: Target, runtime: RotationRuntime) -> Result
             "Access key is absent from Terraform state; supply the original "
             "--expected-key-id to resume without retiring it"
         )
-    if state.tainted:
+    if request.mode == "with-downtime" and state.key_id is None:
+        raise RotationError(
+            "Key state is absent; resume the without-downtime preparation "
+            "instead of switching to with-downtime"
+        )
+    if state.tainted and request.mode == "without-downtime":
         raise RotationError(
             "Access key is already tainted; investigate before no-downtime rotation"
         )
     if len(keys) != 1 or keys[0].access_key_id != old_key or keys[0].status != "Active":
         raise RotationError(
-            "No-downtime preparation requires exactly one IAM key, the Active old "
+            "Rotation requires exactly one IAM key, the Active old "
             "key; review existing keys without automatically deleting them"
         )
     if request.dry_run:
         return result("would_rotate")
-    if state.key_id is not None:
+    if request.mode == "with-downtime":
+        if not state.tainted:
+            state = runtime.operation(target, "taint", old_key)
+        if state.key_id != old_key or not state.tainted:
+            raise RotationError(
+                "Expected old key is not tainted; no reconciliation requested"
+            )
+    elif state.key_id is not None:
         state = runtime.operation(target, "remove", old_key)
         if state.key_id is not None:
             raise RotationError("Old key is still managed; no reconciliation requested")
     if runtime.iam_keys(target) != keys:
         raise RotationError(
-            "IAM keys changed during state removal; inspect before resuming"
+            "IAM keys changed during state preparation; inspect before resuming"
         )
     runtime.request(target)
     status = "RECONCILIATION_REQUESTED"
@@ -593,6 +630,7 @@ def run_single(
     dry_run: bool = True,
     expected_key_id: str | None = None,
     verify: bool = False,
+    mode: RotationMode = "without-downtime",
 ) -> Result:
     from reconcile.external_resources.model import ExternalResource
     from reconcile.typed_queries.external_resources import get_settings
@@ -604,6 +642,7 @@ def run_single(
         dry_run=dry_run,
         expected_key_id=expected_key_id,
         verify=verify,
+        mode=mode,
     )
     validate_request(request)
     client = Erv2Cli(
