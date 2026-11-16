@@ -579,16 +579,29 @@ query ExternalResourcesNamespaces {
       name
       serverUrl
       insecureSkipTLSVerify
-      # APPSRE-13941: automationTokens/clusterAdminAutomationTokens (lists)
-      # intentionally omitted here. Audited 2026-10-01: external_resources
-      # only reads account.automation_token (AWS creds) for Terraform; it
-      # never builds an OC/K8s connection from this cluster's token. If
-      # that changes, add the lists here too.
       automationToken {
         ...VaultSecret
       }
+      automationTokens {
+        name
+        namespace
+        active
+        delete
+        secret {
+          ...VaultSecret
+        }
+      }
       clusterAdminAutomationToken {
         ...VaultSecret
+      }
+      clusterAdminAutomationTokens {
+        name
+        namespace
+        active
+        delete
+        secret {
+          ...VaultSecret
+        }
       }
       spec {
         region
@@ -1195,6 +1208,22 @@ class AppV1(ConfiguredBaseModel):
     cost_center: Optional[str] = Field(..., alias="costCenter")
 
 
+class AutomationTokenEntryV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    namespace: str = Field(..., alias="namespace")
+    active: Optional[bool] = Field(..., alias="active")
+    delete: Optional[bool] = Field(..., alias="delete")
+    secret: Optional[VaultSecret] = Field(..., alias="secret")
+
+
+class NamespaceV1_ClusterV1_AutomationTokenEntryV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    namespace: str = Field(..., alias="namespace")
+    active: Optional[bool] = Field(..., alias="active")
+    delete: Optional[bool] = Field(..., alias="delete")
+    secret: Optional[VaultSecret] = Field(..., alias="secret")
+
+
 class NamespaceV1_ClusterV1_ClusterSpecV1(ConfiguredBaseModel):
     region: str = Field(..., alias="region")
 
@@ -1208,7 +1237,9 @@ class NamespaceV1_ClusterV1(ConfiguredBaseModel):
     server_url: str = Field(..., alias="serverUrl")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
+    automation_tokens: Optional[list[AutomationTokenEntryV1]] = Field(..., alias="automationTokens")
     cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
+    cluster_admin_automation_tokens: Optional[list[NamespaceV1_ClusterV1_AutomationTokenEntryV1]] = Field(..., alias="clusterAdminAutomationTokens")
     spec: Optional[NamespaceV1_ClusterV1_ClusterSpecV1] = Field(..., alias="spec")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
