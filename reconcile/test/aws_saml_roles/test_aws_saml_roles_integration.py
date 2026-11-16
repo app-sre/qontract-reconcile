@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,6 +10,7 @@ from reconcile.aws_saml_roles.integration import (
     AwsSamlRolesIntegration,
 )
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import AWSAccountV1
+from reconcile.gql_definitions.aws_saml_roles.roles import RoleV1
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.terrascript_aws_client import TerrascriptClient
 
@@ -228,6 +229,43 @@ def test_aws_saml_roles_get_roles(
     ]
     assert intg.get_roles(fixture_query_func) == roles
     assert intg.get_roles(fixture_query_func, account_name="account-1") == [roles[0]]
+
+
+def test_aws_saml_roles_get_roles_filters_expired(
+    intg: AwsSamlRolesIntegration, data_factory: Callable
+) -> None:
+    def q(*args: Any, **kwargs: Any) -> dict:
+        return {
+            "roles": [
+                data_factory(
+                    RoleV1,
+                    {
+                        "name": name,
+                        "expirationDate": expiration_date,
+                        "aws_groups": [
+                            {
+                                "account": {
+                                    "name": "account-1",
+                                    "uid": "123456789",
+                                    "sso": True,
+                                },
+                                "policies": ["ReadOnlyAccess"],
+                            }
+                        ],
+                    },
+                )
+                for name, expiration_date in [
+                    ("expired", "2020-01-01"),
+                    ("not-expired", "2999-12-31"),
+                    ("no-expiration", None),
+                ]
+            ]
+        }
+
+    assert [role.name for role in intg.get_roles(q)] == [
+        "123456789-not-expired",
+        "123456789-no-expiration",
+    ]
 
 
 def test_aws_saml_roles_populate_saml_iam_roles(

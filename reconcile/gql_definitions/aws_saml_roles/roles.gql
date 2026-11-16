@@ -3,6 +3,7 @@
 query AwsSamlRolesQuery {
   roles: roles_v1 {
     name
+    expirationDate
     user_policies {
       name
       policy
