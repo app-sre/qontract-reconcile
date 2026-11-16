@@ -114,7 +114,7 @@ class TerraformRepoIntegration(
             # https://docs.pydantic.dev/latest/blog/pydantic-v2/#required-vs-nullable-cleanup
             # so in this case, tf-repo will just recreate all of those state files in S3 and not actually do a plan or apply
             logging.warning(
-                "Unable to parse existing Terraform-Repo state from S3. Will re-create internal state upon apply, more info here: https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/terraform-repo/sop/statefile-load-errors.md",
+                "Unable to parse existing Terraform-Repo state from S3. Will re-create internal state upon apply, more info here: https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/app-sre/external-resources/terraform-repo/sop/statefile-load-errors.md",
                 exc_info=err,
             )
             repo_diff_result = self.calculate_diff(
