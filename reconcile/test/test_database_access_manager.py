@@ -1,44 +1,42 @@
 from __future__ import annotations
 
+import base64
 import re
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
-from reconcile.database_access_manager import (
+from reconcile.database_access_manager.integration import (
+    DatabaseAccessManagerIntegration,
     DatabaseConnectionParameters,
-    DBConnections,
-    JobData,
+    DBAMIntegrationParams,
     JobFailedError,
-    JobStatus,
-    JobStatusCondition,
-    PSQLScriptGenerator,
-    _build_resource_prefix,
-    _create_database_connection_parameter,
-    _db_access_access_is_valid,
-    _generate_password,
-    _populate_resources,
+    _access_list,
+    _generated_username,
     _process_db_access,
-    get_job_spec,
+    _render_sql,
+    _revoke_list,
+    _schemas_csv,
+    _validate_db_access,
 )
-from reconcile.gql_definitions.common.app_interface_settings import (
-    NamespaceOpenshiftResourceVaultSecretV1,
-    SqlQuerySettingsV1,
-)
+from reconcile.database_access_manager.jobs import DatabaseAccessJob
 from reconcile.gql_definitions.terraform_resources.database_access_manager import (
-    DatabaseAccessAccessGranteeV1,
     DatabaseAccessAccessV1,
     DatabaseAccessV1,
     NamespaceV1,
 )
-from reconcile.test.fixtures import Fixtures
-from reconcile.utils.openshift_resource import OpenshiftResource
+from reconcile.utils.jobcontroller.models import JobStatus
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from pytest_mock import MockerFixture
+
+
+STATE_KEY = "test-provisioner/test-db/test"
+ADMIN_SECRET_NAME = "db-secret"
+JOB_IMAGE = "quay.io/app-sre/yet-another-debug-container:latest"
 
 
 @pytest.fixture
@@ -69,6 +67,22 @@ def db_access_access(
 
 
 @pytest.fixture
+def db_access_role(
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+    db_access_access: DatabaseAccessAccessV1,
+) -> DatabaseAccessV1:
+    return gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "test",
+            "database": "postgres",
+            "role": "cs_owner",
+            "access": [db_access_access.model_dump(by_alias=True)],
+        },
+    )
+
+
+@pytest.fixture
 def db_access_namespace(gql_class_factory: Callable[..., NamespaceV1]) -> NamespaceV1:
     return gql_class_factory(
         NamespaceV1,
@@ -82,808 +96,633 @@ def db_access_namespace(gql_class_factory: Callable[..., NamespaceV1]) -> Namesp
 
 
 @pytest.fixture
-def db_access_complete(
-    db_access: DatabaseAccessV1, db_access_access: DatabaseAccessAccessV1
-) -> DatabaseAccessV1:
-    db_access.access = [db_access_access]
-    return db_access
+def dbam_state() -> MagicMock:
+    state = MagicMock()
+    state.exists.return_value = False
+    return state
 
 
 @pytest.fixture
-def db_access_admin(
-    gql_class_factory: Callable[..., DatabaseAccessV1],
+def vault_mock() -> MagicMock:
+    return MagicMock()
+
+
+@pytest.fixture
+def secret_reader() -> MagicMock:
+    reader = MagicMock()
+    reader.read_all.return_value = {}
+    return reader
+
+
+def _b64(value: str) -> str:
+    return base64.b64encode(value.encode()).decode()
+
+
+ADMIN_SECRET = {
+    "data": {
+        "db.host": _b64("localhost"),
+        "db.port": _b64("5432"),
+        "db.user": _b64("admin"),
+        "db.password": _b64("adminpw"),  # notsecret
+        "db.name": _b64("postgres"),
+    }
+}
+
+
+@pytest.fixture
+def oc() -> MagicMock:
+    oc = MagicMock()
+
+    def oc_get(
+        namespace: str, kind: str, name: str, allow_not_found: bool = True
+    ) -> dict | None:
+        if name == ADMIN_SECRET_NAME:
+            return ADMIN_SECRET
+        return None
+
+    oc.get.side_effect = oc_get
+    return oc
+
+
+@pytest.fixture
+def dbam_controller(mocker: MockerFixture) -> MagicMock:
+    controller = MagicMock()
+    controller.get_job_status.return_value = JobStatus.SUCCESS
+    mocker.patch(
+        "reconcile.database_access_manager.integration.K8sJobController",
+        return_value=controller,
+    )
+    return controller
+
+
+@pytest.fixture
+def oc_map(mocker: MockerFixture, oc: MagicMock) -> MagicMock:
+    oc_map = MagicMock()
+    oc_map.get_cluster.return_value = oc
+    oc_map.__enter__.return_value = oc_map
+    mocker.patch(
+        "reconcile.database_access_manager.integration.OC_Map",
+        return_value=oc_map,
+    )
+    return oc_map
+
+
+def run_process(
+    db_access: DatabaseAccessV1,
+    state: MagicMock,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    namespace: NamespaceV1,
+    dry_run: bool = False,
+) -> None:
+    _process_db_access(
+        dry_run,
+        state,
+        STATE_KEY,
+        db_access,
+        namespace,
+        ADMIN_SECRET_NAME,
+        "postgres",
+        secret_reader,
+        "vault-out",
+        vault_mock,
+        JOB_IMAGE,
+        None,
+        None,
+    )
+
+
+def enqueued_job(controller: MagicMock) -> DatabaseAccessJob:
+    return controller.enqueue_job.call_args[0][0]
+
+
+# ---------------------------------------------------------------------------
+# validation
+# ---------------------------------------------------------------------------
+
+
+def test_validate_db_access_requires_username_without_role(
+    db_access: DatabaseAccessV1,
+) -> None:
+    db_access.username = None
+    with pytest.raises(ValueError, match="Username is required"):
+        _validate_db_access(db_access)
+
+
+def test_validate_db_access_role_mode_allows_missing_username(
+    db_access_role: DatabaseAccessV1,
+) -> None:
+    _validate_db_access(db_access_role)
+
+
+def test_validate_db_access_rejects_duplicate_schemas(
+    db_access: DatabaseAccessV1,
     db_access_access: DatabaseAccessAccessV1,
-) -> DatabaseAccessV1:
-    return gql_class_factory(
+) -> None:
+    db_access.access = [db_access_access, db_access_access]
+    with pytest.raises(ValueError, match="Duplicate schema"):
+        _validate_db_access(db_access)
+
+
+def test_generated_username() -> None:
+    username = _generated_username("cs_owner", STATE_KEY)
+    assert username.startswith("cs_owner_")
+    assert len(username) <= 63
+    assert re.fullmatch(r"[a-z_][a-z0-9_]*", username)
+    # deterministic
+    assert username == _generated_username("cs_owner", STATE_KEY)
+    # different per entry (rotation)
+    assert username != _generated_username("cs_owner", "other/key")
+
+
+def test_generated_username_truncates_long_roles() -> None:
+    role = "a" * 100
+    username = _generated_username(role, STATE_KEY)
+    assert len(username) <= 63
+
+
+# ---------------------------------------------------------------------------
+# list helpers
+# ---------------------------------------------------------------------------
+
+
+def test_access_list_and_schemas(
+    db_access_role: DatabaseAccessV1, db_access_access: DatabaseAccessAccessV1
+) -> None:
+    db_access_role.access = [
+        db_access_access,
+        gql_class_factory_access("bar", ["SELECT"]),
+    ]
+    assert _access_list(db_access_role) == "foo|INSERT,SELECT;bar|SELECT"
+    assert _schemas_csv(db_access_role) == "foo,bar"
+
+
+def gql_class_factory_access(
+    dbschema: str, grants: list[str]
+) -> DatabaseAccessAccessV1:
+    return DatabaseAccessAccessV1(
+        grants=grants,
+        target=gql_class_factory_target(dbschema),
+    )
+
+
+def gql_class_factory_target(dbschema: str) -> object:
+    from reconcile.gql_definitions.terraform_resources.database_access_manager import (
+        DatabaseAccessAccessGranteeV1,
+    )
+
+    return DatabaseAccessAccessGranteeV1(dbschema=dbschema)
+
+
+@pytest.mark.parametrize(
+    ("current_grants", "desired_grants", "expected"),
+    [
+        (None, ["SELECT"], ""),
+        (["SELECT"], ["SELECT"], ""),
+        (["SELECT", "INSERT"], ["SELECT"], "foo|INSERT"),
+        (["SELECT"], ["SELECT", "INSERT"], ""),
+        (["SELECT"], None, "foo|ALL"),
+        (["ALL"], ["SELECT"], "foo|ALL"),
+        (["ALL"], ["ALL"], ""),
+        (["SELECT"], ["ALL"], ""),
+    ],
+)
+def test_revoke_list(
+    db_access: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+    current_grants: list[str] | None,
+    desired_grants: list[str] | None,
+    expected: str,
+) -> None:
+    current = None
+    if current_grants is not None:
+        current = gql_class_factory(
+            DatabaseAccessV1,
+            {
+                "username": "test",
+                "name": "test",
+                "database": "test",
+                "access": [{"grants": current_grants, "target": {"dbschema": "foo"}}],
+            },
+        )
+    # desired_grants None means the schema is no longer configured
+    desired_access = (
+        []
+        if desired_grants is None
+        else [{"grants": desired_grants, "target": {"dbschema": "foo"}}]
+    )
+    desired = gql_class_factory(
         DatabaseAccessV1,
         {
             "username": "test",
             "name": "test",
             "database": "test",
-            "admin": True,
-            "access": [db_access_access.model_dump(by_alias=True)],
+            "access": desired_access,
         },
     )
+    assert _revoke_list(current, desired) == expected
 
 
-@pytest.fixture
-def db_connection_parameter() -> DatabaseConnectionParameters:
-    return DatabaseConnectionParameters(
-        host="localhost",
-        port="5432",
-        user="test",
-        password="postgres",  # notsecret
-        database="user",
-    )
+# ---------------------------------------------------------------------------
+# script rendering
+# ---------------------------------------------------------------------------
 
 
-@pytest.fixture
-def db_admin_connection_parameter() -> DatabaseConnectionParameters:
-    return DatabaseConnectionParameters(
-        host="localhost",
-        port="5432",
-        user="admin",
-        password="adminpw",  # notsecret
+def test_render_legacy_provision(db_access: DatabaseAccessV1) -> None:
+    script = _render_sql(
+        "legacy_provision.sql",
         database="test",
+        username="test",
+        admin_user="admin",
+        access_list="foo|SELECT,INSERT",
+        revoke_list="",
     )
-
-
-@pytest.fixture
-def db_secret_dict() -> dict[str, dict[str, str]]:
-    return {
-        "data": {
-            "db.password": "aGR1aHNkZnVoc2Rm",  # notsecret
-            "db.host": "bG9jYWxob3N0",
-            "db.port": "NTQzMg==",
-            "db.user": "dGVzdA==",
-            "db.name": "dGVzdA==",
-        }
-    }
-
-
-@pytest.fixture
-def openshift_resource_secret() -> OpenshiftResource:
-    return OpenshiftResource(
-        body={
-            "metadata": {"name": "test"},
-            "kind": "secret",
-            "data": {"password": "postgres"},
-        },
-        integration="TEST",
-        integration_version="0.0.1",
-    )
-
-
-@pytest.fixture
-def fxt() -> Fixtures:
-    return Fixtures("database_access_manager")
-
-
-def _assert_create_script(script: str) -> None:
     assert 'CREATE DATABASE "test"' in script
-    assert "\\if :dbam_db_new" in script
-    assert "\\endif" in script
-    assert "REVOKE ALL ON DATABASE" in script
     assert 'CREATE ROLE "test"' in script
-    assert 'ALTER ROLE "test" WITH LOGIN' in script
-    assert 'GRANT CONNECT ON DATABASE "test" to "test"' in script
-    assert "CREATE SCHEMA IF NOT EXISTS" in script
+    assert "PASSWORD :'db_user_password'" in script
+    assert 'CREATE SCHEMA IF NOT EXISTS "test"' in script
     assert 'GRANT "test" to "admin";' in script
+    assert "string_to_array('foo|SELECT,INSERT', ';')" in script
 
 
-def _assert_admin_grants(script: str) -> None:
-    assert 'CREATE SCHEMA IF NOT EXISTS "foo" AUTHORIZATION "test";' in script
-    assert 'GRANT USAGE, CREATE ON SCHEMA "foo" TO "test";' in script
-    assert 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA "foo" TO "test";' in script
-    assert 'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA "foo" TO "test";' in script
-    assert 'GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA "foo" TO "test";' in script
-
-
-def _assert_grant_access(script: str) -> None:
-    assert 'GRANT INSERT,SELECT ON ALL TABLES IN SCHEMA "foo" TO "test"' in script
-
-
-def _assert_delete_script(script: str) -> None:
-    assert (
-        '\n\\set ON_ERROR_STOP on\n\\c "test"\nREASSIGN OWNED BY "test" TO "admin";\nDROP ROLE IF EXISTS "test";\\gexec'
-        in script
+def test_render_role_provision() -> None:
+    script = _render_sql(
+        "role_provision.sql",
+        database="postgres",
+        username="cs_app",
+        admin_user="admin",
+        role="cs_owner",
+        schemas_csv="public",
+        access_list="public|ALL",
+        revoke_list="",
     )
+    assert 'CREATE ROLE "cs_owner" NOLOGIN' in script
+    assert "PASSWORD %L', 'cs_app', :'db_user_password'" in script
+    assert "ALTER ROLE %I IN DATABASE %I SET role = %I" in script
+    assert "pg_has_role(current_user, role_name, 'USAGE')" in script
+    assert "ALTER STATISTICS %I.%I OWNER TO %I" in script
+    assert "string_to_array('public|ALL', ';')" in script
+    # the owner role is never dropped
+    assert "DROP ROLE" not in script
 
 
-def _assert_revoke_access(script: str) -> None:
-    assert 'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "foo" FROM "test";' in script
-
-
-def test_generate_create_user(
-    db_access: DatabaseAccessV1,
-    db_connection_parameter: DatabaseConnectionParameters,
-    db_admin_connection_parameter: DatabaseConnectionParameters,
-) -> None:
-    s = PSQLScriptGenerator(
-        db_access=db_access,
-        connection_parameter=db_connection_parameter,
-        admin_connection_parameter=db_admin_connection_parameter,
-        engine="postgres",
-    )
-    script = s._generate_create_user()
-    _assert_create_script(script)
-
-
-def test_generate_create_user_admin_has_no_own_schema(
-    db_access_admin: DatabaseAccessV1,
-    db_connection_parameter: DatabaseConnectionParameters,
-    db_admin_connection_parameter: DatabaseConnectionParameters,
-) -> None:
-    s = PSQLScriptGenerator(
-        db_access=db_access_admin,
-        connection_parameter=db_connection_parameter,
-        admin_connection_parameter=db_admin_connection_parameter,
-        engine="postgres",
-    )
-    script = s._generate_create_user()
-    assert 'CREATE ROLE "test"' in script
-    assert "CREATE SCHEMA" not in script
-
-
-def test_generate_admin_grants(
-    db_access_admin: DatabaseAccessV1,
-    db_connection_parameter: DatabaseConnectionParameters,
-    db_admin_connection_parameter: DatabaseConnectionParameters,
-) -> None:
-    s = PSQLScriptGenerator(
-        db_access=db_access_admin,
-        connection_parameter=db_connection_parameter,
-        admin_connection_parameter=db_admin_connection_parameter,
-        engine="postgres",
-    )
-    _assert_admin_grants(s._generate_admin_grants())
-
-
-def test_generate_complete_admin(
-    db_access_admin: DatabaseAccessV1,
-    db_connection_parameter: DatabaseConnectionParameters,
-    db_admin_connection_parameter: DatabaseConnectionParameters,
-) -> None:
-    s = PSQLScriptGenerator(
-        db_access=db_access_admin,
-        connection_parameter=db_connection_parameter,
-        admin_connection_parameter=db_admin_connection_parameter,
-        engine="postgres",
-    )
-    script = s.generate_script()
-    _assert_admin_grants(script)
-    # nothing is revoked from the user, the PUBLIC revoke is guarded by
-    # \if :dbam_db_new and only applies to freshly created databases
-    assert 'FROM "test"' not in script
-    assert "\\if :dbam_db_new" in script
-
-
-def test_generate_delete_user(
-    db_access: DatabaseAccessV1,
-    db_connection_parameter: DatabaseConnectionParameters,
-    db_admin_connection_parameter: DatabaseConnectionParameters,
-) -> None:
-    s = PSQLScriptGenerator(
-        db_access=db_access,
-        connection_parameter=db_connection_parameter,
-        admin_connection_parameter=db_admin_connection_parameter,
-        engine="postgres",
-    )
-    script = s._generate_delete_user()
-    _assert_delete_script(script)
-
-
-def test_generate_access(
-    db_access: DatabaseAccessV1,
-    db_access_access: DatabaseAccessAccessV1,
-    db_connection_parameter: DatabaseConnectionParameters,
-    db_admin_connection_parameter: DatabaseConnectionParameters,
-) -> None:
-    db_access.access = [db_access_access]
-
-    s = PSQLScriptGenerator(
-        db_access=db_access,
-        connection_parameter=db_connection_parameter,
-        admin_connection_parameter=db_connection_parameter,
-        engine="postgres",
-    )
-    script = s._generate_db_access()
-    _assert_grant_access(script)
-
-
-def test_generate_revoke_access(
-    db_access: DatabaseAccessV1,
-    db_access_access: DatabaseAccessAccessV1,
-    db_connection_parameter: DatabaseConnectionParameters,
-    db_admin_connection_parameter: DatabaseConnectionParameters,
-) -> None:
-    db_access.access = [db_access_access]
-
-    s = PSQLScriptGenerator(
-        db_access=db_access,
-        connection_parameter=db_connection_parameter,
-        admin_connection_parameter=db_connection_parameter,
-        engine="postgres",
-    )
-    script = s._generate_revoke_db_access()
-    _assert_revoke_access(script)
-
-
-@pytest.mark.parametrize(
-    "current, expected",
-    [
-        (None, ""),
-        (
-            DatabaseAccessV1(
-                username="test",
-                name="test",
-                database="test",
-                delete=False,
-                admin=False,
-                access=[],
-            ),
-            "",
-        ),
-        (
-            DatabaseAccessV1(
-                username="test",
-                name="test",
-                database="test",
-                delete=False,
-                admin=False,
-                access=[
-                    DatabaseAccessAccessV1(
-                        grants=["SELECT", "INSERT", "UPDATE"],
-                        target=DatabaseAccessAccessGranteeV1(dbschema="foo"),
-                    )
-                ],
-            ),
-            'REVOKE UPDATE ON ALL TABLES IN SCHEMA "foo" FROM "test";',
-        ),
-        (
-            DatabaseAccessV1(
-                username="test",
-                name="test",
-                database="test",
-                delete=False,
-                admin=False,
-                access=[
-                    DatabaseAccessAccessV1(
-                        grants=["SELECT"],
-                        target=DatabaseAccessAccessGranteeV1(dbschema="bar"),
-                    )
-                ],
-            ),
-            'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "bar" FROM "test";',
-        ),
-    ],
-)
-def test_generate_revoke_changed(
-    db_access_complete: DatabaseAccessV1,
-    db_connection_parameter: DatabaseConnectionParameters,
-    db_admin_connection_parameter: DatabaseConnectionParameters,
-    expected: str,
-    current: DatabaseAccessV1 | None,
-) -> None:
-    s = PSQLScriptGenerator(
-        db_access=db_access_complete,
-        current_db_access=current,
-        connection_parameter=db_connection_parameter,
-        admin_connection_parameter=db_connection_parameter,
-        engine="postgres",
-    )
-    script = s._generate_revoke_changed()
-    assert script == expected
-
-
-def test_generate_complete(
-    db_access_complete: DatabaseAccessV1,
-    db_connection_parameter: DatabaseConnectionParameters,
-    db_admin_connection_parameter: DatabaseConnectionParameters,
-) -> None:
-    s = PSQLScriptGenerator(
-        db_access=db_access_complete,
-        connection_parameter=db_connection_parameter,
-        admin_connection_parameter=db_admin_connection_parameter,
-        engine="postgres",
-    )
-    script = s.generate_script()
-    _assert_create_script(script)
-    _assert_grant_access(script)
-
-
-def test_generate_delete_complete(
-    db_access_complete: DatabaseAccessV1,
-    db_connection_parameter: DatabaseConnectionParameters,
-    db_admin_connection_parameter: DatabaseConnectionParameters,
-) -> None:
-    db_access_complete.delete = True
-    s = PSQLScriptGenerator(
-        db_access=db_access_complete,
-        connection_parameter=db_connection_parameter,
-        admin_connection_parameter=db_admin_connection_parameter,
-        engine="postgres",
-    )
-    script = s.generate_script()
-    _assert_delete_script(script)
-    _assert_revoke_access(script)
-
-
-def test_db_access_access_is_valid(
-    db_access_complete: DatabaseAccessV1, db_access_access: DatabaseAccessAccessV1
-) -> None:
-    assert db_access_complete.access
-    assert _db_access_access_is_valid(db_access_complete)
-    db_access_complete.access.append(db_access_access)
-    assert not _db_access_access_is_valid(db_access_complete)
-
-
-def test_db_access_access_is_valid_admin_requires_access(
-    db_access_complete: DatabaseAccessV1,
-) -> None:
-    db_access_complete.admin = True
-    assert _db_access_access_is_valid(db_access_complete)
-
-    db_access_complete.access = None
-    assert not _db_access_access_is_valid(db_access_complete)
-
-
-def test_job_completion() -> None:
-    s = JobStatus(conditions=[])
-    assert s.is_complete() is False
-
-    s = JobStatus(conditions=[JobStatusCondition(type="Complete")])
-    assert s.is_complete()
-    assert s.has_errors() is False
-
-
-def test_has_errors() -> None:
-    s = JobStatus(conditions=[JobStatusCondition(type="Failed")])
-    assert s.is_complete()
-    assert s.has_errors()
-
-
-def test_populate_resources(
-    mocker: MockerFixture,
-    db_access: DatabaseAccessV1,
-    db_connection_parameter: DatabaseConnectionParameters,
-    db_admin_connection_parameter: DatabaseConnectionParameters,
-    openshift_resource_secret: OpenshiftResource,
-) -> None:
-    mocker.patch(
-        "reconcile.database_access_manager.orb.fetch_provider_vault_secret",
-        return_value=openshift_resource_secret,
-    )
-    reources = _populate_resources(
-        db_access=db_access,
-        engine="postgres",
-        job_image="foo",
-        pull_secret={
-            "version": 1,
-            "annotations": [],
-            "type": "a",
-            "labels": [],
-            "path": "/foo/bar",
-        },
-        admin_secret_name="db-secret",
-        resource_prefix="dbam-foo",
-        secret_reader=mocker.MagicMock(),
-        user_connection=db_connection_parameter,
-        admin_connection=db_admin_connection_parameter,
-    )
-
-    r_kinds = [r.kind for r in reources]
-    assert sorted(r_kinds) == ["Job", "Secret", "Secret", "ServiceAccount", "secret"]
-
-
-def test__create_database_connection_parameter_user_exists(
-    db_access: DatabaseAccessV1,
-    db_secret_dict: dict[str, dict[str, str]],
-    mocker: MockerFixture,
-) -> None:
-    oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
-    oc.get.return_value = db_secret_dict
-    p = _create_database_connection_parameter(
-        db_access=db_access,
-        namespace_name="foo",
-        oc=oc,
-        admin_secret_name="db-secret",
-        user_secret_name="db-user-secret",
-    )
-    conn = DatabaseConnectionParameters(
-        host="localhost",
-        port="5432",
-        user="test",
-        password="hduhsdfuhsdf",
+def test_render_role_provision_empty_access() -> None:
+    script = _render_sql(
+        "role_provision.sql",
         database="test",
+        username="cs_app",
+        admin_user="admin",
+        role="cs_owner",
+        schemas_csv="",
+        access_list="",
+        revoke_list="",
     )
+    # no schema loops blow up on empty lists
+    assert "string_to_array('', ',')" in script
+    assert "string_to_array('', ';')" in script
 
-    assert p["user"] == conn
-    assert p["admin"] == conn
-    assert oc.get.call_count == 2
 
-
-def test__create_database_connection_parameter_user_missing(
-    db_access: DatabaseAccessV1,
-    db_secret_dict: dict[str, dict[str, str]],
-    mocker: MockerFixture,
-) -> None:
-    pw_generated = "1N5j7oksB45l8w0RJD8qR0ENJP1yOAOs"  # notsecret
-    oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
-    oc.get.side_effect = [None, db_secret_dict]
-    mocker.patch(
-        "reconcile.database_access_manager._generate_password",
-        return_value=pw_generated,
-    )
-    p = _create_database_connection_parameter(
-        db_access=db_access,
-        namespace_name="foo",
-        oc=oc,
-        admin_secret_name="db-secret",
-        user_secret_name="db-user-secret",
-    )
-    conn = DatabaseConnectionParameters(
-        host="localhost",
-        port="5432",
-        user="test",
-        password=pw_generated,
+def test_render_role_deprovision() -> None:
+    script = _render_sql(
+        "role_deprovision.sql",
         database="test",
+        username="cs_app",
+        admin_user="admin",
     )
-
-    admin_conn = conn.model_copy()
-    admin_conn.password = "hduhsdfuhsdf"
-
-    assert p["user"] == conn
-    assert p["admin"] == admin_conn
-    assert oc.get.call_count == 2
+    assert 'REASSIGN OWNED BY "cs_app" TO "admin";' in script
+    assert 'DROP OWNED BY "cs_app";' in script
+    assert 'DROP ROLE IF EXISTS "cs_app"' in script
+    # the shared owner role is never dropped
+    assert "cs_owner" not in script
 
 
-def test_generate_password() -> None:
-    assert len(_generate_password()) == 32
-    assert _generate_password() != _generate_password()
-
-
-@pytest.fixture
-def dbam_state(mocker: MockerFixture) -> MagicMock:
-    return mocker.patch("reconcile.database_access_manager.State", autospec=True)
-
-
-@pytest.fixture
-def vault_mock(mocker: MockerFixture) -> MagicMock:
-    return mocker.patch("reconcile.utils.vault.VaultClient", autospec=True)
-
-
-@pytest.fixture
-def dbam_process_mocks(
-    openshift_resource_secret: OpenshiftResource,
-    mocker: MockerFixture,
-    db_connection_parameter: DatabaseConnectionParameters,
-    db_admin_connection_parameter: DatabaseConnectionParameters,
-) -> OpenshiftResource:
-    mocker.patch(
-        "reconcile.database_access_manager._create_database_connection_parameter",
-        return_value=DBConnections(
-            user=db_connection_parameter,
-            admin=db_admin_connection_parameter,
-        ),
+def test_render_legacy_deprovision() -> None:
+    script = _render_sql(
+        "legacy_deprovision.sql",
+        database="test",
+        username="test",
+        admin_user="admin",
+        access_list="foo|SELECT",
     )
-    mocker.patch(
-        "reconcile.database_access_manager._populate_resources",
-        return_value=[openshift_resource_secret],
-    )
-    return openshift_resource_secret
+    assert "REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA %I FROM %I" in script
+    assert 'DROP ROLE IF EXISTS "test"' in script
 
 
-@pytest.fixture
-def sql_query_settings() -> SqlQuerySettingsV1:
-    return SqlQuerySettingsV1(
-        jobImage="quay.io/job/image",
-        pullSecret=NamespaceOpenshiftResourceVaultSecretV1(
-            path="/foo/bar",
-            version=1,
-            labels=None,
-            annotations=None,
-            type="a",
+# ---------------------------------------------------------------------------
+# job model
+# ---------------------------------------------------------------------------
+
+
+def make_job(state_key: str = STATE_KEY) -> DatabaseAccessJob:
+    return DatabaseAccessJob(
+        state_key=state_key,
+        job_image=JOB_IMAGE,
+        script="\\set ON_ERROR_STOP on",
+        admin_secret_name=ADMIN_SECRET_NAME,
+        user_connection=DatabaseConnectionParameters(
+            host="localhost",
+            port="5432",
+            user="test",
+            password="testpw",  # notsecret
+            database="test",
         ),
     )
 
 
-def test__process_db_access_job_pass(
-    db_access: DatabaseAccessV1,
-    db_access_namespace: NamespaceV1,
-    dbam_state: MagicMock,
-    dbam_process_mocks: OpenshiftResource,
-    mocker: MockerFixture,
-    sql_query_settings: SqlQuerySettingsV1,
-    vault_mock: MagicMock,
-) -> None:
-    dbam_state.exists.return_value = False
-    dbam_state.get.return_value = db_access
-    oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
-    oc.get.return_value = {"status": {"conditions": [{"type": "Complete"}]}}
-
-    oc_map = mocker.patch("reconcile.database_access_manager.OC_Map", autospec=True)
-    oc_map.return_value.__enter__.return_value = oc_map
-    oc_map.get_cluster.return_value = oc
-
-    ob_delete = mocker.patch(
-        "reconcile.database_access_manager.openshift_base.delete", autospec=True
-    )
-
-    _process_db_access(
-        False,
-        dbam_state,
-        state_key="test-provisioner/test-db/test",
-        db_access=db_access,
-        namespace=db_access_namespace,
-        admin_secret_name="db-secret",
-        engine="postgres",
-        secret_reader=mocker.MagicMock(),
-        sql_query_settings=sql_query_settings,
-        vault_output_path="foo",
-        vault_client=vault_mock,
-    )
-
-    vault_mock.write.assert_called_once_with(
-        {
-            "path": "foo/database-access-manager/test-provisioner/test-db/test",
-            "data": {
-                "db.host": "localhost",
-                "db.port": "5432",
-                "db.user": "test",
-                "db.password": "postgres",
-                "db.name": "user",
-            },
-        },
-        decode_base64=False,
-    )
-
-    assert ob_delete.call_count == 1
-    ob_delete.assert_called_once_with(
-        dry_run=False,
-        oc_map=oc_map,
-        cluster="test-cluster",
-        namespace="test-namespace",
-        resource_type="secret",
-        name=dbam_process_mocks.name,
-        enable_deletion=True,
-    )
+def test_job_name_compliance() -> None:
+    job = make_job("app-sre-clusters/service-integration-v4-clusters/service-db-access")
+    assert len(job.name()) <= 63
+    assert re.fullmatch(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", job.name())
+    assert job.name().startswith("dbam-")
 
 
-def test__process_db_access_job_error(
+def test_job_secret_data_and_scripts() -> None:
+    job = make_job()
+    assert set(job.secret_data()) == {
+        "db.host",
+        "db.port",
+        "db.user",
+        "db.password",
+        "db.name",
+    }
+    assert set(job.scripts()) == {"script.sql"}
+
+
+def test_job_spec() -> None:
+    job = make_job()
+    spec = job.job_spec()
+    assert spec.template.spec is not None
+    pod_spec = spec.template.spec
+    assert pod_spec.automount_service_account_token is False
+    assert spec.backoff_limit == 1
+    assert spec.ttl_seconds_after_finished is not None
+    assert pod_spec.containers
+    container = pod_spec.containers[0]
+    assert container.command == ["/usr/bin/psql"]
+    assert container.args is not None
+    assert "--file=/scripts/script.sql" in container.args
+    # the user password comes from the job-bound secret
+    assert container.env is not None
+    user_pw_env = [e for e in container.env if e.name == "db_user_password"]
+    assert len(user_pw_env) == 1
+    assert user_pw_env[0].value_from is not None
+    assert user_pw_env[0].value_from.secret_key_ref is not None
+    assert user_pw_env[0].value_from.secret_key_ref.name == job.name()
+    assert user_pw_env[0].value_from.secret_key_ref.key == "db.password"
+
+
+# ---------------------------------------------------------------------------
+# integration flow
+# ---------------------------------------------------------------------------
+
+
+def test_process_state_exists_matched(
     db_access: DatabaseAccessV1,
     dbam_state: MagicMock,
     db_access_namespace: NamespaceV1,
-    dbam_process_mocks: OpenshiftResource,
-    mocker: MockerFixture,
-    sql_query_settings: SqlQuerySettingsV1,
+    secret_reader: MagicMock,
     vault_mock: MagicMock,
-) -> None:
-    dbam_state.exists.return_value = False
-    oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
-    oc.get.return_value = {"status": {"conditions": [{"type": "Failed"}]}}
-    oc_map = mocker.patch("reconcile.database_access_manager.OC_Map", autospec=True)
-    oc_map.return_value.__enter__.return_value = oc_map
-    oc_map.get_cluster.return_value = oc
-
-    with pytest.raises(JobFailedError):
-        _process_db_access(
-            False,
-            dbam_state,
-            state_key="test-provisioner/test-db/test",
-            db_access=db_access,
-            namespace=db_access_namespace,
-            admin_secret_name="db-secret",
-            engine="postgres",
-            secret_reader=mocker.MagicMock(),
-            sql_query_settings=sql_query_settings,
-            vault_output_path="foo",
-            vault_client=vault_mock,
-        )
-
-
-def test__process_db_access_state_diff(
-    db_access: DatabaseAccessV1,
-    dbam_state: MagicMock,
-    db_access_namespace: NamespaceV1,
-    dbam_process_mocks: OpenshiftResource,
-    mocker: MockerFixture,
-    sql_query_settings: SqlQuerySettingsV1,
-    vault_mock: MagicMock,
-) -> None:
-    dba_current = db_access.model_dump(by_alias=True)
-    dba_current["access"] = [{"grants": ["SELECT"], "target": {"dbschema": "test"}}]
-    dbam_state.get.return_value = dba_current
-    oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
-    oc.get.return_value = False
-    oc_map = mocker.patch("reconcile.database_access_manager.OC_Map", autospec=True)
-    oc_map.return_value.__enter__.return_value = oc_map
-    oc_map.get_cluster.return_value = oc
-
-    ob_apply = mocker.patch(
-        "reconcile.database_access_manager.openshift_base.apply", autospec=True
-    )
-    _process_db_access(
-        False,
-        dbam_state,
-        state_key="test-provisioner/test-db/test",
-        db_access=db_access,
-        namespace=db_access_namespace,
-        admin_secret_name="db-secret",
-        engine="postgres",
-        secret_reader=mocker.MagicMock(),
-        sql_query_settings=sql_query_settings,
-        vault_output_path="foo",
-        vault_client=vault_mock,
-    )
-
-    assert ob_apply.call_count == 1
-    ob_apply.assert_called_once_with(
-        dry_run=False,
-        oc_map=oc_map,
-        cluster="test-cluster",
-        namespace="test-namespace",
-        resource_type="secret",
-        resource=dbam_process_mocks,
-        wait_for_namespace=False,
-    )
-
-
-@pytest.mark.parametrize("field", ["database", "username"])
-def test__process_db_access_value_error_database(
-    db_access: DatabaseAccessV1,
-    dbam_state: MagicMock,
-    db_access_namespace: NamespaceV1,
-    dbam_process_mocks: OpenshiftResource,
-    sql_query_settings: SqlQuerySettingsV1,
-    field: str,
-    vault_mock: MagicMock,
-) -> None:
-    dba_current = db_access.model_dump(by_alias=True)
-    dba_current[field] = "foo"
-    dbam_state.get.return_value = dba_current
-
-    with pytest.raises(ValueError):
-        _process_db_access(
-            False,
-            dbam_state,
-            state_key="test-provisioner/test-db/test",
-            db_access=db_access,
-            namespace=db_access_namespace,
-            admin_secret_name="db-secret",
-            engine="postgres",
-            secret_reader=MagicMock(),
-            sql_query_settings=sql_query_settings,
-            vault_output_path="foo",
-            vault_client=vault_mock,
-        )
-
-
-def test__process_db_access_value_error_admin_flag_change(
-    db_access_admin: DatabaseAccessV1,
-    dbam_state: MagicMock,
-    db_access_namespace: NamespaceV1,
-    sql_query_settings: SqlQuerySettingsV1,
-    vault_mock: MagicMock,
-) -> None:
-    # state written before the 'admin' field existed does not contain the key
-    dba_current = db_access_admin.model_dump(by_alias=True)
-    dba_current["admin"] = False
-    dbam_state.get.return_value = dba_current
-
-    with pytest.raises(ValueError, match="Admin flag cannot be changed."):
-        _process_db_access(
-            False,
-            dbam_state,
-            state_key="test-provisioner/test-db/test",
-            db_access=db_access_admin,
-            namespace=db_access_namespace,
-            admin_secret_name="db-secret",
-            engine="postgres",
-            secret_reader=MagicMock(),
-            sql_query_settings=sql_query_settings,
-            vault_output_path="foo",
-            vault_client=vault_mock,
-        )
-
-
-def test__process_db_access_value_error_admin_flag_from_legacy_state(
-    db_access_admin: DatabaseAccessV1,
-    dbam_state: MagicMock,
-    db_access_namespace: NamespaceV1,
-    sql_query_settings: SqlQuerySettingsV1,
-    vault_mock: MagicMock,
-) -> None:
-    dba_current = db_access_admin.model_dump(by_alias=True)
-    del dba_current["admin"]
-    dbam_state.get.return_value = dba_current
-
-    with pytest.raises(ValueError, match="Admin flag cannot be changed."):
-        _process_db_access(
-            False,
-            dbam_state,
-            state_key="test-provisioner/test-db/test",
-            db_access=db_access_admin,
-            namespace=db_access_namespace,
-            admin_secret_name="db-secret",
-            engine="postgres",
-            secret_reader=MagicMock(),
-            sql_query_settings=sql_query_settings,
-            vault_output_path="foo",
-            vault_client=vault_mock,
-        )
-
-
-def test__process_db_access_state_exists_matched(
-    db_access: DatabaseAccessV1,
-    db_access_namespace: NamespaceV1,
-    dbam_state: MagicMock,
-    vault_mock: MagicMock,
+    oc_map: MagicMock,
 ) -> None:
     dbam_state.exists.return_value = True
     dbam_state.get.return_value = db_access.model_dump(by_alias=True)
     # missing mocks would cause this to fail if not exit early
-    _process_db_access(
-        False,
+    run_process(db_access, dbam_state, secret_reader, vault_mock, db_access_namespace)
+    dbam_state.add.assert_not_called()
+    oc_map.get_cluster.assert_not_called()
+
+
+def test_process_legacy_provisions_job(
+    db_access: DatabaseAccessV1,
+    db_access_access: DatabaseAccessAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    oc_map: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    db_access.access = [db_access_access]
+    run_process(db_access, dbam_state, secret_reader, vault_mock, db_access_namespace)
+
+    dbam_controller.enqueue_job.assert_called_once()
+    job = enqueued_job(dbam_controller)
+    assert 'CREATE ROLE "test"' in job.script
+    assert job.user_connection.user == "test"
+    assert job.user_connection.database == "test"
+
+    vault_mock.write.assert_called_once()
+    secret = vault_mock.write.call_args[0][0]
+    assert secret["path"] == f"vault-out/database-access-manager/{STATE_KEY}"
+    dbam_state.add.assert_called_once()
+
+
+def test_process_role_mode_generates_username(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+
+    job = enqueued_job(dbam_controller)
+    assert job.user_connection.user.startswith("cs_owner_")
+    assert 'CREATE ROLE "cs_owner" NOLOGIN' in job.script
+    # postgres as database is allowed in role mode
+    assert job.user_connection.database == "postgres"
+
+
+def test_process_postgres_db_without_role_raises(
+    db_access: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    oc_map: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    db_access.database = "postgres"
+    with pytest.raises(ValueError, match="Can not use default database"):
+        run_process(
+            db_access, dbam_state, secret_reader, vault_mock, db_access_namespace
+        )
+
+
+def test_process_role_mode_reuses_vault_password(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    secret_reader.read_all.return_value = {
+        "db.host": "localhost",
+        "db.port": "5432",
+        "db.user": "cs_owner_abc",
+        "db.password": "vaultpw",  # notsecret
+        "db.name": "postgres",
+    }
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+
+    job = enqueued_job(dbam_controller)
+    assert job.user_connection.password == "vaultpw"
+    assert job.user_connection.user == "cs_owner_abc"
+
+
+def test_process_role_mode_legacy_state_migrates(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    # state written by the legacy implementation: no 'role' key
+    dbam_state.exists.return_value = True
+    dbam_state.get.return_value = {
+        "username": "cs_app",
+        "name": "test",
+        "database": "postgres",
+        "delete": False,
+        "access": [],
+    }
+    # existing user with a vault secret keeps user and password
+    db_access_role.username = "cs_app"
+    secret_reader.read_all.return_value = {
+        "db.host": "localhost",
+        "db.port": "5432",
+        "db.user": "cs_app",
+        "db.password": "oldpw",  # notsecret
+        "db.name": "postgres",
+    }
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+
+    job = enqueued_job(dbam_controller)
+    assert job.user_connection.user == "cs_app"
+    assert job.user_connection.password == "oldpw"
+    assert "\\set ON_ERROR_STOP on" in job.script
+    assert 'CREATE ROLE "cs_owner" NOLOGIN' in job.script
+
+
+def test_process_pending_job_reuses_password(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+) -> None:
+    pending_secret = {
+        "data": {
+            "db.host": _b64("localhost"),
+            "db.port": _b64("5432"),
+            "db.user": _b64("cs_owner_abc"),
+            "db.password": _b64("pendingpw"),  # notsecret
+            "db.name": _b64("postgres"),
+        }
+    }
+    dbam_controller.get_job_status.return_value = JobStatus.IN_PROGRESS
+
+    def oc_get(
+        namespace: str, kind: str, name: str, allow_not_found: bool = True
+    ) -> dict | None:
+        if name == ADMIN_SECRET_NAME:
+            return ADMIN_SECRET
+        if name.startswith("dbam-"):
+            return pending_secret
+        return None
+
+    oc.get.side_effect = oc_get
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    # job is running: no new job is enqueued, state is not updated
+    dbam_controller.enqueue_job.assert_not_called()
+    dbam_state.add.assert_not_called()
+
+
+def test_process_job_error_raises(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    dbam_controller.get_job_status.return_value = JobStatus.ERROR
+    with pytest.raises(JobFailedError, match="failed"):
+        run_process(
+            db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+        )
+
+
+@pytest.mark.parametrize("field", ["database", "username", "role"])
+def test_process_value_error_immutable(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    field: str,
+) -> None:
+    dbam_state.exists.return_value = True
+    dbam_state.get.return_value = db_access_role.model_dump(by_alias=True)
+    if field == "database":
+        db_access_role.database = "other"
+    elif field == "username":
+        db_access_role.username = "cs_app"
+    else:
+        db_access_role.role = "other_owner"
+    with pytest.raises(ValueError, match="cannot be changed"):
+        run_process(
+            db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+        )
+
+
+def test_process_dry_run_does_not_enqueue(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    run_process(
+        db_access_role,
         dbam_state,
-        state_key="test-provisioner/test-db/test",
-        db_access=db_access,
-        namespace=db_access_namespace,
-        admin_secret_name="db-secret",
-        engine="postgres",
-        secret_reader=MagicMock(),
-        sql_query_settings=None,
-        vault_output_path="foo",
-        vault_client=vault_mock,
+        secret_reader,
+        vault_mock,
+        db_access_namespace,
+        dry_run=True,
     )
+    dbam_controller.enqueue_job.assert_not_called()
+    dbam_state.add.assert_not_called()
+    vault_mock.write.assert_not_called()
 
 
-def test_get_job_spec(fxt: Fixtures) -> None:
-    job_data = JobData(
-        engine="postgres",
-        name="dbam-test-database",
-        image="quay.io/app-sre/yet-another-debug-container",
-        service_account_name="service-account-name",
-        rds_admin_secret_name="rds-admin-secret-name",
-        script_secret_name="script-secret-name",
-        pull_secret="pull-secret",
+def test_integration_params() -> None:
+    integration = DatabaseAccessManagerIntegration(
+        DBAMIntegrationParams(
+            vault_output_path="foo",
+            job_image="quay.io/x",
+        )
     )
-
-    job_spec = get_job_spec(job_data).body
-    assert job_spec == fxt.get_anymarkup("job-always-pull-policy.yaml")
-
-
-def test_build_resource_prefix_short_state_key_is_used_as_is() -> None:
-    prefix = _build_resource_prefix("test-provisioner/test-db/test")
-    assert prefix == "dbam-test-provisioner-test-db-test"
-
-
-@pytest.mark.parametrize(
-    "state_key",
-    [
-        "test-provisioner/test-db/test",
-        # this state key produced a 70 character container name in production
-        "app-sre-clusters/service-integration-v4-clusters/service-db-access",
-    ],
-)
-def test_build_resource_prefix(state_key: str) -> None:
-    prefix = _build_resource_prefix(state_key)
-
-    # DNS-1123 label rules and length limits for all derived names
-    assert re.fullmatch(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", prefix)
-    assert prefix.startswith("dbam-")
-    assert len(prefix) <= 51
-    assert len(f"{prefix}-pull-secret") <= 63
-    # deterministic across runs
-    assert prefix == _build_resource_prefix(state_key)
-
-
-def test_build_resource_prefix_long_names_stay_unique() -> None:
-    key_a = "some-provisioner/very-long-identifier-number-one/service-db-access"
-    key_b = "some-provisioner/very-long-identifier-number-two/service-db-access"
-    assert _build_resource_prefix(key_a) != _build_resource_prefix(key_b)
-
-
-def test_build_resource_prefix_sanitizes_invalid_characters() -> None:
-    prefix = _build_resource_prefix("Provisioner.One/Identifier_Two/db.access")
-    assert prefix == "dbam-provisioner-one-identifier-two-db-access"
+    assert integration.name == "database-access-manager"

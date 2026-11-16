@@ -44,7 +44,7 @@ query DatabaseAccessManager {
               name
               database
               delete
-              admin
+              role
               access {
                 grants
                 target {
