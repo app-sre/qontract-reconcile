@@ -10,8 +10,15 @@ from typing import TYPE_CHECKING, Any
 
 from jinja2 import Template
 
+from reconcile.gql_definitions.common.namespaces_minimal import (
+    query as namespaces_minimal_query,
+)
+from reconcile.gql_definitions.integrations.integrations import (
+    query as integrations_query,
+)
 from reconcile.gql_definitions.jumphosts.jumphosts import JumphostsQueryData
 from reconcile.gql_definitions.jumphosts.jumphosts import query as jumphosts_query
+from reconcile.gql_definitions.sql_query.queries import query as sql_queries_query
 from reconcile.utils import gql
 
 if TYPE_CHECKING:
@@ -77,104 +84,14 @@ identity {
 """
 
 
-INTEGRATIONS_QUERY = """
-{
-  integrations: integrations_v1 {
-    name
-    upstream
-    managed {
-      namespace {
-        path
-        name
-        environment {
-          name
-          parameters
-        }
-        cluster {
-          name
-          serverUrl
-          insecureSkipTLSVerify
-          # APPSRE-13941: automationTokens (list) intentionally omitted here.
-          # get_integrations() has no callers as of 2026-10-01, so this
-          # automationToken is unused dead data. If a caller appears and
-          # builds an OC connection from it, add automationTokens too.
-          automationToken {
-            path
-            field
-            version
-            format
-          }
-        }
-      }
-      shardSpecOverride{
-       ... on AWSShardSpecOverride_v1 {
-          awsAccounts {
-            name
-          }
-          imageRef
-        }
-      }
-      spec {
-        cache
-        command
-        disableUnleash
-        extraArgs
-        extraEnv {
-          secretName
-          secretKey
-          name
-          value
-        }
-        internalCertificates
-        logs {
-          slack
-          googleChat
-        }
-        resources {
-          requests {
-            cpu
-            memory
-          }
-          limits {
-            cpu
-            memory
-          }
-        }
-        fluentdResources {
-          requests {
-            cpu
-            memory
-          }
-          limits {
-            cpu
-            memory
-          }
-        }
-        shards
-        shardingStrategy
-        sleepDurationSecs
-        state
-        storage
-        trigger
-        cron
-        dashdotdb
-        concurrencyPolicy
-        restartPolicy
-        successfulJobHistoryLimit
-        failedJobHistoryLimit
-        imageRef
-        enablePushgateway
-      }
-    }
-  }
-}
-"""
-
-
 def get_integrations(managed: bool = False) -> list[dict[str, Any]]:
     gqlapi = gql.get_api()
-    query = INTEGRATIONS_QUERY if managed else gql.INTEGRATIONS_QUERY
-    data = gqlapi.query(query)
+    if managed:
+        integrations = integrations_query(gqlapi.query).integrations
+        return [
+            i.model_dump(by_alias=True, round_trip=True) for i in integrations or []
+        ]
+    data = gqlapi.query(gql.INTEGRATIONS_QUERY)
     if not data:
         return []
     return data.get("integrations") or []
@@ -1609,41 +1526,16 @@ NAMESPACES_QUERY = """
 }
 """
 
-NAMESPACES_MINIMAL_QUERY = """
-{
-  namespaces: namespaces_v1 {
-    name
-    delete
-    labels
-    cluster {
-      name
-      serverUrl
-      insecureSkipTLSVerify
-      # APPSRE-13941: automationTokens (list) intentionally omitted here.
-      # get_namespaces(minimal=True) has zero callers as of 2026-10-01 -
-      # this whole query is dead code. If a caller appears and builds an
-      # OC connection from it, add automationTokens too.
-      automationToken {
-        path
-        field
-        version
-        format
-      }
-      internal
-      disable {
-        integrations
-      }
-    }
-  }
-}
-"""
-
 
 def get_namespaces(minimal: bool = False) -> list[dict[str, Any]]:
     """Returns all Namespaces"""
     gqlapi = gql.get_api()
-    query = NAMESPACES_MINIMAL_QUERY if minimal else NAMESPACES_QUERY
-    data = gqlapi.query(query)
+    if minimal:
+        namespaces = namespaces_minimal_query(gqlapi.query).namespaces
+        return [
+            ns.model_dump(by_alias=True, round_trip=True) for ns in namespaces or []
+        ]
+    data = gqlapi.query(NAMESPACES_QUERY)
     if not data:
         return []
     return data.get("namespaces") or []
@@ -2107,83 +1999,13 @@ def get_external_users() -> list[dict[str, Any]]:
     return data.get("external_users") or []
 
 
-APP_INTERFACE_SQL_QUERIES_QUERY = """
-{
-  sql_queries: app_interface_sql_queries_v1 {
-    path
-    name
-    namespace
-    {
-      name
-      managedExternalResources
-      externalResources {
-        provider
-        provisioner {
-          name
-        }
-        ... on NamespaceTerraformProviderResourceAWS_v1 {
-          resources {
-            provider
-            ... on NamespaceTerraformResourceRDS_v1
-            {
-              identifier
-              output_resource_name
-              defaults
-              overrides
-            }
-          }
-        }
-      }
-      app {
-        name
-      }
-      environment {
-        name
-      }
-      cluster
-      {
-        name
-        serverUrl
-        automationToken
-        {
-          path
-          field
-          version
-          format
-        }
-        internal
-      }
-    }
-    identifier
-    requestor{
-      org_username
-      public_gpg_key
-    }
-    overrides
-    {
-      db_host
-      db_port
-      db_name
-      db_user
-      db_password
-    }
-    output
-    schedule
-    delete
-    query
-    queries
-  }
-}
-"""
-
-
 def get_app_interface_sql_queries() -> list[dict[str, Any]]:
     """Returns SqlQuery resources defined in app-interface"""
     gqlapi = gql.get_api()
-    data = gqlapi.query(APP_INTERFACE_SQL_QUERIES_QUERY)
-    if not data:
-        return []
-    return data.get("sql_queries") or []
+    sql_queries = sql_queries_query(gqlapi.query).sql_queries
+    return [
+        query.model_dump(by_alias=True, round_trip=True) for query in sql_queries or []
+    ]
 
 
 PIPELINES_PROVIDERS_QUERY = """

@@ -190,11 +190,13 @@ def _verify_publish_metrics(
     assert expected_metrics == metrics
 
 
+@pytest.mark.parametrize("dry_run", [True, False], ids=["dry-run", "apply"])
 def test_run_with_new_sql_query(
     mocker: MockFixture,
     smtp_settings: SmtpSettingsV1,
     smtp_server_connection_info: dict,
     sql_query: dict,
+    dry_run: bool,
 ) -> None:
     mocks = setup_mocks(
         mocker=mocker,
@@ -204,11 +206,15 @@ def test_run_with_new_sql_query(
         state={},
     )
 
-    intg.run(False)
+    intg.run(dry_run)
 
     mocks["mocked_ob"].apply.assert_called()
     assert mocks["mocked_ob"].apply.call_count == 4
     mocks["mocked_ob"].delete.assert_not_called()
+    if dry_run:
+        mocks["mocked_state"].__setitem__.assert_not_called()
+    else:
+        mocks["mocked_state"].__setitem__.assert_called_once_with("some-query", 0.0)
 
     mocks["mocked_ob"].publish_metrics.assert_called_once()
     ri, integration = mocks["mocked_ob"].publish_metrics.call_args[0]
