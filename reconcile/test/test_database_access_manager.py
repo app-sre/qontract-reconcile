@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -13,6 +14,7 @@ from reconcile.database_access_manager import (
     JobStatus,
     JobStatusCondition,
     PSQLScriptGenerator,
+    _build_resource_prefix,
     _create_database_connection_parameter,
     _db_access_access_is_valid,
     _generate_password,
@@ -88,6 +90,23 @@ def db_access_complete(
 
 
 @pytest.fixture
+def db_access_admin(
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+    db_access_access: DatabaseAccessAccessV1,
+) -> DatabaseAccessV1:
+    return gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "username": "test",
+            "name": "test",
+            "database": "test",
+            "admin": True,
+            "access": [db_access_access.model_dump(by_alias=True)],
+        },
+    )
+
+
+@pytest.fixture
 def db_connection_parameter() -> DatabaseConnectionParameters:
     return DatabaseConnectionParameters(
         host="localhost",
@@ -142,12 +161,22 @@ def fxt() -> Fixtures:
 
 def _assert_create_script(script: str) -> None:
     assert 'CREATE DATABASE "test"' in script
+    assert "\\if :dbam_db_new" in script
+    assert "\\endif" in script
     assert "REVOKE ALL ON DATABASE" in script
     assert 'CREATE ROLE "test"' in script
     assert 'ALTER ROLE "test" WITH LOGIN' in script
     assert 'GRANT CONNECT ON DATABASE "test" to "test"' in script
     assert "CREATE SCHEMA IF NOT EXISTS" in script
     assert 'GRANT "test" to "admin";' in script
+
+
+def _assert_admin_grants(script: str) -> None:
+    assert 'CREATE SCHEMA IF NOT EXISTS "foo" AUTHORIZATION "test";' in script
+    assert 'GRANT USAGE, CREATE ON SCHEMA "foo" TO "test";' in script
+    assert 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA "foo" TO "test";' in script
+    assert 'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA "foo" TO "test";' in script
+    assert 'GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA "foo" TO "test";' in script
 
 
 def _assert_grant_access(script: str) -> None:
@@ -178,6 +207,55 @@ def test_generate_create_user(
     )
     script = s._generate_create_user()
     _assert_create_script(script)
+
+
+def test_generate_create_user_admin_has_no_own_schema(
+    db_access_admin: DatabaseAccessV1,
+    db_connection_parameter: DatabaseConnectionParameters,
+    db_admin_connection_parameter: DatabaseConnectionParameters,
+) -> None:
+    s = PSQLScriptGenerator(
+        db_access=db_access_admin,
+        connection_parameter=db_connection_parameter,
+        admin_connection_parameter=db_admin_connection_parameter,
+        engine="postgres",
+    )
+    script = s._generate_create_user()
+    assert 'CREATE ROLE "test"' in script
+    assert "CREATE SCHEMA" not in script
+
+
+def test_generate_admin_grants(
+    db_access_admin: DatabaseAccessV1,
+    db_connection_parameter: DatabaseConnectionParameters,
+    db_admin_connection_parameter: DatabaseConnectionParameters,
+) -> None:
+    s = PSQLScriptGenerator(
+        db_access=db_access_admin,
+        connection_parameter=db_connection_parameter,
+        admin_connection_parameter=db_admin_connection_parameter,
+        engine="postgres",
+    )
+    _assert_admin_grants(s._generate_admin_grants())
+
+
+def test_generate_complete_admin(
+    db_access_admin: DatabaseAccessV1,
+    db_connection_parameter: DatabaseConnectionParameters,
+    db_admin_connection_parameter: DatabaseConnectionParameters,
+) -> None:
+    s = PSQLScriptGenerator(
+        db_access=db_access_admin,
+        connection_parameter=db_connection_parameter,
+        admin_connection_parameter=db_admin_connection_parameter,
+        engine="postgres",
+    )
+    script = s.generate_script()
+    _assert_admin_grants(script)
+    # nothing is revoked from the user, the PUBLIC revoke is guarded by
+    # \if :dbam_db_new and only applies to freshly created databases
+    assert 'FROM "test"' not in script
+    assert "\\if :dbam_db_new" in script
 
 
 def test_generate_delete_user(
@@ -237,7 +315,12 @@ def test_generate_revoke_access(
         (None, ""),
         (
             DatabaseAccessV1(
-                username="test", name="test", database="test", delete=False, access=[]
+                username="test",
+                name="test",
+                database="test",
+                delete=False,
+                admin=False,
+                access=[],
             ),
             "",
         ),
@@ -247,6 +330,7 @@ def test_generate_revoke_access(
                 name="test",
                 database="test",
                 delete=False,
+                admin=False,
                 access=[
                     DatabaseAccessAccessV1(
                         grants=["SELECT", "INSERT", "UPDATE"],
@@ -262,6 +346,7 @@ def test_generate_revoke_access(
                 name="test",
                 database="test",
                 delete=False,
+                admin=False,
                 access=[
                     DatabaseAccessAccessV1(
                         grants=["SELECT"],
@@ -330,6 +415,16 @@ def test_db_access_access_is_valid(
     assert db_access_complete.access
     assert _db_access_access_is_valid(db_access_complete)
     db_access_complete.access.append(db_access_access)
+    assert not _db_access_access_is_valid(db_access_complete)
+
+
+def test_db_access_access_is_valid_admin_requires_access(
+    db_access_complete: DatabaseAccessV1,
+) -> None:
+    db_access_complete.admin = True
+    assert _db_access_access_is_valid(db_access_complete)
+
+    db_access_complete.access = None
     assert not _db_access_access_is_valid(db_access_complete)
 
 
@@ -664,6 +759,61 @@ def test__process_db_access_value_error_database(
         )
 
 
+def test__process_db_access_value_error_admin_flag_change(
+    db_access_admin: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    db_access_namespace: NamespaceV1,
+    sql_query_settings: SqlQuerySettingsV1,
+    vault_mock: MagicMock,
+) -> None:
+    # state written before the 'admin' field existed does not contain the key
+    dba_current = db_access_admin.model_dump(by_alias=True)
+    dba_current["admin"] = False
+    dbam_state.get.return_value = dba_current
+
+    with pytest.raises(ValueError, match="Admin flag cannot be changed."):
+        _process_db_access(
+            False,
+            dbam_state,
+            state_key="test-provisioner/test-db/test",
+            db_access=db_access_admin,
+            namespace=db_access_namespace,
+            admin_secret_name="db-secret",
+            engine="postgres",
+            secret_reader=MagicMock(),
+            sql_query_settings=sql_query_settings,
+            vault_output_path="foo",
+            vault_client=vault_mock,
+        )
+
+
+def test__process_db_access_value_error_admin_flag_from_legacy_state(
+    db_access_admin: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    db_access_namespace: NamespaceV1,
+    sql_query_settings: SqlQuerySettingsV1,
+    vault_mock: MagicMock,
+) -> None:
+    dba_current = db_access_admin.model_dump(by_alias=True)
+    del dba_current["admin"]
+    dbam_state.get.return_value = dba_current
+
+    with pytest.raises(ValueError, match="Admin flag cannot be changed."):
+        _process_db_access(
+            False,
+            dbam_state,
+            state_key="test-provisioner/test-db/test",
+            db_access=db_access_admin,
+            namespace=db_access_namespace,
+            admin_secret_name="db-secret",
+            engine="postgres",
+            secret_reader=MagicMock(),
+            sql_query_settings=sql_query_settings,
+            vault_output_path="foo",
+            vault_client=vault_mock,
+        )
+
+
 def test__process_db_access_state_exists_matched(
     db_access: DatabaseAccessV1,
     db_access_namespace: NamespaceV1,
@@ -701,3 +851,39 @@ def test_get_job_spec(fxt: Fixtures) -> None:
 
     job_spec = get_job_spec(job_data).body
     assert job_spec == fxt.get_anymarkup("job-always-pull-policy.yaml")
+
+
+def test_build_resource_prefix_short_state_key_is_used_as_is() -> None:
+    prefix = _build_resource_prefix("test-provisioner/test-db/test")
+    assert prefix == "dbam-test-provisioner-test-db-test"
+
+
+@pytest.mark.parametrize(
+    "state_key",
+    [
+        "test-provisioner/test-db/test",
+        # this state key produced a 70 character container name in production
+        "app-sre-clusters/service-integration-v4-clusters/service-db-access",
+    ],
+)
+def test_build_resource_prefix(state_key: str) -> None:
+    prefix = _build_resource_prefix(state_key)
+
+    # DNS-1123 label rules and length limits for all derived names
+    assert re.fullmatch(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", prefix)
+    assert prefix.startswith("dbam-")
+    assert len(prefix) <= 51
+    assert len(f"{prefix}-pull-secret") <= 63
+    # deterministic across runs
+    assert prefix == _build_resource_prefix(state_key)
+
+
+def test_build_resource_prefix_long_names_stay_unique() -> None:
+    key_a = "some-provisioner/very-long-identifier-number-one/service-db-access"
+    key_b = "some-provisioner/very-long-identifier-number-two/service-db-access"
+    assert _build_resource_prefix(key_a) != _build_resource_prefix(key_b)
+
+
+def test_build_resource_prefix_sanitizes_invalid_characters() -> None:
+    prefix = _build_resource_prefix("Provisioner.One/Identifier_Two/db.access")
+    assert prefix == "dbam-provisioner-one-identifier-two-db-access"

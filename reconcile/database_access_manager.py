@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import logging
+import re
 from random import choices
 from string import (
     ascii_letters,
@@ -63,6 +65,32 @@ SUPPORTED_ENGINES = ["postgres"]
 
 JOB_DEADLINE_IN_SECONDS = 60
 
+# The longest name derived from a resource prefix is "<prefix>-pull-secret"
+# and all generated OpenShift object and container names must stay within the
+# 63 character DNS-1123 label limit.
+MAX_RESOURCE_PREFIX_LENGTH = 63 - len("-pull-secret")
+
+
+def _sanitize_resource_name(name: str) -> str:
+    return re.sub(r"[^a-z0-9-]+", "-", name.lower()).strip("-")
+
+
+def _build_resource_prefix(state_key: str) -> str:
+    """Build a deterministic, DNS-1123 safe resource prefix from a state key.
+
+    Long state keys are truncated and suffixed with a hash of the full state
+    key to keep derived names (Job, container, ServiceAccount, Secrets) within
+    the 63 character limit while staying unique per database access.
+    """
+    name = "-".join(
+        _sanitize_resource_name(part) for part in ("dbam", *state_key.split("/"))
+    )
+    if len(name) <= MAX_RESOURCE_PREFIX_LENGTH:
+        return name
+    digest = hashlib.sha256(state_key.encode()).hexdigest()[:8]
+    truncated = name[: MAX_RESOURCE_PREFIX_LENGTH - len(digest) - 1].rstrip("-")
+    return f"{truncated}-{digest}"
+
 
 def get_database_access_namespaces(
     query_func: Callable | None = None,
@@ -99,15 +127,18 @@ class PSQLScriptGenerator(BaseModel):
         return self.admin_connection_parameter.user
 
     def _generate_create_user(self) -> str:
-        return f"""
+        script = f"""
 \\set ON_ERROR_STOP on
 
+SELECT NOT EXISTS (SELECT FROM pg_database WHERE datname = '{self._get_db()}') AS dbam_db_new \\gset
 SELECT 'CREATE DATABASE "{self._get_db()}"'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{self._get_db()}');\\gexec
+\\if :dbam_db_new
 /* revoke only required for databases lower version 15
    this makes the behaviour compliant with postgres 15, writes are only allowed
    in the schema created for the role/user */
 REVOKE ALL ON DATABASE "{self._get_db()}" FROM public;
+\\endif
 
 \\c "{self._get_db()}"
 
@@ -119,8 +150,12 @@ ALTER ROLE "{self._get_user()}" WITH LOGIN  PASSWORD '{self.connection_parameter
 GRANT CONNECT ON DATABASE "{self._get_db()}" to "{self._get_user()}";
 
 -- rds specific, grant role to admin or create schema fails
-GRANT "{self._get_user()}" to "{self._get_admin_user()}";
-CREATE SCHEMA IF NOT EXISTS "{self._get_user()}" AUTHORIZATION "{self._get_user()}";"""
+GRANT "{self._get_user()}" to "{self._get_admin_user()}";"""
+
+        if not self.db_access.admin:
+            script += f'\nCREATE SCHEMA IF NOT EXISTS "{self._get_user()}" AUTHORIZATION "{self._get_user()}";'
+
+        return script
 
     def _generate_delete_user(self) -> str:
         return f"""
@@ -144,7 +179,7 @@ DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
         return "\n".join(statements)
 
     def _generate_revoke_changed(self) -> str:
-        if not self.current_db_access:
+        if self.db_access.admin or not self.current_db_access:
             return ""
         statements: list[str] = []
         current_grants = {
@@ -166,7 +201,30 @@ DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
                 )
         return "".join(statements)
 
+    def _generate_admin_grants(self) -> str:
+        """Grant-based admin access to the target schemas, nothing is revoked.
+
+        The user can create, alter and drop objects in the target schemas.
+        Schemas that do not exist yet are created and owned by the user,
+        ownership of existing schemas is not changed. Future objects created
+        by the user itself need no default privileges (the user owns them),
+        objects created by other roles are not covered.
+        """
+        statements: list[str] = []
+        for access in self.db_access.access or []:
+            schema = access.target.dbschema
+            statements.extend((
+                f'CREATE SCHEMA IF NOT EXISTS "{schema}" AUTHORIZATION "{self._get_user()}";',
+                f'GRANT USAGE, CREATE ON SCHEMA "{schema}" TO "{self._get_user()}";',
+                f'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA "{schema}" TO "{self._get_user()}";',
+                f'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA "{schema}" TO "{self._get_user()}";',
+                f'GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA "{schema}" TO "{self._get_user()}";',
+            ))
+        return "\n".join(statements)
+
     def _provision_script(self) -> str:
+        if self.db_access.admin:
+            return self._generate_create_user() + "\n" + self._generate_admin_grants()
         return (
             self._generate_create_user()
             + "\n"
@@ -575,6 +633,9 @@ def _create_database_connection_parameter(
 
 
 def _db_access_access_is_valid(db_access: DatabaseAccessV1) -> bool:
+    if db_access.admin and not db_access.access:
+        return False
+
     found_schema: set[str] = set()
 
     for schema in db_access.access or []:
@@ -603,23 +664,29 @@ def _process_db_access(
     vault_client: VaultClient,
 ) -> None:
     if not _db_access_access_is_valid(db_access):
-        raise ValueError("Duplicate schema in access list.")
+        raise ValueError(
+            "Invalid access list: duplicate schema or admin access without schemas."
+        )
 
     current_db_access: DatabaseAccessV1 | None = None
     if state.exists(state_key):
         current_state = state.get(state_key)
         if current_state == db_access.model_dump(by_alias=True):
             return
+        # states written before the 'admin' field existed do not contain the key
+        current_state.setdefault("admin", None)
         current_db_access = DatabaseAccessV1(**current_state)
         if current_db_access.database != db_access.database:
             raise ValueError("Database name cannot be changed.")
         if current_db_access.username != db_access.username:
             raise ValueError("Username cannot be changed.")
+        if bool(current_db_access.admin) != bool(db_access.admin):
+            raise ValueError("Admin flag cannot be changed.")
 
     cluster_name = namespace.cluster.name
     namespace_name = namespace.name
 
-    resource_prefix = f"dbam-{state_key.replace('/', '-')}"
+    resource_prefix = _build_resource_prefix(state_key)
     with OC_Map(
         clusters=[namespace.cluster.model_dump(by_alias=True)],
         integration=QONTRACT_INTEGRATION,

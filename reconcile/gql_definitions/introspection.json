@@ -17788,6 +17788,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "admin",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "access",
                             "description": null,
                             "args": [],
