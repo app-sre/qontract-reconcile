@@ -1,7 +1,7 @@
 """Prepare one legacy terraform-resources IAM key without retiring the old key.
 
 Inspection is the default. Execution forgets exactly one verified IAM key binding
-and invalidates only the account's terraform-resources early-exit cache. Normal
+and invalidates account-sharded and unscoped reconciliation caches. Normal
 reconciliation creates the new key and publishes outputs. Verification checks
 IAM and Terraform outputs only; source Secrets and application adoption require
 separate verification before the operator retires the old key. Explicit IAM-only
@@ -553,6 +553,7 @@ def rotate(request: Request, runtime: RotationRuntime) -> Result:
             "A managed key appeared; inspect before invalidating the cache"
         )
     runtime.invalidate(cache_key)
+    runtime.invalidate(cache_key.model_copy(update={"shard": ""}))
     snapshot, managed = after, after.managed_key
     return result("requested")
 
