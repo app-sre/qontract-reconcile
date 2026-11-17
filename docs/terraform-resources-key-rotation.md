@@ -10,6 +10,34 @@ a second key. Applications can continue using the old credential during cutover.
 Retire the old key only after verifying that every consumer has adopted the new
 credential.
 
+## Exclusive mutation window
+
+Mutating rotation and retirement commands acquire shared S3 locks through the
+configured app-interface state store, before their first key/state inventory
+read, and retain them through mutation and final verification. Inspection and
+`--verify` do not create locks. All operators must use the same state store.
+Execution needs read/write/delete access to its
+`state/iam-key-rotation-locks/` prefix, including IAM-only retirement.
+
+The IAM-user lock is shared by legacy preparation, deactivation, and deletion,
+using the AWS account ID and username rather than the selected key
+ID. Legacy preparation also locks its shared Terraform backend, so two users
+cannot concurrently edit the same account state.
+
+These locks coordinate these CLI commands. Terraform workers, other integrations,
+manual Terraform sessions, and direct IAM calls do not participate. Before
+mutation, pause other writers for the selected state/IAM user and wait for
+in-flight operations to finish. Keep this exclusive window through command
+completion. Normal reconciliation can resume after preparation returns; pause
+any competing key writer again for final retirement. A per-command Terraform
+backend lock alone does not protect the inspection-to-mutation interval.
+
+Locks use conditional S3 creation and owner-conditional release. They have no
+automatic expiry or takeover. If a process crashes or a response is lost, locate
+the lock object reported in the error or under the prefix above, confirm that
+its process and any other writers have stopped, and remove that orphaned lock
+before retrying. Do not remove a lock held by a live process.
+
 ## 1. Inspect the user and record its metadata
 
 Use the configuration and state/cache environment for the intended deployment.
@@ -76,7 +104,7 @@ CLI's default, pass `--integration-version VERSION` for its reconciliation cache
 
 The command previews and removes only the selected key binding from Terraform
 state. It checks the complete shared state before and after removal, keeps the
-old AWS key Active, and invalidates only the account's reconciliation cache entry.
+old AWS key Active, and invalidates the account's reconciliation cache entry.
 It also invalidates the unscoped no-dry-run cache entry, so reconciliation without
 an account filter cannot reuse a pre-preparation cache hit. Dry-run caches are
 unchanged. It does not run Terraform apply or retire IAM keys. A `requested` result means
@@ -150,6 +178,11 @@ They do not verify Terraform ownership: deleting a currently managed key may
 cause normal reconciliation to recreate it. A retry after a lost
 response can resume from an Inactive old key or report an already-deleted key
 without repeating completed mutations.
+
+The shared IAM-user lock prevents two CLI invocations from simultaneously
+retiring opposite keys. Other key writers must still be stopped as described
+under **Exclusive mutation window**, even when the selected key is not listed
+in `deleteKeys`.
 
 Deactivation alone does not free a key slot: Active and Inactive keys both occupy
 one. Successful deletion reports `available_key_slots: 1` and the remaining

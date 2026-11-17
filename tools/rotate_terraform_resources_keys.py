@@ -18,6 +18,7 @@ import os
 import re
 import shutil
 import tempfile
+from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
@@ -34,6 +35,11 @@ from reconcile.gql_definitions.terraform_resources import (
 from reconcile.gql_definitions.terraform_resources import iam_key_rotation as data
 from reconcile.utils import gql
 from reconcile.utils.early_exit_cache import CacheKeyWithDigest, EarlyExitCache
+from tools.iam_key_rotation_lock import (
+    iam_user_scope,
+    operation_lock,
+    terraform_state_scope,
+)
 from tools.rotate_erv2_cloudwatch_keys import (
     IamKey,
     IamStateAttributes,
@@ -370,6 +376,7 @@ class RotationRuntime(Protocol):
     target: Target
     cache_bucket: str | None
 
+    def lock(self) -> AbstractContextManager[None]: ...
     def snapshot(self, expected_address: str | None) -> Snapshot: ...
     def remove(self, before: Snapshot, address: str) -> None: ...
     def invalidate(self, key: CacheKeyWithDigest) -> None: ...
@@ -378,6 +385,7 @@ class RotationRuntime(Protocol):
 class RetirementRuntime(Protocol):
     target: RetirementTarget
 
+    def lock(self) -> AbstractContextManager[None]: ...
     def keys(self) -> list[IamKey]: ...
     def deactivate(self, key_id: str) -> None: ...
     def delete(self, key_id: str) -> None: ...
@@ -402,6 +410,12 @@ def retire(request: RetirementRequest, runtime: RetirementRuntime) -> Retirement
     target = runtime.target
     if (request.account, request.iam_user) != (target.account, target.iam_user):
         raise RotationError("Resolved target differs from the retirement request")
+    with nullcontext() if request.dry_run else runtime.lock():
+        return _retire(request, runtime)
+
+
+def _retire(request: RetirementRequest, runtime: RetirementRuntime) -> RetirementResult:
+    target = runtime.target
     keys = retirement_keys(request, runtime.keys())
 
     def result(status: RetirementStatus) -> RetirementResult:
@@ -475,6 +489,12 @@ def rotate(request: Request, runtime: RotationRuntime) -> Result:
     target = runtime.target
     if (request.account, request.iam_user) != (target.account, target.iam_user):
         raise RotationError("Resolved target differs from the request")
+    with nullcontext() if request.dry_run else runtime.lock():
+        return _rotate(request, runtime)
+
+
+def _rotate(request: Request, runtime: RotationRuntime) -> Result:
+    target = runtime.target
     cache_key = CacheKeyWithDigest(
         integration="terraform-resources",
         integration_version=request.integration_version,
@@ -568,6 +588,7 @@ class Runtime:
         verify: bool,
     ) -> None:
         self.target = target
+        self.reader = reader
         self.credentials = credentials
         self.api = AWSApi(credentials)
         self.cache: EarlyExitCache | None = None
@@ -596,6 +617,15 @@ class Runtime:
             self.cache.cleanup()
         self.api.close()
         self.temporary.cleanup()
+
+    def lock(self) -> AbstractContextManager[None]:
+        return operation_lock(
+            self.reader,
+            [
+                iam_user_scope(self.target.account_id, self.target.iam_user),
+                terraform_state_scope(self.target.bucket, self.target.key),
+            ],
+        )
 
     def snapshot(self, expected_address: str | None) -> Snapshot:
         response = self.api.s3.client.get_object(
@@ -708,9 +738,13 @@ class Runtime:
 
 class RetirementClient:
     def __init__(
-        self, target: RetirementTarget, credentials: AWSStaticCredentials
+        self,
+        target: RetirementTarget,
+        credentials: AWSStaticCredentials,
+        reader: SecretReaderBase | None = None,
     ) -> None:
         self.target = target
+        self.reader = reader
         self.api = AWSApi(credentials)
         try:
             if (
@@ -726,6 +760,11 @@ class RetirementClient:
 
     def close(self) -> None:
         self.api.close()
+
+    def lock(self) -> AbstractContextManager[None]:
+        return operation_lock(
+            self.reader, [iam_user_scope(self.target.account_id, self.target.iam_user)]
+        )
 
     def keys(self) -> list[IamKey]:
         response = self.api.iam.client.list_access_keys(UserName=self.target.iam_user)
@@ -822,7 +861,7 @@ def run_retirement(
         credentials = material.credentials(target.region)
         if credentials.access_key_id == request.key_id:
             raise RotationError("Refusing to retire the executing credential")
-        runtime = RetirementClient(target, credentials)
+        runtime = RetirementClient(target, credentials, reader)
         try:
             return retire(request, runtime)
         finally:
