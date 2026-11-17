@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from click.testing import CliRunner
 
+from reconcile.utils.early_exit_cache import CacheKey
 from tools import qontract_cli
 from tools import rotate_terraform_resources_keys as rotation
 
@@ -178,7 +179,7 @@ def test_inspection_reports_one_user_and_bindings_without_mutation(
     runtime.invalidate.assert_not_called()
 
 
-def test_execution_preserves_old_key_and_invalidates_only_account_cache(
+def test_execution_preserves_old_key_and_invalidates_account_and_unscoped_caches(
     runtime: Mock,
 ) -> None:
     result = rotation.rotate(execute(), runtime)
@@ -186,8 +187,38 @@ def test_execution_preserves_old_key_and_invalidates_only_account_cache(
     assert result.access_key_id is None
     assert runtime.current.keys == [rotation.IamKey(AccessKeyId=OLD, Status="Active")]
     runtime.remove.assert_called_once()
-    key = runtime.invalidate.call_args.args[0]
-    assert str(key) == "terraform-resources/0.5.5/no-dry-run/test-account/latest"
+    assert [str(call.args[0]) for call in runtime.invalidate.call_args_list] == [
+        "terraform-resources/0.5.5/no-dry-run/test-account/latest",
+        "terraform-resources/0.5.5/no-dry-run/latest",
+    ]
+
+
+def test_unscoped_preparation_cache_matches_the_integration_key(runtime: Mock) -> None:
+    unscoped = CacheKey(
+        integration="terraform-resources",
+        integration_version="0.5.5",
+        dry_run=False,
+        cache_source={"configuration": "unchanged"},
+        shard="",
+    ).cache_key_with_digest
+    account = unscoped.model_copy(update={"shard": "test-account"})
+    unrelated = unscoped.model_copy(update={"shard": "another-account"})
+    dry_run = unscoped.model_copy(update={"dry_run": True})
+    cached = {str(k) for k in [unscoped, account, unrelated, dry_run]}
+    runtime.invalidate.side_effect = lambda key: cached.discard(str(key))
+
+    rotation.rotate(execute(), runtime)
+
+    assert cached == {str(unrelated), str(dry_run)}
+
+
+def test_failed_unscoped_cache_invalidation_can_resume(runtime: Mock) -> None:
+    runtime.invalidate.side_effect = [None, rotation.RotationError("cache failed")]
+    with pytest.raises(rotation.RotationError, match="cache failed"):
+        rotation.rotate(execute(), runtime)
+    runtime.invalidate.side_effect = None
+    assert rotation.rotate(execute(), runtime).status == "requested"
+    runtime.remove.assert_called_once()
 
 
 def test_resume_after_state_removal_does_not_remove_another_binding(

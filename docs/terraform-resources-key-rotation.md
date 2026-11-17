@@ -77,7 +77,9 @@ CLI's default, pass `--integration-version VERSION` for its reconciliation cache
 The command previews and removes only the selected key binding from Terraform
 state. It checks the complete shared state before and after removal, keeps the
 old AWS key Active, and invalidates only the account's reconciliation cache entry.
-It does not run Terraform apply or retire IAM keys. A `requested` result means
+It also invalidates the unscoped no-dry-run cache entry, so reconciliation without
+an account filter cannot reuse a pre-preparation cache hit. Dry-run caches are
+unchanged. It does not run Terraform apply or retire IAM keys. A `requested` result means
 preparation succeeded; the new key will be created after reconciliation resumes.
 
 Repeat sequentially for additional users in the same account before re-enabling
