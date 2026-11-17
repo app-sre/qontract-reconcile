@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
@@ -141,6 +142,7 @@ class Result(Selector):
 
 
 class RotationRuntime(Protocol):
+    def lock(self, target: Target) -> AbstractContextManager[None]: ...
     def operation(
         self,
         target: Target,
@@ -280,6 +282,13 @@ class Runtime:
     def close(self) -> None:
         self.temporary.cleanup()
         logging.disable(self.previous_logging_disable)
+
+    def lock(self, target: Target) -> AbstractContextManager[None]:
+        from tools.iam_key_rotation_lock import iam_user_scope, operation_lock
+
+        return operation_lock(
+            self.reader, [iam_user_scope(target.account_id, target.identifier)]
+        )
 
     def aws(
         self, credentials: Path, profile: str, region: str, arguments: list[str]
@@ -496,6 +505,11 @@ def rotate(request: Request, target: Target, runtime: RotationRuntime) -> Result
     validate_request(request)
     if (request.account, request.identifier) != (target.account, target.identifier):
         raise RotationError("Resolved target differs from requested resource")
+    with nullcontext() if request.dry_run else runtime.lock(target):
+        return _rotate(request, target, runtime)
+
+
+def _rotate(request: Request, target: Target, runtime: RotationRuntime) -> Result:
     state = runtime.operation(target, "inspect")
     keys = runtime.iam_keys(target)
     status = runtime.status(target)

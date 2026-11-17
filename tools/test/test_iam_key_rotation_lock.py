@@ -127,3 +127,28 @@ def test_different_users_cannot_edit_one_legacy_state_concurrently(
             None, [locks.iam_user_scope("111122223333", "second")]
         ):
             pass
+
+
+def test_erv2_and_retirement_share_the_same_user_lock(state: State) -> None:
+    retire = legacy.RetirementClient.__new__(legacy.RetirementClient)
+    retire.reader = None
+    retire.target = legacy.RetirementTarget(
+        account="alias",
+        account_id="111122223333",
+        iam_user="example",
+        region="us-east-1",
+    )
+    external = erv2.Runtime.__new__(erv2.Runtime)
+    external.reader = None  # type: ignore[assignment]
+    target = erv2.Target(
+        account="another-alias",
+        account_id="111122223333",
+        identifier="example",
+        region="us-east-1",
+    )
+    with (
+        retire.lock(),
+        pytest.raises(erv2.RotationError, match="Another rotation holds"),
+        external.lock(target),
+    ):
+        pytest.fail("ERv2 preparation ignored retirement")
