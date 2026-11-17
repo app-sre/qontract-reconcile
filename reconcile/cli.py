@@ -3633,9 +3633,7 @@ def blackbox_exporter_endpoint_monitoring(
     )
 
 
-@integration.command(
-    short_help="Manages Prometheus Probe resources for signalfx exporter"
-)
+@integration.command(short_help="Manages Prometheus Probes for metrics importers")
 @threaded()
 @internal()
 @click.pass_context

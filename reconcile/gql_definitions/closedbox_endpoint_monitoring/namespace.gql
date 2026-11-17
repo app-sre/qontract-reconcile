@@ -1,0 +1,26 @@
+# qenerate: plugin=pydantic_v2
+
+fragment EndpointMonitoringNamespace on Namespace_v1 {
+  name
+  cluster {
+    name
+    serverUrl
+    automationToken {
+      path
+      field
+      version
+    }
+    automationTokens {
+      name
+      namespace
+      active
+      delete
+      secret {
+        path
+        field
+        version
+      }
+    }
+    internal
+  }
+}

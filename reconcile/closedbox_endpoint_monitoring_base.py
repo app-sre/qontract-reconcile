@@ -11,7 +11,8 @@ from urllib.parse import urlparse
 from pydantic.dataclasses import dataclass
 
 import reconcile.openshift_base as ob
-from reconcile import queries
+from reconcile.gql_definitions.closedbox_endpoint_monitoring.endpoints import query
+from reconcile.utils import gql
 from reconcile.utils.defer import defer
 
 if TYPE_CHECKING:
@@ -39,8 +40,8 @@ class BlackboxMonitoringProvider:
 
 
 @dataclass(frozen=True, eq=True)
-class SignalfxMonitoringProvier:
-    # the namespace of a signalfx provider is mapped as dict
+class PrometheusMetricsImporterMonitoringProvider:
+    # the exporter namespace is mapped as dict
     # since its only use with ob.fetch_current_state is as a dict
     namespace: dict[str, Any] = field(compare=False, hash=False)
     exporterUrl: str
@@ -55,13 +56,17 @@ class EndpointMonitoringProvider:
     timeout: str | None = None
     checkInterval: str | None = None
     blackboxExporter: BlackboxMonitoringProvider | None = None
-    signalFx: SignalfxMonitoringProvier | None = None
+    signalFx: PrometheusMetricsImporterMonitoringProvider | None = None
+    prometheusMetricsImporter: PrometheusMetricsImporterMonitoringProvider | None = None
     metricLabels: str | None = None
 
     @property
     def namespace(self) -> dict[str, Any] | None:
         if self.blackboxExporter:
             return self.blackboxExporter.namespace
+
+        if self.prometheusMetricsImporter:
+            return self.prometheusMetricsImporter.namespace
 
         if self.signalFx:
             return self.signalFx.namespace
@@ -98,20 +103,35 @@ def parse_prober_url(url: str) -> dict[str, str]:
     return data
 
 
-def get_endpoints(provider: str) -> dict[EndpointMonitoringProvider, list[Endpoint]]:
-    endpoints: dict[EndpointMonitoringProvider, list[Endpoint]] = defaultdict(
-        list[Endpoint]
-    )
-    for app in queries.get_service_monitoring_endpoints():
-        for ep_data in app.get("endPoints") or []:
-            monitoring = ep_data.get("monitoring")
-            if monitoring:
-                ep_data["monitoring"] = [
-                    m for m in monitoring if m["provider"]["provider"] == provider
-                ]
-                ep = Endpoint(**ep_data)
-                for mon in ep.monitoring:
-                    endpoints[mon.provider].append(ep)
+def get_endpoints(
+    provider: str | frozenset[str],
+) -> dict[EndpointMonitoringProvider, list[Endpoint]]:
+    providers = frozenset({provider}) if isinstance(provider, str) else provider
+    endpoints: dict[EndpointMonitoringProvider, list[Endpoint]] = defaultdict(list)
+    for app in query(query_func=gql.get_api().query).apps or []:
+        for endpoint in app.end_points or []:
+            monitoring = []
+            for monitor in endpoint.monitoring or []:
+                if monitor.provider is None:
+                    raise ValueError(f"Missing monitoring provider for {endpoint.name}")
+                if monitor.provider.provider in providers:
+                    monitoring.append(
+                        Endpoint.Monitoring(
+                            provider=EndpointMonitoringProvider(
+                                **monitor.provider.model_dump(
+                                    by_alias=True, round_trip=True
+                                )
+                            )
+                        )
+                    )
+            ep = Endpoint(
+                name=endpoint.name,
+                description=endpoint.description,
+                url=endpoint.url,
+                monitoring=monitoring,
+            )
+            for mon in monitoring:
+                endpoints[mon.provider].append(ep)
     return endpoints
 
 
@@ -131,7 +151,7 @@ def fill_desired_state(
 
 @defer
 def run_for_provider(
-    provider: str,
+    provider: str | frozenset[str],
     probe_builder: Callable[
         [EndpointMonitoringProvider, list[Endpoint]],
         list[tuple[OpenshiftResource, dict[str, Any]]],

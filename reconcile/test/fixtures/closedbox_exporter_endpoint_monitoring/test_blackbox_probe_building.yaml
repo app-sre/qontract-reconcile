@@ -20,9 +20,11 @@ appInterface:
                 name: app-sre-stage-01
                 serverUrl: http://asdf:6443
                 internal: false
+                automationTokens: null
                 automationToken:
                   path: app-sre/creds/kube-configs/app-sre-stage-01
                   field: token
+                  version: null
             exporterUrl: http://exporterhost:9115/probe
   - endPoints:
     - name: test_2
@@ -44,7 +46,9 @@ appInterface:
                 name: app-sre-stage-01
                 serverUrl: http://asdf:6443
                 internal: false
+                automationTokens: null
                 automationToken:
                   path: app-sre/creds/kube-configs/app-sre-stage-01
                   field: token
+                  version: null
             exporterUrl: http://exporterhost:9115/probe

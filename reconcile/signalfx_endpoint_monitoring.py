@@ -11,12 +11,14 @@ from reconcile.closedbox_endpoint_monitoring_base import (
 from reconcile.utils.openshift_resource import OpenshiftResource
 from reconcile.utils.semver_helper import make_semver
 
+# Keep the deployed command and resource ownership stable during provider migration.
 QONTRACT_INTEGRATION = "signalfx-prometheus-endpoint-monitoring"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 LOG = logging.getLogger(__name__)
 
 PROVIDER = "signalfx"
+PROVIDERS = frozenset({PROVIDER, "prometheus-metrics-importer"})
 COO_NAMESPACE_NAME = "app-sre-observability-per-cluster"
 MANAGED_TYPES = ["Probe.monitoring.rhobs"]
 
@@ -24,7 +26,7 @@ MANAGED_TYPES = ["Probe.monitoring.rhobs"]
 def run(dry_run: bool, thread_pool_size: int, internal: bool) -> None:
     try:
         run_for_provider(
-            provider=PROVIDER,
+            provider=PROVIDERS,
             probe_builder=build_probe,
             integration=QONTRACT_INTEGRATION,
             integration_version=QONTRACT_INTEGRATION_VERSION,
@@ -41,11 +43,21 @@ def run(dry_run: bool, thread_pool_size: int, internal: bool) -> None:
 def build_probe(
     provider: EndpointMonitoringProvider, endpoints: list[Endpoint]
 ) -> list[tuple[OpenshiftResource, dict[str, Any]]]:
-    signalfx = provider.signalFx
-    if not signalfx:
-        return []
-    prober_url = parse_prober_url(signalfx.exporterUrl)
-    prober_url["path"] += "/" + signalfx.targetFilterLabel
+    match provider.provider:
+        case "signalfx":
+            importer = provider.signalFx
+        case "prometheus-metrics-importer":
+            importer = provider.prometheusMetricsImporter
+        case _:
+            raise ValueError(
+                f"Unsupported metrics importer provider: {provider.provider}"
+            )
+    if importer is None:
+        raise ValueError(
+            f"Missing metrics importer settings for provider {provider.name}"
+        )
+    prober_url = parse_prober_url(importer.exporterUrl)
+    prober_url["path"] = prober_url.get("path", "") + "/" + importer.targetFilterLabel
 
     # the scraped metrics have the endpoint name in their instance label. to be
     # compatible with the results of blackbox exporter, we replace the endpoint
@@ -79,7 +91,7 @@ def build_probe(
     if provider.timeout:
         spec["scrapeTimeout"] = provider.timeout
 
-    namespace = signalfx.namespace
+    namespace = importer.namespace
     coo_namespace: dict[str, Any] = {**namespace, "name": COO_NAMESPACE_NAME}
     rhobs_body: dict[str, Any] = {
         "apiVersion": "monitoring.rhobs/v1",

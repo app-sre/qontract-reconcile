@@ -219,8 +219,8 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   service-dependencies            Validate dependencies are defined for each
                                   service.
   signalfx-prometheus-endpoint-monitoring
-                                  Manages Prometheus Probe resources for
-                                  signalfx exporter
+                                  Manages Prometheus Probes for metrics
+                                  importers
   skupper-network                 Manages Skupper Networks.
   sql-query                       Runs SQL Queries against app-interface RDS
                                   resources.
