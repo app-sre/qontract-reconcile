@@ -14,6 +14,7 @@ from gitlab.const import PipelineStatus
 from sretoolbox.utils import retry
 
 from reconcile import queries
+from reconcile.gitlab_housekeeping.fork_pipelines import trigger_fork_pipelines
 from reconcile.gitlab_housekeeping.healthcheck import run_error_healthcheck
 from reconcile.gitlab_housekeeping.helpers import (
     SQUASH_OPTION_ALWAYS,
@@ -531,6 +532,19 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                 logging.exception(
                     "error healthcheck failed, continuing with merge/rebase"
                 )
+            if hk.get("trigger_fork_pipelines"):
+                try:
+                    trigger_fork_pipelines(
+                        dry_run=dry_run,
+                        gl=gl,
+                        project_merge_requests=project_merge_requests,
+                        state=state,
+                        pipeline_cache=pipeline_cache,
+                    )
+                except Exception:
+                    logging.exception(
+                        "trigger_fork_pipelines failed, continuing with merge/rebase"
+                    )
             reload_toggle = ReloadToggle(reload=False)
             rebase = hk.get("rebase")
             must_pass = hk.get("must_pass")

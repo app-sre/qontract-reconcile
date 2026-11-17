@@ -396,6 +396,21 @@ class GitLabApi:
         )
 
     @staticmethod
+    def create_merge_request_pipeline(
+        mr: ProjectMergeRequest,
+    ) -> ProjectMergeRequestPipeline:
+        """Trigger a new pipeline for this MR's current HEAD commit.
+
+        For a fork MR, this runs in the *target* (parent) project's context
+        rather than the fork's, provided the target project has
+        ci_allow_fork_pipelines_to_run_in_parent_project enabled -- the same
+        effect as a maintainer clicking "Run pipeline" and accepting the
+        warning in the UI, or using the `/rebase` quick action, except the
+        API path skips that confirmation dialog entirely.
+        """
+        return mr.pipelines.create({})
+
+    @staticmethod
     def get_merge_request_changed_paths(
         merge_request: ProjectMergeRequest,
     ) -> list[str]:
