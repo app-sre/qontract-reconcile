@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING
 
 import pytest
@@ -12,6 +13,7 @@ from tools import qontract_cli
 from tools import rotate_terraform_resources_keys as rotation
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from pathlib import Path
     from unittest.mock import Mock
 
@@ -142,6 +144,7 @@ def runtime(
     state: rotation.StateDocument,
 ) -> Mock:
     r = mocker.Mock(spec=rotation.RotationRuntime)
+    r.lock.side_effect = nullcontext
     r.target, _ = rotation.resolve_target(request(), inventory)
     r.cache_bucket = "test-cache"
     r.current = rotation.Snapshot(
@@ -719,6 +722,7 @@ def retirement_request(
 @pytest.fixture
 def retirement_runtime(mocker: MockerFixture) -> Mock:
     r = mocker.Mock(spec=rotation.RetirementRuntime)
+    r.lock.side_effect = nullcontext
     r.close = mocker.Mock()
     r.target = rotation.RetirementTarget(
         account="test-account",
@@ -872,6 +876,45 @@ def test_combined_delete_waits_for_inactive_confirmation(
     with pytest.raises(rotation.RotationError, match="expected Inactive"):
         rotation.retire(retirement_request("delete", dry_run=False), retirement_runtime)
     retirement_runtime.delete.assert_not_called()
+
+
+def test_overlapping_retirements_cannot_deactivate_both_keys(
+    retirement_runtime: Mock,
+) -> None:
+    r = retirement_runtime
+    held = False
+
+    @contextmanager
+    def lock() -> Generator[None]:
+        nonlocal held
+        if held:
+            raise rotation.RotationError("another retirement holds the lock")
+        held = True
+        try:
+            yield
+        finally:
+            held = False
+
+    r.lock.side_effect = lock
+    original = r.deactivate.side_effect
+
+    def overlap(key_id: str) -> None:
+        reads = r.keys.call_count
+        other = retirement_request("delete", dry_run=False).model_copy(
+            update={"key_id": NEW}
+        )
+        with pytest.raises(rotation.RotationError, match="another retirement"):
+            rotation.retire(other, r)
+        assert r.keys.call_count == reads
+        original(key_id)
+
+    r.deactivate.side_effect = overlap
+    assert (
+        rotation.retire(retirement_request("delete", dry_run=False), r).status
+        == "deleted"
+    )
+    assert r.current == [rotation.IamKey(AccessKeyId=NEW, Status="Active")]
+    assert not held
 
 
 @pytest.mark.parametrize("phase", ["deactivate", "delete"])
