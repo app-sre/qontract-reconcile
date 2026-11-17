@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING, Literal
 
 import pytest
@@ -12,6 +13,7 @@ from tools import qontract_cli
 from tools import rotate_erv2_cloudwatch_keys as rotation
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from pathlib import Path
     from unittest.mock import Mock
 
@@ -34,6 +36,7 @@ def target() -> rotation.Target:
 @pytest.fixture
 def runtime(mocker: MockerFixture) -> Mock:
     runtime = mocker.Mock(spec=rotation.RotationRuntime)
+    runtime.lock.side_effect = lambda _: nullcontext()
     runtime.state = rotation.KeyState(key_id=OLD, user="test-cw", tainted=False)
     runtime.keys = [rotation.IamKey(AccessKeyId=OLD, Status="Active")]
     runtime.er_status = "CREATED"
@@ -83,6 +86,7 @@ def test_inspection_has_no_mutations(target: rotation.Target, runtime: Mock) -> 
     assert result.status == "would_rotate"
     assert result.access_key_id == OLD
     assert result.exit_code == 0
+    runtime.lock.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -114,6 +118,50 @@ def test_execution_forgets_old_key_without_retiring_it_and_requests_reconciliati
     assert runtime.keys == [rotation.IamKey(AccessKeyId=OLD, Status="Active")]
     assert not result.tainted
     runtime.operation.assert_any_call(target, "remove", OLD)
+
+
+def test_expected_key_inspection_and_mutation_share_exclusive_access(
+    target: rotation.Target, runtime: Mock
+) -> None:
+    held = False
+
+    @contextmanager
+    def lock(_target: rotation.Target) -> Generator[None]:
+        nonlocal held
+        if held:
+            raise rotation.RotationError("another preparation holds the lock")
+        held = True
+        try:
+            yield
+        finally:
+            held = False
+
+    runtime.lock.side_effect = lock
+    original = runtime.operation.side_effect
+
+    def operation(
+        target: rotation.Target,
+        action: Literal["inspect", "remove", "taint"],
+        expected_key: str | None = None,
+    ) -> rotation.KeyState:
+        assert held
+        if action == "inspect":
+            calls = runtime.operation.call_count
+            with pytest.raises(rotation.RotationError, match="another preparation"):
+                rotation.rotate(
+                    request(dry_run=False, expected_key_id=OLD), target, runtime
+                )
+            assert runtime.operation.call_count == calls
+        return original(target, action, expected_key)
+
+    runtime.operation.side_effect = operation
+    assert (
+        rotation.rotate(
+            request(dry_run=False, expected_key_id=OLD), target, runtime
+        ).status
+        == "requested"
+    )
+    assert not held
 
 
 def test_repeat_call_while_pending_does_not_remove_state_again(
@@ -202,6 +250,7 @@ def test_verification_distinguishes_cutover_readiness_from_old_key_retirement(
     assert result.status == expected
     assert (runtime.removals, runtime.requests) == (0, 0)
     assert result.retained_key_id == (OLD if old_present else None)
+    runtime.lock.assert_not_called()
 
 
 def test_subprocess_failure_does_not_expose_output(mocker: MockerFixture) -> None:

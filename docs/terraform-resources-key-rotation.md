@@ -19,8 +19,8 @@ read, and retain them through mutation and final verification. Inspection and
 Execution needs read/write/delete access to its
 `state/iam-key-rotation-locks/` prefix, including IAM-only retirement.
 
-The IAM-user lock is shared by legacy preparation, deactivation, and deletion,
-using the AWS account ID and username rather than the selected key
+The IAM-user lock is shared by ERv2 rotation, legacy preparation, deactivation,
+and deletion, using the AWS account ID and username rather than the selected key
 ID. Legacy preparation also locks its shared Terraform backend, so two users
 cannot concurrently edit the same account state.
 
@@ -37,6 +37,29 @@ automatic expiry or takeover. If a process crashes or a response is lost, locate
 the lock object reported in the error or under the prefix above, confirm that
 its process and any other writers have stopped, and remove that orphaned lock
 before retrying. Do not remove a lock held by a live process.
+
+### ERv2 CloudWatch preparation
+
+The ERv2 command uses the same exclusive mutation window. Pause the relevant
+`external-resources` reconciliation and other state/IAM writers, and wait for
+existing provider jobs to finish before executing it. Pausing the scheduler
+alone does not stop an already-running Terraform job. Keep it paused until the
+command has finished its inspection, state mutation, and reconciliation request.
+
+```sh
+qontract-cli --config config.debug.toml external-resources \
+  --provision-provider aws --provisioner ACCOUNT --provider cloudwatch \
+  --identifier IDENTIFIER rotate-access-key
+```
+
+Use the inspected `--expected-key-id OLD_KEY_ID` with `--no-dry-run` for
+preparation. The default `--mode without-downtime` removes the binding while
+retaining the old Active key; `--mode with-downtime` taints it for replacement
+and may invalidate the old credential before consumer cutover. Both modes hold
+the IAM-user lock from the first inspection through preparation and the request.
+Re-enable normal ERv2 reconciliation after the command completes so it can
+create and synchronize the replacement. Verify source Secrets and application
+adoption before entering a new exclusive window to retire the old key.
 
 ## 1. Inspect the user and record its metadata
 

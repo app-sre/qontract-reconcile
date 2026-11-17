@@ -4390,6 +4390,8 @@ def rotate_access_key(
     Without downtime: keep the old key active; verify consumer adoption before
     separately retiring it. With downtime: reconciliation replaces the old key
     and may interrupt consumers. Both modes require application verification.
+    Pause other state/IAM writers and in-flight provider jobs before execution;
+    follow docs/terraform-resources-key-rotation.md for the exclusive window.
     """
     if ctx.obj["provision_provider"] != "aws" or ctx.obj["provider"] != "cloudwatch":
         raise click.ClickException(
