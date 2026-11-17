@@ -22,6 +22,7 @@ Available integrations:
 - [LDAP Users](ldap-users.md) - Remove orphaned users from app-interface and infra repos when no longer in LDAP (client-orchestrated pattern)
 - [Managed SSO Client](managed-sso-client.md) - Let tenants declaratively request OIDC clients on Keycloak, reconciled via live create/update/delete against the client-registration API
 - [OCM Groups](ocm-groups.md) - Reconcile OCM cluster group memberships (dedicated-admins, cluster-admins) by diffing App-Interface roles against live OCM state
+- [OCM Machine Pools](ocm-machine-pools.md) - Reconcile OCM machine pools and node pools (replicas, autoscaling, instance types, labels, taints) against App-Interface cluster definitions, with all legacy safety guards
 - [OCM OIDC Identity Provider](ocm-oidc-idp.md) - Reconcile OCM OIDC identity providers for RHIDP-enabled clusters against the SSO client secrets sso-client-api writes to Vault
 - [OpenShift Namespaces](openshift-namespaces.md) - Reconcile Kubernetes/OpenShift namespaces across clusters with cached existence checks and idempotent create/delete
 - [Quay Robot Accounts](quay-robot-accounts.md) - Manage Quay organization robot accounts, team membership, and repository permissions
