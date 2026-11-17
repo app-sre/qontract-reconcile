@@ -7,7 +7,7 @@ from unittest.mock import (
 
 import pytest
 
-from reconcile.gql_definitions.common.app_interface_vault_settings import (
+from reconcile.gql_definitions.openshift_resources.settings import (
     AppInterfaceSettingsV1,
 )
 from reconcile.openshift_resources_base import NAMESPACES_QUERY
@@ -51,7 +51,9 @@ class TestPrometheusRulesTester:
 
         self.fxt = Fixtures("prometheus_rules_tester")
         self.alerting_services = {"yak-shaver"}
-        self.vault_settings = AppInterfaceSettingsV1(vault=False)
+        self.settings = AppInterfaceSettingsV1(
+            repoUrl="https://git.example.com/app-interface", vault=False
+        )
 
         # Patcher for GqlApi methods
         self.gql_patcher = patch.object(gql, "get_api", autospec=True)
@@ -67,7 +69,7 @@ class TestPrometheusRulesTester:
 
     def run_check(self, cluster_name: str | None = None) -> list[PTest]:
         return check_rules_and_tests(
-            vault_settings=self.vault_settings,
+            settings=self.settings,
             alerting_services=self.alerting_services,
             thread_pool_size=THREAD_POOL_SIZE,
             cluster_names=cluster_name,
@@ -129,17 +131,17 @@ class TestPrometheusRulesTester:
 
     @patch("reconcile.prometheus_rules_tester.integration.get_alerting_services")
     @patch(
-        "reconcile.prometheus_rules_tester.integration.get_app_interface_vault_settings"
+        "reconcile.prometheus_rules_tester.integration.get_openshift_resources_settings"
     )
     def test_run_logs_error(
         self,
-        mocker_vault_settings: MagicMock,
+        mocker_settings: MagicMock,
         mocker_alerting_services: MagicMock,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         self.ns_data = self.fxt.get_anymarkup("ns-bad-test.yaml")
         mocker_alerting_services.return_value = {"yak-shaver"}
-        mocker_vault_settings.return_value = AppInterfaceSettingsV1(vault=False)
+        mocker_settings.return_value = self.settings
         cluster_name = ("appint-ex-01",)
 
         with pytest.raises(SystemExit) as exc:
