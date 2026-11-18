@@ -1,6 +1,6 @@
 -- legacy deprovision mode: revoke the configured grants and remove
 -- the login user.
--- rendered values: {database} {username} {admin_user} {access_list}
+-- rendered values: {database} {username} {username_literal} {admin_user} {access_list}
 \set ON_ERROR_STOP on
 
 DO $$
@@ -23,7 +23,7 @@ END $$;
 ALTER ROLE "{username}" NOLOGIN;
 SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
-WHERE usename = '{username}'
+WHERE usename = '{username_literal}'
   AND pid <> pg_backend_pid();
 
 REASSIGN OWNED BY "{username}" TO "{admin_user}";

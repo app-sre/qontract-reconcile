@@ -1,7 +1,9 @@
 -- owner-role provision mode: a NOLOGIN group role owns all managed
 -- objects, the login user is a rotating member of it. The password is
--- only set when the login user is created, never rotated by this
--- script (rotation = new login user in the same role).
+-- set on every run, including for an existing login: the vault
+-- password is reused while it exists, so this is a no-op in steady
+-- state and lets a retry converge after a lost vault write (password
+-- rotation = new login user in the same role).
 -- rendered values: {database} {username} {admin_user} {role}
 --                  {schemas_csv} {access_list} {revoke_list}
 -- the user password is passed as the psql variable db_user_password via -v

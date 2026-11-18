@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import logging
+import re
 from pathlib import Path
 from random import choices
 from string import (
@@ -132,10 +134,20 @@ def _schemas_csv(db_access: DatabaseAccessV1) -> str:
     )
 
 
-def _revoke_list(current: DatabaseAccessV1 | None, desired: DatabaseAccessV1) -> str:
+def _revoke_list(
+    current: DatabaseAccessV1 | None,
+    desired: DatabaseAccessV1,
+    revoke_all: bool = False,
+) -> str:
     """Compute the grants that must be revoked to converge from the
     current to the desired access list. Moving away from ALL requires
-    a full revoke, otherwise privileges would linger."""
+    a full revoke, otherwise privileges would linger. With revoke_all
+    (a stale job applied an unknown configuration), everything on the
+    managed schemas is revoked before the desired grants."""
+    if revoke_all:
+        return ";".join(
+            f"{access.target.dbschema}|ALL" for access in desired.access or []
+        )
     if not current:
         return ""
     entries: list[str] = []
@@ -162,12 +174,30 @@ def _validate_db_access(db_access: DatabaseAccessV1) -> None:
         raise ValueError("Duplicate schema in access list.")
 
     if db_access.role:
+        if db_access.username == db_access.role:
+            # the deprovision path would otherwise remove the shared
+            # owner role and break every rotation login depending on it
+            raise ValueError("Username must differ from the owner role.")
         # role mode: the access list may be empty, DAM manages the
         # username
         return
 
     if not db_access.username:
         raise ValueError("Username is required when no role is set.")
+
+
+def _configuration_digest(db_access: DatabaseAccessV1) -> str:
+    """Stable digest of the desired configuration. Rendered into every
+    script and used to identify which configuration a job applied --
+    the rendered SQL itself is not stable (the revoke delta changes
+    after the desired state has been applied)."""
+    payload = json.dumps(db_access.model_dump(by_alias=True), sort_keys=True)
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+def _script_configuration_digest(script: str) -> str | None:
+    match = re.search(r"^-- dam-configuration: ([0-9a-f]+)$", script, re.MULTILINE)
+    return match.group(1) if match else None
 
 
 def _decode_secret_value(value: str) -> str:
@@ -250,25 +280,33 @@ def _build_script(
     current_db_access: DatabaseAccessV1 | None,
     username: str,
     admin_user: str,
+    revoke_all: bool = False,
 ) -> str:
+    # the configuration digest in the header identifies which
+    # configuration a job applied; the rendered SQL itself is not
+    # stable (the revoke delta changes once the desired state is
+    # applied)
+    header = f"-- dam-configuration: {_configuration_digest(db_access)}\n"
     if db_access.delete:
         if db_access.role:
-            return _render_sql(
+            return header + _render_sql(
                 "role_deprovision.sql",
                 database=_sql_ident(db_access.database),
                 username=_sql_ident(username),
+                username_literal=_sql_literal(username),
                 admin_user=_sql_ident(admin_user),
             )
-        return _render_sql(
+        return header + _render_sql(
             "legacy_deprovision.sql",
             database=_sql_ident(db_access.database),
             username=_sql_ident(username),
+            username_literal=_sql_literal(username),
             admin_user=_sql_ident(admin_user),
             access_list=_sql_literal(_access_list(db_access)),
         )
 
     if db_access.role:
-        return _render_sql(
+        return header + _render_sql(
             "role_provision.sql",
             database=_sql_ident(db_access.database),
             username=_sql_ident(username),
@@ -276,16 +314,20 @@ def _build_script(
             role=_sql_ident(db_access.role),
             schemas_csv=_sql_literal(_schemas_csv(db_access)),
             access_list=_sql_literal(_access_list(db_access)),
-            revoke_list=_sql_literal(_revoke_list(current_db_access, db_access)),
+            revoke_list=_sql_literal(
+                _revoke_list(current_db_access, db_access, revoke_all)
+            ),
         )
 
-    return _render_sql(
+    return header + _render_sql(
         "legacy_provision.sql",
         database=_sql_ident(db_access.database),
         username=_sql_ident(username),
         admin_user=_sql_ident(admin_user),
         access_list=_sql_literal(_access_list(db_access)),
-        revoke_list=_sql_literal(_revoke_list(current_db_access, db_access)),
+        revoke_list=_sql_literal(
+            _revoke_list(current_db_access, db_access, revoke_all)
+        ),
     )
 
 
@@ -423,14 +465,12 @@ def _process_db_access(
             dry_run=dry_run,
         )
 
-        script = _build_script(
-            db_access, current_db_access, username, admin_connection.user
-        )
         job_name = _job_name(state_key, job_image, admin_secret_name, pull_secret_name)
 
         # settle the job for this entry before treating the state as
         # converged: matching state with an unfinished or stale job
         # would skip work that has not been applied yet
+        stale_job = False
         controller.update_cache()
         match controller.get_job_status(job_name):
             case JobStatus.IN_PROGRESS:
@@ -455,10 +495,15 @@ def _process_db_access(
             case JobStatus.SUCCESS:
                 job_secret = _read_job_secret(oc, namespace_name, job_name)
                 if job_secret:
-                    if job_secret.get("script.sql") == script:
-                        # the job ran the current configuration: settle
-                        if state_matches:
-                            return
+                    job_digest = _script_configuration_digest(
+                        job_secret.get("script.sql", "")
+                    )
+                    if job_digest == _configuration_digest(db_access):
+                        # the job ran the current configuration: settle.
+                        # always publish the credentials the job used --
+                        # a replacement job may have run with a password
+                        # that vault does not have yet, even when the
+                        # state already matches
                         if not dry_run:
                             if not db_access.delete:
                                 _write_vault_secret(
@@ -475,7 +520,9 @@ def _process_db_access(
                         return
                     # stale job from an older configuration (e.g. the
                     # configuration was reverted while the job was in
-                    # flight): replace it below
+                    # flight): replace it below and revoke everything it
+                    # may have applied
+                    stale_job = True
                 elif state_matches:
                     # the job secret expired (TTL) and the state
                     # converged long ago
@@ -483,6 +530,14 @@ def _process_db_access(
             case JobStatus.NOT_EXISTS:
                 if state_matches:
                     return
+
+        script = _build_script(
+            db_access,
+            current_db_access,
+            username,
+            admin_connection.user,
+            revoke_all=stale_job,
+        )
 
         # role mode keeps the vault password, legacy mode generates a
         # new one on every configuration change

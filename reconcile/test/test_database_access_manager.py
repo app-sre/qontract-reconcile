@@ -14,12 +14,15 @@ from reconcile.database_access_manager.integration import (
     DBAMIntegrationParams,
     JobFailedError,
     _access_list,
+    _build_script,
+    _configuration_digest,
     _ensure_pull_secret,
     _generated_username,
     _process_db_access,
     _render_sql,
     _revoke_list,
     _schemas_csv,
+    _script_configuration_digest,
     _validate_db_access,
 )
 from reconcile.database_access_manager.jobs import DatabaseAccessJob
@@ -389,6 +392,7 @@ def test_render_role_deprovision() -> None:
         "role_deprovision.sql",
         database="test",
         username="cs_app",
+        username_literal="cs_app",
         admin_user="admin",
     )
     assert 'REASSIGN OWNED BY "cs_app" TO "admin";' in script
@@ -403,6 +407,7 @@ def test_render_legacy_deprovision() -> None:
         "legacy_deprovision.sql",
         database="test",
         username="test",
+        username_literal="test",
         admin_user="admin",
         access_list="foo|SELECT",
     )
@@ -782,6 +787,7 @@ def test_deprovision_templates_cut_off_sessions(template: str) -> None:
         template,
         database="test",
         username="cs_app",
+        username_literal="cs_app",
         admin_user="admin",
         access_list="",
     )
@@ -812,15 +818,11 @@ def _job_secret_with_script(script: str) -> dict[str, dict[str, str]]:
 
 
 def _desired_script(db_access_role: DatabaseAccessV1) -> str:
-    return _render_sql(
-        "role_provision.sql",
-        database="postgres",
-        username=_generated_username("cs_owner", STATE_KEY),
-        admin_user="admin",
-        role="cs_owner",
-        schemas_csv="foo",
-        access_list="foo|INSERT,SELECT",
-        revoke_list="",
+    return _build_script(
+        db_access_role,
+        None,
+        _generated_username("cs_owner", STATE_KEY),
+        "admin",
     )
 
 
@@ -848,6 +850,8 @@ def test_process_stale_job_is_replaced(
         db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
     )
     dbam_controller.enqueue_job.assert_called_once()
+    # the replacement revokes everything the stale job may have applied
+    assert "foo|ALL" in enqueued_job(dbam_controller).script
 
 
 def test_process_converged_job_settles(
@@ -871,6 +875,10 @@ def test_process_converged_job_settles(
     )
     dbam_controller.enqueue_job.assert_not_called()
     vault_mock.write.assert_called_once()
+    secret = vault_mock.write.call_args[0][0]
+    assert secret["path"] == f"vault-out/database-access-manager/{STATE_KEY}"
+    assert secret["data"]["db.password"] == "jobpw"
+    assert secret["data"]["db.user"] == "cs_owner_abc"
     dbam_state.add.assert_called_once()
 
 
@@ -927,3 +935,73 @@ def test_pull_secret_uses_dockerconfigjson_type(mocker: MockerFixture) -> None:
     )
     assert result == "dbam-pull-secret"
     assert fetch.call_args.kwargs["type"] == "kubernetes.io/dockerconfigjson"
+
+
+# ---------------------------------------------------------------------------
+# review feedback round 3
+# ---------------------------------------------------------------------------
+
+
+def test_process_settled_job_publishes_password_with_matching_state(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    # a settled job must publish its credential even when the state
+    # already matches: a replacement job may have run with a password
+    # that vault does not have yet
+    dbam_state.exists.return_value = True
+    dbam_state.get.return_value = db_access_role.model_dump(by_alias=True)
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
+        ADMIN_SECRET
+        if name == ADMIN_SECRET_NAME
+        else _job_secret_with_script(_desired_script(db_access_role))
+    )
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    dbam_controller.enqueue_job.assert_not_called()
+    vault_mock.write.assert_called_once()
+    assert vault_mock.write.call_args[0][0]["data"]["db.password"] == "jobpw"
+    dbam_state.add.assert_called_once()
+
+
+def test_configuration_digest_is_stable_across_revoke_deltas(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    # the rendered revoke delta changes once the desired state has been
+    # applied -- the configuration digest must not
+    current = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "test",
+            "database": "postgres",
+            "role": "cs_owner",
+            "access": [{"grants": ["SELECT", "UPDATE"], "target": {"dbschema": "foo"}}],
+        },
+    )
+    fresh = _build_script(db_access_role, None, "cs_app", "admin")
+    converged = _build_script(db_access_role, current, "cs_app", "admin")
+    assert fresh != converged  # different revoke deltas
+    assert _script_configuration_digest(fresh) == _configuration_digest(db_access_role)
+    assert _script_configuration_digest(converged) == _configuration_digest(
+        db_access_role
+    )
+
+
+def test_script_without_digest_header_is_stale() -> None:
+    assert _script_configuration_digest("-- old script") is None
+
+
+def test_validate_username_must_differ_from_role(
+    db_access_role: DatabaseAccessV1,
+) -> None:
+    db_access_role.username = "cs_owner"
+    with pytest.raises(ValueError, match="must differ from the owner role"):
+        _validate_db_access(db_access_role)

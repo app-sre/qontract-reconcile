@@ -1,7 +1,7 @@
 -- owner-role deprovision mode: remove the login user, keep the owner
 -- role. The owner role is shared across rotation entries and is never
 -- dropped by the integration.
--- rendered values: {database} {username} {admin_user}
+-- rendered values: {database} {username} {username_literal} {admin_user}
 \set ON_ERROR_STOP on
 
 \c "{database}"
@@ -13,7 +13,7 @@
 ALTER ROLE "{username}" NOLOGIN;
 SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
-WHERE usename = '{username}'
+WHERE usename = '{username_literal}'
   AND pid <> pg_backend_pid();
 
 -- reassign objects the user still owns (e.g. created before the
