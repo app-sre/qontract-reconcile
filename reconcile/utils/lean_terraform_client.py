@@ -11,15 +11,47 @@ if TYPE_CHECKING:
 
 
 def state_rm_access_key(
-    working_dirs: Mapping[str, str], account: str, user: str
+    working_dirs: Mapping[str, str], account: str, user: str, key_id: str
 ) -> bool:
+    """Forget the selected key or succeed if its binding is already absent."""
     wd = working_dirs[account]
-    init_result = subprocess.run(["terraform", "init"], check=False, cwd=wd)
-    if init_result.returncode != 0:
+    return_code, _, _ = init(wd)
+    if return_code:
+        logging.error("[%s] Terraform init failed for IAM key rotation", account)
         return False
+
+    # Resolve by ID without an address filter: Terraform errors on a missing
+    # address filter, but returns an empty list for an absent ID.
+    return_code, stdout, _ = _terraform_command(
+        ["terraform", "state", "list", f"-id={key_id}"], wd
+    )
+    if return_code:
+        logging.error("[%s] Terraform state list failed for IAM key rotation", account)
+        return False
+    addresses = stdout.strip().splitlines()
+    if not addresses:
+        logging.info(
+            "[%s] IAM key binding for %s is absent, waiting for replacement",
+            account,
+            user,
+        )
+        return True
+
     resource = f"aws_iam_access_key.{user}"
-    result = subprocess.run(["terraform", "state", "rm", resource], check=False, cwd=wd)
-    return result.returncode == 0
+    if addresses != [resource]:
+        logging.error(
+            "[%s] Unexpected Terraform binding for IAM user %s", account, user
+        )
+        return False
+
+    return_code, _, _ = _terraform_command(
+        ["terraform", "state", "rm", "-no-color", resource], wd
+    )
+    if return_code:
+        logging.error("[%s] Terraform state rm failed for %s", account, resource)
+        return False
+    logging.info("[%s] Removed Terraform binding %s", account, resource)
+    return True
 
 
 def _compute_terraform_env(
