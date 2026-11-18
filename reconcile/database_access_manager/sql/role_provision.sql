@@ -17,13 +17,28 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database}');\gexec
 REVOKE ALL ON DATABASE "{database}" FROM public;
 \endif
 
--- 1. the owner role: NOLOGIN group role that owns everything
-SELECT 'CREATE ROLE "{role}" NOLOGIN'
-WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{role}');\gexec
+-- 1. the owner role: NOLOGIN group role that owns everything.
+--    A duplicate_object error is tolerated: two entries sharing this
+--    role can run their first provisioning concurrently.
+--    Everything from here to the COMMIT is one transaction: a failure
+--    rolls back the user creation including its password, so a retry
+--    converges with a freshly generated password.
+BEGIN;
 
--- 2. the login user
-SELECT format('CREATE ROLE %I WITH LOGIN PASSWORD %L', '{username}', :'db_user_password')
+DO $$
+BEGIN
+    CREATE ROLE "{role}" NOLOGIN;
+EXCEPTION WHEN duplicate_object THEN
+    NULL;
+END $$;
+
+-- 2. the login user. The password is set on every run: the vault
+--    password is reused while it exists, and a password generated for
+--    a retry (after a lost vault write) converges automatically.
+SELECT 'CREATE ROLE "{username}"'
 WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{username}');\gexec
+
+ALTER ROLE "{username}" WITH LOGIN PASSWORD :'db_user_password' VALID UNTIL 'infinity';
 
 -- 3. role wiring: memberships and the session default that makes new
 --    connections of the login user act as the owner role, so objects
@@ -61,21 +76,12 @@ BEGIN
     END;
 END $$;
 
--- 4. database ownership: only when the executor controls the current
---    owner. On some managed services the default database is owned by
---    a service role and cannot be transferred; the app works without
---    database ownership.
-SELECT format('ALTER DATABASE %I OWNER TO %I', '{database}', '{role}')
-FROM pg_database
-WHERE datname = '{database}'
-  AND pg_has_role(current_user, datdba, 'USAGE');\gexec
-
 -- 5. ownership transfer, grants and default privileges
 DO $$
 DECLARE
     role_name text := '{role}';
     schemas text[] := string_to_array('{schemas_csv}', ',');
-    entry text[];
+    entry text;
     s text;
     r RECORD;
 BEGIN
@@ -314,3 +320,15 @@ BEGIN
             role_name, s, current_user);
     END LOOP;
 END $$;
+
+COMMIT;
+
+-- 4. database ownership: only when the executor controls the current
+--    owner. On some managed services the default database is owned by
+--    a service role and cannot be transferred; the app works without
+--    database ownership. Must stay outside the transaction: ALTER
+--    DATABASE cannot run in a transaction block.
+SELECT format('ALTER DATABASE %I OWNER TO %I', '{database}', '{role}')
+FROM pg_database
+WHERE datname = '{database}'
+  AND pg_has_role(current_user, datdba, 'USAGE');\gexec

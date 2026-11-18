@@ -5,7 +5,7 @@
 
 DO $$
 DECLARE
-    entry text[];
+    entry text;
 BEGIN
     FOREACH entry IN ARRAY string_to_array('{access_list}', ';') LOOP
         IF entry <> '' THEN
@@ -16,6 +16,15 @@ BEGIN
 END $$;
 
 \c "{database}"
+
+-- cutoff: block new connections and terminate open sessions of the
+-- departing login first, so no new objects can appear between the
+-- reassignment and the role removal
+ALTER ROLE "{username}" NOLOGIN;
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE usename = '{username}'
+  AND pid <> pg_backend_pid();
 
 REASSIGN OWNED BY "{username}" TO "{admin_user}";
 DROP ROLE IF EXISTS "{username}";\gexec

@@ -16,6 +16,11 @@ REVOKE ALL ON DATABASE "{database}" FROM public;
 
 \c "{database}"
 
+-- everything from here to the COMMIT is one transaction: a failing
+-- grant rolls back the password change, so the vault credential that
+-- is still published remains valid
+BEGIN;
+
 select 'CREATE ROLE "{username}"'
 WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{username}');\gexec
 
@@ -30,7 +35,7 @@ CREATE SCHEMA IF NOT EXISTS "{username}" AUTHORIZATION "{username}";
 -- revoke grants that were removed from the configuration since the last run
 DO $$
 DECLARE
-    entry text[];
+    entry text;
 BEGIN
     FOREACH entry IN ARRAY string_to_array('{revoke_list}', ';') LOOP
         IF entry <> '' THEN
@@ -44,7 +49,7 @@ END $$;
 -- apply the configured grants
 DO $$
 DECLARE
-    entry text[];
+    entry text;
 BEGIN
     FOREACH entry IN ARRAY string_to_array('{access_list}', ';') LOOP
         IF entry <> '' THEN
@@ -54,3 +59,5 @@ BEGIN
         END IF;
     END LOOP;
 END $$;
+
+COMMIT;

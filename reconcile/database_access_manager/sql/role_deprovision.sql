@@ -6,6 +6,16 @@
 
 \c "{database}"
 
+-- cutoff: block new connections and terminate open sessions of the
+-- departing login first. Otherwise a session that still acts as the
+-- login could create objects after the reassignment below, and
+-- DROP OWNED would remove them.
+ALTER ROLE "{username}" NOLOGIN;
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE usename = '{username}'
+  AND pid <> pg_backend_pid();
+
 -- reassign objects the user still owns (e.g. created before the
 -- migration to the owner-role model), then revoke all its privileges.
 -- DROP OWNED is the documented cleanup step after the reassignment,

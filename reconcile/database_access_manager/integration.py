@@ -198,18 +198,21 @@ def _admin_connection(
     })
 
 
-def _job_connection(
+def _read_job_secret(
     oc: OCClient, namespace_name: str, job_name: str
-) -> DatabaseConnectionParameters | None:
-    """Read the user connection from the secret of a job, so the
-    credentials a job actually used can be stored in vault after it
-    succeeded."""
+) -> dict[str, str] | None:
+    """Read the job-bound secret of a job: the user connection data and
+    the script it was created with."""
     secret = oc.get(namespace_name, "Secret", job_name, allow_not_found=True)
     if not secret:
         return None
-    return _connection_from_data({
-        k: _decode_secret_value(v) for k, v in secret["data"].items()
-    })
+    return {k: _decode_secret_value(v) for k, v in secret["data"].items()}
+
+
+def _job_connection(
+    job_secret: dict[str, str],
+) -> DatabaseConnectionParameters:
+    return _connection_from_data(job_secret)
 
 
 def _write_vault_secret(
@@ -287,19 +290,14 @@ def _build_script(
 
 
 def _job_name(
-    state_key: str,
-    script: str,
-    job_image: str,
-    admin_secret_name: str,
-    pull_secret_name: str | None,
+    state_key: str, job_image: str, admin_secret_name: str, pull_secret_name: str | None
 ) -> str:
-    """The job name only depends on the unit of work (state key and
-    script), so a probe job with a dummy connection yields the real
-    job name."""
+    """The job name only depends on the unit of work (the state key),
+    so a probe job with a dummy connection yields the real job name."""
     probe = DatabaseAccessJob(
         state_key=state_key,
         job_image=job_image,
-        script=script,
+        script="",
         admin_secret_name=admin_secret_name,
         user_connection=DatabaseConnectionParameters(
             host="probe", port="probe", user="probe", password="probe", database="probe"
@@ -327,7 +325,9 @@ def _ensure_pull_secret(
         name=PULL_SECRET_NAME,
         labels={},
         annotations={},
-        type="Opaque",
+        # the secret is used as an image pull secret: the kubelet only
+        # considers secrets of this type with a .dockerconfigjson key
+        type="kubernetes.io/dockerconfigjson",
         integration=QONTRACT_INTEGRATION,
         integration_version=str(QONTRACT_INTEGRATION_VERSION),
         secret_reader=secret_reader,
@@ -369,22 +369,23 @@ def _process_db_access(
         raise ValueError("Username is required when no role is set.")
 
     current_db_access: DatabaseAccessV1 | None = None
+    state_matches = False
     if state.exists(state_key):
         current_state = state.get(state_key)
         # states written before the 'role' field existed do not contain the key
         current_state.setdefault("role", None)
-        if current_state == db_access.model_dump(by_alias=True):
-            return
-        current_db_access = DatabaseAccessV1(**current_state)
-        if current_db_access.database != db_access.database:
-            raise ValueError("Database name cannot be changed.")
-        if (current_db_access.username or None) != (db_access.username or None):
-            raise ValueError("Username cannot be changed.")
-        # adding a role to an existing entry is the opt-in migration to
-        # the owner-role model; once set, the role cannot be changed or
-        # removed
-        if current_db_access.role and current_db_access.role != db_access.role:
-            raise ValueError("Role cannot be changed.")
+        state_matches = current_state == db_access.model_dump(by_alias=True)
+        if not state_matches:
+            current_db_access = DatabaseAccessV1(**current_state)
+            if current_db_access.database != db_access.database:
+                raise ValueError("Database name cannot be changed.")
+            if (current_db_access.username or None) != (db_access.username or None):
+                raise ValueError("Username cannot be changed.")
+            # adding a role to an existing entry is the opt-in migration to
+            # the owner-role model; once set, the role cannot be changed or
+            # removed
+            if current_db_access.role and current_db_access.role != db_access.role:
+                raise ValueError("Role cannot be changed.")
 
     cluster_name = namespace.cluster.name
     namespace_name = namespace.name
@@ -425,38 +426,63 @@ def _process_db_access(
         script = _build_script(
             db_access, current_db_access, username, admin_connection.user
         )
-        job_name = _job_name(
-            state_key, script, job_image, admin_secret_name, pull_secret_name
-        )
+        job_name = _job_name(state_key, job_image, admin_secret_name, pull_secret_name)
 
+        # settle the job for this entry before treating the state as
+        # converged: matching state with an unfinished or stale job
+        # would skip work that has not been applied yet
         controller.update_cache()
         match controller.get_job_status(job_name):
             case JobStatus.IN_PROGRESS:
-                logging.info(f"Job {job_name} appears to be still running")
+                if _read_job_secret(oc, namespace_name, job_name) is None:
+                    # incomplete enqueue: the job was created without its
+                    # job-bound secret (e.g. a failed secret write) and
+                    # would wait forever -- remove it, the enqueue below
+                    # re-creates it with its secret
+                    controller.delete_job(job_name)
+                    logging.warning(f"deleted incomplete job {job_name}")
+                else:
+                    logging.info(f"Job {job_name} appears to be still running")
                 return
             case JobStatus.ERROR:
-                raise JobFailedError(f"Job {job_name} failed, please check logs")
+                # remove the failed job so the enqueue below can retry,
+                # and surface the error for this reconcile
+                controller.delete_job(job_name)
+                raise JobFailedError(
+                    f"Job {job_name} failed and was removed, please check the "
+                    "job logs -- it will be retried on the next reconciliation"
+                )
             case JobStatus.SUCCESS:
-                # the job for this configuration already succeeded:
-                # store the credentials it used and update the state
-                job_connection = _job_connection(oc, namespace_name, job_name)
-                if job_connection:
-                    if not dry_run:
-                        if not db_access.delete:
-                            _write_vault_secret(
-                                vault_client,
-                                vault_output_path,
+                job_secret = _read_job_secret(oc, namespace_name, job_name)
+                if job_secret:
+                    if job_secret.get("script.sql") == script:
+                        # the job ran the current configuration: settle
+                        if state_matches:
+                            return
+                        if not dry_run:
+                            if not db_access.delete:
+                                _write_vault_secret(
+                                    vault_client,
+                                    vault_output_path,
+                                    state_key,
+                                    _job_connection(job_secret),
+                                )
+                            state.add(
                                 state_key,
-                                job_connection,
+                                value=db_access.model_dump(by_alias=True),
+                                force=True,
                             )
-                        state.add(
-                            state_key,
-                            value=db_access.model_dump(by_alias=True),
-                            force=True,
-                        )
+                        return
+                    # stale job from an older configuration (e.g. the
+                    # configuration was reverted while the job was in
+                    # flight): replace it below
+                elif state_matches:
+                    # the job secret expired (TTL) and the state
+                    # converged long ago
                     return
-                # the job secret expired (TTL): fall through and re-run
-                # the idempotent script
+            case JobStatus.NOT_EXISTS:
+                if state_matches:
+                    return
 
         # role mode keeps the vault password, legacy mode generates a
         # new one on every configuration change
@@ -488,7 +514,12 @@ def _process_db_access(
             return
 
         controller.enqueue_job(
-            job, concurrency_policy=JobConcurrencyPolicy.REPLACE_FINISHED
+            job,
+            concurrency_policy=(
+                JobConcurrencyPolicy.REPLACE_IN_PROGRESS
+                | JobConcurrencyPolicy.REPLACE_FAILED
+                | JobConcurrencyPolicy.REPLACE_FINISHED
+            ),
         )
         controller.update_cache()
         match controller.get_job_status(job.name()):
@@ -576,7 +607,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                         except (JobFailedError, ValueError) as e:
                             encountered_errors.append(e)
 
-            if encountered_errors:
-                for err in encountered_errors:
-                    logging.error(err)
-                raise JobFailedError("One or more jobs failed to complete")
+        if encountered_errors:
+            for err in encountered_errors:
+                logging.error(err)
+            raise JobFailedError("One or more jobs failed to complete")

@@ -64,11 +64,10 @@ class DatabaseAccessJob(K8sJob, BaseModel, frozen=True):
         return _sanitize_job_prefix(f"dbam-{self.state_key.replace('/', '-')}")
 
     def unit_of_work_identity(self) -> Any:
-        # the script is part of the identity: a configuration change
-        # produces a different script and therefore a new job, while
-        # reconciles with an unchanged configuration address the
-        # existing job
-        return {"state_key": self.state_key, "script": self.script}
+        # the identity is the state key only, so at most one job per
+        # entry exists at any time: enqueuing a job for a changed
+        # configuration replaces the previous job for the entry
+        return self.state_key
 
     def labels(self) -> dict[str, str]:
         return {"app": "qontract-reconcile", "integration": QONTRACT_INTEGRATION}
@@ -114,7 +113,8 @@ class DatabaseAccessJob(K8sJob, BaseModel, frozen=True):
             image_pull_policy=image_pull_policy,
             command=["/usr/bin/psql"],
             args=[
-                "-b",
+                # no --echo-errors here: it would echo failed statements
+                # including the interpolated password to the job logs
                 "--host=$(db.host)",
                 "--port=$(db.port)",
                 "--username=$(db.user)",

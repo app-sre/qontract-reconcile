@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -13,6 +14,7 @@ from reconcile.database_access_manager.integration import (
     DBAMIntegrationParams,
     JobFailedError,
     _access_list,
+    _ensure_pull_secret,
     _generated_username,
     _process_db_access,
     _render_sql,
@@ -357,7 +359,7 @@ def test_render_role_provision() -> None:
         revoke_list="",
     )
     assert 'CREATE ROLE "cs_owner" NOLOGIN' in script
-    assert "PASSWORD %L', 'cs_app', :'db_user_password'" in script
+    assert "PASSWORD :'db_user_password'" in script
     assert "ALTER ROLE %I IN DATABASE %I SET role = %I" in script
     assert "pg_has_role(current_user, role_name, 'USAGE')" in script
     assert "ALTER STATISTICS %I.%I OWNER TO %I" in script
@@ -479,6 +481,7 @@ def test_job_spec() -> None:
 def test_process_state_exists_matched(
     db_access: DatabaseAccessV1,
     dbam_state: MagicMock,
+    dbam_controller: MagicMock,
     db_access_namespace: NamespaceV1,
     secret_reader: MagicMock,
     vault_mock: MagicMock,
@@ -486,10 +489,10 @@ def test_process_state_exists_matched(
 ) -> None:
     dbam_state.exists.return_value = True
     dbam_state.get.return_value = db_access.model_dump(by_alias=True)
-    # missing mocks would cause this to fail if not exit early
     run_process(db_access, dbam_state, secret_reader, vault_mock, db_access_namespace)
     dbam_state.add.assert_not_called()
-    oc_map.get_cluster.assert_not_called()
+    dbam_controller.enqueue_job.assert_not_called()
+    vault_mock.write.assert_not_called()
 
 
 def test_process_legacy_provisions_job(
@@ -726,3 +729,201 @@ def test_integration_params() -> None:
         )
     )
     assert integration.name == "database-access-manager"
+
+
+# ---------------------------------------------------------------------------
+# review feedback fixes
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "template",
+    [
+        "legacy_provision.sql",
+        "legacy_deprovision.sql",
+        "role_provision.sql",
+    ],
+)
+def test_template_foreach_target_is_scalar(template: str) -> None:
+    content = (
+        Path(__file__).parent.parent / "database_access_manager" / "sql" / template
+    ).read_text()
+    # FOREACH without SLICE requires a scalar target
+    assert "entry text[];" not in content
+    assert "entry text;" in content or "FOREACH" not in content
+
+
+def test_provision_templates_are_transactional() -> None:
+    for template in ["legacy_provision.sql", "role_provision.sql"]:
+        content = (
+            Path(__file__).parent.parent / "database_access_manager" / "sql" / template
+        ).read_text()
+        assert "BEGIN;" in content
+        assert "COMMIT;" in content
+
+
+def test_role_template_sets_password_on_every_run() -> None:
+    script = _render_sql(
+        "role_provision.sql",
+        database="test",
+        username="cs_app",
+        admin_user="admin",
+        role="cs_owner",
+        schemas_csv="",
+        access_list="",
+        revoke_list="",
+    )
+    assert "ALTER ROLE \"cs_app\" WITH LOGIN PASSWORD :'db_user_password'" in script
+
+
+@pytest.mark.parametrize("template", ["role_deprovision.sql", "legacy_deprovision.sql"])
+def test_deprovision_templates_cut_off_sessions(template: str) -> None:
+    script = _render_sql(
+        template,
+        database="test",
+        username="cs_app",
+        admin_user="admin",
+        access_list="",
+    )
+    assert 'ALTER ROLE "cs_app" NOLOGIN;' in script
+    assert "pg_terminate_backend" in script
+
+
+def test_job_args_do_not_echo_errors() -> None:
+    job = make_job()
+    spec = job.job_spec()
+    assert spec.template.spec is not None
+    assert spec.template.spec.containers
+    container = spec.template.spec.containers[0]
+    assert container.args is not None
+    assert "-b" not in container.args
+
+
+def _job_secret_with_script(script: str) -> dict[str, dict[str, str]]:
+    data = {
+        "db.host": "localhost",
+        "db.port": "5432",
+        "db.user": "cs_owner_abc",
+        "db.password": "jobpw",  # notsecret
+        "db.name": "postgres",
+        "script.sql": script,
+    }
+    return {"data": {k: _b64(v) for k, v in data.items()}}
+
+
+def _desired_script(db_access_role: DatabaseAccessV1) -> str:
+    return _render_sql(
+        "role_provision.sql",
+        database="postgres",
+        username=_generated_username("cs_owner", STATE_KEY),
+        admin_user="admin",
+        role="cs_owner",
+        schemas_csv="foo",
+        access_list="foo|INSERT,SELECT",
+        revoke_list="",
+    )
+
+
+def test_process_stale_job_is_replaced(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+) -> None:
+    # a finished job from an older configuration must be replaced, even
+    # when the state matches the current configuration (e.g. the
+    # configuration was reverted while the job was in flight)
+    dbam_state.exists.return_value = True
+    dbam_state.get.return_value = db_access_role.model_dump(by_alias=True)
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
+        ADMIN_SECRET
+        if name == ADMIN_SECRET_NAME
+        else _job_secret_with_script("-- old script")
+    )
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    dbam_controller.enqueue_job.assert_called_once()
+
+
+def test_process_converged_job_settles(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+) -> None:
+    # a finished job that ran the current script settles: no re-enqueue
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
+        ADMIN_SECRET
+        if name == ADMIN_SECRET_NAME
+        else _job_secret_with_script(_desired_script(db_access_role))
+    )
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    dbam_controller.enqueue_job.assert_not_called()
+    vault_mock.write.assert_called_once()
+    dbam_state.add.assert_called_once()
+
+
+def test_process_incomplete_job_is_repaired(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    # a job stuck without its job-bound secret is removed so the next
+    # reconcile can re-create it
+    dbam_controller.get_job_status.return_value = JobStatus.IN_PROGRESS
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    dbam_controller.delete_job.assert_called_once()
+    dbam_controller.enqueue_job.assert_not_called()
+
+
+def test_process_failed_job_is_removed_and_raised(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    dbam_controller.get_job_status.return_value = JobStatus.ERROR
+    with pytest.raises(JobFailedError, match="failed and was removed"):
+        run_process(
+            db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+        )
+    dbam_controller.delete_job.assert_called_once()
+
+
+def test_pull_secret_uses_dockerconfigjson_type(mocker: MockerFixture) -> None:
+    fetch = mocker.patch(
+        "reconcile.database_access_manager.integration.orb.fetch_provider_vault_secret"
+    )
+    mocker.patch("reconcile.database_access_manager.integration.openshift_base.apply")
+    result = _ensure_pull_secret(
+        False,
+        MagicMock(),
+        "cluster",
+        "namespace",
+        MagicMock(),
+        "vault-out",
+        "vault/path",
+        None,
+    )
+    assert result == "dbam-pull-secret"
+    assert fetch.call_args.kwargs["type"] == "kubernetes.io/dockerconfigjson"
