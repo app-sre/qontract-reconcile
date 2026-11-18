@@ -641,8 +641,10 @@ class AWSApi:
                     if len(user_keys) == 1:
                         service_account_recycle_complete = False
                         logging.info(["remove_from_state", account, user, key])
-                        if not dry_run:
-                            terraform.state_rm_access_key(working_dirs, account, user)
+                        if not dry_run and not terraform.state_rm_access_key(
+                            working_dirs, account, user, key
+                        ):
+                            error = True
 
                     # if user has 2 keys and we remove the key from
                     # terraform state, terraform-resources will not
