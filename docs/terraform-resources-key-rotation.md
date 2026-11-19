@@ -241,11 +241,9 @@ captured before any mutation, including for the key being retired.
 
 Add `--no-dry-run` to execute. If the old key is Active, the command deactivates
 it, verifies it is Inactive, and then deletes it in the same invocation. An
-already-Inactive old key is deleted directly. After each IAM mutation the command
-polls for the expected status under the lock with a bounded retry. Complete
-application-level cutover verification before execution. If you need to observe
-consumers with the old key Inactive before deleting it, use the two-step
-procedure below.
+already-Inactive old key is deleted directly. Complete application-level cutover
+verification before execution. If you need to observe consumers with the old key
+Inactive before deleting it, use the two-step procedure below.
 
 For an observation period before deletion, optionally run the separate
 `deactivate-access-key` command with the same account, user, and old key arguments.
