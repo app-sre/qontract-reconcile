@@ -1488,8 +1488,12 @@ def test_role_template_skips_revoke_for_missing_schemas() -> None:
 def test_deprovision_templates_skip_missing_logins() -> None:
     for template in ["role_deprovision.sql", "legacy_deprovision.sql"]:
         script = _render(template)
+        # psql conditionals (\if), not PL/pgSQL IF: the guard must work
+        # outside a DO block
+        assert "dam_login_absent" in script
+        assert "\\if :dam_login_absent" in script
+        assert "\\quit" in script
         assert "nothing to deprovision" in script
-        assert "\\return" in script
 
 
 def test_process_pending_role_change_rejected(

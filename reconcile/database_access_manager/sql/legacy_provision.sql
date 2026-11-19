@@ -38,7 +38,10 @@ DECLARE
     entry text;
 BEGIN
     FOREACH entry IN ARRAY string_to_array('{revoke_list}', ';') LOOP
-        IF entry <> '' THEN
+        IF entry <> '' AND EXISTS (
+            SELECT 1 FROM pg_catalog.pg_namespace
+            WHERE nspname = split_part(entry, '|', 1)
+        ) THEN
             EXECUTE format('REVOKE %s ON ALL TABLES IN SCHEMA %I FROM %I',
                            split_part(entry, '|', 2), split_part(entry, '|', 1),
                            '{username_literal}');
