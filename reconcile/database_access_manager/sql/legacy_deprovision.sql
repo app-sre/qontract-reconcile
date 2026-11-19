@@ -10,7 +10,7 @@ BEGIN
     FOREACH entry IN ARRAY string_to_array('{access_list}', ';') LOOP
         IF entry <> '' THEN
             EXECUTE format('REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA %I FROM %I',
-                           split_part(entry, '|', 1), '{username}');
+                           split_part(entry, '|', 1), '{username_literal}');
         END IF;
     END LOOP;
 END $$;
@@ -25,6 +25,30 @@ SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
 WHERE usename = '{username_literal}'
   AND pid <> pg_backend_pid();
+
+-- wait for the terminated sessions to actually exit:
+-- pg_terminate_backend only signals them, cleanup must not start
+-- while they can still commit. Works on all supported versions
+-- (the two-argument pg_terminate_backend is PostgreSQL 14+).
+DO $$
+DECLARE
+    remaining int;
+    tries int := 0;
+BEGIN
+    LOOP
+        SELECT count(*) INTO remaining
+        FROM pg_stat_activity
+        WHERE usename = '{username_literal}'
+          AND pid <> pg_backend_pid();
+        EXIT WHEN remaining = 0;
+        tries := tries + 1;
+        IF tries > 60 THEN
+            RAISE EXCEPTION 'sessions of % did not terminate in time',
+                '{username_literal}';
+        END IF;
+        PERFORM pg_sleep(0.5);
+    END LOOP;
+END $$;
 
 REASSIGN OWNED BY "{username}" TO "{admin_user}";
 DROP ROLE IF EXISTS "{username}";\gexec

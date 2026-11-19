@@ -64,6 +64,12 @@ MAX_USERNAME_LENGTH = 63
 
 PULL_SECRET_NAME = "dbam-pull-secret"
 
+# suffix for the state key that tracks the configuration of an
+# enqueued job whose result has not been settled yet. If a job
+# disappears (TTL expiry) before its result was observed, this marker
+# is the only record of what it was going to apply.
+PENDING_KEY_SUFFIX = "#pending"
+
 
 def get_database_access_namespaces(
     query_func: Callable | None = None,
@@ -138,16 +144,22 @@ def _revoke_list(
     current: DatabaseAccessV1 | None,
     desired: DatabaseAccessV1,
     revoke_all: bool = False,
+    stale_configs: list[DatabaseAccessV1] | None = None,
 ) -> str:
     """Compute the grants that must be revoked to converge from the
     current to the desired access list. Moving away from ALL requires
     a full revoke, otherwise privileges would linger. With revoke_all
-    (a stale job applied an unknown configuration), everything on the
-    managed schemas is revoked before the desired grants."""
+    (a stale or expired job applied an unknown or superseded
+    configuration), everything on all schemas that any of the known
+    configurations managed is revoked before the desired grants."""
     if revoke_all:
-        return ";".join(
-            f"{access.target.dbschema}|ALL" for access in desired.access or []
-        )
+        schemas = {access.target.dbschema for access in desired.access or []}
+        for config in [
+            *([current] if current else []),
+            *(stale_configs or []),
+        ]:
+            schemas.update(access.target.dbschema for access in config.access or [])
+        return ";".join(f"{schema}|ALL" for schema in sorted(schemas))
     if not current:
         return ""
     entries: list[str] = []
@@ -315,28 +327,37 @@ def _build_script(
     username: str,
     admin_user: str,
     revoke_all: bool = False,
+    stale_configs: list[DatabaseAccessV1] | None = None,
 ) -> str:
     # the configuration digest in the header identifies which
     # configuration a job applied; the rendered SQL itself is not
     # stable (the revoke delta changes once the desired state is
     # applied)
     header = f"-- dam-configuration: {_configuration_digest(db_access)}\n"
+    # values that end up inside single quoted SQL literals must be
+    # literal-escaped, everything inside double quotes identifier-
+    # escaped
+    literals = {
+        "username_literal": _sql_literal(username),
+        "database_literal": _sql_literal(db_access.database),
+        "role_literal": _sql_literal(db_access.role or ""),
+    }
     if db_access.delete:
         if db_access.role:
             return header + _render_sql(
                 "role_deprovision.sql",
                 database=_sql_ident(db_access.database),
                 username=_sql_ident(username),
-                username_literal=_sql_literal(username),
                 admin_user=_sql_ident(admin_user),
+                **literals,
             )
         return header + _render_sql(
             "legacy_deprovision.sql",
             database=_sql_ident(db_access.database),
             username=_sql_ident(username),
-            username_literal=_sql_literal(username),
             admin_user=_sql_ident(admin_user),
             access_list=_sql_literal(_access_list(db_access)),
+            **literals,
         )
 
     if db_access.role:
@@ -349,8 +370,9 @@ def _build_script(
             schemas_csv=_sql_literal(_schemas_csv(db_access)),
             access_list=_sql_literal(_access_list(db_access)),
             revoke_list=_sql_literal(
-                _revoke_list(current_db_access, db_access, revoke_all)
+                _revoke_list(current_db_access, db_access, revoke_all, stale_configs)
             ),
+            **literals,
         )
 
     return header + _render_sql(
@@ -360,8 +382,9 @@ def _build_script(
         admin_user=_sql_ident(admin_user),
         access_list=_sql_literal(_access_list(db_access)),
         revoke_list=_sql_literal(
-            _revoke_list(current_db_access, db_access, revoke_all)
+            _revoke_list(current_db_access, db_access, revoke_all, stale_configs)
         ),
+        **literals,
     )
 
 
@@ -501,6 +524,16 @@ def _process_db_access(
 
         job_name = _job_name(state_key, job_image, admin_secret_name, pull_secret_name)
 
+        # a pending marker records the configuration of an enqueued job
+        # whose result has not been settled yet. If the job disappears
+        # (TTL expiry) before its result was observed, the marker is
+        # the only record of what it was going to apply.
+        pending_key = f"{state_key}{PENDING_KEY_SUFFIX}"
+        pending_exists = state.exists(pending_key)
+        pending_config: DatabaseAccessV1 | None = None
+        if pending_exists:
+            pending_config = DatabaseAccessV1(**state.get(pending_key))
+
         # settle the job for this entry before treating the state as
         # converged: matching state with an unfinished or stale job
         # would skip work that has not been applied yet
@@ -513,15 +546,19 @@ def _process_db_access(
                     # job-bound secret (e.g. a failed secret write) and
                     # would wait forever -- remove it, the enqueue below
                     # re-creates it with its secret
-                    controller.delete_job(job_name)
-                    logging.warning(f"deleted incomplete job {job_name}")
+                    if dry_run:
+                        logging.warning(f"would delete incomplete job {job_name}")
+                    else:
+                        controller.delete_job(job_name)
+                        logging.warning(f"deleted incomplete job {job_name}")
                 else:
                     logging.info(f"Job {job_name} appears to be still running")
                 return
             case JobStatus.ERROR:
                 # remove the failed job so the enqueue below can retry,
                 # and surface the error for this reconcile
-                controller.delete_job(job_name)
+                if not dry_run:
+                    controller.delete_job(job_name)
                 raise JobFailedError(
                     f"Job {job_name} failed and was removed, please check the "
                     "job logs -- it will be retried on the next reconciliation"
@@ -551,6 +588,7 @@ def _process_db_access(
                                 value=db_access.model_dump(by_alias=True),
                                 force=True,
                             )
+                            state.rm(pending_key)
                         return
                     # stale job from an older configuration (e.g. the
                     # configuration was reverted while the job was in
@@ -562,15 +600,25 @@ def _process_db_access(
                     # converged long ago
                     return
             case JobStatus.NOT_EXISTS:
-                if state_matches:
+                if state_matches and not pending_exists:
                     return
+                if pending_exists:
+                    # a job was enqueued but never observed: it either
+                    # expired after succeeding (what it applied is
+                    # unknown) or was removed after failing -- re-run
+                    # with a full revoke to converge either way
+                    stale_job = True
 
+        # an unsettled pending marker means the applied configuration
+        # is unknown: revoke everything any known configuration managed
+        unknown_applied = stale_job or pending_exists
         script = _build_script(
             db_access,
             current_db_access,
             username,
             admin_connection.user,
-            revoke_all=stale_job,
+            revoke_all=unknown_applied,
+            stale_configs=[pending_config] if pending_config else [],
         )
 
         # role mode keeps the vault password, legacy mode generates a
@@ -601,6 +649,16 @@ def _process_db_access(
         if dry_run:
             logging.info(f"would run job {job.name()} for {state_key}")
             return
+
+        # record what this job is going to apply, so a job that
+        # disappears before its result is observed can still be
+        # reconciled (written before the enqueue: a crash in between
+        # only leaves a harmless marker without a job)
+        state.add(
+            pending_key,
+            value=db_access.model_dump(by_alias=True),
+            force=True,
+        )
 
         controller.enqueue_job(
             job,
@@ -634,6 +692,7 @@ def _process_db_access(
             value=db_access.model_dump(by_alias=True),
             force=True,
         )
+        state.rm(pending_key)
 
 
 class DBAMIntegrationParams(PydanticRunParams):

@@ -120,6 +120,23 @@ def secret_reader() -> MagicMock:
     return reader
 
 
+def _render(template: str, **params: str) -> str:
+    defaults = {
+        "database": "test",
+        "database_literal": "test",
+        "username": "test",
+        "username_literal": "test",
+        "admin_user": "admin",
+        "role": "cs_owner",
+        "role_literal": "cs_owner",
+        "schemas_csv": "",
+        "access_list": "",
+        "revoke_list": "",
+    }
+    defaults.update(params)
+    return _render_sql(template, **defaults)
+
+
 def _b64(value: str) -> str:
     return base64.b64encode(value.encode()).decode()
 
@@ -404,7 +421,7 @@ def test_revoke_list(
 
 
 def test_render_legacy_provision(db_access: DatabaseAccessV1) -> None:
-    script = _render_sql(
+    script = _render(
         "legacy_provision.sql",
         database="test",
         username="test",
@@ -421,7 +438,7 @@ def test_render_legacy_provision(db_access: DatabaseAccessV1) -> None:
 
 
 def test_render_role_provision() -> None:
-    script = _render_sql(
+    script = _render(
         "role_provision.sql",
         database="postgres",
         username="cs_app",
@@ -442,7 +459,7 @@ def test_render_role_provision() -> None:
 
 
 def test_render_role_provision_verifies_schema_usage() -> None:
-    script = _render_sql(
+    script = _render(
         "role_provision.sql",
         database="postgres",
         username="cs_app",
@@ -460,7 +477,7 @@ def test_render_role_provision_verifies_schema_usage() -> None:
 
 
 def test_render_role_provision_empty_access() -> None:
-    script = _render_sql(
+    script = _render(
         "role_provision.sql",
         database="test",
         username="cs_app",
@@ -476,7 +493,7 @@ def test_render_role_provision_empty_access() -> None:
 
 
 def test_render_role_provision_grants_schema_usage() -> None:
-    script = _render_sql(
+    script = _render(
         "role_provision.sql",
         database="postgres",
         username="cs_app",
@@ -493,11 +510,10 @@ def test_render_role_provision_grants_schema_usage() -> None:
 
 
 def test_render_role_deprovision() -> None:
-    script = _render_sql(
+    script = _render(
         "role_deprovision.sql",
         database="test",
         username="cs_app",
-        username_literal="cs_app",
         admin_user="admin",
     )
     assert 'REASSIGN OWNED BY "cs_app" TO "admin";' in script
@@ -508,11 +524,10 @@ def test_render_role_deprovision() -> None:
 
 
 def test_render_legacy_deprovision() -> None:
-    script = _render_sql(
+    script = _render(
         "legacy_deprovision.sql",
         database="test",
         username="test",
-        username_literal="test",
         admin_user="admin",
         access_list="foo|SELECT",
     )
@@ -627,7 +642,10 @@ def test_process_legacy_provisions_job(
     vault_mock.write.assert_called_once()
     secret = vault_mock.write.call_args[0][0]
     assert secret["path"] == f"vault-out/database-access-manager/{STATE_KEY}"
-    dbam_state.add.assert_called_once()
+    # pending marker (before the enqueue) and settled state (after)
+    assert dbam_state.add.call_count == 2
+    added_keys = [call.args[0] for call in dbam_state.add.call_args_list]
+    assert added_keys == [f"{STATE_KEY}#pending", STATE_KEY]
 
 
 def test_process_role_mode_generates_username(
@@ -873,7 +891,7 @@ def test_provision_templates_are_transactional() -> None:
 
 
 def test_role_template_sets_password_on_every_run() -> None:
-    script = _render_sql(
+    script = _render(
         "role_provision.sql",
         database="test",
         username="cs_app",
@@ -888,11 +906,10 @@ def test_role_template_sets_password_on_every_run() -> None:
 
 @pytest.mark.parametrize("template", ["role_deprovision.sql", "legacy_deprovision.sql"])
 def test_deprovision_templates_cut_off_sessions(template: str) -> None:
-    script = _render_sql(
+    script = _render(
         template,
         database="test",
         username="cs_app",
-        username_literal="cs_app",
         admin_user="admin",
         access_list="",
     )
@@ -1110,3 +1127,157 @@ def test_validate_username_must_differ_from_role(
     db_access_role.username = "cs_owner"
     with pytest.raises(ValueError, match="must differ from the owner role"):
         _validate_db_access(db_access_role)
+
+
+# ---------------------------------------------------------------------------
+# review feedback round 5 (follow-ups on old threads + outside diff)
+# ---------------------------------------------------------------------------
+
+
+def test_revoke_list_includes_stale_only_schemas(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    # a stale job may have managed schemas that are no longer in the
+    # desired configuration: those grants must be revoked too
+    stale = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "test",
+            "database": "postgres",
+            "role": "cs_owner",
+            "access": [{"grants": ["UPDATE"], "target": {"dbschema": "bar"}}],
+        },
+    )
+    result = _revoke_list(None, db_access_role, revoke_all=True, stale_configs=[stale])
+    # schemas are sorted for deterministic rendering
+    assert result == "bar|ALL;foo|ALL"
+
+
+def test_process_expired_job_with_pending_marker_re_runs(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    # a job was enqueued but never observed (TTL expiry or removal
+    # after a failure): the pending marker is the only record of what
+    # it was going to apply, the entry must re-run with a full revoke
+    dbam_state.exists.side_effect = lambda key: key == f"{STATE_KEY}#pending"
+    dbam_state.get.return_value = db_access_role.model_dump(by_alias=True)
+    dbam_controller.get_job_status.side_effect = [
+        JobStatus.NOT_EXISTS,
+        JobStatus.IN_PROGRESS,
+    ]
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    dbam_controller.enqueue_job.assert_called_once()
+    job = enqueued_job(dbam_controller)
+    assert "foo|ALL" in job.script
+    # the pending marker is re-written for the new job
+    assert dbam_state.add.call_args_list[0].args[0] == f"{STATE_KEY}#pending"
+
+
+def test_process_settle_removes_pending_marker(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
+        ADMIN_SECRET
+        if name == ADMIN_SECRET_NAME
+        else _job_secret_with_script(_desired_script(db_access_role))
+    )
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    dbam_state.rm.assert_called_once_with(f"{STATE_KEY}#pending")
+
+
+@pytest.mark.parametrize(
+    ("status", "match"),
+    [
+        (JobStatus.ERROR, "failed and was removed"),
+    ],
+)
+def test_process_dry_run_does_not_delete_jobs(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc_map: MagicMock,
+    status: JobStatus,
+    match: str,
+) -> None:
+    dbam_controller.get_job_status.return_value = status
+    with pytest.raises(JobFailedError, match=match):
+        run_process(
+            db_access_role,
+            dbam_state,
+            secret_reader,
+            vault_mock,
+            db_access_namespace,
+            dry_run=True,
+        )
+    dbam_controller.delete_job.assert_not_called()
+
+
+def test_process_dry_run_does_not_delete_incomplete_job(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    dbam_controller.get_job_status.return_value = JobStatus.IN_PROGRESS
+    # no job secret -> incomplete enqueue
+    run_process(
+        db_access_role,
+        dbam_state,
+        secret_reader,
+        vault_mock,
+        db_access_namespace,
+        dry_run=True,
+    )
+    dbam_controller.delete_job.assert_not_called()
+
+
+def test_role_template_tolerates_concurrent_unique_violation() -> None:
+    script = _render("role_provision.sql")
+    assert "WHEN duplicate_object OR unique_violation THEN" in script
+
+
+def test_deprovision_templates_wait_for_session_exit() -> None:
+    for template in ["role_deprovision.sql", "legacy_deprovision.sql"]:
+        script = _render(template)
+        assert "did not terminate in time" in script
+        assert "PERFORM pg_sleep(0.5)" in script
+
+
+def test_build_script_escapes_username_in_literals(
+    db_access: DatabaseAccessV1,
+    db_access_access: DatabaseAccessAccessV1,
+) -> None:
+    # bypasses schema validation on purpose: the escaping must hold
+    # even for usernames the schema does not admit today
+    db_access.username = "o'brien"
+    db_access.access = [db_access_access]
+    script = _build_script(db_access, None, "o'brien", "admin")
+    # single quoted literals carry the literal-escaped name
+    assert "o''brien" in script
+    # identifier positions keep the raw name: single quotes are valid
+    # inside double quoted identifiers
+    assert 'CREATE ROLE "o\'brien"' in script

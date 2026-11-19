@@ -4,7 +4,7 @@
 -- password is reused while it exists, so this is a no-op in steady
 -- state and lets a retry converge after a lost vault write (password
 -- rotation = new login user in the same role).
--- rendered values: {database} {username} {admin_user} {role}
+-- rendered values: {database} {database_literal} {username} {username_literal} {admin_user} {role} {role_literal}
 --                  {schemas_csv} {access_list} {revoke_list}
 -- the user password is passed as the psql variable db_user_password via -v
 \set ON_ERROR_STOP on
@@ -12,9 +12,9 @@
 -- create the database if it does not exist (no-op for the admin
 -- default database) and only revoke public access for freshly
 -- created databases (postgres 15 compliance)
-SELECT NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database}') AS dam_db_new \gset
+SELECT NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database_literal}') AS dam_db_new \gset
 SELECT 'CREATE DATABASE "{database}"'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database}');\gexec
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database_literal}');\gexec
 \if :dam_db_new
 REVOKE ALL ON DATABASE "{database}" FROM public;
 \endif
@@ -30,7 +30,7 @@ BEGIN;
 DO $$
 BEGIN
     CREATE ROLE "{role}" NOLOGIN;
-EXCEPTION WHEN duplicate_object THEN
+EXCEPTION WHEN duplicate_object OR unique_violation THEN
     NULL;
 END $$;
 
@@ -38,7 +38,7 @@ END $$;
 --    password is reused while it exists, and a password generated for
 --    a retry (after a lost vault write) converges automatically.
 SELECT 'CREATE ROLE "{username}"'
-WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{username}');\gexec
+WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{username_literal}');\gexec
 
 ALTER ROLE "{username}" WITH LOGIN PASSWORD :'db_user_password' VALID UNTIL 'infinity';
 
@@ -47,9 +47,9 @@ ALTER ROLE "{username}" WITH LOGIN PASSWORD :'db_user_password' VALID UNTIL 'inf
 --    created by the app are owned by the group role
 DO $$
 DECLARE
-    role_name text := '{role}';
-    user_name text := '{username}';
-    db text := '{database}';
+    role_name text := '{role_literal}';
+    user_name text := '{username_literal}';
+    db text := '{database_literal}';
     set_opt text := CASE WHEN current_setting('server_version_num')::int >= 160000
                          THEN ' WITH SET TRUE' ELSE '' END;
 BEGIN
@@ -81,7 +81,7 @@ END $$;
 -- 5. ownership transfer, grants and default privileges
 DO $$
 DECLARE
-    role_name text := '{role}';
+    role_name text := '{role_literal}';
     schemas text[] := string_to_array('{schemas_csv}', ',');
     entry text;
     s text;
@@ -357,7 +357,7 @@ COMMIT;
 --    a service role and cannot be transferred; the app works without
 --    database ownership. Must stay outside the transaction: ALTER
 --    DATABASE cannot run in a transaction block.
-SELECT format('ALTER DATABASE %I OWNER TO %I', '{database}', '{role}')
+SELECT format('ALTER DATABASE %I OWNER TO %I', '{database_literal}', '{role_literal}')
 FROM pg_database
-WHERE datname = '{database}'
+WHERE datname = '{database_literal}'
   AND pg_has_role(current_user, datdba, 'USAGE');\gexec

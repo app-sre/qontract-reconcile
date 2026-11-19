@@ -16,6 +16,30 @@ FROM pg_stat_activity
 WHERE usename = '{username_literal}'
   AND pid <> pg_backend_pid();
 
+-- wait for the terminated sessions to actually exit:
+-- pg_terminate_backend only signals them, cleanup must not start
+-- while they can still commit. Works on all supported versions
+-- (the two-argument pg_terminate_backend is PostgreSQL 14+).
+DO $$
+DECLARE
+    remaining int;
+    tries int := 0;
+BEGIN
+    LOOP
+        SELECT count(*) INTO remaining
+        FROM pg_stat_activity
+        WHERE usename = '{username_literal}'
+          AND pid <> pg_backend_pid();
+        EXIT WHEN remaining = 0;
+        tries := tries + 1;
+        IF tries > 60 THEN
+            RAISE EXCEPTION 'sessions of % did not terminate in time',
+                '{username_literal}';
+        END IF;
+        PERFORM pg_sleep(0.5);
+    END LOOP;
+END $$;
+
 -- reassign objects the user still owns (e.g. created before the
 -- migration to the owner-role model), then revoke all its privileges.
 -- DROP OWNED is the documented cleanup step after the reassignment,
