@@ -24,6 +24,7 @@ from reconcile.database_access_manager.integration import (
     _schemas_csv,
     _script_configuration_digest,
     _validate_db_access,
+    _validate_role_sharing,
 )
 from reconcile.database_access_manager.jobs import DatabaseAccessJob
 from reconcile.gql_definitions.terraform_resources.database_access_manager import (
@@ -229,6 +230,75 @@ def test_validate_db_access_rejects_duplicate_schemas(
         _validate_db_access(db_access)
 
 
+def test_validate_role_sharing_rejects_divergent_databases(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    other = gql_class_factory(
+        DatabaseAccessV1,
+        db_access_role.model_dump(by_alias=True)
+        | {"name": "test-2", "database": "other"},
+    )
+    with pytest.raises(ValueError, match="different databases"):
+        _validate_role_sharing([db_access_role, other])
+
+
+def test_validate_role_sharing_rejects_divergent_access(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    divergent = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "test-2",
+            "database": "postgres",
+            "role": db_access_role.role,
+            "access": [
+                {
+                    "grants": ["ALL"],
+                    "target": {"dbschema": "foo"},
+                }
+            ],
+        },
+    )
+    with pytest.raises(ValueError, match="different access"):
+        _validate_role_sharing([db_access_role, divergent])
+
+
+def test_validate_role_sharing_allows_rotation_entries(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    rotation = gql_class_factory(
+        DatabaseAccessV1,
+        db_access_role.model_dump(by_alias=True)
+        | {"name": "test-2", "username": None, "delete": True},
+    )
+    # name, username and delete differ - that is the rotation flow -
+    # database and access list are equivalent
+    _validate_role_sharing([db_access_role, rotation])
+
+
+def test_validate_role_sharing_ignores_access_order(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    reordered = gql_class_factory(
+        DatabaseAccessV1,
+        db_access_role.model_dump(by_alias=True)
+        | {
+            "name": "test-2",
+            "access": [
+                {
+                    "grants": ["SELECT", "INSERT"],
+                    "target": {"dbschema": "foo"},
+                }
+            ],
+        },
+    )
+    _validate_role_sharing([db_access_role, reordered])
+
+
 def test_generated_username() -> None:
     username = _generated_username("cs_owner", STATE_KEY)
     assert username.startswith("cs_owner_")
@@ -385,6 +455,23 @@ def test_render_role_provision_empty_access() -> None:
     # no schema loops blow up on empty lists
     assert "string_to_array('', ',')" in script
     assert "string_to_array('', ';')" in script
+
+
+def test_render_role_provision_grants_schema_usage() -> None:
+    script = _render_sql(
+        "role_provision.sql",
+        database="postgres",
+        username="cs_app",
+        admin_user="admin",
+        role="cs_owner",
+        schemas_csv="other",
+        access_list="other|SELECT",
+        revoke_list="foo|ALL",
+    )
+    # schemas owned by other roles need USAGE for the owner role to
+    # reference objects in them, object grants alone are not enough
+    assert "GRANT USAGE ON SCHEMA %I" in script
+    assert "REVOKE USAGE ON SCHEMA %I" in script
 
 
 def test_render_role_deprovision() -> None:

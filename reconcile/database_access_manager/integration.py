@@ -186,6 +186,40 @@ def _validate_db_access(db_access: DatabaseAccessV1) -> None:
         raise ValueError("Username is required when no role is set.")
 
 
+def _normalized_access(
+    db_access: DatabaseAccessV1,
+) -> list[tuple[str, tuple[str, ...]]]:
+    return sorted(
+        (access.target.dbschema, tuple(sorted(access.grants)))
+        for access in db_access.access or []
+    )
+
+
+def _validate_role_sharing(database_access: list[DatabaseAccessV1]) -> None:
+    """PostgreSQL roles are shared across every database of one RDS
+    instance while object grants stay database-local: entries sharing
+    a role must agree on the database and the access list, otherwise
+    one entry's revocations undo grants another entry still needs.
+    Sharing is only allowed within one RDS resource (the rotation
+    mechanism); name, username and delete flag may differ."""
+    entries_by_role: dict[str, list[DatabaseAccessV1]] = {}
+    for db_access in database_access:
+        if db_access.role:
+            entries_by_role.setdefault(db_access.role, []).append(db_access)
+
+    for role, entries in entries_by_role.items():
+        reference = entries[0]
+        for other in entries[1:]:
+            if other.database != reference.database:
+                raise ValueError(
+                    f"Role {role} is shared by entries with different databases."
+                )
+            if _normalized_access(other) != _normalized_access(reference):
+                raise ValueError(
+                    f"Role {role} is shared by entries with different access lists."
+                )
+
+
 def _configuration_digest(db_access: DatabaseAccessV1) -> str:
     """Stable digest of the desired configuration. Rendered into every
     script and used to identify which configuration a job applied --
@@ -640,6 +674,12 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                         admin_secret_name = f"{resource.identifier}-{resource.provider}"
                     else:
                         admin_secret_name = resource.output_resource_name
+
+                    try:
+                        _validate_role_sharing(resource.database_access or [])
+                    except ValueError as e:
+                        encountered_errors.append(e)
+                        continue
 
                     for db_access in resource.database_access or []:
                         try:

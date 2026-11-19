@@ -270,21 +270,40 @@ BEGIN
     -- 5h. configured grants and revokes for the owner role. On
     --     schemas the role owns these are redundant (membership
     --     includes all privileges), on schemas owned by other roles
-    --     they provide cross-schema access.
+    --     they provide cross-schema access. Such schemas also need
+    --     USAGE on the schema itself: PostgreSQL denies access to
+    --     objects in a schema the role has no USAGE on, regardless of
+    --     object privileges.
     ------------------------------------------------------------------
     FOREACH entry IN ARRAY string_to_array('{revoke_list}', ';') LOOP
         IF entry <> '' THEN
+            s := split_part(entry, '|', 1);
             EXECUTE format('REVOKE %s ON ALL TABLES IN SCHEMA %I FROM %I',
-                           split_part(entry, '|', 2), split_part(entry, '|', 1),
-                           role_name);
+                           split_part(entry, '|', 2), s, role_name);
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_catalog.pg_namespace ns
+                JOIN pg_catalog.pg_roles ro ON ro.oid = ns.nspowner
+                WHERE ns.nspname = s AND ro.rolname = role_name
+            ) THEN
+                EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM %I',
+                               s, role_name);
+            END IF;
         END IF;
     END LOOP;
 
     FOREACH entry IN ARRAY string_to_array('{access_list}', ';') LOOP
         IF entry <> '' THEN
+            s := split_part(entry, '|', 1);
             EXECUTE format('GRANT %s ON ALL TABLES IN SCHEMA %I TO %I',
-                           split_part(entry, '|', 2), split_part(entry, '|', 1),
-                           role_name);
+                           split_part(entry, '|', 2), s, role_name);
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_catalog.pg_namespace ns
+                JOIN pg_catalog.pg_roles ro ON ro.oid = ns.nspowner
+                WHERE ns.nspname = s AND ro.rolname = role_name
+            ) THEN
+                EXECUTE format('GRANT USAGE ON SCHEMA %I TO %I',
+                               s, role_name);
+            END IF;
         END IF;
     END LOOP;
 
