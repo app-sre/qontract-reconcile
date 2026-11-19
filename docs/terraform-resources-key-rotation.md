@@ -77,9 +77,22 @@ state address, cache bucket/key, and all consumer bindings in the JSON result.
 Execution needs the inspected key ID, address, and cache bucket. Use a Terraform
 executable whose version exactly matches the remote state.
 
-The IAM user must have exactly one access key, and it must be Active. The old key must not be
-listed in the account's `deleteKeys`; resolve any pending retirement before
-proceeding. The command refuses ERv2 declarations and unsupported state instances.
+The IAM user must have exactly one access key, and it must be Active. Both
+legacy and ERv2 rotation report the key IDs, statuses, Terraform binding match
+where known, and last recorded use when both slots are occupied. If the extra key
+is confirmed unused and the bound key will remain Active, preview
+`terraform-resources delete-access-key` for the extra key before retrying rotation.
+An Inactive key also occupies a slot.
+
+Review `iam_keys` during inspection and verification. `last_used` reports the
+date, service, and region from IAM. A `last_used` object without a date means IAM
+returned no recorded use. A missing or null `last_used` means the lookup was
+unavailable, for example because the role lacks `iam:GetAccessKeyLastUsed`. Use
+the metadata to investigate usage and monitor cutover alongside application-level
+verification.
+
+The old key must be absent from the account's `deleteKeys` before proceeding.
+The legacy command refuses ERv2 declarations and unsupported state instances.
 
 ## 2. Disable integrations that write the shared account state
 
@@ -139,16 +152,33 @@ out of progress records.
 
 ## 4. Re-enable reconciliation and verify consumers
 
-Before re-enabling reconciliation, recheck that none of the retained old keys has
-been added to `deleteKeys`. `terraform-resources` invokes IAM-key cleanup directly,
-so disabling the standalone `aws-iam-keys` feature toggle does not suppress that
-inline cleanup.
+Keep the live writers paused while reviewing a fresh Terraform plan for each
+prepared account. Use the candidate configuration with the account's
+`terraform-resources` disable lifted. The re-enable MR's PR check can provide the
+plan if it ran against the post-preparation state and includes the full account
+plan. If that check was skipped or cached, run the integration in dry-run mode
+against the candidate bundle with extended early exit disabled. Unset
+`UNLEASH_API_URL` for this local dry-run process so a live feature toggle pause
+does not skip the preview.
 
-Restore the `terraform-resources` control changed for this rotation: re-enable its
-feature toggle or remove the account disable entry and merge that change,
+```sh
+env -u UNLEASH_API_URL qontract-reconcile --config CONFIG_FOR_CANDIDATE_BUNDLE \
+  --dry-run terraform-resources --account-name ACCOUNT --no-enable-extended-early-exit
+```
+
+Confirm that the dry run actually planned the affected account. Expect one
+`aws_iam_access_key` create at each prepared address and only the corresponding
+output updates. Investigate unexpected creates, updates, replacements, moves,
+or deletes before resuming. Inspect the current account's `deleteKeys` separately.
+The Terraform plan omits inline IAM-key cleanup, which
+`terraform-resources` can invoke even while standalone `aws-iam-keys` is paused.
+Ensure the retained old keys are absent from `deleteKeys` and review any other
+pending cleanup for the account.
+
+When these checks pass, restore the `terraform-resources` control changed for the
+rotation. Re-enable its feature toggle or merge the candidate account change,
 preserving pre-existing disables. Wait for reconciliation to create the
-replacement keys and synchronize their source Secrets. Normal account
-reconciliation can also apply other reviewed pending account changes.
+replacements and synchronize the source Secrets.
 
 ```sh
 qontract-cli --config config.debug.toml terraform-resources rotate-access-key \
@@ -163,10 +193,34 @@ matching Terraform outputs. This does not verify source Secrets or application
 adoption: the JSON explicitly reports `source_secret_sync_verified: false` and
 `consumer_verification_required: true`.
 
-Check every listed source Secret against the new key ID. Coordinate any required
-application refreshes with owners, then verify successful application operations
-using the new credential. Keep the old key Active until every consumer's cutover
-has been verified.
+Check every listed source Secret against the new key ID, then verify that each
+consumer loads and successfully uses the new credential. Coordinate any refreshes
+or interruptions with the owners.
+
+- **Clowder.** After the source Secret has synced, verify that Clowder regenerated
+  the application's configuration. Refresh the ClowdApp or coordinate a Clowder
+  controller restart if reconciliation is needed.
+- **Persistent volumes.** A rolling restart can stall if an exclusive volume
+  attachment prevents the replacement pod from starting while the old pod runs.
+  Use the workload's supported replacement procedure, such as `Recreate` or
+  scaling down and back up, and account for any interruption.
+- **Operators and Jobs.** Use the operator's supported restart mechanism. For
+  example, Strimzi can roll Kafka Connect workers through its
+  [manual rolling-update annotation](https://strimzi.io/docs/operators/0.40.0/deploying#proc-manual-rolling-update-strimzipodset-str).
+  Jobs started by CronJobs before cutover can retain the old credential until
+  they finish.
+- **External readers and copies.** Check Vault policies on the
+  `integrations-output` path for readers outside the listed bindings, including
+  external jobs. Ask owners about credentials copied into application storage or
+  databases and verify those copies were refreshed.
+- **Usage evidence.** Look for successful operations with the replacement and
+  check whether the old key's IAM last-used timestamp still advances. IAM
+  metadata identifies the service and region but cannot identify the consumer.
+  Check [CloudTrail data events](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/logging-data-events-with-cloudtrail.html)
+  where configured. KMS `Decrypt` events and SQS CloudWatch metrics can provide
+  supporting evidence where applicable.
+
+Keep the old key Active until every consumer's cutover has been verified.
 
 ## 5. Retire old keys and restore remaining integrations
 
@@ -181,19 +235,27 @@ qontract-cli --config config.debug.toml terraform-resources delete-access-key \
 The command defaults to dry run. It accepts one selected key ID and requires
 another Active key on the same IAM user. It checks IAM directly without reading
 Terraform state, namespace declarations, or reconciliation caches. An Active key
-does not prove that applications have adopted it; verify cutover first.
+does not prove that applications have adopted it. Verify cutover first. The
+preview and execution results include `iam_keys_before` with last-used metadata
+captured before any mutation, including for the key being retired.
 
 Add `--no-dry-run` to execute. If the old key is Active, the command deactivates
 it, verifies it is Inactive, and then deletes it in the same invocation. An
-already-Inactive old key is deleted directly. There is no observation pause
-between deactivation and deletion; complete application-level cutover verification
-before execution. The command cannot determine whether the old key is unused.
+already-Inactive old key is deleted directly. After each IAM mutation the command
+polls for the expected status under the lock with a bounded retry. Complete
+application-level cutover verification before execution. If you need to observe
+consumers with the old key Inactive before deleting it, use the two-step
+procedure below.
 
 For an observation period before deletion, optionally run the separate
 `deactivate-access-key` command with the same account, user, and old key arguments.
 It also defaults to dry run. Add `--no-dry-run` to deactivate, observe consumers,
 and then use `delete-access-key` when ready. If cutover needs correction before
 deletion, reactivate the retained key through IAM.
+
+Terraform's `integrations-output` secrets are written to a KV v1 mount, which
+keeps no previous version to restore. After IAM deletes the old key, recover any
+missed consumer by switching it to the active replacement.
 
 Both retirement commands leave Terraform state and its cache unchanged. They
 recheck that another Active key remains before mutations and after each phase.
