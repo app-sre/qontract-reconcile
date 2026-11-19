@@ -37,7 +37,7 @@ END $$;
 -- 2. the login user. The password is set on every run: the vault
 --    password is reused while it exists, and a password generated for
 --    a retry (after a lost vault write) converges automatically.
-SELECT 'CREATE ROLE "{username}"'
+SELECT 'CREATE ROLE "{username_ident_literal}"'
 WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{username_literal}');\gexec
 
 ALTER ROLE "{username}" WITH LOGIN PASSWORD :'db_user_password' VALID UNTIL 'infinity';
@@ -50,6 +50,7 @@ DECLARE
     role_name text := '{role_literal}';
     user_name text := '{username_literal}';
     db text := '{database_literal}';
+    check_privs text;
     set_opt text := CASE WHEN current_setting('server_version_num')::int >= 160000
                          THEN ' WITH SET TRUE' ELSE '' END;
 BEGIN
@@ -278,8 +279,13 @@ BEGIN
     FOREACH entry IN ARRAY string_to_array('{revoke_list}', ';') LOOP
         IF entry <> '' THEN
             s := split_part(entry, '|', 1);
+            -- revoke from the owner role and from the login itself:
+            -- a login migrated from legacy mode keeps its direct
+            -- grants, which the session role default does not remove
             EXECUTE format('REVOKE %s ON ALL TABLES IN SCHEMA %I FROM %I',
                            split_part(entry, '|', 2), s, role_name);
+            EXECUTE format('REVOKE %s ON ALL TABLES IN SCHEMA %I FROM %I',
+                           split_part(entry, '|', 2), s, user_name);
             IF NOT EXISTS (
                 SELECT 1 FROM pg_catalog.pg_namespace ns
                 JOIN pg_catalog.pg_roles ro ON ro.oid = ns.nspowner
@@ -287,6 +293,8 @@ BEGIN
             ) THEN
                 EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM %I',
                                s, role_name);
+                EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM %I',
+                               s, user_name);
             END IF;
         END IF;
     END LOOP;
@@ -311,6 +319,30 @@ BEGIN
                     RAISE EXCEPTION 'owner role % has no USAGE on schema %',
                         role_name, s;
                 END IF;
+                -- the same warning-without-error behavior applies to
+                -- the table grants themselves: verify the requested
+                -- privileges on every table in scope. An empty schema
+                -- passes, there is nothing to check.
+                IF split_part(entry, '|', 2) = 'ALL' THEN
+                    check_privs := 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER';
+                ELSE
+                    check_privs := split_part(entry, '|', 2);
+                END IF;
+                FOR r IN
+                    SELECT c.relname AS obj_name
+                    FROM pg_catalog.pg_class c
+                    JOIN pg_catalog.pg_namespace ns ON ns.oid = c.relnamespace
+                    WHERE ns.nspname = s
+                      AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+                LOOP
+                    IF NOT has_table_privilege(
+                           role_name,
+                           quote_ident(s) || '.' || quote_ident(r.obj_name),
+                           check_privs) THEN
+                        RAISE EXCEPTION 'owner role % lacks % on %.%',
+                            role_name, check_privs, s, r.obj_name;
+                    END IF;
+                END LOOP;
             END IF;
         END IF;
     END LOOP;

@@ -18,8 +18,10 @@ from reconcile.database_access_manager.integration import (
     _configuration_digest,
     _ensure_pull_secret,
     _generated_username,
+    _merge_pending_config,
     _process_db_access,
     _render_sql,
+    _resolve_username,
     _revoke_list,
     _schemas_csv,
     _script_configuration_digest,
@@ -126,6 +128,7 @@ def _render(template: str, **params: str) -> str:
         "database_literal": "test",
         "username": "test",
         "username_literal": "test",
+        "username_ident_literal": "test",
         "admin_user": "admin",
         "role": "cs_owner",
         "role_literal": "cs_owner",
@@ -257,7 +260,7 @@ def test_validate_role_sharing_rejects_divergent_databases(
         | {"name": "test-2", "database": "other"},
     )
     with pytest.raises(ValueError, match="different databases"):
-        _validate_role_sharing([db_access_role, other])
+        _validate_role_sharing([(db_access_role, "u1"), (other, "u2")])
 
 
 def test_validate_role_sharing_rejects_divergent_access(
@@ -279,7 +282,7 @@ def test_validate_role_sharing_rejects_divergent_access(
         },
     )
     with pytest.raises(ValueError, match="different access"):
-        _validate_role_sharing([db_access_role, divergent])
+        _validate_role_sharing([(db_access_role, "u1"), (divergent, "u2")])
 
 
 def test_validate_role_sharing_allows_rotation_entries(
@@ -293,7 +296,7 @@ def test_validate_role_sharing_allows_rotation_entries(
     )
     # name, username and delete differ - that is the rotation flow -
     # database and access list are equivalent
-    _validate_role_sharing([db_access_role, rotation])
+    _validate_role_sharing([(db_access_role, "u1"), (rotation, "u2")])
 
 
 def test_validate_role_sharing_ignores_access_order(
@@ -313,7 +316,7 @@ def test_validate_role_sharing_ignores_access_order(
             ],
         },
     )
-    _validate_role_sharing([db_access_role, reordered])
+    _validate_role_sharing([(db_access_role, "u1"), (reordered, "u2")])
 
 
 def test_generated_username() -> None:
@@ -612,7 +615,7 @@ def test_process_state_exists_matched(
     vault_mock: MagicMock,
     oc_map: MagicMock,
 ) -> None:
-    dbam_state.exists.return_value = True
+    dbam_state.exists.side_effect = lambda key: key == STATE_KEY
     dbam_state.get.return_value = db_access.model_dump(by_alias=True)
     run_process(db_access, dbam_state, secret_reader, vault_mock, db_access_namespace)
     dbam_state.add.assert_not_called()
@@ -1033,7 +1036,7 @@ def test_process_failed_job_is_removed_and_raised(
     vault_mock: MagicMock,
 ) -> None:
     dbam_controller.get_job_status.return_value = JobStatus.ERROR
-    with pytest.raises(JobFailedError, match="failed and was removed"):
+    with pytest.raises(JobFailedError, match="failed"):
         run_process(
             db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
         )
@@ -1192,6 +1195,8 @@ def test_process_settle_removes_pending_marker(
     oc: MagicMock,
     oc_map: MagicMock,
 ) -> None:
+    dbam_state.exists.side_effect = lambda key: key == f"{STATE_KEY}#pending"
+    dbam_state.get.return_value = db_access_role.model_dump(by_alias=True)
     oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
         ADMIN_SECRET
         if name == ADMIN_SECRET_NAME
@@ -1206,7 +1211,7 @@ def test_process_settle_removes_pending_marker(
 @pytest.mark.parametrize(
     ("status", "match"),
     [
-        (JobStatus.ERROR, "failed and was removed"),
+        (JobStatus.ERROR, "would be removed on a real run"),
     ],
 )
 def test_process_dry_run_does_not_delete_jobs(
@@ -1278,9 +1283,9 @@ def test_build_script_escapes_username_in_literals(
     script = _build_script(db_access, None, "o'brien", "admin")
     # single quoted literals carry the literal-escaped name
     assert "o''brien" in script
-    # identifier positions keep the raw name: single quotes are valid
-    # inside double quoted identifiers
-    assert 'CREATE ROLE "o\'brien"' in script
+    # identifiers inside outer string literals are double escaped
+    # (identifier escaping first, then literal escaping)
+    assert "CREATE ROLE \"o''brien\"" in script
 
 
 # ---------------------------------------------------------------------------
@@ -1297,7 +1302,10 @@ def test_validate_role_sharing_rejects_username_role_collision(
     # drop it
     db_access.username = "cs_owner"
     with pytest.raises(ValueError, match="equals a role of another entry"):
-        _validate_role_sharing([db_access_role, db_access])
+        _validate_role_sharing([
+            (db_access_role, "cs_owner_abc"),
+            (db_access, "cs_owner"),
+        ])
 
 
 def test_validate_role_sharing_allows_distinct_usernames(
@@ -1305,7 +1313,7 @@ def test_validate_role_sharing_allows_distinct_usernames(
     db_access: DatabaseAccessV1,
 ) -> None:
     db_access.username = "cs_app"
-    _validate_role_sharing([db_access_role, db_access])
+    _validate_role_sharing([(db_access_role, "cs_owner_abc"), (db_access, "cs_app")])
 
 
 def test_process_deletes_stale_secret_before_enqueue(
@@ -1332,3 +1340,113 @@ def test_process_deletes_stale_secret_before_enqueue(
         db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
     )
     oc.delete.assert_called_once_with("test-namespace", "Secret", ANY)
+
+
+# ---------------------------------------------------------------------------
+# review feedback round 7
+# ---------------------------------------------------------------------------
+
+
+def test_merge_pending_config_preserves_stale_only_schemas(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    # the pending marker is overwritten with the union, so a failed
+    # replacement cannot lose the revoke baseline of the previous job
+    pending = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "test",
+            "database": "postgres",
+            "role": "cs_owner",
+            "access": [{"grants": ["UPDATE"], "target": {"dbschema": "bar"}}],
+        },
+    )
+    merged = _merge_pending_config(pending, db_access_role)
+    schemas = {a.target.dbschema for a in merged.access or []}
+    assert schemas == {"foo", "bar"}
+
+
+def test_merge_pending_config_without_pending(
+    db_access_role: DatabaseAccessV1,
+) -> None:
+    assert _merge_pending_config(None, db_access_role) == db_access_role
+
+
+def test_process_database_change_with_pending_marker_rejected(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    # the database is immutable against the pending marker too
+    dbam_state.exists.side_effect = lambda key: key == f"{STATE_KEY}#pending"
+    dbam_state.get.return_value = db_access_role.model_dump(by_alias=True)
+    db_access_role.database = "otherdb"
+    with pytest.raises(ValueError, match="Database name cannot be changed"):
+        run_process(
+            db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+        )
+
+
+def test_resolve_username_explicit_and_generated(
+    db_access: DatabaseAccessV1,
+    db_access_role: DatabaseAccessV1,
+) -> None:
+    assert _resolve_username(db_access, STATE_KEY) == "test"
+    assert _resolve_username(db_access_role, STATE_KEY).startswith("cs_owner_")
+
+
+def test_validate_role_sharing_rejects_generated_username_collision(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    # entry B's owner role literally equals entry A's generated login
+    colliding_role = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "other",
+            "database": "postgres",
+            "role": _generated_username("cs_owner", STATE_KEY),
+            "access": [],
+        },
+    )
+    with pytest.raises(ValueError, match="equals a role of another entry"):
+        _validate_role_sharing([
+            (db_access_role, _resolve_username(db_access_role, STATE_KEY)),
+            (colliding_role, _resolve_username(colliding_role, "other/key")),
+        ])
+
+
+def test_role_template_clears_activity_snapshot() -> None:
+    for template in ["role_deprovision.sql", "legacy_deprovision.sql"]:
+        script = _render(template)
+        assert "PERFORM pg_stat_clear_snapshot();" in script
+
+
+def test_role_template_verifies_table_privileges() -> None:
+    script = _render(
+        "role_provision.sql", schemas_csv="foreign", access_list="foreign|SELECT"
+    )
+    assert "has_table_privilege" in script
+    assert "check_privs" in script
+
+
+def test_role_template_revokes_from_login_during_migration() -> None:
+    script = _render("role_provision.sql", revoke_list="foo|ALL")
+    # both the owner role and the login are revoke targets
+    assert script.count("REVOKE %s ON ALL TABLES IN SCHEMA %I FROM %I") == 2
+    assert (
+        "FROM %I',\n                           split_part(entry, '|', 2), s, user_name);"
+        in script
+    )
+
+
+def test_role_template_double_escapes_create_role_literal() -> None:
+    script = _render(
+        "legacy_provision.sql", username="o'brien", username_ident_literal="o''brien"
+    )
+    assert "CREATE ROLE \"o''brien\"" in script

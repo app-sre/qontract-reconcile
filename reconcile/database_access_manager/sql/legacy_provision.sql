@@ -21,7 +21,7 @@ REVOKE ALL ON DATABASE "{database}" FROM public;
 -- is still published remains valid
 BEGIN;
 
-select 'CREATE ROLE "{username}"'
+select 'CREATE ROLE "{username_ident_literal}"'
 WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{username_literal}');\gexec
 
 ALTER ROLE "{username}" WITH LOGIN PASSWORD :'db_user_password' VALID UNTIL 'infinity';

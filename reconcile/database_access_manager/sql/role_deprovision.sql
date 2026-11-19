@@ -26,6 +26,10 @@ DECLARE
     tries int := 0;
 BEGIN
     LOOP
+        -- the activity snapshot is cached within a transaction: a
+        -- backend that exited during the sleep would stay visible
+        -- otherwise and the loop would time out
+        PERFORM pg_stat_clear_snapshot();
         SELECT count(*) INTO remaining
         FROM pg_stat_activity
         WHERE usename = '{username_literal}'

@@ -207,21 +207,54 @@ def _normalized_access(
     )
 
 
-def _validate_role_sharing(database_access: list[DatabaseAccessV1]) -> None:
+def _merge_pending_config(
+    pending: DatabaseAccessV1 | None, desired: DatabaseAccessV1
+) -> DatabaseAccessV1:
+    """Union of the pending and the desired access lists. When a pending
+    marker is overwritten for a replacement job, the record of schemas
+    that only the previous job managed must survive a failed
+    replacement, so a later retry still revokes them."""
+    if not pending:
+        return desired
+    merged = desired.model_copy(deep=True)
+    desired_schemas = {a.target.dbschema for a in merged.access or []}
+    extra = [
+        a for a in pending.access or [] if a.target.dbschema not in desired_schemas
+    ]
+    if extra:
+        merged.access = [*(merged.access or []), *extra]
+    return merged
+
+
+def _resolve_username(db_access: DatabaseAccessV1, state_key: str) -> str:
+    if db_access.username:
+        return db_access.username
+    if db_access.role:
+        return _generated_username(db_access.role, state_key)
+    raise ValueError("Username is required when no role is set.")
+
+
+def _validate_role_sharing(
+    entries: list[tuple[DatabaseAccessV1, str]],
+) -> None:
     """PostgreSQL roles are shared across every database of one RDS
     instance while object grants stay database-local: entries sharing
     a role must agree on the database and the access list, otherwise
     one entry's revocations undo grants another entry still needs.
     Sharing is only allowed within one RDS resource (the rotation
-    mechanism); name, username and delete flag may differ."""
+    mechanism); name, username and delete flag may differ.
+
+    Each entry is a (config, resolved username) tuple so that
+    generated logins are covered by the collision check too."""
+    database_access = [config for config, _ in entries]
     entries_by_role: dict[str, list[DatabaseAccessV1]] = {}
     for db_access in database_access:
         if db_access.role:
             entries_by_role.setdefault(db_access.role, []).append(db_access)
 
-    for role, entries in entries_by_role.items():
-        reference = entries[0]
-        for other in entries[1:]:
+    for role, role_entries in entries_by_role.items():
+        reference = role_entries[0]
+        for other in role_entries[1:]:
             if other.database != reference.database:
                 raise ValueError(
                     f"Role {role} is shared by entries with different databases."
@@ -231,16 +264,16 @@ def _validate_role_sharing(database_access: list[DatabaseAccessV1]) -> None:
                     f"Role {role} is shared by entries with different access lists."
                 )
 
-    # a login username must never collide with an owner role configured
-    # for another entry on the same instance: provisioning that entry
-    # would grant LOGIN and a password to the owner role, and
-    # deprovisioning it would reassign and drop the owner role
+    # a login username (explicit or generated) must never collide with
+    # an owner role configured for another entry on the same instance:
+    # provisioning that entry would grant LOGIN and a password to the
+    # owner role, and deprovisioning it would reassign and drop the
+    # shared owner role
     roles = {db_access.role for db_access in database_access if db_access.role}
-    for db_access in database_access:
-        if db_access.username and db_access.username in roles:
+    for _, username in entries:
+        if username in roles:
             raise ValueError(
-                f"Username {db_access.username} equals a role of another "
-                "entry on this instance."
+                f"Username {username} equals a role of another entry on this instance."
             )
 
 
@@ -351,6 +384,7 @@ def _build_script(
     # escaped
     literals = {
         "username_literal": _sql_literal(username),
+        "username_ident_literal": _sql_literal(_sql_ident(username)),
         "database_literal": _sql_literal(db_access.database),
         "role_literal": _sql_literal(db_access.role or ""),
     }
@@ -472,12 +506,7 @@ def _process_db_access(
 ) -> None:
     _validate_db_access(db_access)
 
-    if db_access.username:
-        username = db_access.username
-    elif db_access.role:
-        username = _generated_username(db_access.role, state_key)
-    else:
-        raise ValueError("Username is required when no role is set.")
+    username = _resolve_username(db_access, state_key)
 
     current_db_access: DatabaseAccessV1 | None = None
     state_matches = False
@@ -545,6 +574,11 @@ def _process_db_access(
         pending_config: DatabaseAccessV1 | None = None
         if pending_exists:
             pending_config = DatabaseAccessV1(**state.get(pending_key))
+            # the database is immutable against the pending marker too:
+            # a change would enqueue the replacement job (and its
+            # revocations) against a different database
+            if pending_config.database != db_access.database:
+                raise ValueError("Database name cannot be changed.")
 
         # settle the job for this entry before treating the state as
         # converged: matching state with an unfinished or stale job
@@ -569,8 +603,13 @@ def _process_db_access(
             case JobStatus.ERROR:
                 # remove the failed job so the enqueue below can retry,
                 # and surface the error for this reconcile
-                if not dry_run:
-                    controller.delete_job(job_name)
+                if dry_run:
+                    raise JobFailedError(
+                        f"Job {job_name} failed, it would be removed on a real "
+                        "run, please check the job logs -- it will be retried "
+                        "on the next reconciliation"
+                    )
+                controller.delete_job(job_name)
                 raise JobFailedError(
                     f"Job {job_name} failed and was removed, please check the "
                     "job logs -- it will be retried on the next reconciliation"
@@ -600,16 +639,21 @@ def _process_db_access(
                                 value=db_access.model_dump(by_alias=True),
                                 force=True,
                             )
-                            state.rm(pending_key)
+                            # idempotent: a repeated settlement of the
+                            # same completed job must not fail
+                            if state.exists(pending_key):
+                                state.rm(pending_key)
                         return
                     # stale job from an older configuration (e.g. the
                     # configuration was reverted while the job was in
                     # flight): replace it below and revoke everything it
                     # may have applied
                     stale_job = True
-                elif state_matches:
+                elif state_matches and not pending_exists:
                     # the job secret expired (TTL) and the state
-                    # converged long ago
+                    # converged long ago. With a pending marker the
+                    # applied configuration is still unknown: fall
+                    # through to the repair below.
                     return
             case JobStatus.NOT_EXISTS:
                 if state_matches and not pending_exists:
@@ -673,10 +717,14 @@ def _process_db_access(
         # record what this job is going to apply, so a job that
         # disappears before its result is observed can still be
         # reconciled (written before the enqueue: a crash in between
-        # only leaves a harmless marker without a job)
+        # only leaves a harmless marker without a job). Schemas that
+        # only the previous pending configuration managed are merged
+        # in, so a failed replacement cannot lose the revoke baseline.
         state.add(
             pending_key,
-            value=db_access.model_dump(by_alias=True),
+            value=_merge_pending_config(pending_config, db_access).model_dump(
+                by_alias=True
+            ),
             force=True,
         )
 
@@ -712,7 +760,8 @@ def _process_db_access(
             value=db_access.model_dump(by_alias=True),
             force=True,
         )
-        state.rm(pending_key)
+        if state.exists(pending_key):
+            state.rm(pending_key)
 
 
 class DBAMIntegrationParams(PydanticRunParams):
@@ -755,7 +804,16 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                         admin_secret_name = resource.output_resource_name
 
                     try:
-                        _validate_role_sharing(resource.database_access or [])
+                        _validate_role_sharing([
+                            (
+                                db_access,
+                                _resolve_username(
+                                    db_access,
+                                    f"{external_resource.provisioner.name}/{resource.identifier}/{db_access.name}",
+                                ),
+                            )
+                            for db_access in resource.database_access or []
+                        ])
                     except ValueError as e:
                         encountered_errors.append(e)
                         continue
