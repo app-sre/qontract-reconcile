@@ -20,6 +20,7 @@ import shutil
 import tempfile
 from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
+from time import sleep
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from botocore.exceptions import BotoCoreError, ClientError
@@ -426,6 +427,26 @@ def retirement_keys(
     return keys
 
 
+def wait_for_retirement_status(
+    request: RetirementRequest,
+    runtime: RetirementRuntime,
+    expected_status: Literal["Inactive"] | None,
+) -> dict[str, str]:
+    # Read immediately, then allow IAM's inventory to catch up. Every read
+    # still requires another Active key before proceeding.
+    for delay in (0, 1, 2, 4, 8, 8):
+        if delay:
+            sleep(delay)
+        keys = retirement_keys(request, runtime.keys())
+        if keys.get(request.key_id) == expected_status:
+            return keys
+    expected = expected_status or "deleted"
+    raise RotationError(
+        f"IAM retirement did not reach the expected {expected} status; "
+        "inspect before retrying"
+    )
+
+
 def retire(request: RetirementRequest, runtime: RetirementRuntime) -> RetirementResult:
     target = runtime.target
     if (request.account, request.iam_user) != (target.account, target.iam_user):
@@ -473,18 +494,10 @@ def _retire(request: RetirementRequest, runtime: RetirementRuntime) -> Retiremen
         )
     if keys[request.key_id] == "Active":
         runtime.deactivate(request.key_id)
-        keys = retirement_keys(request, runtime.keys())
-        if keys.get(request.key_id) != "Inactive":
-            raise RotationError(
-                "IAM retirement did not reach the expected Inactive status; inspect before retrying"
-            )
+        keys = wait_for_retirement_status(request, runtime, "Inactive")
     if request.action == "delete":
         runtime.delete(request.key_id)
-        keys = retirement_keys(request, runtime.keys())
-        if request.key_id in keys:
-            raise RotationError(
-                "IAM retirement did not reach the expected deleted status; inspect before retrying"
-            )
+        keys = wait_for_retirement_status(request, runtime, None)
     return result("inactive" if request.action == "deactivate" else "deleted")
 
 
