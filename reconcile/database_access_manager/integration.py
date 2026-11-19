@@ -231,6 +231,18 @@ def _validate_role_sharing(database_access: list[DatabaseAccessV1]) -> None:
                     f"Role {role} is shared by entries with different access lists."
                 )
 
+    # a login username must never collide with an owner role configured
+    # for another entry on the same instance: provisioning that entry
+    # would grant LOGIN and a password to the owner role, and
+    # deprovisioning it would reassign and drop the owner role
+    roles = {db_access.role for db_access in database_access if db_access.role}
+    for db_access in database_access:
+        if db_access.username and db_access.username in roles:
+            raise ValueError(
+                f"Username {db_access.username} equals a role of another "
+                "entry on this instance."
+            )
+
 
 def _configuration_digest(db_access: DatabaseAccessV1) -> str:
     """Stable digest of the desired configuration. Rendered into every
@@ -649,6 +661,14 @@ def _process_db_access(
         if dry_run:
             logging.info(f"would run job {job.name()} for {state_key}")
             return
+
+        # a replacement job must not start with the previous run's
+        # secret data: the controller applies the job before it applies
+        # the secret, so a pod could read stale credentials before the
+        # new secret is written. Removing the old secret first makes
+        # the pod wait for the new one instead.
+        if _read_job_secret(oc, namespace_name, job_name) is not None:
+            oc.delete(namespace_name, "Secret", job_name)
 
         # record what this job is going to apply, so a job that
         # disappears before its result is observed can still be

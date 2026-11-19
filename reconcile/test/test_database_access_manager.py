@@ -4,7 +4,7 @@ import base64
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
@@ -1281,3 +1281,54 @@ def test_build_script_escapes_username_in_literals(
     # identifier positions keep the raw name: single quotes are valid
     # inside double quoted identifiers
     assert 'CREATE ROLE "o\'brien"' in script
+
+
+# ---------------------------------------------------------------------------
+# review feedback round 6 (previously missed inline comments)
+# ---------------------------------------------------------------------------
+
+
+def test_validate_role_sharing_rejects_username_role_collision(
+    db_access_role: DatabaseAccessV1,
+    db_access: DatabaseAccessV1,
+) -> None:
+    # entry B's username equals entry A's owner role: provisioning B
+    # would grant LOGIN to A's owner role, deprovisioning B would
+    # drop it
+    db_access.username = "cs_owner"
+    with pytest.raises(ValueError, match="equals a role of another entry"):
+        _validate_role_sharing([db_access_role, db_access])
+
+
+def test_validate_role_sharing_allows_distinct_usernames(
+    db_access_role: DatabaseAccessV1,
+    db_access: DatabaseAccessV1,
+) -> None:
+    db_access.username = "cs_app"
+    _validate_role_sharing([db_access_role, db_access])
+
+
+def test_process_deletes_stale_secret_before_enqueue(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    # a replacement job must not read the previous run's secret data:
+    # the old secret is removed before the enqueue
+    stale_secret = _job_secret_with_script("-- old script")
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
+        ADMIN_SECRET if name == ADMIN_SECRET_NAME else stale_secret
+    )
+    dbam_controller.get_job_status.side_effect = [
+        JobStatus.SUCCESS,
+        JobStatus.IN_PROGRESS,
+    ]
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    oc.delete.assert_called_once_with("test-namespace", "Secret", ANY)
