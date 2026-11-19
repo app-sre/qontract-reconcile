@@ -50,7 +50,6 @@ DECLARE
     role_name text := '{role_literal}';
     user_name text := '{username_literal}';
     db text := '{database_literal}';
-    check_privs text;
     set_opt text := CASE WHEN current_setting('server_version_num')::int >= 160000
                          THEN ' WITH SET TRUE' ELSE '' END;
 BEGIN
@@ -83,9 +82,12 @@ END $$;
 DO $$
 DECLARE
     role_name text := '{role_literal}';
+    user_name text := '{username_literal}';
     schemas text[] := string_to_array('{schemas_csv}', ',');
     entry text;
     s text;
+    g text;
+    check_privs text;
     r RECORD;
 BEGIN
     ------------------------------------------------------------------
@@ -279,22 +281,26 @@ BEGIN
     FOREACH entry IN ARRAY string_to_array('{revoke_list}', ';') LOOP
         IF entry <> '' THEN
             s := split_part(entry, '|', 1);
-            -- revoke from the owner role and from the login itself:
-            -- a login migrated from legacy mode keeps its direct
-            -- grants, which the session role default does not remove
-            EXECUTE format('REVOKE %s ON ALL TABLES IN SCHEMA %I FROM %I',
-                           split_part(entry, '|', 2), s, role_name);
-            EXECUTE format('REVOKE %s ON ALL TABLES IN SCHEMA %I FROM %I',
-                           split_part(entry, '|', 2), s, user_name);
-            IF NOT EXISTS (
-                SELECT 1 FROM pg_catalog.pg_namespace ns
-                JOIN pg_catalog.pg_roles ro ON ro.oid = ns.nspowner
-                WHERE ns.nspname = s AND ro.rolname = role_name
-            ) THEN
-                EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM %I',
-                               s, role_name);
-                EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM %I',
-                               s, user_name);
+            -- skip revokes for schemas that do not exist (e.g. from
+            -- a stale pending configuration)
+            IF EXISTS (SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = s) THEN
+                -- revoke from the owner role and from the login itself:
+                -- a login migrated from legacy mode keeps its direct
+                -- grants, which the session role default does not remove
+                EXECUTE format('REVOKE %s ON ALL TABLES IN SCHEMA %I FROM %I',
+                               split_part(entry, '|', 2), s, role_name);
+                EXECUTE format('REVOKE %s ON ALL TABLES IN SCHEMA %I FROM %I',
+                               split_part(entry, '|', 2), s, user_name);
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_catalog.pg_namespace ns
+                    JOIN pg_catalog.pg_roles ro ON ro.oid = ns.nspowner
+                    WHERE ns.nspname = s AND ro.rolname = role_name
+                ) THEN
+                    EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM %I',
+                                   s, role_name);
+                    EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM %I',
+                                   s, user_name);
+                END IF;
             END IF;
         END IF;
     END LOOP;
@@ -319,31 +325,39 @@ BEGIN
                     RAISE EXCEPTION 'owner role % has no USAGE on schema %',
                         role_name, s;
                 END IF;
-                -- the same warning-without-error behavior applies to
-                -- the table grants themselves: verify the requested
-                -- privileges on every table in scope. An empty schema
-                -- passes, there is nothing to check.
-                IF split_part(entry, '|', 2) = 'ALL' THEN
-                    check_privs := 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER';
-                ELSE
-                    check_privs := split_part(entry, '|', 2);
+            END IF;
+            -- the same warning-without-error behavior applies to the
+            -- table grants themselves: verify the requested privileges
+            -- on every table in scope, on owned and foreign schemas
+            -- alike. An empty schema passes, there is nothing to check.
+            -- Each privilege is checked individually:
+            -- has_table_privilege with a comma separated list returns
+            -- true when ANY privilege is present.
+            IF split_part(entry, '|', 2) = 'ALL' THEN
+                check_privs := 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER';
+                IF current_setting('server_version_num')::int >= 170000 THEN
+                    check_privs := check_privs || ',MAINTAIN';
                 END IF;
-                FOR r IN
-                    SELECT c.relname AS obj_name
-                    FROM pg_catalog.pg_class c
-                    JOIN pg_catalog.pg_namespace ns ON ns.oid = c.relnamespace
-                    WHERE ns.nspname = s
-                      AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
-                LOOP
+            ELSE
+                check_privs := split_part(entry, '|', 2);
+            END IF;
+            FOR r IN
+                SELECT c.relname AS obj_name
+                FROM pg_catalog.pg_class c
+                JOIN pg_catalog.pg_namespace ns ON ns.oid = c.relnamespace
+                WHERE ns.nspname = s
+                  AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+            LOOP
+                FOREACH g IN ARRAY string_to_array(check_privs, ',') LOOP
                     IF NOT has_table_privilege(
                            role_name,
                            quote_ident(s) || '.' || quote_ident(r.obj_name),
-                           check_privs) THEN
+                           g) THEN
                         RAISE EXCEPTION 'owner role % lacks % on %.%',
-                            role_name, check_privs, s, r.obj_name;
+                            role_name, g, s, r.obj_name;
                     END IF;
                 END LOOP;
-            END IF;
+            END LOOP;
         END IF;
     END LOOP;
 

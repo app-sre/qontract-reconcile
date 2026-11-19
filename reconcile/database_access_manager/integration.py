@@ -574,11 +574,17 @@ def _process_db_access(
         pending_config: DatabaseAccessV1 | None = None
         if pending_exists:
             pending_config = DatabaseAccessV1(**state.get(pending_key))
-            # the database is immutable against the pending marker too:
+            # the database, the resolved username and (once set) the
+            # owner role are immutable against the pending marker too:
             # a change would enqueue the replacement job (and its
-            # revocations) against a different database
+            # revocations) against different targets. Legacy-to-role
+            # migrations (role None -> set) remain allowed.
             if pending_config.database != db_access.database:
                 raise ValueError("Database name cannot be changed.")
+            if _resolve_username(pending_config, state_key) != username:
+                raise ValueError("Username cannot be changed.")
+            if pending_config.role and pending_config.role != db_access.role:
+                raise ValueError("Role cannot be changed.")
 
         # settle the job for this entry before treating the state as
         # converged: matching state with an unfinished or stale job
@@ -803,22 +809,27 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                     else:
                         admin_secret_name = resource.output_resource_name
 
-                    try:
-                        _validate_role_sharing([
-                            (
+                    # resolve usernames per entry: entries that fail
+                    # resolution (no username, no role) are collected
+                    # as errors without blocking the valid entries
+                    resolved_entries: list[tuple[DatabaseAccessV1, str]] = []
+                    for db_access in resource.database_access or []:
+                        state_key = f"{external_resource.provisioner.name}/{resource.identifier}/{db_access.name}"
+                        try:
+                            resolved_entries.append((
                                 db_access,
-                                _resolve_username(
-                                    db_access,
-                                    f"{external_resource.provisioner.name}/{resource.identifier}/{db_access.name}",
-                                ),
-                            )
-                            for db_access in resource.database_access or []
-                        ])
+                                _resolve_username(db_access, state_key),
+                            ))
+                        except ValueError as e:
+                            encountered_errors.append(e)
+
+                    try:
+                        _validate_role_sharing(resolved_entries)
                     except ValueError as e:
                         encountered_errors.append(e)
                         continue
 
-                    for db_access in resource.database_access or []:
+                    for db_access in [config for config, _ in resolved_entries]:
                         try:
                             state_key = f"{external_resource.provisioner.name}/{resource.identifier}/{db_access.name}"
                             _process_db_access(

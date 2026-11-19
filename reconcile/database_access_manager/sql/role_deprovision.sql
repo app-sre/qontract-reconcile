@@ -6,6 +6,12 @@
 
 \c "{database}"
 
+-- a login that does not exist any more is a successful no-op
+IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '{username_literal}') THEN
+    \echo 'login {username_literal} does not exist, nothing to deprovision'
+    \return
+END IF;
+
 -- cutoff: block new connections and terminate open sessions of the
 -- departing login first. Otherwise a session that still acts as the
 -- login could create objects after the reassignment below, and

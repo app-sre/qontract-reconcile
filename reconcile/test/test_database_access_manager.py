@@ -1439,10 +1439,7 @@ def test_role_template_revokes_from_login_during_migration() -> None:
     script = _render("role_provision.sql", revoke_list="foo|ALL")
     # both the owner role and the login are revoke targets
     assert script.count("REVOKE %s ON ALL TABLES IN SCHEMA %I FROM %I") == 2
-    assert (
-        "FROM %I',\n                           split_part(entry, '|', 2), s, user_name);"
-        in script
-    )
+    assert "s, user_name);" in script
 
 
 def test_role_template_double_escapes_create_role_literal() -> None:
@@ -1450,3 +1447,137 @@ def test_role_template_double_escapes_create_role_literal() -> None:
         "legacy_provision.sql", username="o'brien", username_ident_literal="o''brien"
     )
     assert "CREATE ROLE \"o''brien\"" in script
+
+
+# ---------------------------------------------------------------------------
+# review feedback round 8
+# ---------------------------------------------------------------------------
+
+
+def test_role_template_checks_each_privilege_individually() -> None:
+    script = _render(
+        "role_provision.sql", schemas_csv="s", access_list="s|SELECT,INSERT"
+    )
+    # has_table_privilege with a comma list is ANY semantics, not ALL
+    assert "FOREACH g IN ARRAY string_to_array(check_privs, ',')" in script
+    assert "check_privs text;" in script
+    # MAINTAIN is version-gated for the ALL expansion
+    assert "server_version_num')::int >= 170000" in script
+
+
+def test_role_template_declares_user_name_in_acl_block() -> None:
+    script = _render("role_provision.sql", revoke_list="foo|ALL")
+    # the ACL DO block declares its own user_name (a PL/pgSQL DO
+    # block has no access to the declarations of a preceding block)
+    assert script.count("user_name text :=") >= 2
+    # check_privs is assigned in the same block that uses it (the
+    # ACL block, after the wiring block)
+    acl_start = script.index("ownership transfer, grants and default privileges")
+    assert "check_privs" not in script[:acl_start]
+    assert "check_privs" in script[acl_start:]
+
+
+def test_role_template_skips_revoke_for_missing_schemas() -> None:
+    script = _render("role_provision.sql", revoke_list="gone|ALL")
+    assert (
+        "IF EXISTS (SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = s) THEN"
+        in script
+    )
+
+
+def test_deprovision_templates_skip_missing_logins() -> None:
+    for template in ["role_deprovision.sql", "legacy_deprovision.sql"]:
+        script = _render(template)
+        assert "nothing to deprovision" in script
+        assert "\\return" in script
+
+
+def test_process_pending_role_change_rejected(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    dbam_state.exists.side_effect = lambda key: key == f"{STATE_KEY}#pending"
+    dbam_state.get.return_value = db_access_role.model_dump(by_alias=True)
+    # pin the username to the generated one so only the role change
+    # triggers (the pending config has no explicit username either)
+    db_access_role.username = _generated_username("cs_owner", STATE_KEY)
+    db_access_role.role = "other_owner"
+    with pytest.raises(ValueError, match="Role cannot be changed"):
+        run_process(
+            db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+        )
+
+
+def test_process_pending_username_change_rejected(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    dbam_state.exists.side_effect = lambda key: key == f"{STATE_KEY}#pending"
+    dbam_state.get.return_value = db_access_role.model_dump(by_alias=True)
+    db_access_role.username = "explicit_user"
+    with pytest.raises(ValueError, match="Username cannot be changed"):
+        run_process(
+            db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+        )
+
+
+def test_process_retry_after_failed_replacement_revokes_stale_schemas(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    # regression for the failed-replacement retry path: the pending
+    # marker must still contain the stale-only schema (bar) after the
+    # desired config (foo) was merged in, so the retry's script revokes
+    # both schemas
+    pending_with_bar = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "test",
+            "database": "postgres",
+            "role": "cs_owner",
+            "access": [
+                {"grants": ["UPDATE"], "target": {"dbschema": "bar"}},
+            ],
+        },
+    )
+    dbam_state.exists.side_effect = lambda key: key == f"{STATE_KEY}#pending"
+    dbam_state.get.return_value = pending_with_bar.model_dump(by_alias=True)
+    dbam_controller.get_job_status.return_value = JobStatus.ERROR
+    with pytest.raises(JobFailedError):
+        run_process(
+            db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+        )
+    # the next reconcile retries: the job was deleted, the pending
+    # marker (now the merged union) drives the revoke baseline
+    dbam_controller.get_job_status.side_effect = [
+        JobStatus.NOT_EXISTS,
+        JobStatus.IN_PROGRESS,
+    ]
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    # the retry re-enqueues with a full revoke over the union
+    dbam_controller.enqueue_job.assert_called_once()
+    job = enqueued_job(dbam_controller)
+    assert "bar|ALL" in job.script
+    assert "foo|ALL" in job.script
+    # the pending marker written for the retry includes the union
+    marker_value = dbam_state.add.call_args_list[0].kwargs.get("value")
+    marker_schemas = {a["target"]["dbschema"] for a in marker_value["access"]}
+    assert marker_schemas == {"foo", "bar"}
