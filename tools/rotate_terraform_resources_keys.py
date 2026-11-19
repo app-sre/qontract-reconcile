@@ -22,6 +22,7 @@ from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
+from botocore.exceptions import BotoCoreError, ClientError
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from qontract_utils.aws_api_typed.api import (
     AWSApi,
@@ -42,13 +43,20 @@ from tools.iam_key_rotation_lock import (
 )
 from tools.rotate_erv2_cloudwatch_keys import (
     IamKey,
+    IamKeyDetails,
+    IamKeyLastUsed,
+    IamKeyUsageResponse,
     IamStateAttributes,
     RotationError,
     TerraformInstance,
     checked,
+    describe_iam_keys,
+    full_key_slots_error,
 )
 
 if TYPE_CHECKING:
+    from mypy_boto3_iam import IAMClient
+
     from reconcile.utils.secret_reader import SecretReaderBase
 
 
@@ -115,6 +123,7 @@ class RetirementResult(BaseModel):
     key_id: str
     remaining_active_key_ids: list[str]
     available_key_slots: int = Field(ge=0, le=2)
+    iam_keys_before: list[IamKeyDetails] = Field(default_factory=list)
     consumer_verification_required: bool = True
 
 
@@ -197,6 +206,7 @@ class Result(BaseModel):
     cache_key: str
     bindings: list[Binding]
     terraform_outputs_match: bool
+    iam_keys: list[IamKeyDetails] = Field(default_factory=list)
     source_secret_sync_verified: bool = False
     consumer_verification_required: bool = True
 
@@ -378,6 +388,7 @@ class RotationRuntime(Protocol):
 
     def lock(self) -> AbstractContextManager[None]: ...
     def snapshot(self, expected_address: str | None) -> Snapshot: ...
+    def key_last_used(self, key_id: str) -> IamKeyLastUsed | None: ...
     def remove(self, before: Snapshot, address: str) -> None: ...
     def invalidate(self, key: CacheKeyWithDigest) -> None: ...
 
@@ -387,8 +398,17 @@ class RetirementRuntime(Protocol):
 
     def lock(self) -> AbstractContextManager[None]: ...
     def keys(self) -> list[IamKey]: ...
+    def key_last_used(self, key_id: str) -> IamKeyLastUsed | None: ...
     def deactivate(self, key_id: str) -> None: ...
     def delete(self, key_id: str) -> None: ...
+
+
+def read_key_last_used(client: IAMClient, key_id: str) -> IamKeyLastUsed | None:
+    try:
+        response = client.get_access_key_last_used(AccessKeyId=key_id)
+    except BotoCoreError, ClientError:
+        return None
+    return IamKeyUsageResponse.model_validate(response).last_used
 
 
 def retirement_keys(
@@ -416,7 +436,9 @@ def retire(request: RetirementRequest, runtime: RetirementRuntime) -> Retirement
 
 def _retire(request: RetirementRequest, runtime: RetirementRuntime) -> RetirementResult:
     target = runtime.target
-    keys = retirement_keys(request, runtime.keys())
+    inventory = runtime.keys()
+    keys = retirement_keys(request, inventory)
+    key_details = describe_iam_keys(inventory, runtime.key_last_used, None)
 
     def result(status: RetirementStatus) -> RetirementResult:
         return RetirementResult(
@@ -432,6 +454,7 @@ def _retire(request: RetirementRequest, runtime: RetirementRuntime) -> Retiremen
                 if key_id != request.key_id and status == "Active"
             ),
             available_key_slots=2 - len(keys),
+            iam_keys_before=key_details,
         )
 
     if request.key_id not in keys:
@@ -507,6 +530,11 @@ def _rotate(request: Request, runtime: RotationRuntime) -> Result:
     old = request.expected_key_id or (managed.key_id if managed else None)
     keys = {k.access_key_id: k.status for k in snapshot.keys}
 
+    def key_details() -> list[IamKeyDetails]:
+        return describe_iam_keys(
+            snapshot.keys, runtime.key_last_used, managed.key_id if managed else None
+        )
+
     def result(status: RotationStatus) -> Result:
         return Result(
             account=target.account,
@@ -531,6 +559,7 @@ def _rotate(request: Request, runtime: RotationRuntime) -> Result:
             cache_key=str(cache_key),
             bindings=target.bindings,
             terraform_outputs_match=snapshot.outputs_match,
+            iam_keys=key_details(),
         )
 
     if request.verify:
@@ -551,6 +580,8 @@ def _rotate(request: Request, runtime: RotationRuntime) -> Result:
         raise RotationError(
             "Old key is listed in deleteKeys; remove its scheduled retirement before no-downtime preparation"
         )
+    if len(keys) == 2:
+        raise full_key_slots_error(key_details())
     if not old or keys != {old: "Active"}:
         raise RotationError(
             "Preparation requires exactly one IAM key: the expected Active old key"
@@ -626,6 +657,9 @@ class Runtime:
                 terraform_state_scope(self.target.bucket, self.target.key),
             ],
         )
+
+    def key_last_used(self, key_id: str) -> IamKeyLastUsed | None:
+        return read_key_last_used(self.api.iam.client, key_id)
 
     def snapshot(self, expected_address: str | None) -> Snapshot:
         response = self.api.s3.client.get_object(
@@ -765,6 +799,9 @@ class RetirementClient:
         return operation_lock(
             self.reader, [iam_user_scope(self.target.account_id, self.target.iam_user)]
         )
+
+    def key_last_used(self, key_id: str) -> IamKeyLastUsed | None:
+        return read_key_last_used(self.api.iam.client, key_id)
 
     def keys(self) -> list[IamKey]:
         response = self.api.iam.client.list_access_keys(UserName=self.target.iam_user)

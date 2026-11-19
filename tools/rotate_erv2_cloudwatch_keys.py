@@ -26,12 +26,15 @@ import subprocess
 import sys
 import tempfile
 from contextlib import AbstractContextManager, nullcontext
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from reconcile.external_resources.model import ExternalResource
     from reconcile.utils.secret_reader import SecretReaderBase
     from tools.cli_commands.erv2 import Erv2Cli
@@ -80,6 +83,70 @@ class KeyState(BaseModel):
 class IamKey(BaseModel):
     access_key_id: str = Field(alias="AccessKeyId")
     status: Literal["Active", "Inactive"] = Field(alias="Status")
+
+
+class IamKeyLastUsed(BaseModel):
+    date: datetime | None = Field(default=None, alias="LastUsedDate")
+    service: str | None = Field(default=None, alias="ServiceName")
+    region: str | None = Field(default=None, alias="Region")
+
+
+class IamKeyUsageResponse(BaseModel):
+    last_used: IamKeyLastUsed = Field(alias="AccessKeyLastUsed")
+
+
+class IamKeyDetails(BaseModel):
+    access_key_id: str
+    status: Literal["Active", "Inactive"]
+    matches_terraform_binding: bool | None = None
+    last_used: IamKeyLastUsed | None = None
+
+
+def describe_iam_keys(
+    keys: list[IamKey],
+    key_last_used: Callable[[str], IamKeyLastUsed | None],
+    terraform_key_id: str | None,
+) -> list[IamKeyDetails]:
+    return [
+        IamKeyDetails(
+            access_key_id=key.access_key_id,
+            status=key.status,
+            matches_terraform_binding=(
+                key.access_key_id == terraform_key_id if terraform_key_id else None
+            ),
+            last_used=key_last_used(key.access_key_id),
+        )
+        for key in keys
+    ]
+
+
+def full_key_slots_error(keys: list[IamKeyDetails]) -> RotationError:
+    lines = ["Both IAM key slots are occupied. Rotation requires exactly one IAM key."]
+    for key in keys:
+        match key.matches_terraform_binding:
+            case True:
+                binding = "matches Terraform binding"
+            case False:
+                binding = "does not match Terraform binding"
+            case None:
+                binding = "no Terraform binding identified"
+        if key.last_used is None:
+            usage = "last-used lookup unavailable"
+        elif key.last_used.date is None:
+            usage = "no recorded use"
+        else:
+            usage = (
+                f"last used {key.last_used.date.isoformat()} "
+                f"(service {key.last_used.service}, region {key.last_used.region})"
+            )
+        lines.append(f"- {key.access_key_id}: {key.status}, {binding}, {usage}")
+    if any(key.matches_terraform_binding and key.status == "Active" for key in keys):
+        lines.append(
+            "After confirming the extra key can be retired, preview "
+            "qontract-cli terraform-resources delete-access-key with that --key-id. "
+            "The bound key stays Active."
+        )
+    return RotationError("\n".join(lines))
 
 
 class IamKeys(BaseModel):
@@ -135,6 +202,7 @@ class Result(Selector):
     resource_status: str
     tainted: bool
     additional_active_key_ids: list[str] = Field(default_factory=list)
+    iam_keys: list[IamKeyDetails] = Field(default_factory=list)
 
     @property
     def exit_code(self) -> int:
@@ -150,6 +218,7 @@ class RotationRuntime(Protocol):
         expected_key: str | None = None,
     ) -> KeyState: ...
     def iam_keys(self, target: Target) -> list[IamKey]: ...
+    def key_last_used(self, target: Target, key_id: str) -> IamKeyLastUsed | None: ...
     def status(self, target: Target) -> str: ...
     def request(self, target: Target) -> None: ...
 
@@ -452,6 +521,19 @@ class Runtime:
             )
         ).keys
 
+    def key_last_used(self, target: Target, key_id: str) -> IamKeyLastUsed | None:
+        _, _, credentials = self.prepare(target)
+        try:
+            response = self.aws(
+                credentials,
+                "default",
+                target.region,
+                ["iam", "get-access-key-last-used", "--access-key-id", key_id],
+            )
+        except RotationError:
+            return None
+        return IamKeyUsageResponse.model_validate_json(response).last_used
+
     def status(self, target: Target) -> str:
         from reconcile.external_resources.integration import get_aws_api
         from reconcile.external_resources.model import ExternalResourceKey
@@ -516,6 +598,11 @@ def _rotate(request: Request, target: Target, runtime: RotationRuntime) -> Resul
     if status in {"ERROR", "NOT_EXISTS", "DELETED", "ABANDONED", "DELETE_IN_PROGRESS"}:
         raise RotationError(f"ERv2 status is {status}; investigate before rotation")
 
+    def key_details() -> list[IamKeyDetails]:
+        return describe_iam_keys(
+            keys, lambda key_id: runtime.key_last_used(target, key_id), state.key_id
+        )
+
     def result(
         value: Literal[
             "would_rotate",
@@ -545,6 +632,7 @@ def _rotate(request: Request, target: Target, runtime: RotationRuntime) -> Resul
             ),
             resource_status=status,
             tainted=state.tainted,
+            iam_keys=key_details(),
             additional_active_key_ids=sorted(
                 key.access_key_id
                 for key in keys
@@ -595,6 +683,8 @@ def _rotate(request: Request, target: Target, runtime: RotationRuntime) -> Resul
         raise RotationError(
             "Access key is already tainted; investigate before no-downtime rotation"
         )
+    if len(keys) == 2:
+        raise full_key_slots_error(key_details())
     if len(keys) != 1 or keys[0].access_key_id != old_key or keys[0].status != "Active":
         raise RotationError(
             "Rotation requires exactly one IAM key, the Active old "
