@@ -261,11 +261,20 @@ class ExternalResourcesStateDynamoDB:
         f"{DynamoDBStateAdapter.RECONC}.{DynamoDBStateAdapter.RECONC_RESOURCE_HASH}",
     ])
 
-    def __init__(self, aws_api: AWSApi, table_name: str) -> None:
+    def __init__(
+        self,
+        aws_api: AWSApi,
+        table_name: str,
+        *,
+        load_partial_resources: bool = True,
+    ) -> None:
         self.adapter = DynamoDBStateAdapter()
         self.aws_api = aws_api
         self._table = table_name
-        self.partial_resources = self._get_partial_resources()
+        # Single-resource CLI operations do not need a complete table inventory.
+        self.partial_resources = (
+            self._get_partial_resources() if load_partial_resources else {}
+        )
 
     def _new_sha256_hash(self, item: dict) -> str:
         resource_json = item[self.adapter.RECONC]["M"][self.adapter.RECONC_INPUT]["S"]
