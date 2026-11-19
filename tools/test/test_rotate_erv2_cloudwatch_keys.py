@@ -72,6 +72,7 @@ def runtime(mocker: MockerFixture) -> Mock:
     runtime.operation.side_effect = operation
     runtime.request.side_effect = request
     runtime.iam_keys.side_effect = lambda _: runtime.keys
+    runtime.key_last_used.return_value = rotation.IamKeyLastUsed()
     runtime.status.side_effect = lambda _: runtime.er_status
     return runtime
 
@@ -86,6 +87,7 @@ def test_inspection_has_no_mutations(target: rotation.Target, runtime: Mock) -> 
     assert result.status == "would_rotate"
     assert result.access_key_id == OLD
     assert result.exit_code == 0
+    assert result.iam_keys[0].matches_terraform_binding is True
     runtime.lock.assert_not_called()
 
 
@@ -521,6 +523,7 @@ def test_single_resource_resolves_accounts_and_closes_runtime(
         key_id=OLD, user="test-cw", tainted=False
     )
     runtime.iam_keys.return_value = [rotation.IamKey(AccessKeyId=OLD, Status="Active")]
+    runtime.key_last_used.return_value = rotation.IamKeyLastUsed()
     runtime.status.return_value = "CREATED"
     assert (
         rotation.run_single("test-account", "test-cw", reader).status == "would_rotate"
@@ -648,8 +651,14 @@ def test_existing_second_key_blocks_preparation_without_deleting_any_key(
     target: rotation.Target, runtime: Mock, dry_run: bool, extra_status: str
 ) -> None:
     runtime.keys.append(rotation.IamKey(AccessKeyId=NEW, Status=extra_status))
-    with pytest.raises(rotation.RotationError, match="exactly one IAM key"):
+    with pytest.raises(rotation.RotationError, match="Both IAM key slots") as exc:
         rotation.rotate(request(dry_run=dry_run, expected_key_id=OLD), target, runtime)
+    assert f"{OLD}: Active, matches Terraform binding" in str(exc.value)
+    assert (
+        f"{NEW}: {extra_status}, does not match Terraform binding, no recorded use"
+        in str(exc.value)
+    )
+    assert "delete-access-key" in str(exc.value)
     assert (runtime.removals, runtime.requests) == (0, 0)
 
 

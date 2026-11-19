@@ -6,6 +6,7 @@ from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING
 
 import pytest
+from botocore.exceptions import ClientError
 from click.testing import CliRunner
 
 from reconcile.utils.early_exit_cache import CacheKey
@@ -147,6 +148,7 @@ def runtime(
     r.lock.side_effect = nullcontext
     r.target, _ = rotation.resolve_target(request(), inventory)
     r.cache_bucket = "test-cache"
+    r.key_last_used.return_value = rotation.IamKeyLastUsed()
     r.current = rotation.Snapshot(
         state=state,
         managed_key=rotation.ManagedKey(address=ADDRESS, key_id=OLD),
@@ -174,10 +176,47 @@ def test_inspection_reports_one_user_and_bindings_without_mutation(
     assert result.address == ADDRESS and result.cache_bucket == "test-cache"
     assert result.bindings[0].secret_name == "custom-bucket-secret"
     assert result.terraform_version == "1.6.6"
+    assert result.iam_keys == [
+        rotation.IamKeyDetails(
+            access_key_id=OLD,
+            status="Active",
+            matches_terraform_binding=True,
+            last_used=rotation.IamKeyLastUsed(),
+        )
+    ]
     assert "test-only-secret" not in result.model_dump_json()
     assert (
         not result.source_secret_sync_verified and result.consumer_verification_required
     )
+    runtime.remove.assert_not_called()
+    runtime.invalidate.assert_not_called()
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_full_slots_identify_extra_key_and_usage(runtime: Mock, dry_run: bool) -> None:
+    runtime.current.keys.append(rotation.IamKey(AccessKeyId=NEW, Status="Inactive"))
+    runtime.key_last_used.side_effect = [
+        None,
+        rotation.IamKeyLastUsed.model_validate({
+            "LastUsedDate": "2023-03-01T01:02:03Z",
+            "ServiceName": "s3",
+            "Region": "us-east-1",
+        }),
+    ]
+    command = request() if dry_run else execute()
+    with pytest.raises(rotation.RotationError, match="Both IAM key slots") as exc:
+        rotation.rotate(command, runtime)
+    message = str(exc.value)
+    assert (
+        f"{OLD}: Active, matches Terraform binding, last-used lookup unavailable"
+        in message
+    )
+    assert (
+        f"{NEW}: Inactive, does not match Terraform binding, last used 2023-03-01"
+        in message
+    )
+    assert "service s3, region us-east-1" in message
+    assert "delete-access-key" in message
     runtime.remove.assert_not_called()
     runtime.invalidate.assert_not_called()
 
@@ -724,6 +763,7 @@ def retirement_runtime(mocker: MockerFixture) -> Mock:
     r = mocker.Mock(spec=rotation.RetirementRuntime)
     r.lock.side_effect = nullcontext
     r.close = mocker.Mock()
+    r.key_last_used.return_value = rotation.IamKeyLastUsed()
     r.target = rotation.RetirementTarget(
         account="test-account",
         account_id="111122223333",
@@ -758,6 +798,17 @@ def test_delete_command_handles_active_key_in_one_operation(
     assert result.key_id == OLD
     assert result.remaining_active_key_ids == [NEW]
     assert result.consumer_verification_required
+    assert {key.access_key_id for key in result.iam_keys_before} == {OLD, NEW}
+    assert all(key.status == "Active" for key in result.iam_keys_before)
+    assert all(key.matches_terraform_binding is None for key in result.iam_keys_before)
+    assert all(
+        key.last_used == rotation.IamKeyLastUsed() for key in result.iam_keys_before
+    )
+    assert [c[0] for c in r.method_calls if c[0] in {"key_last_used", "delete"}] == (
+        ["key_last_used", "key_last_used"]
+        if dry_run
+        else ["key_last_used", "key_last_used", "delete"]
+    )
     if dry_run:
         assert result.status == "would_deactivate_and_delete"
         assert result.available_key_slots == 0
@@ -1040,6 +1091,19 @@ def test_retirement_client_uses_iam_only_and_exact_user_key(
     client.close()
     api.close.assert_called_once()
     api.s3.client.get_object.assert_not_called()
+
+
+def test_key_last_used_distinguishes_missing_usage_from_denied_lookup(
+    retirement_api: Mock,
+) -> None:
+    iam = retirement_api.iam.client
+    iam.get_access_key_last_used.side_effect = [
+        {"AccessKeyLastUsed": {"ServiceName": "N/A", "Region": "N/A"}},
+        ClientError({"Error": {"Code": "AccessDenied"}}, "GetAccessKeyLastUsed"),
+    ]
+    no_usage = rotation.read_key_last_used(iam, OLD)
+    assert no_usage is not None and no_usage.date is None
+    assert rotation.read_key_last_used(iam, NEW) is None
 
 
 def test_retirement_client_rejects_pagination(
