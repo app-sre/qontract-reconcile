@@ -441,6 +441,24 @@ def test_render_role_provision() -> None:
     assert "DROP ROLE" not in script
 
 
+def test_render_role_provision_verifies_schema_usage() -> None:
+    script = _render_sql(
+        "role_provision.sql",
+        database="postgres",
+        username="cs_app",
+        admin_user="admin",
+        role="cs_owner",
+        schemas_csv="foreign",
+        access_list="foreign|SELECT",
+        revoke_list="",
+    )
+    # a USAGE grant without grant option only warns and grants nothing:
+    # the script must fail the transaction instead of committing an
+    # inaccessible schema
+    assert "has_schema_privilege(role_name, s, 'USAGE')" in script
+    assert "RAISE EXCEPTION 'owner role % has no USAGE on schema %'" in script
+
+
 def test_render_role_provision_empty_access() -> None:
     script = _render_sql(
         "role_provision.sql",

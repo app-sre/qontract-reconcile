@@ -303,6 +303,14 @@ BEGIN
             ) THEN
                 EXECUTE format('GRANT USAGE ON SCHEMA %I TO %I',
                                s, role_name);
+                -- a grant without grant option only produces a warning
+                -- and grants nothing. Without this check the
+                -- transaction would commit while the owner role cannot
+                -- reach the schema's objects at all.
+                IF NOT has_schema_privilege(role_name, s, 'USAGE') THEN
+                    RAISE EXCEPTION 'owner role % has no USAGE on schema %',
+                        role_name, s;
+                END IF;
             END IF;
         END IF;
     END LOOP;
