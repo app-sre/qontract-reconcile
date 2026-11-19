@@ -63,6 +63,7 @@ query DatabaseAccessManager {
               name
               database
               delete
+              role
               access {
                 grants
                 target {
@@ -138,10 +139,11 @@ class DatabaseAccessAccessV1(ConfiguredBaseModel):
 
 
 class DatabaseAccessV1(ConfiguredBaseModel):
-    username: str = Field(..., alias="username")
+    username: Optional[str] = Field(..., alias="username")
     name: str = Field(..., alias="name")
     database: str = Field(..., alias="database")
     delete: Optional[bool] = Field(..., alias="delete")
+    role: Optional[str] = Field(..., alias="role")
     access: Optional[list[DatabaseAccessAccessV1]] = Field(..., alias="access")
 
 

@@ -3129,8 +3129,29 @@ def version_gate_approver(
 
 @integration.command(short_help="Manage Databases and Database Users.")
 @vault_output_path
+@click.option(
+    "--job-image",
+    help="Container image used to run the database access jobs.",
+    required=True,
+)
+@click.option(
+    "--pull-secret-path",
+    help="Vault path of the pull secret for the job image.",
+    default=None,
+)
+@click.option(
+    "--pull-secret-version",
+    help="Vault version of the pull secret for the job image.",
+    default=None,
+)
 @click.pass_context
-def database_access_manager(ctx: click.Context, vault_output_path: str) -> None:
+def database_access_manager(
+    ctx: click.Context,
+    vault_output_path: str,
+    job_image: str,
+    pull_secret_path: str | None,
+    pull_secret_version: str | None,
+) -> None:
     from reconcile.database_access_manager import (
         DatabaseAccessManagerIntegration,
         DBAMIntegrationParams,
@@ -3138,7 +3159,12 @@ def database_access_manager(ctx: click.Context, vault_output_path: str) -> None:
 
     run_class_integration(
         integration=DatabaseAccessManagerIntegration(
-            DBAMIntegrationParams(vault_output_path=vault_output_path)
+            DBAMIntegrationParams(
+                vault_output_path=vault_output_path,
+                job_image=job_image,
+                pull_secret_path=pull_secret_path,
+                pull_secret_version=pull_secret_version,
+            )
         ),
         ctx=ctx,
     )
