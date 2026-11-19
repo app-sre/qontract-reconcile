@@ -907,8 +907,9 @@ def test_retirement_refuses_preflight_key_drift(retirement_runtime: Mock) -> Non
 
 @pytest.mark.parametrize("action", ["deactivate", "delete"])
 def test_retirement_verifies_sdk_mutation(
-    retirement_runtime: Mock, action: str
+    retirement_runtime: Mock, action: str, mocker: MockerFixture
 ) -> None:
+    sleep = mocker.patch.object(rotation, "sleep")
     r = retirement_runtime
     if action == "delete":
         r.current[1].status = "Inactive"
@@ -916,17 +917,66 @@ def test_retirement_verifies_sdk_mutation(
     mutation.side_effect = None
     with pytest.raises(rotation.RotationError, match="did not reach the expected"):
         rotation.retire(retirement_request(action, dry_run=False), r)
+    assert [call.args[0] for call in sleep.call_args_list] == [1, 2, 4, 8, 8]
     if action == "deactivate":
         r.delete.assert_not_called()
 
 
 def test_combined_delete_waits_for_inactive_confirmation(
-    retirement_runtime: Mock,
+    retirement_runtime: Mock, mocker: MockerFixture
 ) -> None:
+    mocker.patch.object(rotation, "sleep")
     retirement_runtime.deactivate.side_effect = None
     with pytest.raises(rotation.RotationError, match="expected Inactive"):
         rotation.retire(retirement_request("delete", dry_run=False), retirement_runtime)
     retirement_runtime.delete.assert_not_called()
+
+
+def test_combined_delete_tolerates_stale_inventory_under_lock(
+    retirement_runtime: Mock, mocker: MockerFixture
+) -> None:
+    r = retirement_runtime
+    active_keys = r.keys()
+    inactive_keys = [
+        rotation.IamKey(AccessKeyId=NEW, Status="Active"),
+        rotation.IamKey(AccessKeyId=OLD, Status="Inactive"),
+    ]
+    inventories = iter([
+        active_keys,
+        active_keys,
+        active_keys,
+        inactive_keys,
+        inactive_keys,
+        [rotation.IamKey(AccessKeyId=NEW, Status="Active")],
+    ])
+    in_lock = False
+
+    @contextmanager
+    def lock() -> Generator[None]:
+        nonlocal in_lock
+        in_lock = True
+        try:
+            yield
+        finally:
+            in_lock = False
+
+    def keys() -> list[rotation.IamKey]:
+        assert in_lock
+        return next(inventories)
+
+    def wait(delay: int) -> None:
+        assert in_lock and delay == 1
+
+    r.lock.side_effect = lock
+    r.keys.side_effect = keys
+    sleep = mocker.patch.object(rotation, "sleep", side_effect=wait)
+
+    result = rotation.retire(retirement_request("delete", dry_run=False), r)
+
+    assert result.status == "deleted" and result.remaining_active_key_ids == [NEW]
+    assert not in_lock and sleep.call_count == 2
+    r.deactivate.assert_called_once_with(OLD)
+    r.delete.assert_called_once_with(OLD)
 
 
 def test_overlapping_retirements_cannot_deactivate_both_keys(
