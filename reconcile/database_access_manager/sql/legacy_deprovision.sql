@@ -63,4 +63,5 @@ BEGIN
 END $$;
 
 REASSIGN OWNED BY "{username}" TO "{admin_user}";
+DROP OWNED BY "{username}";
 DROP ROLE IF EXISTS "{username}";\gexec

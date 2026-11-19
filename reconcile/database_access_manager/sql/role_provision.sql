@@ -19,6 +19,10 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database_literal}');
 REVOKE ALL ON DATABASE "{database}" FROM public;
 \endif
 
+-- switch to the target database: everything below (ownership
+-- transfer, grants, default privileges) is database-local
+\c "{database}"
+
 -- 1. the owner role: NOLOGIN group role that owns everything.
 --    A duplicate_object error is tolerated: two entries sharing this
 --    role can run their first provisioning concurrently.
@@ -51,7 +55,7 @@ DECLARE
     user_name text := '{username_literal}';
     db text := '{database_literal}';
     set_opt text := CASE WHEN current_setting('server_version_num')::int >= 160000
-                         THEN ' WITH SET TRUE' ELSE '' END;
+                         THEN ' WITH INHERIT TRUE, SET TRUE' ELSE '' END;
 BEGIN
     -- the executor must be able to SET ROLE to the owner role for
     -- every ownership transfer below. NOTE (PG16+): the automatic
@@ -106,6 +110,28 @@ BEGIN
         EXECUTE format('ALTER SCHEMA %I OWNER TO %I', r.schema_name, role_name);
         EXECUTE format('GRANT ALL PRIVILEGES ON SCHEMA %I TO %I',
                        r.schema_name, current_user);
+    END LOOP;
+
+    ------------------------------------------------------------------
+    -- 5a-bis. for schemas that could not be transferred (e.g. public
+    --     in the postgres database, owned by pg_database_owner on
+    --     PG15+), grant the owner role sufficient privileges to
+    --     receive table ownership. Without CREATE on the schema,
+    --     ALTER TABLE ... OWNER TO fails on PG16+.
+    ------------------------------------------------------------------
+    FOR r IN
+        SELECT n.nspname AS schema_name
+        FROM pg_namespace n
+        WHERE n.nspname = ANY (schemas)
+          AND n.nspowner <> role_name::regrole
+    LOOP
+        BEGIN
+            EXECUTE format('GRANT USAGE, CREATE ON SCHEMA %I TO %I',
+                           r.schema_name, role_name);
+        EXCEPTION WHEN insufficient_privilege THEN
+            RAISE NOTICE 'cannot grant USAGE+CREATE on schema % to % (executor has no grant option)',
+                r.schema_name, role_name;
+        END;
     END LOOP;
 
     ------------------------------------------------------------------
@@ -218,7 +244,7 @@ BEGIN
         FROM pg_type t
         JOIN pg_namespace n ON n.oid = t.typnamespace
         WHERE n.nspname = ANY (schemas)
-          AND t.typtype IN ('c', 'e', 'd')
+          AND t.typtype IN ('c', 'e', 'd', 'r')
           AND t.typowner <> role_name::regrole
           AND pg_has_role(current_user, t.typowner, 'USAGE')
           AND NOT EXISTS (

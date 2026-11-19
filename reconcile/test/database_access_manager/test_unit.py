@@ -877,7 +877,10 @@ def test_integration_params() -> None:
 )
 def test_template_foreach_target_is_scalar(template: str) -> None:
     content = (
-        Path(__file__).parent.parent / "database_access_manager" / "sql" / template
+        Path(__file__).parent.parent.parent
+        / "database_access_manager"
+        / "sql"
+        / template
     ).read_text()
     # FOREACH without SLICE requires a scalar target
     assert "entry text[];" not in content
@@ -887,7 +890,10 @@ def test_template_foreach_target_is_scalar(template: str) -> None:
 def test_provision_templates_are_transactional() -> None:
     for template in ["legacy_provision.sql", "role_provision.sql"]:
         content = (
-            Path(__file__).parent.parent / "database_access_manager" / "sql" / template
+            Path(__file__).parent.parent.parent
+            / "database_access_manager"
+            / "sql"
+            / template
         ).read_text()
         assert "BEGIN;" in content
         assert "COMMIT;" in content

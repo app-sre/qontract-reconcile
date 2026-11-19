@@ -240,6 +240,7 @@ Do NOT create a barrel re-export `models.py` — import directly from `domain.py
 - Target >80% coverage for new integration code
 - Client-side tests go in `reconcile/test/test_<name>_api.py` (or `reconcile/test/<name>_api/` for complex integrations)
 - Server-side tests go in `qontract_api/tests/integrations/<name>/`
+- **E2E tests** (marked `@pytest.mark.e2e`) run real PostgreSQL containers via docker or podman. They live in `reconcile/test/<integration>/test_e2e.py` next to the unit tests. The AI agent MUST run them (they are not skipped by default) — they catch SQL syntax and privilege bugs that string-presence assertions cannot. If no container engine is available, the conftest skips them with a clear message; in that case report the skip, do not claim the SQL templates are verified. Test all supported PostgreSQL versions (currently 13–18).
 
 ## PR and Review Conventions
 
