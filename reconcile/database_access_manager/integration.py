@@ -264,6 +264,27 @@ def _validate_role_sharing(
                     f"Role {role} is shared by entries with different access lists."
                 )
 
+    # a schema must be managed by at most one owner role per RDS
+    # resource: two entries with different roles targeting the same
+    # schema would transfer ownership away from each other on every
+    # reconciliation, leaving the first role without access
+    schemas_by_role: dict[str, set[str]] = {}
+    for db_access in database_access:
+        if db_access.role:
+            schemas = {a.target.dbschema for a in db_access.access or []}
+            schemas_by_role.setdefault(db_access.role, set()).update(schemas)
+
+    all_schemas: dict[str, str] = {}  # schema -> role that manages it
+    for role, schemas in schemas_by_role.items():
+        for schema in schemas:
+            if schema in all_schemas and all_schemas[schema] != role:
+                raise ValueError(
+                    f"Schema {schema} is managed by both role "
+                    f"{all_schemas[schema]} and role {role}: a schema "
+                    "can only be managed by one owner role."
+                )
+            all_schemas[schema] = role
+
     # a login username (explicit or generated) must never collide with
     # an owner role configured for another entry on the same instance:
     # provisioning that entry would grant LOGIN and a password to the
@@ -649,7 +670,16 @@ def _process_db_access(
                             # same completed job must not fail
                             if state.exists(pending_key):
                                 state.rm(pending_key)
-                        return
+                        if db_access.delete:
+                            return
+                        # do NOT return for provision entries: fall
+                        # through to re-enqueue the (idempotent) job.
+                        # This picks up objects created by the old app
+                        # during the migration window. The convergence
+                        # window lasts as long as the job exists (TTL):
+                        # once the job expires, NOT_EXISTS +
+                        # state_matches triggers the early return and
+                        # the entry is fully converged.
                     # stale job from an older configuration (e.g. the
                     # configuration was reverted while the job was in
                     # flight): replace it below and revoke everything it

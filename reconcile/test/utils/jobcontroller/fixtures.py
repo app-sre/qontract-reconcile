@@ -61,13 +61,25 @@ class SomeJobV2(K8sJob, BaseModel):
 
 
 def build_job_status(
-    active: int = 0, succeeded: int = 0, failed: int = 0
+    active: int = 0,
+    succeeded: int = 0,
+    failed: int = 0,
+    deadline_exceeded: bool = False,
 ) -> dict[str, Any]:
-    return {
+    status: dict[str, Any] = {
         "active": active,
         "succeeded": succeeded,
         "failed": failed,
     }
+    if deadline_exceeded:
+        status["conditions"] = [
+            {
+                "type": "Failed",
+                "status": "True",
+                "reason": "DeadlineExceeded",
+            }
+        ]
+    return status
 
 
 def build_job_resource(

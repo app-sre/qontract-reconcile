@@ -1004,13 +1004,17 @@ def test_process_converged_job_settles(
     run_process(
         db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
     )
-    dbam_controller.enqueue_job.assert_not_called()
-    vault_mock.write.assert_called_once()
-    secret = vault_mock.write.call_args[0][0]
+    # the job is re-enqueued for object convergence (migration window)
+    dbam_controller.enqueue_job.assert_called_once()
+    # vault is written twice: settle (old job's credential) and
+    # post-enqueue (new job's credential)
+    assert vault_mock.write.call_count == 2
+    secret = vault_mock.write.call_args_list[0][0][0]
     assert secret["path"] == f"vault-out/database-access-manager/{STATE_KEY}"
     assert secret["data"]["db.password"] == "jobpw"
     assert secret["data"]["db.user"] == "cs_owner_abc"
-    dbam_state.add.assert_called_once()
+    # state is written multiple times (settle, pending marker, post-enqueue)
+    assert dbam_state.add.call_count >= 1
 
 
 def test_process_incomplete_job_is_repaired(
@@ -1096,10 +1100,12 @@ def test_process_settled_job_publishes_password_with_matching_state(
     run_process(
         db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
     )
-    dbam_controller.enqueue_job.assert_not_called()
-    vault_mock.write.assert_called_once()
-    assert vault_mock.write.call_args[0][0]["data"]["db.password"] == "jobpw"
-    dbam_state.add.assert_called_once()
+    # the job is re-enqueued for object convergence (migration window)
+    dbam_controller.enqueue_job.assert_called_once()
+    assert vault_mock.write.call_count == 2
+    assert vault_mock.write.call_args_list[0][0][0]["data"]["db.password"] == "jobpw"
+    # state is written multiple times (settle, pending marker, post-enqueue)
+    assert dbam_state.add.call_count >= 1
 
 
 def test_configuration_digest_is_stable_across_revoke_deltas(
@@ -1211,7 +1217,9 @@ def test_process_settle_removes_pending_marker(
     run_process(
         db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
     )
-    dbam_state.rm.assert_called_once_with(f"{STATE_KEY}#pending")
+    dbam_state.rm.assert_called_with(f"{STATE_KEY}#pending")
+    # the job is re-enqueued for object convergence
+    dbam_controller.enqueue_job.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -1591,3 +1599,44 @@ def test_process_retry_after_failed_replacement_revokes_stale_schemas(
     marker_value = dbam_state.add.call_args_list[0].kwargs.get("value")
     marker_schemas = {a["target"]["dbschema"] for a in marker_value["access"]}
     assert marker_schemas == {"foo", "bar"}
+
+
+def test_validate_role_sharing_rejects_schema_managed_by_two_roles(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    # two entries with different owner roles targeting the same schema:
+    # the second entry would transfer ownership away from the first
+    other_role = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "other",
+            "database": "postgres",
+            "role": "other_owner",
+            "access": [{"grants": ["SELECT"], "target": {"dbschema": "foo"}}],
+        },
+    )
+    with pytest.raises(ValueError, match="can only be managed by one owner role"):
+        _validate_role_sharing([
+            (db_access_role, "user_a"),
+            (other_role, "user_b"),
+        ])
+
+
+def test_validate_role_sharing_allows_disjoint_schemas(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    other_role = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "other",
+            "database": "postgres",
+            "role": "other_owner",
+            "access": [{"grants": ["SELECT"], "target": {"dbschema": "bar"}}],
+        },
+    )
+    _validate_role_sharing([
+        (db_access_role, "user_a"),
+        (other_role, "user_b"),
+    ])
