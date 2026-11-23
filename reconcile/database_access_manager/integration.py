@@ -910,7 +910,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                     r
                     for r in external_resource.resources or []
                     if isinstance(r, NamespaceTerraformResourceRDSV1)
-                    and r.database_access is not None
+                    and r.database_access
                 ]:
                     if resource.output_resource_name is None:
                         admin_secret_name = f"{resource.identifier}-{resource.provider}"
@@ -941,19 +941,19 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                         try:
                             state_key = f"{external_resource.provisioner.name}/{resource.identifier}/{db_access.name}"
                             _process_db_access(
-                                dry_run,
-                                state,
-                                state_key,
-                                db_access,
-                                namespace,
-                                admin_secret_name,
-                                get_db_engine(resource),
-                                self.secret_reader,
-                                self.params.vault_output_path,
-                                vault_client,
-                                self.params.job_image,
-                                self.params.pull_secret_path,
-                                self.params.pull_secret_version,
+                                dry_run=dry_run,
+                                state=state,
+                                state_key=state_key,
+                                db_access=db_access,
+                                namespace=namespace,
+                                admin_secret_name=admin_secret_name,
+                                engine=get_db_engine(resource),
+                                secret_reader=self.secret_reader,
+                                vault_output_path=self.params.vault_output_path,
+                                vault_client=vault_client,
+                                job_image=self.params.job_image,
+                                pull_secret_path=self.params.pull_secret_path,
+                                pull_secret_version=self.params.pull_secret_version,
                             )
                         except (JobFailedError, ValueError) as e:
                             encountered_errors.append(e)

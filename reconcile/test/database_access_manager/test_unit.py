@@ -220,19 +220,19 @@ def run_process(
     dry_run: bool = False,
 ) -> None:
     _process_db_access(
-        dry_run,
-        state,
-        STATE_KEY,
-        db_access,
-        namespace,
-        ADMIN_SECRET_NAME,
-        "postgres",
-        secret_reader,
-        "vault-out",
-        vault_mock,
-        JOB_IMAGE,
-        None,
-        None,
+        dry_run=dry_run,
+        state=state,
+        state_key=STATE_KEY,
+        db_access=db_access,
+        namespace=namespace,
+        admin_secret_name=ADMIN_SECRET_NAME,
+        engine="postgres",
+        secret_reader=secret_reader,
+        vault_output_path="vault-out",
+        vault_client=vault_mock,
+        job_image=JOB_IMAGE,
+        pull_secret_path=None,
+        pull_secret_version=None,
     )
 
 
