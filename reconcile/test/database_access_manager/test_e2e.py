@@ -989,3 +989,66 @@ class TestZeroDowntimeLocking:
             "SELECT pg_get_userbyid(relowner) FROM pg_class WHERE relname='locked_table'",
             "cs_owner",
         )
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16"], indirect=True)
+class TestMultiRoleDatabaseAccess:
+    """Two roles on disjoint schemas in the same DAM-created database
+    must both retain CONNECT after ownership changes."""
+
+    def test_both_roles_keep_connect(self, postgres: PostgresContainer) -> None:
+        pg = postgres
+        db = "multi_role_db"
+
+        # create the database and schemas first
+        _create_database(pg, db)
+        pg.exec_psql(EXECUTOR, db, "CREATE SCHEMA schema_a; CREATE SCHEMA schema_b;")
+        pg.exec_psql(
+            EXECUTOR,
+            db,
+            "CREATE TABLE schema_a.data (id int); CREATE TABLE schema_b.data (id int);",
+        )
+
+        # provision role_a on schema_a
+        a = _render_provision(
+            db,
+            "user_a",
+            role="role_a",
+            access_list="schema_a|SELECT",
+            schemas_csv="schema_a",
+        )
+        result = pg.exec_psql(
+            EXECUTOR, "postgres", a, extra_args=["-v", "db_user_password=PwA"]
+        )
+        assert result.returncode == 0, f"role_a provision failed: {result.stderr}"
+
+        # verify user_a can connect
+        result = pg.exec_psql("user_a", db, "SET ROLE role_a; SELECT 1;")
+        assert result.returncode == 0, (
+            f"user_a lost CONNECT after own provision: {result.stderr}"
+        )
+
+        # provision role_b on schema_b (same database)
+        b = _render_provision(
+            db,
+            "user_b",
+            role="role_b",
+            access_list="schema_b|SELECT",
+            schemas_csv="schema_b",
+        )
+        result = pg.exec_psql(
+            EXECUTOR, "postgres", b, extra_args=["-v", "db_user_password=PwB"]
+        )
+        assert result.returncode == 0, f"role_b provision failed: {result.stderr}"
+
+        # user_a must STILL be able to connect after role_b's
+        # ALTER DATABASE changed the owner
+        result = pg.exec_psql("user_a", db, "SET ROLE role_a; SELECT 1;")
+        assert result.returncode == 0, (
+            f"user_a lost CONNECT after role_b took ownership: {result.stderr}"
+        )
+
+        # user_b can also connect
+        result = pg.exec_psql("user_b", db, "SET ROLE role_b; SELECT 1;")
+        assert result.returncode == 0, f"user_b cannot connect: {result.stderr}"

@@ -16,7 +16,11 @@ SELECT NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database_literal}')
 SELECT 'CREATE DATABASE "{database}"'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database_literal}');\gexec
 \if :dam_db_new
-REVOKE ALL ON DATABASE "{database}" FROM public;
+/* revoke only CREATE for postgres 15 compliance (public cannot create
+   objects in the database). CONNECT stays with PUBLIC: multiple
+   managed roles on the same database need database access, and the
+   owner change from ALTER DATABASE would otherwise lock them out. */
+REVOKE CREATE ON DATABASE "{database}" FROM public;
 \endif
 
 -- switch to the target database: everything below (ownership

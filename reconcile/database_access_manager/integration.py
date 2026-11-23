@@ -611,6 +611,7 @@ def _process_db_access(
         # converged: matching state with an unfinished or stale job
         # would skip work that has not been applied yet
         stale_job = False
+        convergence_connection: DatabaseConnectionParameters | None = None
         controller.update_cache()
         match controller.get_job_status(job_name):
             case JobStatus.IN_PROGRESS:
@@ -680,6 +681,14 @@ def _process_db_access(
                         # once the job expires, NOT_EXISTS +
                         # state_matches triggers the early return and
                         # the entry is fully converged.
+                        #
+                        # Reuse the settled job's credential for the
+                        # re-enqueue: generating a fresh password here
+                        # would change the database password on every
+                        # reconcile, breaking the credential that vault
+                        # just published (legacy mode has no vault
+                        # reuse).
+                        convergence_connection = _job_connection(job_secret)
                     # stale job from an older configuration (e.g. the
                     # configuration was reverted while the job was in
                     # flight): replace it below and revoke everything it
@@ -714,9 +723,12 @@ def _process_db_access(
         )
 
         # role mode keeps the vault password, legacy mode generates a
-        # new one on every configuration change
-        user_connection = None
-        if db_access.role:
+        # new one on every configuration change. A convergence
+        # re-enqueue (state matched, job settled) reuses the settled
+        # job's credential to avoid rotating the password on every
+        # reconcile.
+        user_connection = convergence_connection
+        if not user_connection and db_access.role:
             user_connection = _vault_connection(
                 secret_reader, vault_output_path, state_key
             )

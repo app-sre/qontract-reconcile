@@ -153,11 +153,13 @@ class K8sJobController:
         # Without this check, a DeadlineExceeded job with
         # failed <= backoffLimit is reported as IN_PROGRESS forever.
         conditions = status.get("conditions", [])
-        if any(
-            c.get("type") == "Failed" and c.get("status") == "True" for c in conditions
+        if (
+            any(
+                c.get("type") == "Failed" and c.get("status") == "True"
+                for c in conditions
+            )
+            or status.get("failed", 0) > backofflimit
         ):
-            return JobStatus.ERROR
-        elif status.get("failed", 0) > backofflimit:
             return JobStatus.ERROR
         return JobStatus.IN_PROGRESS
 

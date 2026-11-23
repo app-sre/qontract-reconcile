@@ -1640,3 +1640,47 @@ def test_validate_role_sharing_allows_disjoint_schemas(
         (db_access_role, "user_a"),
         (other_role, "user_b"),
     ])
+
+
+def test_process_convergence_reenqueue_reuses_credential(
+    db_access: DatabaseAccessV1,
+    db_access_access: DatabaseAccessAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    """The convergence re-enqueue must NOT generate a fresh password:
+    the settled job's credential is reused so the database password
+    does not rotate on every reconcile."""
+    db_access.access = [db_access_access]
+    dbam_state.exists.return_value = True
+    dbam_state.get.return_value = db_access.model_dump(by_alias=True)
+
+    # a successful job that ran the current configuration
+    job_secret = {
+        "db.host": "localhost",
+        "db.port": "5432",
+        "db.user": "test",
+        "db.password": "settled_password",  # notsecret
+        "db.name": "test",
+        "script.sql": _build_script(db_access, None, "test", "admin"),
+    }
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
+        {"data": {k: _b64(v) for k, v in ADMIN_SECRET["data"].items()}}
+        if name == ADMIN_SECRET_NAME
+        else {"data": {k: _b64(v) for k, v in job_secret.items()}}
+    )
+    # SUCCESS on first check, IN_PROGRESS after re-enqueue
+    dbam_controller.get_job_status.side_effect = [
+        JobStatus.SUCCESS,
+        JobStatus.IN_PROGRESS,
+    ]
+    run_process(db_access, dbam_state, secret_reader, vault_mock, db_access_namespace)
+
+    # the re-enqueued job must use the settled credential, not a new one
+    job = enqueued_job(dbam_controller)
+    assert job.user_connection.password == "settled_password"

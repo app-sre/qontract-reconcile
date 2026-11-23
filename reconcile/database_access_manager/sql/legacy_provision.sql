@@ -8,10 +8,9 @@ SELECT NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database_literal}')
 SELECT 'CREATE DATABASE "{database}"'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database_literal}');\gexec
 \if :dam_db_new
-/* revoke only required for databases lower version 15
-   this makes the behaviour compliant with postgres 15, writes are only allowed
-   in the schema created for the role/user */
-REVOKE ALL ON DATABASE "{database}" FROM public;
+/* revoke only CREATE for postgres 15 compliance, keep CONNECT for
+   PUBLIC (see role_provision.sql for the rationale) */
+REVOKE CREATE ON DATABASE "{database}" FROM public;
 \endif
 
 \c "{database}"
