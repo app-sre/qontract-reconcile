@@ -49,8 +49,8 @@ Change the SOURCE, then regenerate. Never edit these files.
 
 ### Prerequisites
 
-- **Python 3.12** (exact pin)
-- **uv** (>=0.10.11) for dependency management
+- **Python 3.14** (exact pin, `requires-python = "==3.14.*"` in pyproject.toml — PEP 758 applies: unparenthesized `except A, B:` tuples are valid and ruff enforces them)
+- **uv** (0.13.7, see .tool-versions) for dependency management
 - **Docker/Podman** for containerized development
 
 ### Setup
@@ -100,7 +100,7 @@ make dev-reconcile-loop  # Start containerized development environment
 ## Tooling Stack
 
 - **Package manager**: uv, workspace with 4 members
-- **Linting/formatting**: ruff (line-length=88, target py312)
+- **Linting/formatting**: ruff (line-length=88, auto-fix enabled via `fix = true` in pyproject.toml — plain `ruff check` rewrites files, not just reports)
 - **Type checking**: mypy strict (disallow_untyped_defs, pydantic plugin)
 - **Testing**: pytest + pytest-mock + moto (AWS mocking) + responses (HTTP mocking)
 - **GraphQL codegen**: qenerate

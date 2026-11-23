@@ -1052,3 +1052,373 @@ class TestMultiRoleDatabaseAccess:
         # user_b can also connect
         result = pg.exec_psql("user_b", db, "SET ROLE role_b; SELECT 1;")
         assert result.returncode == 0, f"user_b cannot connect: {result.stderr}"
+
+
+# ─── review regressions ──────────────────────────────────────────────────
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16"], indirect=True)
+class TestMigrationSearchPath:
+    """P1: the login's search path must survive the migration.
+    Legacy mode creates a schema named after the login; the default
+    search_path ($user, public) resolves $user as the session role
+    once the role default applies, so unqualified lookups in the
+    login's own schema would break on fresh connections."""
+
+    def test_unqualified_lookup_survives_migration(
+        self, postgres: PostgresContainer
+    ) -> None:
+        pg = postgres
+        db = "searchpath_db"
+        _create_database(pg, db)
+
+        # legacy provision: creates the app_user schema with a table
+        legacy = _render_provision(
+            db, "app_user", access_list="app_user|SELECT,INSERT", schemas_csv="app_user"
+        )
+        result = pg.exec_psql(
+            EXECUTOR,
+            "postgres",
+            legacy,
+            extra_args=["-v", f"db_user_password={DB_PASSWORD}"],
+        )
+        assert result.returncode == 0, f"legacy provision failed: {result.stderr}"
+        pg.exec_psql(
+            EXECUTOR,
+            db,
+            "CREATE TABLE app_user.orders (id int); INSERT INTO app_user.orders VALUES (1), (2), (3);",
+        )
+
+        # migrate to role mode
+        role_script = _render_provision(
+            db,
+            "app_user",
+            role="cs_owner",
+            access_list="app_user|ALL",
+            schemas_csv="app_user",
+        )
+        result = pg.exec_psql(
+            EXECUTOR,
+            "postgres",
+            role_script,
+            extra_args=["-v", f"db_user_password={DB_PASSWORD}"],
+        )
+        assert result.returncode == 0, f"migration failed: {result.stderr}"
+
+        # fresh connection, unqualified lookup: the role default
+        # (SET ROLE cs_owner) must not break $user resolution
+        result = pg.exec_psql("app_user", db, "SELECT count(*) FROM orders;")
+        assert result.returncode == 0, (
+            f"unqualified lookup broken after migration "
+            f"(search_path not preserved): {result.stderr}"
+        )
+        assert "3" in result.stdout
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16"], indirect=True)
+class TestForeignSchemaGrants:
+    """P1: read-only entries on foreign schemas (owned by a role the
+    executor does not control) must not receive CREATE on the schema
+    or ALL default privileges on future tables."""
+
+    def test_select_only_foreign_schema(self, postgres: PostgresContainer) -> None:
+        pg = postgres
+        db = "foreign_db"
+        _create_database(pg, db)
+
+        # a schema owned by a third role the executor does NOT control.
+        # Membership is needed transiently for the ownership transfer
+        # (PG16 SET requirement), then revoked so the schema stays
+        # foreign to the executor. The grant options let the executor
+        # re-grant USAGE and SELECT as the provision script expects.
+        setup = pg.exec_psql(
+            EXECUTOR,
+            db,
+            "CREATE ROLE third_owner NOLOGIN; "
+            "GRANT third_owner TO test_admin WITH SET TRUE; "
+            "GRANT CREATE ON DATABASE foreign_db TO third_owner; "
+            "SET ROLE third_owner; "
+            "CREATE SCHEMA foreign_schema; "
+            "CREATE TABLE foreign_schema.data (id int); "
+            "GRANT USAGE, CREATE ON SCHEMA foreign_schema TO test_admin WITH GRANT OPTION; "
+            "GRANT SELECT ON foreign_schema.data TO test_admin WITH GRANT OPTION; "
+            "RESET ROLE; "
+            "REVOKE third_owner FROM test_admin;",
+        )
+        assert setup.returncode == 0, f"setup failed: {setup.stderr}"
+
+        # SELECT-only entry on the foreign schema
+        script = _render_provision(
+            db,
+            "ro_user",
+            role="cs_ro",
+            access_list="foreign_schema|SELECT",
+            schemas_csv="foreign_schema",
+        )
+        result = pg.exec_psql(
+            EXECUTOR,
+            "postgres",
+            script,
+            extra_args=["-v", "db_user_password=RoPassword1"],
+        )
+        assert result.returncode == 0, f"provision failed: {result.stderr}"
+
+        # the owner role has USAGE but NOT CREATE on the foreign schema
+        assert (
+            pg.query(
+                EXECUTOR,
+                db,
+                "SELECT has_schema_privilege('cs_ro', 'foreign_schema', 'USAGE')",
+            )
+            == "t"
+        )
+        assert (
+            pg.query(
+                EXECUTOR,
+                db,
+                "SELECT has_schema_privilege('cs_ro', 'foreign_schema', 'CREATE')",
+            )
+            == "f"
+        )
+
+        # default privileges in the foreign schema are limited to the
+        # CONFIGURED grants: SELECT on future executor-created tables,
+        # not ALL (no INSERT)
+        result = pg.exec_psql(
+            EXECUTOR, db, "CREATE TABLE foreign_schema.future_data (id int);"
+        )
+        assert result.returncode == 0, f"future table creation failed: {result.stderr}"
+        assert (
+            pg.query(
+                EXECUTOR,
+                db,
+                "SELECT has_table_privilege('cs_ro', 'foreign_schema.future_data', 'SELECT')",
+            )
+            == "t"
+        )
+        assert (
+            pg.query(
+                EXECUTOR,
+                db,
+                "SELECT has_table_privilege('cs_ro', 'foreign_schema.future_data', 'INSERT')",
+            )
+            == "f"
+        )
+
+        # the configured SELECT works
+        result = pg.exec_psql(
+            "ro_user", db, "SET ROLE cs_ro; SELECT count(*) FROM foreign_schema.data;"
+        )
+        assert result.returncode == 0, result.stderr
+
+    def test_transient_grants_removed_with_schema(
+        self, postgres: PostgresContainer
+    ) -> None:
+        """When a foreign schema leaves the access list, the transient
+        CREATE grant and the default privileges must not persist."""
+        pg = postgres
+        db = "foreign_remove_db"
+        _create_database(pg, db)
+
+        setup = pg.exec_psql(
+            EXECUTOR,
+            db,
+            "CREATE ROLE third_owner2 NOLOGIN; "
+            "GRANT third_owner2 TO test_admin WITH SET TRUE; "
+            "GRANT CREATE ON DATABASE foreign_remove_db TO third_owner2; "
+            "SET ROLE third_owner2; "
+            "CREATE SCHEMA removable_schema; "
+            "CREATE TABLE removable_schema.data (id int); "
+            "GRANT USAGE, CREATE ON SCHEMA removable_schema TO test_admin WITH GRANT OPTION; "
+            "GRANT SELECT ON removable_schema.data TO test_admin WITH GRANT OPTION; "
+            "RESET ROLE; "
+            "REVOKE third_owner2 FROM test_admin;",
+        )
+        assert setup.returncode == 0, f"setup failed: {setup.stderr}"
+
+        # the schema that stays in the access list after the removal
+        result = pg.exec_psql(EXECUTOR, db, "CREATE SCHEMA other_schema;")
+        assert result.returncode == 0, f"setup failed: {result.stderr}"
+
+        # provision with the foreign schema in the access list
+        with_schema = _render_provision(
+            db,
+            "ro_user2",
+            role="cs_ro2",
+            access_list="removable_schema|SELECT",
+            schemas_csv="removable_schema",
+        )
+        result = pg.exec_psql(
+            EXECUTOR,
+            "postgres",
+            with_schema,
+            extra_args=["-v", "db_user_password=RoPassword2"],
+        )
+        assert result.returncode == 0, f"provision failed: {result.stderr}"
+
+        # re-provision with the schema removed from the access list
+        without_schema = _render_provision(
+            db,
+            "ro_user2",
+            role="cs_ro2",
+            access_list="other_schema|SELECT",
+            schemas_csv="other_schema",
+            revoke_list="removable_schema|SELECT",
+        )
+        result = pg.exec_psql(
+            EXECUTOR,
+            "postgres",
+            without_schema,
+            extra_args=["-v", "db_user_password=RoPassword2"],
+        )
+        assert result.returncode == 0, f"re-provision failed: {result.stderr}"
+
+        # the owner role lost table access, USAGE and CREATE
+        assert (
+            pg.query(
+                EXECUTOR,
+                db,
+                "SELECT has_table_privilege('cs_ro2', 'removable_schema.data', 'SELECT')",
+            )
+            == "f"
+        )
+        assert (
+            pg.query(
+                EXECUTOR,
+                db,
+                "SELECT has_schema_privilege('cs_ro2', 'removable_schema', 'USAGE')",
+            )
+            == "f"
+        )
+        assert (
+            pg.query(
+                EXECUTOR,
+                db,
+                "SELECT has_schema_privilege('cs_ro2', 'removable_schema', 'CREATE')",
+            )
+            == "f"
+        )
+        # the default privileges are gone: new executor tables grant
+        # nothing to the owner role
+        result = pg.exec_psql(
+            EXECUTOR, db, "CREATE TABLE removable_schema.new_data (id int);"
+        )
+        assert result.returncode == 0, f"new table creation failed: {result.stderr}"
+        assert (
+            pg.query(
+                EXECUTOR,
+                db,
+                "SELECT has_table_privilege('cs_ro2', 'removable_schema.new_data', 'SELECT')",
+            )
+            == "f"
+        )
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16"], indirect=True)
+class TestLegacyPublicRestrictions:
+    """P1: a newly created legacy database is dedicated to a single
+    login -- unrelated instance logins must not gain CONNECT or TEMP
+    through PUBLIC."""
+
+    def test_unrelated_login_cannot_connect(self, postgres: PostgresContainer) -> None:
+        pg = postgres
+        db = "legacy_restricted_db"
+
+        # an unrelated login that exists before provisioning
+        pg.exec_psql(
+            EXECUTOR, "postgres", "CREATE ROLE intruder LOGIN PASSWORD 'Intruder1';"
+        )
+
+        # legacy provision creates the database
+        legacy = _render_provision(db, "legacy_user", access_list="legacy_user|SELECT")
+        result = pg.exec_psql(
+            EXECUTOR,
+            "postgres",
+            legacy,
+            extra_args=["-v", f"db_user_password={DB_PASSWORD}"],
+        )
+        assert result.returncode == 0, f"legacy provision failed: {result.stderr}"
+
+        # the managed login CAN connect (explicit CONNECT grant)
+        result = pg.exec_psql("legacy_user", db, "SELECT 1;")
+        assert result.returncode == 0, f"managed login lost CONNECT: {result.stderr}"
+
+        # the unrelated login CANNOT connect
+        result = pg.exec_psql("intruder", db, "SELECT 1;")
+        assert result.returncode != 0, "unrelated login gained CONNECT via PUBLIC"
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16"], indirect=True)
+class TestConnectVerification:
+    """P2: provisioning must grant and verify CONNECT for the login
+    on databases where PUBLIC lacks it, and fail when it cannot."""
+
+    def test_connect_granted_when_public_lacks_it(
+        self, postgres: PostgresContainer
+    ) -> None:
+        pg = postgres
+        db = "no_public_connect_db"
+        _create_database(pg, db)
+        # remove CONNECT from PUBLIC (as restricted instances do)
+        pg.exec_psql(
+            EXECUTOR, "postgres", f"REVOKE CONNECT ON DATABASE {db} FROM public;"
+        )
+
+        script = _render_provision(
+            db, "conn_user", role="cs_conn", access_list="public|SELECT"
+        )
+        result = pg.exec_psql(
+            EXECUTOR,
+            "postgres",
+            script,
+            extra_args=["-v", "db_user_password=ConnPassword1"],
+        )
+        assert result.returncode == 0, f"provision failed: {result.stderr}"
+
+        # the login got CONNECT despite PUBLIC lacking it
+        assert (
+            pg.query(
+                EXECUTOR,
+                db,
+                "SELECT has_database_privilege('conn_user', 'no_public_connect_db', 'CONNECT')",
+            )
+            == "t"
+        )
+
+    def test_provision_fails_without_connect_grant_option(
+        self, postgres: PostgresContainer
+    ) -> None:
+        pg = postgres
+        db = "no_connect_db"
+        # owned by a third role with no public CONNECT and no path for
+        # the executor to grant CONNECT. Membership is needed
+        # transiently for the ownership transfer, then revoked.
+        setup = pg.exec_psql(
+            EXECUTOR,
+            "postgres",
+            f"CREATE DATABASE {db}; "
+            f"REVOKE CONNECT ON DATABASE {db} FROM public; "
+            f"CREATE ROLE db_guard NOLOGIN; "
+            f"GRANT db_guard TO test_admin WITH SET TRUE; "
+            f"ALTER DATABASE {db} OWNER TO db_guard; "
+            f"REVOKE db_guard FROM test_admin;",
+        )
+        assert setup.returncode == 0, f"setup failed: {setup.stderr}"
+
+        script = _render_provision(
+            db, "no_conn_user", role="cs_noconn", access_list="public|SELECT"
+        )
+        result = pg.exec_psql(
+            EXECUTOR,
+            "postgres",
+            script,
+            extra_args=["-v", "db_user_password=NoConnPassword1"],
+        )
+        assert result.returncode != 0, (
+            "provision succeeded although the login has no CONNECT and the "
+            "executor cannot grant it"
+        )

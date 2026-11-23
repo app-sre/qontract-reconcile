@@ -76,6 +76,16 @@ BEGIN
     END IF;
     -- the login user becomes a member of the owner role
     EXECUTE format('GRANT %I TO %I%s', role_name, user_name, set_opt);
+    -- preserve the login's search path: with the default
+    -- search_path ($user, public), SET ROLE changes $user resolution
+    -- from the login name to the owner role name, breaking
+    -- unqualified table lookups in the login's own schema
+    BEGIN
+        EXECUTE format('ALTER ROLE %I IN DATABASE %I SET search_path = %I, public',
+                       user_name, db, user_name);
+    EXCEPTION WHEN insufficient_privilege THEN
+        RAISE NOTICE 'cannot set search_path for %', user_name;
+    END;
     -- new sessions of the login user act as the owner role
     BEGIN
         EXECUTE format('ALTER ROLE %I IN DATABASE %I SET role = %I',
@@ -84,6 +94,20 @@ BEGIN
         RAISE NOTICE 'cannot set the role default for % -- run manually: ALTER ROLE % IN DATABASE % SET role = %;',
             user_name, user_name, db, role_name;
     END;
+    -- verify the login can actually connect: without CONNECT on the
+    -- database, the credential would be published but rejected
+    IF NOT has_database_privilege(user_name, db, 'CONNECT') THEN
+        BEGIN
+            EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', db, user_name);
+        EXCEPTION WHEN insufficient_privilege THEN
+            RAISE EXCEPTION 'login % has no CONNECT on database % and the executor cannot grant it',
+                user_name, db;
+        END;
+        IF NOT has_database_privilege(user_name, db, 'CONNECT') THEN
+            RAISE EXCEPTION 'login % has no CONNECT on database % after explicit grant',
+                user_name, db;
+        END IF;
+    END IF;
 END $$;
 
 -- 5. ownership transfer, grants and default privileges
@@ -122,6 +146,10 @@ BEGIN
     --     PG15+), grant the owner role sufficient privileges to
     --     receive table ownership. Without CREATE on the schema,
     --     ALTER TABLE ... OWNER TO fails on PG16+.
+    --     The CREATE privilege is TRANSIENT: it is needed for the
+    --     ownership transfers below and revoked again in 5j, so a
+    --     SELECT-only entry never keeps object-creation rights in a
+    --     schema it does not own.
     ------------------------------------------------------------------
     FOR r IN
         SELECT n.nspname AS schema_name
@@ -330,7 +358,33 @@ BEGIN
                                    s, role_name);
                     EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM %I',
                                    s, user_name);
+                    -- the transient CREATE grant (5a-bis) and the
+                    -- default privileges (5i) must not outlive the
+                    -- schema's membership in the access list
+                    EXECUTE format('REVOKE CREATE ON SCHEMA %I FROM %I',
+                                   s, role_name);
+                    EXECUTE format(
+                        'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL PRIVILEGES ON TABLES FROM %I',
+                        current_user, s, role_name);
+                    EXECUTE format(
+                        'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL PRIVILEGES ON SEQUENCES FROM %I',
+                        current_user, s, role_name);
+                    EXECUTE format(
+                        'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL PRIVILEGES ON ROUTINES FROM %I',
+                        current_user, s, role_name);
                 END IF;
+                -- reverse-direction default privileges (5i): the
+                -- executor keeps access to objects the owner role
+                -- creates in schemas it no longer manages
+                EXECUTE format(
+                    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL PRIVILEGES ON TABLES FROM %I',
+                    role_name, s, current_user);
+                EXECUTE format(
+                    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL PRIVILEGES ON SEQUENCES FROM %I',
+                    role_name, s, current_user);
+                EXECUTE format(
+                    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL PRIVILEGES ON ROUTINES FROM %I',
+                    role_name, s, current_user);
             END IF;
         END IF;
     END LOOP;
@@ -392,27 +446,44 @@ BEGIN
     END LOOP;
 
     ------------------------------------------------------------------
-    -- 5i. default privileges in BOTH directions for the migration
-    --     window:
-    --     * objects created by the executor (old app still running)
-    --       are usable by the owner role -- and therefore by all its
-    --       members
-    --     * objects created by the owner role (new app sessions act
-    --       as it) remain usable by the executor
+    -- 5i. default privileges for the migration window:
+    --     objects created by the executor (old app still running)
+    --     are usable by the owner role -- and therefore by all its
+    --     members. On schemas the owner role OWNS, this covers all
+    --     object types (the migration window is a full takeover).
+    --     On foreign schemas, future grants are limited to the
+    --     CONFIGURED access: a SELECT-only entry must not gain
+    --     INSERT on future executor-created tables.
+    --     Objects created by the owner role remain usable by the
+    --     executor (reverse direction, all managed schemas).
     ------------------------------------------------------------------
     FOREACH s IN ARRAY schemas LOOP
         IF s = '' THEN
             CONTINUE;
         END IF;
-        EXECUTE format(
-            'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT ALL PRIVILEGES ON TABLES TO %I',
-            current_user, s, role_name);
-        EXECUTE format(
-            'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT ALL PRIVILEGES ON SEQUENCES TO %I',
-            current_user, s, role_name);
-        EXECUTE format(
-            'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT ALL PRIVILEGES ON ROUTINES TO %I',
-            current_user, s, role_name);
+        IF EXISTS (
+            SELECT 1 FROM pg_catalog.pg_namespace ns
+            JOIN pg_catalog.pg_roles ro ON ro.oid = ns.nspowner
+            WHERE ns.nspname = s AND ro.rolname = role_name
+        ) THEN
+            EXECUTE format(
+                'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT ALL PRIVILEGES ON TABLES TO %I',
+                current_user, s, role_name);
+            EXECUTE format(
+                'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT ALL PRIVILEGES ON SEQUENCES TO %I',
+                current_user, s, role_name);
+            EXECUTE format(
+                'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT ALL PRIVILEGES ON ROUTINES TO %I',
+                current_user, s, role_name);
+        ELSE
+            FOREACH entry IN ARRAY string_to_array('{access_list}', ';') LOOP
+                IF entry <> '' AND split_part(entry, '|', 1) = s THEN
+                    EXECUTE format(
+                        'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT %s ON TABLES TO %I',
+                        current_user, s, split_part(entry, '|', 2), role_name);
+                END IF;
+            END LOOP;
+        END IF;
 
         EXECUTE format(
             'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT ALL PRIVILEGES ON TABLES TO %I',
@@ -424,16 +495,35 @@ BEGIN
             'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT ALL PRIVILEGES ON ROUTINES TO %I',
             role_name, s, current_user);
     END LOOP;
+
+    ------------------------------------------------------------------
+    -- 5j. remove the transient CREATE privilege (5a-bis) on schemas
+    --     the owner role does not own: it was only needed for the
+    --     ownership transfers above (PG16+ ALTER ... OWNER TO). A
+    --     role that needs to create objects in a schema must own
+    --     that schema -- DAM takes ownership of managed schemas in
+    --     5a whenever the executor controls them.
+    ------------------------------------------------------------------
+    FOR r IN
+        SELECT n.nspname AS schema_name
+        FROM pg_namespace n
+        WHERE n.nspname = ANY (schemas)
+          AND n.nspowner <> role_name::regrole
+    LOOP
+        EXECUTE format('REVOKE CREATE ON SCHEMA %I FROM %I',
+                       r.schema_name, role_name);
+    END LOOP;
 END $$;
 
 COMMIT;
 
--- 4. database ownership: only when the executor controls the current
---    owner. On some managed services the default database is owned by
---    a service role and cannot be transferred; the app works without
---    database ownership. Must stay outside the transaction: ALTER
+-- 4. database ownership: only when the executor IS the current
+--    database owner (not a member of another managed role that took
+--    ownership). This keeps the database owner stable on shared
+--    databases: once a role owns it, other roles' jobs do not
+--    transfer it away. Must stay outside the transaction: ALTER
 --    DATABASE cannot run in a transaction block.
 SELECT format('ALTER DATABASE %I OWNER TO %I', '{database_literal}', '{role_literal}')
 FROM pg_database
 WHERE datname = '{database_literal}'
-  AND pg_has_role(current_user, datdba, 'USAGE');\gexec
+  AND pg_get_userbyid(datdba) = current_user;\gexec

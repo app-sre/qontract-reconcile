@@ -47,6 +47,7 @@ from reconcile.utils.state import (
     init_state,
 )
 from reconcile.utils.vault import (
+    SecretVersionNotFoundError,
     VaultClient,
 )
 
@@ -265,25 +266,44 @@ def _validate_role_sharing(
                 )
 
     # a schema must be managed by at most one owner role per RDS
-    # resource: two entries with different roles targeting the same
-    # schema would transfer ownership away from each other on every
-    # reconciliation, leaving the first role without access
-    schemas_by_role: dict[str, set[str]] = {}
+    # resource AND per database: two entries with different roles
+    # targeting the same schema would transfer ownership away from
+    # each other on every reconciliation, leaving the first role
+    # without access. Keying by (database, schema) allows the same
+    # schema name in different databases.
+    schemas_by_role: dict[str, set[tuple[str, str]]] = {}
     for db_access in database_access:
         if db_access.role:
-            schemas = {a.target.dbschema for a in db_access.access or []}
+            schemas = {
+                (db_access.database, a.target.dbschema) for a in db_access.access or []
+            }
             schemas_by_role.setdefault(db_access.role, set()).update(schemas)
 
-    all_schemas: dict[str, str] = {}  # schema -> role that manages it
+    all_schemas: dict[tuple[str, str], str] = {}  # (db, schema) -> role
     for role, schemas in schemas_by_role.items():
-        for schema in schemas:
-            if schema in all_schemas and all_schemas[schema] != role:
+        for db_schema in schemas:
+            if db_schema in all_schemas and all_schemas[db_schema] != role:
+                db_name, schema_name = db_schema
                 raise ValueError(
-                    f"Schema {schema} is managed by both role "
-                    f"{all_schemas[schema]} and role {role}: a schema "
-                    "can only be managed by one owner role."
+                    f"Schema {schema_name} in database {db_name} is managed "
+                    f"by both role {all_schemas[db_schema]} and role {role}: "
+                    "a schema can only be managed by one owner role."
                 )
-            all_schemas[schema] = role
+            all_schemas[db_schema] = role
+
+    # a resolved login username must be unique within the RDS
+    # resource: two entries resolving to the same login would
+    # overwrite each other's password or retire a login the other
+    # entry still uses
+    resolved_usernames: dict[str, str] = {}  # username -> entry name
+    for config, username in entries:
+        if username in resolved_usernames:
+            raise ValueError(
+                f"Login {username} is used by both entry "
+                f"{resolved_usernames[username]} and entry {config.name}: "
+                "login usernames must be unique per instance."
+            )
+        resolved_usernames[username] = config.name
 
     # a login username (explicit or generated) must never collide with
     # an owner role configured for another entry on the same instance:
@@ -380,7 +400,10 @@ def _vault_connection(
     path = f"{vault_output_path}/{QONTRACT_INTEGRATION}/{state_key}"
     try:
         data = secret_reader.read_all({"path": path})
-    except SecretNotFoundError:
+    except SecretNotFoundError, SecretVersionNotFoundError:
+        # a missing KV v2 path raises SecretVersionNotFoundError, a
+        # missing KV v1 path raises SecretNotFoundError: both mean the
+        # credential has not been published yet
         return None
     if not data:
         return None
@@ -471,6 +494,15 @@ def _job_name(
         pull_secret_name=pull_secret_name,
     )
     return probe.name()
+
+
+def _legacy_job_name(state_key: str) -> str:
+    """The job name format used before the K8sJob migration: the raw
+    state key with slashes replaced, no digest suffix and no DNS-1123
+    sanitization (the old code relied on app-interface names being
+    compliant). Jobs with this name may still be running during an
+    upgrade."""
+    return f"dbam-{state_key.replace('/', '-')}"
 
 
 def _ensure_pull_secret(
@@ -585,6 +617,7 @@ def _process_db_access(
         )
 
         job_name = _job_name(state_key, job_image, admin_secret_name, pull_secret_name)
+        legacy_job_name = _legacy_job_name(state_key)
 
         # a pending marker records the configuration of an enqueued job
         # whose result has not been settled yet. If the job disappears
@@ -613,6 +646,31 @@ def _process_db_access(
         stale_job = False
         convergence_connection: DatabaseConnectionParameters | None = None
         controller.update_cache()
+        # check for a legacy-format job (pre-K8sJob naming) that may
+        # still be running during an upgrade: it would race with a
+        # new-format job for the same login
+        legacy_status = controller.get_job_status(legacy_job_name)
+        if legacy_status == JobStatus.IN_PROGRESS:
+            logging.warning(
+                f"legacy-format job {legacy_job_name} is still running, "
+                "waiting for it to complete before scheduling a replacement"
+            )
+            return
+        if legacy_status != JobStatus.NOT_EXISTS:
+            # a settled legacy-format job (SUCCESS or ERROR): it is
+            # finished and cannot race with a new-format job, but the
+            # old code had no TTL cleanup -- remove it so it does not
+            # linger forever
+            if dry_run:
+                logging.warning(f"would delete legacy-format job {legacy_job_name}")
+            else:
+                controller.delete_job(legacy_job_name)
+                logging.warning(f"deleted legacy-format job {legacy_job_name}")
+        if legacy_status == JobStatus.ERROR:
+            raise JobFailedError(
+                f"legacy-format job {legacy_job_name} failed, it was removed. "
+                "It will be replaced with the new naming on the next reconciliation."
+            )
         match controller.get_job_status(job_name):
             case JobStatus.IN_PROGRESS:
                 if _read_job_secret(oc, namespace_name, job_name) is None:
@@ -682,12 +740,20 @@ def _process_db_access(
                         # state_matches triggers the early return and
                         # the entry is fully converged.
                         #
+                        # Legacy entries do NOT re-enqueue: they have
+                        # no ownership transfer to converge (the user
+                        # owns their own schema), and the re-enqueue
+                        # would either rotate the password (legacy
+                        # generates a fresh one) or run forever (each
+                        # replacement gets a fresh TTL).
+                        if not db_access.role:
+                            return
+                        #
                         # Reuse the settled job's credential for the
                         # re-enqueue: generating a fresh password here
                         # would change the database password on every
                         # reconcile, breaking the credential that vault
-                        # just published (legacy mode has no vault
-                        # reuse).
+                        # just published.
                         convergence_connection = _job_connection(job_secret)
                     # stale job from an older configuration (e.g. the
                     # configuration was reverted while the job was in

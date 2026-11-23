@@ -25,7 +25,12 @@ QONTRACT_INTEGRATION = "database-access-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 JOB_DEADLINE_IN_SECONDS = 900
-JOB_TTL_SECONDS_AFTER_FINISHED = 3600
+# the job-bound secret holds the database credential until DAM settles
+# it into Vault. If reconciliation is paused for longer than this TTL
+# after the SQL succeeds, the credential is lost and the password that
+# was set can no longer be published. 24h gives ample time for a
+# reconciliation pause without keeping finished jobs indefinitely.
+JOB_TTL_SECONDS_AFTER_FINISHED = 86400
 
 
 class DatabaseConnectionParameters(

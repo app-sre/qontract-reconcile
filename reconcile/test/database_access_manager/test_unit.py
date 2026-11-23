@@ -27,6 +27,7 @@ from reconcile.database_access_manager.integration import (
     _script_configuration_digest,
     _validate_db_access,
     _validate_role_sharing,
+    _vault_connection,
 )
 from reconcile.database_access_manager.jobs import DatabaseAccessJob
 from reconcile.gql_definitions.terraform_resources.database_access_manager import (
@@ -35,6 +36,7 @@ from reconcile.gql_definitions.terraform_resources.database_access_manager impor
     NamespaceV1,
 )
 from reconcile.utils.jobcontroller.models import JobStatus
+from reconcile.utils.vault import SecretVersionNotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -138,6 +140,22 @@ def _render(template: str, **params: str) -> str:
     }
     defaults.update(params)
     return _render_sql(template, **defaults)
+
+
+def _status_side_effect(
+    new_status: JobStatus, legacy_status: JobStatus = JobStatus.NOT_EXISTS
+) -> object:
+    """Mock side_effect that returns the given status for new-format
+    job names and the legacy status for legacy-format names.
+    New-format names end with a 10-character hex digest
+    (see K8sJob.name), legacy names are the sanitized state key."""
+
+    def _get(job_name: str) -> JobStatus:
+        if re.search(r"-[0-9a-f]{10}$", job_name):
+            return new_status
+        return legacy_status
+
+    return _get
 
 
 def _b64(value: str) -> str:
@@ -798,7 +816,7 @@ def test_process_job_error_raises(
     secret_reader: MagicMock,
     vault_mock: MagicMock,
 ) -> None:
-    dbam_controller.get_job_status.return_value = JobStatus.ERROR
+    dbam_controller.get_job_status.side_effect = _status_side_effect(JobStatus.ERROR)
     with pytest.raises(JobFailedError, match="failed"):
         run_process(
             db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
@@ -1028,7 +1046,9 @@ def test_process_incomplete_job_is_repaired(
 ) -> None:
     # a job stuck without its job-bound secret is removed so the next
     # reconcile can re-create it
-    dbam_controller.get_job_status.return_value = JobStatus.IN_PROGRESS
+    dbam_controller.get_job_status.side_effect = _status_side_effect(
+        JobStatus.IN_PROGRESS
+    )
     run_process(
         db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
     )
@@ -1045,7 +1065,7 @@ def test_process_failed_job_is_removed_and_raised(
     secret_reader: MagicMock,
     vault_mock: MagicMock,
 ) -> None:
-    dbam_controller.get_job_status.return_value = JobStatus.ERROR
+    dbam_controller.get_job_status.side_effect = _status_side_effect(JobStatus.ERROR)
     with pytest.raises(JobFailedError, match="failed"):
         run_process(
             db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
@@ -1184,8 +1204,9 @@ def test_process_expired_job_with_pending_marker_re_runs(
     dbam_state.exists.side_effect = lambda key: key == f"{STATE_KEY}#pending"
     dbam_state.get.return_value = db_access_role.model_dump(by_alias=True)
     dbam_controller.get_job_status.side_effect = [
-        JobStatus.NOT_EXISTS,
-        JobStatus.IN_PROGRESS,
+        JobStatus.NOT_EXISTS,  # legacy-format job: not found
+        JobStatus.NOT_EXISTS,  # new-format job: not found
+        JobStatus.IN_PROGRESS,  # after re-enqueue
     ]
     run_process(
         db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
@@ -1239,7 +1260,7 @@ def test_process_dry_run_does_not_delete_jobs(
     status: JobStatus,
     match: str,
 ) -> None:
-    dbam_controller.get_job_status.return_value = status
+    dbam_controller.get_job_status.side_effect = _status_side_effect(status)
     with pytest.raises(JobFailedError, match=match):
         run_process(
             db_access_role,
@@ -1261,7 +1282,9 @@ def test_process_dry_run_does_not_delete_incomplete_job(
     vault_mock: MagicMock,
     oc_map: MagicMock,
 ) -> None:
-    dbam_controller.get_job_status.return_value = JobStatus.IN_PROGRESS
+    dbam_controller.get_job_status.side_effect = _status_side_effect(
+        JobStatus.IN_PROGRESS
+    )
     # no job secret -> incomplete enqueue
     run_process(
         db_access_role,
@@ -1347,6 +1370,7 @@ def test_process_deletes_stale_secret_before_enqueue(
         ADMIN_SECRET if name == ADMIN_SECRET_NAME else stale_secret
     )
     dbam_controller.get_job_status.side_effect = [
+        JobStatus.NOT_EXISTS,  # legacy-format job: not found
         JobStatus.SUCCESS,
         JobStatus.IN_PROGRESS,
     ]
@@ -1584,8 +1608,9 @@ def test_process_retry_after_failed_replacement_revokes_stale_schemas(
     # the next reconcile retries: the job was deleted, the pending
     # marker (now the merged union) drives the revoke baseline
     dbam_controller.get_job_status.side_effect = [
-        JobStatus.NOT_EXISTS,
-        JobStatus.IN_PROGRESS,
+        JobStatus.NOT_EXISTS,  # legacy-format job: not found
+        JobStatus.NOT_EXISTS,  # new-format job: not found
+        JobStatus.IN_PROGRESS,  # after re-enqueue
     ]
     run_process(
         db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
@@ -1643,8 +1668,7 @@ def test_validate_role_sharing_allows_disjoint_schemas(
 
 
 def test_process_convergence_reenqueue_reuses_credential(
-    db_access: DatabaseAccessV1,
-    db_access_access: DatabaseAccessAccessV1,
+    db_access_role: DatabaseAccessV1,
     dbam_state: MagicMock,
     dbam_controller: MagicMock,
     db_access_namespace: NamespaceV1,
@@ -1656,11 +1680,155 @@ def test_process_convergence_reenqueue_reuses_credential(
     """The convergence re-enqueue must NOT generate a fresh password:
     the settled job's credential is reused so the database password
     does not rotate on every reconcile."""
+    dbam_state.exists.return_value = True
+    dbam_state.get.return_value = db_access_role.model_dump(by_alias=True)
+
+    # a successful job that ran the current configuration
+    job_secret = {
+        "db.host": "localhost",
+        "db.port": "5432",
+        "db.user": "cs_owner_abc",
+        "db.password": "settled_password",  # notsecret
+        "db.name": "postgres",
+        "script.sql": _build_script(db_access_role, None, "cs_owner_abc", "admin"),
+    }
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
+        {"data": {k: _b64(v) for k, v in ADMIN_SECRET["data"].items()}}
+        if name == ADMIN_SECRET_NAME
+        else {"data": {k: _b64(v) for k, v in job_secret.items()}}
+    )
+    # SUCCESS on first check, IN_PROGRESS after re-enqueue
+    dbam_controller.get_job_status.side_effect = [
+        JobStatus.NOT_EXISTS,  # legacy-format job: not found
+        JobStatus.SUCCESS,
+        JobStatus.IN_PROGRESS,
+    ]
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+
+    # the re-enqueued job must use the settled credential, not a new one
+    job = enqueued_job(dbam_controller)
+    assert job.user_connection.password == "settled_password"
+
+
+def test_validate_role_sharing_allows_same_schema_in_different_databases(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    """The schema exclusivity check is keyed by (database, schema):
+    the same schema name in two different databases of one instance
+    is a valid configuration (review P2 #10)."""
+    other_db = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "other",
+            "database": "other_db",
+            "role": "other_owner",
+            "access": [{"grants": ["SELECT"], "target": {"dbschema": "foo"}}],
+        },
+    )
+    _validate_role_sharing([
+        (db_access_role, "user_a"),
+        (other_db, "user_b"),
+    ])
+
+
+def test_validate_role_sharing_rejects_duplicate_resolved_login(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    """Two entries resolving to the same login would overwrite each
+    other's password or retire a login the other entry still uses
+    (review P2 #10)."""
+    other = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "other",
+            "database": "postgres",
+            "role": "other_owner",
+            "access": [{"grants": ["SELECT"], "target": {"dbschema": "bar"}}],
+        },
+    )
+    with pytest.raises(ValueError, match="login usernames must be unique"):
+        _validate_role_sharing([
+            (db_access_role, "shared_user"),
+            (other, "shared_user"),
+        ])
+
+
+def test_process_legacy_format_job_in_progress_waits(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    """A still-running legacy-format job must not race with a
+    new-format job for the same login (review P1 #5): the entry is
+    skipped until the legacy job completes."""
+    dbam_controller.get_job_status.side_effect = _status_side_effect(
+        JobStatus.NOT_EXISTS, legacy_status=JobStatus.IN_PROGRESS
+    )
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    dbam_controller.enqueue_job.assert_not_called()
+    dbam_controller.delete_job.assert_not_called()
+
+
+def test_process_legacy_format_job_success_is_cleaned_up(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    """A settled legacy-format job cannot race with a new-format job,
+    but the old code had no TTL cleanup: it is removed and processing
+    continues (review P1 #5)."""
+    dbam_controller.get_job_status.side_effect = [
+        JobStatus.SUCCESS,  # legacy-format job: settled
+        JobStatus.NOT_EXISTS,  # new-format job: not found
+        JobStatus.IN_PROGRESS,  # after enqueue
+    ]
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: {
+        "data": {k: _b64(v) for k, v in ADMIN_SECRET["data"].items()}
+    }
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    dbam_controller.delete_job.assert_called_once_with(
+        "dbam-test-provisioner-test-db-test"
+    )
+    dbam_controller.enqueue_job.assert_called_once()
+
+
+def test_process_legacy_mode_settles_without_reenqueue(
+    db_access: DatabaseAccessV1,
+    db_access_access: DatabaseAccessAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    """Legacy entries stop after settlement: they have no ownership
+    transfer to converge, and a re-enqueue would either rotate the
+    password on every reconcile or run forever via fresh TTLs
+    (review P2 #7)."""
     db_access.access = [db_access_access]
     dbam_state.exists.return_value = True
     dbam_state.get.return_value = db_access.model_dump(by_alias=True)
 
-    # a successful job that ran the current configuration
     job_secret = {
         "db.host": "localhost",
         "db.port": "5432",
@@ -1674,13 +1842,24 @@ def test_process_convergence_reenqueue_reuses_credential(
         if name == ADMIN_SECRET_NAME
         else {"data": {k: _b64(v) for k, v in job_secret.items()}}
     )
-    # SUCCESS on first check, IN_PROGRESS after re-enqueue
     dbam_controller.get_job_status.side_effect = [
-        JobStatus.SUCCESS,
-        JobStatus.IN_PROGRESS,
+        JobStatus.NOT_EXISTS,  # legacy-format job: not found
+        JobStatus.SUCCESS,  # new-format job: settled
     ]
     run_process(db_access, dbam_state, secret_reader, vault_mock, db_access_namespace)
 
-    # the re-enqueued job must use the settled credential, not a new one
-    job = enqueued_job(dbam_controller)
-    assert job.user_connection.password == "settled_password"
+    # settled: no re-enqueue (legacy has no convergence window), and
+    # the settled new-format job is left to its TTL cleanup
+    dbam_controller.enqueue_job.assert_not_called()
+    dbam_controller.delete_job.assert_not_called()
+
+
+def test_vault_connection_missing_kv2_path_returns_none(
+    secret_reader: MagicMock,
+) -> None:
+    """A missing KV v2 path raises SecretVersionNotFoundError (not
+    SecretNotFoundError): it must be treated as an absent credential
+    without swallowing permission or transport errors (review P2 #9)."""
+    secret_reader.read_all.side_effect = SecretVersionNotFoundError("not found")
+    connection = _vault_connection(secret_reader, "vault-out", STATE_KEY)
+    assert connection is None
