@@ -14,7 +14,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 
 Use [config.toml.example](config.toml.example) as a template to create a `config.toml` file.
 
-Run a reconcile integration like this:
+Run a reconciliation integration like this:
 
 ```sh
 qontract-reconcile --config config.toml --dry-run <subcommand>
