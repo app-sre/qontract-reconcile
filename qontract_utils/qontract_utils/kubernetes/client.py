@@ -3,13 +3,16 @@
 import contextvars
 import time
 from dataclasses import dataclass
-from typing import Self
+from typing import Any, Self
 
 import httpx2
 import structlog
 from lightkube import ApiError, Client
 from lightkube.config.kubeconfig import Cluster, KubeConfig, User
-from lightkube.generic_resource import create_global_resource
+from lightkube.generic_resource import (
+    create_global_resource,
+    create_namespaced_resource,
+)
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Namespace
 from prometheus_client import Counter, Histogram
@@ -35,6 +38,13 @@ _ProjectRequest = create_global_resource(
     kind="ProjectRequest",
     plural="projectrequests",
 )
+# OpenShift Route resource (namespaced, unlike Project/ProjectRequest)
+_Route = create_namespaced_resource(
+    group="route.openshift.io",
+    version="v1",
+    kind="Route",
+    plural="routes",
+)
 logger = structlog.get_logger(__name__)
 
 kubernetes_request = Counter(
@@ -55,6 +65,34 @@ _latency_tracker: contextvars.ContextVar[tuple[float, ...]] = contextvars.Contex
 )
 
 TIMEOUT = 30
+
+
+@dataclass(frozen=True)
+class Route:
+    """An OpenShift Route exposed to callers as a stable, typed value.
+
+    Mirrors the fields the legacy `oc` client exposed: the route name, the
+    host, and whether TLS is configured. The port is derived from TLS, which
+    is the same convention app-interface endpoint discovery relies on.
+    """
+
+    name: str
+    host: str
+    tls: bool
+
+    @property
+    def url(self) -> str:
+        return f"{self.host}:{443 if self.tls else 80}"
+
+
+def _to_route(item: Any) -> Route:
+    """Convert a lightkube generic Route object into a Route value."""
+    spec = item.spec or {}
+    return Route(
+        name=item.metadata.name,
+        host=spec["host"],
+        tls=bool(spec.get("tls")),
+    )
 
 
 @dataclass(frozen=True)
@@ -213,6 +251,35 @@ class KubernetesApi:
         """
         try:
             return list(self._client.list(Namespace))
+        except ApiError as e:
+            raise from_api_error(e) from e
+
+    @invoke_with_hooks(
+        lambda self: KubernetesApiCallContext(
+            method="routes.list", verb="GET", id=self._server
+        )
+    )
+    def list_routes(self, namespace: str) -> list[Route]:
+        """List OpenShift Routes in a namespace.
+
+        Uses the generic `route.openshift.io/v1` resource so no OpenShift
+        client binary is needed. API errors are raised rather than swallowed,
+        so an unreadable namespace is distinguishable from an empty one.
+
+        Args:
+            namespace: Namespace to list routes from
+
+        Returns:
+            List of Route values with name, host and TLS flag
+
+        Raises:
+            NotFoundError: If the namespace does not exist
+            ForbiddenError: If the token cannot list routes
+            KubernetesApiError: On other API errors
+        """
+        try:
+            items = self._client.list(_Route, namespace=namespace)
+            return [_to_route(item) for item in items]
         except ApiError as e:
             raise from_api_error(e) from e
 

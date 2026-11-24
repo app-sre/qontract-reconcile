@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING
 
 from qontract_utils.vcs.provider_registry import get_default_registry
 
-from qontract_api.external.vcs.provider_factory import VCSProviderFactory
-from qontract_api.external.vcs.vcs_workspace_client import VCSWorkspaceClient
 from qontract_api.logger import get_logger
+from qontract_api.vcs.provider_factory import VCSProviderFactory
+from qontract_api.vcs.vcs_workspace_client import VCSWorkspaceClient
 
 if TYPE_CHECKING:
     from qontract_api.cache import CacheBackend

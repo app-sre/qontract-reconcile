@@ -32,6 +32,15 @@ Successful migrations serve as reference implementations:
   endpoints. Robot tokens are not written to Vault. Unmanaged robots are never
   auto-deleted — only `delete: true`. Closest skeleton: github_owners; closest
   diff/apply: glitchtip_project_alerts.)
+- `endpoints_discovery` -> `endpoints_discovery_api` (Pattern 1 variant whose mutation
+  target is a git repository. Added `Route`/`list_routes` to the Kubernetes Layer 1,
+  `MergeRequestInfo`/`list_open_merge_requests`/`close_merge_request` to the VCS
+  Layer 1, and moved the VCS Layer 2 workspace client and factories to a shared
+  `qontract_api/vcs/` package re-exported by `external/vcs`. Preserved the legacy MR
+  hash, description and YAML output byte for byte. No Phase 3 endpoint: the server
+  reads routes and git directly, and the client sends only GraphQL state plus the
+  template. Closest skeletons: openshift_namespaces for clusters/lightkube,
+  glitchtip_project_alerts for diff/apply.)
 
 ## Input
 
@@ -163,6 +172,8 @@ Following ADR-007 (no reconcile/ imports in qontract-api) and ADR-014 (three-lay
      - `qontract_utils/qontract_utils/ocm_api/` - OCM (OpenShift Cluster Manager) API - labels, subscriptions, clusters, identity providers (get/create/update/delete, parameterized by `cluster_id`/`idp_id` rather than the `Filter` DSL used for the collection-search methods, since IDPs are a per-cluster nested resource)
      - `qontract_utils/qontract_utils/keycloak_api/` - Keycloak dynamic client registration API
      - `qontract_utils/qontract_utils/quay_api/` - Quay API (robot CRUD, team membership for robots, repository permissions for robots; extend rather than duplicating when migrating quay-membership/permissions/repos)
+     - `qontract_utils/qontract_utils/kubernetes/` - Kubernetes/OpenShift API via lightkube: namespaces and `list_routes` (OpenShift Routes)
+     - `qontract_utils/qontract_utils/vcs/` - provider-agnostic VCS Layer 1: `get_file`, `create_merge_request`, `find_merge_request`, `list_open_merge_requests`, `close_merge_request` (GitLab implements writes; GitHub is read-only). The shared Layer 2 counterpart lives in `qontract_api/qontract_api/vcs/`, not here.
      - If a client exists, check if it covers all needed methods. Only extend, never duplicate.
 
 2. **Layer 1 - Pure API Client** (`qontract_utils/<domain>/api.py`):
@@ -178,7 +189,7 @@ Following ADR-007 (no reconcile/ imports in qontract-api) and ADR-014 (three-lay
 
 ## Phase 2: Server-Side Integration (qontract_api/)
 
-### Domain Layer (qontract_api/qontract_api/<domain>/)
+### Domain Layer (`qontract_api/qontract_api/<domain>/`)
 
 **Check if a domain layer already exists** before creating a new one. Search `qontract_api/qontract_api/` for existing domain directories (e.g., `slack/`, `glitchtip/`). If one exists for your domain, extend it rather than creating a duplicate.
 
@@ -426,7 +437,7 @@ After completing the migration, update **this SKILL.md** with any new knowledge 
 
 Show progress after each phase:
 
-```
+```text
 ## Migration: <name>
 
 Phase 0: Discovery & Analysis
@@ -546,3 +557,22 @@ Phases have dependencies. Document these in the migration plan so phases can be 
   field**, as long as each member is a genuinely lossless match for a given payload
   (pydantic won't pick a model that would silently drop fields). Verify empirically
   with a quick script before relying on it instead of an explicit discriminator.
+- **Git-repository mutation integrations** use the shared VCS Layer 2 client in
+  `qontract_api/vcs/`. Do not route read-modify-write through
+  `/external/vcs/file-sync`, which expects the client to supply final content. Read
+  with `get_file`, render/merge in Layer 3, dedupe with `list_open_merge_requests`
+  (parse the embedded hash), retire stale or invalid MRs with `close_merge_request`,
+  then `create_merge_request`. Compare merged content against the current file so an
+  unchanged file produces no commit, and keep old MR hash/description formats
+  byte-compatible while a legacy integration may still have MRs open.
+- **Cleanup versus filtering:** send the full non-deleted unit set with an action flag
+  (for example `discover: false`) so a filtered run never looks like a removal, and
+  resolve credentials only for units the run will act on. Distinguish a definitive
+  not-found (which may drive deletions) from an API error (which must fail closed).
+- **qenerate `JSON` scalars** validate from a string. Generated models must be
+  constructed with `json.dumps(...)` in tests; at runtime the attribute is already a
+  parsed dict.
+- **Codegen under a poisoned PATH:** run `uv run make gql-query-classes` and
+  `uv run make generate-client`, not bare `make`, because recipes call project
+  binaries (`clientele`, `qenerate`) that live only in `.venv/bin`. The client
+  reproducibility diff must exclude `__pycache__`.

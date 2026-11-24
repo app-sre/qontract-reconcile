@@ -13,6 +13,7 @@ qontract-api integrations follow a split architecture:
 
 Available integrations:
 
+- [Endpoints Discovery](endpoints-discovery.md) - Reconcile application `endPoints` with live OpenShift Routes by opening a single app-interface merge request
 - [GitHub Owners](github-owners.md) - Manage GitHub organization admin (owner) membership based on App-Interface roles with add-only safety semantics
 - [GitHub Username Sync](github-username-sync.md) - Sync App-Interface `github_username` from LDAP's Rover-linked GitHub account, validated against the GitHub API for existence and canonical casing
 - [GitLab Members](gitlab-members.md) - Manage GitLab group membership from App-Interface roles and PagerDuty on-call schedules/escalation policies

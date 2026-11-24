@@ -24,6 +24,7 @@ from qontract_utils.kubernetes.client import (
     TIMEOUT,
     KubernetesApi,
     KubernetesApiCallContext,
+    Route,
 )
 from qontract_utils.kubernetes.exceptions import (
     AlreadyExistsError,
@@ -43,6 +44,7 @@ __all__ = [
     "KubernetesApiError",
     "Namespace",
     "NotFoundError",
+    "Route",
     "UnauthorizedError",
     "from_api_error",
 ]

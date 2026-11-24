@@ -8,12 +8,13 @@ from qontract_utils.vcs.provider_protocol import (
     CreateMergeRequestInput,
     FileAction,
     MergeRequestFile,
+    MergeRequestInfo,
 )
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import Settings, VCSSettings
-from qontract_api.external.vcs.provider_factory import VCSProviderFactory
-from qontract_api.external.vcs.vcs_workspace_client import VCSWorkspaceClient
+from qontract_api.vcs.provider_factory import VCSProviderFactory
+from qontract_api.vcs.vcs_workspace_client import VCSWorkspaceClient
 
 
 @pytest.fixture
@@ -373,3 +374,57 @@ def test_get_file_returns_none_when_not_found(
     result = github_client.get_file(path="nonexistent.yml", ref="master")
 
     assert result is None
+
+
+def test_list_open_merge_requests_delegates_to_api_client(
+    github_client: VCSWorkspaceClient,
+    mock_provider_factory: MagicMock,
+) -> None:
+    """Test list_open_merge_requests delegates to the underlying API client."""
+    api_client = mock_provider_factory.create_api_client.return_value[0]
+    expected = [
+        MergeRequestInfo(
+            title="[auto] update",
+            description="body",
+            web_url="https://gitlab.com/group/project/-/merge_requests/1",
+            labels=["ENDPOINTS-DISCOVERY"],
+        )
+    ]
+    api_client.list_open_merge_requests.return_value = expected
+
+    result = github_client.list_open_merge_requests(label="ENDPOINTS-DISCOVERY")
+
+    assert result == expected
+    api_client.list_open_merge_requests.assert_called_once_with(
+        label="ENDPOINTS-DISCOVERY"
+    )
+
+
+def test_list_open_merge_requests_no_filters(
+    github_client: VCSWorkspaceClient,
+    mock_provider_factory: MagicMock,
+) -> None:
+    """Test list_open_merge_requests passes through when no filters are given."""
+    api_client = mock_provider_factory.create_api_client.return_value[0]
+    api_client.list_open_merge_requests.return_value = []
+
+    assert github_client.list_open_merge_requests() == []
+    api_client.list_open_merge_requests.assert_called_once_with()
+
+
+def test_close_merge_request_delegates_to_api_client(
+    github_client: VCSWorkspaceClient,
+    mock_provider_factory: MagicMock,
+) -> None:
+    """Test close_merge_request delegates to the underlying API client."""
+    api_client = mock_provider_factory.create_api_client.return_value[0]
+
+    github_client.close_merge_request(
+        "https://gitlab.com/group/project/-/merge_requests/42",
+        comment="Closing this MR because it's outdated.",
+    )
+
+    api_client.close_merge_request.assert_called_once_with(
+        "https://gitlab.com/group/project/-/merge_requests/42",
+        comment="Closing this MR because it's outdated.",
+    )

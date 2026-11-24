@@ -210,6 +210,24 @@ def test_github_api_find_merge_request_not_implemented(
         github_api.find_merge_request("some title")
 
 
+def test_github_api_list_open_merge_requests_not_implemented(
+    github_api: GitHubRepoApi,
+    mock_github_client: MagicMock,
+) -> None:
+    """Test list_open_merge_requests raises NotImplementedError."""
+    with pytest.raises(NotImplementedError, match="GitHub PR listing"):
+        github_api.list_open_merge_requests()
+
+
+def test_github_api_close_merge_request_not_implemented(
+    github_api: GitHubRepoApi,
+    mock_github_client: MagicMock,
+) -> None:
+    """Test close_merge_request raises NotImplementedError."""
+    with pytest.raises(NotImplementedError, match="GitHub PR closing"):
+        github_api.close_merge_request("https://github.com/owner/repo/pull/1")
+
+
 def test_github_api_default_user_agent(mock_github_client: MagicMock) -> None:
     """Test GitHubRepoApi passes the default qontract-utils User-Agent to PyGithub."""
     GitHubRepoApi(

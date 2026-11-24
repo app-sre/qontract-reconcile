@@ -18,7 +18,10 @@ from qontract_utils.user_agent import DEFAULT_USER_AGENT
 if TYPE_CHECKING:
     from github.Repository import Repository
 
-    from qontract_utils.vcs.provider_protocol import CreateMergeRequestInput
+    from qontract_utils.vcs.provider_protocol import (
+        CreateMergeRequestInput,
+        MergeRequestInfo,
+    )
 
 logger = structlog.get_logger(__name__)
 
@@ -185,3 +188,29 @@ class GitHubRepoApi:
             NotImplementedError: GitHub PR search is not yet supported
         """
         raise NotImplementedError("GitHub PR search not yet implemented")
+
+    def list_open_merge_requests(
+        self, *, label: str | None = None, title: str | None = None
+    ) -> list[MergeRequestInfo]:
+        """List open pull requests - not yet implemented for GitHub.
+
+        Args:
+            label: Only return PRs carrying this label
+            title: Only return PRs whose title matches exactly
+
+        Raises:
+            NotImplementedError: GitHub PR listing is not yet supported
+        """
+        raise NotImplementedError("GitHub PR listing not yet implemented")
+
+    def close_merge_request(self, web_url: str, *, comment: str = "") -> None:
+        """Close a pull request - not yet implemented for GitHub.
+
+        Args:
+            web_url: URL of the pull request to close
+            comment: Optional comment explaining the close
+
+        Raises:
+            NotImplementedError: GitHub PR closing is not yet supported
+        """
+        raise NotImplementedError("GitHub PR closing not yet implemented")

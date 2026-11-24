@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from qontract_api.logger import get_logger
 
 if TYPE_CHECKING:
-    from qontract_utils.kubernetes import KubernetesApi, Namespace
+    from qontract_utils.kubernetes import KubernetesApi, Namespace, Route
 
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
@@ -98,6 +98,15 @@ class KubernetesWorkspaceClient:
         """Check if a namespace exists (cached via full namespace listing)."""
         return name in self._get_namespace_state().names
 
+    def namespace_exists_uncached(self, name: str) -> bool:
+        """Check if a namespace exists with a live API call.
+
+        The cached set can be up to `namespace_cache_ttl` old. Callers that
+        must observe a just-deleted namespace (for example, deciding whether
+        absence is definitive) use this instead.
+        """
+        return self._api.namespace_exists(name)
+
     def is_namespace_terminating(self, name: str) -> bool:
         """Check if a namespace is already in the Terminating phase (cached)."""
         return name in self._get_namespace_state().terminating
@@ -116,3 +125,11 @@ class KubernetesWorkspaceClient:
     def list_namespaces(self) -> list[Namespace]:
         """List all namespaces (not cached)."""
         return self._api.list_namespaces()
+
+    def list_routes(self, namespace: str) -> list[Route]:
+        """List OpenShift routes in a namespace (not cached).
+
+        Routes are the current state this integration reconciles against, so
+        serving them from a TTL cache would produce stale diffs.
+        """
+        return self._api.list_routes(namespace)

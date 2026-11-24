@@ -360,6 +360,31 @@ async def vcs_repo_owners(
     return result
 
 
+@client.post("/api/v1/integrations/endpoints-discovery/reconcile")
+async def endpoints_discovery(
+    result: schemas.EndpointsDiscoveryTaskResponse,
+    data: schemas.EndpointsDiscoveryReconcileRequest,
+) -> schemas.EndpointsDiscoveryTaskResponse:
+    """Endpoints Discovery
+
+    Queue an endpoints-discovery reconciliation task.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/endpoints-discovery/reconcile/{task_id}")
+async def endpoints_discovery_task_status(
+    result: schemas.EndpointsDiscoveryTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.EndpointsDiscoveryTaskResult:
+    """Endpoints Discovery Task Status
+
+    Retrieve the reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
 @client.post("/api/v1/integrations/github-owners/reconcile")
 async def github_owners(
     result: schemas.GithubOwnersTaskResponse, data: schemas.GithubOwnersReconcileRequest

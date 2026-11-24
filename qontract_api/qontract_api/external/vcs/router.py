@@ -30,9 +30,9 @@ from qontract_api.external.vcs.schemas import (
     RepoPath,
     VCSProvider,
 )
-from qontract_api.external.vcs.vcs_factory import create_vcs_workspace_client
 from qontract_api.logger import get_logger
 from qontract_api.models import Secret
+from qontract_api.vcs.vcs_factory import create_vcs_workspace_client
 
 logger = get_logger(__name__)
 

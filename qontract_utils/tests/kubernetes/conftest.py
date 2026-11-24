@@ -56,6 +56,37 @@ def k8s_status_json(code: int, reason: str, message: str) -> dict:
     }
 
 
+def k8s_route_json(name: str, host: str, *, tls: bool = False) -> dict:
+    """Create an OpenShift Route JSON response."""
+    spec: dict = {
+        "host": host,
+        "to": {"kind": "Service", "name": f"svc-{name}"},
+    }
+    if tls:
+        spec["tls"] = {"termination": "edge"}
+    return {
+        "apiVersion": "route.openshift.io/v1",
+        "kind": "Route",
+        "metadata": {
+            "name": name,
+            "namespace": "my-ns",
+            "uid": f"uid-{name}",
+        },
+        "spec": spec,
+        "status": {"ingress": [{"host": host}]},
+    }
+
+
+def k8s_route_list_json(routes: list[dict]) -> dict:
+    """Create an OpenShift RouteList JSON response."""
+    return {
+        "apiVersion": "route.openshift.io/v1",
+        "kind": "RouteList",
+        "metadata": {"resourceVersion": "1234"},
+        "items": routes,
+    }
+
+
 def k8s_project_list_json(names: list[str]) -> dict:
     """Create an OpenShift ProjectList JSON response."""
     return {

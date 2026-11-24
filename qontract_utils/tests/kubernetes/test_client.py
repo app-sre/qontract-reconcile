@@ -7,7 +7,11 @@ import pytest
 from prometheus_client import REGISTRY
 from pytest_httpserver import HTTPServer
 from qontract_utils.hooks import Hooks
-from qontract_utils.kubernetes.client import KubernetesApi, KubernetesApiCallContext
+from qontract_utils.kubernetes.client import (
+    KubernetesApi,
+    KubernetesApiCallContext,
+    Route,
+)
 from qontract_utils.kubernetes.exceptions import (
     ForbiddenError,
     KubernetesApiError,
@@ -20,6 +24,8 @@ from .conftest import (
     k8s_namespace_list_json,
     k8s_project_json,
     k8s_project_list_json,
+    k8s_route_json,
+    k8s_route_list_json,
     k8s_status_json,
     mock_project_discovery,
 )
@@ -121,6 +127,112 @@ def test_list_namespaces_empty(httpserver: HTTPServer, k8s_api: KubernetesApi) -
 
     namespaces = k8s_api.list_namespaces()
     assert namespaces == []
+
+
+# --- Route ---
+
+
+def test_route_url_with_tls() -> None:
+    """A TLS route exposes port 443."""
+    assert Route(name="r", host="example.com", tls=True).url == "example.com:443"
+
+
+def test_route_url_without_tls() -> None:
+    """A non-TLS route exposes port 80."""
+    assert Route(name="r", host="example.com", tls=False).url == "example.com:80"
+
+
+def test_route_is_immutable() -> None:
+    """Route is a frozen dataclass."""
+    route = Route(name="r", host="example.com", tls=True)
+    with pytest.raises(AttributeError):
+        route.host = "other.com"  # type: ignore[misc]
+
+
+# --- list_routes ---
+
+
+def test_list_routes_success(httpserver: HTTPServer, k8s_api: KubernetesApi) -> None:
+    """Test listing routes returns names, hosts, TLS flags and ports."""
+    httpserver.expect_request(
+        "/apis/route.openshift.io/v1/namespaces/my-ns/routes",
+    ).respond_with_json(
+        k8s_route_list_json(
+            [
+                k8s_route_json("route-a", "a.example.com", tls=True),
+                k8s_route_json("route-b", "b.example.com"),
+            ]
+        )
+    )
+
+    routes = k8s_api.list_routes("my-ns")
+
+    assert routes == [
+        Route(name="route-a", host="a.example.com", tls=True),
+        Route(name="route-b", host="b.example.com", tls=False),
+    ]
+    assert [route.url for route in routes] == [
+        "a.example.com:443",
+        "b.example.com:80",
+    ]
+
+
+def test_list_routes_empty(httpserver: HTTPServer, k8s_api: KubernetesApi) -> None:
+    """Test listing routes when the namespace has none."""
+    httpserver.expect_request(
+        "/apis/route.openshift.io/v1/namespaces/empty-ns/routes",
+    ).respond_with_json(k8s_route_list_json([]))
+
+    assert k8s_api.list_routes("empty-ns") == []
+
+
+def test_list_routes_namespace_not_found(
+    httpserver: HTTPServer, k8s_api: KubernetesApi
+) -> None:
+    """Test that a missing namespace raises NotFoundError."""
+    httpserver.expect_request(
+        "/apis/route.openshift.io/v1/namespaces/missing/routes",
+    ).respond_with_json(
+        k8s_status_json(404, "NotFound", 'namespaces "missing" not found'),
+        status=404,
+    )
+
+    with pytest.raises(NotFoundError, match="missing"):
+        k8s_api.list_routes("missing")
+
+
+def test_list_routes_forbidden(httpserver: HTTPServer, k8s_api: KubernetesApi) -> None:
+    """Test that a 403 raises ForbiddenError."""
+    httpserver.expect_request(
+        "/apis/route.openshift.io/v1/namespaces/secret/routes",
+    ).respond_with_json(
+        k8s_status_json(403, "Forbidden", "forbidden"),
+        status=403,
+    )
+
+    with pytest.raises(ForbiddenError):
+        k8s_api.list_routes("secret")
+
+
+def test_list_routes_calls_hooks(httpserver: HTTPServer) -> None:
+    """Test that list_routes triggers hooks with a routes context."""
+    hook = MagicMock()
+    httpserver.expect_request(
+        "/apis/route.openshift.io/v1/namespaces/my-ns/routes",
+    ).respond_with_json(k8s_route_list_json([]))
+
+    api = KubernetesApi(
+        server=httpserver.url_for(""),
+        token="test-token",
+        hooks=Hooks(pre_hooks=[hook]),
+    )
+    api.list_routes("my-ns")
+
+    hook.assert_called_once()
+    context = hook.call_args[0][0]
+    assert isinstance(context, KubernetesApiCallContext)
+    assert context.method == "routes.list"
+    assert context.verb == "GET"
 
 
 # --- namespace_exists ---

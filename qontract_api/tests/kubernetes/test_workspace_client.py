@@ -3,6 +3,8 @@
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+from qontract_utils.kubernetes import Route
+
 from qontract_api.kubernetes.workspace_client import (
     CachedNamespaceNames,
     KubernetesWorkspaceClient,
@@ -264,5 +266,50 @@ def test_list_namespaces_delegates_no_cache(
 
     result = client.list_namespaces()
     assert result == ["ns1", "ns2"]
+    mock_cache.get_obj.assert_not_called()
+    mock_cache.set_obj.assert_not_called()
+
+
+def test_namespace_exists_uncached_delegates_to_layer1(
+    mock_kubernetes_api: MagicMock,
+    mock_cache: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    """namespace_exists_uncached asks Layer 1 and never touches the cache."""
+    mock_kubernetes_api.namespace_exists.return_value = True
+    client = _make_client(mock_kubernetes_api, mock_cache, mock_settings)
+
+    assert client.namespace_exists_uncached("my-ns") is True
+    mock_kubernetes_api.namespace_exists.assert_called_once_with("my-ns")
+    mock_cache.get_obj.assert_not_called()
+    mock_cache.set_obj.assert_not_called()
+    mock_kubernetes_api.list_namespaces.assert_not_called()
+
+
+def test_namespace_exists_uncached_does_not_populate_cached_set(
+    mock_kubernetes_api: MagicMock,
+    mock_cache: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    """An uncached check must not write the full namespace list into the cache."""
+    mock_kubernetes_api.namespace_exists.return_value = False
+    client = _make_client(mock_kubernetes_api, mock_cache, mock_settings)
+
+    assert client.namespace_exists_uncached("gone-ns") is False
+    mock_cache.set_obj.assert_not_called()
+
+
+def test_list_routes_delegates_no_cache(
+    mock_kubernetes_api: MagicMock,
+    mock_cache: MagicMock,
+    mock_settings: Settings,
+) -> None:
+    """list_routes delegates to Layer 1 without caching."""
+    routes = [Route(name="route-a", host="a.example.com", tls=True)]
+    mock_kubernetes_api.list_routes.return_value = routes
+    client = _make_client(mock_kubernetes_api, mock_cache, mock_settings)
+
+    assert client.list_routes("my-ns") == routes
+    mock_kubernetes_api.list_routes.assert_called_once_with("my-ns")
     mock_cache.get_obj.assert_not_called()
     mock_cache.set_obj.assert_not_called()

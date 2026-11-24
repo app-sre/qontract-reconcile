@@ -1916,6 +1916,43 @@ def endpoints_discovery(
     )
 
 
+@integration.command(
+    short_help="Discover routes and update endpoints via qontract-api."
+)
+@internal()
+@cluster_name
+@click.option("--app-name", default=None, help="Consider this app only.")
+@click.option(
+    "--endpoint-tmpl-resource",
+    help="Resource name of the endpoint template in the app-interface.",
+    required=False,
+)
+@click.pass_context
+def endpoints_discovery_api(
+    ctx: click.Context,
+    internal: bool | None,
+    cluster_name: Iterable[str] | None,
+    app_name: str | None,
+    endpoint_tmpl_resource: str | None,
+) -> None:
+    from reconcile.endpoints_discovery_api import (
+        EndpointsDiscoveryApiIntegration,
+        EndpointsDiscoveryApiIntegrationParams,
+    )
+
+    params = EndpointsDiscoveryApiIntegrationParams(
+        internal=internal,
+        cluster_name=cluster_name,
+        app_name=app_name,
+    )
+    if endpoint_tmpl_resource:
+        params.endpoint_tmpl_resource = endpoint_tmpl_resource
+    run_class_integration(
+        integration=EndpointsDiscoveryApiIntegration(params),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Configures the teams and members in Quay.")
 @click.pass_context
 def quay_membership(ctx: click.Context) -> None:

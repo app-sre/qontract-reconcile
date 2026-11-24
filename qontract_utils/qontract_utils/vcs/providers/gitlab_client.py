@@ -5,7 +5,7 @@ import contextvars
 import secrets
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import gitlab
 import structlog
@@ -18,6 +18,7 @@ from qontract_utils.vcs.provider_protocol import (
     AUTO_MERGE_LABEL,
     CreateMergeRequestInput,
     FileAction,
+    MergeRequestInfo,
 )
 
 if TYPE_CHECKING:
@@ -89,6 +90,20 @@ def _latency_end_hook(context: GitLabApiCallContext) -> None:
 def _request_log_hook(context: GitLabApiCallContext) -> None:
     """Built-in hook for logging API requests."""
     logger.debug("API request", method=context.method, repo_url=context.repo_url)
+
+
+def _merge_request_iid(web_url: str) -> int:
+    """Extract the merge request IID from a GitLab MR URL.
+
+    GitLab URLs end in the project-scoped IID (for example
+    `https://gitlab.com/group/project/-/merge_requests/42`), which is what
+    the API needs to look the request up again.
+    """
+    last_segment = web_url.rstrip("/").rsplit("/", 1)[-1]
+    try:
+        return int(last_segment)
+    except ValueError as e:
+        raise ValueError(f"Cannot determine merge request IID from {web_url!r}") from e
 
 
 @with_hooks(
@@ -183,6 +198,69 @@ class GitLabRepoApi:
             if mr.title == title:
                 return mr.web_url
         return None
+
+    @invoke_with_hooks(
+        lambda self: GitLabApiCallContext(
+            method="list_open_merge_requests", repo_url=self.repo_url
+        ),
+        retry_config=NO_RETRY_CONFIG,
+    )
+    def list_open_merge_requests(
+        self, *, label: str | None = None, title: str | None = None
+    ) -> list[MergeRequestInfo]:
+        """List open merge requests, optionally filtered.
+
+        Args:
+            label: Only return MRs carrying this label
+            title: Only return MRs whose title matches exactly
+
+        Returns:
+            Matching open merge requests with description, labels and conflict state
+        """
+        params: dict[str, Any] = {
+            "state": "opened",
+            "per_page": 100,
+            "iterator": True,
+        }
+        if label is not None:
+            params["labels"] = label
+        if title is not None:
+            params["search"] = title
+
+        return [
+            MergeRequestInfo(
+                title=mr.title,
+                description=mr.description or "",
+                web_url=mr.web_url,
+                labels=list(mr.labels or []),
+                has_conflicts=bool(getattr(mr, "has_conflicts", False)),
+            )
+            for mr in self._project.mergerequests.list(**params)
+            # GitLab's search is a substring match; callers rely on exactness
+            if title is None or mr.title == title
+        ]
+
+    @invoke_with_hooks(
+        lambda self: GitLabApiCallContext(
+            method="close_merge_request", repo_url=self.repo_url
+        ),
+        retry_config=NO_RETRY_CONFIG,
+    )
+    def close_merge_request(self, web_url: str, *, comment: str = "") -> None:
+        """Close an open merge request, optionally leaving a comment first.
+
+        Args:
+            web_url: URL of the merge request to close
+            comment: Optional comment explaining the close
+
+        Raises:
+            ValueError: If the URL does not identify a merge request
+        """
+        mr = self._project.mergerequests.get(_merge_request_iid(web_url))
+        if comment:
+            mr.notes.create({"body": comment})
+        mr.state_event = "close"
+        mr.save()
 
     @invoke_with_hooks(
         lambda self: GitLabApiCallContext(

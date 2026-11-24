@@ -28,7 +28,7 @@ test:
 	@TEMP_DIR=$$(mktemp -d); \
 	trap "rm -rf $$TEMP_DIR" EXIT; \
 	$(MAKE) generate-client OUTPUT_DIR=$$TEMP_DIR/qontract_api_client; \
-	if ! diff -r --exclude=exceptions.py --exclude=py.typed --exclude=config.py qontract_api_client $$TEMP_DIR/qontract_api_client; then \
+	if ! diff -r --exclude=exceptions.py --exclude=py.typed --exclude=config.py --exclude=__pycache__ qontract_api_client $$TEMP_DIR/qontract_api_client; then \
 		echo "  ✗ Client differs from generated version"; \
 		echo ""; \
 		echo "Run 'make generate-client' to update."; \

@@ -11,6 +11,136 @@
         "title": "AccessType",
         "type": "string"
       },
+      "AddEndpointAction": {
+        "description": "Action: add an endpoint rendered from the template.",
+        "properties": {
+          "action_type": {
+            "const": "add_endpoint",
+            "default": "add_endpoint",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "app_name": {
+            "description": "Application name",
+            "title": "App Name",
+            "type": "string"
+          },
+          "app_path": {
+            "description": "Application file path",
+            "title": "App Path",
+            "type": "string"
+          },
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": true,
+            "description": "Rendered endpoint content",
+            "title": "Data",
+            "type": "object"
+          },
+          "endpoint_name": {
+            "description": "New endpoint name",
+            "title": "Endpoint Name",
+            "type": "string"
+          },
+          "namespace": {
+            "description": "Namespace name",
+            "title": "Namespace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "app_name",
+          "app_path",
+          "cluster",
+          "namespace",
+          "endpoint_name",
+          "data"
+        ],
+        "title": "AddEndpointAction",
+        "type": "object"
+      },
+      "AppInterfaceRepo": {
+        "description": "The App-Interface repository the merge request targets.",
+        "properties": {
+          "repo_url": {
+            "description": "Repository URL",
+            "title": "Repo Url",
+            "type": "string"
+          },
+          "target_branch": {
+            "default": "master",
+            "description": "Merge request target",
+            "title": "Target Branch",
+            "type": "string"
+          },
+          "token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Vault reference for the repository token"
+          }
+        },
+        "required": [
+          "repo_url",
+          "token"
+        ],
+        "title": "AppInterfaceRepo",
+        "type": "object"
+      },
+      "ChangeEndpointAction": {
+        "description": "Action: replace an existing endpoint in place with rendered content.",
+        "properties": {
+          "action_type": {
+            "const": "change_endpoint",
+            "default": "change_endpoint",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "app_name": {
+            "description": "Application name",
+            "title": "App Name",
+            "type": "string"
+          },
+          "app_path": {
+            "description": "Application file path",
+            "title": "App Path",
+            "type": "string"
+          },
+          "cluster": {
+            "description": "Cluster name",
+            "title": "Cluster",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": true,
+            "description": "Rendered endpoint content",
+            "title": "Data",
+            "type": "object"
+          },
+          "endpoint_name": {
+            "description": "Current endpoint name",
+            "title": "Endpoint Name",
+            "type": "string"
+          },
+          "namespace": {
+            "description": "Namespace name",
+            "title": "Namespace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "app_name",
+          "app_path",
+          "cluster",
+          "namespace",
+          "endpoint_name",
+          "data"
+        ],
+        "title": "ChangeEndpointAction",
+        "type": "object"
+      },
       "ChatRequest": {
         "description": "Request model for posting a Slack message or DM.\n\nExactly one of `channel` or `user` must be set:\n- `channel`: post to a Slack channel by name\n- `user`: send a DM to a user by org_username",
         "properties": {
@@ -215,6 +345,64 @@
         "title": "ChatTaskResult",
         "type": "object"
       },
+      "ClusterConnection": {
+        "description": "Everything needed to connect to one cluster and honour its config.",
+        "properties": {
+          "automation_token": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vault reference for the automation token (NOT the token itself). Required only when a namespace on this cluster is discovered; filtered or disabled namespaces keep their endpoints without a connection."
+          },
+          "cluster_name": {
+            "description": "Cluster identifier",
+            "title": "Cluster Name",
+            "type": "string"
+          },
+          "disabled_integrations": {
+            "description": "Integrations disabled for this cluster",
+            "items": {
+              "type": "string"
+            },
+            "title": "Disabled Integrations",
+            "type": "array"
+          },
+          "insecure_skip_tls_verify": {
+            "default": false,
+            "description": "Skip TLS certificate verification",
+            "title": "Insecure Skip Tls Verify",
+            "type": "boolean"
+          },
+          "internal": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the cluster is internal",
+            "title": "Internal"
+          },
+          "server_url": {
+            "description": "Kubernetes API server URL",
+            "title": "Server Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster_name",
+          "server_url"
+        ],
+        "title": "ClusterConnection",
+        "type": "object"
+      },
       "ClusterNamespaces": {
         "description": "Cluster with its desired namespaces and connection info.",
         "properties": {
@@ -292,6 +480,90 @@
         "title": "CreateNamespaceAction",
         "type": "object"
       },
+      "CurrentEndpoint": {
+        "description": "An endpoint currently declared in App-Interface.",
+        "properties": {
+          "name": {
+            "description": "Endpoint name",
+            "title": "Name",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Endpoint URL, if set",
+            "title": "Url"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CurrentEndpoint",
+        "type": "object"
+      },
+      "DeleteEndpointAction": {
+        "description": "Action: delete an existing endpoint.",
+        "properties": {
+          "action_type": {
+            "const": "delete_endpoint",
+            "default": "delete_endpoint",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "app_name": {
+            "description": "Application name",
+            "title": "App Name",
+            "type": "string"
+          },
+          "app_path": {
+            "description": "Application file path",
+            "title": "App Path",
+            "type": "string"
+          },
+          "cluster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cluster parsed from the endpoint name, when parseable",
+            "title": "Cluster"
+          },
+          "endpoint_name": {
+            "description": "Endpoint name to delete",
+            "title": "Endpoint Name",
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Namespace parsed from the endpoint name, when parseable",
+            "title": "Namespace"
+          }
+        },
+        "required": [
+          "app_name",
+          "app_path",
+          "endpoint_name"
+        ],
+        "title": "DeleteEndpointAction",
+        "type": "object"
+      },
       "DeleteNamespaceAction": {
         "description": "Action: Delete a namespace from a cluster.",
         "properties": {
@@ -317,6 +589,51 @@
           "namespace"
         ],
         "title": "DeleteNamespaceAction",
+        "type": "object"
+      },
+      "DesiredApp": {
+        "description": "An App-Interface application and its endpoints/namespaces.",
+        "properties": {
+          "end_points": {
+            "description": "Currently declared endpoints",
+            "items": {
+              "$ref": "#/components/schemas/CurrentEndpoint"
+            },
+            "title": "End Points",
+            "type": "array"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Application labels used for ignore keys",
+            "title": "Labels",
+            "type": "object"
+          },
+          "name": {
+            "description": "Application name",
+            "title": "Name",
+            "type": "string"
+          },
+          "namespaces": {
+            "description": "Namespaces belonging to the application",
+            "items": {
+              "$ref": "#/components/schemas/NamespaceDesiredState"
+            },
+            "title": "Namespaces",
+            "type": "array"
+          },
+          "path": {
+            "description": "Application file path in App-Interface",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "path"
+        ],
+        "title": "DesiredApp",
         "type": "object"
       },
       "DesiredClusterMachinePools": {
@@ -561,6 +878,185 @@
           "max_replica"
         ],
         "title": "DesiredNodePoolAutoscaling",
+        "type": "object"
+      },
+      "EndpointsDiscoveryReconcileRequest": {
+        "description": "Request to reconcile application endpoints from live routes.",
+        "properties": {
+          "app_interface": {
+            "$ref": "#/components/schemas/AppInterfaceRepo",
+            "description": "Repository the merge request targets"
+          },
+          "apps": {
+            "description": "Applications with namespaces and current endpoints",
+            "items": {
+              "$ref": "#/components/schemas/DesiredApp"
+            },
+            "title": "Apps",
+            "type": "array"
+          },
+          "auto_merge": {
+            "default": false,
+            "description": "Whether to request automatic merging of the MR",
+            "title": "Auto Merge",
+            "type": "boolean"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without opening an MR",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "endpoint_template": {
+            "description": "Jinja2 template content from the App-Interface resource",
+            "title": "Endpoint Template",
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint_template",
+          "app_interface",
+          "apps"
+        ],
+        "title": "EndpointsDiscoveryReconcileRequest",
+        "type": "object"
+      },
+      "EndpointsDiscoveryTaskResponse": {
+        "description": "Response for POST /reconcile (202 Accepted).",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Initial task status"
+          },
+          "status_url": {
+            "description": "URL to poll for task result",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "status_url"
+        ],
+        "title": "EndpointsDiscoveryTaskResponse",
+        "type": "object"
+      },
+      "EndpointsDiscoveryTaskResult": {
+        "description": "Result of an endpoints-discovery reconciliation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "All planned endpoint changes",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_endpoint": "#/components/schemas/AddEndpointAction",
+                  "change_endpoint": "#/components/schemas/ChangeEndpointAction",
+                  "delete_endpoint": "#/components/schemas/DeleteEndpointAction"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/AddEndpointAction"
+                },
+                {
+                  "$ref": "#/components/schemas/ChangeEndpointAction"
+                },
+                {
+                  "$ref": "#/components/schemas/DeleteEndpointAction"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions written into a newly created MR (empty if dry_run)",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_endpoint": "#/components/schemas/AddEndpointAction",
+                  "change_endpoint": "#/components/schemas/ChangeEndpointAction",
+                  "delete_endpoint": "#/components/schemas/DeleteEndpointAction"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/AddEndpointAction"
+                },
+                {
+                  "$ref": "#/components/schemas/ChangeEndpointAction"
+                },
+                {
+                  "$ref": "#/components/schemas/DeleteEndpointAction"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "apps_with_changes": {
+            "default": 0,
+            "description": "Applications with at least one endpoint change",
+            "title": "Apps With Changes",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "mr_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MergeRequestStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Merge request outcome (None for dry-run)"
+          },
+          "mr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL of the created or existing merge request",
+            "title": "Mr Url"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed/skipped)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "EndpointsDiscoveryTaskResult",
         "type": "object"
       },
       "EscalationPolicyUsersResponse": {
@@ -3720,6 +4216,58 @@
           "status"
         ],
         "title": "ManagedSsoClientTaskResult",
+        "type": "object"
+      },
+      "MergeRequestStatus": {
+        "description": "Outcome of the merge request side effect.\n\nOne MR covers every changed application, so the outcome belongs on the\ntask result rather than on an individual action.",
+        "enum": [
+          "created",
+          "exists",
+          "closed_outdated",
+          "not_needed",
+          "failed"
+        ],
+        "title": "MergeRequestStatus",
+        "type": "string"
+      },
+      "NamespaceDesiredState": {
+        "description": "A namespace from App-Interface, with discovery eligibility.",
+        "properties": {
+          "cluster": {
+            "$ref": "#/components/schemas/ClusterConnection",
+            "description": "Cluster connection details"
+          },
+          "delete": {
+            "default": false,
+            "description": "True = namespace is being removed",
+            "title": "Delete",
+            "type": "boolean"
+          },
+          "discover": {
+            "default": true,
+            "description": "False = keep existing endpoints but do not discover routes. Filtered namespaces stay in the non-deleted set so their endpoints are never treated as removed.",
+            "title": "Discover",
+            "type": "boolean"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Namespace labels used for ignore keys",
+            "title": "Labels",
+            "type": "object"
+          },
+          "name": {
+            "description": "Namespace name",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "cluster"
+        ],
+        "title": "NamespaceDesiredState",
         "type": "object"
       },
       "NotificationAddUser": {
@@ -7904,6 +8452,101 @@
         "summary": "Get Repo Owners",
         "tags": [
           "external"
+        ]
+      }
+    },
+    "/api/v1/integrations/endpoints-discovery/reconcile": {
+      "post": {
+        "description": "Queue an endpoints-discovery reconciliation task.",
+        "operationId": "endpoints-discovery",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndpointsDiscoveryReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndpointsDiscoveryTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Endpoints Discovery",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/endpoints-discovery/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve the reconciliation result (blocking or non-blocking).",
+        "operationId": "endpoints-discovery-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndpointsDiscoveryTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Endpoints Discovery Task Status",
+        "tags": [
+          "integrations"
         ]
       }
     },

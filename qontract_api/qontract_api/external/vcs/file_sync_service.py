@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from qontract_api.external.vcs.schemas import FileSyncFileOperation
-    from qontract_api.external.vcs.vcs_workspace_client import VCSWorkspaceClient
+    from qontract_api.vcs.vcs_workspace_client import VCSWorkspaceClient
 
 
 class FileSyncService:

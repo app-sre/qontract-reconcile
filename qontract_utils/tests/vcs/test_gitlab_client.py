@@ -11,6 +11,7 @@ from qontract_utils.vcs.provider_protocol import (
     CreateMergeRequestInput,
     FileAction,
     MergeRequestFile,
+    MergeRequestInfo,
 )
 from qontract_utils.vcs.providers.gitlab_client import (
     GitLabApiCallContext,
@@ -265,6 +266,199 @@ def test_gitlab_api_find_merge_request_calls_hooks(
     pre_hook.assert_called_once()
     context = pre_hook.call_args[0][0]
     assert context.method == "find_merge_request"
+
+
+def _mock_mr(
+    title: str,
+    web_url: str,
+    *,
+    description: str = "",
+    labels: list[str] | None = None,
+    has_conflicts: bool = False,
+) -> MagicMock:
+    """Create a mock python-gitlab merge request object."""
+    mr = MagicMock()
+    mr.title = title
+    mr.description = description
+    mr.web_url = web_url
+    mr.labels = labels or []
+    mr.has_conflicts = has_conflicts
+    return mr
+
+
+def test_gitlab_api_list_open_merge_requests(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test list_open_merge_requests maps GitLab objects to MergeRequestInfo."""
+    mock_mr = _mock_mr(
+        "[auto] endpoints-discovery: update application endpoints",
+        "https://gitlab.com/group/project/-/merge_requests/42",
+        description="description body",
+        labels=["ENDPOINTS-DISCOVERY"],
+        has_conflicts=True,
+    )
+    with patch.object(
+        gitlab_api._project.mergerequests, "list", return_value=[mock_mr]
+    ) as mock_list:
+        result = gitlab_api.list_open_merge_requests()
+
+    assert result == [
+        MergeRequestInfo(
+            title="[auto] endpoints-discovery: update application endpoints",
+            description="description body",
+            web_url="https://gitlab.com/group/project/-/merge_requests/42",
+            labels=["ENDPOINTS-DISCOVERY"],
+            has_conflicts=True,
+        )
+    ]
+    mock_list.assert_called_once_with(state="opened", per_page=100, iterator=True)
+
+
+def test_gitlab_api_list_open_merge_requests_with_label(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test list_open_merge_requests passes a label filter to GitLab."""
+    with patch.object(
+        gitlab_api._project.mergerequests, "list", return_value=[]
+    ) as mock_list:
+        result = gitlab_api.list_open_merge_requests(label="ENDPOINTS-DISCOVERY")
+
+    assert result == []
+    mock_list.assert_called_once_with(
+        state="opened",
+        per_page=100,
+        iterator=True,
+        labels="ENDPOINTS-DISCOVERY",
+    )
+
+
+def test_gitlab_api_list_open_merge_requests_with_title_filters_exact(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test a title filter keeps only exact matches, like find_merge_request."""
+    exact = _mock_mr(
+        "update application endpoints",
+        "https://gitlab.com/group/project/-/merge_requests/1",
+    )
+    partial = _mock_mr(
+        "update application endpoints and more",
+        "https://gitlab.com/group/project/-/merge_requests/2",
+    )
+    with patch.object(
+        gitlab_api._project.mergerequests, "list", return_value=[exact, partial]
+    ) as mock_list:
+        result = gitlab_api.list_open_merge_requests(
+            title="update application endpoints"
+        )
+
+    assert [mr.web_url for mr in result] == [
+        "https://gitlab.com/group/project/-/merge_requests/1"
+    ]
+    mock_list.assert_called_once_with(
+        state="opened",
+        per_page=100,
+        iterator=True,
+        search="update application endpoints",
+    )
+
+
+def test_gitlab_api_list_open_merge_requests_calls_hooks(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test list_open_merge_requests triggers hooks."""
+    pre_hook = MagicMock()
+    gitlab_api._hooks = Hooks(pre_hooks=[pre_hook])
+
+    with patch.object(gitlab_api._project.mergerequests, "list", return_value=[]):
+        gitlab_api.list_open_merge_requests()
+
+    pre_hook.assert_called_once()
+    assert pre_hook.call_args[0][0].method == "list_open_merge_requests"
+
+
+def test_gitlab_api_close_merge_request_with_comment(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test close_merge_request comments then closes the MR."""
+    mock_mr = _mock_mr("title", "https://gitlab.com/group/project/-/merge_requests/42")
+    with patch.object(
+        gitlab_api._project.mergerequests, "get", return_value=mock_mr
+    ) as mock_get:
+        gitlab_api.close_merge_request(
+            "https://gitlab.com/group/project/-/merge_requests/42",
+            comment="Closing this MR because it's outdated.",
+        )
+
+    mock_get.assert_called_once_with(42)
+    mock_mr.notes.create.assert_called_once_with(
+        {"body": "Closing this MR because it's outdated."}
+    )
+    assert mock_mr.state_event == "close"
+    mock_mr.save.assert_called_once_with()
+
+
+def test_gitlab_api_close_merge_request_without_comment(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test close_merge_request skips the comment when none is given."""
+    mock_mr = _mock_mr("title", "https://gitlab.com/group/project/-/merge_requests/7")
+    with patch.object(gitlab_api._project.mergerequests, "get", return_value=mock_mr):
+        gitlab_api.close_merge_request(
+            "https://gitlab.com/group/project/-/merge_requests/7"
+        )
+
+    mock_mr.notes.create.assert_not_called()
+    assert mock_mr.state_event == "close"
+    mock_mr.save.assert_called_once_with()
+
+
+def test_gitlab_api_close_merge_request_trailing_slash(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test a trailing slash still yields the merge request IID."""
+    mock_mr = _mock_mr("title", "https://gitlab.com/group/project/-/merge_requests/9/")
+    with patch.object(
+        gitlab_api._project.mergerequests, "get", return_value=mock_mr
+    ) as mock_get:
+        gitlab_api.close_merge_request(
+            "https://gitlab.com/group/project/-/merge_requests/9/"
+        )
+
+    mock_get.assert_called_once_with(9)
+
+
+def test_gitlab_api_close_merge_request_invalid_url(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test a URL without a numeric IID raises ValueError."""
+    with pytest.raises(ValueError, match="merge request IID"):
+        gitlab_api.close_merge_request("https://gitlab.com/group/project")
+
+
+def test_gitlab_api_close_merge_request_calls_hooks(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """Test close_merge_request triggers hooks."""
+    pre_hook = MagicMock()
+    gitlab_api._hooks = Hooks(pre_hooks=[pre_hook])
+    mock_mr = _mock_mr("title", "https://gitlab.com/group/project/-/merge_requests/3")
+
+    with patch.object(gitlab_api._project.mergerequests, "get", return_value=mock_mr):
+        gitlab_api.close_merge_request(
+            "https://gitlab.com/group/project/-/merge_requests/3"
+        )
+
+    pre_hook.assert_called_once()
+    assert pre_hook.call_args[0][0].method == "close_merge_request"
 
 
 def test_gitlab_api_create_merge_request(

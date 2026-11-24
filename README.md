@@ -10,7 +10,6 @@
 A tool to reconcile services with their desired state as defined in app-interface.
 Additional tools that use the libraries created by the reconciliations are also hosted here.
 
-
 ## Usage
 
 Use [config.toml.example](config.toml.example) as a template to create a `config.toml` file.
@@ -28,7 +27,7 @@ qontract-reconcile --config config.toml <subcommand>
 
 ### OpenShift usage
 
-OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In order to add integrations there please use the [helm](/helm/README.md) chart provided.
+OpenShift templates can be found in [openshift/qontract-reconcile.yaml](/openshift/qontract-reconcile.yaml). In order to add integrations there please use the [helm](/helm/README.md) chart provided.
 
 ## Available Integrations
 
@@ -78,6 +77,8 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   email-sender                    Send email notifications to app-interface
                                   audience.
   endpoints-discovery             Discover routes and update endpoints
+  endpoints-discovery-api         Discover routes and update endpoints via
+                                  qontract-api.
   external-resources              Manages External Resources
   external-resources-secrets-sync
                                   Syncs External Resources Secrets from Vault
@@ -362,7 +363,7 @@ make dev-reconcile-loop INTEGRATION_NAME=terraform-resources DRY_RUN=--dry-run L
 ## Query Classes
 
 We use [qenerate](https://github.com/app-sre/qenerate) to generate data classes for GQL queries.
-GQL definitions and generated classes can be found [here](reconcile/gql_definitions/).
+GQL definitions and generated classes can be found in [reconcile/gql_definitions/](reconcile/gql_definitions/).
 
 ### Workflow
 

@@ -8,11 +8,14 @@ from qontract_utils.vcs.models import RepoOwners
 from qontract_utils.vcs.owners_parser import OwnersParser
 
 if TYPE_CHECKING:
-    from qontract_utils.vcs.provider_protocol import CreateMergeRequestInput
+    from qontract_utils.vcs.provider_protocol import (
+        CreateMergeRequestInput,
+        MergeRequestInfo,
+    )
 
     from qontract_api.cache import CacheBackend
     from qontract_api.config import Settings
-    from qontract_api.external.vcs.provider_factory import VCSProviderFactory
+    from qontract_api.vcs.provider_factory import VCSProviderFactory
 
 
 class VCSWorkspaceClient:
@@ -129,6 +132,38 @@ class VCSWorkspaceClient:
 
         """
         return self._api_client.create_merge_request(mr_input)
+
+    def list_open_merge_requests(
+        self, *, label: str | None = None, title: str | None = None
+    ) -> list[MergeRequestInfo]:
+        """List open merge requests, optionally filtered.
+
+        Delegates to the underlying VCS API client (no caching).
+
+        Args:
+            label: Only return MRs carrying this label
+            title: Only return MRs whose title matches exactly
+
+        Returns:
+            Matching open merge requests with description, labels and conflict state
+        """
+        filters: dict[str, str] = {}
+        if label is not None:
+            filters["label"] = label
+        if title is not None:
+            filters["title"] = title
+        return self._api_client.list_open_merge_requests(**filters)
+
+    def close_merge_request(self, web_url: str, *, comment: str = "") -> None:
+        """Close an open merge request, optionally leaving a comment first.
+
+        Delegates to the underlying VCS API client (no caching).
+
+        Args:
+            web_url: URL of the merge request to close
+            comment: Optional comment explaining the close
+        """
+        self._api_client.close_merge_request(web_url, comment=comment)
 
     def get_file(self, path: str, ref: str) -> str | None:
         """Get file content from repository.

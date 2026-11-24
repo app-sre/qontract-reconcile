@@ -14,6 +14,32 @@ class AccessType(str, enum.Enum):
     BEARER_ONLY = "bearer-only"
 
 
+class AddEndpointAction(pydantic.BaseModel):
+    action_type: typing.Literal["add_endpoint"] = "add_endpoint"
+    app_name: str
+    app_path: str
+    cluster: str
+    data: dict[str, typing.Any]
+    endpoint_name: str
+    namespace: str
+
+
+class AppInterfaceRepo(pydantic.BaseModel):
+    repo_url: str
+    target_branch: str = "master"
+    token: Secret
+
+
+class ChangeEndpointAction(pydantic.BaseModel):
+    action_type: typing.Literal["change_endpoint"] = "change_endpoint"
+    app_name: str
+    app_path: str
+    cluster: str
+    data: dict[str, typing.Any]
+    endpoint_name: str
+    namespace: str
+
+
 class ChatRequest(pydantic.BaseModel):
     channel: str | None = None
     icon_emoji: str | None = None
@@ -43,6 +69,15 @@ class ChatTaskResult(pydantic.BaseModel):
     ts: str | None = None
 
 
+class ClusterConnection(pydantic.BaseModel):
+    automation_token: Secret | None | None = None
+    cluster_name: str
+    disabled_integrations: list[str] | None = None
+    insecure_skip_tls_verify: bool = False
+    internal: bool | None = None
+    server_url: str
+
+
 class ClusterNamespaces(pydantic.BaseModel):
     automation_token: Secret
     cluster_name: str
@@ -63,10 +98,32 @@ class CreateNamespaceAction(pydantic.BaseModel):
     namespace: str
 
 
+class CurrentEndpoint(pydantic.BaseModel):
+    name: str
+    url: str | None = None
+
+
+class DeleteEndpointAction(pydantic.BaseModel):
+    action_type: typing.Literal["delete_endpoint"] = "delete_endpoint"
+    app_name: str
+    app_path: str
+    cluster: str | None = None
+    endpoint_name: str
+    namespace: str | None = None
+
+
 class DeleteNamespaceAction(pydantic.BaseModel):
     action_type: typing.Literal["delete_namespace"] = "delete_namespace"
     cluster: str
     namespace: str
+
+
+class DesiredApp(pydantic.BaseModel):
+    end_points: list[CurrentEndpoint] | None = None
+    labels: dict[str, typing.Any] | None = None
+    name: str
+    namespaces: list[NamespaceDesiredState] | None = None
+    path: str
 
 
 class DesiredClusterMachinePools(pydantic.BaseModel):
@@ -108,6 +165,41 @@ class DesiredNodePool(pydantic.BaseModel):
 class DesiredNodePoolAutoscaling(pydantic.BaseModel):
     max_replica: int
     min_replica: int
+
+
+class EndpointsDiscoveryReconcileRequest(pydantic.BaseModel):
+    app_interface: AppInterfaceRepo
+    apps: list[DesiredApp]
+    auto_merge: bool = False
+    dry_run: bool = True
+    endpoint_template: str
+
+
+class EndpointsDiscoveryTaskResponse(pydantic.BaseModel):
+    id: str
+    status: TaskStatus
+    status_url: str
+
+
+class EndpointsDiscoveryTaskResult(pydantic.BaseModel):
+    actions: list[
+        typing.Annotated[
+            AddEndpointAction | ChangeEndpointAction | DeleteEndpointAction,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_actions: list[
+        typing.Annotated[
+            AddEndpointAction | ChangeEndpointAction | DeleteEndpointAction,
+            pydantic.Field(discriminator="action_type"),
+        ]
+    ] = []
+    applied_count: int = 0
+    apps_with_changes: int = 0
+    errors: list[str] = []
+    mr_status: MergeRequestStatus | None | None = None
+    mr_url: str | None = None
+    status: TaskStatus
 
 
 class EscalationPolicyUsersResponse(pydantic.BaseModel):
@@ -814,6 +906,22 @@ class ManagedSsoClientTaskResult(pydantic.BaseModel):
     applied_count: int = 0
     errors: list[str] = []
     status: TaskStatus
+
+
+class MergeRequestStatus(str, enum.Enum):
+    CREATED = "created"
+    EXISTS = "exists"
+    CLOSED_OUTDATED = "closed_outdated"
+    NOT_NEEDED = "not_needed"
+    FAILED = "failed"
+
+
+class NamespaceDesiredState(pydantic.BaseModel):
+    cluster: ClusterConnection
+    delete: bool = False
+    discover: bool = True
+    labels: dict[str, typing.Any] | None = None
+    name: str
 
 
 class NotificationAddUser(pydantic.BaseModel):

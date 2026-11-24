@@ -1,0 +1,21 @@
+# qenerate: plugin=pydantic_v2
+
+query EndpointsDiscoveryApps {
+  apps: apps_v1 {
+    path
+    name
+    labels
+    endPoints {
+      name
+      url
+    }
+    namespaces {
+      name
+      labels
+      delete
+      cluster {
+        ...OcConnectionCluster
+      }
+    }
+  }
+}

@@ -48,6 +48,22 @@ class CreateMergeRequestInput:
     auto_merge: bool = False
 
 
+@dataclass(frozen=True)
+class MergeRequestInfo:
+    """An open merge request, including the fields needed to reconcile it.
+
+    The description matters because integrations embed machine-readable
+    metadata (for example a content hash) below a marker line and parse it
+    back to decide whether the open MR is still current.
+    """
+
+    title: str
+    description: str
+    web_url: str
+    labels: list[str] = field(default_factory=list)
+    has_conflicts: bool = False
+
+
 class VCSApiProtocol(Protocol):
     """Protocol for VCS API clients (GitHub, GitLab, etc.).
 
@@ -89,6 +105,32 @@ class VCSApiProtocol(Protocol):
 
         Returns:
             URL of the open merge request, or None if not found
+        """
+        ...
+
+    def list_open_merge_requests(
+        self, *, label: str | None = None, title: str | None = None
+    ) -> list[MergeRequestInfo]:
+        """List open merge requests, optionally filtered.
+
+        Args:
+            label: Only return MRs carrying this label
+            title: Only return MRs whose title matches exactly
+
+        Returns:
+            Matching open merge requests with description, labels and conflict state
+        """
+        ...
+
+    def close_merge_request(self, web_url: str, *, comment: str = "") -> None:
+        """Close an open merge request.
+
+        Args:
+            web_url: URL of the merge request to close
+            comment: Optional comment explaining the close, posted before closing
+
+        Raises:
+            ValueError: If the URL does not identify a merge request
         """
         ...
 

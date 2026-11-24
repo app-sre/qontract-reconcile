@@ -1,7 +1,7 @@
 """VCS external API endpoints for repository OWNERS files."""
 
 from qontract_api.external.vcs.schemas import RepoOwnersResponse, VCSProvider
-from qontract_api.external.vcs.vcs_factory import create_vcs_workspace_client
+from qontract_api.vcs.vcs_factory import create_vcs_workspace_client
 
 __all__ = [
     "RepoOwnersResponse",

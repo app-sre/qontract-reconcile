@@ -6,6 +6,7 @@ from qontract_utils.vcs.provider_protocol import (
     CreateMergeRequestInput,
     FileAction,
     MergeRequestFile,
+    MergeRequestInfo,
 )
 
 
@@ -93,3 +94,25 @@ def test_create_merge_request_input_immutable() -> None:
 def test_auto_merge_label_value() -> None:
     """Test AUTO_MERGE_LABEL constant."""
     assert AUTO_MERGE_LABEL == "bot/automerge"
+
+
+def test_merge_request_info_required_fields() -> None:
+    """Test MergeRequestInfo requires title, description and URL."""
+    info = MergeRequestInfo(
+        title="[auto] update",
+        description="body",
+        web_url="https://gitlab.com/group/project/-/merge_requests/1",
+    )
+    assert info.labels == []
+    assert info.has_conflicts is False
+
+
+def test_merge_request_info_immutable() -> None:
+    """Test MergeRequestInfo is frozen."""
+    info = MergeRequestInfo(
+        title="t",
+        description="d",
+        web_url="https://gitlab.com/group/project/-/merge_requests/1",
+    )
+    with pytest.raises(AttributeError):
+        info.title = "changed"  # type: ignore[misc]

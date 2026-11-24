@@ -38,6 +38,7 @@ Change the SOURCE, then regenerate. Never edit these files.
 - `qontract_api/qontract_api/routers/` — FastAPI route definitions
 - `qontract_api/qontract_api/tasks/` — Celery task definitions
 - `qontract_api/qontract_api/cache/` — Distributed cache backends
+- `qontract_api/qontract_api/vcs/`: Shared VCS Layer 2 (provider-aware workspace client and factories). `external/vcs` re-exports them; integrations that reconcile into a git repository use this layer directly instead of the client-orchestrated `/external/vcs/file-sync` endpoint.
 - `qontract_utils/qontract_utils/vcs/` — VCS clients (GitHub, GitLab — Layer 1)
 - `qontract_utils/qontract_utils/secret_reader/` — Vault secret readers
 - `tools/` — CLI utilities and standalone tools
@@ -224,6 +225,7 @@ Do NOT create a barrel re-export `models.py` — import directly from `domain.py
 - All metrics should include environment/scope labels (e.g. `["integration", "ocm_environment"]`) for per-environment dashboards
 - Fatal errors (auth failures, timeouts, 500s) must be appended to the `errors` list — the task must report FAILURE, not SUCCESS, when clusters are silently skipped
 - Implement defensive desired-state handling: distinguish transient failures (Vault secret pending) from genuine misconfigurations. A transient failure should not cause deletions
+- Integrations whose mutation target is a git repository use the VCS Layer 2 client: read the current file with `get_file`, render and merge content in Layer 3, then `list_open_merge_requests`/`close_merge_request` to dedupe and retire MRs before `create_merge_request`. Keep YAML merging, hashes and MR description formats in the integration, never in Layer 1, and keep old formats byte-compatible while a previous integration may still have MRs open.
 - Per-cluster error isolation: one failed cluster should not abort reconciliation for others. This does not apply to membership-source validation failures, which abort the complete integration before mutations.
 - **Carve-out for externally-imposed, self-healing throttling** (e.g. a shared API rate limit): report SUCCESS with a warning log instead of FAILURE, and do not append to `errors`. Unlike a generic transient failure, the reset time is known upfront, there is no action an operator can take before it, and the alert that FAILURE would trigger is not actionable. Only applies when the condition is detected via a typed exception (not inferred from a generic error) — see `github-owners`'s `GithubRateLimitExceededError` handling in `qontract_api/qontract_api/integrations/github_owners/service.py` for the reference implementation
 
