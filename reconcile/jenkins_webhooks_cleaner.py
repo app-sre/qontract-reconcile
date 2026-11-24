@@ -29,25 +29,33 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
     repos = queries.get_repos(server=gl.server)
 
     for repo in repos:
-        found_hook_urls = set()
+        found_hooks: set[tuple[str, bool, bool, bool]] = set()
         try:
             hooks = gl.get_project_hooks(repo)
-            for hook in hooks:
-                hook_url = hook.url
-                if hook_url in found_hook_urls:
-                    # duplicate! remove
-                    logging.info(["delete_hook", repo, hook_url])
-                    if not dry_run:
-                        hook.delete()
-                    continue
-                found_hook_urls.add(hook_url)
-                for previous_url in previous_urls:
-                    if hook_url.startswith(previous_url):
-                        logging.info(["delete_hook", repo, hook_url])
-                        if not dry_run:
-                            hook.delete()
         except Exception:
-            logging.warning("no access to project: " + repo)
+            logging.exception("Unable to list hooks for %s; skipping cleanup", repo)
+            continue
+
+        for hook in hooks:
+            hook_url = hook.url
+            if any(hook_url.startswith(url) for url in previous_urls):
+                logging.info(["delete_hook", repo, hook_url])
+                if not dry_run:
+                    hook.delete()
+                continue
+
+            hook_key = (
+                hook_url.strip("/"),
+                bool(hook.merge_requests_events),
+                bool(hook.push_events),
+                bool(hook.note_events),
+            )
+            if hook_key in found_hooks:
+                logging.info(["delete_hook", repo, hook_url])
+                if not dry_run:
+                    hook.delete()
+                continue
+            found_hooks.add(hook_key)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:

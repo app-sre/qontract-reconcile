@@ -620,9 +620,10 @@ class GitLabApi:
 
     @retry()
     def get_project_hooks(self, repo_url: str) -> list[ProjectHook]:
-        p = self.get_project(repo_url)
-        if p is None:
-            return []
+        repo = repo_url.removeprefix(self.server).strip("/")
+        # A failed project lookup must not look like an empty hook list: callers
+        # would create every desired hook again during a GitLab API outage.
+        p = self.gl.projects.get(repo)
         return p.hooks.list(per_page=100, get_all=True)
 
     def create_project_hook(self, repo_url: str, data: Mapping) -> None:

@@ -97,6 +97,19 @@ def mocked_gitlab_api(
     return GitLabApi(instance, project_id=1)
 
 
+def test_get_project_hooks_fails_closed_when_project_lookup_is_degraded(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+    patch_sleep: None,
+) -> None:
+    mocked_gl.projects.get.side_effect = GitlabGetError(
+        "too many requests", response_code=429
+    )
+
+    with pytest.raises(GitlabGetError, match="too many requests"):
+        mocked_gitlab_api.get_project_hooks("http://some-url/group/project")
+
+
 def test_gitlab_api_init(
     instance: Mapping,
     mocker: MockerFixture,
