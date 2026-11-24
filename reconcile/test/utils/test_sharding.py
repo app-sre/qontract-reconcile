@@ -3,12 +3,25 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING
 
+import pytest
+
 from reconcile.utils import sharding
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from pytest import MonkeyPatch
 
 VALUE = "saas-qontract-reconcile"
+
+
+@pytest.fixture(autouse=True)
+def restore_sharding_globals() -> Generator[None]:
+    # Reloading the module changes globals used by other tests in this worker.
+    shards, shard_id = sharding.SHARDS, sharding.SHARD_ID
+    yield
+    sharding.SHARDS = shards
+    sharding.SHARD_ID = shard_id
 
 
 def test_is_in_shard_single_shard(monkeypatch: MonkeyPatch) -> None:
