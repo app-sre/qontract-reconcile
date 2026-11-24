@@ -55,7 +55,7 @@ dependencies = [
     "sretoolbox==4.0.1",
     "tabulate==0.10.0",
     "terrascript==0.9.0",
-    "UnleashClient==6.9.1",
+    "UnleashClient==7.0.0",
     "urllib3~=2.2",
     "yamllint==1.38.0",
     "qontract-api-client",
