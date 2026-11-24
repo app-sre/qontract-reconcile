@@ -32,8 +32,6 @@ DETAIL_ONLY_FIELDS = {"custom_headers", "url_variables"}
 UNMANAGED_SETTINGS = (
     "push_events_branch_filter",
     "custom_webhook_template",
-    "token_present",
-    "signing_token_present",
     "duo_flow_callback_enabled",
     "name",
     "description",
@@ -57,6 +55,11 @@ def _managed_hook_key(
     if not isinstance(attrs, Mapping) or not MANAGED_EVENT_FIELDS.issubset(attrs):
         return None
     if complete and not DETAIL_ONLY_FIELDS.issubset(attrs):
+        return None
+    if complete and (
+        attrs.get("token_present") is not False
+        or attrs.get("signing_token_present") is not False
+    ):
         return None
     if attrs.get("enable_ssl_verification") is not True:
         return None
@@ -142,15 +145,27 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
                     candidate_detail, current_prefixes, complete=True
                 )
                 for existing in seen:
+                    existing_detail = _get_details(existing, details)
                     existing_key = _managed_hook_key(
-                        _get_details(existing, details), current_prefixes, complete=True
+                        existing_detail, current_prefixes, complete=True
                     )
-                    if candidate_key is not None and candidate_key == existing_key:
+                    if candidate_key is None or candidate_key != existing_key:
+                        continue
+                    if existing_detail.attributes.get("alert_status") == "executable":
                         logging.info(["delete_hook", repo, hook.id, hook.url])
                         if not dry_run:
                             deleting_hook_id = hook.id
                             hook.delete()
                             deleting_hook_id = None
+                        break
+                    if candidate_detail.attributes.get("alert_status") == "executable":
+                        logging.info(["delete_hook", repo, existing.id, existing.url])
+                        if not dry_run:
+                            deleting_hook_id = existing.id
+                            existing.delete()
+                            deleting_hook_id = None
+                        seen.remove(existing)
+                        seen.append(hook)
                         break
                 else:
                     seen.append(hook)

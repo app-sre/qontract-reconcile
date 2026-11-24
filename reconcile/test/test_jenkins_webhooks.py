@@ -44,6 +44,7 @@ def make_hook(
         "url_variables": [],
         "name": None,
         "description": None,
+        "alert_status": "executable",
         "disabled_until": None,
     }
     attrs.update(settings)
@@ -226,3 +227,54 @@ def test_jenkins_webhooks_cleaner_continues_after_failed_delete(
         and "Failed deleting" in record.getMessage()
         for record in caplog.records
     )
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+@pytest.mark.parametrize("disabled_first", [True, False])
+def test_jenkins_webhooks_cleaner_retains_executable_duplicate(
+    dry_run: bool, disabled_first: bool, cleaner_gl: tuple[Mock, Mock]
+) -> None:
+    gl, _ = cleaner_gl
+    disabled = make_hook(JOB_URL, mr=True, note=True, alert_status="disabled")
+    executable = make_hook(JOB_URL + "/", mr=True, note=True)
+    gl.get_project_hooks.return_value = (
+        [disabled, executable] if disabled_first else [executable, disabled]
+    )
+
+    jenkins_webhooks_cleaner.run(dry_run=dry_run)
+
+    executable.delete.assert_not_called()
+    assert disabled.delete.call_count == (0 if dry_run else 1)
+
+
+def test_jenkins_webhooks_cleaner_preserves_disabled_duplicates(
+    cleaner_gl: tuple[Mock, Mock],
+) -> None:
+    gl, _ = cleaner_gl
+    first = make_hook(JOB_URL, mr=True, note=True, alert_status="disabled")
+    duplicate = make_hook(JOB_URL + "/", mr=True, note=True, alert_status="disabled")
+    gl.get_project_hooks.return_value = [first, duplicate]
+
+    jenkins_webhooks_cleaner.run(dry_run=False)
+
+    first.delete.assert_not_called()
+    duplicate.delete.assert_not_called()
+
+
+@pytest.mark.parametrize("missing_field", ["token_present", "signing_token_present"])
+def test_jenkins_webhooks_cleaner_preserves_hooks_without_token_metadata(
+    missing_field: str, cleaner_gl: tuple[Mock, Mock]
+) -> None:
+    gl, _ = cleaner_gl
+    first = make_hook(JOB_URL, mr=True, note=True)
+    duplicate = make_hook(JOB_URL + "/", mr=True, note=True)
+    old = make_hook("https://old-jenkins.example.com/project/job", push=True)
+    for hook in (first, duplicate, old):
+        hook.manager.get.return_value.attributes.pop(missing_field)
+    gl.get_project_hooks.return_value = [first, duplicate, old]
+
+    jenkins_webhooks_cleaner.run(dry_run=False)
+
+    first.delete.assert_not_called()
+    duplicate.delete.assert_not_called()
+    old.delete.assert_not_called()
