@@ -71,7 +71,7 @@ def _unique_clusters(apps: Iterable[DesiredApp]) -> dict[str, ClusterConnection]
     clusters: dict[str, ClusterConnection] = {}
     for app in apps:
         for namespace in app.namespaces:
-            if not namespace.discover:
+            if not namespace.discover or namespace.delete:
                 continue
             clusters.setdefault(namespace.cluster.cluster_name, namespace.cluster)
     return clusters
@@ -212,7 +212,9 @@ def reconcile_endpoints_discovery_task(
         secret_errors.append(error_msg)
 
     has_discoverable_namespaces = any(
-        namespace.discover for app in request.apps for namespace in app.namespaces
+        namespace.discover and not namespace.delete
+        for app in request.apps
+        for namespace in app.namespaces
     )
     if vcs_token is None or (has_discoverable_namespaces and not connection_params):
         result = EndpointsDiscoveryTaskResult(

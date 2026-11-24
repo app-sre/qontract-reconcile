@@ -142,8 +142,10 @@ class EndpointsDiscoveryService:
                 apps_with_changes=apps_with_changes,
                 actions=len(actions),
             )
-        elif not plans:
-            mr_status = MergeRequestStatus.NOT_NEEDED
+        elif not plans and errors:
+            # Planning was incomplete, so an empty plan is not proof that an
+            # open merge request is obsolete. Leave merge request state alone.
+            mr_status = MergeRequestStatus.FAILED
         else:
             try:
                 mr_status, mr_url, applied_actions, mr_errors = (

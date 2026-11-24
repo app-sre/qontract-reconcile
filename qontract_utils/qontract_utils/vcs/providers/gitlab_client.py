@@ -92,14 +92,22 @@ def _request_log_hook(context: GitLabApiCallContext) -> None:
     logger.debug("API request", method=context.method, repo_url=context.repo_url)
 
 
+_MERGE_REQUEST_PATH = "/-/merge_requests/"
+
+
 def _merge_request_iid(web_url: str) -> int:
     """Extract the merge request IID from a GitLab MR URL.
 
     GitLab URLs end in the project-scoped IID (for example
     `https://gitlab.com/group/project/-/merge_requests/42`), which is what
-    the API needs to look the request up again.
+    the API needs to look the request up again. The merge-request path is
+    required, so an issue URL cannot resolve to an unrelated MR IID.
     """
-    last_segment = web_url.rstrip("/").rsplit("/", 1)[-1]
+    path = web_url.rstrip("/")
+    marker_index = path.rfind(_MERGE_REQUEST_PATH)
+    if marker_index == -1:
+        raise ValueError(f"Cannot determine merge request IID from {web_url!r}")
+    last_segment = path[marker_index + len(_MERGE_REQUEST_PATH) :]
     try:
         return int(last_segment)
     except ValueError as e:

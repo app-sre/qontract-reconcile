@@ -127,6 +127,11 @@ def render_merge_request_content(
 
     Existing order is preserved, changed entries are replaced in place,
     untouched entries are carried over verbatim, and additions are appended.
+
+    An addition whose name already exists is never duplicated. Identical
+    content means the file is ahead of App-Interface and the addition is
+    skipped; different content is a conflict and raises, so the caller fails
+    closed instead of writing two endpoints with the same name.
     """
     yml = create_ruamel_instance(explicit_start=True)
     content = yml.load(current_content)
@@ -139,7 +144,20 @@ def render_merge_request_content(
         else:
             new_endpoints.append(app_endpoint)
 
-    new_endpoints.extend(endpoints_to_add)
+    existing_by_name = {endpoint["name"]: endpoint for endpoint in new_endpoints}
+    for endpoint in endpoints_to_add:
+        name = endpoint["name"]
+        existing = existing_by_name.get(name)
+        if existing is not None:
+            if existing == endpoint:
+                continue
+            raise ValueError(
+                f"Endpoint {name!r} already exists with different content; "
+                "refusing to duplicate it"
+            )
+        new_endpoints.append(endpoint)
+        existing_by_name[name] = endpoint
+
     content["endPoints"] = new_endpoints
     with StringIO() as stream:
         yml.dump(content, stream)

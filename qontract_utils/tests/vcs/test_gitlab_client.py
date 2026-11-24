@@ -443,6 +443,15 @@ def test_gitlab_api_close_merge_request_invalid_url(
         gitlab_api.close_merge_request("https://gitlab.com/group/project")
 
 
+def test_gitlab_api_close_merge_request_rejects_non_merge_request_url(
+    gitlab_api: GitLabRepoApi,
+    mock_gitlab_client: MagicMock,
+) -> None:
+    """An issue URL must not resolve to an unrelated merge request IID."""
+    with pytest.raises(ValueError, match="merge request IID"):
+        gitlab_api.close_merge_request("https://gitlab.com/group/project/-/issues/42")
+
+
 def test_gitlab_api_close_merge_request_calls_hooks(
     gitlab_api: GitLabRepoApi,
     mock_gitlab_client: MagicMock,

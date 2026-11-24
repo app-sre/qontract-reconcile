@@ -629,13 +629,110 @@ def test_live_run_without_changes_is_not_needed(
     service: EndpointsDiscoveryService,
     vcs_client: MagicMock,
 ) -> None:
-    """An empty plan never touches the repository."""
+    """An empty plan inspects open MRs but never writes."""
     result = service.reconcile(_request([_app()], dry_run=False), dry_run=False)
 
     assert result.mr_status == MergeRequestStatus.NOT_NEEDED
     assert result.apps_with_changes == 0
-    vcs_client.list_open_merge_requests.assert_not_called()
+    vcs_client.list_open_merge_requests.assert_called_once_with(label=LABEL)
     vcs_client.get_file.assert_not_called()
+    vcs_client.create_merge_request.assert_not_called()
+
+
+def test_live_run_empty_plan_closes_obsolete_mr(
+    service: EndpointsDiscoveryService,
+    vcs_client: MagicMock,
+) -> None:
+    """An empty plan closes an open MR built from an earlier plan."""
+    vcs_client.list_open_merge_requests.return_value = [
+        MergeRequestInfo(
+            title=render_title(),
+            description=render_description(plan_hash="deadbeef"),
+            web_url="https://gitlab.example.com/mr/11",
+            labels=[LABEL],
+        )
+    ]
+
+    result = service.reconcile(_request([_app()], dry_run=False), dry_run=False)
+
+    assert result.mr_status == MergeRequestStatus.CLOSED_OUTDATED
+    vcs_client.close_merge_request.assert_called_once_with(
+        "https://gitlab.example.com/mr/11",
+        comment="Closing this MR because it's outdated.",
+    )
+    vcs_client.create_merge_request.assert_not_called()
+
+
+def test_live_run_planning_error_does_not_touch_merge_requests(
+    service: EndpointsDiscoveryService,
+    cluster_client: MagicMock,
+    vcs_client: MagicMock,
+) -> None:
+    """An incomplete plan is not proof that an open MR is obsolete."""
+    cluster_client.list_routes.side_effect = RuntimeError("forbidden")
+    vcs_client.list_open_merge_requests.return_value = [
+        MergeRequestInfo(
+            title=render_title(),
+            description=render_description(plan_hash="deadbeef"),
+            web_url="https://gitlab.example.com/mr/12",
+            labels=[LABEL],
+        )
+    ]
+
+    result = service.reconcile(_request([_app()], dry_run=False), dry_run=False)
+
+    assert result.status == TaskStatus.FAILED
+    assert result.mr_status == MergeRequestStatus.FAILED
+    vcs_client.list_open_merge_requests.assert_not_called()
+    vcs_client.close_merge_request.assert_not_called()
+
+
+def test_live_run_stale_graphql_add_with_identical_endpoint_is_not_needed(
+    service: EndpointsDiscoveryService,
+    cluster_client: MagicMock,
+    vcs_client: MagicMock,
+) -> None:
+    """An addition already present with identical content produces no commit."""
+    cluster_client.list_routes.return_value = [
+        Route(name="route-a", host="a.example.com", tls=True)
+    ]
+    endpoint_name = f"{PREFIX}route-a"
+    vcs_client.get_file.return_value = render_merge_request_content(
+        current_content="---\nname: app-1\n",
+        endpoints_to_add=[{"name": endpoint_name, "url": "a.example.com:443"}],
+        endpoints_to_change={},
+        endpoints_to_delete=[],
+    )
+
+    result = service.reconcile(_request([_app()], dry_run=False), dry_run=False)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert result.mr_status == MergeRequestStatus.NOT_NEEDED
+    vcs_client.create_merge_request.assert_not_called()
+
+
+def test_live_run_stale_graphql_add_with_conflicting_endpoint_fails(
+    service: EndpointsDiscoveryService,
+    cluster_client: MagicMock,
+    vcs_client: MagicMock,
+) -> None:
+    """An addition conflicting with the file fails instead of duplicating it."""
+    cluster_client.list_routes.return_value = [
+        Route(name="route-a", host="a.example.com", tls=True)
+    ]
+    endpoint_name = f"{PREFIX}route-a"
+    vcs_client.get_file.return_value = render_merge_request_content(
+        current_content="---\nname: app-1\n",
+        endpoints_to_add=[{"name": endpoint_name, "url": "a.example.com:80"}],
+        endpoints_to_change={},
+        endpoints_to_delete=[],
+    )
+
+    result = service.reconcile(_request([_app()], dry_run=False), dry_run=False)
+
+    assert result.status == TaskStatus.FAILED
+    assert result.mr_status == MergeRequestStatus.FAILED
+    assert result.errors
     vcs_client.create_merge_request.assert_not_called()
 
 

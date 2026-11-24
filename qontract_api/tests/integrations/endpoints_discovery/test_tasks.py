@@ -200,6 +200,71 @@ def test_resolve_cluster_connections_skips_non_discover_namespaces() -> None:
     secret_manager.read_all.assert_not_called()
 
 
+def test_resolve_cluster_connections_skips_deleted_namespaces() -> None:
+    """A deleted namespace needs no connection even when discover is true."""
+    secret_manager = MagicMock()
+    app = DesiredApp(
+        name="app-1",
+        path="/services/app-1/app.yml",
+        namespaces=[
+            NamespaceDesiredState(
+                name="ns-1",
+                cluster=ClusterConnection(
+                    cluster_name="cluster-1",
+                    server_url="https://cluster-1:6443",
+                ),
+                delete=True,
+            )
+        ],
+    )
+
+    params, errors = _resolve_cluster_connections([app], secret_manager)
+
+    assert params == []
+    assert errors == []
+    secret_manager.read_all.assert_not_called()
+
+
+def test_task_proceeds_when_only_deleted_namespaces_exist(
+    mock_self: MagicMock,
+) -> None:
+    """A deleted namespace with discover left true does not fail the run."""
+    request = EndpointsDiscoveryReconcileRequest(
+        endpoint_template="name: {{ endpoint_name }}\n",
+        app_interface=AppInterfaceRepo(
+            repo_url="https://gitlab.example.com/group/app-interface",
+            token=_secret(),
+        ),
+        apps=[
+            DesiredApp(
+                name="app-1",
+                path="/services/app-1/app.yml",
+                namespaces=[
+                    NamespaceDesiredState(
+                        name="ns-1",
+                        cluster=ClusterConnection(
+                            cluster_name="cluster-1",
+                            server_url="https://cluster-1:6443",
+                        ),
+                        delete=True,
+                    )
+                ],
+            )
+        ],
+    )
+
+    with _task_env() as env:
+        env.service.reconcile.return_value = EndpointsDiscoveryTaskResult(
+            status=TaskStatus.SUCCESS
+        )
+
+        result = _task_func()(mock_self, request, dry_run=False)
+
+    assert result.status == TaskStatus.SUCCESS
+    env.secret_manager.read_all.assert_not_called()
+    env.service.reconcile.assert_called_once()
+
+
 def test_resolve_cluster_connections_requires_a_token() -> None:
     """A discovered namespace on a tokenless cluster is a clear error."""
     secret_manager = MagicMock()

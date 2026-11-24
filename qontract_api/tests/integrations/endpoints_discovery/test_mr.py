@@ -206,6 +206,38 @@ def test_render_merge_request_content_change_in_place() -> None:
     """)
 
 
+_EXISTING_ENDPOINT = dedent("""\
+    ---
+    name: test
+    endPoints:
+    - name: endpoint1
+      data: data1
+""")
+
+
+def test_render_merge_request_content_add_skips_identical_existing() -> None:
+    """An addition already present with the same content is not duplicated."""
+    result = render_merge_request_content(
+        current_content=_EXISTING_ENDPOINT,
+        endpoints_to_add=[{"name": "endpoint1", "data": "data1"}],
+        endpoints_to_change={},
+        endpoints_to_delete=[],
+    )
+
+    assert result == _EXISTING_ENDPOINT
+
+
+def test_render_merge_request_content_add_rejects_conflicting_existing() -> None:
+    """An addition conflicting with existing content fails instead of duplicating."""
+    with pytest.raises(ValueError, match="already exists with different content"):
+        render_merge_request_content(
+            current_content=_EXISTING_ENDPOINT,
+            endpoints_to_add=[{"name": "endpoint1", "data": "other-data"}],
+            endpoints_to_change={},
+            endpoints_to_delete=[],
+        )
+
+
 def test_render_merge_request_content_delete_all() -> None:
     current = dedent("""\
         ---

@@ -41,7 +41,7 @@ The ignore label key is `endpoints-discovery-<route names>`, for example `endpoi
 
 * Fetches applications and namespaces from App-Interface (GraphQL)
 * Applies `--app-name`, `--cluster-name` and `--internal` filters
-* Marks each namespace with a `discover` flag. Filtered, deleted and disabled namespaces are sent with `discover=false` so their endpoints are preserved and no cluster connection is required
+* Marks each namespace with a `discover` flag. Filtered and disabled namespaces are sent with `discover=false` so their endpoints are preserved and no cluster connection is required. Deleted namespaces are also sent with `discover=false`, purely to skip discovery; their managed endpoints are deleted regardless of the flag
 * Selects one automation token reference per cluster, preferring the active rotation-aware list entry over the legacy `automationToken`
 * Fetches the endpoint template resource and the app-interface repository token reference
 * Resolves the auto-merge toggle and sends the request
@@ -180,7 +180,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 Namespace fields of note:
 
-* `discover`: whether the server should read routes. `false` preserves existing endpoints and needs no cluster connection.
+* `discover`: whether the server should read routes. `false` preserves existing endpoints and needs no cluster connection. `delete: true` takes precedence: the namespace's endpoints are removed even when `discover` is true.
 * `delete`: the namespace is being removed; its endpoints are deleted.
 * `cluster.automation_token`: required only when `discover` is true. The secret must contain a `server` entry matching `server_url`.
 
@@ -281,6 +281,8 @@ The integration can perform these reconciliation actions:
 * One merge request exists for all applications at a time.
 * The description carries `integration`, `endpoints-discovery-version: 1.0.0` and a content hash below a separator line.
 * An open merge request with a matching hash is a no-op. A different hash closes it, and a replacement opens on the next run so a disabled deletion cannot leave two open MRs.
+* An error-free empty plan still inspects open MRs and closes one built from an earlier plan. Incomplete planning leaves merge request state untouched, because a partial read is not proof that an MR is obsolete.
+* An addition whose name already exists in the file is skipped when the content is identical, and fails the run when the content differs, so stale GraphQL never writes duplicate endpoints.
 * Merge requests with conflicts, a version mismatch or an unparseable description are closed and replaced in the same run.
 * Title and label are fixed at `[auto] endpoints-discovery: update application endpoints` and `ENDPOINTS-DISCOVERY`.
 * Only GitLab supports mutation. GitHub raises `NotImplementedError`.
@@ -382,7 +384,7 @@ Deployment uses the app-interface integration file `qontract-reconcile-endpoints
 
 * **Symptom:** Actions are calculated but no new MR appears.
 * **Cause:** An open MR has a matching content hash.
-* **Solution:** Merge or close the existing MR. The next reconciliation opens a new one only after its hash changes.
+* **Solution:** Merge the existing MR. Closing it without merging does not stop the cycle: while the plan is unchanged, the next reconciliation opens a replacement MR with the same hash.
 
 ### Issue 2: `mr_status` is `closed_outdated` and nothing replaced it
 
