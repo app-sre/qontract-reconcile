@@ -75,7 +75,7 @@ qontract-cli --config config.debug.toml terraform-resources rotate-access-key \
 ```
 
 Review the AWS account, backend bucket/key, Terraform version, managed key ID,
-state address, cache bucket/key, and all consumer bindings in the JSON result.
+state address, cache bucket/key, and enabled legacy bindings in the JSON result.
 Execution needs the inspected key ID, address, and cache bucket. Use a Terraform
 executable whose version exactly matches the remote state.
 
@@ -196,8 +196,9 @@ adoption: the JSON explicitly reports `source_secret_sync_verified: false` and
 `consumer_verification_required: true`.
 
 Check every listed source Secret against the new key ID, then verify that each
-consumer loads and successfully uses the new credential. Coordinate any refreshes
-or interruptions with the owners.
+consumer loads and successfully uses the new credential. Check for consumers
+on skipped clusters, including clusters where `terraform-resources` is disabled.
+Coordinate any refreshes or interruptions with the owners.
 
 - **Clowder.** After the source Secret has synced, verify that Clowder regenerated
   the application's configuration. Refresh the ClowdApp or coordinate a Clowder
