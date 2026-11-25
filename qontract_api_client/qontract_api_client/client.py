@@ -259,26 +259,49 @@ async def pagerduty_schedule_users(
 
 @client.post("/api/v1/external/slack/chat")
 async def slack_chat_post_message(
-    result: schemas.ChatResponse, data: schemas.ChatRequest
-) -> schemas.ChatResponse:
+    result: schemas.ChatTaskResponse, data: schemas.ChatRequest
+) -> schemas.ChatTaskResponse:
     """Post Chat
 
-        Post a message to a Slack channel or send a DM to a user.
+        Queue a Slack chat message or DM to be sent by a background worker.
 
     Exactly one of `channel` or `user` must be set in the request:
     - `channel`: post to a Slack channel by name
     - `user`: send a DM to a user by org_username
 
+    This endpoint always queues a background task and returns immediately
+    with a task_id. Use GET /chat/{task_id} to retrieve the result.
+
     Args:
         request: Chat request with channel/user, text, and credentials
 
     Returns:
-        ChatResponse with ts, channel, and optional thread_ts
+        ChatTaskResponse with task_id and status_url
+    """
+    return result
+
+
+@client.get("/api/v1/external/slack/chat/{task_id}")
+async def slack_chat_post_message_task_status(
+    result: schemas.ChatTaskResult, task_id: str, timeout: int | None = None
+) -> schemas.ChatTaskResult:
+    """Get Chat Task Status
+
+        Retrieve the chat-post-message result (blocking or non-blocking).
+
+    **Non-blocking mode (default):** Returns immediate status (pending/success/failed)
+    **Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending
+
+    Args:
+        task_id: Task ID from POST /chat response
+        timeout: Maximum seconds to wait (default: None = non-blocking)
+
+    Returns:
+        ChatTaskResult with status and, on success, ts/channel/thread_ts
 
     Raises:
         HTTPException:
-            - 404 Not Found: Channel or user not found
-            - 502 Bad Gateway: If Slack API call fails
+            - 408 Request Timeout: Task still pending after timeout (blocking mode only)
     """
     return result
 
@@ -612,6 +635,34 @@ async def ocm_groups_task_status(
     timeout: int | None = None,
 ) -> schemas.OcmGroupsTaskResult:
     """Ocm Groups Task Status
+
+    Retrieve reconciliation result (blocking or non-blocking).
+    """
+    return result
+
+
+@client.post("/api/v1/integrations/ocm-machine-pools/reconcile")
+async def ocm_machine_pools(
+    result: schemas.OcmMachinePoolsTaskResponse,
+    data: schemas.OcmMachinePoolsReconcileRequest,
+) -> schemas.OcmMachinePoolsTaskResponse:
+    """Ocm Machine Pools
+
+        Queue OCM machine pool reconciliation task.
+
+    This endpoint always queues a background task and returns immediately with a
+    task_id. Use GET /reconcile/{task_id} to retrieve the result.
+    """
+    return result
+
+
+@client.get("/api/v1/integrations/ocm-machine-pools/reconcile/{task_id}")
+async def ocm_machine_pools_task_status(
+    result: schemas.OcmMachinePoolsTaskResult,
+    task_id: str,
+    timeout: int | None = None,
+) -> schemas.OcmMachinePoolsTaskResult:
+    """Ocm Machine Pools Task Status
 
     Retrieve reconciliation result (blocking or non-blocking).
     """

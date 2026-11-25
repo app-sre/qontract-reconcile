@@ -27,6 +27,12 @@ query ManagedSsoClient {
         fullScopeAllowed
         defaultClientScopes
         optionalClientScopes
+        protocolMappers {
+          name
+          protocolMapper
+          config
+        }
+        attributes
       }
     }
   }

@@ -10,6 +10,7 @@
 A tool to reconcile services with their desired state as defined in app-interface.
 Additional tools that use the libraries created by the reconciliations are also hosted here.
 
+
 ## Usage
 
 Use [config.toml.example](config.toml.example) as a template to create a `config.toml` file.
@@ -100,7 +101,8 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   projects.
   gitlab-labeler                  Guesses and adds labels to merge requests
                                   according to changed paths.
-  gitlab-members                  Manage GitLab group members.
+  gitlab-members-api              Manage GitLab group members via
+                                  qontract-api.
   gitlab-mr-sqs-consumer          Listen to SQS and creates MRs out of the
                                   messages.
   gitlab-owners                   Manages labels on gitlab merge requests
@@ -140,8 +142,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   Manage External Configuration labels in OCM.
   ocm-groups                      Manage membership in OpenShift groups via
                                   OCM.
-  ocm-internal-notifications      Notifications to internal Red Hat users
-                                  based on conditions in OCM.
   ocm-labels                      Manage cluster OCM labels.
   ocm-machine-pools               Manage Machine Pools in OCM.
   ocm-oidc-idp                    Manage OIDC cluster configuration in OCM

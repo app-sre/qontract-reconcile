@@ -1,0 +1,69 @@
+# qenerate: plugin=pydantic_v2
+
+query SqlQueries {
+  sql_queries: app_interface_sql_queries_v1 {
+    path
+    name
+    namespace {
+      name
+      managedExternalResources
+      externalResources {
+        provider
+        provisioner {
+          name
+        }
+        ... on NamespaceTerraformProviderResourceAWS_v1 {
+          resources {
+            provider
+            ... on NamespaceTerraformResourceRDS_v1 {
+              identifier
+              output_resource_name
+              defaults
+              overrides
+            }
+          }
+        }
+      }
+      app {
+        name
+      }
+      environment {
+        name
+      }
+      cluster {
+        name
+        serverUrl
+        automationToken {
+          ...VaultSecret
+        }
+        automationTokens {
+          name
+          namespace
+          active
+          delete
+          secret {
+            ...VaultSecret
+          }
+        }
+        internal
+      }
+    }
+    identifier
+    requestor {
+      org_username
+      public_gpg_key
+    }
+    overrides {
+      db_host
+      db_port
+      db_name
+      db_user
+      db_password
+    }
+    output
+    schedule
+    delete
+    query
+    queries
+  }
+}

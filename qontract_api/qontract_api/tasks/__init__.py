@@ -23,6 +23,10 @@ logger = structlog.getLogger(__name__)
 
 QUEUE_PROD = "qontract-api-prod"
 QUEUE_MR_CHECK = "qontract-api-mr-check"
+# Isolated from QUEUE_PROD: a burst of external-slack.chat-post-message tasks
+# (e.g. a large usergroup DM fan-out) gets rate-limited by Slack and retries
+# block their worker, which must not back up unrelated reconciliation tasks.
+QUEUE_EXTERNAL_SLACK = "qontract-api-external-slack"
 
 
 def queue_for(*, dry_run: bool) -> str:
@@ -146,9 +150,14 @@ celery_app = Celery(
     accept_content=["application/json", "application/x-python-serialize"],
     result_accept_content=["application/json", "application/x-python-serialize"],
     task_default_queue=QUEUE_PROD,
-    task_queues=(Queue(QUEUE_PROD), Queue(QUEUE_MR_CHECK)),
+    task_queues=(
+        Queue(QUEUE_PROD),
+        Queue(QUEUE_MR_CHECK),
+        Queue(QUEUE_EXTERNAL_SLACK),
+    ),
     include=[
         "qontract_api.tasks.health",
+        "qontract_api.external.slack.tasks",
         "qontract_api.integrations.slack_usergroups.tasks",
         "qontract_api.integrations.glitchtip_project_alerts.tasks",
         "qontract_api.integrations.github_owners.tasks",
@@ -158,6 +167,7 @@ celery_app = Celery(
         "qontract_api.integrations.ocm_oidc_idp.tasks",
         "qontract_api.integrations.quay_repos.tasks",
         "qontract_api.integrations.ocm_groups.tasks",
+        "qontract_api.integrations.ocm_machine_pools.tasks",
         "qontract_api.integrations.quay_robot_accounts.tasks",
         "qontract_api.integrations.managed_sso_client.tasks",
         "qontract_api.integrations.gitlab_projects.tasks",
@@ -166,6 +176,7 @@ celery_app = Celery(
 )
 
 __all__ = [
+    "QUEUE_EXTERNAL_SLACK",
     "QUEUE_MR_CHECK",
     "QUEUE_PROD",
     "BackgroundTask",

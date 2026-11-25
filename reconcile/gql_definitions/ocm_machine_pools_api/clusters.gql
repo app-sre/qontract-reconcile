@@ -1,0 +1,42 @@
+# qenerate: plugin=pydantic_v2
+
+query OcmMachinePoolsApiClusters {
+  clusters: clusters_v1 {
+    name
+    spec {
+      id
+      product
+      hypershift
+    }
+    machinePools {
+      id
+      instance_type
+      replicas
+      autoscale {
+        min_replicas
+        max_replicas
+      }
+      labels
+      subnet
+      taints {
+        key
+        value
+        effect
+      }
+    }
+    ocm {
+      name
+      environment {
+        ...OCMEnvironment
+      }
+      accessTokenClientId
+      accessTokenUrl
+      accessTokenClientSecret {
+        ...VaultSecret
+      }
+    }
+    disable {
+      ...DisableAutomations
+    }
+  }
+}

@@ -9,6 +9,7 @@ This layer sits between the stateless SlackApi and business logic, providing:
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Protocol, TypeVar, runtime_checkable
 
 from pydantic import BaseModel, Field
@@ -21,6 +22,7 @@ from qontract_utils.slack_api import (
 from qontract_utils.slack_api import SlackChannel as SlackChannelAPI
 from qontract_utils.slack_api import SlackUser as SlackUserAPI
 from qontract_utils.slack_api import SlackUsergroup as SlackUsergroupAPI
+from redis.exceptions import RedisError
 
 from qontract_api.logger import get_logger
 
@@ -36,6 +38,12 @@ if TYPE_CHECKING:
     from qontract_api.config import Settings
 
 logger = get_logger(__name__)
+
+# Matches "@handle" tokens not preceded by a word character, so it skips
+# embedded handles like "user@example.com" (preceded by "r") while still
+# catching "@handle" at the start of a message, after whitespace, or after
+# punctuation (e.g. "(@handle)", "alert:@handle").
+_MENTION_PATTERN = re.compile(r"(?<!\w)@([\w-]+)")
 
 
 @runtime_checkable
@@ -613,11 +621,12 @@ class SlackWorkspaceClient:
         icon_emoji: str | None = None,
         icon_url: str | None = None,
         username: str | None = None,
+        resolve_mentions: bool = False,
     ) -> ChatPostMessageResponse:
         """Post a message to a Slack channel.
 
-        Resolves channel name to ID via cached channels, then delegates
-        to SlackApi.chat_post_message. Exceptions propagate to caller.
+        Resolves channel name to ID via cached channels, then delegates to
+        SlackApi.chat_post_message. Exceptions propagate to caller.
 
         Args:
             channel: Channel name (e.g., "sd-app-sre-reconcile")
@@ -626,6 +635,20 @@ class SlackWorkspaceClient:
             icon_emoji: Emoji to use as the message icon (e.g., ":robot_face:")
             icon_url: URL to an image to use as the message icon
             username: Bot username to display
+            resolve_mentions: If True, resolve "@handle" tokens in `text` to
+                working Slack mentions (see `_resolve_mentions`) before
+                posting. Leave False for free text that should be posted
+                literally (e.g. a rendered table, a GitLab MR title) — only
+                set True when the caller intentionally constructs a handle to
+                ping, e.g.:
+                    chat_post_message(channel="alerts",
+                                       text="Heads up @my-cluster-cluster!",
+                                       resolve_mentions=True)
+                becomes a real ping if "my-cluster-cluster" is a known
+                usergroup handle or a user's org_username — otherwise the
+                "@my-cluster-cluster" text is left as-is. With
+                resolve_mentions=False (the default), any "@word" in `text`
+                is posted literally and can never trigger a mention.
 
         Returns:
             ChatPostMessageResponse with ts, channel, thread_ts
@@ -636,12 +659,64 @@ class SlackWorkspaceClient:
         channel_id = self._resolve_channel_id(channel)
         return self.slack_api.chat_post_message(
             channel_id=channel_id,
-            text=text,
+            text=self._resolve_mentions(text) if resolve_mentions else text,
             thread_ts=thread_ts,
             icon_emoji=icon_emoji,
             icon_url=icon_url,
             username=username,
         )
+
+    def _resolve_mentions(self, text: str) -> str:
+        """Resolve "@handle" tokens in message text to working Slack mentions.
+
+        For each "@handle" token (see `_MENTION_PATTERN`):
+        - if `handle` matches a usergroup handle (checked first), replace with
+          `<!subteam^{usergroup_id}>` — pings every member of that usergroup.
+        - elif `handle` matches a user's org_username, replace with
+          `<@{user_id}>` — pings that user.
+        - otherwise leave the token unchanged (e.g. a typo, or an unrelated
+          "@word" that isn't a real handle/username) — this is a no-op, not
+          an error, since callers can't always know in advance whether a
+          given handle exists.
+
+        Uses the same cached `get_usergroups()`/`get_users()` data as the
+        rest of this class, so this doesn't cost extra Slack API calls.
+
+        Mention resolution is best-effort: if looking up usergroups/users fails
+        (e.g. missing Slack scope, a network/transport error, or the cache
+        backend being unavailable), the original text is posted unchanged
+        rather than failing the whole send.
+
+        Limitation: `_MENTION_PATTERN` only excludes a preceding word
+        character, so "@handle" occurring right after other punctuation —
+        e.g. in a URL path (`https://example.com/@handle`) or inside a
+        backtick code span — is still treated as a mention. Don't opt into
+        resolve_mentions for text that may contain such patterns.
+        """
+
+        def replace(match: re.Match[str]) -> str:
+            handle = match.group(1)
+            if usergroup := self._get_usergroup_by_handle(handle):
+                return f"<!subteam^{usergroup.id}>"
+            for user in self.get_users().values():
+                if user.org_username == handle:
+                    return f"<@{user.id}>"
+            logger.debug(
+                f"Could not resolve mention '@{handle}' to a usergroup or user, "
+                "leaving as plain text",
+                handle=handle,
+            )
+            return match.group(0)
+
+        try:
+            return _MENTION_PATTERN.sub(replace, text)
+        except SlackApiError, OSError, RedisError:
+            logger.warning(
+                "Could not resolve mentions (Slack lookup failed), "
+                "posting text unchanged",
+                exc_info=True,
+            )
+            return text
 
     def _resolve_user_id(self, org_username: str) -> str:
         """Resolve org_username to Slack user ID via cached users."""
@@ -655,11 +730,19 @@ class SlackWorkspaceClient:
         *,
         org_username: str,
         text: str,
+        resolve_mentions: bool = False,
     ) -> ChatPostMessageResponse:
-        """Send a DM to a user by org_username."""
+        """Send a DM to a user by org_username.
+
+        If resolve_mentions is True, resolves any "@handle" mentions in `text`
+        first — see `chat_post_message`/`_resolve_mentions` for details.
+        """
         user_id = self._resolve_user_id(org_username)
         dm_channel_id = self.slack_api.conversations_open(user_ids=[user_id])
-        return self.slack_api.chat_post_message(channel_id=dm_channel_id, text=text)
+        return self.slack_api.chat_post_message(
+            channel_id=dm_channel_id,
+            text=self._resolve_mentions(text) if resolve_mentions else text,
+        )
 
     def _resolve_channel_id(self, channel_name: str) -> str:
         """Resolve a channel name to its ID.

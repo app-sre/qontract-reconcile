@@ -647,6 +647,154 @@ objects:
         app.kubernetes.io/component: worker-mr-check
         app.kubernetes.io/name: qontract-api
 
+  # --------- EXTERNAL-SLACK WORKER DEPLOYMENT --------------
+  # Consumes the qontract-api-external-slack Celery queue. Kept as its own
+  # Deployment + queue, separate from the prod worker: a burst of
+  # external-slack.chat-post-message tasks (e.g. a large usergroup DM
+  # fan-out) gets rate-limited by Slack, and each retry blocks its worker via
+  # a sleep. Without isolation that backlog starves unrelated reconciliation
+  # tasks sharing the prod queue/worker pool (see incident follow-up to
+  # app-sre/qontract-reconcile#5692).
+  # Fixed replica count, no KEDA autoscaling: Slack's chat.postMessage rate
+  # limit is per workspace token, not per worker pod, so extra replicas don't
+  # increase drain throughput once rate-limited.
+  - apiVersion: policy/v1
+    kind: PodDisruptionBudget
+    metadata:
+      name: qontract-api-worker-external-slack
+    spec:
+      minAvailable: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: worker-external-slack
+
+  - apiVersion: v1
+    kind: ServiceAccount
+    imagePullSecrets: "${{IMAGE_PULL_SECRETS}}"
+    metadata:
+      name: qontract-api-worker-external-slack
+      labels:
+        app.kubernetes.io/component: worker-external-slack
+        app.kubernetes.io/name: qontract-api
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
+      labels:
+        app.kubernetes.io/component: worker-external-slack
+        app.kubernetes.io/name: qontract-api
+      name: qontract-api-worker-external-slack
+    spec:
+      replicas: ${{QAPI_WORKER_EXTERNAL_SLACK_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: worker-external-slack
+          app.kubernetes.io/name: qontract-api
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: worker-external-slack
+            app.kubernetes.io/name: qontract-api
+        spec:
+          restartPolicy: Always
+          serviceAccountName: qontract-api-worker-external-slack
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/component
+                          operator: In
+                          values:
+                            - worker-external-slack
+                    topologyKey: topology.kubernetes.io/zone
+                  weight: 100
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/component
+                          operator: In
+                          values:
+                            - worker-external-slack
+                    topologyKey: kubernetes.io/hostname
+                  weight: 1
+          containers:
+            - env:
+                - name: QAPI_START_MODE
+                  value: worker
+                - name: QAPI_CELERY_OPTS
+                  value: "${QAPI_WORKER_EXTERNAL_SLACK_CELERY_OPTS}"
+                - name: QAPI_WORKER_METRICS_PORT
+                  value: "${QAPI_WORKER_METRICS_PORT}"
+                - name: QAPI_WORKER_TEMP_DIR
+                  value: /worker-temp-dir
+                - name: QAPI_SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${QAPI_SENTRY_SECRET_NAME}
+                      key: dsn
+              envFrom:
+                - secretRef:
+                    name: qontract-api-secret
+                    optional: true
+                - configMapRef:
+                    name: qontract-api-config
+                    optional: true
+              image: "${IMAGE}:${IMAGE_TAG}@${IMAGE_DIGEST}"
+              name: worker-external-slack
+              ports:
+                - containerPort: ${{QAPI_WORKER_METRICS_PORT}}
+              readinessProbe:
+                httpGet:
+                  path: /metrics
+                  port: ${{QAPI_WORKER_METRICS_PORT}}
+                periodSeconds: 15
+                timeoutSeconds: 5
+              startupProbe:
+                tcpSocket:
+                  port: ${{QAPI_WORKER_METRICS_PORT}}
+                initialDelaySeconds: 5
+                periodSeconds: 5
+                timeoutSeconds: 5
+              livenessProbe:
+                tcpSocket:
+                  port: ${{QAPI_WORKER_METRICS_PORT}}
+                periodSeconds: 30
+                timeoutSeconds: 5
+              resources:
+                requests:
+                  cpu: ${{QAPI_WORKER_EXTERNAL_SLACK_CPU_REQUESTS}}
+                  memory: ${{QAPI_WORKER_EXTERNAL_SLACK_MEMORY_REQUESTS}}
+                limits:
+                  memory: ${{QAPI_WORKER_EXTERNAL_SLACK_MEMORY_LIMITS}}
+              volumeMounts:
+                - mountPath: /worker-temp-dir
+                  name: worker-temp-dir
+          volumes:
+            - name: worker-temp-dir
+              emptyDir:
+                sizeLimit: 50Mi
+
+  # ---------- EXTERNAL-SLACK WORKER SERVICE (PROMETHEUS) -----------
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: worker-external-slack
+        app.kubernetes.io/name: qontract-api
+      name: qontract-api-worker-external-slack
+    spec:
+      ports:
+        - name: "http"
+          port: ${{QAPI_WORKER_METRICS_PORT}}
+          targetPort: ${{QAPI_WORKER_METRICS_PORT}}
+      selector:
+        app.kubernetes.io/component: worker-external-slack
+        app.kubernetes.io/name: qontract-api
+
   # ---------- KEDA AUTOSCALING (APPSRE-14860) -----------
   # Scales each worker Deployment on the backlog (list length) of its Celery
   # queue in the Redis/Valkey broker, instead of a fixed replica count. This
@@ -654,6 +802,8 @@ objects:
   # serialize behind a fixed pod count - extra pods spin up to drain the
   # backlog. Queue names below must match QUEUE_PROD/QUEUE_MR_CHECK in
   # qontract_api/qontract_api/tasks/__init__.py.
+  # (The external-slack worker uses a fixed replica count, not KEDA - see
+  # QAPI_WORKER_EXTERNAL_SLACK_REPLICAS below.)
   - apiVersion: keda.sh/v1alpha1
     kind: TriggerAuthentication
     metadata:
@@ -852,6 +1002,37 @@ parameters:
 
   - name: QAPI_WORKER_MR_CHECK_CPU_REQUESTS
     description: MR-check worker cpu requests
+    value: "100m"
+    required: true
+
+  ## External-slack worker (qontract-api-external-slack queue) Pod limits
+  # The -Q queue name must match QUEUE_EXTERNAL_SLACK in
+  # qontract_api/qontract_api/tasks/__init__.py. Fixed replica count, no
+  # KEDA: Slack's chat.postMessage rate limit is per workspace token, not
+  # per worker pod, so extra replicas don't increase drain throughput once
+  # rate-limited.
+  - name: QAPI_WORKER_EXTERNAL_SLACK_REPLICAS
+    description: External-slack worker replicas
+    value: "3"
+    required: true
+
+  - name: QAPI_WORKER_EXTERNAL_SLACK_CELERY_OPTS
+    description: Celery options for the external-slack worker (binds it to the external-slack queue)
+    value: "--pool solo -Q qontract-api-external-slack"
+    required: true
+
+  - name: QAPI_WORKER_EXTERNAL_SLACK_MEMORY_REQUESTS
+    description: External-slack worker memory requests
+    value: "200Mi"
+    required: true
+
+  - name: QAPI_WORKER_EXTERNAL_SLACK_MEMORY_LIMITS
+    description: External-slack worker memory limits
+    value: "200Mi"
+    required: true
+
+  - name: QAPI_WORKER_EXTERNAL_SLACK_CPU_REQUESTS
+    description: External-slack worker cpu requests
     value: "100m"
     required: true
 

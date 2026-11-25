@@ -1,8 +1,9 @@
 """Tests for configuration settings."""
 
 import pytest
+from pydantic import ValidationError
 
-from qontract_api.config import Secret, Settings
+from qontract_api.config import OcmSettings, Secret, Settings
 
 
 @pytest.mark.parametrize(
@@ -112,3 +113,9 @@ def test_slack_settings_backwards_compatible() -> None:
     assert slack.usergroup_cache_ttl == 60 * 60
     assert slack.users_cache_ttl == 60 * 60 * 12
     assert slack.channels_cache_ttl == 60 * 60 * 12
+
+
+def test_ocm_settings_machine_pools_fetch_concurrency_positive() -> None:
+    """machine_pools_fetch_concurrency must be a positive integer."""
+    with pytest.raises(ValidationError, match="greater than or equal to 1"):
+        OcmSettings(machine_pools_fetch_concurrency=0)

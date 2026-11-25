@@ -3,7 +3,10 @@
 from unittest.mock import MagicMock
 
 import pytest
-from qontract_utils.keycloak_api import ManagedKeycloakClient
+from qontract_utils.keycloak_api import (
+    ManagedKeycloakClient,
+    ManagedKeycloakProtocolMapper,
+)
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import Settings
@@ -167,6 +170,35 @@ def test_update_client_delegates_to_api(
     mock_api.update_client.assert_called_once_with(
         client_id="my-app-ci-bot", registration_access_token="reg-token", data=data
     )
+
+
+@pytest.mark.parametrize(
+    "mappers",
+    [
+        None,
+        [],
+        [
+            ManagedKeycloakProtocolMapper(
+                name="audience",
+                protocol_mapper="oidc-audience-mapper",
+                config={"included.custom.audience": "my-api"},
+            )
+        ],
+    ],
+)
+def test_update_always_omits_mappers(
+    client: KeycloakWorkspaceClient,
+    mock_api: MagicMock,
+    mappers: list[ManagedKeycloakProtocolMapper] | None,
+) -> None:
+    data = _client_repr().with_protocol_mappers(mappers)
+
+    client.update_client("my-app-ci-bot", "reg-token", data)
+
+    mock_api.get_client.assert_not_called()
+    sent = mock_api.update_client.call_args.kwargs["data"]
+    assert "protocolMappers" not in sent.to_raw().model_dump(exclude_none=True)
+    assert data.protocol_mappers == mappers
 
 
 def test_update_client_invalidates_cache(

@@ -1,7 +1,14 @@
 """Tests for qontract_utils.keycloak_api.models."""
 
-from qontract_utils.keycloak_api._raw_client import RawClientRepresentation
-from qontract_utils.keycloak_api.models import KeycloakSsoClient, ManagedKeycloakClient
+from qontract_utils.keycloak_api._raw_client import (
+    RawClientRepresentation,
+    RawProtocolMapperRepresentation,
+)
+from qontract_utils.keycloak_api.models import (
+    KeycloakSsoClient,
+    ManagedKeycloakClient,
+    ManagedKeycloakProtocolMapper,
+)
 
 
 def test_keycloak_sso_client_fields() -> None:
@@ -202,3 +209,50 @@ def test_to_raw_from_raw_round_trip() -> None:
     assert round_tripped.full_scope_allowed == original.full_scope_allowed
     assert round_tripped.post_logout_redirect_uris == original.post_logout_redirect_uris
     assert round_tripped.extra_attributes == original.extra_attributes
+
+
+def test_protocol_mapper_round_trip_uses_keycloak_wire_names() -> None:
+    mapper = ManagedKeycloakProtocolMapper(
+        name="service-audience",
+        protocol_mapper="oidc-audience-mapper",
+        config={
+            "included.custom.audience": "my-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+        },
+    )
+    body = (
+        _minimal(protocol_mappers=[mapper])
+        .to_raw()
+        .model_dump(mode="json", exclude_none=True)
+    )
+
+    assert body["protocolMappers"] == [
+        {
+            "name": "service-audience",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper",
+            "config": mapper.config,
+        }
+    ]
+    live = RawClientRepresentation(
+        client_id="my-app-my-client",
+        protocol_mappers=[
+            RawProtocolMapperRepresentation(
+                id="keycloak-id", **body["protocolMappers"][0]
+            )
+        ],
+    )
+    assert ManagedKeycloakClient.from_raw(live).protocol_mappers == [mapper]
+
+
+def test_protocol_mappers_omitted_when_unmanaged_and_empty_when_cleared() -> None:
+    assert "protocolMappers" not in _minimal().to_raw().model_dump(
+        mode="json", exclude_none=True
+    )
+    assert (
+        _minimal(protocol_mappers=[])
+        .to_raw()
+        .model_dump(mode="json", exclude_none=True)["protocolMappers"]
+        == []
+    )

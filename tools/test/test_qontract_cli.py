@@ -5,9 +5,13 @@ from unittest.mock import Mock
 
 import pytest
 from click.testing import CliRunner
+from clientele.http.response import Response
 from gitlab.const import PipelineStatus
-from slack_sdk.errors import SlackApiError, SlackRequestError
+from qontract_api_client.exceptions import HTTPStatusError
 
+from reconcile.gql_definitions.openshift_resources.settings import (
+    AppInterfaceSettingsV1,
+)
 from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheStatus
 from reconcile.utils.mr.labels import (
     HOLD,
@@ -64,6 +68,160 @@ def mock_get_app_interface_vault_settings(mocker: MockerFixture) -> Mock:
 @pytest.fixture
 def mock_create_secret_reader(mocker: MockerFixture) -> Mock:
     return mocker.patch("tools.qontract_cli.create_secret_reader")
+
+
+@pytest.mark.parametrize(("backend", "use_vault"), [("vault", True), ("config", False)])
+def test_template_injects_selected_secret_reader(
+    mocker: MockerFixture,
+    mock_create_secret_reader: Mock,
+    backend: str,
+    use_vault: bool,
+) -> None:
+    mocker.patch.object(qontract_cli.gql, "get_api").return_value.query.return_value = {
+        "namespaces": [
+            {
+                "name": "namespace",
+                "cluster": {"name": "cluster"},
+                "openshiftResources": [{"resource": {"path": "/template.yaml"}}],
+            }
+        ]
+    }
+    settings = mocker.patch.object(
+        qontract_cli,
+        "get_openshift_resources_settings",
+        return_value=AppInterfaceSettingsV1(
+            repoUrl="https://git.example.com/app-interface", vault=not use_vault
+        ),
+    )
+    mocker.patch.object(qontract_cli.ob, "aggregate_shared_resources")
+    mocker.patch.object(qontract_cli, "print_output")
+    fetch = mocker.patch.object(qontract_cli.orb, "fetch_openshift_resource")
+    fetch.return_value.kind = "ConfigMap"
+    fetch.return_value.name = "example"
+
+    result = CliRunner().invoke(
+        qontract_cli.template,
+        ["cluster", "namespace", "ConfigMap", "example", "--secret-reader", backend],
+    )
+
+    assert result.exit_code == 0, result.output
+    mock_create_secret_reader.assert_called_once_with(use_vault=use_vault)
+    settings.assert_called_once_with()
+    assert fetch.call_args.kwargs["repo_url"] == "https://git.example.com/app-interface"
+    assert "settings" not in fetch.call_args.kwargs
+    assert (
+        fetch.call_args.kwargs["secret_reader"]
+        is mock_create_secret_reader.return_value
+    )
+
+
+def test_prometheus_test_command_supplies_repo_url(
+    mocker: MockerFixture, mock_create_secret_reader: Mock
+) -> None:
+    mocker.patch("reconcile.utils.binary.shutil.which", return_value="promtool")
+    mocker.patch(
+        "reconcile.utils.binary.subprocess.run"
+    ).return_value.stdout = f"promtool, version {qontract_cli.promtool.PROMTOOL_VERSION[-1]} (test)".encode()
+    mocker.patch.object(
+        qontract_cli.orb,
+        "get_namespaces",
+        return_value=(
+            [{"openshiftResources": [{"tests": ["/test.yaml"]}]}],
+            None,
+        ),
+    )
+    settings = mocker.patch.object(
+        qontract_cli,
+        "get_openshift_resources_settings",
+        return_value=AppInterfaceSettingsV1(
+            repoUrl="https://git.example.com/app-interface", vault=True
+        ),
+    )
+    fetch = mocker.patch.object(qontract_cli.ptr, "fetch_rule_and_tests")
+    mocker.patch.object(qontract_cli.ptr, "run_test")
+    mocker.patch.object(qontract_cli, "get_alerting_services", return_value=[])
+
+    result = CliRunner().invoke(
+        qontract_cli.run_prometheus_test,
+        ["resources/test.yaml", "cluster", "--secret-reader", "config"],
+    )
+
+    assert result.exit_code == 0, result.output
+    settings.assert_called_once_with()
+    mock_create_secret_reader.assert_called_once_with(use_vault=False)
+    assert fetch.call_args.kwargs["repo_url"] == "https://git.example.com/app-interface"
+    assert (
+        fetch.call_args.kwargs["secret_reader"]
+        is mock_create_secret_reader.return_value
+    )
+
+
+def test_alert_receiver_command_shares_resource_dependencies(
+    mocker: MockerFixture, mock_create_secret_reader: Mock
+) -> None:
+    mocker.patch("reconcile.utils.binary.shutil.which", return_value="amtool")
+    mocker.patch(
+        "reconcile.utils.binary.subprocess.run"
+    ).return_value.stdout = (
+        f"amtool, version {qontract_cli.amtool.AMTOOL_VERSION[-1]} (test)".encode()
+    )
+    mocker.patch.object(qontract_cli.gql, "get_api").return_value.query.return_value = {
+        "namespaces": [
+            {
+                "name": "openshift-customer-monitoring",
+                "cluster": {"name": "cluster"},
+                "openshiftResources": [
+                    {
+                        "resource": {
+                            "path": "/observability/alertmanager/alertmanager-instance.secret.yaml"
+                        }
+                    },
+                    {"resource": {"path": "/rule.yaml"}},
+                ],
+            }
+        ]
+    }
+    settings = mocker.patch.object(
+        qontract_cli,
+        "get_openshift_resources_settings",
+        return_value=AppInterfaceSettingsV1(
+            repoUrl="https://git.example.com/app-interface", vault=False
+        ),
+    )
+    mocker.patch.object(qontract_cli.ob, "aggregate_shared_resources")
+    fetch = mocker.patch.object(qontract_cli.orb, "fetch_openshift_resource")
+    fetch.side_effect = [
+        mocker.Mock(body={"stringData": {"alertmanager.yaml": "configuration"}}),
+        mocker.Mock(
+            kind="PrometheusRule",
+            body={
+                "spec": {"groups": [{"rules": [{"alert": "Example", "labels": {}}]}]}
+            },
+        ),
+    ]
+    mocker.patch.object(
+        qontract_cli.amtool, "config_routes_test", return_value="receiver"
+    )
+
+    result = CliRunner().invoke(
+        qontract_cli.alert_to_receiver,
+        [
+            "cluster",
+            "openshift-customer-monitoring",
+            "/rule.yaml",
+            "--secret-reader",
+            "vault",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    settings.assert_called_once_with()
+    mock_create_secret_reader.assert_called_once_with(use_vault=True)
+    assert fetch.call_count == 2
+    for call in fetch.call_args_list:
+        assert call.kwargs["repo_url"] == "https://git.example.com/app-interface"
+        assert call.kwargs["secret_reader"] is mock_create_secret_reader.return_value
+        assert "settings" not in call.kwargs
 
 
 def test_state_ls_with_integration(
@@ -476,12 +634,14 @@ def test_review_queue_includes_approved_mr_with_pipeline_error(
     assert "MR 1" in result.output
 
 
-@pytest.mark.parametrize("slack_error", ["token_revoked", "channel_not_found"])
+@pytest.mark.parametrize("reason", ["token_revoked", "channel_not_found"])
 def test_review_queue_succeeds_when_slack_api_fails(
     mock_review_queue_gl: Mock,
     mock_slackapi_from_queries: Mock,
-    slack_error: str,
+    reason: str,
 ) -> None:
+    """chat_post_message no longer talks to Slack directly — it can only fail
+    with an HTTP error from qontract-api's queueing endpoint."""
     mock_review_queue_gl.get_merge_requests.return_value = [
         _mock_mr(9, [LGTM, PIPELINE_ERROR])
     ]
@@ -489,7 +649,12 @@ def test_review_queue_succeeds_when_slack_api_fails(
         Mock(status=PipelineStatus.FAILED)
     ]
     mock_slackapi_from_queries.return_value.chat_post_message.side_effect = (
-        SlackApiError(slack_error, response={"error": slack_error})
+        HTTPStatusError(
+            response=Response(
+                status_code=502, headers={}, content=b"", request_method="POST"
+            ),
+            reason=reason,
+        )
     )
 
     runner = CliRunner()
@@ -501,14 +666,14 @@ def test_review_queue_succeeds_when_slack_api_fails(
 
     assert result.exit_code == 0
     assert "MR 9" in result.output
-    mock_slackapi_from_queries.assert_called_once_with(
-        "app-interface-review-queue", init_usergroups=False
-    )
+    mock_slackapi_from_queries.assert_called_once_with("app-interface-review-queue")
 
 
 def test_review_queue_succeeds_when_slack_request_fails(
     mock_review_queue_gl: Mock, mock_slackapi_from_queries: Mock
 ) -> None:
+    """A connection-level failure reaching qontract-api (not an HTTP error
+    response) should also leave the review queue output authoritative."""
     mock_review_queue_gl.get_merge_requests.return_value = [
         _mock_mr(10, [LGTM, PIPELINE_ERROR])
     ]
@@ -516,7 +681,7 @@ def test_review_queue_succeeds_when_slack_request_fails(
         Mock(status=PipelineStatus.FAILED)
     ]
     mock_slackapi_from_queries.return_value.chat_post_message.side_effect = (
-        SlackRequestError("Slack connection failed")
+        ConnectionError("Could not connect to qontract-api")
     )
 
     runner = CliRunner()

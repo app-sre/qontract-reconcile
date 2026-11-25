@@ -26,11 +26,15 @@ from qontract_api_client.config import (
     Config as QontractApiClientConfig,
 )
 from qontract_api_client.exceptions import APIException
+from qontract_api_client.sync_client import (
+    client as qontract_api_sync_client,
+)
 
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.utils.config import get_config
+from reconcile.utils.constants import REQUEST_TIMEOUT
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
@@ -273,11 +277,17 @@ def setup_qontract_api_client() -> None:
     if "gitlabMergeRequestIid" in os.environ:
         environment_headers["X-GitLab-MR-ID"] = os.environ["gitlabMergeRequestIid"]  # ruff: ignore[uncapitalized-environment-variables]
 
+    base_url = urlparse(config["qontract-api"]["server"]).geturl()
     qontract_api_client.configure(
         config=QontractApiClientConfig(
-            base_url=urlparse(config["qontract-api"]["server"]).geturl(),
+            base_url=base_url, headers=environment_headers, timeout=None
+        )
+    )
+    qontract_api_sync_client.configure(
+        config=QontractApiClientConfig(
+            base_url=base_url,
             headers=environment_headers,
-            timeout=None,
+            timeout=REQUEST_TIMEOUT,
         )
     )
 

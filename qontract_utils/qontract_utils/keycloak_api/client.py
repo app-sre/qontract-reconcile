@@ -200,7 +200,7 @@ class KeycloakApi:
             msg = (
                 f"Keycloak rejected registration of client {data.client_id!r} with "
                 "400 Bad Request; the most common cause is that this clientId is "
-                f"already registered on Keycloak. Keycloak response: {e.response.text}"
+                f"already registered on Keycloak. {e}"
             )
             raise KeycloakBadRequestError(msg) from e
         return ManagedKeycloakClient.from_raw(raw)
@@ -267,7 +267,7 @@ class KeycloakApi:
                 raise
             msg = (
                 f"Keycloak rejected the update of client {client_id!r} with 400 "
-                f"Bad Request. Keycloak response: {e.response.text}"
+                f"Bad Request. {e}"
             )
             raise KeycloakBadRequestError(msg) from e
         return ManagedKeycloakClient.from_raw(raw)

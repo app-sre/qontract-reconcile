@@ -932,48 +932,6 @@ def test_missing_iam_user_cannot_revoke_infrastructure_grants(
     apply.assert_not_called()
 
 
-def test_gitlab_permissions_resolve_members_at_fetch_boundary(
-    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
-) -> None:
-    from reconcile import gitlab_members
-    from reconcile.gql_definitions.gitlab_members.permissions import (
-        PermissionGitlabGroupMembershipV1,
-    )
-
-    permission = gql_class_factory(
-        PermissionGitlabGroupMembershipV1,
-        {
-            "group": "team",
-            "access": "maintainer",
-            "roles": [{"name": "role", "users": [], "bots": []}],
-        },
-    )
-    assert permission.roles
-    permission.roles[0].member_sources = [
-        build_ldap_membership_source(name="ldap", group="source-team")
-    ]
-    query_func = mocker.Mock(
-        return_value={"permissions": [permission.model_dump(by_alias=True)]}
-    )
-    fetched = gitlab_members.get_permissions(query_func=query_func)
-    assert fetched[0].roles is not None
-    assert [user.org_username for user in fetched[0].roles[0].users] == ["alice"]
-    assert permission.roles is not None and permission.roles[0].users == []
-    resolver = mocker.patch.object(
-        gitlab_members,
-        "resolve_role_members",
-        side_effect=AssertionError("Builder must not resolve memberships"),
-    )
-    assert (
-        gitlab_members
-        .build_desired_state_spec("team", fetched, mocker.Mock(), [])
-        .members["alice"]
-        .access_level
-        == 40
-    )
-    resolver.assert_not_called()
-
-
 def test_self_service_roles_fetch_boundary_ignores_ldap(
     ldap_endpoint: AsyncMock, mocker: MockerFixture
 ) -> None:
@@ -1023,34 +981,6 @@ def test_current_bundle_role_validation_does_not_resolve_memberships(
     resolver = mocker.spy(self_service_roles, "resolve_role_members")
     self_service_roles.validate_self_service_roles(mocker.Mock(query=query_func))
     resolver.assert_not_called()
-    ldap_endpoint.assert_not_awaited()
-
-
-def test_gitlab_filters_unmanaged_group_before_resolution(
-    ldap_endpoint: AsyncMock, gql_class_factory: Callable, mocker: MockerFixture
-) -> None:
-    from reconcile import gitlab_members
-    from reconcile.gql_definitions.gitlab_members.permissions import (
-        PermissionGitlabGroupMembershipV1,
-    )
-
-    permission = gql_class_factory(
-        PermissionGitlabGroupMembershipV1,
-        {"group": "unmanaged", "roles": [{"name": "role", "users": [], "bots": []}]},
-    )
-    assert permission.roles
-    permission.roles[0].member_sources = [
-        build_ldap_membership_source(name="ldap", group="source-team")
-    ]
-    assert (
-        gitlab_members.get_permissions(
-            query_func=mocker.Mock(
-                return_value={"permissions": [permission.model_dump(by_alias=True)]}
-            ),
-            managed_groups={"managed"},
-        )
-        == []
-    )
     ldap_endpoint.assert_not_awaited()
 
 

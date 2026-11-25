@@ -1,6 +1,6 @@
 # Managed SSO Client Integration
 
-**Last Updated:** 2026-09-10
+**Last Updated:** 2026-11-11
 
 ## Description
 
@@ -9,7 +9,8 @@ The `managed-sso-client` integration lets tenants declaratively request SSO clie
 ## Features
 
 - Creates OIDC clients declared in App-Interface via Keycloak's `/clients-registrations/default` endpoint
-- Updates clients in place via live `GET`/diff/`PUT` against Keycloak — no forced secret rotation on unrelated config changes
+- Updates mutable client settings in place via live `GET`/diff/`PUT` against Keycloak — no forced secret rotation on unrelated config changes
+- Configures protocol mappers only during client creation; mapper changes require a replacement client
 - Deletes clients removed from App-Interface (treats 401/404 from Keycloak as already-deleted)
 - Exposes the most commonly needed OIDC `ClientRepresentation` fields (client type, grants, redirect/logout/CORS URIs, consent, scopes) - anything else keeps its realm/Keycloak default
 - Splits credential storage: an AppSRE-owned Vault secret (full Keycloak response, including the `registration_access_token`) and a tenant-facing Vault secret (`client_id`/`client_secret` only)
@@ -45,7 +46,65 @@ oidc:
   redirectUris:
   - https://my-app.example.com/callback
   serviceAccountsEnabled: true
+  protocolMappers:
+  - name: my-api-audience
+    protocolMapper: oidc-audience-mapper
+    config:
+      included.custom.audience: my-api
+      access.token.claim: "true"
+      id.token.claim: "false"
+  attributes:
+    pkce.code.challenge.method: S256
 ```
+
+### Protocol mappers: client creation only
+
+`protocolMappers` is applied only when a client is created. The mapper protocol
+is always `openid-connect`, inferred from the enclosing `oidc` section. The
+example adds `my-api` to access tokens' `aud` claim, leaving ID tokens unchanged.
+Use `included.client.audience` instead of `included.custom.audience` when the
+audience is another Keycloak client ID.
+
+For an existing client, reconciliation checks the declared mapper names,
+providers, and config keys against Keycloak. If a declared mapper is missing or
+any of those settings differ, dry-run fails with an error requiring a new OIDC
+client. Normal execution logs a warning, leaves the mappers unchanged, and
+continues reconciling other supported client settings. Mapper differences alone
+do not fail normal execution or increment the reconciliation error counter.
+This includes drift caused by changes made directly in Keycloak and YAML
+changes merged despite a failed pre-merge check. The warning repeats while
+the mismatch remains; the integration does not repair mapper drift.
+
+Every client update omits `protocolMappers` entirely, leaving all live mappers
+and their configuration untouched. In particular, Keycloak's automatically
+created service-account mappers are neither modified nor resubmitted to the
+registration policy. Other mutable client settings can still be updated during
+normal execution even when the declared mappers differ. Scope, API, and Vault
+errors continue to fail normally.
+
+Undeclared live mappers and config keys are ignored. Removing a mapper or config
+key from YAML stops checking it; it does not delete or reset its live value.
+Leaving `protocolMappers` unset or setting it to `[]` leaves all mappers unmanaged.
+
+`name` and `protocolMapper` are required, and names must be unique within the
+client. `config` is optional and defaults to an empty mapping. Mapper-specific
+settings must still be supplied for the intended behavior, such as an audience
+value for `oidc-audience-mapper`. Only declared config keys are checked for drift;
+omitting `config` or setting it to `{}` skips config comparison.
+
+Empty string config values (`""`) are rejected because Keycloak removes those
+entries, causing persistent drift. Omit an unset key instead. Whitespace-only
+values are preserved as supplied: Keycloak's mapper config conversion does not
+trim them, unlike client attributes.
+
+To change a mapper, declare a new client with a different name and the required
+configuration. Once it is created, switch consumers to its credentials, then
+delete the old client. Use a distinct output path for the replacement client so
+its credentials do not overwrite the old client's secret during migration.
+
+`attributes` is a string-valued escape hatch for OIDC client attributes;
+only declared keys are checked for drift, and omitting it leaves existing
+attributes alone.
 
 Renaming a client (changing `name`) changes its derived `clientId`, which the reconciler treats as a delete of the old client plus a create of a new one — not an in-place rename — issuing new credentials.
 
@@ -172,7 +231,7 @@ The integration can perform these reconciliation actions:
 
 `update`:
 
-**Description:** OIDC configuration drift only — updates the client in place via live `GET`/diff/`PUT`. Rotates and persists the registration access token; leaves `client_secret` unchanged. Never touches the tenant secret's Vault path; that's an independent concern, see `move_tenant_secret` below. **Exception:** a change to `defaultClientScopes` or `optionalClientScopes` is rejected with an error instead of being applied — see the known limitation below.
+**Description:** OIDC configuration drift only — updates the client in place via live `GET`/diff/`PUT`. Rotates and persists the registration access token; leaves `client_secret` unchanged. Never touches the tenant secret's Vault path; that's an independent concern, see `move_tenant_secret` below. **Exceptions:** changes to declared protocol mappers fail dry-run and only log a warning during normal execution; mappers are never updated. Changes to `defaultClientScopes` or `optionalClientScopes` are rejected with an error in both modes; see the scope limitation below.
 
 **Fields:**
 

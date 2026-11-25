@@ -457,7 +457,7 @@ class TerrascriptClient:
 
     ts = TerrascriptClient("terraform_resources", "qrtf", 20, accounts, settings)
     ts.init_populate_specs(tf_namespaces, account_name)
-    ts.populate_resources(ocm_map=ocm_map)
+    ts.populate_resources(ocm_map=ocm_map, aws_api=aws_api)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
     More information on Terrascript: https://python-terrascript.readthedocs.io/en/develop/
@@ -1652,145 +1652,45 @@ class TerrascriptClient:
 
         return results
 
-    def populate_resources(self, ocm_map: OCMMap | None = None) -> None:
+    def populate_resources(
+        self, ocm_map: OCMMap | None = None, *, aws_api: AWSApi
+    ) -> None:
         """
         Populates the terraform configuration from resource specs.
         :param ocm_map:
+        :param aws_api: shared AWS client used for best-effort lookups
         """
         for specs in self.account_resource_specs.values():
             for spec in specs:
-                self.populate_tf_resources(spec, ocm_map=ocm_map)
+                self.populate_tf_resources(spec, ocm_map=ocm_map, aws_api=aws_api)
 
-    def warn_elasticsearch_ebs_limits(self, aws_api: AWSApi) -> None:
-        """Warn on EBS volumes above AWS's instance-specific maximum.
+    @staticmethod
+    def _to_finite_float(value: Any) -> float | None:
+        try:
+            result = float(value)
+        except TypeError, ValueError:
+            return None
+        return result if math.isfinite(result) else None
 
-        Limits are fetched from AWS best-effort; missing limits or API access
-        never block configuration generation. The read-only API requires
-        ``es:DescribeInstanceTypeLimits``. See
-        https://docs.aws.amazon.com/opensearch-service/latest/developerguide/limits.html#ebsresource
+    @staticmethod
+    def _opensearch_api_instance_type(instance_type: str) -> str:
+        """Translate an app-interface instance type to a limits API name."""
+        # The limits API only knows the current '.search' suffix; older
+        # app-interface specs still use the legacy '.elasticsearch' name.
+        if instance_type.endswith(".elasticsearch"):
+            return f"{instance_type.removesuffix('.elasticsearch')}.search"
+        return instance_type
+
+    @staticmethod
+    def _opensearch_api_engine_version(engine_version: str) -> str:
+        """Prefix a plain version like '7.10' with its engine name.
+
+        Already-prefixed values ('Elasticsearch_7.10', 'OpenSearch_2.15') are
+        passed through unchanged.
         """
-        reported_missing_limits: set[tuple[str, str, str, str, str]] = set()
-        for specs in self.account_resource_specs.values():
-            for spec in specs:
-                if spec.provider != "elasticsearch":
-                    continue
-
-                values = self.init_values(spec)
-                ebs_options = values.get("ebs_options") or {}
-                if not ebs_options or not ebs_options.get("ebs_enabled", True):
-                    continue
-
-                volume_size = ebs_options.get("volume_size")
-                cluster_config = values.get("cluster_config") or {}
-                instance_type = cluster_config.get("instance_type") or (
-                    "t2.small.elasticsearch"
-                )
-                engine_version = values.get("elasticsearch_version")
-                region = values.get("region") or self.default_regions.get(
-                    spec.provisioner_name
-                )
-                volume_type = ebs_options.get("volume_type", "gp2")
-                if volume_size is None:
-                    continue
-                if not isinstance(instance_type, str):
-                    logging.info(
-                        "Skipping OpenSearch EBS limit check for %s: invalid "
-                        "instance type %r",
-                        spec.identifier,
-                        instance_type,
-                    )
-                    continue
-
-                if not engine_version or not region:
-                    missing_key = (
-                        spec.provisioner_name,
-                        str(region or ""),
-                        str(engine_version or ""),
-                        str(instance_type),
-                        str(volume_type),
-                    )
-                    if missing_key not in reported_missing_limits:
-                        logging.info(
-                            "Skipping OpenSearch EBS limit check for %s: engine "
-                            "version or region is not configured",
-                            spec.identifier,
-                        )
-                        reported_missing_limits.add(missing_key)
-                    continue
-
-                api_instance_type = instance_type
-                if api_instance_type.endswith(".elasticsearch"):
-                    api_instance_type = (
-                        api_instance_type.removesuffix(".elasticsearch") + ".search"
-                    )
-
-                api_engine_version = engine_version
-                if isinstance(engine_version, str) and re.fullmatch(
-                    r"\d+\.\d{1,2}", engine_version
-                ):
-                    api_engine_version = f"Elasticsearch_{engine_version}"
-
-                limits = aws_api.get_opensearch_instance_type_limits(
-                    spec.provisioner_name,
-                    region,
-                    api_engine_version,
-                    api_instance_type,
-                )
-                if limits is None:
-                    continue
-                maximum_volume_size = self._get_opensearch_ebs_volume_limit(
-                    limits, volume_type
-                )
-                if maximum_volume_size is None:
-                    missing_key = (
-                        spec.provisioner_name,
-                        region,
-                        engine_version,
-                        api_instance_type,
-                        str(volume_type),
-                    )
-                    if missing_key not in reported_missing_limits:
-                        logging.info(
-                            "Skipping OpenSearch EBS limit check for %s: AWS did not "
-                            "return a maximum for volume type %s on instance %s",
-                            spec.identifier,
-                            volume_type,
-                            api_instance_type,
-                        )
-                        reported_missing_limits.add(missing_key)
-                    continue
-
-                try:
-                    requested_volume_size = float(volume_size)
-                except TypeError, ValueError:
-                    logging.info(
-                        "Skipping OpenSearch EBS limit check for %s: invalid volume "
-                        "size %r",
-                        spec.identifier,
-                        volume_size,
-                    )
-                    continue
-                if not math.isfinite(requested_volume_size):
-                    logging.info(
-                        "Skipping OpenSearch EBS limit check for %s: invalid volume "
-                        "size %r",
-                        spec.identifier,
-                        volume_size,
-                    )
-                    continue
-
-                if requested_volume_size > maximum_volume_size:
-                    logging.warning(
-                        "OpenSearch domain %s in account %s requests %s GiB per-node "
-                        "%s EBS volume for %s; AWS maximum is %s GiB. See %s",
-                        spec.identifier,
-                        spec.provisioner_name,
-                        volume_size,
-                        volume_type,
-                        api_instance_type,
-                        maximum_volume_size,
-                        "https://docs.aws.amazon.com/opensearch-service/latest/developerguide/limits.html#ebsresource",
-                    )
+        if re.fullmatch(r"\d+\.\d{1,2}", engine_version):
+            return f"Elasticsearch_{engine_version}"
+        return engine_version
 
     @staticmethod
     def _get_opensearch_ebs_volume_limit(
@@ -1813,14 +1713,105 @@ class TerrascriptClient:
                 values = limit.get("LimitValues") or []
                 if not values:
                     return None
-                try:
-                    maximum_volume_size = float(values[0])
-                except TypeError, ValueError:
-                    return None
-                return (
-                    maximum_volume_size if math.isfinite(maximum_volume_size) else None
-                )
+                return TerrascriptClient._to_finite_float(values[0])
         return None
+
+    def _get_opensearch_instance_type_limits(
+        self,
+        spec: ExternalResourceSpec,
+        region: str,
+        engine_version: str,
+        instance_type: str,
+        aws_api: AWSApi,
+    ) -> Mapping[str, Any] | None:
+        return aws_api.get_opensearch_instance_type_limits(
+            spec.provisioner_name, region, engine_version, instance_type
+        )
+
+    def _warn_elasticsearch_ebs_limit(
+        self,
+        spec: ExternalResourceSpec,
+        *,
+        region: str,
+        engine_version: str | None,
+        instance_type: str,
+        ebs_values: Mapping[str, Any],
+        aws_api: AWSApi,
+    ) -> None:
+        """Warn when an EBS volume exceeds AWS's instance-specific maximum.
+
+        Limits are fetched from AWS best-effort; missing limits or API access
+        never block configuration generation. The read-only API requires
+        ``es:DescribeInstanceTypeLimits``. See
+        https://docs.aws.amazon.com/opensearch-service/latest/developerguide/limits.html#ebsresource
+        """
+        if not ebs_values or not ebs_values.get("ebs_enabled", True):
+            return
+
+        volume_size = ebs_values.get("volume_size")
+        if volume_size is None:
+            return
+
+        if not engine_version:
+            logging.debug(
+                "Skipping OpenSearch EBS limit check for %s: engine version is not "
+                "configured",
+                spec.identifier,
+            )
+            return
+
+        if not isinstance(instance_type, str):
+            logging.info(
+                "Skipping OpenSearch EBS limit check for %s: invalid instance type %r",
+                spec.identifier,
+                instance_type,
+            )
+            return
+
+        api_instance_type = self._opensearch_api_instance_type(instance_type)
+        limits = self._get_opensearch_instance_type_limits(
+            spec,
+            region,
+            self._opensearch_api_engine_version(engine_version),
+            api_instance_type,
+            aws_api,
+        )
+        if limits is None:
+            return
+
+        volume_type = ebs_values.get("volume_type", "gp2")
+        maximum_volume_size = self._get_opensearch_ebs_volume_limit(limits, volume_type)
+        if maximum_volume_size is None:
+            logging.debug(
+                "Skipping OpenSearch EBS limit check for %s: AWS did not return a "
+                "maximum for volume type %s on instance %s",
+                spec.identifier,
+                volume_type,
+                api_instance_type,
+            )
+            return
+
+        requested_volume_size = self._to_finite_float(volume_size)
+        if requested_volume_size is None:
+            logging.info(
+                "Skipping OpenSearch EBS limit check for %s: invalid volume size %r",
+                spec.identifier,
+                volume_size,
+            )
+            return
+
+        if requested_volume_size > maximum_volume_size:
+            logging.warning(
+                "OpenSearch domain %s in account %s requests %s GiB per-node "
+                "%s EBS volume for %s; AWS maximum is %s GiB. See %s",
+                spec.identifier,
+                spec.provisioner_name,
+                volume_size,
+                volume_type,
+                api_instance_type,
+                maximum_volume_size,
+                "https://docs.aws.amazon.com/opensearch-service/latest/developerguide/limits.html#ebsresource",
+            )
 
     def _is_provisioner_excluded(
         self,
@@ -1909,7 +1900,11 @@ class TerrascriptClient:
                 self.resource_spec_inventory[spec.id_object()] = spec
 
     def populate_tf_resources(
-        self, spec: ExternalResourceSpec, ocm_map: OCMMap | None = None
+        self,
+        spec: ExternalResourceSpec,
+        ocm_map: OCMMap | None = None,
+        *,
+        aws_api: AWSApi,
     ) -> None:
         if spec.provision_provider != PROVIDER_AWS:
             raise UnknownProviderError(spec.provision_provider)
@@ -1943,7 +1938,7 @@ class TerrascriptClient:
         elif provider == "kms":
             self.populate_tf_resource_kms(spec)
         elif provider == "elasticsearch":
-            self.populate_tf_resource_elasticsearch(spec)
+            self.populate_tf_resource_elasticsearch(spec, aws_api=aws_api)
         elif provider == "acm":
             self.populate_tf_resource_acm(spec)
         elif provider == "kinesis":
@@ -4836,7 +4831,9 @@ class TerrascriptClient:
 
         return advanced_security_options
 
-    def populate_tf_resource_elasticsearch(self, spec: ExternalResourceSpec) -> None:
+    def populate_tf_resource_elasticsearch(
+        self, spec: ExternalResourceSpec, *, aws_api: AWSApi
+    ) -> None:
         account = spec.provisioner_name
         identifier = spec.identifier
         values = self.init_values(spec)
@@ -5046,6 +5043,14 @@ class TerrascriptClient:
 
         region = values.get("region") or self.default_regions.get(account)
         assert region  # make mypy happy
+        self._warn_elasticsearch_ebs_limit(
+            spec,
+            region=region,
+            engine_version=es_values["elasticsearch_version"],
+            instance_type=cluster_vaules["instance_type"],
+            ebs_values=ebs_values,
+            aws_api=aws_api,
+        )
         provider = ""
         if self._multiregion_account(account):
             provider = "aws." + region

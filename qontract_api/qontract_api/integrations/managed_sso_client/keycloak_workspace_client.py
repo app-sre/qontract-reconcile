@@ -76,6 +76,9 @@ class KeycloakWorkspaceClient:
         Invalidates even when the update call raises, so a lost response for
         a PUT Keycloak actually applied cannot leave a stale cached value
         behind until the cache TTL expires.
+
+        Mappers are creation-only. Always omit protocolMappers from updates,
+        leaving all live mappers untouched, including Keycloak's automatic ones.
         """
         cache_key = self._client_key(client_id)
         with self.cache.lock(cache_key):
@@ -83,7 +86,7 @@ class KeycloakWorkspaceClient:
                 updated = self.keycloak_api.update_client(
                     client_id=client_id,
                     registration_access_token=registration_access_token,
-                    data=data,
+                    data=data.with_protocol_mappers(None),
                 )
             finally:
                 self._invalidate_cache(cache_key)

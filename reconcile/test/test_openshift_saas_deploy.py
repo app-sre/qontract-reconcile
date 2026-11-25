@@ -5,6 +5,7 @@ from unittest.mock import create_autospec
 
 import pytest
 
+from reconcile import slack_base
 from reconcile.openshift_saas_deploy import (
     _saas_file_tekton_pipeline_name,
     compose_console_url,
@@ -15,10 +16,7 @@ from reconcile.openshift_tekton_resources import (
     OpenshiftTektonResourcesNameTooLongError,
 )
 from reconcile.typed_queries.saas_files import SaasFile
-from reconcile.utils import (
-    openshift_resource,
-    slack_api,
-)
+from reconcile.utils import openshift_resource
 from reconcile.utils.saasherder.saasherder import UNIQUE_SAAS_FILE_ENV_COMBO_LEN
 
 if TYPE_CHECKING:
@@ -148,7 +146,7 @@ def test_compose_console_url_with_long_saas_name(
 
 
 def test_slack_notify_skipped_success() -> None:
-    api = create_autospec(slack_api.SlackApi)
+    api = create_autospec(slack_base.SlackApi)
     slack_notify(
         saas_file_name="test-slack_notify--skipped-success.yaml",
         env_name="test",
@@ -162,7 +160,7 @@ def test_slack_notify_skipped_success() -> None:
 
 
 def test_slack_notify_unskipped_success() -> None:
-    api = create_autospec(slack_api.SlackApi)
+    api = create_autospec(slack_base.SlackApi)
     slack_notify(
         saas_file_name="test-slack_notify--unskipped-success.yaml",
         env_name="test",
@@ -182,7 +180,7 @@ def test_slack_notify_unskipped_success() -> None:
 
 
 def test_slack_notify_unskipped_failure() -> None:
-    api = create_autospec(slack_api.SlackApi)
+    api = create_autospec(slack_base.SlackApi)
     ri = openshift_resource.ResourceInventory()
     ri.register_error()
     slack_notify(
@@ -204,7 +202,7 @@ def test_slack_notify_unskipped_failure() -> None:
 
 
 def test_slack_notify_skipped_failure() -> None:
-    api = create_autospec(slack_api.SlackApi)
+    api = create_autospec(slack_base.SlackApi)
     ri = openshift_resource.ResourceInventory()
     ri.register_error()
     slack_notify(
@@ -226,7 +224,7 @@ def test_slack_notify_skipped_failure() -> None:
 
 
 def test_slack_notify_skipped_in_progress() -> None:
-    api = create_autospec(slack_api.SlackApi)
+    api = create_autospec(slack_base.SlackApi)
     ri = openshift_resource.ResourceInventory()
     slack_notify(
         saas_file_name="test-saas-file-name.yaml",

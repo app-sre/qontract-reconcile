@@ -2672,14 +2672,6 @@ def github_repo_permissions_validator(ctx: click.Context, instance_name: str) ->
     run_integration(reconcile.github_repo_permissions_validator, ctx, instance_name)
 
 
-@integration.command(short_help="Manage GitLab group members.")
-@click.pass_context
-def gitlab_members(ctx: click.Context) -> None:
-    import reconcile.gitlab_members
-
-    run_integration(reconcile.gitlab_members, ctx)
-
-
 @integration.command(short_help="Create GitLab projects via qontract-api.")
 @click.option(
     "--instance-name", help="Reconcile just this GitLab instance.", default=None
@@ -2892,6 +2884,20 @@ def ocm_machine_pools(ctx: click.Context) -> None:
     import reconcile.ocm_machine_pools
 
     run_integration(reconcile.ocm_machine_pools, ctx)
+
+
+@integration.command(short_help="Manage Machine Pools in OCM (via qontract-api).")
+@click.pass_context
+def ocm_machine_pools_api(ctx: click.Context) -> None:
+    from reconcile.ocm_machine_pools_api import (
+        OcmMachinePoolsIntegration,
+        OcmMachinePoolsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=OcmMachinePoolsIntegration(OcmMachinePoolsIntegrationParams()),
+        ctx=ctx,
+    )
 
 
 @integration.command(short_help="Manage Upgrade Policy schedules in OCM organizations.")
@@ -3907,21 +3913,6 @@ def ocm_labels(
                 ignored_label_prefixes=list(set(ignored_label_prefixes.split(","))),
             )
         ),
-        ctx=ctx,
-    )
-
-
-@integration.command(
-    short_help="Notifications to internal Red Hat users based on conditions in OCM."
-)
-@click.pass_context
-def ocm_internal_notifications(ctx: click.Context) -> None:
-    from reconcile.ocm_internal_notifications.integration import (
-        OcmInternalNotifications,
-    )
-
-    run_class_integration(
-        integration=OcmInternalNotifications(),
         ctx=ctx,
     )
 

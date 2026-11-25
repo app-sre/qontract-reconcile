@@ -1,4 +1,4 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -9,10 +9,15 @@ from reconcile.test.runtime import (
     demo_integration_no_run_func,
     demo_integration_shard_config,
 )
+from reconcile.utils.constants import REQUEST_TIMEOUT
 from reconcile.utils.runtime.integration import (
     ModuleArgsKwargsRunParams,
     ModuleBasedQontractReconcileIntegration,
+    setup_qontract_api_client,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 def test_module_integration_no_name() -> None:
@@ -103,3 +108,30 @@ def test_demo_integration_params_have_shard_info(
         )
     )
     assert integration.params_have_shard_info() == expected_result
+
+
+def test_setup_qontract_api_client_gives_sync_client_a_finite_timeout(
+    mocker: MockerFixture,
+) -> None:
+    """The async client keeps an unbounded timeout (long blocking GETs), but the
+    sync client used by fire-and-forget reconcile calls must not hang forever."""
+    setup_qontract_api_client.cache_clear()
+    mocker.patch(
+        "reconcile.utils.runtime.integration.get_config",
+        return_value={"qontract-api": {"server": "https://qontract-api.example.com"}},
+    )
+    mock_async_client = mocker.patch(
+        "reconcile.utils.runtime.integration.qontract_api_client"
+    )
+    mock_sync_client = mocker.patch(
+        "reconcile.utils.runtime.integration.qontract_api_sync_client"
+    )
+
+    setup_qontract_api_client()
+
+    async_config = mock_async_client.configure.call_args.kwargs["config"]
+    sync_config = mock_sync_client.configure.call_args.kwargs["config"]
+    assert async_config.timeout is None
+    assert sync_config.timeout == REQUEST_TIMEOUT
+
+    setup_qontract_api_client.cache_clear()
