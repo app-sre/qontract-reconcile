@@ -14,7 +14,7 @@ from reconcile.gql_definitions.templating.templates import (
 )
 from reconcile.templating.lib.rendering import Renderer, TemplateData, create_renderer
 from reconcile.utils import gql
-from reconcile.utils.jinja2.utils import TemplateRenderOptions
+from reconcile.utils.jinja2.utils import Jinja2TemplateCache, TemplateRenderOptions
 from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
@@ -47,6 +47,8 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         template: TemplateV1,
         template_test: TemplateTestV1,
         ruaml_instance: yaml.YAML,
+        *,
+        cache: Jinja2TemplateCache,
         secret_reader: SecretReaderBase | None = None,
     ) -> Renderer:
         return create_renderer(
@@ -55,6 +57,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                 variables=template_test.variables or {},
                 current=ruaml_instance.load(template_test.current or ""),
             ),
+            cache=cache,
             secret_reader=secret_reader,
             template_render_options=TemplateRenderOptions.create(
                 trim_blocks=template.template_render_options.trim_blocks
@@ -74,12 +77,18 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         template: TemplateV1,
         template_test: TemplateTestV1,
         ruaml_instance: yaml.YAML,
+        *,
+        cache: Jinja2TemplateCache,
         secret_reader: SecretReaderBase | None = None,
     ) -> list[TemplateDiff]:
         diffs: list[TemplateDiff] = []
 
         r = TemplateValidatorIntegration._create_renderer(
-            template, template_test, ruaml_instance, secret_reader=secret_reader
+            template,
+            template_test,
+            ruaml_instance,
+            cache=cache,
+            secret_reader=secret_reader,
         )
 
         # Check target path
@@ -133,13 +142,18 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
     def run(self, dry_run: bool) -> None:
         diffs: list[TemplateDiff] = []
         ruaml_instance = create_ruamel_instance(explicit_start=True)
+        cache = Jinja2TemplateCache()
 
         for template in get_templates():
             for test in template.template_test:
                 logging.info(f"Running test {test.name} for template {template.name}")
                 diffs.extend(
                     self.validate_template(
-                        template, test, ruaml_instance, self.secret_reader
+                        template,
+                        test,
+                        ruaml_instance,
+                        cache=cache,
+                        secret_reader=self.secret_reader,
                     )
                 )
 

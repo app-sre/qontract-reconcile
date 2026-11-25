@@ -76,9 +76,6 @@ from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
 from reconcile.gql_definitions.app_sre_tekton_access_revalidation.roles import (
     query as app_sre_tekton_access_revalidation_roles_query,
 )
-from reconcile.gql_definitions.common.app_interface_vault_settings import (
-    AppInterfaceSettingsV1,
-)
 from reconcile.gql_definitions.common.clusters import ClusterSpecROSAV1
 from reconcile.gql_definitions.external_resources.aws_accounts import (
     query as aws_accounts_query,
@@ -119,6 +116,7 @@ from reconcile.typed_queries.app_quay_repos_escalation_policies import (
 )
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.external_resources import get_settings as get_er_settings
+from reconcile.typed_queries.openshift_resources import get_openshift_resources_settings
 from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.typed_queries.status_board import get_status_board
@@ -3661,8 +3659,8 @@ def template(
         sys.exit(1)
 
     namespace_info = namespaces_info[0]
-    settings = get_app_interface_settings().model_dump(by_alias=True)
-    settings["vault"] = secret_reader == "vault"
+    settings = get_openshift_resources_settings()
+    reader = create_secret_reader(use_vault=secret_reader == "vault")
 
     if path and path.startswith("resources"):
         path = path.replace("resources", "", 1)
@@ -3673,7 +3671,9 @@ def template(
         resource_path = r.get("resource", {}).get("path")
         if path and path != resource_path:
             continue
-        openshift_resource = orb.fetch_openshift_resource(r, namespace_info, settings)
+        openshift_resource = orb.fetch_openshift_resource(
+            r, namespace_info, repo_url=settings.repo_url, secret_reader=reader
+        )
         if openshift_resource.kind.lower() != kind.lower():
             continue
         if openshift_resource.name != name:
@@ -3736,9 +3736,11 @@ def run_prometheus_test(
         print(f"No test found with {path} in {cluster}/{namespace}")
         sys.exit(1)
 
-    use_vault = secret_reader == "vault"
-    vault_settings = AppInterfaceSettingsV1(vault=use_vault)
-    test = ptr.fetch_rule_and_tests(rule=rtf, vault_settings=vault_settings)
+    test = ptr.fetch_rule_and_tests(
+        rule=rtf,
+        secret_reader=create_secret_reader(use_vault=secret_reader == "vault"),
+        repo_url=get_openshift_resources_settings().repo_url,
+    )
     ptr.run_test(test=test, alerting_services=get_alerting_services())
 
     print(test.result)
@@ -3831,11 +3833,8 @@ def alert_to_receiver(
         print(f"Unknown cluster {cluster}")
         sys.exit(1)
 
-    settings = get_app_interface_settings().model_dump(by_alias=True)
-    if secret_reader == "config":
-        settings["vault"] = False
-    else:
-        settings["vault"] = True
+    settings = get_openshift_resources_settings()
+    reader = create_secret_reader(use_vault=secret_reader == "vault")
 
     # Get alertmanager config
     am_config = ""
@@ -3846,7 +3845,9 @@ def alert_to_receiver(
         for r in ni.get("openshiftResources"):
             if r.get("resource", {}).get("path") != alertmanager_secret_path:
                 continue
-            openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
+            openshift_resource = orb.fetch_openshift_resource(
+                r, ni, repo_url=settings.repo_url, secret_reader=reader
+            )
             body = openshift_resource.body
             if "data" in body:
                 am_config = base64.b64decode(
@@ -3866,7 +3867,9 @@ def alert_to_receiver(
         for r in ni.get("openshiftResources"):
             if r.get("resource", {}).get("path") != rules_path:
                 continue
-            openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
+            openshift_resource = orb.fetch_openshift_resource(
+                r, ni, repo_url=settings.repo_url, secret_reader=reader
+            )
             if openshift_resource.kind.lower() != "prometheusrule":
                 print(f"Object in {rules_path} is not a PrometheusRule")
                 sys.exit(1)
