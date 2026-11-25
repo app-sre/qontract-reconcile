@@ -1,0 +1,306 @@
+# Decouple JSONPath evaluation behind a shared abstraction
+
+## Date of Proposal
+
+November 2026
+
+Tracked in [APPSRE-15715](https://redhat.atlassian.net/browse/APPSRE-15715).
+
+## Problem
+
+This is recurring upgrade work, not a hypothetical compatibility concern:
+
+- **August 2026:** `jsonpath-ng` 1.8.0 changed how paths were displayed, making
+  change-owner reports difficult to read. Commit `7eba2054` added a dedicated
+  compatibility fix.
+- **November 4–5:** the dependency update attempted **1.8.0 → 1.15.0**. Stricter
+  JSONPath-standard behavior changed string indexing and wildcard handling of
+  dictionaries and scalars. Existing Jinja filters could return different results
+  without raising errors. New type information also exposed incompatible
+  assumptions in change coverage and promotion code.
+- Preserving existing behavior required an initial compatibility patch followed
+  by **five further commits**. Review repeatedly found cases the fixes missed:
+  nested paths, filters, Boolean expressions, and arithmetic expressions.
+- Testing **1.16.0** then broke the compatibility layer again because wildcard
+  representation changed, producing **10 failing tests**. The upgrade was
+  abandoned for that dependency update: the compatibility patches were
+  reverted and `jsonpath-ng` held at **1.8.0**. The merged update
+  (`3285ad1e`, #5902) retained that pin; these failures were caught before
+  shipping the new version.
+
+`jsonpath-ng` is maintained, but our code also depends on its parser nodes for
+paths and change coverage. Routine upgrades therefore combine query migration
+with repairs to library-specific code - that coupling, not `jsonpath-ng`
+specifically, is the root problem: every parser-node or RFC 9535 alignment
+change in the library propagates directly into our authorization, rendering,
+and sharding code. This proposal's primary deliverable is removing that
+coupling behind a shared abstraction; which engine sits behind it is a
+decision the abstraction makes possible, not a goal pre-committed by this
+proposal - "Why python-jsonpath" below explains why it is nonetheless the
+leading candidate.
+
+## Why python-jsonpath
+
+`python-jsonpath` is the leading candidate engine behind the shared
+abstraction, not a foregone conclusion. The repeated cost documented above -
+a dedicated compatibility fix in August 2026, five follow-up commits chasing
+1.15.0's RFC 9535 alignment, then a second break on 1.16.0 that forced
+abandoning that attempt entirely - shows that staying on `jsonpath-ng` means
+re-paying this cost on every future release, for as long as our code stays
+coupled to its parser nodes. `python-jsonpath` already implements RFC 9535
+today:
+
+- **Maintained:** verified repository commits in October 2026.
+- **Documented API:** typed query results expose values, concrete locations, and
+  JSON Pointers without requiring consumers to manipulate parser nodes.
+- **Clearer upgrade boundary:** version 2.0 explicitly documented breaking changes
+  as a major release. Future updates still need behavioral tests.
+- **No mandatory runtime dependencies or native extensions.**
+
+It is not universally faster or a drop-in replacement. Cached evaluation was
+roughly twice as slow in representative microbenchmarks, adding about 1–5 ms per
+1,000-record query. Temporary dual-engine comparison adds further overhead, which
+must be measured in integration-level checks.
+
+M3 gates the final engine decision on measured evidence from M1/M2 (the
+inventory and comparison data), not on this proposal pre-committing to it: if
+`jsonpath-ng`'s own RFC 9535 migration stabilizes once the abstraction removes
+our parser-node coupling, keeping `jsonpath-ng` behind the abstraction remains
+a valid M3 outcome. Given the cost history above, switching to
+`python-jsonpath` is the expected result, but M3 is a decision point, not a
+formality.
+
+## API and exception contract
+
+Before M1, the shared package defines:
+
+- **A project-owned `Path`/location model.** `change-owners` and promotion
+  rely on path operations - `parent`, `parts`, `is_prefix_of`,
+  `remove_prefix`, selector narrowing, and index-aware sorting - that neither
+  engine's high-level match/pointer API provides directly. This model, not a
+  raw JSON Pointer string, is the canonical location contract: both engines'
+  native path representations are normalized into it (see "Comparison is
+  normalized, not literal" below), and it owns location comparison
+  independently of either engine's representation.
+- **Match fields.** What a `Match` exposes to consumers. The SaaS selector
+  (`reconcile/typed_queries/saas_files.py`) reads
+  `match.value["cluster"]["name"]` and `match.value["name"]`; the contract
+  preserves this shape.
+- **Exception mapping stays at the `reconcile` boundary.**
+  `qontract_utils.jsonpath` exposes its own engine-agnostic parse/evaluation
+  exceptions; it does not produce `ParameterError` itself, since
+  `qontract_utils` has no knowledge of `reconcile`-specific concepts. The SaaS
+  selector (`reconcile/typed_queries/saas_files.py`) translates the package's
+  exception to the `ParameterError` it already raises today;
+  `status-board` (`reconcile/typed_queries/status_board.py`), which currently
+  evaluates `jsonpath-ng` directly with no translation, can adopt the
+  engine-agnostic exception without needing a `ParameterError` mapping of its
+  own.
+- **Empty-result behavior.** What an empty match set returns, consistently
+  across both engines.
+- **Update/removal semantics are package-owned, not inherited.**
+  `python-jsonpath`'s pointer/patch primitives are not a drop-in replacement
+  for the current AST-based mutation path. The package defines how it applies
+  mutations at a matched location - including duplicate matches, parent
+  cleanup, and ordering - consistently across both engines.
+
+## Proposed qontract_utils package
+
+Introduce a shared `qontract_utils.jsonpath` package for queries, match locations,
+and updates. It owns both engines during migration and presents one consistent
+interface to integrations, implementing the contract above. Consumers no
+longer depend on either library's parser nodes. Engine selection stays inside
+the utility; reconcile gains no new setting. Existing Jinja filter names
+remain unchanged.
+
+The package must detect **both syntax failures and silent result differences**.
+During migration it compares match values, types, locations, order, and duplicates
+on isolated input copies, without replaying mutations.
+
+**Comparison is normalized, not literal.** `jsonpath-ng` exposes structured
+`Fields`/`Index` path nodes; `python-jsonpath` exposes JSON Pointers. Both are
+normalized into the package's own `Path`/location model (see "API and
+exception contract" above) before comparison, so equivalent matches aren't
+flagged as differences regardless of which engine's native representation
+produced them; a JSON Pointer with correct escaping is one supported
+serialization of that model, not the contract itself. Duplicate matches are
+preserved; match order is compared only where the consumer contract requires
+an ordering guarantee. Some matches have no valid location at all - for
+example `$.name[0]` on `{"name":"api"}` selects a character inside a string,
+which neither a JSON Pointer nor the `Path` model can address. A
+non-addressable location makes the comparison **unavailable**, not equal:
+value/type agreement alone does not establish the two engines selected the
+same place (`$.a[*].x[0]` on `{"a":{"x":"q","other":{"x":["q"]}}}` selects a
+character inside `a.x` under `jsonpath-ng` but `a.other.x[0]` under
+`python-jsonpath` - both are `"q"`, but they are different matches). An
+unavailable comparison is logged as such, never auto-approved as a
+non-difference, and M1 preserves the `jsonpath-ng` result for it like any
+other match.
+
+**Comparison is scoped to the dialect intersection.** Some existing queries
+must be rewritten to `&&`/`search()` syntax for `python-jsonpath` (see
+"Existing query incompatibilities" below) - syntax `jsonpath-ng` 1.8.0's
+parser cannot evaluate at all. Comparison therefore only runs on expressions
+valid in both dialects; a query that only parses under the rewritten syntax
+is logged as a syntax-only incompatibility, not a comparison failure. A query
+is not migrated to the rewritten syntax until `jsonpath-ng` fallback is no
+longer required for it.
+
+**Migrating a query to the rewritten syntax is a one-way door unless reverted
+explicitly.** The pinned `jsonpath-ng==1.8.0` parses neither `&&` nor
+`search()` (`&&` support was added in 1.13.0, but `search()` is not
+implemented by any `jsonpath-ng` release through 1.16.0). Rolling reconcile
+code back to an earlier milestone does not revert an
+already-migrated app-interface query, so a query rollback is only safe if the
+query itself is reverted to `jsonpath-ng`-compatible syntax in the same
+change. If M3 retains `jsonpath-ng` instead of completing the
+`python-jsonpath` switch, every query migrated during M2 is reverted to
+`jsonpath-ng`-compatible syntax (or verified against the finally-selected
+`jsonpath-ng` version) before the dual-engine comparison machinery is
+removed.
+
+**Diagnostics never carry secrets.** Several affected consumers evaluate
+expressions against configured secret and cloud-init templates (see
+"Affected integrations" below). A diagnostic contains only non-sensitive
+metadata - query hash, engine and version, match counts and types, and
+redacted canonical locations - never raw match values or input documents. M1
+includes a test enforcing this.
+
+Differences are logged to CloudWatch, not Slack. M1 always keeps `jsonpath-ng`
+results; M2 uses `jsonpath-ng` for unapproved differences before updates are
+applied.
+
+## Affected integrations
+
+| Area                     | Integrations and affected behavior                                                                                                                                                                                                                                           |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authorization            | `change-owners`, `change-log-tracking`: change coverage and ownership.                                                                                                                                                                                                       |
+| SaaS                     | `openshift-saas-deploy`, its change tester and config/image/moving-commit/upstream-job triggers, `saas-file-validator`, `saas-auto-promotions-manager`, `dashdotdb-dora`: namespace selection and templated parameters.                                                      |
+| Rendering and validation | `openshift-resources`, `openshift-prometheus-rules`, `template-renderer`, `template-validator`, `resource-template-tester`, `prometheus-rules-tester`, `query-validator`.                                                                                                    |
+| Other template consumers | `terraform-resources`, `external-resources`, `fleet-labeler`, `ocm-upgrade-scheduler-org-updater`: configured secret, cloud-init, label, or policy templates.                                                                                                                |
+| Sharding                 | `terraform-users`, `terraform-resources`, `terraform-tgw-attachments`, `terraform-vpc-resources`, `openshift-resources`, `openshift-vault-secrets`, `openshift-rhcs-certs`, `openshift-managed-sso-client-secrets`, `prometheus-rules-tester`, `jira-permissions-validator`. |
+| Status and promotions    | `status-board-exporter`: application selection; `gitlab-mr-sqs-consumer`: component-promotion updates.                                                                                                                                                                       |
+
+Template-related impact depends on configured expressions. Ordinary tenant SaaS
+templates processed by OpenShift or Helm do not receive our custom Jinja filters.
+
+## Existing query incompatibilities
+
+The local audit found **385 distinct expressions; 79 fail target parsing**,
+including templates, fixtures, and documentation; it is tracked separately in
+`docs/design/app-interface-jsonpath-inventory.md`. There are two kinds of
+problem:
+
+**Syntax changes:** some existing queries must be rewritten before Python can
+evaluate them. These examples preserve results on representative inputs:
+
+| Existing query                                             | Replacement                                                 | Reason                                       |
+| ---------------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------- |
+| `roles[*].'$ref'`                                          | `roles[*]['$ref']`                                          | Quoted field names require bracket notation. |
+| `namespace[?(@.name=="api" & @.environment.name=="prod")]` | `namespace[?(@.name=="api" && @.environment.name=="prod")]` | Use `&&` for logical AND.                    |
+| `resourceTemplates[?name=="api"].targets`                  | `resourceTemplates[?@.name=="api"].targets`                 | `@` identifies the object being filtered.    |
+
+**Silent behavior changes:** a query may parse successfully but select different
+data. Results below were verified with `jsonpath-ng==1.8.0` and
+`python-jsonpath==2.2.2`, using `python-jsonpath`'s default
+`JSONPathEnvironment()` via `.query()` (non-strict, no additional function
+extensions registered):
+
+| Query and input                                                     | `jsonpath-ng` 1.8.0 result | python-jsonpath result                                               |
+| ------------------------------------------------------------------- | -------------------------- | -------------------------------------------------------------------- |
+| `$.name[0]` on `{"name":"api"}`                                     | `["a"]`                    | `[]`: strings are not arrays.                                        |
+| `$.items[*]` on `{"items":{"name":"api"}}`                          | `[{"name":"api"}]`         | `["api"]`: the wildcard selects object values, not the whole object. |
+| `$[?@.v==1].v` on `[{"v":"1"},{"v":1},{"v":true}]`                  | `["1",1,true]`             | `[1]`: no string-to-number or Boolean-to-number equality.            |
+| `items[?(@.name =~ "api")].name` on `{"items":[{"name":"my-api"}]}` | `["my-api"]`               | `[]`, despite successful parsing.                                    |
+
+For the regex example, use `items[?search(@.name, "api")].name` to retain substring
+matching; it returns `["my-api"]`. Using a full-match operation instead would
+change the selection again.
+
+The scalar, wildcard, and comparison changes also occur when upgrading `jsonpath-ng` toward
+RFC 9535 behavior. They are not all costs introduced by replacing the library.
+Syntax checks alone would miss these examples, so M1 must also compare actual
+query results inside the shared package. Queries and their generators must be
+adapted together, with expected-result tests rather than blind text replacements.
+
+**Keeping jsonpath-ng does not avoid adapting our queries.** Versions 1.15 and
+1.16 already incorporate changes toward **RFC 9535**, the JSONPath standard:
+stricter scalar/wildcard behavior, distinct numeric and Boolean comparisons, and
+deprecation of single `&` in favor of `&&`. Queries and templates that depend on
+1.8.0 behavior need changes even if we upgrade `jsonpath-ng` rather than replace it; the
+alternative is maintaining compatibility patches indefinitely.
+
+## Milestones
+
+### M1 — Introduce the package, migrate consumers, and observe
+
+- Add `qontract_utils.jsonpath` with both libraries. Keep `jsonpath-ng==1.8.0`
+  as the default; engine selection is available only inside the utility.
+- Adapt affected reconcile integrations, shared helpers, and Jinja filters to
+  use the package instead of either library directly. Deliver these changes in
+  small, behavior-preserving PRs.
+- Let the package validate syntax and compare results between engines without
+  changing `jsonpath-ng` behavior. Send incompatibility diagnostics to CloudWatch, not Slack.
+
+**Complete when:** all affected query paths use the package and tests confirm
+unchanged authorization, deployment selection, sharding, and rendered output.
+
+### M2 — Adapt queries and switch the package default
+
+- After several weeks or months, use the logs to update queries in app-interface
+  and reconcile, including generators and fixtures, in small tested batches.
+- Change the package default to `python-jsonpath`. Keep `jsonpath-ng` as a
+  logged fallback for queries not yet migrated to the rewritten syntax, for
+  unapproved result differences, and for unavailable comparisons (see
+  "Comparison is normalized, not literal" above) - an unavailable comparison
+  is treated like an unapproved difference, not a silent pass, so
+  `jsonpath-ng`'s result is retained until the behavior is reviewed and
+  approved. Once a query is migrated, `jsonpath-ng` no longer evaluates it
+  (see "Comparison is scoped to the dialect intersection" above). Reconcile
+  continues using the same package interface, without engine-specific
+  settings.
+- Continue fixing observed incompatibilities and checking rarely used queries.
+
+**Complete when:** representative workloads no longer require fallback and all
+remaining inventory entries and behavior differences have been reviewed.
+
+### M3 — Resolve the engine decision
+
+- Evaluate `jsonpath-ng`'s own RFC 9535 progress and the M1/M2 inventory and
+  comparison data against the compliance bar the abstraction requires. Given
+  the cost history in "Problem" above, the expected outcome is completing the
+  `python-jsonpath` switch - but this milestone is the actual decision point,
+  not a formality.
+- If `python-jsonpath` is confirmed: remove `jsonpath-ng`, its fallback, and
+  temporary dual-engine comparison from the utility package and dependencies.
+  Keep the shared interface and regression tests. Verify reconcile works with
+  `python-jsonpath` alone before releasing cleanup.
+- If `jsonpath-ng` is retained instead: first revert or verify every query
+  migrated during M2 against the finally-selected `jsonpath-ng` version (see
+  "Migrating a query to the rewritten syntax is a one-way door" above), then
+  remove the dual-engine comparison machinery and the `python-jsonpath`
+  dependency, keeping the shared interface and regression tests unchanged for
+  consumers.
+
+## Risks and safeguards
+
+- Changed matches could grant unintended permissions, select the wrong deployment
+  targets, or miss affected shards. Verify decisions and outputs, not just syntax.
+- Compare real results before choosing fallback: two empty results agree, while
+  an empty/nonempty difference needs review. Never replay mutations.
+- Quiet logs do not prove unused configurations are safe. Include rare jobs,
+  generated queries, unavailable comparisons, and static inventory before removing `jsonpath-ng`.
+- Keep each milestone independently deployable and retain a compatible
+  rollback: per "Migrating a query to the rewritten syntax is a one-way door"
+  above, a reconcile rollback to an earlier milestone must pair with
+  reverting any already-migrated query to `jsonpath-ng`-compatible syntax.
+
+## Scope
+
+**In scope:** the shared package, its consumers, affected app-interface queries
+and generators, compatibility diagnostics, tests, and the staged engine
+decision (see M3).
+
+**Out of scope:** unrelated integration refactoring, migration to qontract-api,
+intentional permission changes, Kubernetes CLI JSONPath, tenant Helm/OpenShift
+template engines, and permanent support for two JSONPath libraries.
