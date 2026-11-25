@@ -5,6 +5,7 @@ from unittest.mock import create_autospec
 
 import pytest
 
+from reconcile import openshift_saas_deploy as sut
 from reconcile import slack_base
 from reconcile.openshift_saas_deploy import (
     _saas_file_tekton_pipeline_name,
@@ -21,6 +22,8 @@ from reconcile.utils.saasherder.saasherder import UNIQUE_SAAS_FILE_ENV_COMBO_LEN
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from pytest_mock import MockerFixture
 
 TEST_GRAFANA_SAAS_DEPLOY_URL = (
     "https://grafana.example.test/d/saas-deploy-logs/saas-deploy-logs"
@@ -59,6 +62,92 @@ def saas_file_builder(
         )
 
     return builder
+
+
+@pytest.mark.parametrize("saas_admin", [True, False, None])
+@pytest.mark.parametrize("dry_run", [False, True])
+@pytest.mark.parametrize("named_run", [False, True])
+def test_run_deletes_with_saas_file_privilege(
+    mocker: MockerFixture,
+    saas_file_builder: Callable[..., SaasFile],
+    saas_admin: bool | None,
+    dry_run: bool,
+    named_run: bool,
+) -> None:
+    saas_file = saas_file_builder("saas-name")
+    saas_file.cluster_admin = saas_admin
+    saas_file.slack = None
+    saas_files = mocker.Mock(saas_files=[saas_file])
+    saas_files.where.return_value = [saas_file]
+    herder = mocker.patch.object(sut, "SaasHerder").return_value
+    herder.namespaces = [
+        mocker.Mock(
+            name="target",
+            cluster=mocker.Mock(),
+            cluster_admin=not saas_admin,
+        )
+    ]
+    namespace = herder.namespaces[0]
+    namespace.name = "target"
+    namespace.cluster.name = "cluster"
+    herder.cluster_admin = saas_file.cluster_admin
+    herder.validate_planned_data = False
+    herder.publish_job_logs = False
+    herder.take_over = False
+    for attr in (
+        "get_app_interface_vault_settings",
+        "create_secret_reader",
+        "init_state",
+        "get_feature_toggle_state",
+        "GitLabApi",
+    ):
+        mocker.patch.object(sut, attr)
+    mocker.patch.object(sut.jenkins_base, "get_jenkins_map")
+    mocker.patch.object(sut.queries, "get_gitlab_instance")
+    mocker.patch.object(
+        sut, "get_saasherder_settings"
+    ).return_value.image_patterns_block_rules = []
+    mocker.patch.object(sut.ob, "validate_realized_data")
+    ri = openshift_resource.ResourceInventory()
+    ri.initialize_resource_type("cluster", "target", "ConfigMap")
+    for caller in (saas_file.name, "another-saas"):
+        current = openshift_resource.OpenshiftResource(
+            {"kind": "ConfigMap", "apiVersion": "v1", "metadata": {"name": caller}},
+            sut.QONTRACT_INTEGRATION,
+            sut.QONTRACT_INTEGRATION_VERSION,
+            caller_name=caller,
+        ).annotate()
+        ri.add_current("cluster", "target", current.kind, current.name, current)
+    oc_map = mocker.Mock()
+    fetch = mocker.patch.object(
+        sut.ob, "fetch_current_state", return_value=(ri, oc_map)
+    )
+    ordinary, admin = mocker.Mock(), mocker.Mock()
+    oc_map.get_cluster.side_effect = lambda cluster, privileged: (
+        admin if privileged else ordinary
+    )
+    realize = mocker.spy(sut.ob, "realize_data")
+
+    sut.run(
+        dry_run=dry_run,
+        thread_pool_size=1,
+        saas_file_name=saas_file.name if named_run else None,
+        saas_file_list=saas_files,
+    )
+
+    assert fetch.call_args.kwargs["cluster_admin"] is bool(saas_admin)
+    expected = {saas_file.name: bool(saas_admin)}
+    if not named_run:
+        expected["another-saas"] = False
+    assert {a["name"]: a["privileged"] for a in realize.spy_return} == expected
+    for client, privileged in ((ordinary, False), (admin, True)):
+        calls = [
+            mocker.call("target", "ConfigMap", name)
+            for name, level in expected.items()
+            if level == privileged and not dry_run
+        ]
+        assert client.delete.call_count == len(calls)
+        client.delete.assert_has_calls(calls, any_order=True)
 
 
 def test_compose_grafana_logs_url(

@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from reconcile.slack_base import SlackApi
+    from reconcile.utils.openshift_resource import OpenshiftResource
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -290,13 +291,21 @@ def run(
         "enable_init_projects",
         default=False,
     )
+    cluster_admin = bool(saasherder.cluster_admin)
+
+    def delete_privilege(*, current: OpenshiftResource, **_: object) -> bool:
+        """In an unnamed run, limit admin access to the selected file's resources."""
+        return cluster_admin and (
+            saas_file_name is not None or current.caller == saas_files[0].name
+        )
+
     ri, oc_map = ob.fetch_current_state(
         namespaces=[ns.model_dump(by_alias=True) for ns in saasherder.namespaces],
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         init_api_resources=True,
-        cluster_admin=bool(saasherder.cluster_admin),
+        cluster_admin=cluster_admin,
         init_projects=enable_init_projects,
     )
     if defer:  # defer is provided by the method decorator. this makes just mypy happy
@@ -327,6 +336,7 @@ def run(
         wait_for_namespace=True,
         no_dry_run_skip_compare=(not saasherder.compare),
         take_over=bool(saasherder.take_over),
+        delete_privilege_resolver=delete_privilege,
     )
 
     if not dry_run:

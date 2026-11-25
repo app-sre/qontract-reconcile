@@ -193,7 +193,11 @@ def test_run_creates_reader_at_boundary(
     dry_run: bool,
 ) -> None:
     mocker.patch.object(orb, "QONTRACT_INTEGRATION", "openshift-vault-secrets")
-    mocker.patch.object(orb, "get_namespaces", return_value=([{}], None))
+    mocker.patch.object(
+        orb,
+        "get_namespaces",
+        return_value=([{"name": "ns1", "cluster": {"name": "cs1"}}], None),
+    )
     mocker.patch.object(
         orb,
         "get_openshift_resources_settings",
@@ -213,7 +217,9 @@ def test_run_creates_reader_at_boundary(
     create_reader.assert_called_once_with(use_vault=True)
     assert fetch.call_args.kwargs["secret_reader"] is secret_reader
     assert fetch.call_args.kwargs["repo_url"] == REPO_URL
-    realize.assert_called_once_with(dry_run, oc_map, ri, 2)
+    realize.assert_called_once_with(
+        dry_run, oc_map, ri, 2, delete_privilege_resolver=mocker.ANY
+    )
 
 
 def test_early_exit_templates_do_not_read_secrets(secret_reader: MagicMock) -> None:
@@ -929,6 +935,49 @@ def test_cluster_params() -> None:
 
     with pytest.raises(RuntimeError):
         orb.run(dry_run=False, cluster_name=["cluster-1", "cluster-2"])
+
+
+@pytest.mark.parametrize("cluster_admin", [True, False, None])
+def test_run_deletes_with_namespace_privilege(
+    mocker: MockerFixture,
+    cluster_admin: bool | None,
+    tmpl1: dict[str, Any],
+    resource_settings: AppInterfaceSettingsV1,
+) -> None:
+    mocker.patch.object(
+        orb, "get_openshift_resources_settings", return_value=resource_settings
+    )
+    mocker.patch.object(orb, "create_secret_reader")
+    ri = ResourceInventory()
+    ri.initialize_resource_type("cluster", "namespace", "Template")
+    current = OR(
+        tmpl1, orb.QONTRACT_INTEGRATION, orb.QONTRACT_INTEGRATION_VERSION
+    ).annotate()
+    ri.add_current("cluster", "namespace", current.kind, current.name, current)
+    mocker.patch.object(
+        orb,
+        "get_namespaces",
+        return_value=(
+            [
+                {
+                    "name": "namespace",
+                    "cluster": {"name": "cluster"},
+                    "clusterAdmin": cluster_admin,
+                }
+            ],
+            None,
+        ),
+    )
+    oc_map = mocker.Mock()
+    mocker.patch.object(orb, "fetch_data", return_value=(oc_map, ri))
+    mocker.patch.object(ob, "publish_metrics")
+
+    orb.run(dry_run=False, thread_pool_size=1)
+
+    oc_map.get_cluster.assert_called_once_with("cluster", cluster_admin is True)
+    oc_map.get_cluster.return_value.delete.assert_called_once_with(
+        "namespace", "Template", current.name
+    )
 
 
 @pytest.mark.parametrize(

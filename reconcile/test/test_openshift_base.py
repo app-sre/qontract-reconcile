@@ -1512,7 +1512,7 @@ def test_handle_deleted_resources(
     cluster = "test-cluster"
     namespace = "test-namespace"
     resource_type = "test-Kind"
-    data = {"use_admin_token": {"test-resource": False}}
+    apply_options.privileged = True
 
     actions = sut.handle_deleted_resources(
         oc_map=oc_map,
@@ -1521,7 +1521,6 @@ def test_handle_deleted_resources(
         cluster=cluster,
         namespace=namespace,
         resource_type=resource_type,
-        data=data,
         options=apply_options,
     )
 
@@ -1537,6 +1536,191 @@ def test_handle_deleted_resources(
         "privileged": False,
     }
     delete_mock.assert_called_with(**delete_expected_args)
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+@pytest.mark.parametrize("resolved_privileged", [None, False, True])
+@pytest.mark.parametrize("desired_change", ["absent", "new", "modified"])
+def test_realize_data_delete_privilege_resolver(
+    mocker: MockerFixture,
+    dry_run: bool,
+    resolved_privileged: bool | None,
+    desired_change: str,
+) -> None:
+    ri = resource.ResourceInventory()
+    ri.initialize_resource_type("cluster", "namespace", "ConfigMap")
+    current = resource.OpenshiftResource(
+        build_resource("ConfigMap", "v1", "old"),
+        TEST_INT,
+        TEST_INT_VER,
+        caller_name="ours",
+    ).annotate()
+    unowned = resource.OpenshiftResource(
+        build_resource("ConfigMap", "v1", "unowned"),
+        TEST_INT,
+        TEST_INT_VER,
+    )
+    other_caller = resource.OpenshiftResource(
+        build_resource("ConfigMap", "v1", "other"),
+        TEST_INT,
+        TEST_INT_VER,
+        caller_name="theirs",
+    ).annotate()
+    for item in (current, unowned, other_caller):
+        ri.add_current("cluster", "namespace", item.kind, item.name, item)
+    data = next(iter(ri))[3]
+    data["use_admin_token"][current.name] = True
+    desired = resource.OpenshiftResource(
+        build_resource("ConfigMap", "v1", "new"),
+        TEST_INT,
+        TEST_INT_VER,
+    )
+    if desired_change == "modified":
+        existing = resource.OpenshiftResource(
+            build_resource("ConfigMap", "v1", "new"),
+            TEST_INT,
+            TEST_INT_VER,
+            caller_name="ours",
+        ).annotate()
+        ri.add_current("cluster", "namespace", existing.kind, existing.name, existing)
+        desired.body["data"] = {"changed": "value"}
+    if desired_change != "absent":
+        ri.add_desired_resource("cluster", "namespace", desired, privileged=True)
+    apply = mocker.patch.object(sut, "apply")
+    oc_map = mocker.Mock()
+    resolver = (
+        None
+        if resolved_privileged is None
+        else mocker.Mock(return_value=resolved_privileged)
+    )
+
+    actions = sut.realize_data(
+        dry_run,
+        oc_map,
+        ri,
+        thread_pool_size=1,
+        caller="ours",
+        delete_privilege_resolver=resolver,
+    )
+
+    privileged = resolved_privileged is True
+    assert [action for action in actions if action["action"] == "deleted"] == [
+        {
+            "action": "deleted",
+            "cluster": "cluster",
+            "namespace": "namespace",
+            "kind": "ConfigMap",
+            "name": "old",
+            "privileged": privileged,
+        }
+    ]
+    if resolver is not None:
+        resolver.assert_called_once_with(
+            cluster="cluster",
+            namespace="namespace",
+            resource_type="ConfigMap",
+            current=current,
+        )
+    assert data["use_admin_token"][current.name] is True
+    if desired_change == "absent":
+        apply.assert_not_called()
+    else:
+        assert apply.call_args.kwargs["privileged"] is True
+    oc_map.get_cluster.assert_called_once_with("cluster", privileged)
+    if dry_run:
+        oc_map.get_cluster.return_value.delete.assert_not_called()
+    else:
+        oc_map.get_cluster.return_value.delete.assert_called_once_with(
+            "namespace", "ConfigMap", "old"
+        )
+
+
+def test_delete_privilege_resolver_can_select_privilege_per_resource(
+    mocker: MockerFixture,
+) -> None:
+    ri = resource.ResourceInventory()
+    ri.initialize_resource_type("cluster", "namespace", "ConfigMap")
+    for name in ("admin", "ordinary"):
+        current = resource.OpenshiftResource(
+            build_resource("ConfigMap", "v1", name),
+            TEST_INT,
+            TEST_INT_VER,
+        ).annotate()
+        ri.add_current("cluster", "namespace", current.kind, current.name, current)
+    oc_map = mocker.Mock()
+    resolver = mocker.Mock(
+        side_effect=lambda **kwargs: kwargs["current"].name == "admin"
+    )
+    actions = sut.realize_data(
+        False,
+        oc_map,
+        ri,
+        thread_pool_size=1,
+        delete_privilege_resolver=resolver,
+    )
+    assert {a["name"]: a["privileged"] for a in actions} == {
+        "admin": True,
+        "ordinary": False,
+    }
+    assert resolver.call_count == 2
+    assert oc_map.get_cluster.call_count == 2
+    oc_map.get_cluster.assert_has_calls(
+        [mocker.call("cluster", True), mocker.call("cluster", False)],
+        any_order=True,
+    )
+
+
+@pytest.mark.parametrize("error_cluster", [None, "cluster"])
+def test_delete_privilege_resolver_preserves_error_protection(
+    mocker: MockerFixture,
+    error_cluster: str | None,
+) -> None:
+    ri = resource.ResourceInventory()
+    ri.initialize_resource_type("cluster", "namespace", "ConfigMap")
+    current = resource.OpenshiftResource(
+        build_resource("ConfigMap", "v1", "old"),
+        TEST_INT,
+        TEST_INT_VER,
+    ).annotate()
+    ri.add_current("cluster", "namespace", current.kind, current.name, current)
+    ri.register_error(cluster=error_cluster)
+    oc_map = mocker.Mock()
+    sut.realize_data(
+        False,
+        oc_map,
+        ri,
+        thread_pool_size=1,
+        delete_privilege_resolver=mocker.Mock(return_value=True),
+    )
+    oc_map.get_cluster.assert_not_called()
+
+
+def test_delete_privilege_resolver_failure_does_not_delete(
+    mocker: MockerFixture,
+    resource_inventory: resource.ResourceInventory,
+    apply_options: sut.ApplyOptions,
+) -> None:
+    current = resource.OpenshiftResource(
+        build_resource("ConfigMap", "v1", "old"),
+        TEST_INT,
+        TEST_INT_VER,
+        caller_name="saas-test",
+    ).annotate()
+    apply_options.delete_privilege_resolver = mocker.Mock(
+        side_effect=ValueError("unknown owner")
+    )
+    delete = mocker.patch.object(sut, "delete_action")
+    with pytest.raises(ValueError, match="unknown owner"):
+        sut.handle_deleted_resources(
+            oc_map=mocker.Mock(),
+            ri=resource_inventory,
+            deleted_resources={current.name: current},
+            cluster="cluster",
+            namespace="namespace",
+            resource_type=current.kind,
+            options=apply_options,
+        )
+    delete.assert_not_called()
 
 
 # Fixtures does not work with parametrize

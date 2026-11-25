@@ -122,6 +122,36 @@ class ClusterMap(Protocol):
     ) -> list[str]: ...
 
 
+class DeletePrivilegeResolver(Protocol):
+    """Return True to use the admin client for an eligible deletion."""
+
+    def __call__(
+        self,
+        *,
+        cluster: str,
+        namespace: str,
+        resource_type: str,
+        current: OR,
+    ) -> bool: ...
+
+
+def namespace_delete_privilege_resolver(
+    privileges: Mapping[tuple[str, str], bool],
+) -> DeletePrivilegeResolver:
+    """Resolve deletion privilege by (cluster, namespace); unknown targets raise KeyError."""
+
+    def resolve(
+        *,
+        cluster: str,
+        namespace: str,
+        resource_type: str,
+        current: OR,
+    ) -> bool:
+        return privileges[cluster, namespace]
+
+    return resolve
+
+
 def validate_managed_resource_types(
     oc: OCCli,
     managed_resource_types: Iterable[str],
@@ -656,6 +686,7 @@ class ApplyOptions:
     all_callers: Sequence[str] | None
     privileged: bool | None
     enable_deletion: bool | None
+    delete_privilege_resolver: DeletePrivilegeResolver | None = None
 
 
 def should_apply(
@@ -923,7 +954,6 @@ def handle_deleted_resources(
     cluster: str,
     namespace: str,
     resource_type: str,
-    data: Mapping[Any, Any],
     options: ApplyOptions,
 ) -> list[dict[str, Any]]:
     actions: list[dict[str, Any]] = []
@@ -937,7 +967,14 @@ def handle_deleted_resources(
             resource_type=resource_type,
             options=options,
         ):
-            options.privileged = data["use_admin_token"].get(name, False)
+            options.privileged = False
+            if options.delete_privilege_resolver is not None:
+                options.privileged = options.delete_privilege_resolver(
+                    cluster=cluster,
+                    namespace=namespace,
+                    resource_type=resource_type,
+                    current=current,
+                )
             action = {
                 "action": ACTION_DELETED,
                 "cluster": cluster,
@@ -1031,6 +1068,7 @@ def _realize_resource_data(
     no_dry_run_skip_compare: bool,
     override_enable_deletion: bool,
     recycle_pods: bool,
+    delete_privilege_resolver: DeletePrivilegeResolver | None = None,
 ) -> list[dict[str, Any]]:
     options = ApplyOptions(
         dry_run=dry_run,
@@ -1043,6 +1081,7 @@ def _realize_resource_data(
         recycle_pods=recycle_pods,
         privileged=False,
         enable_deletion=False,
+        delete_privilege_resolver=delete_privilege_resolver,
     )
     return _realize_resource_data_3way_diff(
         ri_item=ri_item, oc_map=oc_map, ri=ri, options=options
@@ -1129,7 +1168,6 @@ def _realize_resource_data_3way_diff(
             cluster=cluster,
             namespace=namespace,
             resource_type=resource_type,
-            data=data,
             options=options,
         )
     )
@@ -1149,6 +1187,7 @@ def realize_data(
     no_dry_run_skip_compare: bool = False,
     override_enable_deletion: bool | None = None,
     recycle_pods: bool = True,
+    delete_privilege_resolver: DeletePrivilegeResolver | None = None,
 ) -> list[dict[str, Any]]:
     """
     Realize the current state to the desired state.
@@ -1167,6 +1206,9 @@ def realize_data(
     :param no_dry_run_skip_compare: when running without dry-run, skip compare
     :param override_enable_deletion: override calculated enable_deletion value
     :param recycle_pods: should pods be recycled if a dependency changed
+    :param delete_privilege_resolver: optional thread-safe policy selecting admin access
+        for eligible deletions. Defaults to ordinary access without a resolver.
+        Called in dry runs too; exceptions propagate.
     """
     args = locals()
     del args["thread_pool_size"]
