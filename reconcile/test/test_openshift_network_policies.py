@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -110,6 +110,30 @@ def test_cleanup_uses_namespace_auth(
         0 if dry_run else len(namespaces)
     )
     assert clients["cluster-b", True].delete.call_count == 0
+
+
+@pytest.mark.parametrize("cluster_names", [("cluster-b",), ("unknown",)])
+def test_cluster_filter_limits_client_initialization(
+    mocker: MockerFixture,
+    runtime: tuple[MagicMock, dict[tuple[str, bool], MagicMock]],
+    cluster_names: tuple[str, ...],
+) -> None:
+    oc_map, clients = runtime
+    factory = cast("MagicMock", sut.ob.OC_Map)
+
+    sut.run(dry_run=True, thread_pool_size=1, cluster_name=iter(cluster_names))
+
+    if cluster_names == ("unknown",):
+        factory.assert_not_called()
+        return
+
+    assert [ns["cluster"]["name"] for ns in factory.call_args.kwargs["namespaces"]] == [
+        "cluster-b"
+    ]
+    assert oc_map.get_cluster.call_args_list == [mocker.call("cluster-b", False)] * 2
+    clients["cluster-b", False].get_items.assert_called_once_with(
+        "NetworkPolicy", namespace="tenant", resource_names=None
+    )
 
 
 @pytest.mark.parametrize("reason", ["omitted", "empty", "deleted", "out-of-shard"])

@@ -90,11 +90,16 @@ def run(
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     defer: Callable | None = None,
+    *,
+    cluster_name: Iterable[str] | None = None,
 ) -> None:
     gqlapi = gql.get_api()
 
+    cluster_names = set(cluster_name or ())
     namespaces = []
     for namespace_info in query(gqlapi.query).namespaces or []:
+        if cluster_names and namespace_info.cluster.name not in cluster_names:
+            continue
         if not namespace_info.network_policies_allow:
             continue
         if namespace_info.delete:
