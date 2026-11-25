@@ -385,6 +385,19 @@ def test_unsafe_state_binding_is_rejected(
         rotation.select_key(state, "example", ADDRESS)
 
 
+def test_root_binding_ignores_same_named_module_binding_for_another_user(
+    state: rotation.StateDocument,
+) -> None:
+    other = state.resources[0].model_copy(deep=True)
+    other.module = "module.other"
+    other.instances[0].attributes.update(user="other-user", id=NEW)
+    state.resources.append(other)
+
+    assert rotation.select_key(state, "example", ADDRESS) == rotation.ManagedKey(
+        address=ADDRESS, key_id=OLD
+    )
+
+
 def test_state_model_preserves_fields_needed_for_full_post_write_comparison(
     state: rotation.StateDocument,
 ) -> None:

@@ -359,7 +359,7 @@ def select_key(
         address = f"{resource.type}.{resource.name}"
         for instance in resource.instances:
             if instance.attributes.get("user") != user:
-                if address == expected_address:
+                if not resource.module and address == expected_address:
                     raise RotationError("Expected address belongs to another IAM user")
                 continue
             attributes = IamStateAttributes.model_validate(instance.attributes)
