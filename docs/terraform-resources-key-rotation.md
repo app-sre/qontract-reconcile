@@ -33,10 +33,12 @@ any competing key writer again for final retirement. A per-command Terraform
 backend lock alone does not protect the inspection-to-mutation interval.
 
 Locks use conditional S3 creation and owner-conditional release. They have no
-automatic expiry or takeover. If a process crashes or a response is lost, locate
-the lock object reported in the error or under the prefix above, confirm that
-its process and any other writers have stopped, and remove that orphaned lock
-before retrying. Do not remove a lock held by a live process.
+automatic expiry or takeover. To recover from a crash or lost response, read the
+reported lock object and capture the ETag from that same read. Confirm that the
+process that acquired it and any other writers have stopped. Delete the orphaned
+object with S3 `If-Match` set to the captured ETag (`aws s3api delete-object --if-match`).
+If the conditional delete fails, stop and inspect the current lock before taking
+further action.
 
 ### ERv2 CloudWatch preparation
 
