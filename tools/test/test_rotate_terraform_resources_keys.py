@@ -817,10 +817,11 @@ def test_delete_command_handles_active_key_in_one_operation(
     assert all(
         key.last_used == rotation.IamKeyLastUsed() for key in result.iam_keys_before
     )
-    assert [c[0] for c in r.method_calls if c[0] in {"key_last_used", "delete"}] == (
+    operations = {"key_last_used", "deactivate", "delete"}
+    assert [c[0] for c in r.method_calls if c[0] in operations] == (
         ["key_last_used", "key_last_used"]
         if dry_run
-        else ["key_last_used", "key_last_used", "delete"]
+        else ["key_last_used", "key_last_used", "deactivate", "delete"]
     )
     if dry_run:
         assert result.status == "would_deactivate_and_delete"
@@ -831,8 +832,6 @@ def test_delete_command_handles_active_key_in_one_operation(
         assert result.status == "deleted" and result.available_key_slots == 1
         r.deactivate.assert_called_once_with(OLD)
         r.delete.assert_called_once_with(OLD)
-        mutations = [c[0] for c in r.method_calls if c[0] in {"deactivate", "delete"}]
-        assert mutations == ["deactivate", "delete"]
         assert r.current == [rotation.IamKey(AccessKeyId=NEW, Status="Active")]
 
 
