@@ -9,8 +9,8 @@ consumers and verify use of the new key before separately retiring the old key.
 Explicit with-downtime mode taints the key instead: reconciliation can revoke the
 old key before applications adopt its replacement. Its verification requires old
 key removal. Neither mode verifies application adoption. Shared selectors are
-rejected because ERv2 selects one namespace. Results identify additional active
-IAM keys for separate review.
+rejected because ERv2 selects one namespace. Results include the IAM key
+inventory for review.
 The caller owns batching and progress records.
 """
 
@@ -201,7 +201,6 @@ class Result(Selector):
     retained_key_id: str | None = None
     resource_status: str
     tainted: bool
-    additional_active_key_ids: list[str] = Field(default_factory=list)
     iam_keys: list[IamKeyDetails] = Field(default_factory=list)
 
     @property
@@ -633,12 +632,6 @@ def _rotate(request: Request, target: Target, runtime: RotationRuntime) -> Resul
             resource_status=status,
             tainted=state.tainted,
             iam_keys=key_details(),
-            additional_active_key_ids=sorted(
-                key.access_key_id
-                for key in keys
-                if key.status == "Active"
-                and key.access_key_id not in {state.key_id, request.expected_key_id}
-            ),
         )
 
     active = any(k.access_key_id == state.key_id and k.status == "Active" for k in keys)

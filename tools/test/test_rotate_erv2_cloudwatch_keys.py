@@ -617,7 +617,7 @@ def test_runtime_status_reads_one_resource_without_scanning(
     client.get_paginator.assert_not_called()
 
 
-def test_reports_other_active_keys_without_rotating_them(
+def test_verification_reports_iam_key_inventory_without_mutation(
     target: rotation.Target, runtime: Mock
 ) -> None:
     extra = "AKIA" + "C" * 16
@@ -626,7 +626,6 @@ def test_reports_other_active_keys_without_rotating_them(
     runtime.keys = [
         rotation.IamKey(AccessKeyId=managed, Status="Active"),
         rotation.IamKey(AccessKeyId=extra, Status="Active"),
-        rotation.IamKey(AccessKeyId="AKIA" + "D" * 16, Status="Inactive"),
     ]
     result = rotation.rotate(
         rotation.Request(
@@ -640,7 +639,10 @@ def test_reports_other_active_keys_without_rotating_them(
     )
 
     assert result.status == "replaced"
-    assert result.additional_active_key_ids == [extra]
+    assert [
+        (key.access_key_id, key.status, key.matches_terraform_binding)
+        for key in result.iam_keys
+    ] == [(managed, "Active", True), (extra, "Active", False)]
     assert all(call.args[1] == "inspect" for call in runtime.operation.call_args_list)
     runtime.request.assert_not_called()
 

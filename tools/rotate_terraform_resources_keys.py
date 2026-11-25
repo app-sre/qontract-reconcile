@@ -403,6 +403,13 @@ class RetirementRuntime(Protocol):
     def delete(self, key_id: str) -> None: ...
 
 
+def list_iam_keys(client: IAMClient, iam_user: str) -> list[IamKey]:
+    response = client.list_access_keys(UserName=iam_user)
+    if response.get("IsTruncated"):
+        raise RotationError("Unexpected IAM access-key pagination")
+    return [IamKey.model_validate(key) for key in response["AccessKeyMetadata"]]
+
+
 def read_key_last_used(client: IAMClient, key_id: str) -> IamKeyLastUsed | None:
     try:
         response = client.get_access_key_last_used(AccessKeyId=key_id)
@@ -670,12 +677,7 @@ class Runtime:
         finally:
             response["Body"].close()
         managed = select_key(state, self.target.iam_user, expected_address)
-        response_keys = self.api.iam.client.list_access_keys(
-            UserName=self.target.iam_user
-        )
-        if response_keys.get("IsTruncated"):
-            raise RotationError("Unexpected IAM access-key pagination")
-        keys = [IamKey.model_validate(k) for k in response_keys["AccessKeyMetadata"]]
+        keys = list_iam_keys(self.api.iam.client, self.target.iam_user)
         outputs_match = managed is not None and all(
             state.outputs.get(binding.output_key, {}).get("value") == managed.key_id
             for binding in self.target.bindings
@@ -804,10 +806,7 @@ class RetirementClient:
         return read_key_last_used(self.api.iam.client, key_id)
 
     def keys(self) -> list[IamKey]:
-        response = self.api.iam.client.list_access_keys(UserName=self.target.iam_user)
-        if response.get("IsTruncated"):
-            raise RotationError("Unexpected IAM access-key pagination")
-        return [IamKey.model_validate(key) for key in response["AccessKeyMetadata"]]
+        return list_iam_keys(self.api.iam.client, self.target.iam_user)
 
     def deactivate(self, key_id: str) -> None:
         self.api.iam.client.update_access_key(
