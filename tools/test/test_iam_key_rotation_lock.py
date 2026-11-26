@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import boto3
 import pytest
+from botocore.exceptions import EndpointConnectionError
 from moto import mock_aws
 
 from reconcile.utils.state import State
@@ -67,6 +68,32 @@ def test_release_cannot_delete_another_owner(state: State, fail_body: bool) -> N
     with pytest.raises(expected):
         replace_owner()
     assert state.exists("test")
+
+
+@pytest.mark.parametrize("fail_body", [False, True])
+def test_release_transport_error_reports_lock(
+    state: State,
+    mocker: MockerFixture,
+    capsys: pytest.CaptureFixture[str],
+    fail_body: bool,
+) -> None:
+    mocker.patch.object(
+        state.client,
+        "delete_object",
+        side_effect=EndpointConnectionError(endpoint_url="https://example.invalid"),
+    )
+    lock_uri = f"s3://{state.bucket}/{state.state_path}/test"
+    expected = ValueError if fail_body else erv2.RotationError
+    match = "original failure" if fail_body else lock_uri
+
+    body = mocker.Mock(
+        side_effect=ValueError("original failure") if fail_body else None
+    )
+    with pytest.raises(expected, match=match), locks.operation_lock(None, ["test"]):
+        body()
+
+    if fail_body:
+        assert lock_uri in capsys.readouterr().err
 
 
 def test_legacy_preparation_and_retirement_share_the_iam_user_lock(

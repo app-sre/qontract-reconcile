@@ -7,13 +7,13 @@ its orphaned lock, rather than allowing a slow writer to lose ownership.
 
 from __future__ import annotations
 
-import logging
+import sys
 from contextlib import ExitStack, contextmanager
 from hashlib import sha256
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 from reconcile.utils.state import State, init_state
 from tools.rotate_erv2_cloudwatch_keys import RotationError
@@ -63,17 +63,14 @@ def _lock(state: State, scope: str) -> Generator[None]:
         # when an operator incorrectly deletes/replaces a live lock.
         try:
             state.client.delete_object(Bucket=state.bucket, Key=key, IfMatch=etag)
-        except ClientError:
+        except BotoCoreError, ClientError:
+            message = (
+                f"Cannot release s3://{state.bucket}/{key}; inspect before retrying"
+            )
             if failed:
-                logging.error(
-                    "Rotation lock release failed; inspect s3://%s/%s",
-                    state.bucket,
-                    key,
-                )
+                print(message, file=sys.stderr)
             else:
-                raise RotationError(
-                    f"Cannot release s3://{state.bucket}/{key}; inspect before retrying"
-                ) from None
+                raise RotationError(message) from None
 
 
 @contextmanager
