@@ -255,17 +255,51 @@ def test_verification_distinguishes_cutover_readiness_from_old_key_retirement(
     runtime.lock.assert_not_called()
 
 
-def test_subprocess_failure_does_not_expose_output(mocker: MockerFixture) -> None:
+@pytest.mark.parametrize("report_container_error", [False, True])
+def test_subprocess_failure_does_not_expose_output(
+    mocker: MockerFixture, report_container_error: bool
+) -> None:
     mocker.patch.object(
         rotation.subprocess,
         "run",
         return_value=subprocess.CompletedProcess(
-            [], 1, stdout="test-only-secret", stderr="test-only-secret"
+            [], 1, stdout="test-only-secret", stderr="ERROR: test-only-secret"
         ),
     )
     with pytest.raises(rotation.RotationError) as result:
-        rotation.checked(["example"], phase="test")
+        rotation.checked(
+            ["example"], phase="test", report_container_error=report_container_error
+        )
     assert "test-only-secret" not in str(result.value)
+
+
+def test_container_reports_sanitized_entry_point_failure(
+    mocker: MockerFixture, capsys: pytest.CaptureFixture[str]
+) -> None:
+    diagnostic = "Terraform initialization failed (exit 1); output suppressed"
+    mocker.patch.object(
+        rotation.sys, "argv", ["rotation.py", "_container", "inspect", "example"]
+    )
+    mocker.patch.object(rotation.os, "umask")
+    mocker.patch.object(
+        rotation, "container_operation", side_effect=rotation.RotationError(diagnostic)
+    )
+    with pytest.raises(SystemExit, match="1"):
+        rotation.main()
+
+    stdout = capsys.readouterr().out
+    mocker.patch.object(
+        rotation.subprocess,
+        "run",
+        return_value=subprocess.CompletedProcess(
+            [], 1, stdout=stdout, stderr="ERROR: test-only-secret"
+        ),
+    )
+    with pytest.raises(rotation.RotationError) as result:
+        rotation.checked(
+            ["docker"], phase="ERv2 state inspect", report_container_error=True
+        )
+    assert str(result.value) == f"ERv2 state inspect: {diagnostic}"
 
 
 @pytest.fixture

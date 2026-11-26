@@ -40,6 +40,9 @@ if TYPE_CHECKING:
     from tools.cli_commands.erv2 import Erv2Cli
 
 
+_CONTAINER_ERROR_PREFIX = "qontract-rotation-error: "
+
+
 class RotationError(Exception):
     pass
 
@@ -223,13 +226,23 @@ class RotationRuntime(Protocol):
 
 
 def checked(
-    command: list[str], *, phase: str, env: dict[str, str] | None = None
+    command: list[str],
+    *,
+    phase: str,
+    env: dict[str, str] | None = None,
+    report_container_error: bool = False,
 ) -> str:
-    """Never echo credential-bearing subprocess output on failure."""
+    """Report only the rotation entry point's diagnostic on container failure."""
     result = subprocess.run(
         command, capture_output=True, text=True, env=env, check=False
     )
     if result.returncode:
+        if report_container_error and result.stdout.startswith(_CONTAINER_ERROR_PREFIX):
+            message = result.stdout.removeprefix(_CONTAINER_ERROR_PREFIX).removesuffix(
+                "\n"
+            )
+            if message.isprintable():
+                raise RotationError(f"{phase}: {message}")
         raise RotationError(
             f"{phase} failed (exit {result.returncode}); output suppressed"
         )
@@ -506,7 +519,7 @@ class Runtime:
         if expected_key is not None:
             command.append(expected_key)
         return KeyState.model_validate_json(
-            checked(command, phase="ERv2 state " + action)
+            checked(command, phase="ERv2 state " + action, report_container_error=True)
         )
 
     def iam_keys(self, target: Target) -> list[IamKey]:
@@ -799,7 +812,9 @@ def main() -> None:
             ).model_dump_json()
         )
     except Exception as error:
-        print(f"ERROR: {error_message(error)}", file=sys.stderr)
+        # Docker diagnostics are on stderr. This stdout record comes from the
+        # mounted entry point, and child subprocess output is captured above.
+        print(_CONTAINER_ERROR_PREFIX + error_message(error))
         sys.exit(1)
 
 
