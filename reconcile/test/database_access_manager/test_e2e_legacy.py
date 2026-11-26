@@ -27,6 +27,7 @@ Run explicitly:
 # | L08 | A provisioning failure inside the transaction             | The old password keeps working and no new secret is published.                                                                                            | `test_legacy_failed_provision_keeps_old_password` |
 # | L09 | Deprovision with an open session and the login's own data | The open session is terminated, new logins fail, the login-created table and committed data survive under admin ownership; the repeat removal is a no-op. | `test_legacy_own_schema_lifecycle`                |
 # | L10 | Password authentication is enforced for app logins        | Only the correct password connects; wrong or missing passwords are rejected; only fixture roles keep trust.                                               | `test_legacy_password_auth_enforced`              |
+# | L11 | A failed run on an adopted database                        | PUBLIC keeps CONNECT after a failed run (the revoke rolls back with the transaction); a successful run still revokes it and locks PUBLIC-connecting logins out.| `test_legacy_revoke_public_rolls_back_with_failed_run` |
 
 from __future__ import annotations
 
@@ -584,4 +585,78 @@ def test_legacy_password_auth_enforced(postgres: PostgresContainer) -> None:
 
     # the fixture roles keep trust authentication
     result = pg.exec_psql(EXECUTOR, "postgres", "SELECT 1;")
+    assert result.returncode == 0, result.stderr
+
+
+REVOKE_RB_PASSWORD = "RbPubPw1"  # notsecret
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", PG_VERSIONS, indirect=True)
+def test_legacy_revoke_public_rolls_back_with_failed_run(
+    postgres: PostgresContainer,
+) -> None:
+    """L11 — A failed provisioning run must not lock an adopted
+    database's PUBLIC-connecting logins out.
+
+    The unconditional ``REVOKE ALL ON DATABASE ... FROM public`` used
+    to run BEFORE the transaction: when a later statement inside the
+    transaction failed, the direct ``GRANT CONNECT`` for the entry's
+    login rolled back while the PUBLIC revoke persisted -- an existing
+    login that connected via PUBLIC lost access to the database
+    because a run FAILED. The revoke belongs INSIDE the transaction
+    (REVOKE ON DATABASE is transactional, unlike CREATE DATABASE and
+    ALTER DATABASE OWNER): a failed run leaves the database's ACL
+    exactly as it was, and a successful run still revokes PUBLIC (the
+    L01/L02 guarantee).
+    """
+    pg = postgres
+    db = "legacy_revoke_rb_db"
+    _create_database(pg, db)
+
+    # an existing login whose CONNECT comes from PUBLIC alone (no
+    # direct grant on the adopted database)
+    result = pg.exec_psql(
+        "postgres",
+        "postgres",
+        f"CREATE ROLE rb_pub_app LOGIN PASSWORD '{REVOKE_RB_PASSWORD}';",
+    )
+    assert result.returncode == 0, result.stderr
+    result = pg.login("rb_pub_app", REVOKE_RB_PASSWORD, db)
+    assert result.returncode == 0, result.stderr
+
+    # a provisioning run that fails INSIDE the transaction: the access
+    # list names a schema that does not exist
+    broken = make_db_access(
+        database=db, username="rb_user", access=[("missing_schema", ("SELECT",))]
+    )
+    failed = pg.exec_psql(
+        EXECUTOR,
+        "postgres",
+        build_script(broken),
+        extra_args=["-v", f"db_user_password={DB_PASSWORD}"],
+    )
+    assert failed.returncode != 0, "the broken provisioning run succeeded"
+    assert "missing_schema" in failed.stderr, failed.stderr
+
+    # the login that connected via PUBLIC keeps connecting: the PUBLIC
+    # revoke rolled back with the failed transaction (regression: the
+    # pre-transaction revoke persisted and locked the login out)
+    result = pg.login("rb_pub_app", REVOKE_RB_PASSWORD, db)
+    assert result.returncode == 0, (
+        "the failed run locked a PUBLIC-connecting login out of the "
+        f"adopted database: {result.stderr}"
+    )
+
+    # a later SUCCESSFUL run of the same entry still revokes PUBLIC:
+    # the PUBLIC-connecting login is locked out by THAT run, and the
+    # entry's own login connects with its direct grant
+    fixed = make_db_access(
+        database=db, username="rb_user", access=[("public", ("SELECT",))]
+    )
+    _run_script(pg, build_script(fixed, broken))
+    result = pg.login("rb_pub_app", REVOKE_RB_PASSWORD, db)
+    assert result.returncode != 0, "PUBLIC kept CONNECT after a successful run"
+    assert "permission denied" in result.stderr, result.stderr
+    result = pg.login("rb_user", DB_PASSWORD, db)
     assert result.returncode == 0, result.stderr

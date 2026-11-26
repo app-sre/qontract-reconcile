@@ -76,10 +76,29 @@ E2E_JOB_IMAGE = "quay.io/app-sre/yet-another-debug-container:latest"
 # ─── container engine detection ──────────────────────────────────────────
 
 
+def _engine_daemon_ready(engine: str) -> bool:
+    """Whether the engine's daemon responds to a bounded status probe."""
+    try:
+        result = subprocess.run(
+            [engine, "info"],
+            capture_output=True,
+            check=False,
+            timeout=15,
+        )
+    except subprocess.TimeoutExpired, OSError:
+        return False
+    return result.returncode == 0
+
+
 def _detect_container_engine() -> str | None:
-    """Return 'docker' or 'podman' if available, None otherwise."""
+    """Return the first installed engine with a responsive daemon.
+
+    A binary on PATH is not enough: with docker installed but its
+    daemon unreachable, the fixture must fall through to podman
+    instead of failing on the first engine found.
+    """
     for engine in ("docker", "podman"):
-        if shutil.which(engine):
+        if shutil.which(engine) and _engine_daemon_ready(engine):
             return engine
     return None
 
@@ -350,10 +369,38 @@ def _container_test_suffix(node_name: str) -> str:
     ).strip("-")
 
 
+@pytest.fixture(scope="session")
+def _pg_hba_conf() -> Generator[Path]:
+    """A session-scoped copy of pg_hba.conf for the container mount.
+
+    Mounting the checkout's file directly can fail on
+    SELinux-enforcing hosts: podman denies the container access to
+    home-labeled files. The copy is mounted with a shared ``:z``
+    label, so the engine relabels the temp copy as container-shared.
+    The user's checkout is never relabeled (``:Z`` on the original
+    would do exactly that).
+
+    The copy is created next to the original (with a unique
+    per-session name) instead of the system temp directory: the path
+    must be bind-mountable by the container engine, and Docker
+    Desktop only shares selected host paths (e.g. /Users) -- files in
+    /var/folders or /tmp mount as empty directories there. A unique
+    name keeps concurrent pytest runs isolated; the copy is removed
+    at the end of the session.
+    """
+    session_copy = Path(__file__).parent / f".pg_hba.conf.{uuid.uuid4().hex[:8]}.copy"
+    shutil.copyfile(Path(__file__).parent / "pg_hba.conf", session_copy)
+    try:
+        yield session_copy
+    finally:
+        session_copy.unlink(missing_ok=True)
+
+
 def _start_postgres(
     container_engine: str,
     version: str,
     test_suffix: str,
+    hba_conf: Path,
     extra_server_args: list[str] | None = None,
 ) -> Generator[PostgresContainer]:
     """Start a fresh PostgreSQL container and remove it afterwards.
@@ -390,7 +437,7 @@ def _start_postgres(
             "-e",
             "POSTGRES_PASSWORD=test",
             "-v",
-            f"{Path(__file__).parent / 'pg_hba.conf'}:/dam-e2e/pg_hba.conf:ro",
+            f"{hba_conf}:/dam-e2e/pg_hba.conf:ro,z",
             "postgres:" + version,
             # declarative test-container authentication policy (see
             # pg_hba.conf): fixture roles connect via trust, every app
@@ -435,6 +482,7 @@ def _start_postgres(
 def postgres(
     request: pytest.FixtureRequest,
     container_engine: str,
+    _pg_hba_conf: Path,
 ) -> Generator[PostgresContainer]:
     """A fresh PostgreSQL container for each test.
 
@@ -443,7 +491,10 @@ def postgres(
     """
     version = getattr(request, "param", "16")
     yield from _start_postgres(
-        container_engine, version, _container_test_suffix(request.node.name)
+        container_engine,
+        version,
+        _container_test_suffix(request.node.name),
+        _pg_hba_conf,
     )
 
 
@@ -451,6 +502,7 @@ def postgres(
 def postgres_server_search_path(
     request: pytest.FixtureRequest,
     container_engine: str,
+    _pg_hba_conf: Path,
 ) -> Generator[PostgresContainer]:
     """A fresh PostgreSQL container with an instance-wide search_path.
 
@@ -466,6 +518,7 @@ def postgres_server_search_path(
         container_engine,
         version,
         _container_test_suffix(request.node.name),
+        _pg_hba_conf,
         ["-c", "search_path=public"],
     )
 

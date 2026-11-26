@@ -9,8 +9,9 @@
 -- the user password is passed as the psql variable db_user_password via -v;
 -- the PRE-TRANSACTION search-path capture (section 0) embeds it twice: as
 -- the login's password pre-set (so the application-connection capture can
--- authenticate even while the password is being rotated) and, conninfo-
--- escaped, in that application-login connection itself
+-- authenticate even while the password is being rotated) and, concatenated
+-- CLIENT-side by psql, in the conninfo of that application-login connection
+-- itself (never as server-side SQL text)
 \set ON_ERROR_STOP on
 
 -- create the database if it does not exist (no-op for the admin
@@ -46,14 +47,16 @@ SELECT current_database() AS dam_admin_db \gset
 -- pre-existing legacy tenant has session behavior worth preserving),
 -- and whether a previous role-mode run already manages it (its
 -- per-database role default proves it: a login DAM provisioned
--- carries one, a legacy login does not). The effective search_path
--- VALUE itself is no longer reconstructed from the catalogs here:
--- PostgreSQL itself resolves the complete precedence (the login's
--- per-database setting, its role-wide setting, the database-wide
--- setting, the server-wide value, the built-in "$user", public) when
--- the application login connects, and the capture observes exactly
--- that on a real connection of the login -- a value the executor's
--- own search_path can neither mask nor corrupt.
+-- carries one pointing at THIS entry's owner role, a legacy login
+-- does not -- and neither does a DBA-set default pointing at an
+-- UNRELATED role, which must not disable the capture). The effective
+-- search_path VALUE itself is no longer reconstructed from the
+-- catalogs here: PostgreSQL itself resolves the complete precedence
+-- (the login's per-database setting, its role-wide setting, the
+-- database-wide setting, the server-wide value, the built-in "$user",
+-- public) when the application login connects, and the capture
+-- observes exactly that on a real connection of the login -- a value
+-- the executor's own search_path can neither mask nor corrupt.
 SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_roles
                WHERE rolname = '{username_literal}') AS dam_login_existed \gset
 SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_db_role_setting s
@@ -62,7 +65,7 @@ SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_db_role_setting s
                WHERE s.setrole = (SELECT oid FROM pg_catalog.pg_roles
                                   WHERE rolname = '{username_literal}')
                  AND d.datname = '{database_literal}'
-                 AND cfg LIKE 'role=%') AS dam_login_role_default \gset
+                 AND cfg = 'role={role_literal}') AS dam_login_role_default \gset
 
 -- 0. the search-path CAPTURE, deliberately BEFORE the transaction
 --    below: the login's effective search path must be observed
@@ -83,8 +86,21 @@ SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_db_role_setting s
 --    role-mode run manages it (its per-database role default would
 --    prove one -- re-capturing then would freeze DAM's own
 --    previously written path as an untouchable prefix, so an
---    intentional order change could never apply), and the persistent
---    store is not initialized (a capture writes it).
+--    intentional order change could never apply), the persistent
+--    store is not initialized (a capture writes it), and the login
+--    can actually CONNECT to the database: a legacy login without
+--    CONNECT (a restricted database -- PUBLIC revoked and the direct
+--    grant gone, e.g. after another entry's legacy job) could only
+--    make the capture's application connection FAIL, aborting the job
+--    after the password pre-set with nothing able to converge -- the
+--    in-transaction CONNECT repair of section 3 never ran. Such a
+--    login skips the application-connection capture entirely -- a
+--    documented degradation: the path falls back to the configured
+--    order like a fresh login -- and section 3's grant plus
+--    verification repairs the privilege itself. The CASE (not a bare
+--    AND) guards has_database_privilege: it errors on a nonexistent
+--    role, and a capture-eligible login always exists while a fresh
+--    one may not.
 SELECT (:'dam_login_existed'::boolean
         AND NOT :'dam_login_role_default'::boolean
         AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_db_role_setting rs
@@ -93,7 +109,13 @@ SELECT (:'dam_login_existed'::boolean
                         WHERE rs.setrole = (SELECT oid FROM pg_catalog.pg_roles
                                             WHERE rolname = '{role_literal}')
                           AND d.datname = '{database_literal}'
-                          AND cfg LIKE 'search_path=%')) AS dam_capture \gset
+                          AND cfg LIKE 'search_path=%')
+        AND CASE WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_roles
+                               WHERE rolname = '{username_literal}')
+                 THEN has_database_privilege('{username_literal}',
+                                             '{database_literal}', 'CONNECT')
+                 ELSE false END
+       ) AS dam_capture \gset
 \if :dam_capture
 -- the PASSWORD PRE-SET: the application-connection capture below
 -- must authenticate as the login even when the password is being
@@ -103,35 +125,41 @@ SELECT (:'dam_login_existed'::boolean
 -- already carries it), and it needs exactly the privileges the
 -- in-transaction password write of section 2 already requires (a
 -- legacy-managed login carries the legacy template's grant to the
--- admin). Residual window, taken deliberately: a job abort after
--- this point leaves the DATABASE password ahead of the vault until
--- the next successful run -- the same staleness window the previous
--- post-commit failure mode had, and strictly better than a silent
--- resolution flip.
-ALTER ROLE "{username}" PASSWORD :'db_user_password';
--- the two connection strings of the observation hop, built in SQL
--- so that every value is CONNINFO-ESCAPED (single-quoted, with
+-- admin). VALID UNTIL 'infinity' is part of the pre-set: an expired
+-- login (an instance password policy) would otherwise fail the
+-- capture's authentication FOREVER -- the expiry reset only comes
+-- with section 2's password write, which the failed capture never
+-- reaches, so the job could never converge. Residual window, taken
+-- deliberately: a job abort after this point leaves the DATABASE
+-- password ahead of the vault until the next successful run -- the
+-- same staleness window the previous post-commit failure mode had,
+-- and strictly better than a silent resolution flip.
+ALTER ROLE "{username}" PASSWORD :'db_user_password' VALID UNTIL 'infinity';
+-- the application connection string of the observation hop is built
+-- CLIENT-side: psql \set argument concatenation joins the quoted
+-- literal and the db_user_password variable value into one conninfo
+-- string that never reaches the SERVER as SQL text (with
+-- log_statement = 'all', the SELECT that used to build it here wrote
+-- the password to the server log as literal statement text). The
+-- contract that makes the raw concatenation safe: the database and
+-- username are psqlIdentifier-validated by app-interface (lowercase
+-- alphanumerics and dashes) and DAM-generated passwords are
+-- alphanumeric -- no conninfo quoting is ever needed. -reuse-
+-- previous=on keeps the host and port of the current connection; the
+-- user change of the hop makes psql drop the previous connection's
+-- password (the hop back as the executor authenticates with the
+-- job's PGPASSWORD or the local trust policy, never with the
+-- application password). The ADMIN string is still built in SQL so
+-- that every value is CONNINFO-ESCAPED (single-quoted, with
 -- backslashes and single quotes backslash-escaped -- chr(92)/chr(39)
 -- keep the template free of string-literal ambiguity): psql does
 -- NOT interpolate :variables inside the double-quoted argument of a
 -- \c command, but an UNQUOTED :dam_app_conninfo does interpolate,
--- as one conninfo argument. -reuse-previous=on keeps the host and
--- port of the current connection. The admin string is built while
--- still connected as the executor (current_user IS the executor);
--- the application string carries the password as the psql variable
--- db_user_password -- the very password the pre-set above just made
--- the login's own. The user change of each hop makes psql drop the
--- previous connection's password (the hop back as the executor
--- authenticates with the job's PGPASSWORD or the local trust
--- policy, never with the application password).
+-- as one conninfo argument. No secret is involved in it -- it is
+-- built while still connected as the executor (current_user IS the
+-- executor).
+\set dam_app_conninfo 'dbname={database} user={username} password=' :db_user_password
 SELECT 'dbname=' ||
-       chr(39) || replace(replace('{database_literal}', chr(92), chr(92) || chr(92)), chr(39), chr(92) || chr(39)) || chr(39) ||
-       ' user=' ||
-       chr(39) || replace(replace('{username_literal}', chr(92), chr(92) || chr(92)), chr(39), chr(92) || chr(39)) || chr(39) ||
-       ' password=' ||
-       chr(39) || replace(replace(:'db_user_password', chr(92), chr(92) || chr(92)), chr(39), chr(92) || chr(39)) || chr(39)
-       AS dam_app_conninfo,
-       'dbname=' ||
        chr(39) || replace(replace('{database_literal}', chr(92), chr(92) || chr(92)), chr(39), chr(92) || chr(39)) || chr(39) ||
        ' user=' ||
        chr(39) || replace(replace(current_user::text, chr(92), chr(92) || chr(92)), chr(39), chr(92) || chr(39)) || chr(39)
@@ -158,7 +186,11 @@ SELECT set_config('dam.observed_sp', :'dam_observed_sp', false);
 
 -- 1. the owner role: NOLOGIN group role that owns everything.
 --    A duplicate_object error is tolerated: two entries sharing this
---    role can run their first provisioning concurrently.
+--    role can run their first provisioning concurrently. The existing
+--    role must be NOLOGIN: a pre-existing LOGIN role with the
+--    owner-role name would silently receive the login's membership
+--    below and act as a second application login -- a clear error
+--    instead.
 --    Everything from here to the COMMIT is one transaction: a failure
 --    rolls back the user creation including its password, so a retry
 --    converges with a freshly generated password. The search-path
@@ -171,7 +203,11 @@ DO $$
 BEGIN
     CREATE ROLE "{role}" NOLOGIN;
 EXCEPTION WHEN duplicate_object OR unique_violation THEN
-    NULL;
+    IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles
+               WHERE rolname = '{role_literal}' AND rolcanlogin) THEN
+        RAISE EXCEPTION 'role % already exists as a LOGIN role: the owner role of a database_access entry must be a NOLOGIN group role',
+            '{role_literal}';
+    END IF;
 END $$;
 
 -- 2. the login user. The password is set on every run: the vault
@@ -204,19 +240,30 @@ DECLARE
     own_schema boolean;
     set_opt text := CASE WHEN current_setting('server_version_num')::int >= 160000
                          THEN ' WITH INHERIT TRUE, SET TRUE' ELSE '' END;
+    -- the membership probe: PG16+ role memberships carry a separate
+    -- SET option, and the ownership transfers of section 5 require
+    -- it (the ALTER ... OWNER TO check is "must be able to SET ROLE"
+    -- -- the plain SET ROLE command is not the same, verified on a
+    -- real instance: a membership with INHERIT TRUE / SET FALSE
+    -- passes a USAGE probe but fails every transfer). Older versions
+    -- have no SET option and keep the USAGE probe.
+    set_probe text := CASE WHEN current_setting('server_version_num')::int >= 160000
+                           THEN 'SET' ELSE 'USAGE' END;
     s text;
 BEGIN
     -- the executor must be able to SET ROLE to the owner role for
     -- every ownership transfer below. NOTE (PG16+): the automatic
     -- grant a role gets when creating another role has ADMIN but
-    -- neither INHERIT nor SET, so checking for membership alone is
-    -- not enough here.
-    IF NOT pg_has_role(current_user, role_name, 'USAGE') THEN
+    -- neither INHERIT nor SET, and a PRE-EXISTING membership can have
+    -- INHERIT TRUE with SET FALSE -- checking for membership alone is
+    -- not enough here. A re-grant with SET TRUE upgrades the option
+    -- and preserves the ADMIN option of an existing membership.
+    IF NOT pg_has_role(current_user, role_name, set_probe) THEN
         EXECUTE format('GRANT %I TO %I%s', role_name, current_user, set_opt);
     END IF;
     -- the executor must control the login user to transfer objects of
     -- a previously managed user and to set its role default
-    IF NOT pg_has_role(current_user, user_name, 'USAGE') THEN
+    IF NOT pg_has_role(current_user, user_name, set_probe) THEN
         EXECUTE format('GRANT %I TO %I%s', user_name, current_user, set_opt);
     END IF;
     -- the login user becomes a member of the owner role
@@ -287,18 +334,20 @@ BEGIN
             user_name, user_name, db, role_name;
     END;
     -- verify the login can actually connect: without CONNECT on the
-    -- database, the credential would be published but rejected
+    -- database, the credential would be published but rejected. The
+    -- grant is UNCONDITIONAL and idempotent: a login whose CONNECT
+    -- came from PUBLIC keeps none of its own and loses it the moment
+    -- another entry's legacy job revokes PUBLIC on the same database
+    -- -- a direct grant is the only one that survives that.
+    BEGIN
+        EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', db, user_name);
+    EXCEPTION WHEN insufficient_privilege THEN
+        RAISE EXCEPTION 'login % has no CONNECT on database % and the executor cannot grant it',
+            user_name, db;
+    END;
     IF NOT has_database_privilege(user_name, db, 'CONNECT') THEN
-        BEGIN
-            EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', db, user_name);
-        EXCEPTION WHEN insufficient_privilege THEN
-            RAISE EXCEPTION 'login % has no CONNECT on database % and the executor cannot grant it',
-                user_name, db;
-        END;
-        IF NOT has_database_privilege(user_name, db, 'CONNECT') THEN
-            RAISE EXCEPTION 'login % has no CONNECT on database % after explicit grant',
-                user_name, db;
-        END IF;
+        RAISE EXCEPTION 'login % has no CONNECT on database % after explicit grant',
+            user_name, db;
     END IF;
 END $$;
 
@@ -845,6 +894,7 @@ DECLARE
     i int;
     j int;
     in_quotes boolean;
+    token_quoted boolean;
     s text;
     t text;
     sp text;
@@ -945,7 +995,17 @@ BEGIN
     -- raw value when that does not tokenize; split at commas OUTSIDE
     -- quoted segments; the scan itself un-quotes each token (the
     -- surrounding quotes vanish, doubled pairs collapse to one).
-    -- From here on schema names are NAMES, never pre-formatted SQL
+    -- Token semantics, exactly like PostgreSQL's own resolution:
+    -- a QUOTED token keeps its content EXACTLY (a trailing space or
+    -- an embedded tab is part of the name -- btrim would silently
+    -- change the resolution), an UNQUOTED token folds to LOWERCASE
+    -- (PostgreSQL resolves unquoted path elements case-insensitively:
+    -- a raw TENANT resolves the tenant schema, never "TENANT"), and
+    -- whitespace never becomes part of an unquoted token (the
+    -- [:space:] branch below precedes the append branch, so a tab is
+    -- a separator or invalid syntax -- PostgreSQL itself rejects
+    -- tabs inside unquoted list elements at the GUC level). From
+    -- here on schema names are NAMES, never pre-formatted SQL
     -- fragments -- quote_ident is applied exactly once, when the
     -- login's search_path is written below.
     tokens := ARRAY[]::text[];
@@ -978,6 +1038,7 @@ BEGIN
             tokens := ARRAY[]::text[];
             cur := '';
             in_quotes := false;
+            token_quoted := false;
             i := 1;
             WHILE i <= length(cand) LOOP
                 ch := substring(cand FROM i FOR 1);
@@ -996,9 +1057,14 @@ BEGIN
                     END IF;
                 ELSIF ch = '"' THEN
                     in_quotes := true;
+                    token_quoted := true;
                     i := i + 1;
                 ELSIF ch = ',' THEN
-                    t := btrim(cur);
+                    -- a quoted token keeps its content EXACTLY, an
+                    -- unquoted one folds to lowercase like
+                    -- PostgreSQL's own resolution
+                    t := CASE WHEN token_quoted THEN cur
+                              ELSE lower(btrim(cur)) END;
                     IF t = '' THEN
                         -- an empty element is invalid list syntax
                         tokens := NULL;
@@ -1006,6 +1072,7 @@ BEGIN
                     END IF;
                     tokens := array_append(tokens, t);
                     cur := '';
+                    token_quoted := false;
                     i := i + 1;
                 ELSIF ch ~ '\s' THEN
                     IF cur = '' THEN
@@ -1039,7 +1106,8 @@ BEGIN
                     -- an unterminated quoted segment is invalid syntax
                     tokens := NULL;
                 ELSE
-                    t := btrim(cur);
+                    t := CASE WHEN token_quoted THEN cur
+                              ELSE lower(btrim(cur)) END;
                     IF t <> '' THEN
                         tokens := array_append(tokens, t);
                     END IF;
@@ -1141,22 +1209,44 @@ BEGIN
     END;
 
     -- the persistent store: the (possibly reduced) legacy prefix as
-    -- quote_ident-joined names; an empty prefix is stored as the
-    -- empty string (present, marking the capture done, with nothing
-    -- to preserve). Written ONLY by runs that captured and by runs
-    -- the store already governs (they may reduce it by the revoke
-    -- delta): a run that did not capture must never INITIALIZE the
-    -- store -- a second entry's new-login run used to write the
-    -- empty store and make the later legacy-migration run of
-    -- another login in the same role skip its capture entirely
+    -- quote_ident-joined names. Written ONLY by runs that captured
+    -- and by runs the store already governs (they may reduce it by
+    -- the revoke delta): a run that did not capture must never
+    -- INITIALIZE the store -- a second entry's new-login run used to
+    -- write the empty store and make the later legacy-migration run
+    -- of another login in the same role skip its capture entirely
     -- (regression: the old login silently resolved to the public
-    -- twin after its migration)
+    -- twin after its migration). THREE outcomes: an explicitly empty
+    -- resolution is PRESERVED as the canonical empty store (the
+    -- empty-state rule above); a NON-empty prefix is stored as
+    -- names; an EXHAUSTED prefix (every legacy entry left the
+    -- configuration) RESETS the role's store setting entirely -- a
+    -- present-but-empty store would read as an explicitly empty
+    -- resolution on the next run and suppress every configured
+    -- schema (regression: removing the last prefix schema made the
+    -- next run apply an EMPTY path and the unqualified query failed
+    -- with "relation does not exist"). After the reset, the next run
+    -- recomputes from the maintained state -- no store, no capture,
+    -- the configured order -- not from a phantom empty capture; a
+    -- capture run whose entire prefix was revoked never initializes
+    -- a store at all (resetting a nonexistent setting is a no-op).
     IF store_raw IS NOT NULL OR captured THEN
-        SELECT COALESCE(string_agg(quote_ident(e), ','), quote_literal(''))
-        INTO store_sp FROM unnest(prefix) AS e;
+        IF path_empty THEN
+            store_sp := quote_literal('');
+        ELSIF cardinality(prefix) = 0 THEN
+            store_sp := NULL;
+        ELSE
+            SELECT string_agg(quote_ident(e), ',')
+            INTO store_sp FROM unnest(prefix) AS e;
+        END IF;
         BEGIN
-            EXECUTE format('ALTER ROLE %I IN DATABASE %I SET search_path = %s',
-                           role_name, db, store_sp);
+            IF store_sp IS NULL THEN
+                EXECUTE format('ALTER ROLE %I IN DATABASE %I RESET search_path',
+                               role_name, db);
+            ELSE
+                EXECUTE format('ALTER ROLE %I IN DATABASE %I SET search_path = %s',
+                               role_name, db, store_sp);
+            END IF;
         EXCEPTION WHEN insufficient_privilege THEN
             RAISE NOTICE 'cannot store the legacy search_path for %', role_name;
         END;

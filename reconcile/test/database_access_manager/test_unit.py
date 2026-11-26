@@ -4,7 +4,7 @@ import base64
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import ANY, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,6 +18,7 @@ from reconcile.database_access_manager.integration import (
     _configuration_digest,
     _ensure_pull_secret,
     _generated_username,
+    _job_name,
     _merge_pending_config,
     _process_db_access,
     _render_sql,
@@ -191,7 +192,10 @@ def oc() -> MagicMock:
 @pytest.fixture
 def dbam_controller(mocker: MockerFixture) -> MagicMock:
     controller = MagicMock()
-    controller.get_job_status.return_value = JobStatus.SUCCESS
+    # realistic default: no legacy-format job exists, the new-format
+    # job is settled (a single status for every name would simulate a
+    # phantom legacy job that gets deleted in every test)
+    controller.get_job_status.side_effect = _status_side_effect(JobStatus.SUCCESS)
     mocker.patch(
         "reconcile.database_access_manager.integration.K8sJobController",
         return_value=controller,
@@ -513,7 +517,7 @@ def test_render_role_provision() -> None:
     assert 'CREATE ROLE "cs_owner" NOLOGIN' in script
     assert "PASSWORD :'db_user_password'" in script
     assert "ALTER ROLE %I IN DATABASE %I SET role = %I" in script
-    assert "pg_has_role(current_user, role_name, 'USAGE')" in script
+    assert "pg_has_role(current_user, role_name, set_probe)" in script
     assert "ALTER STATISTICS %I.%I OWNER TO %I" in script
     assert "string_to_array('public|ALL', ';')" in script
     # the owner role is never dropped
@@ -767,8 +771,10 @@ def test_process_role_mode_reuses_vault_password(
     )
 
     job = enqueued_job(dbam_controller)
+    # only the password is taken from the vault credential: the login
+    # is the one resolved from the current configuration
     assert job.user_connection.password == "vaultpw"
-    assert job.user_connection.user == "cs_owner_abc"
+    assert job.user_connection.user == _resolve_username(db_access_role, STATE_KEY)
 
 
 def test_process_role_mode_legacy_state_migrates(
@@ -819,6 +825,10 @@ def test_process_pending_job_reuses_password(
     vault_mock: MagicMock,
     oc: MagicMock,
 ) -> None:
+    # a running new-format job: its job-bound secret is the record of
+    # the credential it runs with. The entry waits for it instead of
+    # enqueueing a replacement that would rotate the password
+    job_name = _job_name(STATE_KEY, JOB_IMAGE, ADMIN_SECRET_NAME, None)
     pending_secret = {
         "data": {
             "db.host": _b64("localhost"),
@@ -828,14 +838,18 @@ def test_process_pending_job_reuses_password(
             "db.name": _b64("postgres"),
         }
     }
-    dbam_controller.get_job_status.return_value = JobStatus.IN_PROGRESS
+    dbam_controller.get_job_status.side_effect = _status_side_effect(
+        JobStatus.IN_PROGRESS
+    )
 
     def oc_get(
         namespace: str, kind: str, name: str, allow_not_found: bool = True
     ) -> dict | None:
         if name == ADMIN_SECRET_NAME:
             return ADMIN_SECRET
-        if name.startswith("dbam-"):
+        # only the exact new-format job name has a job-bound secret:
+        # a read for any other name means the code polls a wrong job
+        if name == job_name:
             return pending_secret
         return None
 
@@ -843,6 +857,9 @@ def test_process_pending_job_reuses_password(
     run_process(
         db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
     )
+    # the running job is observed through its job-bound secret, read
+    # for the exact new-format job name
+    oc.get.assert_any_call("test-namespace", "Secret", job_name, allow_not_found=True)
     # job is running: no new job is enqueued, state is not updated
     dbam_controller.enqueue_job.assert_not_called()
     dbam_state.add.assert_not_called()
@@ -993,6 +1010,9 @@ def test_job_args_do_not_echo_errors() -> None:
     container = spec.template.spec.containers[0]
     assert container.args is not None
     assert "-b" not in container.args
+    # --echo-errors is the long form of -b: it would echo failed
+    # statements including the interpolated password to the job logs
+    assert "--echo-errors" not in container.args
 
 
 def _job_secret_with_script(script: str) -> dict[str, dict[str, str]]:
@@ -1004,6 +1024,13 @@ def _job_secret_with_script(script: str) -> dict[str, dict[str, str]]:
         "db.name": "postgres",
         "script.sql": script,
     }
+    return {"data": {k: _b64(v) for k, v in data.items()}}
+
+
+def _job_secret_from_job(job: DatabaseAccessJob) -> dict[str, dict[str, str]]:
+    """The job-bound secret the controller writes for a job: the job's
+    actual connection data (not fixed values) plus its script."""
+    data = {**job.secret_data(), "script.sql": job.script}
     return {"data": {k: _b64(v) for k, v in data.items()}}
 
 
@@ -1065,13 +1092,15 @@ def test_process_converged_job_settles(
     )
     # the job is re-enqueued for object convergence (migration window)
     dbam_controller.enqueue_job.assert_called_once()
-    # vault is written twice: settle (old job's credential) and
-    # post-enqueue (new job's credential)
+    # vault is written twice: settle (the settled job's password on
+    # the current connection) and post-enqueue (new job's credential)
     assert vault_mock.write.call_count == 2
     secret = vault_mock.write.call_args_list[0][0][0]
     assert secret["path"] == f"vault-out/database-access-manager/{STATE_KEY}"
     assert secret["data"]["db.password"] == "jobpw"
-    assert secret["data"]["db.user"] == "cs_owner_abc"
+    # only the password comes from the settled job's secret: the
+    # login is the one resolved from the current configuration
+    assert secret["data"]["db.user"] == _resolve_username(db_access_role, STATE_KEY)
     # state is written multiple times (settle, pending marker, post-enqueue)
     assert dbam_state.add.call_count >= 1
 
@@ -1404,21 +1433,42 @@ def test_process_deletes_stale_secret_before_enqueue(
     oc: MagicMock,
     oc_map: MagicMock,
 ) -> None:
-    # a replacement job must not read the previous run's secret data:
-    # the old secret is removed before the enqueue
+    # a replacement job must not start with the previous run's secret
+    # data: the old secret is removed before the enqueue of the
+    # replacement (a deletion after the enqueue would let the
+    # replacement pod read stale credentials)
+    job_name = _job_name(STATE_KEY, JOB_IMAGE, ADMIN_SECRET_NAME, None)
     stale_secret = _job_secret_with_script("-- old script")
     oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
         ADMIN_SECRET if name == ADMIN_SECRET_NAME else stale_secret
     )
     dbam_controller.get_job_status.side_effect = [
         JobStatus.NOT_EXISTS,  # legacy-format job: not found
-        JobStatus.SUCCESS,
-        JobStatus.IN_PROGRESS,
+        JobStatus.SUCCESS,  # new-format job: finished with a stale script
+        JobStatus.IN_PROGRESS,  # after re-enqueue
     ]
+    # both mutations are recorded in ONE sequence, so their relative
+    # order is asserted, not just their occurrence
+    events: list[tuple[str, str]] = []
+
+    def record_delete(namespace: str, kind: str, name: str) -> None:
+        events.append(("delete", name))
+
+    def record_enqueue(job: DatabaseAccessJob, **_kwargs: object) -> None:
+        events.append(("enqueue", job.name()))
+
+    oc.delete.side_effect = record_delete
+    dbam_controller.enqueue_job.side_effect = record_enqueue
     run_process(
         db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
     )
-    oc.delete.assert_called_once_with("test-namespace", "Secret", ANY)
+    oc.delete.assert_called_once_with("test-namespace", "Secret", job_name)
+    # the job-bound secret of the exact new-format job name is deleted
+    # BEFORE the replacement is enqueued
+    assert events == [
+        ("delete", job_name),
+        ("enqueue", job_name),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -1641,11 +1691,17 @@ def test_process_retry_after_failed_replacement_revokes_stale_schemas(
     )
     dbam_state.exists.side_effect = lambda key: key == f"{STATE_KEY}#pending"
     dbam_state.get.return_value = pending_with_bar.model_dump(by_alias=True)
-    dbam_controller.get_job_status.return_value = JobStatus.ERROR
+    # the failed replacement is the new-format job (no legacy-format
+    # job exists for this entry)
+    dbam_controller.get_job_status.side_effect = _status_side_effect(JobStatus.ERROR)
     with pytest.raises(JobFailedError):
         run_process(
             db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
         )
+    # the failed job is removed by its exact new-format job name
+    dbam_controller.delete_job.assert_called_once_with(
+        _job_name(STATE_KEY, JOB_IMAGE, ADMIN_SECRET_NAME, None)
+    )
     # the next reconcile retries: the job was deleted, the pending
     # marker (now the merged union) drives the revoke baseline
     dbam_controller.get_job_status.side_effect = [
@@ -1734,7 +1790,7 @@ def test_process_convergence_reenqueue_reuses_credential(
         "script.sql": _build_script(db_access_role, None, "cs_owner_abc", "admin"),
     }
     oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
-        {"data": {k: _b64(v) for k, v in ADMIN_SECRET["data"].items()}}
+        ADMIN_SECRET
         if name == ADMIN_SECRET_NAME
         else {"data": {k: _b64(v) for k, v in job_secret.items()}}
     )
@@ -1839,9 +1895,9 @@ def test_process_legacy_format_job_success_is_cleaned_up(
         JobStatus.NOT_EXISTS,  # new-format job: not found
         JobStatus.IN_PROGRESS,  # after enqueue
     ]
-    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: {
-        "data": {k: _b64(v) for k, v in ADMIN_SECRET["data"].items()}
-    }
+    # ADMIN_SECRET["data"] values are already base64: returning the
+    # secret directly (re-encoding would double-encode them)
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: ADMIN_SECRET
     run_process(
         db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
     )
@@ -1879,7 +1935,7 @@ def test_process_legacy_mode_settles_without_reenqueue(
         "script.sql": _build_script(db_access, None, "test", "admin"),
     }
     oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
-        {"data": {k: _b64(v) for k, v in ADMIN_SECRET["data"].items()}}
+        ADMIN_SECRET
         if name == ADMIN_SECRET_NAME
         else {"data": {k: _b64(v) for k, v in job_secret.items()}}
     )
@@ -2053,8 +2109,12 @@ def test_process_settled_job_with_persistent_pending_marker_skips_full_revoke(
     # the pending marker the code wrote before the enqueue persists
     # in the state the next reconcile reads
     assert state.exists(f"{STATE_KEY}#pending")
-    # the job-bound secret the controller wrote for the running job
-    job_secrets[job.name()] = _job_secret_with_script(job.script)
+    # the job-bound secret the controller wrote for the running job,
+    # built from the job's ACTUAL credential (not fixed values): the
+    # follow-up must provably reuse exactly this credential
+    job_secrets[job.name()] = _job_secret_from_job(job)
+    first_password = job.user_connection.password
+    first_user = job.user_connection.user
 
     # reconcile 2: the same job finished successfully and applied the
     # desired configuration (the digest in its script matches)
@@ -2068,7 +2128,7 @@ def test_process_settled_job_with_persistent_pending_marker_skips_full_revoke(
     # the settlement published the settled job's credential ...
     assert vault_mock.write.call_count == 1
     settled = vault_mock.write.call_args_list[0][0][0]
-    assert settled["data"]["db.password"] == "jobpw"
+    assert settled["data"]["db.password"] == first_password
     # ... settled the state. The pending marker was removed by the
     # settlement and re-written for the convergence job (the
     # post-enqueue status is IN_PROGRESS, so the reconcile returns
@@ -2080,10 +2140,254 @@ def test_process_settled_job_with_persistent_pending_marker_skips_full_revoke(
     # instead of rotating the password
     assert dbam_controller.enqueue_job.call_count == 2
     follow_up = enqueued_job(dbam_controller)
-    assert follow_up.user_connection.password == "jobpw"
-    assert follow_up.user_connection.user == "cs_owner_abc"
+    assert follow_up.user_connection.password == first_password
+    assert follow_up.user_connection.user == first_user
     # it re-applies the desired grants ...
     assert "foo|INSERT,SELECT" in follow_up.script
     # ... but must not revoke and re-grant everything despite the
     # pending marker that existed when the reconcile started
     assert "foo|ALL" not in follow_up.script
+
+
+# ---------------------------------------------------------------------------
+# review feedback round 9 (login-schema ownership, admin-user guard,
+# credential rebuild)
+# ---------------------------------------------------------------------------
+
+
+def test_validate_role_sharing_rejects_login_schema_owned_by_other_role(
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    """The managed set of a role-mode entry contains the schema named
+    after its resolved login (the ownership transfer in
+    role_provision.sql adopts it even with an empty access list), so
+    that schema participates in the (database, schema) exclusivity
+    check exactly like an access-list schema: an entry whose login
+    shares a name with another entry's access schema would fight over
+    the schema on every reconciliation."""
+    empty_access = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "orders-entry",
+            "database": "postgres",
+            "role": "orders_owner",
+            "username": "orders",
+            "access": [],
+        },
+    )
+    reporting = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "reporting-entry",
+            "database": "postgres",
+            "role": "reporting_owner",
+            "access": [{"grants": ["SELECT"], "target": {"dbschema": "orders"}}],
+        },
+    )
+    with pytest.raises(ValueError, match="can only be managed by one owner role"):
+        _validate_role_sharing([
+            (empty_access, "orders"),
+            (reporting, "reporting_login"),
+        ])
+
+
+def test_validate_role_sharing_allows_login_schema_under_same_role(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    """A login named like one of its own entry's access schemas is
+    fine: the schema is managed by the entry's own role either way."""
+    entry = gql_class_factory(
+        DatabaseAccessV1,
+        db_access_role.model_dump(by_alias=True) | {"username": "foo"},
+    )
+    _validate_role_sharing([(entry, "foo")])
+
+
+def test_validate_role_sharing_allows_login_schema_in_other_database(
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    """The login-named schema is keyed by (database, schema) like an
+    access-list schema: the same name as another role's access schema
+    in a DIFFERENT database is a valid configuration."""
+    orders = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "orders-entry",
+            "database": "orders_db",
+            "role": "orders_owner",
+            "username": "orders",
+            "access": [],
+        },
+    )
+    reporting = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "reporting-entry",
+            "database": "reporting_db",
+            "role": "reporting_owner",
+            "access": [{"grants": ["SELECT"], "target": {"dbschema": "orders"}}],
+        },
+    )
+    _validate_role_sharing([(orders, "orders"), (reporting, "reporting_login")])
+
+
+def test_process_rejects_username_equal_to_admin_user(
+    db_access: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    oc_map: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    """An explicit username equal to the admin user must be rejected
+    before any job is enqueued, state written or pending marker
+    recorded: the job would ALTER ROLE ... PASSWORD the admin account,
+    and deprovisioning would set it NOLOGIN and DROP OWNED its
+    objects."""
+    db_access.username = "admin"
+    with pytest.raises(ValueError, match="Username must not equal the admin user"):
+        run_process(
+            db_access, dbam_state, secret_reader, vault_mock, db_access_namespace
+        )
+    dbam_controller.enqueue_job.assert_not_called()
+    dbam_state.add.assert_not_called()
+    vault_mock.write.assert_not_called()
+
+
+def test_process_rejects_role_equal_to_admin_user(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    oc_map: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    """The owner role equal to the admin user must be rejected too:
+    provisioning the entry would grant LOGIN and a password to the
+    admin account (generated usernames cannot collide, but the role
+    itself can equal the admin name)."""
+    db_access_role.role = "admin"
+    with pytest.raises(ValueError, match="Role must not equal the admin user"):
+        run_process(
+            db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+        )
+    dbam_controller.enqueue_job.assert_not_called()
+    dbam_state.add.assert_not_called()
+    vault_mock.write.assert_not_called()
+
+
+def test_process_vault_password_on_current_connection(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    oc_map: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    """The vault read-back contributes ONLY the password: the endpoint,
+    the login and the database of the job connection come from the
+    current admin connection, the resolved username and the desired
+    database -- a stale endpoint or an old login recorded in the vault
+    secret is never republished."""
+    secret_reader.read_all.return_value = {
+        "db.host": "stale-host",
+        "db.port": "9999",
+        "db.user": "old_login",
+        "db.password": "vaultpw",  # notsecret
+        "db.name": "olddb",
+    }
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+
+    job = enqueued_job(dbam_controller)
+    assert job.user_connection.password == "vaultpw"
+    assert job.user_connection.host == "localhost"
+    assert job.user_connection.port == "5432"
+    assert job.user_connection.user == _generated_username("cs_owner", STATE_KEY)
+    assert job.user_connection.database == "postgres"
+
+
+def _stale_job_secret(script: str) -> dict[str, dict[str, str]]:
+    """A job-bound secret whose recorded connection is entirely stale:
+    only its password must survive into the republished credential."""
+    data = {
+        "db.host": "stale-host",
+        "db.port": "9999",
+        "db.user": "old_login",
+        "db.password": "jobpw",  # notsecret
+        "db.name": "olddb",
+        "script.sql": script,
+    }
+    return {"data": {k: _b64(v) for k, v in data.items()}}
+
+
+def test_process_settlement_publishes_current_connection(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    """The settlement republishes a settled job's credential with the
+    CURRENT endpoint, login and database: only the password is taken
+    from the job's bound secret."""
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
+        ADMIN_SECRET
+        if name == ADMIN_SECRET_NAME
+        else _stale_job_secret(_desired_script(db_access_role))
+    )
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+
+    # the settlement publish (the first vault write) carries the
+    # current connection values and the settled job's password
+    secret = vault_mock.write.call_args_list[0][0][0]
+    assert secret["data"]["db.password"] == "jobpw"
+    assert secret["data"]["db.host"] == "localhost"
+    assert secret["data"]["db.port"] == "5432"
+    assert secret["data"]["db.user"] == _generated_username("cs_owner", STATE_KEY)
+    assert secret["data"]["db.name"] == "postgres"
+
+
+def test_process_convergence_job_uses_current_connection(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    """The convergence re-enqueue rebuilds the job connection from the
+    current configuration: only the password is reused from the
+    settled job's bound secret."""
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
+        ADMIN_SECRET
+        if name == ADMIN_SECRET_NAME
+        else _stale_job_secret(_desired_script(db_access_role))
+    )
+    dbam_controller.get_job_status.side_effect = [
+        JobStatus.NOT_EXISTS,  # legacy-format job: not found
+        JobStatus.SUCCESS,  # new-format job: settled with the current config
+        JobStatus.IN_PROGRESS,  # after the convergence re-enqueue
+    ]
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+
+    job = enqueued_job(dbam_controller)
+    assert job.user_connection.password == "jobpw"
+    assert job.user_connection.host == "localhost"
+    assert job.user_connection.port == "5432"
+    assert job.user_connection.user == _generated_username("cs_owner", STATE_KEY)
+    assert job.user_connection.database == "postgres"

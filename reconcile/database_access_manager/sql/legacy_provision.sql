@@ -7,17 +7,22 @@
 SELECT 'CREATE DATABASE "{database}"'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database_literal}');\gexec
 
-/* legacy mode: the database is dedicated to a single login, PUBLIC
-   gets no access at all (postgres 15 compliance) -- whether DAM
-   created the database or adopted an existing one */
-REVOKE ALL ON DATABASE "{database}" FROM public;
-
 \c "{database}"
 
 -- everything from here to the COMMIT is one transaction: a failing
 -- grant rolls back the password change, so the vault credential that
 -- is still published remains valid
 BEGIN;
+
+/* legacy mode: the database is dedicated to a single login, PUBLIC
+   gets no access at all (postgres 15 compliance) -- whether DAM
+   created the database or adopted an existing one. The revoke runs
+   INSIDE the transaction (REVOKE ON DATABASE is transactional, unlike
+   CREATE DATABASE): when a later statement of the transaction fails,
+   the direct GRANT CONNECT below rolls back with it -- a revoke that
+   persisted alone would lock every existing login that connected via
+   PUBLIC out of an adopted database because a run FAILED. */
+REVOKE ALL ON DATABASE "{database}" FROM public;
 
 select 'CREATE ROLE "{username_ident_literal}"'
 WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{username_literal}');\gexec

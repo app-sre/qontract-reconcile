@@ -284,18 +284,40 @@ def _validate_role_sharing(
                     "in the same sequence."
                 )
 
+    # a resolved login username must be unique within the RDS
+    # resource: two entries resolving to the same login would
+    # overwrite each other's password or retire a login the other
+    # entry still uses. Checked before the schema exclusivity below:
+    # two role-mode entries sharing a login also share the schema
+    # named after it, and the duplicate login is the root cause of
+    # that conflict
+    resolved_usernames: dict[str, str] = {}  # username -> entry name
+    for config, username in entries:
+        if username in resolved_usernames:
+            raise ValueError(
+                f"Login {username} is used by both entry "
+                f"{resolved_usernames[username]} and entry {config.name}: "
+                "login usernames must be unique per instance."
+            )
+        resolved_usernames[username] = config.name
+
     # a schema must be managed by at most one owner role per RDS
     # resource AND per database: two entries with different roles
     # targeting the same schema would transfer ownership away from
     # each other on every reconciliation, leaving the first role
     # without access. Keying by (database, schema) allows the same
-    # schema name in different databases.
+    # schema name in different databases. The managed set of an entry
+    # also contains the schema named after its resolved login -- the
+    # ownership transfer in role_provision.sql adopts that schema
+    # even with an empty access list -- so it participates in the
+    # check exactly like an access-list schema.
     schemas_by_role: dict[str, set[tuple[str, str]]] = {}
-    for db_access in database_access:
+    for db_access, username in entries:
         if db_access.role:
-            schemas = {
+            schemas = {(db_access.database, username)}
+            schemas.update(
                 (db_access.database, a.target.dbschema) for a in db_access.access or []
-            }
+            )
             schemas_by_role.setdefault(db_access.role, set()).update(schemas)
 
     all_schemas: dict[tuple[str, str], str] = {}  # (db, schema) -> role
@@ -309,20 +331,6 @@ def _validate_role_sharing(
                     "a schema can only be managed by one owner role."
                 )
             all_schemas[db_schema] = role
-
-    # a resolved login username must be unique within the RDS
-    # resource: two entries resolving to the same login would
-    # overwrite each other's password or retire a login the other
-    # entry still uses
-    resolved_usernames: dict[str, str] = {}  # username -> entry name
-    for config, username in entries:
-        if username in resolved_usernames:
-            raise ValueError(
-                f"Login {username} is used by both entry "
-                f"{resolved_usernames[username]} and entry {config.name}: "
-                "login usernames must be unique per instance."
-            )
-        resolved_usernames[username] = config.name
 
     # a login username (explicit or generated) must never collide with
     # an owner role configured for another entry on the same instance:
@@ -394,6 +402,27 @@ def _job_connection(
     job_secret: dict[str, str],
 ) -> DatabaseConnectionParameters:
     return _connection_from_data(job_secret)
+
+
+def _current_user_connection(
+    password: str,
+    admin_connection: DatabaseConnectionParameters,
+    username: str,
+    database: str,
+) -> DatabaseConnectionParameters:
+    """The user connection for the current configuration: the current
+    admin endpoint, the resolved login and the desired database,
+    carrying the given password. An existing credential (the vault
+    secret of a role-mode entry or the bound secret of a settled job)
+    only ever contributes its password -- republishing its recorded
+    endpoint, login or database would republish stale values."""
+    return DatabaseConnectionParameters(
+        host=admin_connection.host,
+        port=admin_connection.port,
+        user=username,
+        password=password,
+        database=database,
+    )
 
 
 def _write_vault_secret(
@@ -621,6 +650,22 @@ def _process_db_access(
         )
         admin_connection = _admin_connection(oc, namespace_name, admin_secret_name)
 
+        # neither the resolved username nor the owner role may be the
+        # admin user: the job would ALTER ROLE ... PASSWORD the admin
+        # account, and deprovisioning would set it NOLOGIN and DROP
+        # OWNED its objects. Generated usernames cannot collide (role
+        # prefix plus digest, and the username must differ from the
+        # role), but an explicit username or the role itself can equal
+        # the admin name
+        if username == admin_connection.user:
+            raise ValueError(
+                f"Username must not equal the admin user {admin_connection.user}."
+            )
+        if db_access.role == admin_connection.user:
+            raise ValueError(
+                f"Role must not equal the admin user {admin_connection.user}."
+            )
+
         if not db_access.role and db_access.database == admin_connection.database:
             raise ValueError(
                 f"Can not use default database {admin_connection.database}"
@@ -663,7 +708,7 @@ def _process_db_access(
         # converged: matching state with an unfinished or stale job
         # would skip work that has not been applied yet
         stale_job = False
-        convergence_connection: DatabaseConnectionParameters | None = None
+        convergence_password: str | None = None
         controller.update_cache()
         # check for a legacy-format job (pre-K8sJob naming) that may
         # still be running during an upgrade: it would race with a
@@ -743,7 +788,12 @@ def _process_db_access(
                                     vault_client,
                                     vault_output_path,
                                     state_key,
-                                    _job_connection(job_secret),
+                                    _current_user_connection(
+                                        _job_connection(job_secret).password,
+                                        admin_connection,
+                                        username,
+                                        db_access.database,
+                                    ),
                                 )
                             state.add(
                                 state_key,
@@ -774,12 +824,12 @@ def _process_db_access(
                         if not db_access.role:
                             return
                         #
-                        # Reuse the settled job's credential for the
-                        # re-enqueue: generating a fresh password here
+                        # Reuse the settled job's password for the
+                        # re-enqueue: generating a fresh one here
                         # would change the database password on every
                         # reconcile, breaking the credential that vault
                         # just published.
-                        convergence_connection = _job_connection(job_secret)
+                        convergence_password = _job_connection(job_secret).password
                     else:
                         # stale job from an older configuration (e.g. the
                         # configuration was reverted while the job was in
@@ -814,24 +864,25 @@ def _process_db_access(
             stale_configs=[pending_config] if pending_config else [],
         )
 
-        # role mode keeps the vault password, legacy mode generates a
-        # new one on every configuration change. A convergence
-        # re-enqueue (state matched, job settled) reuses the settled
-        # job's credential to avoid rotating the password on every
-        # reconcile.
-        user_connection = convergence_connection
-        if not user_connection and db_access.role:
-            user_connection = _vault_connection(
+        # only the password is taken from an existing credential (the
+        # vault secret of a role-mode entry or the bound secret of a
+        # settled job): the endpoint, the login and the database are
+        # rebuilt from the current configuration, so a stale admin
+        # endpoint, an old login or a superseded database recorded in
+        # an old credential is never republished. Role mode keeps the
+        # vault password, legacy mode generates a new one on every
+        # configuration change.
+        password = convergence_password
+        if not password and db_access.role:
+            if vault_connection := _vault_connection(
                 secret_reader, vault_output_path, state_key
-            )
-        if not user_connection:
-            user_connection = DatabaseConnectionParameters(
-                host=admin_connection.host,
-                port=admin_connection.port,
-                user=username,
-                password=_generate_password(),
-                database=db_access.database,
-            )
+            ):
+                password = vault_connection.password
+        if not password:
+            password = _generate_password()
+        user_connection = _current_user_connection(
+            password, admin_connection, username, db_access.database
+        )
 
         job = DatabaseAccessJob(
             state_key=state_key,
