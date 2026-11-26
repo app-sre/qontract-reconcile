@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 def write_dump(tmp_path: Any, webhooks: dict[str, str]) -> Any:
     path = tmp_path / "slack-webhooks.json"
     path.write_text(json.dumps(webhooks), encoding="utf-8")
-    path.chmod(0o600)
     return path
 
 
@@ -47,7 +46,20 @@ def inventory() -> dict[str, Any]:
                                 "variable": "notification_url",
                             },
                         ],
-                    }
+                    },
+                    {
+                        "channel": "sd-app-sre-alert-stg",
+                        "targets": [
+                            {
+                                "type": "vault-secret",
+                                "path": "app-sre/integrations-input/slack-webhooks",
+                                "field": "sd-app-sre-alert-stg",
+                                "project": None,
+                                "name": None,
+                                "variable": None,
+                            }
+                        ],
+                    },
                 ],
             }
         ]
@@ -62,13 +74,35 @@ def no_op_runner(_args: Sequence[str], _input_text: str | None = None) -> str:
     return ""
 
 
+def webhook_dump() -> dict[str, str]:
+    return {
+        "sd-app-sre-alert": "https://hooks.example/test",
+        "sd-app-sre-alert-stg": "https://hooks.example/test-stg",
+    }
+
+
 class FakeRunner:
-    def __init__(self, existing_variable: bool = True) -> None:
+    def __init__(
+        self,
+        existing_variable: bool = True,
+        vault_secret: dict[str, str] | None = None,
+    ) -> None:
         self.calls: list[tuple[list[str], str | None]] = []
         self.existing_variable = existing_variable
+        self.vault_patches: list[tuple[str, dict[str, str]]] = []
+        self.vault_secret = vault_secret if vault_secret is not None else {}
 
     def __call__(self, args: Sequence[str], input_text: str | None = None) -> str:
         self.calls.append((list(args), input_text))
+        if args[0] == "vault":
+            if args[1] == "kv" and args[2] == "get":
+                return json.dumps({"data": {"data": self.vault_secret}})
+            if args[1] == "kv" and args[2] == "patch":
+                body = json.loads(input_text or "{}")
+                self.vault_patches.append((args[3], body))
+                self.vault_secret.update(body)
+                return ""
+
         path = args[2]
         if path == "/projects/{project}":
             return json.dumps({"data": {"id": "prj-test"}})
@@ -105,10 +139,7 @@ class FakeRunner:
 def test_sync_dry_run_does_not_run_commands(
     tmp_path: Any, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    dump_file = write_dump(
-        tmp_path,
-        {"#sd-app-sre-alert": "https://hooks.example/test"},
-    )
+    dump_file = write_dump(tmp_path, webhook_dump())
 
     def fail_runner(args: Sequence[str], input_text: str | None = None) -> str:
         raise AssertionError("dry-run must not execute commands")
@@ -122,14 +153,12 @@ def test_sync_dry_run_does_not_run_commands(
     output = capsys.readouterr().out
     assert "[dry-run] sd-app-sre-alert: vault-secret" in output
     assert "[dry-run] sd-app-sre-alert: hcp-terraform-variable-set" in output
+    assert "[dry-run] sd-app-sre-alert-stg: vault-secret" in output
     assert "https://hooks.example/test" not in output
 
 
 def test_sync_updates_vault_and_hcp_variable(tmp_path: Any) -> None:
-    dump_file = write_dump(
-        tmp_path,
-        {"sd-app-sre-alert": "https://hooks.example/test"},
-    )
+    dump_file = write_dump(tmp_path, webhook_dump())
     runner = FakeRunner()
     command = SlackWebhookSyncCommand(
         workspace="redhat-internal",
@@ -139,15 +168,10 @@ def test_sync_updates_vault_and_hcp_variable(tmp_path: Any) -> None:
 
     command.execute(dump_file, dry_run=False)
 
-    vault_call = next(call for call in runner.calls if call[0][0] == "vault")
-    assert vault_call[0] == [
-        "vault",
-        "kv",
-        "patch",
-        "app-sre/integrations-input/slack-webhooks",
-        "sd-app-sre-alert=-",
-    ]
-    assert vault_call[1] == "https://hooks.example/test"
+    assert len(runner.vault_patches) == 1
+    path, body = runner.vault_patches[0]
+    assert path == "app-sre/integrations-input/slack-webhooks"
+    assert body == webhook_dump()
 
     hcp_call = next(
         call for call in runner.calls if call[0][0] == "tfctl" and "-i" in call[0]
@@ -162,11 +186,22 @@ def test_sync_updates_vault_and_hcp_variable(tmp_path: Any) -> None:
     }
 
 
-def test_sync_creates_missing_hcp_variable(tmp_path: Any) -> None:
-    dump_file = write_dump(
-        tmp_path,
-        {"sd-app-sre-alert": "https://hooks.example/test"},
+def test_sync_skips_unchanged_vault_secret(tmp_path: Any) -> None:
+    dump_file = write_dump(tmp_path, webhook_dump())
+    runner = FakeRunner(vault_secret=webhook_dump())
+    command = SlackWebhookSyncCommand(
+        workspace="redhat-internal",
+        query_func=query,
+        command_runner=runner,
     )
+
+    command.execute(dump_file, dry_run=False)
+
+    assert runner.vault_patches == []
+
+
+def test_sync_creates_missing_hcp_variable(tmp_path: Any) -> None:
+    dump_file = write_dump(tmp_path, webhook_dump())
     runner = FakeRunner(existing_variable=False)
     command = SlackWebhookSyncCommand(
         workspace="redhat-internal",
@@ -217,17 +252,15 @@ def test_rejects_invalid_dump_url(tmp_path: Any) -> None:
         command.execute(dump_file, dry_run=True)
 
 
-def test_rejects_dump_file_readable_by_others(tmp_path: Any) -> None:
-    dump_file = write_dump(
-        tmp_path,
-        {"sd-app-sre-alert": "https://hooks.example/test"},
-    )
+def test_reads_dump_file_without_permission_check(tmp_path: Any) -> None:
+    dump_file = write_dump(tmp_path, webhook_dump())
     dump_file.chmod(0o644)
+    assert dump_file.stat().st_mode & 0o044
+
     command = SlackWebhookSyncCommand(
         workspace="redhat-internal",
         query_func=query,
         command_runner=no_op_runner,
     )
 
-    with pytest.raises(SlackWebhookSyncError, match="readable by group or other"):
-        command.execute(dump_file, dry_run=True)
+    command.execute(dump_file, dry_run=True)

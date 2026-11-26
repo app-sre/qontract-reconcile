@@ -65,18 +65,25 @@ class SlackWebhookSyncCommand:
                 "dump file is missing configured channels: " + ", ".join(missing)
             )
 
+        if dry_run:
+            for channel in sorted(inventory):
+                for target in inventory[channel]:
+                    print(f"[dry-run] {channel}: {target}")
+            return
+
+        vault_updates = self._collect_vault_updates(inventory, webhooks)
+        for path, fields in sorted(vault_updates.items()):
+            self._sync_vault_secret(path, fields)
+
         for channel in sorted(inventory):
             url = webhooks[channel]
             for target in inventory[channel]:
-                if dry_run:
-                    print(f"[dry-run] {channel}: {target}")
-                    continue
-
-                if isinstance(target, VaultTarget):
-                    self._sync_vault_target(target, url)
-                else:
-                    self._sync_hcp_terraform_target(target, url)
-                print(f"synced {channel}: {target}")
+                match target:
+                    case VaultTarget():
+                        pass
+                    case HcpTerraformVariableSetTarget():
+                        self._sync_hcp_terraform_target(target, url)
+                        print(f"synced {channel}: {target}")
 
     def _fetch_inventory(self) -> dict[str, tuple[Target, ...]]:
         workspaces = get_slack_webhooks(query_func=self._query_func)
@@ -107,6 +114,28 @@ class SlackWebhookSyncCommand:
 
         return inventory
 
+    def _collect_vault_updates(
+        self,
+        inventory: dict[str, tuple[Target, ...]],
+        webhooks: dict[str, str],
+    ) -> dict[str, dict[str, str]]:
+        updates: dict[str, dict[str, str]] = {}
+        for channel, targets in inventory.items():
+            url = webhooks[channel]
+            for target in targets:
+                match target:
+                    case VaultTarget(path=path, field=field):
+                        fields = updates.setdefault(path, {})
+                        if field in fields and fields[field] != url:
+                            raise SlackWebhookSyncError(
+                                f"vault target has conflicting webhook URLs: "
+                                f"{path}/{field}"
+                            )
+                        fields[field] = url
+                    case HcpTerraformVariableSetTarget():
+                        pass
+        return updates
+
     @staticmethod
     def _parse_target(target: SlackWorkspaceIncomingWebhookTargetV1) -> Target:
         target_type = target.q_type
@@ -133,11 +162,6 @@ class SlackWebhookSyncCommand:
 
     @staticmethod
     def _parse_dump(dump_file: Path) -> dict[str, str]:
-        if dump_file.stat().st_mode & 0o077:
-            raise SlackWebhookSyncError(
-                f"dump file must not be readable by group or other: {dump_file}"
-            )
-
         try:
             payload = json.loads(dump_file.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as e:
@@ -166,11 +190,34 @@ class SlackWebhookSyncCommand:
 
         return values
 
-    def _sync_vault_target(self, target: VaultTarget, url: str) -> None:
+    def _sync_vault_secret(self, path: str, fields: dict[str, str]) -> None:
+        current = self._read_vault_secret(path)
+        changed = {
+            field: url for field, url in fields.items() if current.get(field) != url
+        }
+        if not changed:
+            print(f"unchanged vault-secret {path}")
+            return
         self._command_runner(
-            ["vault", "kv", "patch", target.path, f"{target.field}=-"],
-            url,
+            ["vault", "kv", "patch", path, "@/dev/stdin"],
+            json.dumps(changed),
         )
+        print(f"synced vault-secret {path}: {', '.join(sorted(changed))}")
+
+    def _read_vault_secret(self, path: str) -> dict[str, Any]:
+        output = self._command_runner(
+            ["vault", "kv", "get", "-format=json", path],
+            None,
+        )
+        try:
+            payload = json.loads(output)
+        except json.JSONDecodeError as e:
+            raise SlackWebhookSyncError("vault returned invalid JSON") from e
+
+        data = payload.get("data", {}).get("data", {})
+        if not isinstance(data, dict):
+            raise SlackWebhookSyncError(f"vault secret has invalid data: {path}")
+        return data
 
     def _sync_hcp_terraform_target(
         self, target: HcpTerraformVariableSetTarget, url: str
