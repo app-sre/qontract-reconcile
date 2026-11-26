@@ -1,0 +1,86 @@
+# qenerate: plugin=pydantic_v2
+
+query TerraformResourcesIAMKeyRotation($filter: JSON) {
+  accounts: awsaccounts_v1(filter: $filter) {
+    name
+    uid
+    deleteKeys
+    automationToken {
+      ...VaultSecret
+    }
+    terraformState {
+      bucket
+      region
+      integrations {
+        integration
+        key
+      }
+    }
+    disable {
+      integrations
+    }
+  }
+  namespaces: namespaces_v1 {
+    name
+    delete
+    managedExternalResources
+    cluster {
+      name
+      disable {
+        integrations
+      }
+    }
+    externalResources {
+      provider
+      provisioner {
+        name
+      }
+      ... on NamespaceTerraformProviderResourceAWS_v1 {
+        resources {
+          provider
+          ... on NamespaceTerraformResourceS3_v1 {
+            identifier
+            output_resource_name
+          }
+          ... on NamespaceTerraformResourceS3CloudFront_v1 {
+            identifier
+            output_resource_name
+          }
+          ... on NamespaceTerraformResourceServiceAccount_v1 {
+            identifier
+            output_resource_name
+          }
+          ... on NamespaceTerraformResourceSecretsManagerServiceAccount_v1 {
+            identifier
+            output_resource_name
+          }
+          ... on NamespaceTerraformResourceSQS_v1 {
+            identifier
+            output_resource_name
+          }
+          ... on NamespaceTerraformResourceDynamoDB_v1 {
+            identifier
+            output_resource_name
+          }
+          ... on NamespaceTerraformResourceECR_v1 {
+            identifier
+            output_resource_name
+          }
+          ... on NamespaceTerraformResourceKinesis_v1 {
+            identifier
+            output_resource_name
+          }
+          ... on NamespaceTerraformResourceRoute53Zone_v1 {
+            identifier
+            output_resource_name
+          }
+          ... on NamespaceTerraformResourceCloudWatch_v1 {
+            identifier
+            output_resource_name
+            managed_by_erv2
+          }
+        }
+      }
+    }
+  }
+}

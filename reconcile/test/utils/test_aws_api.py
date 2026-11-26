@@ -8,6 +8,7 @@ import pytest
 from botocore.exceptions import ClientError, ReadTimeoutError
 from moto import mock_aws
 
+from reconcile.utils import lean_terraform_client
 from reconcile.utils.aws_api import AmiTag, AWSApi
 
 if TYPE_CHECKING:
@@ -56,6 +57,39 @@ def aws_api(accounts: list[dict], mocker: MockerFixture) -> AWSApi:
 def iam_client() -> Generator[IAMClient]:
     with mock_aws():
         yield boto3.client("iam")
+
+
+@pytest.mark.parametrize(
+    ("dry_run", "state_rm_ok", "error"),
+    [(True, False, False), (False, True, False), (False, False, True)],
+)
+def test_delete_service_account_key_leaves_replacement_pending(
+    aws_api: AWSApi,
+    mocker: MockerFixture,
+    dry_run: bool,
+    state_rm_ok: bool,
+    error: bool,
+) -> None:
+    iam = mocker.patch.object(aws_api, "get_session_client").return_value
+    mocker.patch.object(
+        aws_api, "get_users_keys", return_value={"some-account": {"user": ["old-key"]}}
+    )
+    mocker.patch.object(aws_api, "determine_key_type", return_value="service_account")
+    mocker.patch.object(aws_api, "get_user_key_status", return_value="Active")
+    remove = mocker.patch.object(
+        lean_terraform_client, "state_rm_access_key", return_value=state_rm_ok
+    )
+    working_dirs = {"some-account": "workdir"}
+
+    assert aws_api.delete_keys(
+        dry_run, {"some-account": ["old-key"]}, working_dirs, False
+    ) == (error, False)
+    if dry_run:
+        remove.assert_not_called()
+    else:
+        remove.assert_called_once_with(working_dirs, "some-account", "user", "old-key")
+    iam.update_access_key.assert_not_called()
+    iam.delete_access_key.assert_not_called()
 
 
 def test_get_user_key_list(aws_api: AWSApi, iam_client: IAMClient) -> None:

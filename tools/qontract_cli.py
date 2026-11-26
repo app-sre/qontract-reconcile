@@ -18,14 +18,16 @@ from datetime import (
 from operator import itemgetter
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import boto3
 import click
 import click.core
 import requests
 import yaml
+from botocore.exceptions import ClientError
 from gitlab.const import PipelineStatus
+from pydantic import ValidationError
 from rich import box
 from rich import print as rich_print
 from rich.console import Console, Group
@@ -190,8 +192,9 @@ from reconcile.utils.secret_reader import (
     create_secret_reader,
 )
 from reconcile.utils.semver_helper import parse_semver
-from reconcile.utils.state import init_state
+from reconcile.utils.state import StateInaccessibleError, init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+from tools import rotate_erv2_cloudwatch_keys as cloudwatch_rotation
 from tools.app_sre_tekton_access_reporter import TektonRole, TektonUser
 from tools.cli_commands.cost_report.aws import AwsCostReportCommand
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
@@ -4359,6 +4362,246 @@ def request_reconciliation(ctx: click.Context) -> None:
         secret_reader=ctx.obj["secret_reader"],
     )
     erv2cli.reconcile()
+
+
+def _iam_rotation_error_message(error: Exception) -> str:
+    if isinstance(error, StateInaccessibleError):
+        return (
+            "App-interface state store unavailable. Check its configuration, "
+            "including APP_INTERFACE_STATE_BUCKET and the credential source."
+        )
+    if isinstance(error, ValidationError):
+        return (
+            "Invalid IAM rotation input. Check the options and resource configuration."
+        )
+    if isinstance(error, ClientError):
+        code = error.response.get("Error", {}).get("Code")
+        if isinstance(code, str) and re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", code
+        ):
+            return f"AWS request failed ({code})"
+    return cloudwatch_rotation.error_message(error)
+
+
+@external_resources.command(name="rotate-access-key")
+@click.option("--dry-run/--no-dry-run", default=True, show_default=True)
+@click.option(
+    "--mode",
+    type=click.Choice(["without-downtime", "with-downtime"]),
+    default="without-downtime",
+    show_default=True,
+    help="Preserve the old key for consumer cutover, or replace it with possible interruption.",
+)
+@click.option(
+    "--expected-key-id",
+    help="Old access-key ID reported by inspection; required for execution/verification.",
+)
+@click.option(
+    "--verify",
+    is_flag=True,
+    help="Check rotation progress in the selected mode; application adoption needs separate verification.",
+)
+@click.pass_context
+def rotate_access_key(
+    ctx: click.Context,
+    dry_run: bool,
+    expected_key_id: str | None,
+    verify: bool,
+    mode: cloudwatch_rotation.RotationMode,
+) -> None:
+    """Rotate one ERv2 CloudWatch key; inspect by default.
+
+    Inspect first, then supply --expected-key-id with --no-dry-run to prepare
+    rotation. The default mode keeps the old key active through cutover.
+    With-downtime mode can interrupt consumers. Use --verify to check progress.
+    Pause state/IAM writers and drain provider jobs before preparation. See the
+    IAM key rotation runbook in app-interface for the full procedure.
+    """
+    if ctx.obj["provision_provider"] != "aws" or ctx.obj["provider"] != "cloudwatch":
+        raise click.ClickException(
+            "This command supports only AWS CloudWatch resources"
+        )
+    try:
+        result = cloudwatch_rotation.run_single(
+            provisioner=ctx.obj["provisioner"],
+            identifier=ctx.obj["identifier"],
+            secret_reader=ctx.obj["secret_reader"],
+            dry_run=dry_run,
+            expected_key_id=expected_key_id,
+            verify=verify,
+            mode=mode,
+        )
+    except Exception as error:
+        raise click.ClickException(_iam_rotation_error_message(error)) from None
+    print(result.model_dump_json(exclude_none=True))
+    if result.exit_code:
+        ctx.exit(result.exit_code)
+
+
+@root.group(name="terraform-resources")
+def legacy_terraform_resources() -> None:
+    """Operations on legacy, account-wide terraform-resources state."""
+
+
+@legacy_terraform_resources.command(name="rotate-access-key")
+@click.option("--account", required=True, help="App-interface AWS account name.")
+@click.option(
+    "--iam-user",
+    required=True,
+    help="Exact IAM user from a legacy resource declaration.",
+)
+@click.option(
+    "--expected-key-id",
+    help="Old key ID from inspection; required for execution/verification.",
+)
+@click.option(
+    "--expected-address",
+    help="Exact Terraform address from inspection; required for execution/verification.",
+)
+@click.option(
+    "--expected-cache-bucket",
+    help="Cache bucket from inspection; required for execution.",
+)
+@click.option(
+    "--terraform-binary",
+    default="terraform",
+    show_default=True,
+    help="Executable matching the remote state's Terraform version.",
+)
+@click.option(
+    "--integration-version",
+    default=str(tfr.QONTRACT_INTEGRATION_VERSION),
+    show_default=True,
+    help="Version used by the deployed terraform-resources integration's cache.",
+)
+@click.option("--dry-run/--no-dry-run", default=True, show_default=True)
+@click.option(
+    "--verify",
+    is_flag=True,
+    help="Read-only verification of new-key creation and Terraform outputs.",
+)
+def rotate_legacy_access_key(
+    account: str,
+    iam_user: str,
+    expected_key_id: str | None,
+    expected_address: str | None,
+    expected_cache_bucket: str | None,
+    terraform_binary: str,
+    integration_version: str,
+    dry_run: bool,
+    verify: bool,
+) -> None:
+    """Prepare a second IAM key without retiring the old credential.
+
+    Inspect first and pass the reported key ID, Terraform address, and cache
+    bucket with --no-dry-run. Pause and drain state writers before preparation.
+    Resume terraform-resources to create the replacement and use --verify to
+    check IAM and Terraform outputs. Verify consumers before retiring the old key.
+    See the IAM key rotation runbook in app-interface for the full procedure.
+    """
+    from tools import rotate_terraform_resources_keys as legacy_rotation
+
+    try:
+        request = legacy_rotation.Request(
+            account=account,
+            iam_user=iam_user,
+            expected_key_id=expected_key_id,
+            expected_address=expected_address,
+            expected_cache_bucket=expected_cache_bucket,
+            dry_run=dry_run,
+            verify=verify,
+            integration_version=integration_version,
+        )
+        settings = get_app_interface_vault_settings()
+        reader = create_secret_reader(use_vault=settings.vault)
+        result = legacy_rotation.run_single(request, reader, terraform_binary)
+    except Exception as error:
+        raise click.ClickException(_iam_rotation_error_message(error)) from None
+    print(result.model_dump_json(exclude_none=True))
+    if result.exit_code:
+        raise click.exceptions.Exit(result.exit_code)
+
+
+def _run_legacy_key_retirement(
+    action: Literal["deactivate", "delete"],
+    account: str,
+    iam_user: str,
+    key_id: str,
+    dry_run: bool,
+) -> None:
+    from tools import rotate_terraform_resources_keys as legacy_rotation
+
+    try:
+        request = legacy_rotation.RetirementRequest(
+            account=account,
+            iam_user=iam_user,
+            action=action,
+            key_id=key_id,
+            dry_run=dry_run,
+        )
+        settings = get_app_interface_vault_settings()
+        reader = create_secret_reader(use_vault=settings.vault)
+        result = legacy_rotation.run_retirement(request, reader)
+    except Exception as error:
+        raise click.ClickException(_iam_rotation_error_message(error)) from None
+    print(result.model_dump_json())
+
+
+@legacy_terraform_resources.command(name="deactivate-access-key")
+@click.option("--account", required=True, help="App-interface AWS account name.")
+@click.option("--iam-user", required=True)
+@click.option(
+    "--key-id",
+    required=True,
+    help="IAM access key to deactivate after consumer cutover.",
+)
+@click.option("--dry-run/--no-dry-run", default=True, show_default=True)
+def deactivate_legacy_access_key(
+    account: str,
+    iam_user: str,
+    key_id: str,
+    dry_run: bool,
+) -> None:
+    """Deactivate one IAM key while retaining another Active key.
+
+    Verify consumer adoption separately. Deactivation does not free a key slot.
+    This command does not read Terraform state or prove the key is unused.
+    """
+    _run_legacy_key_retirement(
+        action="deactivate",
+        account=account,
+        iam_user=iam_user,
+        key_id=key_id,
+        dry_run=dry_run,
+    )
+
+
+@legacy_terraform_resources.command(name="delete-access-key")
+@click.option("--account", required=True, help="App-interface AWS account name.")
+@click.option("--iam-user", required=True)
+@click.option(
+    "--key-id", required=True, help="IAM access key to deactivate and delete."
+)
+@click.option("--dry-run/--no-dry-run", default=True, show_default=True)
+def delete_legacy_access_key(
+    account: str,
+    iam_user: str,
+    key_id: str,
+    dry_run: bool,
+) -> None:
+    """Deactivate and delete one IAM key while retaining another Active key.
+
+    An Active selected key is deactivated, verified Inactive, then deleted in the
+    same command. Verify consumers before execution; there is no observation
+    pause or Terraform-state lookup.
+    """
+    _run_legacy_key_retirement(
+        action="delete",
+        account=account,
+        iam_user=iam_user,
+        key_id=key_id,
+        dry_run=dry_run,
+    )
 
 
 @external_resources.command()

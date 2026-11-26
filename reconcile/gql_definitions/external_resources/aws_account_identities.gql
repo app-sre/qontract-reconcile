@@ -1,0 +1,8 @@
+# qenerate: plugin=pydantic_v2
+
+query AWSExternalResourceAccountIdentities($filter: JSON) {
+  accounts: awsaccounts_v1(filter: $filter) {
+    name
+    uid
+  }
+}
