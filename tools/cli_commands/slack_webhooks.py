@@ -39,6 +39,12 @@ class HcpTerraformVariableSetTarget:
         return f"hcp-terraform-variable-set {self.project}/{self.name}/{self.variable}"
 
 
+@dataclass(frozen=True)
+class HcpTerraformVariableSetChange:
+    method: str
+    path: str
+
+
 Target = VaultTarget | HcpTerraformVariableSetTarget
 QueryFunc = Callable[[str], dict[str, Any]]
 CommandRunner = Callable[[Sequence[str], str | None], str]
@@ -65,13 +71,11 @@ class SlackWebhookSyncCommand:
                 "dump file is missing configured channels: " + ", ".join(missing)
             )
 
-        if dry_run:
-            for channel in sorted(inventory):
-                for target in inventory[channel]:
-                    print(f"[dry-run] {channel}: {target}")
-            return
-
         vault_updates = self._collect_vault_updates(inventory, webhooks)
+
+        if dry_run:
+            self._print_dry_run(inventory, webhooks, vault_updates)
+            return
         for path, fields in sorted(vault_updates.items()):
             self._sync_vault_secret(path, fields)
 
@@ -106,7 +110,7 @@ class SlackWebhookSyncCommand:
                 )
 
             targets = tuple(self._parse_target(target) for target in webhook.targets)
-            if not any(isinstance(target, VaultTarget) for target in targets):
+            if not self._has_vault_target(targets):
                 raise SlackWebhookSyncError(
                     f"incoming webhook has no Vault target: {channel}"
                 )
@@ -135,6 +139,48 @@ class SlackWebhookSyncCommand:
                     case HcpTerraformVariableSetTarget():
                         pass
         return updates
+
+    @staticmethod
+    def _has_vault_target(targets: tuple[Target, ...]) -> bool:
+        for target in targets:
+            match target:
+                case VaultTarget():
+                    return True
+                case _:
+                    pass
+        return False
+
+    def _print_dry_run(
+        self,
+        inventory: dict[str, tuple[Target, ...]],
+        webhooks: dict[str, str],
+        vault_updates: dict[str, dict[str, str]],
+    ) -> None:
+        for path, fields in sorted(vault_updates.items()):
+            changed = self._vault_changes(path, fields)
+            if changed:
+                print(
+                    f"[dry-run] would update vault-secret {path}: "
+                    f"{', '.join(sorted(changed))}"
+                )
+            else:
+                print(
+                    f"[dry-run] unchanged vault-secret {path}: "
+                    f"{', '.join(sorted(fields))}"
+                )
+
+        for channel in sorted(inventory):
+            for target in inventory[channel]:
+                match target:
+                    case VaultTarget():
+                        pass
+                    case HcpTerraformVariableSetTarget():
+                        change = self._hcp_terraform_change(target)
+                        action = "create" if change.method == "POST" else "update"
+                        print(
+                            f"[dry-run] would {action} {channel}: {target} "
+                            f"({change.method} {change.path})"
+                        )
 
     @staticmethod
     def _parse_target(target: SlackWorkspaceIncomingWebhookTargetV1) -> Target:
@@ -191,10 +237,7 @@ class SlackWebhookSyncCommand:
         return values
 
     def _sync_vault_secret(self, path: str, fields: dict[str, str]) -> None:
-        current = self._read_vault_secret(path)
-        changed = {
-            field: url for field, url in fields.items() if current.get(field) != url
-        }
+        changed = self._vault_changes(path, fields)
         if not changed:
             print(f"unchanged vault-secret {path}")
             return
@@ -203,6 +246,12 @@ class SlackWebhookSyncCommand:
             json.dumps(changed),
         )
         print(f"synced vault-secret {path}: {', '.join(sorted(changed))}")
+
+    def _vault_changes(self, path: str, fields: dict[str, str]) -> dict[str, str]:
+        current = self._read_vault_secret(path)
+        return {
+            field: url for field, url in fields.items() if current.get(field) != url
+        }
 
     def _read_vault_secret(self, path: str) -> dict[str, Any]:
         output = self._command_runner(
@@ -222,13 +271,40 @@ class SlackWebhookSyncCommand:
     def _sync_hcp_terraform_target(
         self, target: HcpTerraformVariableSetTarget, url: str
     ) -> None:
+        change = self._hcp_terraform_change(target)
+        body = self._hcp_terraform_body(target, url, change)
+        self._command_runner(
+            ["tfctl", "api", change.path, "-X", change.method, "-i", "-"],
+            body,
+        )
+
+    def _hcp_terraform_change(
+        self, target: HcpTerraformVariableSetTarget
+    ) -> HcpTerraformVariableSetChange:
         project_id = self._hcp_project_id(target.project)
         varset = self._hcp_varset(target, project_id)
         varset_id = varset["id"]
         variable = self._hcp_variable(target, varset_id)
 
         if variable is None:
-            body = {
+            return HcpTerraformVariableSetChange(
+                method="POST",
+                path=f"/varsets/{varset_id}/relationships/vars",
+            )
+
+        return HcpTerraformVariableSetChange(
+            method="PATCH",
+            path=f"/vars/{variable['id']}",
+        )
+
+    @staticmethod
+    def _hcp_terraform_body(
+        target: HcpTerraformVariableSetTarget,
+        url: str,
+        change: HcpTerraformVariableSetChange,
+    ) -> str:
+        if change.method == "POST":
+            return json.dumps({
                 "data": {
                     "type": "vars",
                     "attributes": {
@@ -238,25 +314,16 @@ class SlackWebhookSyncCommand:
                         "sensitive": True,
                         "hcl": False,
                     },
-                }
-            }
-            path = f"/varsets/{varset_id}/relationships/vars"
-            method = "POST"
-        else:
-            body = {
-                "data": {
-                    "id": variable["id"],
-                    "type": "vars",
-                    "attributes": {"value": url},
-                }
-            }
-            path = f"/vars/{variable['id']}"
-            method = "PATCH"
+                },
+            })
 
-        self._command_runner(
-            ["tfctl", "api", path, "-X", method, "-i", "-"],
-            json.dumps(body),
-        )
+        return json.dumps({
+            "data": {
+                "id": change.path.removeprefix("/vars/"),
+                "type": "vars",
+                "attributes": {"value": url},
+            },
+        })
 
     def _hcp_project_id(self, project: str) -> str:
         data = self._tfctl([

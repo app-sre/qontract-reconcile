@@ -136,25 +136,38 @@ class FakeRunner:
         return "{}"
 
 
-def test_sync_dry_run_does_not_run_commands(
+def test_sync_dry_run_shows_planned_writes_without_mutating(
     tmp_path: Any, capsys: pytest.CaptureFixture[str]
 ) -> None:
     dump_file = write_dump(tmp_path, webhook_dump())
-
-    def fail_runner(args: Sequence[str], input_text: str | None = None) -> str:
-        raise AssertionError("dry-run must not execute commands")
-
-    SlackWebhookSyncCommand(
+    runner = FakeRunner()
+    command = SlackWebhookSyncCommand(
         workspace="redhat-internal",
         query_func=query,
-        command_runner=fail_runner,
-    ).execute(dump_file, dry_run=True)
+        command_runner=runner,
+    )
+
+    command.execute(dump_file, dry_run=True)
 
     output = capsys.readouterr().out
-    assert "[dry-run] sd-app-sre-alert: vault-secret" in output
-    assert "[dry-run] sd-app-sre-alert: hcp-terraform-variable-set" in output
-    assert "[dry-run] sd-app-sre-alert-stg: vault-secret" in output
+    assert (
+        "[dry-run] would update vault-secret "
+        "app-sre/integrations-input/slack-webhooks: "
+        "sd-app-sre-alert, sd-app-sre-alert-stg" in output
+    )
+    assert (
+        "[dry-run] would update sd-app-sre-alert: "
+        "hcp-terraform-variable-set "
+        "meta-app-sre/app-sre-notification-url/notification_url "
+        "(PATCH /vars/var-test)" in output
+    )
     assert "https://hooks.example/test" not in output
+
+    assert runner.vault_patches == []
+    mutating_calls = [
+        call for call in runner.calls if call[0][0] == "tfctl" and "-X" in call[0]
+    ]
+    assert mutating_calls == []
 
 
 def test_sync_updates_vault_and_hcp_variable(tmp_path: Any) -> None:
@@ -260,7 +273,7 @@ def test_reads_dump_file_without_permission_check(tmp_path: Any) -> None:
     command = SlackWebhookSyncCommand(
         workspace="redhat-internal",
         query_func=query,
-        command_runner=no_op_runner,
+        command_runner=FakeRunner(vault_secret=webhook_dump()),
     )
 
     command.execute(dump_file, dry_run=True)
