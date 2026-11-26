@@ -8,8 +8,10 @@ from typing import TYPE_CHECKING
 import pytest
 from botocore.exceptions import ClientError
 from click.testing import CliRunner
+from pydantic import ValidationError
 
 from reconcile.utils.early_exit_cache import CacheKey
+from reconcile.utils.state import StateInaccessibleError
 from tools import qontract_cli
 from tools import rotate_terraform_resources_keys as rotation
 
@@ -756,7 +758,7 @@ def test_removed_confirmation_flag_is_absent_from_cli_help() -> None:
     )
     assert response.exit_code == 0
     assert "--account-quiesced" not in response.output
-    assert "docs/terraform-resources-key-rotation.md" in response.output
+    assert "IAM key rotation runbook in app-interface" in response.output
 
 
 def retirement_request(
@@ -1068,6 +1070,40 @@ def test_retirement_cli_suppresses_credential_bearing_errors(
         ],
     )
     assert response.exit_code == 1 and "test-only-secret" not in response.output
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (StateInaccessibleError("test-only-secret"), "APP_INTERFACE_STATE_BUCKET"),
+        (
+            ValidationError.from_exception_data(
+                "Request",
+                [
+                    {
+                        "type": "int_parsing",
+                        "loc": ("value",),
+                        "input": "test-only-secret",
+                    }
+                ],
+            ),
+            "Invalid IAM rotation input",
+        ),
+        (
+            ClientError(
+                {"Error": {"Code": "AccessDenied", "Message": "test-only-secret"}},
+                "DeleteAccessKey",
+            ),
+            "AWS request failed (AccessDenied)",
+        ),
+    ],
+)
+def test_rotation_error_reports_safe_diagnostics(
+    error: Exception, expected: str
+) -> None:
+    message = qontract_cli._iam_rotation_error_message(error)
+    assert expected in message
+    assert "test-only-secret" not in message
 
 
 @pytest.fixture

@@ -25,7 +25,9 @@ import click
 import click.core
 import requests
 import yaml
+from botocore.exceptions import ClientError
 from gitlab.const import PipelineStatus
+from pydantic import ValidationError
 from rich import box
 from rich import print as rich_print
 from rich.console import Console, Group
@@ -190,7 +192,7 @@ from reconcile.utils.secret_reader import (
     create_secret_reader,
 )
 from reconcile.utils.semver_helper import parse_semver
-from reconcile.utils.state import init_state
+from reconcile.utils.state import StateInaccessibleError, init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from tools import rotate_erv2_cloudwatch_keys as cloudwatch_rotation
 from tools.app_sre_tekton_access_reporter import TektonRole, TektonUser
@@ -4362,6 +4364,25 @@ def request_reconciliation(ctx: click.Context) -> None:
     erv2cli.reconcile()
 
 
+def _iam_rotation_error_message(error: Exception) -> str:
+    if isinstance(error, StateInaccessibleError):
+        return (
+            "App-interface state store unavailable. Check its configuration, "
+            "including APP_INTERFACE_STATE_BUCKET and the credential source."
+        )
+    if isinstance(error, ValidationError):
+        return (
+            "Invalid IAM rotation input. Check the options and resource configuration."
+        )
+    if isinstance(error, ClientError):
+        code = error.response.get("Error", {}).get("Code")
+        if isinstance(code, str) and re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", code
+        ):
+            return f"AWS request failed ({code})"
+    return cloudwatch_rotation.error_message(error)
+
+
 @external_resources.command(name="rotate-access-key")
 @click.option("--dry-run/--no-dry-run", default=True, show_default=True)
 @click.option(
@@ -4390,11 +4411,11 @@ def rotate_access_key(
 ) -> None:
     """Rotate one ERv2 CloudWatch key; inspect by default.
 
-    Without downtime: keep the old key active; verify consumer adoption before
-    separately retiring it. With downtime: reconciliation replaces the old key
-    and may interrupt consumers. Both modes require application verification.
-    Pause other state/IAM writers and in-flight provider jobs before execution;
-    follow docs/terraform-resources-key-rotation.md for the exclusive window.
+    Inspect first, then supply --expected-key-id with --no-dry-run to prepare
+    rotation. The default mode keeps the old key active through cutover.
+    With-downtime mode can interrupt consumers. Use --verify to check progress.
+    Pause state/IAM writers and drain provider jobs before preparation. See the
+    IAM key rotation runbook in app-interface for the full procedure.
     """
     if ctx.obj["provision_provider"] != "aws" or ctx.obj["provider"] != "cloudwatch":
         raise click.ClickException(
@@ -4411,7 +4432,7 @@ def rotate_access_key(
             mode=mode,
         )
     except Exception as error:
-        raise click.ClickException(cloudwatch_rotation.error_message(error)) from None
+        raise click.ClickException(_iam_rotation_error_message(error)) from None
     print(result.model_dump_json(exclude_none=True))
     if result.exit_code:
         ctx.exit(result.exit_code)
@@ -4472,12 +4493,11 @@ def rotate_legacy_access_key(
 ) -> None:
     """Prepare a second IAM key without retiring the old credential.
 
-    Inspection reports the key, state address, cache bucket, and Terraform
-    version. Follow docs/terraform-resources-key-rotation.md: disable integrations
-    that write the account state and wait for in-flight runs before execution;
-    re-enable terraform-resources afterwards to create the key and publish
-    Secrets. --verify checks IAM and Terraform outputs; verify all source Secrets
-    and application adoption separately before retiring the old key.
+    Inspect first and pass the reported key ID, Terraform address, and cache
+    bucket with --no-dry-run. Pause and drain state writers before preparation.
+    Resume terraform-resources to create the replacement and use --verify to
+    check IAM and Terraform outputs. Verify consumers before retiring the old key.
+    See the IAM key rotation runbook in app-interface for the full procedure.
     """
     from tools import rotate_terraform_resources_keys as legacy_rotation
 
@@ -4496,7 +4516,7 @@ def rotate_legacy_access_key(
         reader = create_secret_reader(use_vault=settings.vault)
         result = legacy_rotation.run_single(request, reader, terraform_binary)
     except Exception as error:
-        raise click.ClickException(cloudwatch_rotation.error_message(error)) from None
+        raise click.ClickException(_iam_rotation_error_message(error)) from None
     print(result.model_dump_json(exclude_none=True))
     if result.exit_code:
         raise click.exceptions.Exit(result.exit_code)
@@ -4523,7 +4543,7 @@ def _run_legacy_key_retirement(
         reader = create_secret_reader(use_vault=settings.vault)
         result = legacy_rotation.run_retirement(request, reader)
     except Exception as error:
-        raise click.ClickException(cloudwatch_rotation.error_message(error)) from None
+        raise click.ClickException(_iam_rotation_error_message(error)) from None
     print(result.model_dump_json())
 
 

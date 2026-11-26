@@ -7,8 +7,8 @@ IAM and Terraform outputs only; source Secrets and application adoption require
 separate verification before the operator retires the old key. Explicit IAM-only
 deactivation/deletion requires another Active key to remain. No apply, taint, or
 application refresh is performed by this tool.
-Follow docs/terraform-resources-key-rotation.md to disable state writers before
-preparation and re-enable reconciliation afterwards.
+Follow the IAM key rotation runbook in app-interface to pause state writers
+before preparation and re-enable reconciliation afterwards.
 """
 
 from __future__ import annotations
