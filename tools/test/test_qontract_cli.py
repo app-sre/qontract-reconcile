@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
 import pytest
@@ -335,6 +335,28 @@ def test_early_exit_cache_delete(
 
     assert result.exit_code == 0
     assert result.output == "deleted\n"
+
+
+def test_sync_slack_webhooks_command(tmp_path: Any, mocker: MockerFixture) -> None:
+    dump_file = tmp_path / "slack-webhooks.json"
+    dump_file.write_text("[]", encoding="utf-8")
+    mock_gql = mocker.patch("tools.qontract_cli.gql")
+    mock_command = mocker.patch("tools.qontract_cli.SlackWebhookSyncCommand")
+
+    result = CliRunner().invoke(
+        qontract_cli.sync_slack_webhooks,
+        [str(dump_file), "--workspace", "redhat-internal"],
+    )
+
+    assert result.exit_code == 0, result.output
+    mock_command.assert_called_once_with(
+        workspace="redhat-internal",
+        query_func=mock_gql.get_api.return_value.query,
+    )
+    mock_command.return_value.execute.assert_called_once_with(
+        dump_file=dump_file,
+        dry_run=True,
+    )
 
 
 @pytest.fixture

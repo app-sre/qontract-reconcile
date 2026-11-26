@@ -218,6 +218,10 @@ from tools.cli_commands.rds_eol import (
     load_rds_eol_data,
     rds_version_fields,
 )
+from tools.cli_commands.slack_webhooks import (
+    SlackWebhookSyncCommand,
+    SlackWebhookSyncError,
+)
 from tools.cli_commands.systems_and_tools import get_systems_and_tools_inventory
 from tools.sre_checkpoints import (
     full_name,
@@ -294,6 +298,33 @@ def describe(ctx: click.Context, output: str) -> None:
     ctx.obj["options"] = {
         "output": output,
     }
+
+
+@root.command("sync-slack-webhooks")
+@click.argument(
+    "dump_file",
+    type=click.Path(exists=True, dir_okay=False),
+)
+@click.option(
+    "--workspace",
+    required=True,
+    help="Slack workspace name from app-interface.",
+)
+@click.option(
+    "--dry-run/--no-dry-run",
+    default=True,
+    help="Plan or synchronize every configured incoming-webhook target.",
+)
+def sync_slack_webhooks(dump_file: str, workspace: str, dry_run: bool) -> None:
+    """Synchronize Slack incoming-webhook URLs from a private browser dump."""
+    try:
+        SlackWebhookSyncCommand(
+            workspace=workspace,
+            query_func=gql.get_api().query,
+        ).execute(dump_file=Path(dump_file), dry_run=dry_run)
+    except SlackWebhookSyncError as e:
+        print(e)
+        raise SystemExit(1) from e
 
 
 @get.command()
