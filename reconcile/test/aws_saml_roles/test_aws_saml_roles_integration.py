@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -8,9 +8,12 @@ import pytest
 from reconcile.aws_saml_roles.integration import (
     AwsRole,
     AwsSamlRolesIntegration,
+    runner,
 )
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import AWSAccountV1
+from reconcile.gql_definitions.aws_saml_roles.roles import RoleV1
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript_aws_client import TerrascriptClient
 
 if TYPE_CHECKING:
@@ -228,6 +231,43 @@ def test_aws_saml_roles_get_roles(
     ]
     assert intg.get_roles(fixture_query_func) == roles
     assert intg.get_roles(fixture_query_func, account_name="account-1") == [roles[0]]
+
+
+def test_aws_saml_roles_get_roles_filters_expired(
+    intg: AwsSamlRolesIntegration, data_factory: Callable
+) -> None:
+    def q(*args: Any, **kwargs: Any) -> dict:
+        return {
+            "roles": [
+                data_factory(
+                    RoleV1,
+                    {
+                        "name": name,
+                        "expirationDate": expiration_date,
+                        "aws_groups": [
+                            {
+                                "account": {
+                                    "name": "account-1",
+                                    "uid": "123456789",
+                                    "sso": True,
+                                },
+                                "policies": ["ReadOnlyAccess"],
+                            }
+                        ],
+                    },
+                )
+                for name, expiration_date in [
+                    ("expired", "2020-01-01"),
+                    ("not-expired", "2999-12-31"),
+                    ("no-expiration", None),
+                ]
+            ]
+        }
+
+    assert [role.name for role in intg.get_roles(q)] == [
+        "123456789-not-expired",
+        "123456789-no-expiration",
+    ]
 
 
 def test_aws_saml_roles_populate_saml_iam_roles(
@@ -598,3 +638,30 @@ def test_validate_saml_iam_policies_no_custom_policies(
 def test_aws_saml_roles_aws_limits(role_dict: dict) -> None:
     with pytest.raises(ValueError):
         AwsRole(**role_dict)
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_aws_saml_roles_runner_raises_on_disabled_deletions(dry_run: bool) -> None:
+    tf = MagicMock(spec=TerraformClient)
+    tf.plan.return_value = (True, False)
+
+    with pytest.raises(
+        RuntimeError, match="Terraform plan has disabled deletions detected"
+    ):
+        runner(dry_run=dry_run, tf=tf, enable_deletion=False)
+
+    tf.plan.assert_called_once_with(False)
+    tf.apply.assert_not_called()
+
+
+def test_aws_saml_roles_runner_applies_when_deletions_allowed() -> None:
+    tf = MagicMock(spec=TerraformClient)
+    tf.plan.return_value = (False, False)
+    tf.apply.return_value = False
+    tf.apply_count = 1
+
+    result = runner(dry_run=False, tf=tf, enable_deletion=True)
+
+    tf.plan.assert_called_once_with(True)
+    tf.apply.assert_called_once_with()
+    assert result.applied_count == 1

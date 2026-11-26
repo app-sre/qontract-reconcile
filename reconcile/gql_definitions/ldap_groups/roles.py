@@ -62,6 +62,7 @@ fragment VaultSecret on VaultSecret_v1 {
 query LdapGroupsRolesQuery {
   roles: roles_v1 {
     name
+    expirationDate
     ldapGroup {
       name
       notes
@@ -114,6 +115,7 @@ class AWSGroupV1(ConfiguredBaseModel):
 
 class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    expiration_date: Optional[str] = Field(..., alias="expirationDate")
     ldap_group: Optional[LdapGroupV1] = Field(..., alias="ldapGroup")
     users: list[UserV1] = Field(..., alias="users")
     member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
