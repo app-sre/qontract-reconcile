@@ -14,9 +14,9 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-def write_dump(tmp_path: Any, rows: list[dict[str, str]]) -> Any:
+def write_dump(tmp_path: Any, webhooks: dict[str, str]) -> Any:
     path = tmp_path / "slack-webhooks.json"
-    path.write_text(json.dumps(rows), encoding="utf-8")
+    path.write_text(json.dumps(webhooks), encoding="utf-8")
     path.chmod(0o600)
     return path
 
@@ -34,9 +34,14 @@ def inventory() -> dict[str, Any]:
                                 "type": "vault-secret",
                                 "path": "app-sre/integrations-input/slack-webhooks",
                                 "field": "sd-app-sre-alert",
+                                "project": None,
+                                "name": None,
+                                "variable": None,
                             },
                             {
                                 "type": "hcp-terraform-variable-set",
+                                "path": None,
+                                "field": None,
                                 "project": "meta-app-sre",
                                 "name": "app-sre-notification-url",
                                 "variable": "notification_url",
@@ -102,7 +107,7 @@ def test_sync_dry_run_does_not_run_commands(
 ) -> None:
     dump_file = write_dump(
         tmp_path,
-        [{"channel": "#sd-app-sre-alert", "url": "https://hooks.example/test"}],
+        {"#sd-app-sre-alert": "https://hooks.example/test"},
     )
 
     def fail_runner(args: Sequence[str], input_text: str | None = None) -> str:
@@ -123,7 +128,7 @@ def test_sync_dry_run_does_not_run_commands(
 def test_sync_updates_vault_and_hcp_variable(tmp_path: Any) -> None:
     dump_file = write_dump(
         tmp_path,
-        [{"channel": "sd-app-sre-alert", "url": "https://hooks.example/test"}],
+        {"sd-app-sre-alert": "https://hooks.example/test"},
     )
     runner = FakeRunner()
     command = SlackWebhookSyncCommand(
@@ -160,7 +165,7 @@ def test_sync_updates_vault_and_hcp_variable(tmp_path: Any) -> None:
 def test_sync_creates_missing_hcp_variable(tmp_path: Any) -> None:
     dump_file = write_dump(
         tmp_path,
-        [{"channel": "sd-app-sre-alert", "url": "https://hooks.example/test"}],
+        {"sd-app-sre-alert": "https://hooks.example/test"},
     )
     runner = FakeRunner(existing_variable=False)
     command = SlackWebhookSyncCommand(
@@ -197,13 +202,10 @@ def test_sync_creates_missing_hcp_variable(tmp_path: Any) -> None:
     }
 
 
-def test_rejects_multiple_urls_for_a_configured_channel(tmp_path: Any) -> None:
+def test_rejects_invalid_dump_url(tmp_path: Any) -> None:
     dump_file = write_dump(
         tmp_path,
-        [
-            {"channel": "sd-app-sre-alert", "url": "https://hooks.example/one"},
-            {"channel": "sd-app-sre-alert", "url": "https://hooks.example/two"},
-        ],
+        {"sd-app-sre-alert": "http://hooks.example/test"},
     )
     command = SlackWebhookSyncCommand(
         workspace="redhat-internal",
@@ -211,14 +213,14 @@ def test_rejects_multiple_urls_for_a_configured_channel(tmp_path: Any) -> None:
         command_runner=no_op_runner,
     )
 
-    with pytest.raises(SlackWebhookSyncError, match="multiple distinct URLs"):
+    with pytest.raises(SlackWebhookSyncError, match="invalid URL"):
         command.execute(dump_file, dry_run=True)
 
 
 def test_rejects_dump_file_readable_by_others(tmp_path: Any) -> None:
     dump_file = write_dump(
         tmp_path,
-        [{"channel": "sd-app-sre-alert", "url": "https://hooks.example/test"}],
+        {"sd-app-sre-alert": "https://hooks.example/test"},
     )
     dump_file.chmod(0o644)
     command = SlackWebhookSyncCommand(

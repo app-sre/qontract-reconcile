@@ -6,29 +6,14 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from reconcile.typed_queries.slack_webhooks import get_slack_webhooks
+
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from pathlib import Path
 
-
-SLACK_INCOMING_WEBHOOKS_QUERY = """
-{
-  slack_workspaces: slack_workspaces_v1 {
-    name
-    incomingWebhooks {
-      channel
-      targets {
-        type
-        path
-        field
-        project
-        name
-        variable
-      }
-    }
-  }
-}
-"""
+    from reconcile.gql_definitions.slack_webhooks.slack_webhooks import (
+        SlackWorkspaceIncomingWebhookTargetV1,
+    )
 
 
 class SlackWebhookSyncError(Exception):
@@ -94,9 +79,8 @@ class SlackWebhookSyncCommand:
                 print(f"synced {channel}: {target}")
 
     def _fetch_inventory(self) -> dict[str, tuple[Target, ...]]:
-        data = self._query_func(SLACK_INCOMING_WEBHOOKS_QUERY)
-        workspaces = data.get("slack_workspaces") or []
-        matches = [w for w in workspaces if w.get("name") == self._workspace]
+        workspaces = get_slack_webhooks(query_func=self._query_func)
+        matches = [w for w in workspaces if w.name == self._workspace]
 
         if len(matches) != 1:
             raise SlackWebhookSyncError(
@@ -105,8 +89,8 @@ class SlackWebhookSyncCommand:
             )
 
         inventory: dict[str, tuple[Target, ...]] = {}
-        for webhook in matches[0].get("incomingWebhooks") or []:
-            channel = webhook.get("channel")
+        for webhook in matches[0].incoming_webhooks or []:
+            channel = webhook.channel
             if not channel:
                 raise SlackWebhookSyncError("incoming webhook has no channel")
             if channel in inventory:
@@ -114,8 +98,7 @@ class SlackWebhookSyncCommand:
                     f"duplicate incoming webhook channel in inventory: {channel}"
                 )
 
-            raw_targets = webhook.get("targets") or []
-            targets = tuple(self._parse_target(target) for target in raw_targets)
+            targets = tuple(self._parse_target(target) for target in webhook.targets)
             if not any(isinstance(target, VaultTarget) for target in targets):
                 raise SlackWebhookSyncError(
                     f"incoming webhook has no Vault target: {channel}"
@@ -125,19 +108,19 @@ class SlackWebhookSyncCommand:
         return inventory
 
     @staticmethod
-    def _parse_target(target: Mapping[str, Any]) -> Target:
-        target_type = target.get("type")
+    def _parse_target(target: SlackWorkspaceIncomingWebhookTargetV1) -> Target:
+        target_type = target.q_type
         if target_type == "vault-secret":
-            path = target.get("path")
-            field = target.get("field")
+            path = target.path
+            field = target.field
             if not path or not field:
                 raise SlackWebhookSyncError("vault-secret target needs path and field")
             return VaultTarget(path=path, field=field)
 
         if target_type == "hcp-terraform-variable-set":
-            project = target.get("project")
-            name = target.get("name")
-            variable = target.get("variable")
+            project = target.project
+            name = target.name
+            variable = target.variable
             if not project or not name or not variable:
                 raise SlackWebhookSyncError(
                     "hcp-terraform-variable-set target needs project, name, and variable"
@@ -160,33 +143,28 @@ class SlackWebhookSyncCommand:
         except (OSError, json.JSONDecodeError) as e:
             raise SlackWebhookSyncError(f"could not read dump file: {dump_file}") from e
 
-        if not isinstance(payload, list):
-            raise SlackWebhookSyncError("dump file must contain a JSON array")
+        if not isinstance(payload, dict):
+            raise SlackWebhookSyncError("dump file must contain a JSON object")
 
-        values: dict[str, set[str]] = {}
-        for index, row in enumerate(payload):
-            if not isinstance(row, dict) or set(row) != {"channel", "url"}:
+        values: dict[str, str] = {}
+        for raw_channel, raw_url in payload.items():
+            if not isinstance(raw_channel, str) or not raw_channel.strip():
+                raise SlackWebhookSyncError("dump file has an invalid channel key")
+            if not isinstance(raw_url, str):
+                raise SlackWebhookSyncError(f"dump channel {raw_channel} has no URL")
+
+            channel = raw_channel.strip().removeprefix("#")
+            url = raw_url
+            if not channel:
+                raise SlackWebhookSyncError("dump file has an invalid channel key")
+            if not url.startswith("https://"):
                 raise SlackWebhookSyncError(
-                    f"dump row {index} must contain exactly channel and url"
+                    f"dump channel {channel} has an invalid URL"
                 )
 
-            channel = str(row["channel"]).removeprefix("#")
-            url = str(row["url"])
-            if not channel:
-                raise SlackWebhookSyncError(f"dump row {index} has no channel")
-            if not url.startswith("https://"):
-                raise SlackWebhookSyncError(f"dump row {index} has an invalid URL")
+            values[channel] = url
 
-            values.setdefault(channel, set()).add(url)
-
-        ambiguous = {channel: urls for channel, urls in values.items() if len(urls) > 1}
-        if ambiguous:
-            channels = ", ".join(sorted(ambiguous))
-            raise SlackWebhookSyncError(
-                f"dump file has multiple distinct URLs for configured channels: {channels}"
-            )
-
-        return {channel: next(iter(urls)) for channel, urls in values.items()}
+        return values
 
     def _sync_vault_target(self, target: VaultTarget, url: str) -> None:
         self._command_runner(
