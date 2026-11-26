@@ -2391,3 +2391,30 @@ def test_process_convergence_job_uses_current_connection(
     assert job.user_connection.port == "5432"
     assert job.user_connection.user == _generated_username("cs_owner", STATE_KEY)
     assert job.user_connection.database == "postgres"
+
+
+def test_process_settled_guard_accepts_pinned_generated_username(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+) -> None:
+    """An entry that first omitted the username and later pins it to
+    exactly the generated login does not change the PostgreSQL
+    identity: the settled-state guard must compare the RESOLVED
+    usernames, as the pending-state guard already does."""
+    stored = db_access_role.model_copy(deep=True)
+    stored.username = None
+    dbam_state.exists.return_value = True
+    dbam_state.get.return_value = stored.model_dump(by_alias=True)
+    db_access_role.username = _resolve_username(stored, STATE_KEY)
+
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+
+    # the entry proceeds to provisioning instead of being rejected
+    dbam_controller.enqueue_job.assert_called_once()

@@ -620,7 +620,11 @@ def _process_db_access(
             current_db_access = DatabaseAccessV1(**current_state)
             if current_db_access.database != db_access.database:
                 raise ValueError("Database name cannot be changed.")
-            if (current_db_access.username or None) != (db_access.username or None):
+            # compare the RESOLVED usernames: an entry that first omitted
+            # the username and later sets it to exactly the generated
+            # login does not change the PostgreSQL identity (the pending
+            # guard below resolves the same way)
+            if _resolve_username(current_db_access, state_key) != username:
                 raise ValueError("Username cannot be changed.")
             # adding a role to an existing entry is the opt-in migration to
             # the owner-role model; once set, the role cannot be changed or
