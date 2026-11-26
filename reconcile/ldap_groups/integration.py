@@ -152,9 +152,9 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         return data.settings[0].ldap_groups
 
     def get_roles(self, query_func: Callable) -> list[RoleV1]:
-        """Return the non-expired roles."""
+        """Return the non-expired roles, validating that ldapGroup values are unique."""
         data = roles_query(query_func, variables={})
-        roles = expiration.filter(data.roles or [])
+        roles = expiration.filter(data.roles)
         if duplicates := find_duplicates(
             role.ldap_group.name for role in roles if role.ldap_group
         ):

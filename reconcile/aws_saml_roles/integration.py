@@ -356,9 +356,11 @@ class AwsSamlRolesIntegration(
 def runner(
     dry_run: bool, tf: TerraformClient, enable_deletion: bool
 ) -> ExtendedEarlyExitRunnerResult:
-    _, err = tf.plan(enable_deletion)
+    disabled_deletions_detected, err = tf.plan(enable_deletion)
     if err:
         raise RuntimeError("Terraform plan has errors")
+    if disabled_deletions_detected:
+        raise RuntimeError("Terraform plan has disabled deletions detected")
 
     if dry_run:
         return ExtendedEarlyExitRunnerResult(payload={}, applied_count=0)
