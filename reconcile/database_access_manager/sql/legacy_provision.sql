@@ -4,14 +4,13 @@
 -- the user password is passed as the psql variable db_user_password via -v
 \set ON_ERROR_STOP on
 
-SELECT NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database_literal}') AS dam_db_new \gset
 SELECT 'CREATE DATABASE "{database}"'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{database_literal}');\gexec
-\if :dam_db_new
+
 /* legacy mode: the database is dedicated to a single login, PUBLIC
-   gets no access at all (postgres 15 compliance) */
+   gets no access at all (postgres 15 compliance) -- whether DAM
+   created the database or adopted an existing one */
 REVOKE ALL ON DATABASE "{database}" FROM public;
-\endif
 
 \c "{database}"
 

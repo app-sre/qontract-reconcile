@@ -317,24 +317,65 @@ def test_validate_role_sharing_allows_rotation_entries(
     _validate_role_sharing([(db_access_role, "u1"), (rotation, "u2")])
 
 
-def test_validate_role_sharing_ignores_access_order(
+def test_validate_role_sharing_ignores_grants_order(
     db_access_role: DatabaseAccessV1,
     gql_class_factory: Callable[..., DatabaseAccessV1],
 ) -> None:
-    reordered = gql_class_factory(
+    first = gql_class_factory(
+        DatabaseAccessV1,
+        db_access_role.model_dump(by_alias=True)
+        | {
+            "access": [
+                {"grants": ["INSERT", "SELECT"], "target": {"dbschema": "sales"}},
+                {"grants": ["UPDATE", "DELETE"], "target": {"dbschema": "archive"}},
+            ],
+        },
+    )
+    second = gql_class_factory(
         DatabaseAccessV1,
         db_access_role.model_dump(by_alias=True)
         | {
             "name": "test-2",
             "access": [
-                {
-                    "grants": ["SELECT", "INSERT"],
-                    "target": {"dbschema": "foo"},
-                }
+                {"grants": ["SELECT", "INSERT"], "target": {"dbschema": "sales"}},
+                {"grants": ["DELETE", "UPDATE"], "target": {"dbschema": "archive"}},
             ],
         },
     )
-    _validate_role_sharing([(db_access_role, "u1"), (reordered, "u2")])
+    # grants within an entry may be in any order -- only the schema
+    # sequence of the access list must match
+    _validate_role_sharing([(first, "u1"), (second, "u2")])
+
+
+def test_validate_role_sharing_rejects_divergent_schema_order(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    first = gql_class_factory(
+        DatabaseAccessV1,
+        db_access_role.model_dump(by_alias=True)
+        | {
+            "access": [
+                {"grants": ["ALL"], "target": {"dbschema": "sales"}},
+                {"grants": ["ALL"], "target": {"dbschema": "archive"}},
+            ],
+        },
+    )
+    second = gql_class_factory(
+        DatabaseAccessV1,
+        db_access_role.model_dump(by_alias=True)
+        | {
+            "name": "test-2",
+            "access": [
+                {"grants": ["ALL"], "target": {"dbschema": "archive"}},
+                {"grants": ["ALL"], "target": {"dbschema": "sales"}},
+            ],
+        },
+    )
+    # the same schemas in a different order build a different search
+    # path, so unqualified names would resolve differently per entry
+    with pytest.raises(ValueError, match="same sequence"):
+        _validate_role_sharing([(first, "u1"), (second, "u2")])
 
 
 def test_generated_username() -> None:
@@ -1863,3 +1904,186 @@ def test_vault_connection_missing_kv2_path_returns_none(
     secret_reader.read_all.side_effect = SecretVersionNotFoundError("not found")
     connection = _vault_connection(secret_reader, "vault-out", STATE_KEY)
     assert connection is None
+
+
+# ---------------------------------------------------------------------------
+# settlement of converged jobs (stale-job misclassification regression)
+# ---------------------------------------------------------------------------
+
+
+def test_process_converged_settlement_reenqueue_without_full_revoke(
+    db_access_role: DatabaseAccessV1,
+    oc_map: MagicMock,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+) -> None:
+    """A settled role job that ran the current configuration is only
+    re-enqueued for object convergence: it is not stale, so the
+    convergence script must not revoke and re-grant everything on
+    every reconcile."""
+    # fully converged: the state matches and no pending marker exists
+    dbam_state.exists.side_effect = lambda key: key == STATE_KEY
+    dbam_state.get.return_value = db_access_role.model_dump(by_alias=True)
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
+        ADMIN_SECRET
+        if name == ADMIN_SECRET_NAME
+        else _job_secret_with_script(_desired_script(db_access_role))
+    )
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    # the convergence re-enqueue still happens and reuses the settled
+    # job's credential instead of rotating the password
+    dbam_controller.enqueue_job.assert_called_once()
+    job = enqueued_job(dbam_controller)
+    assert job.user_connection.password == "jobpw"
+    # the convergence job re-applies the desired grants ...
+    assert "foo|INSERT,SELECT" in job.script
+    # ... but must not perform a full revoke of the managed schema
+    assert "foo|ALL" not in job.script
+
+
+def test_process_stale_job_revokes_stale_only_schemas(
+    db_access_role: DatabaseAccessV1,
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    """A settled job from an older configuration is stale: the
+    replacement revokes everything on all schemas any known
+    configuration managed, including schemas that only the pending
+    marker still records."""
+    pending_with_bar = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "test",
+            "database": "postgres",
+            "role": "cs_owner",
+            "access": [{"grants": ["UPDATE"], "target": {"dbschema": "bar"}}],
+        },
+    )
+    dbam_state.exists.side_effect = lambda key: key == f"{STATE_KEY}#pending"
+    dbam_state.get.return_value = pending_with_bar.model_dump(by_alias=True)
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
+        ADMIN_SECRET
+        if name == ADMIN_SECRET_NAME
+        else _job_secret_with_script("-- old script")
+    )
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+    dbam_controller.enqueue_job.assert_called_once()
+    job = enqueued_job(dbam_controller)
+    assert "foo|ALL" in job.script
+    assert "bar|ALL" in job.script
+
+
+# ---------------------------------------------------------------------------
+# settlement across reconciles with a persistent pending marker
+# ---------------------------------------------------------------------------
+
+
+def test_process_settled_job_with_persistent_pending_marker_skips_full_revoke(
+    db_access_role: DatabaseAccessV1,
+    dbam_controller: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+    oc_map: MagicMock,
+) -> None:
+    """A job that stays IN_PROGRESS across one reconcile while its
+    pending marker persists is settled on the next reconcile once it
+    finished SUCCESS with a matching configuration digest. The
+    confirmed application supersedes the marker: the convergence
+    re-enqueue must re-apply the desired grants without the full
+    revoke the stale local marker flag would trigger."""
+    from reconcile.test.database_access_manager.conftest import FakeDamState
+
+    state = FakeDamState()
+    job_secrets: dict[str, dict[str, dict[str, str]]] = {}
+
+    def oc_get(
+        namespace: str, kind: str, name: str, allow_not_found: bool = True
+    ) -> dict | None:
+        if name == ADMIN_SECRET_NAME:
+            return ADMIN_SECRET
+        if secret := job_secrets.get(name):
+            return secret
+        return None
+
+    oc.get.side_effect = oc_get
+
+    def reconcile_once() -> None:
+        _process_db_access(
+            dry_run=False,
+            state=state,
+            state_key=STATE_KEY,
+            db_access=db_access_role,
+            namespace=db_access_namespace,
+            admin_secret_name=ADMIN_SECRET_NAME,
+            engine="postgres",
+            secret_reader=secret_reader,
+            vault_output_path="vault-out",
+            vault_client=vault_mock,
+            job_image=JOB_IMAGE,
+            pull_secret_path=None,
+            pull_secret_version=None,
+        )
+
+    # reconcile 1: no state, no job. The code enqueues the job, writes
+    # the pending marker and sees the job still running afterwards.
+    dbam_controller.get_job_status.side_effect = [
+        JobStatus.NOT_EXISTS,  # legacy-format job: not found
+        JobStatus.NOT_EXISTS,  # new-format job: not found
+        JobStatus.IN_PROGRESS,  # after enqueue
+    ]
+    reconcile_once()
+
+    job = enqueued_job(dbam_controller)
+    # the pending marker the code wrote before the enqueue persists
+    # in the state the next reconcile reads
+    assert state.exists(f"{STATE_KEY}#pending")
+    # the job-bound secret the controller wrote for the running job
+    job_secrets[job.name()] = _job_secret_with_script(job.script)
+
+    # reconcile 2: the same job finished successfully and applied the
+    # desired configuration (the digest in its script matches)
+    dbam_controller.get_job_status.side_effect = [
+        JobStatus.NOT_EXISTS,  # legacy-format job: not found
+        JobStatus.SUCCESS,  # new-format job: finished
+        JobStatus.IN_PROGRESS,  # after the convergence re-enqueue
+    ]
+    reconcile_once()
+
+    # the settlement published the settled job's credential ...
+    assert vault_mock.write.call_count == 1
+    settled = vault_mock.write.call_args_list[0][0][0]
+    assert settled["data"]["db.password"] == "jobpw"
+    # ... settled the state. The pending marker was removed by the
+    # settlement and re-written for the convergence job (the
+    # post-enqueue status is IN_PROGRESS, so the reconcile returns
+    # before the follow-up settlement removes it again)
+    assert state.exists(STATE_KEY)
+    assert state.exists(f"{STATE_KEY}#pending")
+
+    # the follow-up (convergence) job reuses the settled credential
+    # instead of rotating the password
+    assert dbam_controller.enqueue_job.call_count == 2
+    follow_up = enqueued_job(dbam_controller)
+    assert follow_up.user_connection.password == "jobpw"
+    assert follow_up.user_connection.user == "cs_owner_abc"
+    # it re-applies the desired grants ...
+    assert "foo|INSERT,SELECT" in follow_up.script
+    # ... but must not revoke and re-grant everything despite the
+    # pending marker that existed when the reconcile started
+    assert "foo|ALL" not in follow_up.script

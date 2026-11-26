@@ -235,6 +235,15 @@ def _resolve_username(db_access: DatabaseAccessV1, state_key: str) -> str:
     raise ValueError("Username is required when no role is set.")
 
 
+def _access_schema_sequence(db_access: DatabaseAccessV1) -> list[str]:
+    """The schema sequence of the access list in configured order.
+
+    The SQL search path of the shared login is built from this order,
+    so unqualified name resolution depends on it: entries sharing an
+    owner role must list the schemas in the same sequence."""
+    return [access.target.dbschema for access in db_access.access or []]
+
+
 def _validate_role_sharing(
     entries: list[tuple[DatabaseAccessV1, str]],
 ) -> None:
@@ -242,8 +251,11 @@ def _validate_role_sharing(
     instance while object grants stay database-local: entries sharing
     a role must agree on the database and the access list, otherwise
     one entry's revocations undo grants another entry still needs.
-    Sharing is only allowed within one RDS resource (the rotation
-    mechanism); name, username and delete flag may differ.
+    They must also agree on the schema ORDER of the access list: the
+    search path of the shared login follows the configured order, so
+    divergent orders would resolve unqualified names differently per
+    entry. Sharing is only allowed within one RDS resource (the
+    rotation mechanism); name, username and delete flag may differ.
 
     Each entry is a (config, resolved username) tuple so that
     generated logins are covered by the collision check too."""
@@ -263,6 +275,13 @@ def _validate_role_sharing(
             if _normalized_access(other) != _normalized_access(reference):
                 raise ValueError(
                     f"Role {role} is shared by entries with different access lists."
+                )
+            if _access_schema_sequence(other) != _access_schema_sequence(reference):
+                raise ValueError(
+                    f"Role {role} is shared by entries with different access list "
+                    "orders: the search path of the shared login depends on the "
+                    "order of the schemas, so the entries must list the schemas "
+                    "in the same sequence."
                 )
 
     # a schema must be managed by at most one owner role per RDS
@@ -708,6 +727,12 @@ def _process_db_access(
                     )
                     if job_digest == _configuration_digest(db_access):
                         # the job ran the current configuration: settle.
+                        # The confirmed application supersedes the
+                        # pending marker -- what was applied is known,
+                        # so the re-enqueued job below must not revoke
+                        # everything. This also covers dry-run, where
+                        # the marker is not physically removed.
+                        pending_exists = False
                         # always publish the credentials the job used --
                         # a replacement job may have run with a password
                         # that vault does not have yet, even when the
@@ -755,11 +780,12 @@ def _process_db_access(
                         # reconcile, breaking the credential that vault
                         # just published.
                         convergence_connection = _job_connection(job_secret)
-                    # stale job from an older configuration (e.g. the
-                    # configuration was reverted while the job was in
-                    # flight): replace it below and revoke everything it
-                    # may have applied
-                    stale_job = True
+                    else:
+                        # stale job from an older configuration (e.g. the
+                        # configuration was reverted while the job was in
+                        # flight): replace it below and revoke everything it
+                        # may have applied
+                        stale_job = True
                 elif state_matches and not pending_exists:
                     # the job secret expired (TTL) and the state
                     # converged long ago. With a pending marker the
