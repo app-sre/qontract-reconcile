@@ -104,6 +104,33 @@ SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_db_role_setting s
 --    resolution flip a skipped capture would perform. The CASE (not a
 --    bare AND) guards has_database_privilege: it errors on a
 --    nonexistent role, and a fresh login may not exist.
+--
+--    Residual, deliberately accepted and narrowed by the
+--    pre-transaction owner-role name check below: an in-transaction
+--    failure AFTER this pre-grant still leaves the grant in place --
+--    it is idempotent with the successful outcome (section 3 grants
+--    CONNECT unconditionally and verifies the direct ACL entry), the
+--    same residual class as the password pre-set below.
+
+-- the OWNER-ROLE NAME CHECK, deliberately BEFORE the CONNECT
+-- pre-grant below (and before every persistent change of this
+-- script). A pre-existing LOGIN role with the owner-role name must
+-- abort the job with the specific error while nothing has been
+-- written yet: the condition used to be verified only by the
+-- in-transaction duplicate handler of section 1, but the CONNECT
+-- pre-grant and the password pre-set run in autocommit BEFORE that
+-- transaction -- a job that later failed on the clash had already
+-- persisted both. Catalog-only check (pg_roles): no grant, no
+-- password write, no transaction.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles
+               WHERE rolname = '{role_literal}' AND rolcanlogin) THEN
+        RAISE EXCEPTION 'role % already exists as a LOGIN role: the owner role of a database_access entry must be a NOLOGIN group role',
+            '{role_literal}';
+    END IF;
+END $$;
+
 SELECT 'GRANT CONNECT ON DATABASE "{database}" TO "{username}"'
 WHERE CASE WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_roles
                         WHERE rolname = '{username_literal}')
@@ -193,15 +220,27 @@ SELECT 'dbname=' ||
 -- otherwise feed the capture a fabricated value. The bare current_user
 -- keyword is reservation syntax and cannot be shadowed at all.
 SELECT pg_catalog.current_setting('search_path') AS dam_observed_sp,
-       current_user AS dam_observed_user \gset
+       current_user AS dam_observed_user,
+       CASE WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_namespace
+                         WHERE nspname = current_user)
+            THEN pg_catalog.has_schema_privilege(current_user, current_user, 'USAGE')
+            ELSE false END AS dam_user_resolved \gset
 \c -reuse-previous=on :dam_admin_conninfo
 -- hand the observations to the settlement block inside the
 -- transaction below: session GUCs in THIS executor session (set
 -- after every reconnect, so no hop can lose them, and read by the
 -- settlement DO block on the same backend). pg_catalog-qualified for
--- the same shadowing reason as the probe.
+-- the same shadowing reason as the probe. dam_user_resolved records
+-- whether "$user" actually RESOLVED in the capture session: the
+-- observed identity held USAGE on its same-named schema. PostgreSQL
+-- silently SKIPS a search-path schema the acting role has no USAGE
+-- on during unqualified resolution, so a schema that merely EXISTS
+-- must not enter the stored prefix first -- provisioning later
+-- grants the owner role USAGE there and would silently flip the
+-- resolution to that schema.
 SELECT pg_catalog.set_config('dam.observed_sp', :'dam_observed_sp', false);
 SELECT pg_catalog.set_config('dam.observed_user', :'dam_observed_user', false);
+SELECT pg_catalog.set_config('dam.observed_user_resolved', :'dam_user_resolved', false);
 \else
 -- not a capture run (a fresh login, a login an earlier role-mode
 -- run already manages, or a store that already governs the role):
@@ -216,7 +255,11 @@ SELECT pg_catalog.set_config('dam.observed_user', :'dam_observed_user', false);
 --    role must be NOLOGIN: a pre-existing LOGIN role with the
 --    owner-role name would silently receive the login's membership
 --    below and act as a second application login -- a clear error
---    instead.
+--    instead. That verification PRIMARILY runs pre-transaction now
+--    (the owner-role name check before section 0's pre-grant); the
+--    identical check here is the race guard for a LOGIN role created
+--    between that check and this transaction, and keeps the handler
+--    tolerant of NOLOGIN duplicates (concurrent first provisioning).
 --    Everything from here to the COMMIT is one transaction: a failure
 --    rolls back the user creation including its password, so a retry
 --    converges with a freshly generated password. The search-path
@@ -941,6 +984,7 @@ DECLARE
     revoked text[] := ARRAY[]::text[];
     observed text;
     observed_user text;
+    user_resolved text;
     captured boolean;
     store_raw text;
     raw_value text;
@@ -968,6 +1012,7 @@ BEGIN
     -- shadowable by a hostile function in the executor's path.
     observed := pg_catalog.current_setting('dam.observed_sp', true);
     observed_user := pg_catalog.current_setting('dam.observed_user', true);
+    user_resolved := pg_catalog.current_setting('dam.observed_user_resolved', true);
     captured := observed IS NOT NULL;
 
     -- the persistent LEGACY-PATH STORE: the owner role's per-database
@@ -1234,6 +1279,17 @@ BEGIN
         -- value.
         FOREACH t IN ARRAY tokens LOOP
             IF t = '$user' THEN
+                -- an UNRESOLVED $user (the observed identity held no
+                -- USAGE on its same-named schema, so PostgreSQL
+                -- skipped it during resolution) must not enter the
+                -- prefix: provisioning grants the owner role USAGE
+                -- later, and a stored tenant-first path would then
+                -- silently flip the unqualified resolution to that
+                -- schema. Omit the token; the configured order
+                -- decides.
+                IF COALESCE(user_resolved, 'f') NOT IN ('t', 'true') THEN
+                    CONTINUE;
+                END IF;
                 t := COALESCE(observed_user, user_name);
             END IF;
             IF t IN (user_name, observed_user)

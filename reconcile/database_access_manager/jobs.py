@@ -51,11 +51,16 @@ def _sanitize_job_prefix(name: str) -> str:
 class DatabaseAccessJob(K8sJob, BaseModel, frozen=True):
     """A psql job that applies a rendered database access script.
 
-    The job connects with the admin credentials from the (pre-existing)
-    RDS admin secret in the namespace. The rendered script and the user
-    connection data live in a job-bound secret managed by the job
-    controller. The user password is passed to psql as a variable and
-    is never part of the job spec.
+    The job connects with the admin credentials (user, password) from
+    the (pre-existing) RDS admin secret in the namespace, but at the
+    ENDPOINT recorded in its job-bound secret: the bound secret
+    snapshots the endpoint via the user connection at enqueue time,
+    so an admin secret that moves to another instance between enqueue
+    and pod start cannot make the job apply the password at the wrong
+    endpoint. The rendered script and the user connection data live
+    in the job-bound secret managed by the job controller. The user
+    password is passed to psql as a variable and is never part of the
+    job spec.
     """
 
     state_key: str
@@ -100,8 +105,18 @@ class DatabaseAccessJob(K8sJob, BaseModel, frozen=True):
         image_pull_policy = "Always" if image_tag == "latest" else "IfNotPresent"
 
         env = [
-            self._secret_env("db.host", "db.host"),
-            self._secret_env("db.port", "db.port"),
+            # the endpoint comes from the job-bound secret: it
+            # snapshots the endpoint the job was enqueued for. Reading
+            # db.host/db.port from the admin secret would apply the
+            # password at whatever endpoint the admin secret currently
+            # names -- while the settlement compares the job-bound
+            # endpoint against the current admin endpoint and could
+            # later publish a credential for an endpoint where the
+            # password was never set
+            self._secret_env("db.host", "db.host", secret_name=self.name()),
+            self._secret_env("db.port", "db.port", secret_name=self.name()),
+            # the admin connection identity and password keep coming
+            # from the admin secret
             self._secret_env("db.user", "db.user"),
             self._secret_env("db.name", "db.name"),
             self._secret_env("PGPASSWORD", "db.password"),

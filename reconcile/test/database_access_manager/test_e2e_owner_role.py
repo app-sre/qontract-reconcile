@@ -64,61 +64,62 @@ if TYPE_CHECKING:
     )
     from reconcile.test.database_access_manager.conftest import PostgresContainer
 
-# | ID  | Use case                                                                 | Observable guarantee                                                                                                                                                                                                                                                               | Test                                                                                                                                                                                                                        |
-# | --- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-# | O01 | Move an existing app off the postgres login                              | The postgres database keeps its owner OID wherever the job started; the application tables change owner to the app role.                                                                                                                                                           | `test_migration_off_postgres_login`                                                                                                                                                                                         |
-# | O02 | Empty access on an admin database                                        | The admin database never changes owner -- named postgres or differently, target or start database; no takeover without configuration.                                                                                                                                              | `test_empty_access_does_not_take_over_admin_database`                                                                                                                                                                       |
-# | O03 | Fresh tenant with a dedicated database                                   | DAM creates DB, NOLOGIN owner role and login; the new DB belongs to the role; a fresh connection acts as the role (session_user/current_user).                                                                                                                                     | `test_dedicated_database_created_by_dam`                                                                                                                                                                                    |
-# | O04 | The migrated app runs its next schema migration                          | Without SET ROLE: SELECT, INSERT, ALTER, CREATE INDEX/TABLE; routines usable; new tables belong to the app role.                                                                                                                                                                   | `test_migrated_app_runs_next_migration`                                                                                                                                                                                     |
-# | O05 | App DDL in a schema DAM cannot take over                                 | Write access keeps CREATE (also after ALL -> SELECT,INSERT); provisioning needs no TEMP privilege on the target database.                                                                                                                                                          | `test_app_ddl_in_non_transferable_schema`                                                                                                                                                                                   |
-# | O06 | DDL the executor cannot deliver                                          | Provisioning fails before commit on the missing schema CREATE with a specific error; no partially created logins or roles remain.                                                                                                                                                  | `test_provision_fails_when_executor_cannot_grant_create`                                                                                                                                                                    |
-# | O07 | Application objects migrate, foreign and extension objects are protected | Every object type incl. a foreign table transfers to the role; outside-scope, third-party and extension members keep their owner.                                                                                                                                                  | `test_object_zoo_transferred_foreign_and_extension_protected`                                                                                                                                                               |
-# | O08 | Two apps share one database in separate schemas                          | Both keep CONNECT; each reads only its own data with its own password.                                                                                                                                                                                                             | `test_two_apps_share_database_separate_schemas`                                                                                                                                                                             |
-# | O09 | Explicit foreign read access, granted then revoked                       | Read works, write and CREATE do not; after the revoke the access and default privileges are gone; the foreign owner stays.                                                                                                                                                         | `test_foreign_read_access_granted_then_revoked`, `test_transient_grants_removed_with_schema`                                                                                                                                |
-# | O10 | CONNECT when PUBLIC lacks it                                             | The login connects with its password; without grant option the job fails on the specific CONNECT error for app and database.                                                                                                                                                       | `test_connect_granted_when_public_lacks_it`, `test_provision_fails_when_executor_cannot_grant_connect`                                                                                                                      |
-# | O11 | Re-provision, stale schema, deprovision, missing login                   | Repeats keep data, owners, privileges and the credential; both no-op removals succeed; the shared role keeps the data.                                                                                                                                                             | `test_reprovision_and_deprovision_convergence`                                                                                                                                                                              |
-# | O12 | Provisioning under a concurrently held lock                              | The provision demonstrably waits in pg_locks; after release data and owners converge.                                                                                                                                                                                              | `test_concurrent_provision_waits_for_lock`                                                                                                                                                                                  |
-# | O13 | Partial grants do not suffice                                            | A granted SELECT is not enough: missing table privileges or schema USAGE fail with their specific errors before commit; ALL verifies the version bundle incl. MAINTAIN (PG17+).                                                                                                    | `test_provision_fails_when_executor_can_grant_only_part_of_the_table_privileges`, `test_provision_fails_when_executor_cannot_grant_schema_usage`, `test_all_claim_checks_the_version_privilege_bundle`                      |
-# | M01 | A legacy tenant adds only role                                           | Same login and password before/after; data, resolution and DDL stay usable; new objects belong to the role (9 variants: access lists, dash names, setting levels)., and a failed capture connection aborts before the switch so a retry captures the original resolution           | `test_legacy_tenant_adds_role_same_credentials`, `test_capture_failure_retry_preserves_resolution`                                                                                                                          |
-# | M02 | The old app keeps writing during the migration                           | Both logins work in the transition; the follow-up run adopts late tables without password rotation or full revoke.                                                                                                                                                                 | `test_old_app_writes_during_migration`, `test_convergence_reenqueue_adopts_late_tables`                                                                                                                                     |
-# | M03 | An application session opened before the migration keeps writing         | Late objects are adopted by the next unchanged run; the rotation login can ALTER them; deterministic barriers prove the session (incl. a provoked delayed start).                                                                                                                  | `test_open_legacy_session_late_objects_managed`                                                                                                                                                                             |
-# | M04 | Implicit legacy schema not on the captured path                          | billing.late_orders transfers anyway; v2 alters it qualified; billing stays off the effective path.                                                                                                                                                                                | `test_open_legacy_session_late_objects_managed` (explicit-path-implicit-schema)                                                                                                                                             |
-# | M05 | Credential rotation v1/v2 in the same role                               | Both credentials work in parallel with identical resolution; v1's open session ends on removal; the migrated tenant's v2 keeps marker and DDL schema after the legacy login is removed.                                                                                            | `test_rotation_keeps_unqualified_access`                                                                                                                                                                                    |
-# | M06 | Second login vs. migration order                                         | In both orders the old login reads its marker immediately after the migration job, before any further reconcile; both converge identically.                                                                                                                                        | `test_second_login_order_with_legacy_migration`                                                                                                                                                                             |
-# | M07 | Two fresh rotation entries share a new role                              | Exactly one shared role; no swapped credentials; a transient failed job converges on retry; nothing published before success.                                                                                                                                                      | `test_two_rotation_entries_share_fresh_role`                                                                                                                                                                                |
-# | M08 | Transition window with a non-superuser old app                           | The new app reads/writes immediately and the old login works with the new objects (operations, both directions); late old objects adopt on the next run.                                                                                                                           | `test_old_app_writes_during_migration_non_superuser_executor`                                                                                                                                                               |
-# | J01 | The tenant uses the credential DAM issued                                | Login with exactly the published record (user, db.name, password); a failed job publishes nothing new and the old credential keeps working.                                                                                                                                        | `test_generated_login_credential_end_to_end`                                                                                                                                                                                |
-# | J02 | Credentials survive convergence and rotation                             | The old credential keeps working; the convergence re-enqueue reuses the vault secret via the production path; rotation adds a new login, not a password change.                                                                                                                    | `test_legacy_migration_keeps_credential_and_adopts_late_objects`, `test_job_credential_reuses_vault_secret_after_job_expiry`, `test_convergence_reenqueue_adopts_late_tables`, `test_two_rotation_entries_share_fresh_role` |
-# | P01 | Default "$user", public resolution survives the role switch              | The shop marker before/after, after an unchanged rerun and with v2; unqualified creates land in the shop schema; the access order does not silently override the legacy path., also across a failed capture connection and its retry (the switch and the path activate atomically) | `test_legacy_tenant_adds_role_same_credentials`, `test_capture_failure_retry_preserves_resolution`                                                                                                                          |
-# | P02 | Dash login names round-trip unquoted                                     | The shop-app marker survives migration, unchanged reruns and v2; no quote corruption in the stored path.                                                                                                                                                                           | `test_legacy_tenant_adds_role_same_credentials` (dash-login-name)                                                                                                                                                           |
-# | P03 | Single-element search paths stay valid                                   | First run, second run and rotation deliver the original marker, never the public twin; a valid element is never treated as empty.                                                                                                                                                  | `test_single_element_search_path_keeps_original_marker`                                                                                                                                                                     |
-# | P04 | Setting levels resolve by real precedence                                | login-in-db before login-wide before db-wide before server-wide/built-in, with markers exposing a wrong winner (incl. role-wide vs db-wide without a more specific override).                                                                                                      | `test_legacy_tenant_adds_role_same_credentials` (setting variants)                                                                                                                                                          |
-# | P05 | Server-wide search_path default is captured                              | Without an override the public marker survives migration, rerun and rotation; a specific login override governs; the executor's private path never leaks.                                                                                                                          | `test_server_wide_search_path_default_is_captured`                                                                                                                                                                          |
-# | P06 | DBA-set path values round-trip                                           | Single, quoted, $user, mixed-case, comma- and quote-containing names: the native resolution survives; a separator-containing name stays one name and unmanaged.                                                                                                                    | `test_dba_search_path_values_round_trip`                                                                                                                                                                                    |
-# | P07 | Unusable and explicitly empty path entries                               | No invented objects or ownership from path tokens; qualified access keeps working; a previously failing unqualified query never unnoticed returns public data.                                                                                                                     | `test_unusable_and_empty_search_path_entries`                                                                                                                                                                               |
-# | P08 | Intentional order changes apply and stay stable                          | The sales -> archive marker switch via the production renderer; stable on the unchanged rerun; the second login resolves identically.                                                                                                                                              | `test_search_path_stability`, `test_rotation_keeps_unqualified_access`                                                                                                                                                      |
-# | P09 | Incidental role-owned schemas stay out                                   | An app-created archive never becomes the primary path or managed.                                                                                                                                                                                                                  | `test_search_path_stability`                                                                                                                                                                                                |
-# | P10 | Removed schemas are not re-managed                                       | sales stays primary; post-removal admin tables stay admin-owned; the removed default ACLs stay revoked.                                                                                                                                                                            | `test_search_path_stability`                                                                                                                                                                                                |
-# | P11 | Removed public is not re-managed as a path fallback                      | The admin table created after the removal stays admin-owned; configured sales stays managed; the DB owner OID is unchanged.                                                                                                                                                        | `test_removed_public_not_remanaged`                                                                                                                                                                                         |
-# | P12 | Managed-but-off-path and on-path-but-unmanaged                           | billing stays outside the effective path yet its late table transfers and v2 alters it qualified; public stays a usable fallback without management.                                                                                                                               | `test_open_legacy_session_late_objects_managed`, `test_removed_public_not_remanaged`                                                                                                                                        |
-# | M09 | A DBA role default for an unrelated role                                    | The capture still runs (the eligibility matches this entry's owner role only); the marker and the store survive, the role default flips to the owner role.                                                                                                                         | `test_dba_role_default_for_unrelated_role_still_captures`                                                                                                                                                                    |
-# | M10 | A legacy login with an expired password                                      | The migration succeeds (the capture pre-set resets VALID UNTIL); the login reconnects with the same password and keeps its resolution.                                                                                                                                             | `test_expired_password_login_migrates`                                                                                                                                                                                       |
-# | M11 | Statement logging on the capture hop                                         | The application conninfo never reaches the server as SQL text (client-side psql concatenation); the capture still preserves the marker.                                                                                                                                            | `test_capture_conninfo_password_not_in_server_log`                                                                                                                                                                           |
-# | M12 | A legacy login without CONNECT on the database                               | The executor grants CONNECT BEFORE the capture hop, so the migration succeeds with the legacy resolution PRESERVED (not degraded to the configured order); section 3's grant stays idempotent and the login connects as the owner role.                                            | `test_migration_of_login_without_connect_succeeds`                                                                                                                                                                           |
-# | P13 | Parser corner cases in raw search_path values                                | Quoted tokens keep their exact content (trailing space, embedded tab); unquoted tokens fold to lowercase like PostgreSQL itself; tabs never split unquoted tokens. The marker survives migration and reruns.                                                                      | `test_parser_raw_search_path_corner_cases`                                                                                                                                                                                   |
-# | P14 | The last prefix schema is removed                                            | The store is RESET (not written empty): the next run resolves the configured schemas instead of an empty path.                                                                                                                                                                    | `test_exhausted_legacy_prefix_resets_store`                                                                                                                                                                                  |
-# | O14 | Another entry's legacy job revokes PUBLIC on the same database               | In both orders (role job first, legacy job first) the role-mode login keeps connecting: CONNECT is granted directly on every run, so the PUBLIC revoke cannot take it away -- and PUBLIC provably had CONNECT before the legacy job and lost it after.                                                               | `test_role_login_keeps_connect_after_legacy_public_revoke`, `test_role_login_connects_when_legacy_job_ran_first`                                                                                                             |
-# | O15 | A pre-existing executor membership without SET (PG16+)                       | Provisioning repairs it (re-grant with SET TRUE, ADMIN preserved) instead of failing every ownership transfer with "must be able to SET ROLE".                                                                                                                                     | `test_membership_without_set_repaired_by_provision`                                                                                                                                                                          |
-# | O16 | A pre-existing LOGIN role with the owner-role name                           | Provisioning fails with a specific error before granting memberships; nothing persists.                                                                                                                                                                                          | `test_login_role_with_owner_role_name_rejected`                                                                                                                                                                              |
-# | O17 | Schema transfer in a database the executor does not own                      | Without CREATE for the executor the transfer fails loudly ("permission denied for database") and nothing persists; with CREATE delegated to the executor the transfers converge and the database keeps its owner.                                                              | `test_schema_transfer_in_foreign_database_converges`                                                                                                                                                                         |
-# | O18 | An owner-role name outside the lowercase domain                              | The ownership comparisons resolve the role's OID by exact pg_roles.rolname match (regrole casts fold case); a mixed-case owner role provisions end to end.                                                                                                                        | `test_owner_role_resolved_by_exact_oid_for_mixed_case_name`                                                                                                                                                                 |
-# | O19 | CONNECT via PUBLIC only, executor grantless                                  | The section-3 verification checks the login's DIRECT ACL entry (aclexplode), not the effective privilege: the job fails on the specific CONNECT error instead of committing a login that a later PUBLIC revoke locks out.                                                        | `test_connect_verification_requires_direct_acl_entry`                                                                                                                                                                       |
-# | O20 | A pre-existing executor membership without INHERIT (PG16+)                   | Provisioning repairs it (re-grant with INHERIT TRUE, SET TRUE, ADMIN preserved): the login's objects transfer and the default privileges succeed instead of being silently skipped.                                                                                              | `test_membership_without_inherit_repaired_by_provision`                                                                                                                                                                      |
-# | M13 | A future VALID UNTIL through a failed capture                                | The pre-set's expiry reset only fires for actually expired logins: a failed capture leaves a future expiry untouched; the converged run alone sets infinity.                                                                                                                     | `test_failed_capture_preserves_future_expiry`                                                                                                                                                                                |
-# | M14 | The executor cannot grant CONNECT before the capture                         | The capture hop runs anyway and the job aborts BEFORE the transaction (fail-closed, O10 contract); nothing persists; after an operator grants, the same job converges with the legacy path preserved.                                                                            | `test_pregrant_connect_failure_aborts_before_transaction`                                                                                                                                                                    |
-# | M15 | The capture probe vs a shadowing search path                                  | pg_catalog-qualified probes: a writable same-named function earlier in the login's (pg_catalog-demoting) path cannot feed the capture a fake value; the true raw path is captured.                                                                                               | `test_capture_probe_cannot_be_shadowed`                                                                                                                                                                                       |
-# | P15 | Unquoted non-ASCII path tokens                                               | The parser folds unquoted tokens ASCII-only, like PostgreSQL's own identifier downcasing: an unquoted TENÄNTX keeps resolving the exact-case tenÄntx schema after migration and reruns.                                                                                          | `test_parser_folds_unquoted_tokens_ascii_only`                                                                                                                                                                                |
-# | P16 | $user under a DBA startup role default                                        | $user expands to the identity OBSERVED during capture (current_user, e.g. the startup role), not the login name: the tenant schema stays first on the path after migration and reruns.                                                                                           | `test_dollar_user_resolves_observed_identity`                                                                                                                                                                                 |
+# | ID  | Use case                                                                                                                                                         | Observable guarantee                                                                                                                                                                                                                                                                                                                                                          | Test                                                                                                                                                                                                                        |
+# | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+# | O01 | Move an existing app off the postgres login                                                                                                                      | The postgres database keeps its owner OID wherever the job started; the application tables change owner to the app role.                                                                                                                                                                                                                                                      | `test_migration_off_postgres_login`                                                                                                                                                                                         |
+# | O02 | Empty access on an admin database                                                                                                                                | The admin database never changes owner -- named postgres or differently, target or start database; no takeover without configuration.                                                                                                                                                                                                                                         | `test_empty_access_does_not_take_over_admin_database`                                                                                                                                                                       |
+# | O03 | Fresh tenant with a dedicated database                                                                                                                           | DAM creates DB, NOLOGIN owner role and login; the new DB belongs to the role; a fresh connection acts as the role (session_user/current_user).                                                                                                                                                                                                                                | `test_dedicated_database_created_by_dam`                                                                                                                                                                                    |
+# | O04 | The migrated app runs its next schema migration                                                                                                                  | Without SET ROLE: SELECT, INSERT, ALTER, CREATE INDEX/TABLE; routines usable; new tables belong to the app role.                                                                                                                                                                                                                                                              | `test_migrated_app_runs_next_migration`                                                                                                                                                                                     |
+# | O05 | App DDL in a schema DAM cannot take over                                                                                                                         | Write access keeps CREATE (also after ALL -> SELECT,INSERT); provisioning needs no TEMP privilege on the target database.                                                                                                                                                                                                                                                     | `test_app_ddl_in_non_transferable_schema`                                                                                                                                                                                   |
+# | O06 | DDL the executor cannot deliver                                                                                                                                  | Provisioning fails before commit on the missing schema CREATE with a specific error; no partially created logins or roles remain.                                                                                                                                                                                                                                             | `test_provision_fails_when_executor_cannot_grant_create`                                                                                                                                                                    |
+# | O07 | Application objects migrate, foreign and extension objects are protected                                                                                         | Every object type incl. a foreign table transfers to the role; outside-scope, third-party and extension members keep their owner.                                                                                                                                                                                                                                             | `test_object_zoo_transferred_foreign_and_extension_protected`                                                                                                                                                               |
+# | O08 | Two apps share one database in separate schemas                                                                                                                  | Both keep CONNECT; each reads only its own data with its own password.                                                                                                                                                                                                                                                                                                        | `test_two_apps_share_database_separate_schemas`                                                                                                                                                                             |
+# | O09 | Explicit foreign read access, granted then revoked                                                                                                               | Read works, write and CREATE do not; after the revoke the access and default privileges are gone; the foreign owner stays.                                                                                                                                                                                                                                                    | `test_foreign_read_access_granted_then_revoked`, `test_transient_grants_removed_with_schema`                                                                                                                                |
+# | O10 | CONNECT when PUBLIC lacks it                                                                                                                                     | The login connects with its password; without grant option the job fails on the specific CONNECT error for app and database.                                                                                                                                                                                                                                                  | `test_connect_granted_when_public_lacks_it`, `test_provision_fails_when_executor_cannot_grant_connect`                                                                                                                      |
+# | O11 | Re-provision, stale schema, deprovision, missing login                                                                                                           | Repeats keep data, owners, privileges and the credential; both no-op removals succeed; the shared role keeps the data.                                                                                                                                                                                                                                                        | `test_reprovision_and_deprovision_convergence`                                                                                                                                                                              |
+# | O12 | Provisioning under a concurrently held lock                                                                                                                      | The provision demonstrably waits in pg_locks; after release data and owners converge.                                                                                                                                                                                                                                                                                         | `test_concurrent_provision_waits_for_lock`                                                                                                                                                                                  |
+# | O13 | Partial grants do not suffice                                                                                                                                    | A granted SELECT is not enough: missing table privileges or schema USAGE fail with their specific errors before commit; ALL verifies the version bundle incl. MAINTAIN (PG17+).                                                                                                                                                                                               | `test_provision_fails_when_executor_can_grant_only_part_of_the_table_privileges`, `test_provision_fails_when_executor_cannot_grant_schema_usage`, `test_all_claim_checks_the_version_privilege_bundle`                      |
+# | M01 | A legacy tenant adds only role                                                                                                                                   | Same login and password before/after; data, resolution and DDL stay usable; new objects belong to the role (9 variants: access lists, dash names, setting levels)., and a failed capture connection aborts before the switch so a retry captures the original resolution                                                                                                      | `test_legacy_tenant_adds_role_same_credentials`, `test_capture_failure_retry_preserves_resolution`                                                                                                                          |
+# | M02 | The old app keeps writing during the migration                                                                                                                   | Both logins work in the transition; the follow-up run adopts late tables without password rotation or full revoke.                                                                                                                                                                                                                                                            | `test_old_app_writes_during_migration`, `test_convergence_reenqueue_adopts_late_tables`                                                                                                                                     |
+# | M03 | An application session opened before the migration keeps writing                                                                                                 | Late objects are adopted by the next unchanged run; the rotation login can ALTER them; deterministic barriers prove the session (incl. a provoked delayed start).                                                                                                                                                                                                             | `test_open_legacy_session_late_objects_managed`                                                                                                                                                                             |
+# | M04 | Implicit legacy schema not on the captured path                                                                                                                  | billing.late_orders transfers anyway; v2 alters it qualified; billing stays off the effective path.                                                                                                                                                                                                                                                                           | `test_open_legacy_session_late_objects_managed` (explicit-path-implicit-schema)                                                                                                                                             |
+# | M05 | Credential rotation v1/v2 in the same role                                                                                                                       | Both credentials work in parallel with identical resolution; v1's open session ends on removal; the migrated tenant's v2 keeps marker and DDL schema after the legacy login is removed.                                                                                                                                                                                       | `test_rotation_keeps_unqualified_access`                                                                                                                                                                                    |
+# | M06 | Second login vs. migration order                                                                                                                                 | In both orders the old login reads its marker immediately after the migration job, before any further reconcile; both converge identically.                                                                                                                                                                                                                                   | `test_second_login_order_with_legacy_migration`                                                                                                                                                                             |
+# | M07 | Two fresh rotation entries share a new role                                                                                                                      | Exactly one shared role; no swapped credentials; a transient failed job converges on retry; nothing published before success.                                                                                                                                                                                                                                                 | `test_two_rotation_entries_share_fresh_role`                                                                                                                                                                                |
+# | M08 | Transition window with a non-superuser old app                                                                                                                   | The new app reads/writes immediately and the old login works with the new objects (operations, both directions); late old objects adopt on the next run.                                                                                                                                                                                                                      | `test_old_app_writes_during_migration_non_superuser_executor`                                                                                                                                                               |
+# | J01 | The tenant uses the credential DAM issued                                                                                                                        | Login with exactly the published record (user, db.name, password); a failed job publishes nothing new and the old credential keeps working.                                                                                                                                                                                                                                   | `test_generated_login_credential_end_to_end`                                                                                                                                                                                |
+# | J02 | Credentials survive convergence and rotation                                                                                                                     | The old credential keeps working; the convergence re-enqueue reuses the vault secret via the production path; rotation adds a new login, not a password change.                                                                                                                                                                                                               | `test_legacy_migration_keeps_credential_and_adopts_late_objects`, `test_job_credential_reuses_vault_secret_after_job_expiry`, `test_convergence_reenqueue_adopts_late_tables`, `test_two_rotation_entries_share_fresh_role` |
+# | P01 | Default "$user", public resolution survives the role switch                                                                                                      | The shop marker before/after, after an unchanged rerun and with v2; unqualified creates land in the shop schema; the access order does not silently override the legacy path., also across a failed capture connection and its retry (the switch and the path activate atomically)                                                                                            | `test_legacy_tenant_adds_role_same_credentials`, `test_capture_failure_retry_preserves_resolution`                                                                                                                          |
+# | P02 | Dash login names round-trip unquoted                                                                                                                             | The shop-app marker survives migration, unchanged reruns and v2; no quote corruption in the stored path.                                                                                                                                                                                                                                                                      | `test_legacy_tenant_adds_role_same_credentials` (dash-login-name)                                                                                                                                                           |
+# | P03 | Single-element search paths stay valid                                                                                                                           | First run, second run and rotation deliver the original marker, never the public twin; a valid element is never treated as empty.                                                                                                                                                                                                                                             | `test_single_element_search_path_keeps_original_marker`                                                                                                                                                                     |
+# | P04 | Setting levels resolve by real precedence                                                                                                                        | login-in-db before login-wide before db-wide before server-wide/built-in, with markers exposing a wrong winner (incl. role-wide vs db-wide without a more specific override).                                                                                                                                                                                                 | `test_legacy_tenant_adds_role_same_credentials` (setting variants)                                                                                                                                                          |
+# | P05 | Server-wide search_path default is captured                                                                                                                      | Without an override the public marker survives migration, rerun and rotation; a specific login override governs; the executor's private path never leaks.                                                                                                                                                                                                                     | `test_server_wide_search_path_default_is_captured`                                                                                                                                                                          |
+# | P06 | DBA-set path values round-trip                                                                                                                                   | Single, quoted, $user, mixed-case, comma- and quote-containing names: the native resolution survives; a separator-containing name stays one name and unmanaged.                                                                                                                                                                                                               | `test_dba_search_path_values_round_trip`                                                                                                                                                                                    |
+# | P07 | Unusable and explicitly empty path entries                                                                                                                       | No invented objects or ownership from path tokens; qualified access keeps working; a previously failing unqualified query never unnoticed returns public data.                                                                                                                                                                                                                | `test_unusable_and_empty_search_path_entries`                                                                                                                                                                               |
+# | P08 | Intentional order changes apply and stay stable                                                                                                                  | The sales -> archive marker switch via the production renderer; stable on the unchanged rerun; the second login resolves identically.                                                                                                                                                                                                                                         | `test_search_path_stability`, `test_rotation_keeps_unqualified_access`                                                                                                                                                      |
+# | P09 | Incidental role-owned schemas stay out                                                                                                                           | An app-created archive never becomes the primary path or managed.                                                                                                                                                                                                                                                                                                             | `test_search_path_stability`                                                                                                                                                                                                |
+# | P10 | Removed schemas are not re-managed                                                                                                                               | sales stays primary; post-removal admin tables stay admin-owned; the removed default ACLs stay revoked.                                                                                                                                                                                                                                                                       | `test_search_path_stability`                                                                                                                                                                                                |
+# | P11 | Removed public is not re-managed as a path fallback                                                                                                              | The admin table created after the removal stays admin-owned; configured sales stays managed; the DB owner OID is unchanged.                                                                                                                                                                                                                                                   | `test_removed_public_not_remanaged`                                                                                                                                                                                         |
+# | P12 | Managed-but-off-path and on-path-but-unmanaged                                                                                                                   | billing stays outside the effective path yet its late table transfers and v2 alters it qualified; public stays a usable fallback without management.                                                                                                                                                                                                                          | `test_open_legacy_session_late_objects_managed`, `test_removed_public_not_remanaged`                                                                                                                                        |
+# | M09 | A DBA role default for an unrelated role                                                                                                                         | The capture still runs (the eligibility matches this entry's owner role only); the marker and the store survive, the role default flips to the owner role.                                                                                                                                                                                                                    | `test_dba_role_default_for_unrelated_role_still_captures`                                                                                                                                                                   |
+# | M10 | A legacy login with an expired password                                                                                                                          | The migration succeeds (the capture pre-set resets VALID UNTIL); the login reconnects with the same password and keeps its resolution.                                                                                                                                                                                                                                        | `test_expired_password_login_migrates`                                                                                                                                                                                      |
+# | M11 | Statement logging on the capture hop                                                                                                                             | The application conninfo never reaches the server as SQL text (client-side psql concatenation); the capture still preserves the marker.                                                                                                                                                                                                                                       | `test_capture_conninfo_password_not_in_server_log`                                                                                                                                                                          |
+# | M12 | A legacy login without CONNECT on the database                                                                                                                   | The executor grants CONNECT BEFORE the capture hop, so the migration succeeds with the legacy resolution PRESERVED (not degraded to the configured order); section 3's grant stays idempotent and the login connects as the owner role.                                                                                                                                       | `test_migration_of_login_without_connect_succeeds`                                                                                                                                                                          |
+# | P13 | Parser corner cases in raw search_path values                                                                                                                    | Quoted tokens keep their exact content (trailing space, embedded tab); unquoted tokens fold to lowercase like PostgreSQL itself; tabs never split unquoted tokens. The marker survives migration and reruns.                                                                                                                                                                  | `test_parser_raw_search_path_corner_cases`                                                                                                                                                                                  |
+# | P14 | The last prefix schema is removed                                                                                                                                | The store is RESET (not written empty): the next run resolves the configured schemas instead of an empty path.                                                                                                                                                                                                                                                                | `test_exhausted_legacy_prefix_resets_store`                                                                                                                                                                                 |
+# | O14 | Another entry's legacy job revokes PUBLIC on the same database                                                                                                   | In both orders (role job first, legacy job first) the role-mode login keeps connecting: CONNECT is granted directly on every run, so the PUBLIC revoke cannot take it away -- and PUBLIC provably had CONNECT before the legacy job and lost it after. The layout is production-valid (the first owner role manages its own schema; pinned against `_validate_role_sharing`). | `test_role_login_keeps_connect_after_legacy_public_revoke`, `test_role_login_connects_when_legacy_job_ran_first`                                                                                                            |
+# | O15 | A pre-existing executor membership without SET (PG16+)                                                                                                           | Provisioning repairs it (re-grant with SET TRUE, ADMIN preserved) instead of failing every ownership transfer with "must be able to SET ROLE".                                                                                                                                                                                                                                | `test_membership_without_set_repaired_by_provision`                                                                                                                                                                         |
+# | O16 | A pre-existing LOGIN role with the owner-role name                                                                                                               | Provisioning fails with a specific error before granting memberships; nothing persists.                                                                                                                                                                                                                                                                                       | `test_login_role_with_owner_role_name_rejected`                                                                                                                                                                             |
+# | O17 | Schema transfer in a database the executor does not own                                                                                                          | Without CREATE for the executor the transfer fails loudly ("permission denied for database") and nothing persists; with CREATE delegated to the executor the transfers converge and the database keeps its owner.                                                                                                                                                             | `test_schema_transfer_in_foreign_database_converges`                                                                                                                                                                        |
+# | O18 | An owner-role name outside the lowercase domain                                                                                                                  | The ownership comparisons resolve the role's OID by exact pg_roles.rolname match (regrole casts fold case); a mixed-case owner role provisions end to end.                                                                                                                                                                                                                    | `test_owner_role_resolved_by_exact_oid_for_mixed_case_name`                                                                                                                                                                 |
+# | O19 | CONNECT via PUBLIC only, executor grantless                                                                                                                      | The section-3 verification checks the login's DIRECT ACL entry (aclexplode), not the effective privilege: the job fails on the specific CONNECT error instead of committing a login that a later PUBLIC revoke locks out.                                                                                                                                                     | `test_connect_verification_requires_direct_acl_entry`                                                                                                                                                                       |
+# | O20 | A pre-existing executor membership without INHERIT (PG16+)                                                                                                       | Provisioning repairs it (re-grant with INHERIT TRUE, SET TRUE, ADMIN preserved): the login's objects transfer and the default privileges succeed instead of being silently skipped.                                                                                                                                                                                           | `test_membership_without_inherit_repaired_by_provision`                                                                                                                                                                     |
+# | M13 | A future VALID UNTIL through a failed capture                                                                                                                    | The pre-set's expiry reset only fires for actually expired logins: a failed capture leaves a future expiry untouched; the converged run alone sets infinity.                                                                                                                                                                                                                  | `test_failed_capture_preserves_future_expiry`                                                                                                                                                                               |
+# | M14 | The executor cannot grant CONNECT before the capture                                                                                                             | The capture hop runs anyway and the job aborts BEFORE the transaction (fail-closed, O10 contract); nothing persists; after an operator grants, the same job converges with the legacy path preserved.                                                                                                                                                                         | `test_pregrant_connect_failure_aborts_before_transaction`                                                                                                                                                                   |
+# | M15 | The capture probe vs a shadowing search path                                                                                                                     | pg_catalog-qualified probes: a writable same-named function earlier in the login's (pg_catalog-demoting) path cannot feed the capture a fake value; the true raw path is captured.                                                                                                                                                                                            | `test_capture_probe_cannot_be_shadowed`                                                                                                                                                                                     |
+# | P15 | Unquoted non-ASCII path tokens                                                                                                                                   | The parser folds unquoted tokens ASCII-only, like PostgreSQL's own identifier downcasing: an unquoted TENÄNTX keeps resolving the exact-case tenÄntx schema after migration and reruns.                                                                                                                                                                                       | `test_parser_folds_unquoted_tokens_ascii_only`                                                                                                                                                                              |
+# | P16 | $user under a DBA startup role default; an UNRESOLVED $user (no USAGE on its schema) is omitted from the prefix so the resolution keeps reading the public twin. | $user expands to the identity OBSERVED during capture (current_user, e.g. the startup role), not the login name: the tenant schema stays first on the path after migration and reruns.                                                                                                                                                                                        | `test_dollar_user_resolves_observed_identity`, `test_dollar_user_without_usage_keeps_resolution`                                                                                                                            |
+# | O21 | A LOGIN role occupying the owner-role name, capture-eligible login                                                                                               | The pre-transaction owner-role check aborts BEFORE the CONNECT pre-grant and the password pre-set: no direct CONNECT ACL entry for the login, no password change, nothing persists.                                                                                                                                                                                           | `test_login_role_clash_aborts_before_pregrant`                                                                                                                                                                              |
 
 
 # test passwords (annotated for the secret scanner; not secrets)
@@ -127,6 +128,7 @@ P07C_ROTATION_PASSWORD = "P07CRotation2"  # notsecret
 M6_SECOND_PASSWORD = "M6SecondPw2"  # notsecret
 MIGRATED_V2_PASSWORD = "MigratedPw2"  # notsecret
 O14_PROBE_PASSWORD = "O14ProbePw2"  # notsecret
+O21_OLD_LOGIN_PASSWORD = "O21OldPw2"  # notsecret
 
 
 # ─── helpers ──────────────────────────────────────────────────────────────
@@ -7119,6 +7121,48 @@ def test_exhausted_legacy_prefix_resets_store(postgres: PostgresContainer) -> No
     ), "the exhausted prefix was stored as an explicitly empty path"
 
 
+def _o14_entries(db: str, tag: str) -> list[tuple[DatabaseAccessV1, str]]:
+    """The three O14 entries as (config, resolved username) tuples.
+
+    The layout is production-valid: the first role entry manages its
+    OWN schema (``{tag}_first_schema``) and takes over the shared
+    database through section 4, the role entry under test keeps the
+    public schema, and the legacy entry shares public without an owner
+    role. One schema is managed by at most one owner role.
+    """
+    return [
+        (
+            make_db_access(
+                database=db,
+                username=f"{tag}_first_app",
+                role=f"{tag}_first_own",
+                access=[(f"{tag}_first_schema", ("SELECT",))],
+                name=f"{tag}-first",
+            ),
+            f"{tag}_first_app",
+        ),
+        (
+            make_db_access(
+                database=db,
+                username=f"{tag}_keep_app",
+                role=f"{tag}_keep_own",
+                access=[("public", ("SELECT",))],
+                name=f"{tag}-keep",
+            ),
+            f"{tag}_keep_app",
+        ),
+        (
+            make_db_access(
+                database=db,
+                username=f"{tag}_leg_app",
+                access=[("public", ("SELECT",))],
+                name=f"{tag}-leg",
+            ),
+            f"{tag}_leg_app",
+        ),
+    ]
+
+
 @pytest.mark.e2e
 @pytest.mark.parametrize("postgres", PG_VERSIONS, indirect=True)
 def test_role_login_keeps_connect_after_legacy_public_revoke(
@@ -7143,18 +7187,64 @@ def test_role_login_keeps_connect_after_legacy_public_revoke(
     itself around the legacy job: it connects BEFORE (PUBLIC had
     CONNECT) and is locked out AFTER (PUBLIC lost it) -- so the role
     login's successful connection provably does not depend on PUBLIC.
+
+    The layout is production-valid: the first entry's owner role
+    manages its OWN schema, not public (regression: both owner roles
+    used to manage the same public schema -- a configuration DAM's
+    ``_validate_role_sharing`` preflight rejects, because the two jobs
+    would transfer that schema's ownership away from each other on
+    every reconciliation). Rendering the scripts directly bypasses the
+    preflight, so the test pins its own configuration against drifting
+    into invalid layouts again.
     """
     pg = postgres
     db = "rm_shared_connect_db"
     _create_database(pg, db)
 
+    # the layout passes the production preflight DAM would run for a
+    # real reconciliation of these three entries; the layout this test
+    # used to have -- both owner roles managing public -- is exactly
+    # what it rejects
+    _validate_role_sharing(_o14_entries(db, "rm"))
+    with pytest.raises(ValueError, match="is managed by both role"):
+        _validate_role_sharing([
+            (
+                make_db_access(
+                    database=db,
+                    username="rm_first_app",
+                    role="rm_first_own",
+                    access=[("public", ("SELECT",))],
+                    name="rm-first-invalid",
+                ),
+                "rm_first_app",
+            ),
+            (
+                make_db_access(
+                    database=db,
+                    username="rm_keep_app",
+                    role="rm_keep_own",
+                    access=[("public", ("SELECT",))],
+                    name="rm-keep-invalid",
+                ),
+                "rm_keep_app",
+            ),
+        ])
+
     # a first role-mode entry takes over the shared database (section
     # 4): later role entries on the same database keep their logins'
-    # CONNECT only through their own direct grants or PUBLIC
+    # CONNECT only through their own direct grants or PUBLIC. Its owner
+    # role manages its own schema, distinct from the entry under test
+    result = pg.exec_psql(EXECUTOR, db, "CREATE SCHEMA rm_first_schema;")
+    assert result.returncode == 0, result.stderr
     first_script = _render_provision(
-        db, "rm_first_app", role="rm_first_own", access_list="public|SELECT"
+        db,
+        "rm_first_app",
+        role="rm_first_own",
+        access_list="rm_first_schema|SELECT",
+        schemas_csv="rm_first_schema",
     )
     _run_provision(pg, first_script)
+    assert _database_owner(pg, db) == "rm_first_own"
 
     # the role-mode entry under test provisions while PUBLIC still has
     # CONNECT
@@ -7204,6 +7294,12 @@ def test_role_login_keeps_connect_after_legacy_public_revoke(
         f"PUBLIC: {result.stderr}"
     )
 
+    # the first owner role KEEPS the database: the role entry under
+    # test did not transfer it away (the section-4 transfer only runs
+    # for the current database owner, and the executor is a member of
+    # the first owner role, not its owner)
+    assert _database_owner(pg, db) == "rm_first_own"
+
 
 @pytest.mark.e2e
 @pytest.mark.parametrize("postgres", PG_VERSIONS, indirect=True)
@@ -7224,19 +7320,36 @@ def test_role_login_connects_when_legacy_job_ran_first(
     provide. The probe login again pins the PUBLIC state on both
     sides of the legacy job, so the role login's successful connection
     provably rests on its direct grant alone.
+
+    The layout is production-valid like in the mirror test: the first
+    entry's owner role manages its OWN schema (not public), so the
+    configuration passes ``_validate_role_sharing`` -- the preflight a
+    real reconciliation runs and the direct rendering here bypasses.
     """
     pg = postgres
     db = "rm_shared_connect_lf_db"
     _create_database(pg, db)
 
+    # the layout passes the production preflight DAM would run for a
+    # real reconciliation of these three entries
+    _validate_role_sharing(_o14_entries(db, "rm2"))
+
     # a first role-mode entry takes over the shared database (section
     # 4), so the later role entry's login cannot inherit the database
     # owner's CONNECT and the legacy job needs the executor's
-    # membership to revoke PUBLIC
+    # membership to revoke PUBLIC. Its owner role manages its own
+    # schema, distinct from the entry under test
+    result = pg.exec_psql(EXECUTOR, db, "CREATE SCHEMA rm2_first_schema;")
+    assert result.returncode == 0, result.stderr
     first_script = _render_provision(
-        db, "rm2_first_app", role="rm2_first_own", access_list="public|SELECT"
+        db,
+        "rm2_first_app",
+        role="rm2_first_own",
+        access_list="rm2_first_schema|SELECT",
+        schemas_csv="rm2_first_schema",
     )
     _run_provision(pg, first_script)
+    assert _database_owner(pg, db) == "rm2_first_own"
 
     # a probe login without any direct grant connects through PUBLIC
     # alone: PUBLIC still holds CONNECT before the legacy job
@@ -7277,6 +7390,12 @@ def test_role_login_connects_when_legacy_job_ran_first(
         "the role-mode login provisioned after the legacy PUBLIC revoke "
         f"cannot connect: {result.stderr}"
     )
+
+    # the first owner role KEEPS the database: the role entry under
+    # test did not transfer it away (the section-4 transfer only runs
+    # for the current database owner, and the executor is a member of
+    # the first owner role, not its owner)
+    assert _database_owner(pg, db) == "rm2_first_own"
 
 
 @pytest.mark.e2e
@@ -8318,6 +8437,147 @@ def test_dollar_user_resolves_observed_identity(
 
 @pytest.mark.e2e
 @pytest.mark.parametrize("postgres", ["16"], indirect=True)
+def test_dollar_user_without_usage_keeps_resolution(
+    postgres: PostgresContainer,
+) -> None:
+    """P16 — An unresolved $user (no USAGE on its schema) keeps the
+    resolution.
+
+    The companion of ``test_dollar_user_resolves_observed_identity``:
+    the observed identity's schema can EXIST and still not resolve.
+    A DBA startup role default (``ALTER ROLE ... IN DATABASE ... SET
+    role = tenant``) makes the legacy login's sessions act as the
+    tenant role, and the built-in ``"$user", public`` path expands
+    ``$user`` to that observed identity -- but the tenant role LACKS
+    USAGE on the tenant schema (a third party owns it), and PostgreSQL
+    SKIPS a search-path schema the acting role has no USAGE on during
+    unqualified name resolution (verified on a real instance: the
+    schema is silently passed over and the public twin is read). The
+    login's unqualified queries therefore read ``public.orders``.
+
+    The entry's access list contains the tenant schema, so
+    provisioning grants the owner role USAGE on it. The settlement
+    expands ``$user`` to the observed identity purely on schema
+    EXISTENCE: after the migration the stored path keeps the tenant
+    schema FIRST, and the next session -- acting as the owner role,
+    which now holds USAGE -- reads ``tenant.orders``, silently
+    CHANGING the resolution DAM exists to preserve.
+
+    Required behavior: the capture records whether ``$user``
+    actually RESOLVED (the observed identity had USAGE on its
+    schema); an UNRESOLVED ``$user`` token is omitted from the legacy
+    prefix, so the configured order decides and the public marker
+    keeps winning.
+    """
+    pg = postgres
+    db = "unresolved_user_db"
+    _create_database(pg, db)
+
+    # the public marker: what the login's unqualified queries read
+    # before the migration
+    result = pg.exec_psql(
+        EXECUTOR,
+        db,
+        "CREATE TABLE public.orders (id int, note text); "
+        "INSERT INTO public.orders VALUES (1, 'nu-public');",
+    )
+    assert result.returncode == 0, result.stderr
+
+    access: list[tuple[str, tuple[str, ...]]] = [
+        ("nu_tenant", ("SELECT", "INSERT")),
+        ("public", ("SELECT", "INSERT")),
+    ]
+    legacy_config = make_db_access(database=db, username="nu_app", access=access)
+
+    # the tenant role and its marker schema: the schema EXISTS (so an
+    # exists-filter alone keeps the "$user" token) but a third party
+    # owns it -- the executor here -- and the tenant role holds no
+    # USAGE on it. The schema must exist before the legacy provision
+    # below (the legacy template grants table privileges in it)
+    result = pg.exec_psql(
+        EXECUTOR,
+        db,
+        "CREATE ROLE nu_tenant NOLOGIN; "
+        "CREATE SCHEMA nu_tenant; "
+        "CREATE TABLE nu_tenant.orders (id int, note text); "
+        "INSERT INTO nu_tenant.orders VALUES (1, 'nu-tenant');",
+    )
+    assert result.returncode == 0, result.stderr
+
+    _run_provision(pg, build_script(legacy_config))
+
+    # the DBA gives the login a startup role default: its sessions act
+    # as the tenant role, which can read the public marker table (a
+    # session's privileges are the ACTING role's -- the login's own
+    # grants do not apply)
+    result = pg.exec_psql(
+        "postgres",
+        db,
+        "GRANT nu_tenant TO nu_app; "
+        "GRANT SELECT ON public.orders TO nu_tenant; "
+        f"ALTER ROLE nu_app IN DATABASE {db} SET role = nu_tenant;",
+    )
+    assert result.returncode == 0, result.stderr
+
+    # the premise pinned: the observed identity has NO USAGE on its
+    # schema -- an existing schema without USAGE is what
+    # "$user did not resolve" looks like
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT has_schema_privilege('nu_tenant', 'nu_tenant', 'USAGE')",
+        )
+        == "f"
+    ), "the tenant role already had USAGE on its schema"
+
+    # BEFORE the switch: "$user" expands to the tenant role, the
+    # tenant schema is skipped (no USAGE), the PUBLIC marker wins
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "nu_app",
+        DB_PASSWORD,
+        "nu-public",
+        forbidden=("nu-tenant",),
+        where="before the switch",
+    )
+
+    # migrate by ONLY adding role, through the production renderer
+    role_config = make_db_access(
+        database=db, username="nu_app", role="nu_own", access=access
+    )
+    _run_provision(pg, build_script(role_config, legacy_config))
+
+    # AFTER the switch: the unresolved $user token must not sit first
+    # on the stored path -- the owner role now holds USAGE on the
+    # tenant schema (provisioning granted it), so a tenant-first path
+    # would CHANGE the resolution to the tenant marker
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "nu_app",
+        DB_PASSWORD,
+        "nu-public",
+        forbidden=("nu-tenant",),
+        where="after the switch",
+    )
+
+    # an unchanged rerun keeps the resolution (the store governs)
+    _run_provision(pg, build_script(role_config))
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "nu_app",
+        DB_PASSWORD,
+        "nu-public",
+        forbidden=("nu-tenant",),
+        where="after an unchanged rerun",
+    )
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16"], indirect=True)
 def test_capture_probe_cannot_be_shadowed(
     postgres: PostgresContainer,
 ) -> None:
@@ -8429,3 +8689,113 @@ def test_capture_probe_cannot_be_shadowed(
         )
         == "search_path=sp_hijack, pg_catalog, sp_mk, public"
     ), "the capture stored a shadowed value instead of the true path"
+
+
+# ─── 20. review round 4: the pre-transaction owner-role check ───────────────
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", PG_VERSIONS, indirect=True)
+def test_login_role_clash_aborts_before_pregrant(
+    postgres: PostgresContainer,
+) -> None:
+    """O21 — A LOGIN role occupying the owner-role name aborts the job
+    BEFORE the section-0 CONNECT pre-grant and password pre-set.
+
+    The owner-role NOLOGIN verification used to run only inside the
+    transaction (section 1's duplicate handler). The section-0
+    CONNECT pre-grant and password pre-set run in autocommit BEFORE
+    that transaction: a capture-eligible job that later failed on the
+    LOGIN-role clash had already persisted both -- a direct CONNECT
+    ACL entry for the login and the rotated password. The check now
+    runs pre-transaction, before any grant: the clashing owner-role
+    name aborts the job with the same specific error while the
+    catalog is still untouched.
+    """
+    pg = postgres
+    db = "o21_clash_db"
+
+    # the owner-role name is occupied by a LOGIN role
+    result = pg.exec_psql(
+        "postgres",
+        "postgres",
+        "CREATE ROLE o21_own LOGIN PASSWORD 'O21OwnPw1';",
+    )
+    assert result.returncode == 0, result.stderr
+
+    # a pre-existing legacy login the migration targets. It is
+    # capture-eligible (it exists, carries no role default and no
+    # store governs the clashing role) and it LACKS CONNECT on the
+    # target database, so the section-0 pre-grant would materialize a
+    # direct ACL entry and the password pre-set would rotate the
+    # password if the script reached them
+    _create_database(pg, db)
+    result = pg.exec_psql(
+        EXECUTOR,
+        db,
+        f"CREATE ROLE o21_app LOGIN PASSWORD '{O21_OLD_LOGIN_PASSWORD}'; ",
+    )
+    assert result.returncode == 0, result.stderr
+    result = pg.exec_psql(
+        "postgres",
+        db,
+        f"ALTER ROLE o21_app IN DATABASE {db} SET search_path TO public; "
+        f"REVOKE CONNECT ON DATABASE {db} FROM public; "
+        f"REVOKE CONNECT ON DATABASE {db} FROM o21_app;",
+    )
+    assert result.returncode == 0, result.stderr
+
+    password_before = pg.query(
+        "postgres",
+        "postgres",
+        "SELECT rolpassword FROM pg_roles WHERE rolname = 'o21_app'",
+    )
+
+    script = _render_provision(
+        db, "o21_app", role="o21_own", access_list="public|SELECT"
+    )
+    result = pg.exec_psql(
+        EXECUTOR,
+        "postgres",
+        script,
+        extra_args=["-v", f"db_user_password={DB_PASSWORD}"],
+    )
+
+    # the provisioning fails with the specific error
+    assert result.returncode != 0, (
+        "a LOGIN role with the owner-role name was silently accepted"
+    )
+    assert "already exists as a LOGIN role" in result.stderr, result.stderr
+
+    # the CONNECT pre-grant did not run: the login has no direct ACL
+    # entry on the database (regression: the autocommit pre-grant
+    # persisted before the transaction failed on the same condition)
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT count(*) FROM pg_database d "
+            "CROSS JOIN LATERAL aclexplode(d.datacl) AS a "
+            "JOIN pg_roles r ON r.oid = a.grantee "
+            f"WHERE d.datname = '{db}' AND r.rolname = 'o21_app' "
+            "AND a.privilege_type = 'CONNECT'",
+        )
+        == "0"
+    ), "the aborted job left a CONNECT ACL entry for the login"
+
+    # the password pre-set did not run: the stored verifier is
+    # unchanged (a scram verifier encodes a random salt, so any
+    # ALTER ROLE PASSWORD -- even with the same password -- changes it)
+    password_after = pg.query(
+        "postgres",
+        "postgres",
+        "SELECT rolpassword FROM pg_roles WHERE rolname = 'o21_app'",
+    )
+    assert password_after == password_before, (
+        "the aborted job rotated the login's password"
+    )
+
+    # nothing persisted at all: the login still cannot connect
+    result = pg.login("o21_app", O21_OLD_LOGIN_PASSWORD, db)
+    assert result.returncode != 0, result.stderr
+    assert "permission denied for database" in result.stderr, result.stderr

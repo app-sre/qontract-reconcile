@@ -257,8 +257,8 @@ def _validate_role_sharing(
     entry. Sharing is only allowed within one RDS resource (the
     rotation mechanism); name, username and delete flag may differ.
     A schema is managed by at most one owner role -- except the
-    login-named schema of a delete entry, which deprovisioning never
-    adopts.
+    login-named schemas of a fully retired role (a role whose entries
+    are all delete entries), which deprovisioning never adopts.
 
     Each entry is a (config, resolved username) tuple so that
     generated logins are covered by the collision check too."""
@@ -313,16 +313,27 @@ def _validate_role_sharing(
     # also contains the schema named after its resolved login -- the
     # ownership transfer in role_provision.sql adopts that schema
     # even with an empty access list -- so it participates in the
-    # check exactly like an access-list schema. Delete entries do not
-    # claim their login-named schema: deprovisioning never adopts
+    # check exactly like an access-list schema. The login-named
+    # claim applies PER ROLE: a role claims the login-named schemas of
+    # its entries while it has at least one NON-delete entry -- a
+    # delete entry beside an active rotation sibling only retires one
+    # login of a still-alive role, and the active entry's ownership
+    # transfer adopts the schema named after the retiring login just
+    # like its own. Only a role whose entries are ALL delete entries
+    # is exempt (full retirement): deprovisioning never adopts
     # schemas on behalf of the owner role, so an unrelated entry may
     # manage a schema of that name (the explicit access list of a
     # delete entry still participates).
+    fully_retired_roles = {
+        role
+        for role, role_entries in entries_by_role.items()
+        if all(entry.delete for entry in role_entries)
+    }
     schemas_by_role: dict[str, set[tuple[str, str]]] = {}
     for db_access, username in entries:
         if db_access.role:
             schemas: set[tuple[str, str]] = set()
-            if not db_access.delete:
+            if db_access.role not in fully_retired_roles:
                 schemas.add((db_access.database, username))
             schemas.update(
                 (db_access.database, a.target.dbschema) for a in db_access.access or []

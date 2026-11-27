@@ -42,6 +42,7 @@ from reconcile.utils.vault import SecretVersionNotFoundError
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from kubernetes.client import V1EnvVar
     from pytest_mock import MockerFixture
 
 
@@ -654,8 +655,31 @@ def test_job_spec() -> None:
     assert container.command == ["/usr/bin/psql"]
     assert container.args is not None
     assert "--file=/scripts/script.sql" in container.args
-    # the user password comes from the job-bound secret
     assert container.env is not None
+
+    def _secret_ref_name(env_vars: list[V1EnvVar], env_name: str) -> str:
+        matches = [e for e in env_vars if e.name == env_name]
+        assert len(matches) == 1, f"expected exactly one {env_name} env var"
+        env = matches[0]
+        assert env.value_from is not None
+        assert env.value_from.secret_key_ref is not None
+        assert env.value_from.secret_key_ref.name is not None
+        return env.value_from.secret_key_ref.name
+
+    # the endpoint (host, port) comes from the job-bound secret: it
+    # snapshots the endpoint the job was enqueued for, so an admin
+    # secret that moved to another endpoint between enqueue and pod
+    # start cannot make the job apply the password at the wrong
+    # endpoint (the settlement compares the job-bound endpoint
+    # against the current admin endpoint)
+    assert _secret_ref_name(container.env, "db.host") == job.name()
+    assert _secret_ref_name(container.env, "db.port") == job.name()
+    # the admin connection identity and password keep coming from the
+    # admin secret
+    assert _secret_ref_name(container.env, "db.user") == ADMIN_SECRET_NAME
+    assert _secret_ref_name(container.env, "db.name") == ADMIN_SECRET_NAME
+    assert _secret_ref_name(container.env, "PGPASSWORD") == ADMIN_SECRET_NAME
+    # the user password comes from the job-bound secret
     user_pw_env = [e for e in container.env if e.name == "db_user_password"]
     assert len(user_pw_env) == 1
     assert user_pw_env[0].value_from is not None
@@ -2507,6 +2531,57 @@ def test_validate_role_sharing_delete_entry_access_list_still_conflicts(
     with pytest.raises(ValueError, match="can only be managed by one owner role"):
         _validate_role_sharing([
             (delete_entry, "orders"),
+            (reporting, "reporting_login"),
+        ])
+
+
+def test_validate_role_sharing_delete_entry_with_active_sibling_claims_login_schema(
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    """The login-named-schema exemption is PER ROLE, not per entry: a
+    delete entry beside an active rotation sibling only retires one
+    login of a still-alive owner role, so the role keeps claiming the
+    login-named schemas of ALL its entries -- including the delete
+    entry's. An unrelated role must not manage the schema named after
+    the retiring login: the active sibling's ownership transfer would
+    adopt it (and its tables) while the rotation login still uses it.
+    Only a role whose entries are ALL delete entries (full
+    retirement) is exempt -- see
+    test_validate_role_sharing_delete_entry_does_not_claim_login_schema."""
+    orders_delete = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "orders-v1-entry",
+            "database": "postgres",
+            "role": "orders_owner",
+            "username": "orders_v1",
+            "delete": True,
+            "access": [],
+        },
+    )
+    orders_active = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "orders-v2-entry",
+            "database": "postgres",
+            "role": "orders_owner",
+            "username": "orders_v2",
+            "access": [],
+        },
+    )
+    reporting = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "reporting-entry",
+            "database": "postgres",
+            "role": "reporting_owner",
+            "access": [{"grants": ["SELECT"], "target": {"dbschema": "orders_v1"}}],
+        },
+    )
+    with pytest.raises(ValueError, match="can only be managed by one owner role"):
+        _validate_role_sharing([
+            (orders_delete, "orders_v1"),
+            (orders_active, "orders_v2"),
             (reporting, "reporting_login"),
         ])
 
