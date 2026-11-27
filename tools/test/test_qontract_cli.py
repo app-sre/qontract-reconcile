@@ -342,6 +342,10 @@ def test_sync_slack_webhooks_command(tmp_path: Any, mocker: MockerFixture) -> No
     dump_file.write_text("[]", encoding="utf-8")
     mock_gql = mocker.patch("tools.qontract_cli.gql")
     mock_command = mocker.patch("tools.qontract_cli.SlackWebhookSyncCommand")
+    mocker.patch(
+        "tools.qontract_cli.config.get_config",
+        return_value={"vault": {"server": "https://vault.example.com"}},
+    )
 
     result = CliRunner().invoke(
         qontract_cli.sync_slack_webhooks,
@@ -352,6 +356,7 @@ def test_sync_slack_webhooks_command(tmp_path: Any, mocker: MockerFixture) -> No
     mock_command.assert_called_once_with(
         workspace="redhat-internal",
         query_func=mock_gql.get_api.return_value.query,
+        vault_address="https://vault.example.com",
     )
     mock_command.return_value.execute.assert_called_once_with(
         dump_file=dump_file,

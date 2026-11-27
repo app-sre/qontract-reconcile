@@ -321,6 +321,7 @@ def sync_slack_webhooks(dump_file: str, workspace: str, dry_run: bool) -> None:
         SlackWebhookSyncCommand(
             workspace=workspace,
             query_func=gql.get_api().query,
+            vault_address=config.get_config()["vault"]["server"],
         ).execute(dump_file=Path(dump_file), dry_run=dry_run)
     except SlackWebhookSyncError as e:
         print(e)
