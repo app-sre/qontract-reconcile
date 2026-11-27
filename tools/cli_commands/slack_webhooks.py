@@ -180,19 +180,20 @@ class SlackWebhookSyncCommand:
                 if not isinstance(target, HcpTerraformVariableSetTarget):
                     continue
 
-                existing = updates.get(target)
-                if existing is not None and existing.url != url:
-                    raise SlackWebhookSyncError(
-                        f"HCP variable set target has conflicting webhook URLs: "
-                        f"{target}"
-                    )
-                if existing is None:
-                    updates[target] = HcpTerraformVariableSetUpdate(
-                        channel=channel,
-                        target=target,
-                        url=url,
-                        change=self._hcp_terraform_change(target),
-                    )
+                if (existing := updates.get(target)) is not None:
+                    if existing.url != url:
+                        raise SlackWebhookSyncError(
+                            f"HCP variable set target has conflicting webhook URLs: "
+                            f"{target}"
+                        )
+                    continue
+
+                updates[target] = HcpTerraformVariableSetUpdate(
+                    channel=channel,
+                    target=target,
+                    url=url,
+                    change=self._hcp_terraform_change(target),
+                )
 
         return sorted(
             updates.values(),
@@ -206,8 +207,7 @@ class SlackWebhookSyncCommand:
         hcp_updates: list[HcpTerraformVariableSetUpdate],
     ) -> None:
         for path, fields in sorted(vault_updates.items()):
-            change = vault_changes.get(path)
-            if change is None:
+            if (change := vault_changes.get(path)) is None:
                 print(
                     f"[dry-run] unchanged vault-secret {path}: "
                     f"{', '.join(sorted(fields))}"
@@ -315,10 +315,10 @@ class SlackWebhookSyncCommand:
         if not isinstance(data, dict):
             raise SlackWebhookSyncError(f"vault secret has invalid data: {path}")
 
-        if isinstance(data.get("data"), dict) and isinstance(
+        if isinstance(secret_data := data.get("data"), dict) and isinstance(
             data.get("metadata"), dict
         ):
-            return VaultSecretState(data=data["data"], version=2)
+            return VaultSecretState(data=secret_data, version=2)
         return VaultSecretState(data=data, version=1)
 
     def _sync_hcp_terraform_target(self, update: HcpTerraformVariableSetUpdate) -> None:
@@ -391,9 +391,7 @@ class SlackWebhookSyncCommand:
             "-p",
             f"project={project}",
         ])
-        item = data.get("data") or {}
-        project_id = item.get("id")
-        if not project_id:
+        if not (project_id := (data.get("data") or {}).get("id")):
             raise SlackWebhookSyncError(f"could not resolve HCP project: {project}")
         return project_id
 
