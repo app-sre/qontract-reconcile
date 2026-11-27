@@ -5,6 +5,7 @@ from enum import StrEnum
 from pydantic import (
     BaseModel,
     Field,
+    field_validator,
 )
 
 
@@ -44,9 +45,15 @@ class Group(BaseModel, validate_by_name=True, validate_by_alias=True):
     rover_group_exclusions: list[Entity] | None = Field(
         None, alias="roverGroupExclusions", exclude=True
     )
-    members: list[Entity] = []
+    members: list[Entity] = Field(default_factory=list)
     member_of: list[str] | None = Field(None, alias="memberOf", exclude=True)
     namespace: str | None = Field(None, exclude=True)
+
+    @field_validator("members", mode="before")
+    @classmethod
+    def normalize_null_members(cls, value: object) -> object:
+        """The Internal Groups API returns null for an empty member list."""
+        return [] if value is None else value
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Group):

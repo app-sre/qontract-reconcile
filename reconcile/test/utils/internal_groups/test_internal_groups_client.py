@@ -13,6 +13,7 @@ from reconcile.utils.internal_groups.models import Group
 
 if TYPE_CHECKING:
     from pytest_httpserver import HTTPServer
+    from pytest_mock import MockerFixture
 
     from reconcile.test.fixtures import Fixtures
 
@@ -91,6 +92,28 @@ def test_internal_groups_client_get_group(
 ) -> None:
     group = Group(**fx.get_json(f"v1/groups/{group_name}/get.json"))
     assert internal_groups_client.group(group_name) == group
+
+
+@pytest.mark.parametrize("operation", ["group", "create_group", "update_group"])
+def test_internal_groups_client_null_members(
+    mocker: MockerFixture,
+    internal_groups_api: InternalGroupsApi,
+    internal_groups_client: InternalGroupsClient,
+    fx: Fixtures,
+    group_name: str,
+    operation: str,
+) -> None:
+    data = fx.get_json(f"v1/groups/{group_name}/get.json")
+    data["members"] = None
+    mocker.patch.object(internal_groups_api, operation, return_value=data)
+    group = Group.model_validate({**data, "members": []})
+
+    result = getattr(internal_groups_client, operation)(
+        group_name if operation == "group" else group
+    )
+
+    assert result.members == []
+    assert result == group
 
 
 def test_internal_groups_client_get_unknown_group(
