@@ -47,7 +47,7 @@ dependencies = [
     "rich==15.0.0",
     "semver~=3.0",
     "sendgrid==6.12.5",
-    "sentry-sdk==2.73.0",
+    "sentry-sdk==3.0.0",
     # jenkins-job-builder uses pkg_resources from setuptools. pkg_resources was removed from setuptools in version 82.0.0
     # See https://setuptools.pypa.io/en/latest/history.html#v82-0-0 for more information about the removal of pkg_resources
     # jjb bug report: https://storyboard.openstack.org/#!/story/2011757
