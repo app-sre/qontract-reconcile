@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -62,12 +63,24 @@ def inventory() -> dict[str, Any]:
                     },
                 ],
             }
-        ]
+        ],
     }
 
 
 def query(_query: str) -> dict[str, Any]:
     return inventory()
+
+
+def conflicting_hcp_query(_query: str) -> dict[str, Any]:
+    payload = inventory()
+    webhooks = payload["slack_workspaces"][0]["incomingWebhooks"]
+    webhooks[0]["channel"] = "channel-a"
+    webhooks[0]["targets"][0]["field"] = "channel-a"
+    conflicting = deepcopy(webhooks[0])
+    conflicting["channel"] = "channel-b"
+    conflicting["targets"][0]["field"] = "channel-b"
+    webhooks.append(conflicting)
+    return payload
 
 
 def no_op_runner(_args: Sequence[str], _input_text: str | None = None) -> str:
@@ -85,10 +98,12 @@ class FakeRunner:
     def __init__(
         self,
         existing_variable: bool = True,
+        hcl: bool = False,
         vault_secret: dict[str, str] | None = None,
     ) -> None:
         self.calls: list[tuple[list[str], str | None]] = []
         self.existing_variable = existing_variable
+        self.hcl = hcl
         self.vault_patches: list[tuple[str, dict[str, str]]] = []
         self.vault_secret = vault_secret if vault_secret is not None else {}
 
@@ -125,7 +140,7 @@ class FakeRunner:
                             "key": "notification_url",
                             "category": "terraform",
                             "sensitive": True,
-                            "hcl": False,
+                            "hcl": self.hcl,
                         },
                     }
                 ]
@@ -197,6 +212,50 @@ def test_sync_updates_vault_and_hcp_variable(tmp_path: Any) -> None:
             "attributes": {"value": "https://hooks.example/test"},
         }
     }
+
+
+def test_rejects_conflicting_hcp_destination_before_vault_update(
+    tmp_path: Any,
+) -> None:
+    dump_file = write_dump(
+        tmp_path,
+        {
+            "channel-a": "https://hooks.example/a",
+            "channel-b": "https://hooks.example/b",
+            "sd-app-sre-alert-stg": "https://hooks.example/test-stg",
+        },
+    )
+    runner = FakeRunner()
+    command = SlackWebhookSyncCommand(
+        workspace="redhat-internal",
+        query_func=conflicting_hcp_query,
+        command_runner=runner,
+    )
+
+    with pytest.raises(
+        SlackWebhookSyncError,
+        match="HCP variable set target has conflicting webhook URLs",
+    ):
+        command.execute(dump_file, dry_run=False)
+
+    assert runner.vault_patches == []
+
+
+def test_rejects_invalid_hcp_variable_before_vault_update(tmp_path: Any) -> None:
+    dump_file = write_dump(tmp_path, webhook_dump())
+    runner = FakeRunner(hcl=True)
+    command = SlackWebhookSyncCommand(
+        workspace="redhat-internal",
+        query_func=query,
+        command_runner=runner,
+    )
+
+    with pytest.raises(
+        SlackWebhookSyncError, match="HCP variable has unexpected metadata"
+    ):
+        command.execute(dump_file, dry_run=False)
+
+    assert runner.vault_patches == []
 
 
 def test_sync_skips_unchanged_vault_secret(tmp_path: Any) -> None:

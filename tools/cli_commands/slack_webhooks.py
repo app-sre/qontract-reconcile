@@ -45,6 +45,14 @@ class HcpTerraformVariableSetChange:
     path: str
 
 
+@dataclass(frozen=True)
+class HcpTerraformVariableSetUpdate:
+    channel: str
+    target: HcpTerraformVariableSetTarget
+    url: str
+    change: HcpTerraformVariableSetChange
+
+
 Target = VaultTarget | HcpTerraformVariableSetTarget
 QueryFunc = Callable[[str], dict[str, Any]]
 CommandRunner = Callable[[Sequence[str], str | None], str]
@@ -72,19 +80,16 @@ class SlackWebhookSyncCommand:
             )
 
         vault_updates = self._collect_vault_updates(inventory, webhooks)
+        hcp_updates = self._collect_hcp_updates(inventory, webhooks)
 
         if dry_run:
-            self._print_dry_run(inventory, webhooks, vault_updates)
+            self._print_dry_run(vault_updates, hcp_updates)
             return
         for path, fields in sorted(vault_updates.items()):
             self._sync_vault_secret(path, fields)
 
-        for channel in sorted(inventory):
-            url = webhooks[channel]
-            for target in inventory[channel]:
-                if isinstance(target, HcpTerraformVariableSetTarget):
-                    self._sync_hcp_terraform_target(target, url)
-                    print(f"synced {channel}: {target}")
+        for update in hcp_updates:
+            self._sync_hcp_terraform_target(update)
 
     def _fetch_inventory(self) -> dict[str, tuple[Target, ...]]:
         workspaces = get_slack_webhooks(query_func=self._query_func)
@@ -135,11 +140,43 @@ class SlackWebhookSyncCommand:
     def _has_vault_target(targets: tuple[Target, ...]) -> bool:
         return any(isinstance(target, VaultTarget) for target in targets)
 
-    def _print_dry_run(
+    def _collect_hcp_updates(
         self,
         inventory: dict[str, tuple[Target, ...]],
         webhooks: dict[str, str],
+    ) -> tuple[HcpTerraformVariableSetUpdate, ...]:
+        updates: dict[HcpTerraformVariableSetTarget, HcpTerraformVariableSetUpdate] = {}
+        for channel, targets in inventory.items():
+            url = webhooks[channel]
+            for target in targets:
+                if not isinstance(target, HcpTerraformVariableSetTarget):
+                    continue
+
+                existing = updates.get(target)
+                if existing is not None and existing.url != url:
+                    raise SlackWebhookSyncError(
+                        f"HCP variable set target has conflicting webhook URLs: "
+                        f"{target}"
+                    )
+                if existing is None:
+                    updates[target] = HcpTerraformVariableSetUpdate(
+                        channel=channel,
+                        target=target,
+                        url=url,
+                        change=self._hcp_terraform_change(target),
+                    )
+
+        return tuple(
+            sorted(
+                updates.values(),
+                key=lambda update: (update.channel, str(update.target)),
+            )
+        )
+
+    def _print_dry_run(
+        self,
         vault_updates: dict[str, dict[str, str]],
+        hcp_updates: tuple[HcpTerraformVariableSetUpdate, ...],
     ) -> None:
         for path, fields in sorted(vault_updates.items()):
             changed = self._vault_changes(path, fields)
@@ -154,15 +191,12 @@ class SlackWebhookSyncCommand:
                     f"{', '.join(sorted(fields))}"
                 )
 
-        for channel in sorted(inventory):
-            for target in inventory[channel]:
-                if isinstance(target, HcpTerraformVariableSetTarget):
-                    change = self._hcp_terraform_change(target)
-                    action = "create" if change.method == "POST" else "update"
-                    print(
-                        f"[dry-run] would {action} {channel}: {target} "
-                        f"({change.method} {change.path})"
-                    )
+        for update in hcp_updates:
+            action = "create" if update.change.method == "POST" else "update"
+            print(
+                f"[dry-run] would {action} {update.channel}: {update.target} "
+                f"({update.change.method} {update.change.path})"
+            )
 
     @staticmethod
     def _parse_target(target: SlackWorkspaceIncomingWebhookTargetV1) -> Target:
@@ -241,15 +275,21 @@ class SlackWebhookSyncCommand:
             raise SlackWebhookSyncError(f"vault secret has invalid data: {path}")
         return data
 
-    def _sync_hcp_terraform_target(
-        self, target: HcpTerraformVariableSetTarget, url: str
-    ) -> None:
-        change = self._hcp_terraform_change(target)
-        body = self._hcp_terraform_body(target, url, change)
+    def _sync_hcp_terraform_target(self, update: HcpTerraformVariableSetUpdate) -> None:
+        body = self._hcp_terraform_body(update.target, update.url, update.change)
         self._command_runner(
-            ["tfctl", "api", change.path, "-X", change.method, "-i", "-"],
+            [
+                "tfctl",
+                "api",
+                update.change.path,
+                "-X",
+                update.change.method,
+                "-i",
+                "-",
+            ],
             body,
         )
+        print(f"synced {update.channel}: {update.target}")
 
     def _hcp_terraform_change(
         self, target: HcpTerraformVariableSetTarget
