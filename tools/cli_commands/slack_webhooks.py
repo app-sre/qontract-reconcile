@@ -88,16 +88,13 @@ class SlackWebhookSyncCommand:
 
     def _fetch_inventory(self) -> dict[str, tuple[Target, ...]]:
         workspaces = get_slack_webhooks(query_func=self._query_func)
-        matches = [w for w in workspaces if w.name == self._workspace]
+        workspace = next((w for w in workspaces if w.name == self._workspace), None)
 
-        if len(matches) != 1:
-            raise SlackWebhookSyncError(
-                f"expected exactly one Slack workspace named {self._workspace}, "
-                f"found {len(matches)}"
-            )
+        if workspace is None:
+            raise SlackWebhookSyncError(f"Slack workspace not found: {self._workspace}")
 
         inventory: dict[str, tuple[Target, ...]] = {}
-        for webhook in matches[0].incoming_webhooks or []:
+        for webhook in workspace.incoming_webhooks or []:
             channel = webhook.channel
             if not channel:
                 raise SlackWebhookSyncError("incoming webhook has no channel")
