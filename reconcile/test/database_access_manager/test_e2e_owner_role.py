@@ -104,13 +104,21 @@ if TYPE_CHECKING:
 # | M09 | A DBA role default for an unrelated role                                    | The capture still runs (the eligibility matches this entry's owner role only); the marker and the store survive, the role default flips to the owner role.                                                                                                                         | `test_dba_role_default_for_unrelated_role_still_captures`                                                                                                                                                                    |
 # | M10 | A legacy login with an expired password                                      | The migration succeeds (the capture pre-set resets VALID UNTIL); the login reconnects with the same password and keeps its resolution.                                                                                                                                             | `test_expired_password_login_migrates`                                                                                                                                                                                       |
 # | M11 | Statement logging on the capture hop                                         | The application conninfo never reaches the server as SQL text (client-side psql concatenation); the capture still preserves the marker.                                                                                                                                            | `test_capture_conninfo_password_not_in_server_log`                                                                                                                                                                           |
-# | M12 | A legacy login without CONNECT on the database                               | The migration succeeds (the capture skips, documented degradation to the configured order); section 3 repairs CONNECT and the login connects as the owner role.                                                                                                                   | `test_migration_of_login_without_connect_succeeds`                                                                                                                                                                           |
+# | M12 | A legacy login without CONNECT on the database                               | The executor grants CONNECT BEFORE the capture hop, so the migration succeeds with the legacy resolution PRESERVED (not degraded to the configured order); section 3's grant stays idempotent and the login connects as the owner role.                                            | `test_migration_of_login_without_connect_succeeds`                                                                                                                                                                           |
 # | P13 | Parser corner cases in raw search_path values                                | Quoted tokens keep their exact content (trailing space, embedded tab); unquoted tokens fold to lowercase like PostgreSQL itself; tabs never split unquoted tokens. The marker survives migration and reruns.                                                                      | `test_parser_raw_search_path_corner_cases`                                                                                                                                                                                   |
 # | P14 | The last prefix schema is removed                                            | The store is RESET (not written empty): the next run resolves the configured schemas instead of an empty path.                                                                                                                                                                    | `test_exhausted_legacy_prefix_resets_store`                                                                                                                                                                                  |
-# | O14 | Another entry's legacy job revokes PUBLIC on the same database               | The role-mode login keeps connecting: CONNECT is granted directly on every run, so the PUBLIC revoke cannot take it away.                                                                                                                                                         | `test_role_login_keeps_connect_after_legacy_public_revoke`                                                                                                                                                                   |
+# | O14 | Another entry's legacy job revokes PUBLIC on the same database               | In both orders (role job first, legacy job first) the role-mode login keeps connecting: CONNECT is granted directly on every run, so the PUBLIC revoke cannot take it away -- and PUBLIC provably had CONNECT before the legacy job and lost it after.                                                               | `test_role_login_keeps_connect_after_legacy_public_revoke`, `test_role_login_connects_when_legacy_job_ran_first`                                                                                                             |
 # | O15 | A pre-existing executor membership without SET (PG16+)                       | Provisioning repairs it (re-grant with SET TRUE, ADMIN preserved) instead of failing every ownership transfer with "must be able to SET ROLE".                                                                                                                                     | `test_membership_without_set_repaired_by_provision`                                                                                                                                                                          |
 # | O16 | A pre-existing LOGIN role with the owner-role name                           | Provisioning fails with a specific error before granting memberships; nothing persists.                                                                                                                                                                                          | `test_login_role_with_owner_role_name_rejected`                                                                                                                                                                              |
 # | O17 | Schema transfer in a database the executor does not own                      | Without CREATE for the executor the transfer fails loudly ("permission denied for database") and nothing persists; with CREATE delegated to the executor the transfers converge and the database keeps its owner.                                                              | `test_schema_transfer_in_foreign_database_converges`                                                                                                                                                                         |
+# | O18 | An owner-role name outside the lowercase domain                              | The ownership comparisons resolve the role's OID by exact pg_roles.rolname match (regrole casts fold case); a mixed-case owner role provisions end to end.                                                                                                                        | `test_owner_role_resolved_by_exact_oid_for_mixed_case_name`                                                                                                                                                                 |
+# | O19 | CONNECT via PUBLIC only, executor grantless                                  | The section-3 verification checks the login's DIRECT ACL entry (aclexplode), not the effective privilege: the job fails on the specific CONNECT error instead of committing a login that a later PUBLIC revoke locks out.                                                        | `test_connect_verification_requires_direct_acl_entry`                                                                                                                                                                       |
+# | O20 | A pre-existing executor membership without INHERIT (PG16+)                   | Provisioning repairs it (re-grant with INHERIT TRUE, SET TRUE, ADMIN preserved): the login's objects transfer and the default privileges succeed instead of being silently skipped.                                                                                              | `test_membership_without_inherit_repaired_by_provision`                                                                                                                                                                      |
+# | M13 | A future VALID UNTIL through a failed capture                                | The pre-set's expiry reset only fires for actually expired logins: a failed capture leaves a future expiry untouched; the converged run alone sets infinity.                                                                                                                     | `test_failed_capture_preserves_future_expiry`                                                                                                                                                                                |
+# | M14 | The executor cannot grant CONNECT before the capture                         | The capture hop runs anyway and the job aborts BEFORE the transaction (fail-closed, O10 contract); nothing persists; after an operator grants, the same job converges with the legacy path preserved.                                                                            | `test_pregrant_connect_failure_aborts_before_transaction`                                                                                                                                                                    |
+# | M15 | The capture probe vs a shadowing search path                                  | pg_catalog-qualified probes: a writable same-named function earlier in the login's (pg_catalog-demoting) path cannot feed the capture a fake value; the true raw path is captured.                                                                                               | `test_capture_probe_cannot_be_shadowed`                                                                                                                                                                                       |
+# | P15 | Unquoted non-ASCII path tokens                                               | The parser folds unquoted tokens ASCII-only, like PostgreSQL's own identifier downcasing: an unquoted TENÄNTX keeps resolving the exact-case tenÄntx schema after migration and reruns.                                                                                          | `test_parser_folds_unquoted_tokens_ascii_only`                                                                                                                                                                                |
+# | P16 | $user under a DBA startup role default                                        | $user expands to the identity OBSERVED during capture (current_user, e.g. the startup role), not the login name: the tenant schema stays first on the path after migration and reruns.                                                                                           | `test_dollar_user_resolves_observed_identity`                                                                                                                                                                                 |
 
 
 # test passwords (annotated for the secret scanner; not secrets)
@@ -118,6 +126,7 @@ P07B_ROTATION_PASSWORD = "P07BRotation2"  # notsecret
 P07C_ROTATION_PASSWORD = "P07CRotation2"  # notsecret
 M6_SECOND_PASSWORD = "M6SecondPw2"  # notsecret
 MIGRATED_V2_PASSWORD = "MigratedPw2"  # notsecret
+O14_PROBE_PASSWORD = "O14ProbePw2"  # notsecret
 
 
 # ─── helpers ──────────────────────────────────────────────────────────────
@@ -479,12 +488,14 @@ def test_app_ddl_in_non_transferable_schema(postgres: PostgresContainer) -> None
     pg = postgres
     db = "postgres"
 
-    # rds_superuser-like: the executor may grant CREATE on public but
-    # cannot become the database owner
+    # rds_superuser-like: the executor may grant CREATE on public and
+    # CONNECT on the database (the direct ACL entry the section-3
+    # verification demands), but cannot become the database owner
     pg.exec_psql(
         "postgres",
         db,
-        f"GRANT CREATE ON SCHEMA public TO {EXECUTOR} WITH GRANT OPTION;",
+        f"GRANT CREATE ON SCHEMA public TO {EXECUTOR} WITH GRANT OPTION; "
+        f"GRANT CONNECT ON DATABASE {db} TO {EXECUTOR} WITH GRANT OPTION;",
     )
     # a hardened database: TEMP revoked from PUBLIC, so the executor
     # (no direct grant either) holds no privilege beyond what DAM
@@ -605,6 +616,15 @@ def test_provision_fails_when_executor_cannot_grant_create(
     """
     pg = postgres
     db = "postgres"
+
+    # the executor can grant CONNECT (the direct ACL entry the
+    # section-3 verification demands) but has NO grant option for
+    # CREATE on public -- the corner this test exists for
+    pg.exec_psql(
+        "postgres",
+        db,
+        f"GRANT CONNECT ON DATABASE {db} TO {EXECUTOR} WITH GRANT OPTION;",
+    )
 
     # sanity: the executor really lacks CREATE on public -- on PG15+
     # the schema belongs to pg_database_owner (the postgres database
@@ -6607,11 +6627,15 @@ def test_capture_conninfo_password_not_in_server_log(
         where="after the migration",
     )
 
-    # the conninfo-building statement never reached the server (the
-    # application connection string -- and with it the password -- was
-    # assembled by psql, not by a logged SELECT; regression: the
-    # SELECT format(...) AS dam_app_conninfo embedded the password as
-    # literal SQL text and landed in the server log verbatim)
+    # the job's password reached the server ONLY inside the expected
+    # ALTER ROLE statements -- never as conninfo-building SQL text,
+    # whatever the result alias (regression: the conninfo used to be
+    # built by a server-side SELECT that embedded the password as a
+    # literal, and the job's secret landed in the log verbatim). The
+    # application connection string is assembled CLIENT-side by psql:
+    # the password is only ever sent as a connection parameter.
+    # Checking the password itself (not a result alias) catches any
+    # statement that embeds it, under any name.
     logs = subprocess.run(
         [pg.engine, "logs", pg.container_name],
         capture_output=True,
@@ -6620,10 +6644,30 @@ def test_capture_conninfo_password_not_in_server_log(
     )
     assert logs.returncode == 0, logs.stderr
     server_log = logs.stdout + logs.stderr
-    assert "dam_app_conninfo" not in server_log, (
-        "the application conninfo was built server-side and reached "
-        "the server log as statement text"
+
+    # the log really captured the migration's statements: the capture
+    # hop's observation query is DAM-specific and top-level, so an
+    # empty or unread log cannot pass the checks below vacuously
+    assert "dam_observed_sp" in server_log, (
+        "the server log contains no statement of the DAM migration "
+        "(log_statement = 'all' did not capture the job)"
     )
+
+    # every line carrying the password must be one of the expected
+    # ALTER ROLE password statements (the capture's pre-set and
+    # section 2's password write inherently carry the secret); any
+    # other occurrence -- a SELECT building a conninfo under any alias
+    # -- is a leak
+    password_lines = [line for line in server_log.splitlines() if DB_PASSWORD in line]
+    assert password_lines, (
+        "no ALTER ROLE password statement in the log: the password "
+        "checks below would pass vacuously"
+    )
+    for line in password_lines:
+        assert "ALTER ROLE" in line and "PASSWORD" in line, (
+            "the password reached the server log outside an ALTER ROLE "
+            f"statement (e.g. as conninfo-building SQL text): {line}"
+        )
 
 
 @pytest.mark.e2e
@@ -6632,20 +6676,23 @@ def test_migration_of_login_without_connect_succeeds(
     postgres: PostgresContainer,
 ) -> None:
     """M12 — A legacy login without CONNECT on the database migrates
-    and connects.
+    with its resolution preserved.
 
     A legacy login can lack CONNECT on a restricted database (PUBLIC
     revoked and the direct grant removed, e.g. by another entry's
-    legacy job on the same database): the capture's application
-    connection could only fail there, aborting the job AFTER the
-    password pre-set with nothing able to converge -- the
-    in-transaction CONNECT repair of section 3 never ran (regression:
-    the job failed on the application connection of the capture with
-    a permission error, on every retry). The capture now pre-checks
-    the login's CONNECT and skips the application-connection
-    observation when it is absent -- a documented degradation: the
-    path falls back to the configured order like a fresh login -- and
-    section 3's grant plus verification repairs the privilege itself.
+    legacy job on the same database). The capture used to pre-check
+    the login's CONNECT and SKIP the application-connection
+    observation when it was absent -- a documented degradation whose
+    cost was real: the login's legacy resolution was silently replaced
+    by the configured order (the DBA's path lost, public first). The
+    executor now attempts the direct GRANT CONNECT BEFORE the capture
+    hop (regression: the capture was skipped and the public decoy won
+    the unqualified query after the migration): when it succeeds (the
+    normal case -- the executor owns or administers the database), the
+    capture proceeds and the legacy path is preserved exactly like an
+    unrestricted login's, and section 3's idempotent grant keeps the
+    privilege itself. The fail-closed arm (a grantless executor) is
+    covered by M14.
     """
     pg = postgres
     db = "no_connect_capture_db"
@@ -6668,12 +6715,14 @@ def test_migration_of_login_without_connect_succeeds(
     _run_provision(pg, build_script(legacy_config))
 
     # the DBA gives the login its own search path pointing at the
-    # marker schema (the resolution a capture would preserve)
+    # marker schema (the resolution a capture would preserve); PUBLIC
+    # grants keep the marker readable before AND after the migration
+    # (the session acts as the owner role afterwards)
     result = pg.exec_psql(
         EXECUTOR,
         db,
-        "GRANT USAGE ON SCHEMA nc_mk TO nc_app; "
-        "GRANT SELECT ON nc_mk.orders TO nc_app; "
+        "GRANT USAGE ON SCHEMA nc_mk TO public; "
+        "GRANT SELECT ON nc_mk.orders TO public; "
         f"ALTER ROLE nc_app IN DATABASE {db} SET search_path TO nc_mk;",
     )
     assert result.returncode == 0, result.stderr
@@ -6688,8 +6737,9 @@ def test_migration_of_login_without_connect_succeeds(
     )
     assert result.returncode == 0, result.stderr
 
-    # the migration succeeds (the capture is skipped for the
-    # CONNECT-less login, and section 3 repairs CONNECT)
+    # the migration succeeds: the pre-capture GRANT CONNECT (the
+    # executor owns the database) lets the capture run, and section 3
+    # repairs the privilege itself
     role_config = make_db_access(
         database=db, username="nc_app", role="nc_own", access=access
     )
@@ -6701,33 +6751,32 @@ def test_migration_of_login_without_connect_succeeds(
     assert result.returncode == 0, result.stderr
     assert "nc_own" in result.stdout, result.stdout
 
-    # the documented degradation: the path fell back to the configured
-    # order (public first), NOT to the DBA's marker schema -- the
-    # capture never ran
+    # the capture PRESERVED the DBA's resolution (regression: the
+    # capture used to be skipped and the configured order won)
     _assert_unqualified_marker(
         pg,
         db,
         "nc_app",
         DB_PASSWORD,
-        "public-data",
-        forbidden=("mk-data",),
-        where="after the migration (documented degradation)",
+        "mk-data",
+        forbidden=("public-data",),
+        where="after the migration (pre-granted capture)",
     )
 
-    # no capture happened: the role has no store
+    # the store holds the DBA's legacy prefix
     assert (
         pg.query(
             EXECUTOR,
             db,
-            "SELECT count(*) FROM pg_db_role_setting s "
+            "SELECT cfg FROM pg_db_role_setting s "
             "JOIN pg_roles r ON r.oid = s.setrole "
             "JOIN pg_database d ON d.oid = s.setdatabase "
             "CROSS JOIN LATERAL unnest(s.setconfig) AS cfg "
             "WHERE r.rolname = 'nc_own' AND d.datname = "
             f"'{db}' AND cfg LIKE 'search_path=%'",
         )
-        == "0"
-    ), "the CONNECT-less login was captured anyway"
+        == "search_path=nc_mk"
+    ), "the CONNECT-less login's capture did not preserve the DBA path"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -7075,8 +7124,8 @@ def test_exhausted_legacy_prefix_resets_store(postgres: PostgresContainer) -> No
 def test_role_login_keeps_connect_after_legacy_public_revoke(
     postgres: PostgresContainer,
 ) -> None:
-    """O14 — A role-mode login keeps CONNECT when another entry's
-    legacy job revokes PUBLIC on the same database.
+    """O14 (role job first) — A role-mode login keeps CONNECT when
+    another entry's legacy job revokes PUBLIC on the same database.
 
     The section-3 CONNECT check used to grant directly only when the
     login LACKED the privilege: a login whose CONNECT came from PUBLIC
@@ -7089,6 +7138,11 @@ def test_role_login_keeps_connect_after_legacy_public_revoke(
     could no longer connect at all). The grant is unconditional and
     idempotent: a direct grant is the only one that survives the
     PUBLIC revoke.
+
+    A probe login without any direct grant proves the PUBLIC state
+    itself around the legacy job: it connects BEFORE (PUBLIC had
+    CONNECT) and is locked out AFTER (PUBLIC lost it) -- so the role
+    login's successful connection provably does not depend on PUBLIC.
     """
     pg = postgres
     db = "rm_shared_connect_db"
@@ -7111,6 +7165,21 @@ def test_role_login_keeps_connect_after_legacy_public_revoke(
     result = pg.login("rm_keep_app", DB_PASSWORD, db)
     assert result.returncode == 0, result.stderr
 
+    # a probe login without any direct grant connects through PUBLIC
+    # alone: PUBLIC still holds CONNECT before the legacy job
+    result = pg.exec_psql(
+        "postgres",
+        "postgres",
+        f"CREATE ROLE rm_probe LOGIN PASSWORD '{O14_PROBE_PASSWORD}';",
+    )
+    assert result.returncode == 0, result.stderr
+    result = pg.login("rm_probe", O14_PROBE_PASSWORD, db)
+    assert result.returncode == 0, (
+        f"PUBLIC lacked CONNECT before the legacy job -- the role "
+        f"login's access could silently depend on something else: "
+        f"{result.stderr}"
+    )
+
     # another entry's LEGACY job on the same database: the legacy
     # template revokes everything from PUBLIC (the executor may revoke:
     # it is a member of the first entry's owner role, which owns the
@@ -7120,12 +7189,93 @@ def test_role_login_keeps_connect_after_legacy_public_revoke(
     result = pg.login("rm_leg_app", DB_PASSWORD, db)
     assert result.returncode == 0, result.stderr
 
+    # PUBLIC lost CONNECT: the probe (with its CORRECT password) is
+    # locked out on the missing privilege, not on authentication
+    denied = pg.login("rm_probe", O14_PROBE_PASSWORD, db)
+    assert denied.returncode != 0, "PUBLIC kept CONNECT after the legacy job"
+    assert "permission denied" in denied.stderr, denied.stderr
+    assert "password authentication failed" not in denied.stderr, denied.stderr
+
     # the role-mode login keeps connecting: its own run granted CONNECT
     # directly, so the PUBLIC revoke cannot take it away
     result = pg.login("rm_keep_app", DB_PASSWORD, db)
     assert result.returncode == 0, (
         "the role-mode login lost CONNECT when the legacy job revoked "
         f"PUBLIC: {result.stderr}"
+    )
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", PG_VERSIONS, indirect=True)
+def test_role_login_connects_when_legacy_job_ran_first(
+    postgres: PostgresContainer,
+) -> None:
+    """O14 (legacy job first) — The role-mode entry provisions AFTER
+    another entry's legacy job already revoked PUBLIC on the shared
+    database.
+
+    The mirror order of
+    ``test_role_login_keeps_connect_after_legacy_public_revoke``: the
+    legacy job runs first (PUBLIC loses CONNECT, the legacy entry's
+    own login gets its direct grant), and only THEN does the role-mode
+    entry provision -- into a database where PUBLIC no longer grants
+    anything. Its login must connect anyway: section 3's unconditional
+    direct CONNECT grant delivers the privilege PUBLIC can no longer
+    provide. The probe login again pins the PUBLIC state on both
+    sides of the legacy job, so the role login's successful connection
+    provably rests on its direct grant alone.
+    """
+    pg = postgres
+    db = "rm_shared_connect_lf_db"
+    _create_database(pg, db)
+
+    # a first role-mode entry takes over the shared database (section
+    # 4), so the later role entry's login cannot inherit the database
+    # owner's CONNECT and the legacy job needs the executor's
+    # membership to revoke PUBLIC
+    first_script = _render_provision(
+        db, "rm2_first_app", role="rm2_first_own", access_list="public|SELECT"
+    )
+    _run_provision(pg, first_script)
+
+    # a probe login without any direct grant connects through PUBLIC
+    # alone: PUBLIC still holds CONNECT before the legacy job
+    result = pg.exec_psql(
+        "postgres",
+        "postgres",
+        f"CREATE ROLE rm2_probe LOGIN PASSWORD '{O14_PROBE_PASSWORD}';",
+    )
+    assert result.returncode == 0, result.stderr
+    result = pg.login("rm2_probe", O14_PROBE_PASSWORD, db)
+    assert result.returncode == 0, (
+        f"PUBLIC lacked CONNECT before the legacy job: {result.stderr}"
+    )
+
+    # another entry's LEGACY job runs FIRST: it revokes everything from
+    # PUBLIC and its own login connects through its direct grant
+    legacy_script = _render_provision(db, "rm2_leg_app", access_list="public|SELECT")
+    _run_provision(pg, legacy_script)
+    result = pg.login("rm2_leg_app", DB_PASSWORD, db)
+    assert result.returncode == 0, result.stderr
+
+    # PUBLIC lost CONNECT: the probe (with its CORRECT password) is
+    # locked out on the missing privilege, not on authentication
+    denied = pg.login("rm2_probe", O14_PROBE_PASSWORD, db)
+    assert denied.returncode != 0, "PUBLIC kept CONNECT after the legacy job"
+    assert "permission denied" in denied.stderr, denied.stderr
+    assert "password authentication failed" not in denied.stderr, denied.stderr
+
+    # the role-mode entry provisions only NOW, with PUBLIC already
+    # revoked: the unconditional direct CONNECT grant of section 3 is
+    # the only thing that can make its login connect
+    role_script = _render_provision(
+        db, "rm2_keep_app", role="rm2_keep_own", access_list="public|SELECT"
+    )
+    _run_provision(pg, role_script)
+    result = pg.login("rm2_keep_app", DB_PASSWORD, db)
+    assert result.returncode == 0, (
+        "the role-mode login provisioned after the legacy PUBLIC revoke "
+        f"cannot connect: {result.stderr}"
     )
 
 
@@ -7328,11 +7478,14 @@ def test_schema_transfer_in_foreign_database_converges(
     db = "f13_foreign_db"
 
     # a database owned by the bootstrap superuser (NOT the executor),
-    # and a schema the executor owns in it
+    # and a schema the executor owns in it; the executor can grant
+    # CONNECT (the direct ACL entry the section-3 verification
+    # demands) but starts without CREATE on the database
     result = pg.exec_psql(
         "postgres",
         "postgres",
-        f"CREATE DATABASE {db}; ",
+        f"CREATE DATABASE {db}; "
+        f"GRANT CONNECT ON DATABASE {db} TO {EXECUTOR} WITH GRANT OPTION; ",
     )
     assert result.returncode == 0, result.stderr
     result = pg.exec_psql(
@@ -7414,3 +7567,865 @@ def test_schema_transfer_in_foreign_database_converges(
     result = pg.login("f13_app", DB_PASSWORD, db, "SELECT count(*) FROM f13schema.t;")
     assert result.returncode == 0, result.stderr
     assert "1" in result.stdout, result.stdout
+
+
+# ─── 19. review round 3: probe, wiring and verification hardening ──────────
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16"], indirect=True)
+def test_owner_role_resolved_by_exact_oid_for_mixed_case_name(
+    postgres: PostgresContainer,
+) -> None:
+    """O18 — The owner role's OID is resolved by exact name comparison.
+
+    ``text::regrole`` parses its input as an UNQUOTED identifier and
+    folds case (``regrolein``), so an owner-role name that is not
+    all-lowercase resolves to a DIFFERENT, nonexistent role: every
+    ownership comparison of section 5 used to fail with ``role
+    "mcown" does not exist`` and abort the whole job. The comparisons
+    resolve the role's OID ONCE from ``pg_roles`` by exact text
+    comparison instead. The rendered role names of production entries
+    are lowercase-only (the psqlIdentifier schema domain), so the cast
+    was a no-op there -- this is hardening, and the test bypasses the
+    app-interface domain on purpose: it renders the template directly
+    with a mixed-case owner role.
+    """
+    pg = postgres
+    db = "mc_oid_db"
+    _create_database(pg, db)
+
+    result = pg.exec_psql(
+        EXECUTOR,
+        db,
+        "CREATE TABLE public.orders (id int, note text); "
+        "INSERT INTO public.orders VALUES (1, 'mc-note');",
+    )
+    assert result.returncode == 0, result.stderr
+
+    script = _render_provision(db, "mc_app", role="McOwn", access_list="public|SELECT")
+    _run_provision(pg, script)
+
+    # the ownership comparisons resolved the exact name: the seeded
+    # table transferred to the mixed-case owner role
+    _assert_owner(
+        pg,
+        db,
+        "table orders",
+        "SELECT pg_get_userbyid(relowner) FROM pg_class WHERE relname='orders'",
+        "McOwn",
+    )
+
+    # the application login connects with its password and reads
+    result = pg.login("mc_app", DB_PASSWORD, db, "SELECT note FROM public.orders;")
+    assert result.returncode == 0, result.stderr
+    assert "mc-note" in result.stdout, result.stdout
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16"], indirect=True)
+def test_failed_capture_preserves_future_expiry(
+    postgres: PostgresContainer,
+) -> None:
+    """M13 — A login with a future expiry keeps it through a failed capture.
+
+    The pre-transaction password pre-set used to reset ``VALID UNTIL
+    'infinity'`` UNCONDITIONALLY: a capture that then failed (the job
+    aborts before the transaction) had already EXTENDED a future
+    expiry an instance password policy had set -- a persistent change
+    from a job that reported nothing but failure. The reset is now
+    conditional on the login being ACTUALLY expired (read from
+    ``pg_roles``): an expired login still gets it (otherwise the
+    capture's authentication would fail forever -- M10), a
+    non-expired login keeps its expiry. Residual risk, taken
+    deliberately: a failed capture on an ALREADY-EXPIRED login leaves
+    password AND expiry changed -- that login was unusable anyway.
+    """
+    pg = postgres
+    db = "future_expiry_db"
+    _create_database(pg, db)
+
+    result = pg.exec_psql(
+        EXECUTOR,
+        db,
+        "CREATE TABLE public.orders (id int, note text); "
+        "INSERT INTO public.orders VALUES (1, 'public-note');",
+    )
+    assert result.returncode == 0, result.stderr
+
+    access: list[tuple[str, tuple[str, ...]]] = [("public", ("SELECT", "INSERT"))]
+    legacy_config = make_db_access(database=db, username="expf_app", access=access)
+    _run_provision(pg, build_script(legacy_config))
+
+    # the app plants its marker table in its own (auto-created) schema
+    result = pg.login(
+        "expf_app",
+        DB_PASSWORD,
+        db,
+        "CREATE TABLE orders (id int, note text); "
+        "INSERT INTO orders VALUES (1, 'expf-note');",
+    )
+    assert result.returncode == 0, result.stderr
+
+    # a future expiry (an instance password policy)
+    result = pg.exec_psql(EXECUTOR, db, "ALTER ROLE expf_app VALID UNTIL '2035-01-01';")
+    assert result.returncode == 0, result.stderr
+
+    role_config = make_db_access(
+        database=db, username="expf_app", role="expf_own", access=access
+    )
+    script = build_script(role_config, legacy_config)
+
+    # the capture connection cannot open sessions (the M01 retry
+    # corner's injection, standing in for a pg_hba rule)
+    result = pg.exec_psql(EXECUTOR, db, "ALTER ROLE expf_app CONNECTION LIMIT 0;")
+    assert result.returncode == 0, result.stderr
+
+    # the migration aborts VISIBLY, on exactly the application
+    # connection of the capture
+    result = pg.exec_psql(
+        EXECUTOR,
+        "postgres",
+        script,
+        extra_args=["-v", f"db_user_password={DB_PASSWORD}"],
+    )
+    assert result.returncode != 0, result.stderr
+    assert "too many connections for role" in result.stderr, result.stderr
+
+    # the future expiry SURVIVED the failed capture (regression: the
+    # unconditional pre-set had already reset it to infinity)
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT rolvaliduntil::text FROM pg_roles WHERE rolname = 'expf_app'",
+        )
+        == "2035-01-01 00:00:00+00"
+    ), "the failed capture changed the login's future expiry"
+
+    # app access restored: the SAME job converges, and only the
+    # in-transaction password write of section 2 sets infinity
+    result = pg.exec_psql(EXECUTOR, db, "ALTER ROLE expf_app CONNECTION LIMIT -1;")
+    assert result.returncode == 0, result.stderr
+    _run_provision(pg, script)
+
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT rolvaliduntil = 'infinity' FROM pg_roles "
+            "WHERE rolname = 'expf_app'",
+        )
+        == "t"
+    )
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "expf_app",
+        DB_PASSWORD,
+        "expf-note",
+        forbidden=("public-note",),
+        where="after the converged migration",
+    )
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16"], indirect=True)
+def test_pregrant_connect_failure_aborts_before_transaction(
+    postgres: PostgresContainer,
+) -> None:
+    """M14 — A CONNECT the executor cannot grant aborts the job before
+    the transaction.
+
+    The pre-capture GRANT CONNECT attempt is best-effort: an executor
+    without grant option on a foreign database only earns the grant's
+    WARNING. The capture hop then runs anyway and FAILS on the
+    connection itself -- the job aborts BEFORE the transaction (the
+    fail-closed contract of section 3's CONNECT verification, O10)
+    instead of skipping the capture and silently writing the
+    configured order. Nothing persists but the password pre-set: no
+    owner role, no role default; the login keeps failing to connect
+    until an operator delivers the privilege -- and the SAME job then
+    converges with the legacy path preserved.
+    """
+    pg = postgres
+    db = "ncb_abort_db"
+
+    # a database the executor neither owns nor can grant CONNECT on
+    # (a guard role owns it); the executor keeps a direct CONNECT
+    # grant WITHOUT grant option so the job itself can reach it, and
+    # CREATE on the database (like O17's delegated executor) so the
+    # converged rerun can transfer the marker schema -- CONNECT and
+    # CREATE are distinct privileges, the grant option is not affected
+    setup = pg.exec_psql(
+        "postgres",
+        "postgres",
+        f"CREATE DATABASE {db}; "
+        "CREATE ROLE ncb_guard NOLOGIN; "
+        f"ALTER DATABASE {db} OWNER TO ncb_guard; "
+        f"GRANT CONNECT ON DATABASE {db} TO {EXECUTOR}; "
+        f"GRANT CREATE ON DATABASE {db} TO {EXECUTOR}; ",
+    )
+    assert setup.returncode == 0, setup.stderr
+
+    # a pre-existing legacy login (created by the executor like a
+    # legacy tenant's, with the admin grant the legacy template
+    # writes) with a DBA search path -- the resolution a capture
+    # would preserve -- on a database neither PUBLIC nor the login
+    # can connect to
+    setup = pg.exec_psql(
+        EXECUTOR,
+        db,
+        f"CREATE ROLE ncb_app LOGIN PASSWORD '{DB_PASSWORD}'; "
+        "GRANT ncb_app TO test_admin; ",
+    )
+    assert setup.returncode == 0, setup.stderr
+    setup = pg.exec_psql(
+        "postgres",
+        db,
+        "CREATE SCHEMA ncb_mk AUTHORIZATION test_admin; "
+        "CREATE TABLE ncb_mk.orders (id int, note text); "
+        "INSERT INTO ncb_mk.orders VALUES (1, 'mk-data'); "
+        "GRANT USAGE ON SCHEMA ncb_mk TO public; "
+        "GRANT SELECT ON ncb_mk.orders TO public; "
+        f"ALTER ROLE ncb_app IN DATABASE {db} SET search_path TO ncb_mk; "
+        f"REVOKE CONNECT ON DATABASE {db} FROM public; "
+        f"REVOKE CONNECT ON DATABASE {db} FROM ncb_app;",
+    )
+    assert setup.returncode == 0, setup.stderr
+
+    access: list[tuple[str, tuple[str, ...]]] = [("ncb_mk", ("SELECT",))]
+    legacy_config = make_db_access(database=db, username="ncb_app", access=access)
+    role_config = make_db_access(
+        database=db, username="ncb_app", role="ncb_own", access=access
+    )
+    script = build_script(role_config, legacy_config)
+
+    # the migration aborts on the capture connection itself, BEFORE
+    # the transaction (regression: the capture used to be skipped and
+    # the transaction failed later, on section 3's own CONNECT error)
+    result = pg.exec_psql(
+        EXECUTOR,
+        "postgres",
+        script,
+        extra_args=["-v", f"db_user_password={DB_PASSWORD}"],
+    )
+    assert result.returncode != 0, result.stderr
+    assert "permission denied for database" in result.stderr, result.stderr
+
+    # nothing persisted: no owner role, no role default for the login
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT count(*) FROM pg_roles WHERE rolname = 'ncb_own'",
+        )
+        == "0"
+    ), "the aborted job left the owner role behind"
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT count(*) FROM pg_db_role_setting s "
+            "JOIN pg_roles r ON r.oid = s.setrole "
+            "JOIN pg_database d ON d.oid = s.setdatabase "
+            "CROSS JOIN LATERAL unnest(s.setconfig) AS cfg "
+            f"WHERE r.rolname = 'ncb_app' AND d.datname = '{db}' "
+            "AND cfg LIKE 'role=%'",
+        )
+        == "0"
+    ), "the aborted job left the login role-managed"
+
+    # the login still cannot connect
+    result = pg.login("ncb_app", DB_PASSWORD, db)
+    assert result.returncode != 0, result.stderr
+    assert "permission denied for database" in result.stderr, result.stderr
+
+    # an operator delivers the privilege: the SAME job converges and
+    # the capture preserves the DBA's path
+    result = pg.exec_psql(
+        "postgres", "postgres", f"GRANT CONNECT ON DATABASE {db} TO ncb_app;"
+    )
+    assert result.returncode == 0, result.stderr
+    _run_provision(pg, script)
+
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT cfg FROM pg_db_role_setting s "
+            "JOIN pg_roles r ON r.oid = s.setrole "
+            "JOIN pg_database d ON d.oid = s.setdatabase "
+            "CROSS JOIN LATERAL unnest(s.setconfig) AS cfg "
+            f"WHERE r.rolname = 'ncb_own' AND d.datname = '{db}' "
+            "AND cfg LIKE 'search_path=%'",
+        )
+        == "search_path=ncb_mk"
+    ), "the converged migration captured no legacy prefix"
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "ncb_app",
+        DB_PASSWORD,
+        "mk-data",
+        forbidden=(),
+        where="after the converged migration",
+    )
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16"], indirect=True)
+def test_connect_verification_requires_direct_acl_entry(
+    postgres: PostgresContainer,
+) -> None:
+    """O19 — The CONNECT verification requires a direct ACL entry.
+
+    The section-3 verification used to check the EFFECTIVE privilege
+    (``has_database_privilege``), which includes PUBLIC: on a database
+    where PUBLIC keeps CONNECT, a grantless executor's warning-grant
+    passed the check while the login actually kept CONNECT only via
+    PUBLIC -- and lost it the moment any other job revoked PUBLIC on
+    the same database (the O14 lock-out, silently committed). The
+    verification now checks the login's own ACL entry in
+    ``pg_database.datacl`` (via ``aclexplode``) and fails with the
+    SAME specific error as the grantless case (regression: the job
+    used to report SUCCESS with no direct grant at all).
+    """
+    pg = postgres
+    db = "direct_acl_db"
+
+    # a database owned by a guard role the executor is not a member
+    # of; PUBLIC KEEPS CONNECT (the lock-out ingredient); the executor
+    # owns the marker schema (the transfer target), so nothing but the
+    # CONNECT verification can fail
+    setup = pg.exec_psql(
+        "postgres",
+        "postgres",
+        f"CREATE DATABASE {db}; "
+        "CREATE ROLE dacl_guard NOLOGIN; "
+        f"ALTER DATABASE {db} OWNER TO dacl_guard;",
+    )
+    assert setup.returncode == 0, setup.stderr
+    setup = pg.exec_psql(
+        "postgres",
+        db,
+        "CREATE SCHEMA dacl_mk AUTHORIZATION test_admin; ",
+    )
+    assert setup.returncode == 0, setup.stderr
+    setup = pg.exec_psql(
+        EXECUTOR,
+        db,
+        "CREATE TABLE dacl_mk.orders (id int, note text); "
+        "INSERT INTO dacl_mk.orders VALUES (1, 'dacl-note'); ",
+    )
+    assert setup.returncode == 0, setup.stderr
+
+    script = _render_provision(
+        db, "dacl_app", role="dacl_own", access_list="dacl_mk|SELECT"
+    )
+    result = pg.exec_psql(
+        EXECUTOR,
+        "postgres",
+        script,
+        extra_args=["-v", f"db_user_password={DB_PASSWORD}"],
+    )
+
+    # the job fails on the specific CONNECT error: the warning-grant
+    # granted nothing, and CONNECT via PUBLIC does not count
+    assert result.returncode != 0, (
+        "provisioning succeeded although the login has no CONNECT of "
+        "its own (only via PUBLIC)"
+    )
+    assert (
+        "login dacl_app has no CONNECT on database direct_acl_db "
+        "after explicit grant" in result.stderr
+    ), result.stderr
+
+    # nothing persisted: the transaction rolled back
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT count(*) FROM pg_roles WHERE rolname IN ('dacl_app', 'dacl_own')",
+        )
+        == "0"
+    ), "the failed provisioning left roles behind"
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16", "17", "18"], indirect=True)
+def test_membership_without_inherit_repaired_by_provision(
+    postgres: PostgresContainer,
+) -> None:
+    """O20 — A pre-existing executor membership without INHERIT is
+    repaired (PG16+).
+
+    On PG16+, the executor-wiring guards used to probe only SET: a
+    membership granted ``WITH SET TRUE, INHERIT FALSE`` passed the
+    probe, no re-grant happened, and the ownership transfers of
+    section 5 silently skipped that role's objects (their
+    ``pg_has_role(..., 'USAGE')`` filter is false without inheritance)
+    until a later verification failed -- here section 5h's USAGE check
+    (verified on a real instance: ``ALTER DEFAULT PRIVILEGES FOR
+    ROLE`` also requires the INHERITed membership). The guards require
+    BOTH options on PG16+ now; the re-grant with ``INHERIT TRUE, SET
+    TRUE`` upgrades both while preserving ADMIN. Older versions have
+    no SET option and keep the USAGE probe (O15 covers the SET FALSE
+    corner).
+    """
+    pg = postgres
+    db = "pginh_db"
+    _create_database(pg, db)
+
+    # a DBA pre-creates the owner role and the login (a legacy tenant)
+    # and hands the executor memberships with ADMIN but WITHOUT
+    # INHERIT -- the corner this test exists for
+    result = pg.exec_psql(
+        "postgres",
+        "postgres",
+        "CREATE ROLE pginh_own NOLOGIN; "
+        "CREATE ROLE pginh_app LOGIN; "
+        "GRANT pginh_own TO test_admin "
+        "WITH ADMIN OPTION, INHERIT FALSE, SET TRUE; "
+        "GRANT pginh_app TO test_admin "
+        "WITH ADMIN OPTION, INHERIT FALSE, SET TRUE;",
+    )
+    assert result.returncode == 0, result.stderr
+
+    # the LOGIN owns the legacy schema and its table (the transfer
+    # target -- the objects the USAGE filter used to skip)
+    result = pg.exec_psql(
+        "postgres",
+        db,
+        "CREATE SCHEMA pginh_schema AUTHORIZATION pginh_app; "
+        "CREATE TABLE pginh_schema.t (i int); "
+        "ALTER TABLE pginh_schema.t OWNER TO pginh_app; "
+        "INSERT INTO pginh_schema.t VALUES (42);",
+    )
+    assert result.returncode == 0, result.stderr
+
+    script = _render_provision(
+        db,
+        "pginh_app",
+        role="pginh_own",
+        access_list="pginh_schema|SELECT,INSERT",
+        schemas_csv="pginh_schema",
+    )
+    _run_provision(pg, script)
+
+    # the transfers converged: the login's schema and table belong to
+    # the owner role (regression: the USAGE filter silently skipped
+    # them without the repair)
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT pg_get_userbyid(nspowner) FROM pg_namespace "
+            "WHERE nspname = 'pginh_schema'",
+        )
+        == "pginh_own"
+    )
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT pg_get_userbyid(relowner) FROM pg_class c "
+            "JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE c.relname = 't' AND n.nspname = 'pginh_schema'",
+        )
+        == "pginh_own"
+    )
+
+    # the executor's memberships were repaired: USAGE and SET now,
+    # ADMIN preserved (the re-grant upgrades the options, it does not
+    # strip)
+    for member_role in ("pginh_own", "pginh_app"):
+        assert (
+            pg.query(
+                EXECUTOR,
+                db,
+                "SELECT pg_has_role('test_admin', "
+                f"'{member_role}', 'USAGE') "
+                "AND pg_has_role('test_admin', "
+                f"'{member_role}', 'SET')",
+            )
+            == "t"
+        ), f"the executor's membership in {member_role} was not repaired"
+        assert (
+            pg.query(
+                EXECUTOR,
+                db,
+                "SELECT count(*) FROM pg_auth_members "
+                f"WHERE roleid = '{member_role}'::regrole "
+                "AND member = 'test_admin'::regrole AND admin_option",
+            )
+            == "1"
+        ), f"the re-grant stripped the executor's ADMIN option on {member_role}"
+
+    # the application login connects, acts as the owner role and reads
+    # the transferred data
+    result = pg.login(
+        "pginh_app",
+        DB_PASSWORD,
+        db,
+        "SELECT current_user || ': ' || i FROM pginh_schema.t;",
+    )
+    assert result.returncode == 0, result.stderr
+    assert "pginh_own: 42" in result.stdout, result.stdout
+
+
+@pytest.fixture
+def postgres_ascii_fold(
+    request: pytest.FixtureRequest,
+    container_engine: str,
+    _pg_hba_conf: Path,
+) -> Generator[PostgresContainer]:
+    """A container whose server-wide search_path carries an unquoted
+    non-ASCII uppercase token, like an RDS parameter group setting the
+    instance default verbatim -- the only source of raw unquoted
+    values with non-ASCII letters (every SQL-level ALTER ROLE folds or
+    quotes them)."""
+    version = getattr(request, "param", "16")
+    yield from _start_postgres(
+        container_engine,
+        version,
+        _container_test_suffix(request.node.name),
+        _pg_hba_conf,
+        ["-c", "search_path=TENÄNTX,public"],
+    )
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres_ascii_fold", ["16"], indirect=True)
+def test_parser_folds_unquoted_tokens_ascii_only(
+    postgres_ascii_fold: PostgresContainer,
+) -> None:
+    """P15 — Unquoted path tokens fold ASCII-only, like PostgreSQL itself.
+
+    PostgreSQL's identifier downcasing is ASCII-only, but the parser
+    used ``lower()`` -- LOCALE-aware: in a UTF-8 locale it folds Ä to
+    ä, so an unquoted non-ASCII token resolved to a name PostgreSQL
+    itself never resolves (the raw server-wide ``TENÄNTX`` resolves
+    the exact-case ``tenÄntx`` schema; the parser used to store
+    ``tenäntx`` and the marker silently flipped to the public decoy).
+    The parser downcases with a plain ASCII translation now. The
+    precondition asserts the cluster locale really folds non-ASCII
+    letters -- the divergence this fix removes (the postgres image
+    defaults to en_US.utf8).
+    """
+    pg = postgres_ascii_fold
+    db = "ascii_fold_db"
+    _create_database(pg, db)
+
+    # the precondition that makes locale-aware lower() diverge from
+    # PostgreSQL's ASCII-only identifier downcasing
+    assert pg.query(EXECUTOR, db, "SELECT lower('TENÄNTX')") == "tenäntx", (
+        "the cluster locale does not fold non-ASCII letters -- the "
+        "ASCII-only folding would be indistinguishable here"
+    )
+
+    # the public decoy and the exact-case marker schema (PostgreSQL
+    # itself resolves the unquoted TENÄNTX to it); PUBLIC grants cover
+    # the login before AND the owner-role session after the migration
+    # (the marker schema cannot ride the renderer's comma-separated
+    # schema list, so it stays out of the access list)
+    result = pg.exec_psql(
+        EXECUTOR,
+        db,
+        "CREATE TABLE public.orders (id int, note text); "
+        "INSERT INTO public.orders VALUES (1, 'af-public'); "
+        'CREATE SCHEMA "tenÄntx"; '
+        'CREATE TABLE "tenÄntx".orders (id int, note text); '
+        "INSERT INTO \"tenÄntx\".orders VALUES (1, 'af-marker'); "
+        'GRANT USAGE ON SCHEMA "tenÄntx" TO public; '
+        'GRANT SELECT ON "tenÄntx".orders TO public;',
+    )
+    assert result.returncode == 0, result.stderr
+
+    access: list[tuple[str, tuple[str, ...]]] = [("public", ("SELECT", "INSERT"))]
+    legacy_config = make_db_access(database=db, username="af_app", access=access)
+    _run_provision(pg, build_script(legacy_config))
+
+    # BEFORE the switch: PostgreSQL's own resolution picks the marker
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "af_app",
+        DB_PASSWORD,
+        "af-marker",
+        forbidden=("af-public",),
+        where="before the switch",
+    )
+
+    # migrate by ONLY adding role, through the production renderer
+    role_config = make_db_access(
+        database=db, username="af_app", role="af_own", access=access
+    )
+    _run_provision(pg, build_script(role_config, legacy_config))
+
+    # AFTER the switch: the parser folded the token exactly like
+    # PostgreSQL resolves it
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "af_app",
+        DB_PASSWORD,
+        "af-marker",
+        forbidden=("af-public",),
+        where="after the switch",
+    )
+
+    # a second run: the store round-trips the token as a name
+    _run_provision(pg, build_script(role_config))
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "af_app",
+        DB_PASSWORD,
+        "af-marker",
+        forbidden=("af-public",),
+        where="after a second run",
+    )
+
+    # the store holds the exact token PostgreSQL resolves (quote_ident
+    # keeps the non-ASCII spelling quoted)
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT cfg FROM pg_db_role_setting s "
+            "JOIN pg_roles r ON r.oid = s.setrole "
+            "JOIN pg_database d ON d.oid = s.setdatabase "
+            "CROSS JOIN LATERAL unnest(s.setconfig) AS cfg "
+            "WHERE r.rolname = 'af_own' AND d.datname = "
+            f"'{db}' AND cfg LIKE 'search_path=%'",
+        )
+        == 'search_path="tenÄntx", public'
+    ), "the parser stored a different token than PostgreSQL resolves"
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16"], indirect=True)
+def test_dollar_user_resolves_observed_identity(
+    postgres: PostgresContainer,
+) -> None:
+    """P16 — $user expands to the identity observed during capture.
+
+    ``$user`` in a captured path resolves CURRENT_USER, not the login
+    name: a DBA startup role default (``ALTER ROLE ... SET role =
+    tenant``) makes the login's sessions act as that role, and
+    PostgreSQL resolves ``$user`` against it. The settlement used to
+    substitute the LOGIN name -- after the migration the tenant schema
+    dropped off the path and the unqualified query silently flipped
+    to the public decoy (regression). The capture observes
+    ``current_user`` alongside the search path now, and ``$user``
+    expands to the OBSERVED identity; the exists-filter keeps
+    applying to the substituted token (it only stays while a schema
+    of that name exists).
+    """
+    pg = postgres
+    db = "observed_user_db"
+    _create_database(pg, db)
+
+    result = pg.exec_psql(
+        EXECUTOR,
+        db,
+        "CREATE TABLE public.orders (id int, note text); "
+        "INSERT INTO public.orders VALUES (1, 'ou-public');",
+    )
+    assert result.returncode == 0, result.stderr
+
+    access: list[tuple[str, tuple[str, ...]]] = [("public", ("SELECT", "INSERT"))]
+    legacy_config = make_db_access(database=db, username="ou_app", access=access)
+    _run_provision(pg, build_script(legacy_config))
+
+    # the DBA gives the login a startup role default: its sessions act
+    # as the tenant role, and the tenant's schema carries the marker.
+    # PUBLIC grants keep the marker readable before AND after the
+    # migration (the session acts as other roles than the grantee)
+    result = pg.exec_psql(
+        "postgres",
+        db,
+        "CREATE ROLE ou_tenant NOLOGIN; "
+        "GRANT ou_tenant TO ou_app; "
+        "CREATE SCHEMA ou_tenant AUTHORIZATION ou_tenant; "
+        "CREATE TABLE ou_tenant.orders (id int, note text); "
+        "INSERT INTO ou_tenant.orders VALUES (1, 'ou-tenant'); "
+        "GRANT USAGE ON SCHEMA ou_tenant TO public; "
+        "GRANT SELECT ON ou_tenant.orders TO public; "
+        f"ALTER ROLE ou_app IN DATABASE {db} SET role = ou_tenant;",
+    )
+    assert result.returncode == 0, result.stderr
+
+    # BEFORE the switch: the login's session acts as the tenant role,
+    # and the default "$user", public resolution delivers the tenant
+    # schema's marker
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "ou_app",
+        DB_PASSWORD,
+        "ou-tenant",
+        forbidden=("ou-public",),
+        where="before the switch",
+    )
+
+    # migrate by ONLY adding role, through the production renderer
+    role_config = make_db_access(
+        database=db, username="ou_app", role="ou_own", access=access
+    )
+    _run_provision(pg, build_script(role_config, legacy_config))
+
+    # AFTER the switch: $user was substituted with the OBSERVED
+    # identity (the tenant role), not the login name
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "ou_app",
+        DB_PASSWORD,
+        "ou-tenant",
+        forbidden=("ou-public",),
+        where="after the switch",
+    )
+
+    # the store holds the observed identity's schema
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT cfg FROM pg_db_role_setting s "
+            "JOIN pg_roles r ON r.oid = s.setrole "
+            "JOIN pg_database d ON d.oid = s.setdatabase "
+            "CROSS JOIN LATERAL unnest(s.setconfig) AS cfg "
+            "WHERE r.rolname = 'ou_own' AND d.datname = "
+            f"'{db}' AND cfg LIKE 'search_path=%'",
+        )
+        == "search_path=ou_tenant, public"
+    ), "the migration stored the login name instead of the observed identity"
+
+    # an unchanged rerun keeps the resolution (the store governs)
+    _run_provision(pg, build_script(role_config))
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "ou_app",
+        DB_PASSWORD,
+        "ou-tenant",
+        forbidden=("ou-public",),
+        where="after an unchanged rerun",
+    )
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", ["16"], indirect=True)
+def test_capture_probe_cannot_be_shadowed(
+    postgres: PostgresContainer,
+) -> None:
+    """M15 — The capture probe cannot be shadowed by the login's search path.
+
+    The capture hop used to probe ``current_setting('search_path')``
+    unqualified: ``pg_catalog`` is only prepended IMPLICITLY while the
+    path does not name it, so a DBA-set path that lists pg_catalog
+    AFTER a schema with a writable same-named function makes that
+    function shadow the probe -- the capture then stored whatever the
+    function returned (here: ``public``), and the login's resolution
+    silently flipped to the public decoy. The probe is
+    pg_catalog-qualified now (verified on a real instance: the
+    shadowing function wins the unqualified call, loses the qualified
+    one, and the bare ``current_user`` keyword cannot be shadowed at
+    all).
+    """
+    pg = postgres
+    db = "shadow_probe_db"
+    _create_database(pg, db)
+
+    # the public decoy
+    result = pg.exec_psql(
+        EXECUTOR,
+        db,
+        "CREATE TABLE public.orders (id int, note text); "
+        "INSERT INTO public.orders VALUES (1, 'sp-public'); ",
+    )
+    assert result.returncode == 0, result.stderr
+
+    access: list[tuple[str, tuple[str, ...]]] = [("public", ("SELECT", "INSERT"))]
+    legacy_config = make_db_access(database=db, username="sp_app", access=access)
+    _run_provision(pg, build_script(legacy_config))
+
+    # the DBA gives the login a path that DEMOTES pg_catalog behind a
+    # schema carrying a same-named shadowing function, plus the marker
+    # schema; PUBLIC grants keep the marker readable before AND after
+    # the migration
+    result = pg.exec_psql(
+        EXECUTOR,
+        db,
+        "CREATE SCHEMA sp_hijack; "
+        "CREATE FUNCTION sp_hijack.current_setting(text) RETURNS text "
+        "LANGUAGE sql AS $$ SELECT 'public'::text $$; "
+        "CREATE SCHEMA sp_mk; "
+        "CREATE TABLE sp_mk.orders (id int, note text); "
+        "INSERT INTO sp_mk.orders VALUES (1, 'sp-marker'); "
+        "GRANT USAGE ON SCHEMA sp_hijack TO public; "
+        "GRANT USAGE ON SCHEMA sp_mk TO public; "
+        "GRANT SELECT ON sp_mk.orders TO public; "
+        f"ALTER ROLE sp_app IN DATABASE {db} "
+        "SET search_path TO sp_hijack, pg_catalog, sp_mk, public;",
+    )
+    assert result.returncode == 0, result.stderr
+
+    # BEFORE the switch: the true path resolves the marker schema
+    # (sp_hijack carries no orders table)
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "sp_app",
+        DB_PASSWORD,
+        "sp-marker",
+        forbidden=("sp-public",),
+        where="before the switch",
+    )
+
+    # migrate by ONLY adding role, through the production renderer
+    role_config = make_db_access(
+        database=db, username="sp_app", role="sp_own", access=access
+    )
+    _run_provision(pg, build_script(role_config, legacy_config))
+
+    # AFTER the switch: the capture probed the TRUE raw value, not the
+    # shadowing function's return
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "sp_app",
+        DB_PASSWORD,
+        "sp-marker",
+        forbidden=("sp-public",),
+        where="after the switch",
+    )
+
+    # a second run: the store round-trips the true tokens
+    _run_provision(pg, build_script(role_config))
+    _assert_unqualified_marker(
+        pg,
+        db,
+        "sp_app",
+        DB_PASSWORD,
+        "sp-marker",
+        forbidden=("sp-public",),
+        where="after a second run",
+    )
+
+    # the store holds the true path tokens
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT cfg FROM pg_db_role_setting s "
+            "JOIN pg_roles r ON r.oid = s.setrole "
+            "JOIN pg_database d ON d.oid = s.setdatabase "
+            "CROSS JOIN LATERAL unnest(s.setconfig) AS cfg "
+            "WHERE r.rolname = 'sp_own' AND d.datname = "
+            f"'{db}' AND cfg LIKE 'search_path=%'",
+        )
+        == "search_path=sp_hijack, pg_catalog, sp_mk, public"
+    ), "the capture stored a shadowed value instead of the true path"

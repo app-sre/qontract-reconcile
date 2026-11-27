@@ -28,6 +28,7 @@ Run explicitly:
 # | L09 | Deprovision with an open session and the login's own data | The open session is terminated, new logins fail, the login-created table and committed data survive under admin ownership; the repeat removal is a no-op. | `test_legacy_own_schema_lifecycle`                |
 # | L10 | Password authentication is enforced for app logins        | Only the correct password connects; wrong or missing passwords are rejected; only fixture roles keep trust.                                               | `test_legacy_password_auth_enforced`              |
 # | L11 | A failed run on an adopted database                        | PUBLIC keeps CONNECT after a failed run (the revoke rolls back with the transaction); a successful run still revokes it and locks PUBLIC-connecting logins out.| `test_legacy_revoke_public_rolls_back_with_failed_run` |
+# | L12 | Deprovision with a nonempty access list for an absent login | The missing-login guard runs BEFORE the revoke block: the deprovision is a successful no-op (nothing to deprovision) and the access list's schema keeps its objects.  | `test_legacy_deprovision_missing_login_nonempty_access` |
 
 from __future__ import annotations
 
@@ -589,6 +590,56 @@ def test_legacy_password_auth_enforced(postgres: PostgresContainer) -> None:
 
 
 REVOKE_RB_PASSWORD = "RbPubPw1"  # notsecret
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("postgres", PG_VERSIONS, indirect=True)
+def test_legacy_deprovision_missing_login_nonempty_access(
+    postgres: PostgresContainer,
+) -> None:
+    """L12 — Deprovisioning an absent login is a no-op even with a
+    NONEMPTY access list.
+
+    The L09 repeat removal and the render helper's default exercise
+    the missing-login guard only with an empty access list. The guard
+    must run BEFORE the revoke block: with a nonempty access list the
+    revoke block would construct a ``REVOKE ALL ... FROM ghost_user``
+    for the absent login (a "role does not exist" error), so a
+    successful no-op proves the guard's position and not merely the
+    guard's existence.
+    """
+    pg = postgres
+    db = "legacy_missing_login_db"
+    _create_database(pg, db)
+
+    # an admin-owned table in the schema the access list names: had
+    # the revoke block run, it would have errored on the absent login
+    # -- after the no-op the table keeps its owner and data
+    setup = pg.exec_psql(
+        EXECUTOR,
+        db,
+        "CREATE TABLE public.kept (id int); INSERT INTO public.kept VALUES (1);",
+    )
+    assert setup.returncode == 0, setup.stderr
+
+    result = _run_script(
+        pg,
+        _render_deprovision(db, "ghost_user", access_list="public|SELECT,INSERT"),
+        password=None,
+    )
+
+    # the guard produced the no-op message and nothing behind it ran
+    assert "nothing to deprovision" in result.stdout, result.stdout
+    assert (
+        pg.query(
+            EXECUTOR,
+            "postgres",
+            "SELECT count(*) FROM pg_roles WHERE rolname = 'ghost_user'",
+        )
+        == "0"
+    )
+    assert _table_owner(pg, db, "public", "kept") == EXECUTOR
+    assert pg.query(EXECUTOR, db, "SELECT count(*) FROM public.kept") == "1"
 
 
 @pytest.mark.e2e

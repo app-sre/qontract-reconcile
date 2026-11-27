@@ -87,20 +87,29 @@ SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_db_role_setting s
 --    prove one -- re-capturing then would freeze DAM's own
 --    previously written path as an untouchable prefix, so an
 --    intentional order change could never apply), the persistent
---    store is not initialized (a capture writes it), and the login
---    can actually CONNECT to the database: a legacy login without
---    CONNECT (a restricted database -- PUBLIC revoked and the direct
---    grant gone, e.g. after another entry's legacy job) could only
---    make the capture's application connection FAIL, aborting the job
---    after the password pre-set with nothing able to converge -- the
---    in-transaction CONNECT repair of section 3 never ran. Such a
---    login skips the application-connection capture entirely -- a
---    documented degradation: the path falls back to the configured
---    order like a fresh login -- and section 3's grant plus
---    verification repairs the privilege itself. The CASE (not a bare
---    AND) guards has_database_privilege: it errors on a nonexistent
---    role, and a capture-eligible login always exists while a fresh
---    one may not.
+--    store is not initialized (a capture writes it). A login that
+--    exists but currently lacks CONNECT on the database (a restricted
+--    database -- PUBLIC revoked and the direct grant gone, e.g. after
+--    another entry's legacy job) receives the executor's best-effort
+--    direct GRANT before the capture decision below: when the
+--    executor can grant (the normal case: it owns or administers the
+--    database), the capture's application connection succeeds and the
+--    login's legacy resolution is PRESERVED (regression: the capture
+--    used to be skipped for a CONNECT-less login and the configured
+--    order silently replaced its legacy path). When the executor
+--    cannot grant (no grant option, not the database owner), the
+--    GRANT only warns and the capture hop itself fails: the job
+--    aborts BEFORE the transaction -- the same fail-closed contract
+--    as section 3's CONNECT verification, without the silent
+--    resolution flip a skipped capture would perform. The CASE (not a
+--    bare AND) guards has_database_privilege: it errors on a
+--    nonexistent role, and a fresh login may not exist.
+SELECT 'GRANT CONNECT ON DATABASE "{database}" TO "{username}"'
+WHERE CASE WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_roles
+                        WHERE rolname = '{username_literal}')
+           THEN NOT has_database_privilege('{username_literal}',
+                                           '{database_literal}', 'CONNECT')
+           ELSE false END;\gexec
 SELECT (:'dam_login_existed'::boolean
         AND NOT :'dam_login_role_default'::boolean
         AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_db_role_setting rs
@@ -110,11 +119,6 @@ SELECT (:'dam_login_existed'::boolean
                                             WHERE rolname = '{role_literal}')
                           AND d.datname = '{database_literal}'
                           AND cfg LIKE 'search_path=%')
-        AND CASE WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_roles
-                               WHERE rolname = '{username_literal}')
-                 THEN has_database_privilege('{username_literal}',
-                                             '{database_literal}', 'CONNECT')
-                 ELSE false END
        ) AS dam_capture \gset
 \if :dam_capture
 -- the PASSWORD PRE-SET: the application-connection capture below
@@ -125,16 +129,27 @@ SELECT (:'dam_login_existed'::boolean
 -- already carries it), and it needs exactly the privileges the
 -- in-transaction password write of section 2 already requires (a
 -- legacy-managed login carries the legacy template's grant to the
--- admin). VALID UNTIL 'infinity' is part of the pre-set: an expired
--- login (an instance password policy) would otherwise fail the
--- capture's authentication FOREVER -- the expiry reset only comes
--- with section 2's password write, which the failed capture never
--- reaches, so the job could never converge. Residual window, taken
--- deliberately: a job abort after this point leaves the DATABASE
--- password ahead of the vault until the next successful run -- the
--- same staleness window the previous post-commit failure mode had,
--- and strictly better than a silent resolution flip.
-ALTER ROLE "{username}" PASSWORD :'db_user_password' VALID UNTIL 'infinity';
+-- admin). The VALID UNTIL 'infinity' reset is CONDITIONAL, guarded on
+-- the login being ACTUALLY expired (rolvaliduntil read from
+-- pg_roles): an expired login (an instance password policy) would
+-- otherwise fail the capture's authentication FOREVER -- the expiry
+-- reset only comes with section 2's password write, which the failed
+-- capture never reaches, so the job could never converge. A
+-- NON-expired login (a policy-set future expiry) keeps its expiry
+-- through the pre-set. Residual window, taken deliberately: a job
+-- abort after this point leaves the DATABASE password ahead of the
+-- vault until the next successful run -- the same staleness window
+-- the previous post-commit failure mode had -- and a failed capture
+-- on an ALREADY-EXPIRED login leaves password AND expiry changed
+-- (that login was unusable anyway); a failed capture on a non-expired
+-- login changes only the password. Both are strictly better than a
+-- silent resolution flip.
+ALTER ROLE "{username}" PASSWORD :'db_user_password';
+SELECT 'ALTER ROLE "{username}" VALID UNTIL ''infinity'''
+WHERE EXISTS (SELECT 1 FROM pg_catalog.pg_roles
+              WHERE rolname = '{username_literal}'
+                AND rolvaliduntil IS NOT NULL
+                AND rolvaliduntil <= current_timestamp);\gexec
 -- the application connection string of the observation hop is built
 -- CLIENT-side: psql \set argument concatenation joins the quoted
 -- literal and the db_user_password variable value into one conninfo
@@ -166,16 +181,27 @@ SELECT 'dbname=' ||
        AS dam_admin_conninfo \gset
 \c -reuse-previous=on :dam_app_conninfo
 -- the observation: PostgreSQL's own resolution of the login's
--- effective search_path, as a psql variable (it survives the hop
--- back; a session GUC would not). Nothing DAM writes exists yet:
--- this is the login's genuine pre-migration behavior.
-SELECT current_setting('search_path') AS dam_observed_sp \gset
+-- effective search_path AND of the identity its session actually
+-- acts as ($user resolves CURRENT_USER, not the login name: a DBA
+-- startup role default like SET role = tenant makes the session act
+-- as that role), as psql variables (they survive the hop back; a
+-- session GUC would not). Nothing DAM writes exists yet: this is the
+-- login's genuine pre-migration behavior. The probe is
+-- pg_catalog-qualified: pg_catalog is only prepended IMPLICITLY while
+-- the path does not name it, so a writable same-named function in a
+-- schema the login's path lists BEFORE an explicit pg_catalog could
+-- otherwise feed the capture a fabricated value. The bare current_user
+-- keyword is reservation syntax and cannot be shadowed at all.
+SELECT pg_catalog.current_setting('search_path') AS dam_observed_sp,
+       current_user AS dam_observed_user \gset
 \c -reuse-previous=on :dam_admin_conninfo
--- hand the observation to the settlement block inside the
--- transaction below: a session GUC in THIS executor session (set
--- after every reconnect, so no hop can lose it, and read by the
--- settlement DO block on the same backend)
-SELECT set_config('dam.observed_sp', :'dam_observed_sp', false);
+-- hand the observations to the settlement block inside the
+-- transaction below: session GUCs in THIS executor session (set
+-- after every reconnect, so no hop can lose them, and read by the
+-- settlement DO block on the same backend). pg_catalog-qualified for
+-- the same shadowing reason as the probe.
+SELECT pg_catalog.set_config('dam.observed_sp', :'dam_observed_sp', false);
+SELECT pg_catalog.set_config('dam.observed_user', :'dam_observed_user', false);
 \else
 -- not a capture run (a fresh login, a login an earlier role-mode
 -- run already manages, or a store that already governs the role):
@@ -240,30 +266,40 @@ DECLARE
     own_schema boolean;
     set_opt text := CASE WHEN current_setting('server_version_num')::int >= 160000
                          THEN ' WITH INHERIT TRUE, SET TRUE' ELSE '' END;
-    -- the membership probe: PG16+ role memberships carry a separate
-    -- SET option, and the ownership transfers of section 5 require
-    -- it (the ALTER ... OWNER TO check is "must be able to SET ROLE"
-    -- -- the plain SET ROLE command is not the same, verified on a
-    -- real instance: a membership with INHERIT TRUE / SET FALSE
-    -- passes a USAGE probe but fails every transfer). Older versions
-    -- have no SET option and keep the USAGE probe.
+    -- the membership probes: PG16+ role memberships carry separate
+    -- SET and INHERIT options, and section 5 needs BOTH from the
+    -- executor's wiring: the ownership transfers filter on USAGE
+    -- (inheritance -- a membership granted WITH SET TRUE, INHERIT
+    -- FALSE passes a SET-only probe while the transfers silently
+    -- skip that role's objects, and ALTER DEFAULT PRIVILEGES FOR
+    -- ROLE of 5i fails without the inherited membership), and the
+    -- ALTER ... OWNER TO check of section 5 requires SET ("must be
+    -- able to SET ROLE" -- the plain SET ROLE command is not the
+    -- same, verified on a real instance). A membership missing
+    -- either option is re-granted with INHERIT TRUE, SET TRUE: both
+    -- options upgrade and the ADMIN option of an existing membership
+    -- is preserved. Older versions have no SET option (set_probe is
+    -- USAGE there, so the second check is the same probe twice) and
+    -- keep the USAGE check alone.
     set_probe text := CASE WHEN current_setting('server_version_num')::int >= 160000
                            THEN 'SET' ELSE 'USAGE' END;
     s text;
 BEGIN
     -- the executor must be able to SET ROLE to the owner role for
-    -- every ownership transfer below. NOTE (PG16+): the automatic
-    -- grant a role gets when creating another role has ADMIN but
-    -- neither INHERIT nor SET, and a PRE-EXISTING membership can have
-    -- INHERIT TRUE with SET FALSE -- checking for membership alone is
-    -- not enough here. A re-grant with SET TRUE upgrades the option
-    -- and preserves the ADMIN option of an existing membership.
-    IF NOT pg_has_role(current_user, role_name, set_probe) THEN
+    -- every ownership transfer below, and to USE its privileges for
+    -- the transfers and the default privileges. NOTE (PG16+): the
+    -- automatic grant a role gets when creating another role has
+    -- ADMIN but neither INHERIT nor SET, and a PRE-EXISTING
+    -- membership can carry any option combination -- checking for
+    -- membership (or for one option) alone is not enough here.
+    IF NOT pg_has_role(current_user, role_name, set_probe)
+       OR NOT pg_has_role(current_user, role_name, 'USAGE') THEN
         EXECUTE format('GRANT %I TO %I%s', role_name, current_user, set_opt);
     END IF;
     -- the executor must control the login user to transfer objects of
     -- a previously managed user and to set its role default
-    IF NOT pg_has_role(current_user, user_name, set_probe) THEN
+    IF NOT pg_has_role(current_user, user_name, set_probe)
+       OR NOT pg_has_role(current_user, user_name, 'USAGE') THEN
         EXECUTE format('GRANT %I TO %I%s', user_name, current_user, set_opt);
     END IF;
     -- the login user becomes a member of the owner role
@@ -338,14 +374,27 @@ BEGIN
     -- grant is UNCONDITIONAL and idempotent: a login whose CONNECT
     -- came from PUBLIC keeps none of its own and loses it the moment
     -- another entry's legacy job revokes PUBLIC on the same database
-    -- -- a direct grant is the only one that survives that.
+    -- -- a direct grant is the only one that survives that. The
+    -- verification checks the login's own DIRECT ACL entry in
+    -- pg_database.datacl (aclexplode), not the effective privilege:
+    -- has_database_privilege includes PUBLIC, so a warning-grant from
+    -- a grantless executor would pass the check while the login
+    -- actually keeps CONNECT only via PUBLIC -- and gets locked out
+    -- by that later revoke.
     BEGIN
         EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', db, user_name);
     EXCEPTION WHEN insufficient_privilege THEN
         RAISE EXCEPTION 'login % has no CONNECT on database % and the executor cannot grant it',
             user_name, db;
     END;
-    IF NOT has_database_privilege(user_name, db, 'CONNECT') THEN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_database d
+        CROSS JOIN LATERAL pg_catalog.aclexplode(d.datacl) AS a
+        WHERE d.datname = db
+          AND a.grantee = (SELECT oid FROM pg_catalog.pg_roles
+                           WHERE rolname = user_name)
+          AND a.privilege_type = 'CONNECT'
+    ) THEN
         RAISE EXCEPTION 'login % has no CONNECT on database % after explicit grant',
             user_name, db;
     END IF;
@@ -356,6 +405,15 @@ DO $$
 DECLARE
     role_name text := '{role_literal}';
     user_name text := '{username_literal}';
+    -- the owner role's OID, resolved ONCE by exact text comparison
+    -- with pg_roles.rolname: text::regrole parses its input as an
+    -- UNQUOTED identifier (regrolein folds case), so a name that is
+    -- not all-lowercase would resolve to a different or nonexistent
+    -- role. Rendered role names are lowercase-only (the
+    -- psqlIdentifier schema domain), which made a regrole cast a
+    -- no-op there -- the OID comparison is exact for every name.
+    role_oid oid := (SELECT oid FROM pg_catalog.pg_roles
+                     WHERE rolname = role_name);
     -- the managed schema set, computed ONCE by section 3 and read
     -- from the dam.managed_schemas session setting (plain names,
     -- comma-joined -- exactly the format section 3 writes): the
@@ -390,7 +448,7 @@ BEGIN
         SELECT n.nspname AS schema_name
         FROM pg_namespace n
         WHERE n.nspname = ANY (schemas)
-          AND n.nspowner <> role_name::regrole
+          AND n.nspowner <> role_oid
           AND pg_has_role(current_user, n.nspowner, 'USAGE')
     LOOP
         EXECUTE format('ALTER SCHEMA %I OWNER TO %I', r.schema_name, role_name);
@@ -413,7 +471,7 @@ BEGIN
         SELECT n.nspname AS schema_name
         FROM pg_namespace n
         WHERE n.nspname = ANY (schemas)
-          AND n.nspowner <> role_name::regrole
+          AND n.nspowner <> role_oid
     LOOP
         BEGIN
             EXECUTE format('GRANT USAGE, CREATE ON SCHEMA %I TO %I',
@@ -444,7 +502,7 @@ BEGIN
         JOIN pg_namespace n ON n.oid = c.relnamespace
         WHERE n.nspname = ANY (schemas)
           AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
-          AND c.relowner <> role_name::regrole
+          AND c.relowner <> role_oid
           AND pg_has_role(current_user, c.relowner, 'USAGE')
           AND NOT EXISTS (
               SELECT 1 FROM pg_depend d
@@ -464,7 +522,7 @@ BEGIN
         JOIN pg_namespace n ON n.oid = c.relnamespace
         WHERE n.nspname = ANY (schemas)
           AND c.relkind = 'S'
-          AND c.relowner <> role_name::regrole
+          AND c.relowner <> role_oid
           AND pg_has_role(current_user, c.relowner, 'USAGE')
           AND NOT EXISTS (
               SELECT 1 FROM pg_depend d
@@ -483,7 +541,7 @@ BEGIN
         FROM pg_statistic_ext s
         JOIN pg_namespace n ON n.oid = s.stxnamespace
         WHERE n.nspname = ANY (schemas)
-          AND s.stxowner <> role_name::regrole
+          AND s.stxowner <> role_oid
           AND pg_has_role(current_user, s.stxowner, 'USAGE')
           AND NOT EXISTS (
               SELECT 1 FROM pg_depend d
@@ -511,7 +569,7 @@ BEGIN
         FROM pg_proc p
         JOIN pg_namespace n ON n.oid = p.pronamespace
         WHERE n.nspname = ANY (schemas)
-          AND p.proowner <> role_name::regrole
+          AND p.proowner <> role_oid
           AND pg_has_role(current_user, p.proowner, 'USAGE')
           AND NOT EXISTS (
               SELECT 1 FROM pg_depend d
@@ -535,7 +593,7 @@ BEGIN
         JOIN pg_namespace n ON n.oid = t.typnamespace
         WHERE n.nspname = ANY (schemas)
           AND t.typtype IN ('c', 'e', 'd', 'r')
-          AND t.typowner <> role_name::regrole
+          AND t.typowner <> role_oid
           AND pg_has_role(current_user, t.typowner, 'USAGE')
           AND NOT EXISTS (
               SELECT 1 FROM pg_class c
@@ -560,7 +618,7 @@ BEGIN
         JOIN pg_namespace n ON n.oid = c.relnamespace
         WHERE n.nspname = ANY (schemas)
           AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')
-          AND c.relowner <> role_name::regrole
+          AND c.relowner <> role_oid
           AND pg_has_role(current_user, c.relowner, 'USAGE')
     LOOP
         EXECUTE format('GRANT ALL PRIVILEGES ON %I.%I TO %I',
@@ -574,7 +632,7 @@ BEGIN
         FROM pg_proc p
         JOIN pg_namespace n ON n.oid = p.pronamespace
         WHERE n.nspname = ANY (schemas)
-          AND p.proowner <> role_name::regrole
+          AND p.proowner <> role_oid
           AND pg_has_role(current_user, p.proowner, 'USAGE')
           AND NOT EXISTS (
               SELECT 1 FROM pg_depend d
@@ -795,7 +853,7 @@ BEGIN
         SELECT n.nspname AS schema_name
         FROM pg_namespace n
         WHERE n.nspname = ANY (schemas)
-          AND n.nspowner <> role_name::regrole
+          AND n.nspowner <> role_oid
     LOOP
         IF r.schema_name = ANY (write_schemas) THEN
             BEGIN
@@ -882,6 +940,7 @@ DECLARE
     sp_elems text[] := ARRAY[]::text[];
     revoked text[] := ARRAY[]::text[];
     observed text;
+    observed_user text;
     captured boolean;
     store_raw text;
     raw_value text;
@@ -900,9 +959,15 @@ DECLARE
     sp text;
     store_sp text;
 BEGIN
-    -- the observation of the capture run (the session GUC set in the
-    -- section-0 \if branch; NULL on every other run)
-    observed := current_setting('dam.observed_sp', true);
+    -- the observations of the capture run (the session GUCs set in
+    -- the section-0 \if branch; NULL on every other run). The search
+    -- path and the identity the login's session acted as
+    -- (current_user there -- a DBA startup role default like SET
+    -- role = tenant makes the session act as that role). The reads
+    -- are pg_catalog-qualified: the settlement must not be
+    -- shadowable by a hostile function in the executor's path.
+    observed := pg_catalog.current_setting('dam.observed_sp', true);
+    observed_user := pg_catalog.current_setting('dam.observed_user', true);
     captured := observed IS NOT NULL;
 
     -- the persistent LEGACY-PATH STORE: the owner role's per-database
@@ -998,9 +1063,12 @@ BEGIN
     -- Token semantics, exactly like PostgreSQL's own resolution:
     -- a QUOTED token keeps its content EXACTLY (a trailing space or
     -- an embedded tab is part of the name -- btrim would silently
-    -- change the resolution), an UNQUOTED token folds to LOWERCASE
-    -- (PostgreSQL resolves unquoted path elements case-insensitively:
-    -- a raw TENANT resolves the tenant schema, never "TENANT"), and
+    -- change the resolution), an UNQUOTED token folds to lowercase
+    -- ASCII-ONLY (PostgreSQL downcases identifiers ASCII-only and
+    -- resolves unquoted path elements case-insensitively: a raw
+    -- TENANT resolves the tenant schema, never "TENANT" -- and a raw
+    -- TENÄNTX resolves tenÄntx, never the tenäntx a locale-aware
+    -- lower() would produce), and
     -- whitespace never becomes part of an unquoted token (the
     -- [:space:] branch below precedes the append branch, so a tab is
     -- a separator or invalid syntax -- PostgreSQL itself rejects
@@ -1061,10 +1129,15 @@ BEGIN
                     i := i + 1;
                 ELSIF ch = ',' THEN
                     -- a quoted token keeps its content EXACTLY, an
-                    -- unquoted one folds to lowercase like
-                    -- PostgreSQL's own resolution
+                    -- unquoted one folds ASCII-only to lowercase like
+                    -- PostgreSQL's own identifier downcasing (never
+                    -- locale-aware: lower() would fold Ä to ä in a
+                    -- UTF-8 locale -- a name PostgreSQL itself never
+                    -- resolves an unquoted token to)
                     t := CASE WHEN token_quoted THEN cur
-                              ELSE lower(btrim(cur)) END;
+                              ELSE translate(btrim(cur),
+                                             'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+                                             'abcdefghijklmnopqrstuvwxyz') END;
                     IF t = '' THEN
                         -- an empty element is invalid list syntax
                         tokens := NULL;
@@ -1106,8 +1179,12 @@ BEGIN
                     -- an unterminated quoted segment is invalid syntax
                     tokens := NULL;
                 ELSE
+                    -- the final element folds like the comma-separated
+                    -- ones: quoted content EXACT, unquoted ASCII-only
                     t := CASE WHEN token_quoted THEN cur
-                              ELSE lower(btrim(cur)) END;
+                              ELSE translate(btrim(cur),
+                                             'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+                                             'abcdefghijklmnopqrstuvwxyz') END;
                     IF t <> '' THEN
                         tokens := array_append(tokens, t);
                     END IF;
@@ -1142,18 +1219,26 @@ BEGIN
         legacy := ARRAY[]::text[];
     ELSE
         -- the capture run: preserve the login's effective current
-        -- resolution, parsed as names above. $user resolves to the
-        -- login name, and the login-name token only stays while a
-        -- schema of that name exists. When the login had no setting
-        -- at all, the observation IS the built-in "$user", public --
-        -- this branch preserves it exactly like a DBA-set value.
+        -- resolution, parsed as names above. $user expands to the
+        -- identity OBSERVED during the capture (current_user in the
+        -- capture session -- a DBA startup role default like SET
+        -- role = tenant makes the session act as that role, and
+        -- PostgreSQL resolves $user against it), NOT the login name:
+        -- the login-name substitution used to drop the tenant schema
+        -- off the path and silently flip the unqualified resolution.
+        -- The exists-filter applies to the substituted identity's
+        -- token and to the login name alike: the token only stays
+        -- while a schema of that name exists. When the login had no
+        -- setting at all, the observation IS the built-in "$user",
+        -- public -- this branch preserves it exactly like a DBA-set
+        -- value.
         FOREACH t IN ARRAY tokens LOOP
             IF t = '$user' THEN
-                t := user_name;
+                t := COALESCE(observed_user, user_name);
             END IF;
-            IF t = user_name
+            IF t IN (user_name, observed_user)
                AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_namespace n
-                               WHERE n.nspname = user_name) THEN
+                               WHERE n.nspname = t) THEN
                 CONTINUE;
             END IF;
             IF t <> '' AND NOT legacy @> ARRAY[t] THEN

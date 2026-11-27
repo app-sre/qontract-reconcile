@@ -12,6 +12,7 @@ Provides:
 from __future__ import annotations
 
 import base64
+import os
 import shutil
 import subprocess
 import time
@@ -387,9 +388,19 @@ def _pg_hba_conf() -> Generator[Path]:
     /var/folders or /tmp mount as empty directories there. A unique
     name keeps concurrent pytest runs isolated; the copy is removed
     at the end of the session.
+
+    ``shutil.copyfile`` copies the content only: the copy is created
+    with the process umask applied, so under a restrictive umask
+    (e.g. 077) it comes out ``0600`` even from a ``0644`` original
+    -- and the container's ``postgres`` user then cannot read it (the
+    shared ``:z`` label relabels the SELinux context, it does not
+    grant read permission), failing every E2E fixture at startup.
+    The copy is therefore chmod-ed to ``0644`` before it is mounted;
+    the original file's mode is never touched.
     """
     session_copy = Path(__file__).parent / f".pg_hba.conf.{uuid.uuid4().hex[:8]}.copy"
     shutil.copyfile(Path(__file__).parent / "pg_hba.conf", session_copy)
+    os.chmod(session_copy, 0o644)
     try:
         yield session_copy
     finally:
@@ -564,8 +575,16 @@ def _render_provision(
 
 
 def _render_deprovision(
-    database: str, username: str, *, role: bool = False, admin_user: str = EXECUTOR
+    database: str,
+    username: str,
+    *,
+    role: bool = False,
+    admin_user: str = EXECUTOR,
+    access_list: str = "",
 ) -> str:
+    """Render a deprovision template. The access list defaults to
+    empty like a settled-state removal; pass a nonempty list to
+    exercise the guard position with a revoke block behind it."""
     template = "role_deprovision.sql" if role else "legacy_deprovision.sql"
     return _render_sql(
         template,
@@ -574,7 +593,7 @@ def _render_deprovision(
         username=username,
         username_literal=username,
         admin_user=admin_user,
-        access_list="",
+        access_list=access_list,
     )
 
 

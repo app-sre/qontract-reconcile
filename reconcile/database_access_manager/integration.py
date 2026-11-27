@@ -256,6 +256,9 @@ def _validate_role_sharing(
     divergent orders would resolve unqualified names differently per
     entry. Sharing is only allowed within one RDS resource (the
     rotation mechanism); name, username and delete flag may differ.
+    A schema is managed by at most one owner role -- except the
+    login-named schema of a delete entry, which deprovisioning never
+    adopts.
 
     Each entry is a (config, resolved username) tuple so that
     generated logins are covered by the collision check too."""
@@ -310,11 +313,17 @@ def _validate_role_sharing(
     # also contains the schema named after its resolved login -- the
     # ownership transfer in role_provision.sql adopts that schema
     # even with an empty access list -- so it participates in the
-    # check exactly like an access-list schema.
+    # check exactly like an access-list schema. Delete entries do not
+    # claim their login-named schema: deprovisioning never adopts
+    # schemas on behalf of the owner role, so an unrelated entry may
+    # manage a schema of that name (the explicit access list of a
+    # delete entry still participates).
     schemas_by_role: dict[str, set[tuple[str, str]]] = {}
     for db_access, username in entries:
         if db_access.role:
-            schemas = {(db_access.database, username)}
+            schemas: set[tuple[str, str]] = set()
+            if not db_access.delete:
+                schemas.add((db_access.database, username))
             schemas.update(
                 (db_access.database, a.target.dbschema) for a in db_access.access or []
             )
@@ -774,7 +783,20 @@ def _process_db_access(
                     job_digest = _script_configuration_digest(
                         job_secret.get("script.sql", "")
                     )
-                    if job_digest == _configuration_digest(db_access):
+                    job_connection = _job_connection(job_secret)
+                    # the job must have run the current configuration
+                    # AND against the current endpoint: neither the
+                    # job name nor the script digest changes when the
+                    # admin secret points at a different host or port
+                    # under the same name, so a job that succeeded on
+                    # another endpoint would otherwise settle and
+                    # publish the current endpoint's address with the
+                    # password that was set on the old one
+                    if (
+                        job_digest == _configuration_digest(db_access)
+                        and job_connection.host == admin_connection.host
+                        and job_connection.port == admin_connection.port
+                    ):
                         # the job ran the current configuration: settle.
                         # The confirmed application supersedes the
                         # pending marker -- what was applied is known,
@@ -793,7 +815,7 @@ def _process_db_access(
                                     vault_output_path,
                                     state_key,
                                     _current_user_connection(
-                                        _job_connection(job_secret).password,
+                                        job_connection.password,
                                         admin_connection,
                                         username,
                                         db_access.database,
@@ -833,12 +855,14 @@ def _process_db_access(
                         # would change the database password on every
                         # reconcile, breaking the credential that vault
                         # just published.
-                        convergence_password = _job_connection(job_secret).password
+                        convergence_password = job_connection.password
                     else:
-                        # stale job from an older configuration (e.g. the
-                        # configuration was reverted while the job was in
-                        # flight): replace it below and revoke everything it
-                        # may have applied
+                        # stale job from an older configuration (e.g.
+                        # the configuration was reverted while the job
+                        # was in flight) or from another endpoint (the
+                        # admin secret moved to a different host or
+                        # port under the same name): replace it below
+                        # and revoke everything it may have applied
                         stale_job = True
                 elif state_matches and not pending_exists:
                     # the job secret expired (TTL) and the state

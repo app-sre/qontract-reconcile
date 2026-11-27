@@ -863,6 +863,10 @@ def test_process_pending_job_reuses_password(
     # job is running: no new job is enqueued, state is not updated
     dbam_controller.enqueue_job.assert_not_called()
     dbam_state.add.assert_not_called()
+    # and the running job is not deleted either: the entry WAITS for
+    # it (deleting it would lose the job-bound credential record and
+    # force a password rotation)
+    dbam_controller.delete_job.assert_not_called()
 
 
 def test_process_job_error_raises(
@@ -2313,11 +2317,12 @@ def test_process_vault_password_on_current_connection(
 
 
 def _stale_job_secret(script: str) -> dict[str, dict[str, str]]:
-    """A job-bound secret whose recorded connection is entirely stale:
-    only its password must survive into the republished credential."""
+    """A job-bound secret whose recorded login and database are stale
+    (it ran against the current endpoint): only its password must
+    survive into the republished credential."""
     data = {
-        "db.host": "stale-host",
-        "db.port": "9999",
+        "db.host": "localhost",
+        "db.port": "5432",
         "db.user": "old_login",
         "db.password": "jobpw",  # notsecret
         "db.name": "olddb",
@@ -2418,3 +2423,158 @@ def test_process_settled_guard_accepts_pinned_generated_username(
 
     # the entry proceeds to provisioning instead of being rejected
     dbam_controller.enqueue_job.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# review feedback round 3 -- integration work stream
+# ---------------------------------------------------------------------------
+
+
+def test_validate_role_sharing_delete_entry_does_not_claim_login_schema(
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    """A delete entry with an empty access list does not claim the
+    schema named after its resolved login in the (database, schema)
+    exclusivity check: deprovisioning never adopts schemas on behalf
+    of the owner role, so an unrelated entry managing a schema of
+    that name must not block the deprovisioning. A provisioning entry
+    with the same overlap is still rejected -- its ownership transfer
+    would adopt the schema the other role manages."""
+    orders_delete = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "orders-entry",
+            "database": "postgres",
+            "role": "orders_owner",
+            "username": "orders",
+            "delete": True,
+            "access": [],
+        },
+    )
+    reporting = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "reporting-entry",
+            "database": "postgres",
+            "role": "reporting_owner",
+            "access": [{"grants": ["SELECT"], "target": {"dbschema": "orders"}}],
+        },
+    )
+    # deprovisioning the orders entry must not be blocked by the
+    # reporting entry managing the schema of the same name
+    _validate_role_sharing([
+        (orders_delete, "orders"),
+        (reporting, "reporting_login"),
+    ])
+
+    # the provisioning variant of the same overlap is still rejected
+    orders_provision = orders_delete.model_copy(deep=True)
+    orders_provision.delete = False
+    with pytest.raises(ValueError, match="can only be managed by one owner role"):
+        _validate_role_sharing([
+            (orders_provision, "orders"),
+            (reporting, "reporting_login"),
+        ])
+
+
+def test_validate_role_sharing_delete_entry_access_list_still_conflicts(
+    gql_class_factory: Callable[..., DatabaseAccessV1],
+) -> None:
+    """The explicit access list of a delete entry still participates in
+    the (database, schema) exclusivity check: those schemas belong to
+    the entry's owner role until the deprovisioning completes, so
+    another role must not manage them."""
+    delete_entry = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "orders-entry",
+            "database": "postgres",
+            "role": "orders_owner",
+            "username": "orders",
+            "delete": True,
+            "access": [{"grants": ["SELECT"], "target": {"dbschema": "shared"}}],
+        },
+    )
+    reporting = gql_class_factory(
+        DatabaseAccessV1,
+        {
+            "name": "reporting-entry",
+            "database": "postgres",
+            "role": "reporting_owner",
+            "access": [{"grants": ["SELECT"], "target": {"dbschema": "shared"}}],
+        },
+    )
+    with pytest.raises(ValueError, match="can only be managed by one owner role"):
+        _validate_role_sharing([
+            (delete_entry, "orders"),
+            (reporting, "reporting_login"),
+        ])
+
+
+def _cross_endpoint_job_secret(
+    script: str, *, host: str, port: str
+) -> dict[str, dict[str, str]]:
+    """A job-bound secret of a job that ran the current configuration
+    against a different endpoint: the admin secret moved to another
+    host or port under the same name after the job succeeded."""
+    data = {
+        "db.host": host,
+        "db.port": port,
+        "db.user": "cs_owner_abc",
+        "db.password": "jobpw",  # notsecret
+        "db.name": "postgres",
+        "script.sql": script,
+    }
+    return {"data": {k: _b64(v) for k, v in data.items()}}
+
+
+@pytest.mark.parametrize(
+    ("host", "port"),
+    [
+        ("moved.example.com", "5432"),
+        ("localhost", "5433"),
+    ],
+)
+def test_process_settled_job_on_different_endpoint_is_replaced(
+    db_access_role: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_controller: MagicMock,
+    oc_map: MagicMock,
+    db_access_namespace: NamespaceV1,
+    secret_reader: MagicMock,
+    vault_mock: MagicMock,
+    oc: MagicMock,
+    host: str,
+    port: str,
+) -> None:
+    """A settled job whose bound secret records a different endpoint
+    (the admin secret now points at another instance under the same
+    name) must be treated as stale: the password in the secret was set
+    on the old endpoint and must never be published with the current
+    endpoint's address. The replacement re-runs the job against the
+    current endpoint."""
+    oc.get.side_effect = lambda ns, kind, name, allow_not_found=True: (
+        ADMIN_SECRET
+        if name == ADMIN_SECRET_NAME
+        else _cross_endpoint_job_secret(
+            _desired_script(db_access_role), host=host, port=port
+        )
+    )
+    dbam_controller.get_job_status.side_effect = [
+        JobStatus.NOT_EXISTS,  # legacy-format job: not found
+        JobStatus.SUCCESS,  # new-format job: ran the current config elsewhere
+        JobStatus.IN_PROGRESS,  # the replacement job is still running
+    ]
+    run_process(
+        db_access_role, dbam_state, secret_reader, vault_mock, db_access_namespace
+    )
+
+    # the job is replaced, not settled: the replacement runs against
+    # the current endpoint and revokes everything the old job may
+    # have applied (what it applied against the current endpoint is
+    # unknown)
+    dbam_controller.enqueue_job.assert_called_once()
+    assert "foo|ALL" in enqueued_job(dbam_controller).script
+    # no credential is published: the settled job's password belongs
+    # to the old endpoint, and the replacement has not finished yet
+    vault_mock.write.assert_not_called()
