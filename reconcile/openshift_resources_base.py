@@ -1017,7 +1017,17 @@ def run(
             sys.exit(1)
 
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
-    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
+    privilege_resolver = ob.NamespacePrivilegeResolver({
+        (ns["cluster"]["name"], ns["name"]): ns.get("clusterAdmin") is True
+        for ns in namespaces
+    })
+    ob.realize_data(
+        dry_run,
+        oc_map,
+        ri,
+        thread_pool_size,
+        privilege_resolver=privilege_resolver,
+    )
 
     if ri.has_error_registered():
         sys.exit(1)

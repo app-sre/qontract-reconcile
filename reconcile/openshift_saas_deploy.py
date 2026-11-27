@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
@@ -43,9 +44,31 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from reconcile.slack_base import SlackApi
+    from reconcile.utils.openshift_resource import OpenshiftResource
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
+
+
+@dataclass(frozen=True)
+class SaasFilePrivilegeResolver:
+    """In an unnamed run, limit admin access to the selected file's resources."""
+
+    cluster_admin: bool
+    selected_file_name: str
+    caller_filter_active: bool
+
+    def resolve(
+        self,
+        *,
+        cluster: str,
+        namespace: str,
+        resource_type: str,
+        current: OpenshiftResource,
+    ) -> bool:
+        return self.cluster_admin and (
+            self.caller_filter_active or current.caller == self.selected_file_name
+        )
 
 
 def _saas_file_tekton_pipeline_name(saas_file: SaasFile) -> str:
@@ -290,13 +313,21 @@ def run(
         "enable_init_projects",
         default=False,
     )
+    cluster_admin = bool(saasherder.cluster_admin)
+
+    privilege_resolver = SaasFilePrivilegeResolver(
+        cluster_admin=cluster_admin,
+        selected_file_name=saas_files[0].name,
+        caller_filter_active=saas_file_name is not None,
+    )
+
     ri, oc_map = ob.fetch_current_state(
         namespaces=[ns.model_dump(by_alias=True) for ns in saasherder.namespaces],
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         init_api_resources=True,
-        cluster_admin=bool(saasherder.cluster_admin),
+        cluster_admin=cluster_admin,
         init_projects=enable_init_projects,
     )
     if defer:  # defer is provided by the method decorator. this makes just mypy happy
@@ -327,6 +358,7 @@ def run(
         wait_for_namespace=True,
         no_dry_run_skip_compare=(not saasherder.compare),
         take_over=bool(saasherder.take_over),
+        privilege_resolver=privilege_resolver,
     )
 
     if not dry_run:

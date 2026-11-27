@@ -1651,9 +1651,13 @@ def openshift_namespaces_api(
 @binary(["oc"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
+@cluster_name
 @click.pass_context
 def openshift_network_policies(
-    ctx: click.Context, thread_pool_size: int, internal: bool
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    cluster_name: Iterable[str] | None,
 ) -> None:
     import reconcile.openshift_network_policies
 
@@ -1662,6 +1666,7 @@ def openshift_network_policies(
         ctx,
         thread_pool_size,
         internal,
+        cluster_name=cluster_name,
     )
 
 

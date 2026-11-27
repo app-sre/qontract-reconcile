@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import reconcile.openshift_base as ob
+from reconcile.gql_definitions.openshift_network_policies.namespaces import (
+    NamespaceV1,
+    query,
+)
 from reconcile.utils import gql
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
@@ -14,68 +18,7 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Mapping
-
-NAMESPACES_QUERY = """
-{
-  namespaces: namespaces_v1 {
-    name
-    delete
-    clusterAdmin
-    cluster {
-      name
-      serverUrl
-      insecureSkipTLSVerify
-      automationToken {
-        path
-        field
-        version
-        format
-      }
-      automationTokens {
-        name
-        namespace
-        active
-        delete
-        secret {
-          path
-          field
-          version
-          format
-        }
-      }
-      clusterAdminAutomationToken {
-        path
-        field
-        version
-        format
-      }
-      clusterAdminAutomationTokens {
-        name
-        namespace
-        active
-        delete
-        secret {
-          path
-          field
-          version
-          format
-        }
-      }
-      internal
-      disable {
-        integrations
-      }
-    }
-    networkPoliciesAllow {
-        name
-        cluster {
-            name
-        }
-    }
-  }
-}
-"""
+    from collections.abc import Callable, Iterable
 
 QONTRACT_INTEGRATION = "openshift-network-policies"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -110,19 +53,20 @@ def construct_oc_resource(name: str, source_ns: str) -> OR:
 
 
 def fetch_desired_state(
-    namespaces: Iterable[Mapping[str, Any]],
+    namespaces: Iterable[NamespaceV1],
     ri: ResourceInventory,
     oc_map: ob.ClusterMap,
 ) -> None:
     for namespace_info in namespaces:
-        namespace = namespace_info["name"]
-        cluster = namespace_info["cluster"]["name"]
-        if not oc_map.get(cluster):
+        namespace = namespace_info.name
+        cluster = namespace_info.cluster.name
+        privileged = bool(namespace_info.cluster_admin)
+        if not oc_map.get(cluster, privileged):
             continue
-        source_namespaces = namespace_info.get("networkPoliciesAllow") or []
+        source_namespaces = namespace_info.network_policies_allow or []
         for source_namespace_info in source_namespaces:
-            source_namespace = source_namespace_info["name"]
-            source_cluster = source_namespace_info["cluster"]["name"]
+            source_namespace = source_namespace_info.name
+            source_cluster = source_namespace_info.cluster.name
             if cluster != source_cluster:
                 ri.register_error()
                 msg = f"[{cluster}/{namespace}] Network Policy from cluster '{source_cluster}' not allowed."
@@ -136,7 +80,7 @@ def fetch_desired_state(
                 "NetworkPolicy",
                 resource_name,
                 oc_resource,
-                privileged=namespace_info.get("clusterAdmin") or False,
+                privileged=privileged,
             )
 
 
@@ -146,29 +90,37 @@ def run(
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     defer: Callable | None = None,
+    *,
+    cluster_name: Iterable[str] | None = None,
 ) -> None:
     gqlapi = gql.get_api()
 
+    cluster_names = set(cluster_name or ())
     namespaces = []
-    namespaces_query_result = gqlapi.query(NAMESPACES_QUERY)
-    if not namespaces_query_result:
-        return
-
-    for namespace_info in namespaces_query_result["namespaces"]:
-        if not namespace_info.get("networkPoliciesAllow"):
+    for namespace_info in query(gqlapi.query).namespaces or []:
+        if cluster_names and namespace_info.cluster.name not in cluster_names:
             continue
-        if ob.is_namespace_deleted(namespace_info):
+        if not namespace_info.network_policies_allow:
+            continue
+        if namespace_info.delete:
             continue
 
-        shard_key = f"{namespace_info['cluster']['name']}/{namespace_info['name']}"
+        shard_key = f"{namespace_info.cluster.name}/{namespace_info.name}"
 
         if not is_in_shard(shard_key):
             continue
 
         namespaces.append(namespace_info)
 
+    if not namespaces:
+        return
+
+    privilege_resolver = ob.NamespacePrivilegeResolver({
+        (ns.cluster.name, ns.name): bool(ns.cluster_admin) for ns in namespaces
+    })
+
     ri, oc_map = ob.fetch_current_state(
-        namespaces=namespaces,
+        namespaces=[ns.model_dump(by_alias=True) for ns in namespaces],
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
@@ -179,7 +131,13 @@ def run(
         defer(oc_map.cleanup)
     fetch_desired_state(namespaces, ri, oc_map)
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
-    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
+    ob.realize_data(
+        dry_run,
+        oc_map,
+        ri,
+        thread_pool_size,
+        privilege_resolver=privilege_resolver,
+    )
 
     if ri.has_error_registered():
         sys.exit(1)
