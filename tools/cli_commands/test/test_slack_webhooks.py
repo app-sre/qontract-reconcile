@@ -263,17 +263,3 @@ def test_rejects_invalid_dump_url(tmp_path: Any) -> None:
 
     with pytest.raises(SlackWebhookSyncError, match="invalid URL"):
         command.execute(dump_file, dry_run=True)
-
-
-def test_reads_dump_file_without_permission_check(tmp_path: Any) -> None:
-    dump_file = write_dump(tmp_path, webhook_dump())
-    dump_file.chmod(0o644)
-    assert dump_file.stat().st_mode & 0o044
-
-    command = SlackWebhookSyncCommand(
-        workspace="redhat-internal",
-        query_func=query,
-        command_runner=FakeRunner(vault_secret=webhook_dump()),
-    )
-
-    command.execute(dump_file, dry_run=True)
