@@ -250,16 +250,16 @@ def test_sync_creates_missing_hcp_variable(tmp_path: Any) -> None:
     }
 
 
-def test_rejects_invalid_dump_url(tmp_path: Any) -> None:
-    dump_file = write_dump(
-        tmp_path,
-        {"sd-app-sre-alert": "http://hooks.example/test"},
-    )
+@pytest.mark.parametrize("url", [None, 1])
+def test_rejects_non_string_dump_url(tmp_path: Any, url: Any) -> None:
+    dump_file = write_dump(tmp_path, {"sd-app-sre-alert": url})
     command = SlackWebhookSyncCommand(
         workspace="redhat-internal",
         query_func=query,
         command_runner=no_op_runner,
     )
 
-    with pytest.raises(SlackWebhookSyncError, match="invalid URL"):
+    with pytest.raises(
+        SlackWebhookSyncError, match="dump file entries must be strings"
+    ):
         command.execute(dump_file, dry_run=True)
