@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from reconcile.utils.internal_groups.models import (
     Entity,
@@ -137,3 +138,38 @@ def test_internal_groups_models_group_json() -> None:
             "members": [{"id": "user-1", "type": "user"}],
         },
     )
+
+
+@pytest.mark.parametrize("member_data", [{}, {"members": None}, {"members": []}])
+def test_internal_groups_models_group_empty_members(
+    member_data: dict[str, object],
+) -> None:
+    group = Group.model_validate(GROUP.model_dump(exclude={"members"}) | member_data)
+
+    assert group.members == []
+    assert group.model_dump(mode="json", by_alias=True)["members"] == []
+
+
+def test_internal_groups_models_group_parse_members() -> None:
+    group = Group.model_validate(
+        GROUP.model_dump() | {"members": [{"type": "user", "id": "user-1"}]}
+    )
+
+    assert group.members == [USER_1]
+    assert isinstance(group.members[0], Entity)
+
+
+@pytest.mark.parametrize("members", [False, 0, "", {}, [{}], [None]])
+def test_internal_groups_models_group_invalid_members(members: object) -> None:
+    with pytest.raises(ValidationError, match="members"):
+        Group.model_validate(GROUP.model_dump() | {"members": members})
+
+
+def test_internal_groups_models_group_members_default_is_independent() -> None:
+    data = GROUP.model_dump(exclude={"members"})
+    first = Group.model_validate(data)
+    second = Group.model_validate(data)
+
+    first.members.append(USER_1)
+
+    assert second.members == []
