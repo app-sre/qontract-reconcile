@@ -49,8 +49,8 @@ Change the SOURCE, then regenerate. Never edit these files.
 
 ### Prerequisites
 
-- **Python 3.12** (exact pin)
-- **uv** (>=0.10.11) for dependency management
+- **Python 3.14** (exact pin, `requires-python = "==3.14.*"` in pyproject.toml — PEP 758 applies: unparenthesized `except A, B:` tuples are valid and ruff enforces them)
+- **uv** (0.13.7, see .tool-versions) for dependency management
 - **Docker/Podman** for containerized development
 
 ### Setup
@@ -100,7 +100,7 @@ make dev-reconcile-loop  # Start containerized development environment
 ## Tooling Stack
 
 - **Package manager**: uv, workspace with 4 members
-- **Linting/formatting**: ruff (line-length=88, target py312)
+- **Linting/formatting**: ruff (line-length=88, auto-fix enabled via `fix = true` in pyproject.toml — plain `ruff check` rewrites files, not just reports)
 - **Type checking**: mypy strict (disallow_untyped_defs, pydantic plugin)
 - **Testing**: pytest + pytest-mock + moto (AWS mocking) + responses (HTTP mocking)
 - **GraphQL codegen**: qenerate
@@ -242,6 +242,7 @@ Do NOT create a barrel re-export `models.py` — import directly from `domain.py
 - Target >80% coverage for new integration code
 - Client-side tests go in `reconcile/test/test_<name>_api.py` (or `reconcile/test/<name>_api/` for complex integrations)
 - Server-side tests go in `qontract_api/tests/integrations/<name>/`
+- **E2E tests** (marked `@pytest.mark.e2e`) run real PostgreSQL containers via docker or podman. They live in `reconcile/test/<integration>/test_e2e*.py` next to the unit tests — split per operating mode when an integration has more than one (database-access-manager: `test_e2e_legacy.py` and `test_e2e_owner_role.py`, each with a human-readable use-case table in `#` comments at the top mapping every test function to the guarantee it proves). The AI agent MUST run them (they are not skipped by default) — they catch SQL syntax and privilege bugs that string-presence assertions cannot. If no container engine is available, the conftest skips them with a clear message; in that case report the skip, do not claim the SQL templates are verified. Test all supported PostgreSQL versions (currently 13–18).
 
 ## PR and Review Conventions
 

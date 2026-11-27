@@ -433,3 +433,15 @@ def test_get_job_status_no_job_resource_status(
     job = SomeJob(identifying_attribute="some-id")
     set_oc_get_items_side_effect([[build_job_resource(job)]])
     assert controller.get_job_status(job_name=job.name()) == JobStatus.IN_PROGRESS
+
+
+def test_get_job_status_deadline_exceeded(
+    controller: K8sJobController, set_oc_get_items_side_effect: OCItemSetter
+) -> None:
+    """A job that exceeded its deadline is terminal: it will not retry
+    regardless of the failed count and the backoff limit."""
+    job = SomeJob(identifying_attribute="some-id", backoff_limit=1)
+    set_oc_get_items_side_effect([
+        [build_job_resource(job, build_job_status(failed=1, deadline_exceeded=True))]
+    ])
+    assert controller.get_job_status(job_name=job.name()) == JobStatus.ERROR

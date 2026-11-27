@@ -148,7 +148,18 @@ class K8sJobController:
         backofflimit = job_resource.body["spec"].get("backoffLimit", 6)
         if status.get("succeeded", 0) > 0:
             return JobStatus.SUCCESS
-        elif status.get("failed", 0) > backofflimit:
+        # a job that exceeded its deadline is terminal: it will not
+        # retry regardless of the failed count and the backoff limit.
+        # Without this check, a DeadlineExceeded job with
+        # failed <= backoffLimit is reported as IN_PROGRESS forever.
+        conditions = status.get("conditions", [])
+        if (
+            any(
+                c.get("type") == "Failed" and c.get("status") == "True"
+                for c in conditions
+            )
+            or status.get("failed", 0) > backofflimit
+        ):
             return JobStatus.ERROR
         return JobStatus.IN_PROGRESS
 
