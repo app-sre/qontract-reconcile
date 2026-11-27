@@ -119,14 +119,14 @@ class SlackWebhookSyncCommand:
         for update in hcp_updates:
             self._sync_hcp_terraform_target(update)
 
-    def _fetch_inventory(self) -> dict[str, tuple[Target, ...]]:
+    def _fetch_inventory(self) -> dict[str, list[Target]]:
         workspaces = get_slack_webhooks(query_func=self._query_func)
         workspace = next((w for w in workspaces if w.name == self._workspace), None)
 
         if workspace is None:
             raise SlackWebhookSyncError(f"Slack workspace not found: {self._workspace}")
 
-        inventory: dict[str, tuple[Target, ...]] = {}
+        inventory: dict[str, list[Target]] = {}
         for webhook in workspace.incoming_webhooks or []:
             channel = webhook.channel
             if not channel:
@@ -136,7 +136,7 @@ class SlackWebhookSyncCommand:
                     f"duplicate incoming webhook channel in inventory: {channel}"
                 )
 
-            targets = tuple(self._parse_target(target) for target in webhook.targets)
+            targets = [self._parse_target(target) for target in webhook.targets]
             if not self._has_vault_target(targets):
                 raise SlackWebhookSyncError(
                     f"incoming webhook has no Vault target: {channel}"
@@ -147,7 +147,7 @@ class SlackWebhookSyncCommand:
 
     def _collect_vault_updates(
         self,
-        inventory: dict[str, tuple[Target, ...]],
+        inventory: dict[str, list[Target]],
         webhooks: dict[str, str],
     ) -> dict[str, dict[str, str]]:
         updates: dict[str, dict[str, str]] = {}
@@ -165,14 +165,14 @@ class SlackWebhookSyncCommand:
         return updates
 
     @staticmethod
-    def _has_vault_target(targets: tuple[Target, ...]) -> bool:
+    def _has_vault_target(targets: list[Target]) -> bool:
         return any(isinstance(target, VaultTarget) for target in targets)
 
     def _collect_hcp_updates(
         self,
-        inventory: dict[str, tuple[Target, ...]],
+        inventory: dict[str, list[Target]],
         webhooks: dict[str, str],
-    ) -> tuple[HcpTerraformVariableSetUpdate, ...]:
+    ) -> list[HcpTerraformVariableSetUpdate]:
         updates: dict[HcpTerraformVariableSetTarget, HcpTerraformVariableSetUpdate] = {}
         for channel, targets in inventory.items():
             url = webhooks[channel]
@@ -194,18 +194,16 @@ class SlackWebhookSyncCommand:
                         change=self._hcp_terraform_change(target),
                     )
 
-        return tuple(
-            sorted(
-                updates.values(),
-                key=lambda update: (update.channel, str(update.target)),
-            )
+        return sorted(
+            updates.values(),
+            key=lambda update: (update.channel, str(update.target)),
         )
 
     def _print_dry_run(
         self,
         vault_updates: dict[str, dict[str, str]],
         vault_changes: dict[str, VaultChange],
-        hcp_updates: tuple[HcpTerraformVariableSetUpdate, ...],
+        hcp_updates: list[HcpTerraformVariableSetUpdate],
     ) -> None:
         for path, fields in sorted(vault_updates.items()):
             change = vault_changes.get(path)
