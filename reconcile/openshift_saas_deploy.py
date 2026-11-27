@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
@@ -47,6 +48,27 @@ if TYPE_CHECKING:
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
+
+
+@dataclass(frozen=True)
+class SaasFilePrivilegeResolver:
+    """In an unnamed run, limit admin access to the selected file's resources."""
+
+    cluster_admin: bool
+    selected_file_name: str
+    caller_filter_active: bool
+
+    def resolve(
+        self,
+        *,
+        cluster: str,
+        namespace: str,
+        resource_type: str,
+        current: OpenshiftResource,
+    ) -> bool:
+        return self.cluster_admin and (
+            self.caller_filter_active or current.caller == self.selected_file_name
+        )
 
 
 def _saas_file_tekton_pipeline_name(saas_file: SaasFile) -> str:
@@ -293,11 +315,11 @@ def run(
     )
     cluster_admin = bool(saasherder.cluster_admin)
 
-    def delete_privilege(*, current: OpenshiftResource, **_: object) -> bool:
-        """In an unnamed run, limit admin access to the selected file's resources."""
-        return cluster_admin and (
-            saas_file_name is not None or current.caller == saas_files[0].name
-        )
+    privilege_resolver = SaasFilePrivilegeResolver(
+        cluster_admin=cluster_admin,
+        selected_file_name=saas_files[0].name,
+        caller_filter_active=saas_file_name is not None,
+    )
 
     ri, oc_map = ob.fetch_current_state(
         namespaces=[ns.model_dump(by_alias=True) for ns in saasherder.namespaces],
@@ -336,7 +358,7 @@ def run(
         wait_for_namespace=True,
         no_dry_run_skip_compare=(not saasherder.compare),
         take_over=bool(saasherder.take_over),
-        delete_privilege_resolver=delete_privilege,
+        privilege_resolver=privilege_resolver,
     )
 
     if not dry_run:

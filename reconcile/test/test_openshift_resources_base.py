@@ -218,7 +218,7 @@ def test_run_creates_reader_at_boundary(
     assert fetch.call_args.kwargs["secret_reader"] is secret_reader
     assert fetch.call_args.kwargs["repo_url"] == REPO_URL
     realize.assert_called_once_with(
-        dry_run, oc_map, ri, 2, delete_privilege_resolver=mocker.ANY
+        dry_run, oc_map, ri, 2, privilege_resolver=mocker.ANY
     )
 
 

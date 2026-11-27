@@ -115,7 +115,7 @@ def run(
     if not namespaces:
         return
 
-    delete_privilege = ob.namespace_delete_privilege_resolver({
+    privilege_resolver = ob.NamespacePrivilegeResolver({
         (ns.cluster.name, ns.name): bool(ns.cluster_admin) for ns in namespaces
     })
 
@@ -136,7 +136,7 @@ def run(
         oc_map,
         ri,
         thread_pool_size,
-        delete_privilege_resolver=delete_privilege,
+        privilege_resolver=privilege_resolver,
     )
 
     if ri.has_error_registered():

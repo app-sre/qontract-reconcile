@@ -1017,7 +1017,7 @@ def run(
             sys.exit(1)
 
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
-    delete_privilege = ob.namespace_delete_privilege_resolver({
+    privilege_resolver = ob.NamespacePrivilegeResolver({
         (ns["cluster"]["name"], ns["name"]): ns.get("clusterAdmin") is True
         for ns in namespaces
     })
@@ -1026,7 +1026,7 @@ def run(
         oc_map,
         ri,
         thread_pool_size,
-        delete_privilege_resolver=delete_privilege,
+        privilege_resolver=privilege_resolver,
     )
 
     if ri.has_error_registered():

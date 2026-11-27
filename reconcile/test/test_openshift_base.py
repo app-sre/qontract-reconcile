@@ -1541,7 +1541,7 @@ def test_handle_deleted_resources(
 @pytest.mark.parametrize("dry_run", [False, True])
 @pytest.mark.parametrize("resolved_privileged", [None, False, True])
 @pytest.mark.parametrize("desired_change", ["absent", "new", "modified"])
-def test_realize_data_delete_privilege_resolver(
+def test_realize_data_resolves_delete_privilege_but_uses_inventory_for_apply(
     mocker: MockerFixture,
     dry_run: bool,
     resolved_privileged: bool | None,
@@ -1588,11 +1588,10 @@ def test_realize_data_delete_privilege_resolver(
         ri.add_desired_resource("cluster", "namespace", desired, privileged=True)
     apply = mocker.patch.object(sut, "apply")
     oc_map = mocker.Mock()
-    resolver = (
-        None
-        if resolved_privileged is None
-        else mocker.Mock(return_value=resolved_privileged)
-    )
+    resolver = None
+    if resolved_privileged is not None:
+        resolver = mocker.create_autospec(sut.PrivilegeResolver, instance=True)
+        resolver.resolve.return_value = resolved_privileged
 
     actions = sut.realize_data(
         dry_run,
@@ -1600,7 +1599,7 @@ def test_realize_data_delete_privilege_resolver(
         ri,
         thread_pool_size=1,
         caller="ours",
-        delete_privilege_resolver=resolver,
+        privilege_resolver=resolver,
     )
 
     privileged = resolved_privileged is True
@@ -1615,7 +1614,7 @@ def test_realize_data_delete_privilege_resolver(
         }
     ]
     if resolver is not None:
-        resolver.assert_called_once_with(
+        resolver.resolve.assert_called_once_with(
             cluster="cluster",
             namespace="namespace",
             resource_type="ConfigMap",
@@ -1648,21 +1647,20 @@ def test_delete_privilege_resolver_can_select_privilege_per_resource(
         ).annotate()
         ri.add_current("cluster", "namespace", current.kind, current.name, current)
     oc_map = mocker.Mock()
-    resolver = mocker.Mock(
-        side_effect=lambda **kwargs: kwargs["current"].name == "admin"
-    )
+    resolver = mocker.create_autospec(sut.PrivilegeResolver, instance=True)
+    resolver.resolve.side_effect = lambda **kwargs: kwargs["current"].name == "admin"
     actions = sut.realize_data(
         False,
         oc_map,
         ri,
         thread_pool_size=1,
-        delete_privilege_resolver=resolver,
+        privilege_resolver=resolver,
     )
     assert {a["name"]: a["privileged"] for a in actions} == {
         "admin": True,
         "ordinary": False,
     }
-    assert resolver.call_count == 2
+    assert resolver.resolve.call_count == 2
     assert oc_map.get_cluster.call_count == 2
     oc_map.get_cluster.assert_has_calls(
         [mocker.call("cluster", True), mocker.call("cluster", False)],
@@ -1690,7 +1688,7 @@ def test_delete_privilege_resolver_preserves_error_protection(
         oc_map,
         ri,
         thread_pool_size=1,
-        delete_privilege_resolver=mocker.Mock(return_value=True),
+        privilege_resolver=mocker.Mock(resolve=mocker.Mock(return_value=True)),
     )
     oc_map.get_cluster.assert_not_called()
 
@@ -1706,9 +1704,9 @@ def test_delete_privilege_resolver_failure_does_not_delete(
         TEST_INT_VER,
         caller_name="saas-test",
     ).annotate()
-    apply_options.delete_privilege_resolver = mocker.Mock(
-        side_effect=ValueError("unknown owner")
-    )
+    resolver = mocker.create_autospec(sut.PrivilegeResolver, instance=True)
+    resolver.resolve.side_effect = ValueError("unknown owner")
+    apply_options.privilege_resolver = resolver
     delete = mocker.patch.object(sut, "delete_action")
     with pytest.raises(ValueError, match="unknown owner"):
         sut.handle_deleted_resources(
