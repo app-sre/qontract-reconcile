@@ -717,21 +717,28 @@ BEGIN
                                    s, role_name);
                     EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM %I',
                                    s, user_name);
-                    -- the transient CREATE grant (5a-bis) and the
-                    -- default privileges (5i) must not outlive the
-                    -- schema's membership in the access list
+                    -- the transient CREATE grant (5a-bis) must not
+                    -- outlive the schema's membership in the access
+                    -- list
                     EXECUTE format('REVOKE CREATE ON SCHEMA %I FROM %I',
                                    s, role_name);
-                    EXECUTE format(
-                        'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL PRIVILEGES ON TABLES FROM %I',
-                        current_user, s, role_name);
-                    EXECUTE format(
-                        'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL PRIVILEGES ON SEQUENCES FROM %I',
-                        current_user, s, role_name);
-                    EXECUTE format(
-                        'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL PRIVILEGES ON ROUTINES FROM %I',
-                        current_user, s, role_name);
                 END IF;
+                -- the default privileges (5i) must not outlive the
+                -- schema's membership in the access list, on owned
+                -- and foreign schemas alike: 5i grants the
+                -- executor-to-owner direction for every managed
+                -- schema, so a role-owned schema removed from the
+                -- access list keeps granting the owner role access
+                -- to new executor-created objects otherwise
+                EXECUTE format(
+                    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL PRIVILEGES ON TABLES FROM %I',
+                    current_user, s, role_name);
+                EXECUTE format(
+                    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL PRIVILEGES ON SEQUENCES FROM %I',
+                    current_user, s, role_name);
+                EXECUTE format(
+                    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL PRIVILEGES ON ROUTINES FROM %I',
+                    current_user, s, role_name);
                 -- reverse-direction default privileges (5i): the
                 -- executor keeps access to objects the owner role
                 -- creates in schemas it no longer manages

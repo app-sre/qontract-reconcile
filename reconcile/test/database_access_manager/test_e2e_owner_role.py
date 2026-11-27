@@ -3388,6 +3388,30 @@ def test_removed_public_not_remanaged(postgres: PostgresContainer) -> None:
         )
         == "0"
     ), "default privileges were restored for the removed public"
+    # the FORWARD direction (executor-granted, 5i) is revoked for the
+    # role-owned removed schema too: new executor-created objects in
+    # public must not grant the owner role anything (the revoke used
+    # to skip role-owned schemas entirely)
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT count(*) FROM pg_default_acl "
+            "WHERE defaclrole = current_user::regrole "
+            "AND defaclnamespace = 'public'::regnamespace",
+        )
+        == "0"
+    ), (
+        "the executor-to-owner default privileges survived the removal of a role-owned schema"
+    )
+    assert (
+        pg.query(
+            EXECUTOR,
+            db,
+            "SELECT has_table_privilege('p11_owner', 'public.admin_new', 'SELECT')",
+        )
+        == "f"
+    ), "the owner role retained access to new executor objects in the removed schema"
     assert (
         pg.query(
             EXECUTOR,
