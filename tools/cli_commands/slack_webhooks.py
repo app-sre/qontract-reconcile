@@ -6,6 +6,7 @@ import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import urlparse
 
 from reconcile.typed_queries.slack_webhooks import get_slack_webhooks
 
@@ -96,6 +97,9 @@ class SlackWebhookSyncCommand:
             raise SlackWebhookSyncError(
                 "dump file is missing configured channels: " + ", ".join(missing)
             )
+
+        for channel in inventory:
+            self._validate_webhook_url(channel, webhooks[channel])
 
         vault_updates = self._collect_vault_updates(inventory, webhooks)
         hcp_updates = self._collect_hcp_updates(inventory, webhooks)
@@ -271,17 +275,23 @@ class SlackWebhookSyncCommand:
     def _sync_vault_secret(self, path: str, change: VaultChange) -> None:
         if change.state.version == 1:
             data = {**change.state.data, **change.changed}
-            args = ["vault", "kv", "put", path]
+            command = "put"
         else:
             data = change.changed
-            args = ["vault", "kv", "patch", path]
+            command = "patch"
 
         self._command_runner(
-            [*args, *(f"{field}={url}" for field, url in data.items())],
-            None,
+            ["vault", "kv", command, path, "-"],
+            json.dumps(data),
             self._vault_environment(),
         )
         print(f"synced vault-secret {path}: {', '.join(sorted(change.changed))}")
+
+    @staticmethod
+    def _validate_webhook_url(channel: str, url: str) -> None:
+        parsed = urlparse(url)
+        if parsed.scheme != "https" or not parsed.hostname:
+            raise SlackWebhookSyncError(f"invalid webhook URL for channel: {channel}")
 
     def _vault_changes(self, path: str, fields: dict[str, str]) -> VaultChange | None:
         state = self._read_vault_secret(path)

@@ -134,12 +134,12 @@ class FakeRunner:
                     }
                 })
             if args[1] == "kv" and args[2] == "patch":
-                patch_data = dict(item.split("=", 1) for item in args[4:])
+                patch_data = json.loads(input_text or "{}")
                 self.vault_patches.append((args[3], patch_data, env))
                 self.vault_secret.update(patch_data)
                 return ""
             if args[1] == "kv" and args[2] == "put":
-                put_data = dict(item.split("=", 1) for item in args[4:])
+                put_data = json.loads(input_text or "{}")
                 self.vault_puts.append((args[3], put_data, env))
                 self.vault_secret.update(put_data)
                 return ""
@@ -234,7 +234,16 @@ def test_sync_updates_vault_and_hcp_variable(tmp_path: Any) -> None:
     ]
     assert runner.vault_patches == []
 
-    vault_call = next(call for call in runner.calls if call[0][0] == "vault")
+    vault_call = next(
+        call for call in runner.calls if call[0][0] == "vault" and call[0][2] == "put"
+    )
+    assert vault_call[0][1:] == [
+        "kv",
+        "put",
+        "app-sre/integrations-input/slack-webhooks",
+        "-",
+    ]
+    assert vault_call[1] is not None
     assert vault_call[2] == {"VAULT_ADDR": "https://vault.example.com"}
 
     hcp_call = next(
@@ -442,4 +451,24 @@ def test_rejects_non_string_dump_url(tmp_path: Any, url: Any) -> None:
     with pytest.raises(
         SlackWebhookSyncError, match="dump file entries must be strings"
     ):
+        command.execute(dump_file, dry_run=True)
+
+
+@pytest.mark.parametrize("url", ["", "http://hooks.example/test", "hooks.example/test"])
+def test_rejects_invalid_dump_webhook_url(tmp_path: Any, url: str) -> None:
+    dump_file = write_dump(
+        tmp_path,
+        {
+            "sd-app-sre-alert": url,
+            "sd-app-sre-alert-stg": "https://hooks.example/test-stg",
+        },
+    )
+    command = SlackWebhookSyncCommand(
+        workspace="redhat-internal",
+        query_func=query,
+        vault_address="https://vault.example.com",
+        command_runner=no_op_runner,
+    )
+
+    with pytest.raises(SlackWebhookSyncError, match="invalid webhook URL for channel"):
         command.execute(dump_file, dry_run=True)
